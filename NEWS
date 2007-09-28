@@ -1,0 +1,91 @@
+[11.1.1]
+  * Changed the default font color for right team to dark
+	blue(#00008b).
+
+  * Fixed build problem on MacOS X.
+
+[11.1.0]
+  * Just updated a minor version number. Official relasese for the
+    RoboCup2007.
+
+[11.0.4]
+  * Fixed a Xpm library check routine in configure.ac.
+
+  * Fixed a bug in the penalty kick score counter.
+
+[11.0.3]
+  * Fixed a build problem on MacOS X.
+
+[11.0.2]
+  * RCSSMonitor can display the penalty kick scores.
+
+[11.0.1]
+  * Fixed invalid playmode string table.
+
+[11.0.0]
+  * Supported 64bits OS.
+
+  * Supported the latest monitor protocol and play modes.
+
+[10.0.0]
+  * Ported RCSSMonitor to OS X.  It requires an X server in order to
+    build and run.
+
+[9.3.2]
+  * RCSSMonitor now will compile with either sstream or strstream,
+    depending on which is available.
+
+[9.2.0]
+  * Added goal posts to the field.  Since they are quite small, they
+  can only be view when zoomed in.
+
+  * Fixed warnings with gcc3.2
+
+[9.1.5]
+  * Fixed minor compilation warning
+
+[9.1.0]
+  * supports new field layout for Keepaway.  The centerline and circle
+  are removed.  A rectangular play region is drawn in the center of the
+  field.  Use -m_keepaway 1 for this layout.  The length and width
+  of the region can be specified using -m_keepaway_length and
+  -m_keepaway_width.
+
+  * Fixed crash on some machines
+
+  * Fixed problems when compiling with gcc 3.2
+
+[8.05]
+  [rel_8]
+  * Fixed compilation problem on systems without linux/joystick.h.  The
+  configure script now checks for this header and only includes the joystick
+  code if this header is available.
+
+  [rel_6]
+  * Fixed gcc3 compilation problems
+
+  * supports new play modes (back_pass_l etc.)
+
+  * supports more sophisticated drawing primitives now. You can send messages
+  with up to 4096 bytes with drawing information for the rcssmonitor. The
+  messages must begin with "_2D_ " (or "_2D_L " or "_2D_R ") and can be
+  followed by several drawing commands.
+  For example
+
+    '_2D_ LINE col=ff0000 (0,20,40,20) (0,20,40,0); CIRCLE col=0000ff (0,0,20)
+       (0,0,40); STRING (-20,0,"my_pos");'
+
+  will draw 2 red lines, 2 blue circles and a string on top of the soccer
+  field.
+
+  Look into
+  ascii_processor.C: AsciiProcessor::ins_obj(...)
+  smonitor_dev.C:    SMonitorDevice::server_interpret_frameview_msg(...)
+  for more details.
+
+[8.04]
+  [rel_3]
+  * Fixed gcc3 compilation problems
+
+  [rel_1]
+  * Fixed (hopefully) compilation problem on FreeBSD

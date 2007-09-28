@@ -1,0 +1,714 @@
+2007-08-27  Hidehisa Akiyama  <akky@users.sourceforge.jp>
+
+	* configure.ac:
+	Updated a point version number. Official release 11.1.1
+
+2007-08-25  Hidehisa Akiyama  <akky@users.sourceforge.jp>
+
+	* configure.ac:
+	Fixed build problem on OSX.
+
+2007-07-30  Hidehisa Akiyama  <akky@users.sourceforge.jp>
+
+	* src/smonitor_dev.C:
+	Changed the default c_font_r value to dark blue (0,0,139).
+
+2007-05-31  Hidehisa Akiyama  <akky@users.sourceforge.jp>
+
+	* configure.ac:
+	Updated a minor version. Official Relaase 11.1.0.
+
+2007-05-24  Hidehisa Akiyama  <akky@users.sourceforge.jp>
+
+	* NEWS:
+	* configure.ac:
+	Updated a point version number. Release Candidate 11.0.4.
+
+2007-05-23  Hidehisa Akiyama  <akky@users.sourceforge.jp>
+
+	* configure.ac:
+	Fixed a defect in the Xpm library checking.
+
+	* src/smonitor_dev.C:
+	Fixed a bug in the penalty kick score counter.
+
+2007-05-22  Hidehisa Akiyama  <akky@users.sourceforge.jp>
+
+	* configure.ac:
+	* src/ascii_dev.C:
+	* src/ascii_dev.h:
+	* src/ascii_processor.C:
+	* src/ascii_processor.h:
+	* src/coder.C:
+	* src/coder.h:
+	* src/input_dev.h:
+	* src/menu_x11.C:
+	* src/menu_x11.h:
+	* src/popup_x11.C:
+	* src/popup_x11.h:
+	* src/smonitor_dev.C:
+	* src/smonitor_dev.h:
+	* src/structure.h:
+	* src/udpsocket.h:
+	* src/valueparser.C:
+	* src/valueparser.h:
+	Changed the constant int variables for the buffer size definition
+	to the no name enum.
+	Moved the definition of static memver variables into the source
+	file.
+	Updated a point version number.
+
+2007-05-21  Hidehisa Akiyama  <akky@users.sourceforge.jp>
+
+	* configure.ac:
+	Updated a micro version.
+
+	* src/smonitor_dev.C:
+	Added a clear operation of the penalty state container in the
+	monitor init procedure..
+
+2007-05-07  Hidehisa Akiyama  <akky@users.sourceforge.jp>
+
+	* src/smonitor_dev.C:
+	* src/smonitor_dev.h:
+	The score of penalty shootout can be displayed on the score
+	board.
+
+2007-05-04  Hidehisa Akiyama  <akky@users.sourceforge.jp>
+
+	* src/smonitor_dev.C:
+	Fixed invalid playmode string table.
+
+2007-04-10  Hidehisa Akiyama  <akky@users.sourceforge.jp>
+
+	* src/smonitor_dev.C:
+	* src/smonitor_dev.h:
+	Added server_interpret_command_msg() to support MSG_MODE messages
+	from rcssserver. But not fully implemented yet.
+	Fixed received buffer handling.
+	Increased the size of receive buffer to 8192 bytes.
+
+	* src/Makefile.am:
+	* src/2dview.C:
+	* src/rcssmonitor.xpm:
+	Added an official icon to the title bar.
+
+	* configure.ac:
+	Added '-lXpm' to X_LIBS variable.
+
+2007-03-30  Hidehisa Akiyama  <akky@users.sourceforge.jp>
+
+	* src/smonitor_dev.C:
+	Supported 64-bits OS.
+
+	* src/builder_base.h:
+	* src/visobject.h:
+	* src/menu_base.h:
+	* src/display_base.h:
+	Fixed warnings about virtual destructor.
+
+	* src/smonitor_dev.C:
+	* src/smonitor_dev.h:
+	Supported the latest monitor protocol and play modes.
+
+	* src/angle.C:
+	* src/angle.h:
+	Fixed compilation problem.
+
+	* src/2dview.C:
+	* src/input_dev.h:
+	Added autoquit options.
+
+	* configure.ac:
+	Added boost checking.
+
+2005-05-04	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./Makefile.am
+	Updated autoconf macro flags
+
+	* ./src/maplist.h
+	* ./src/smonitor_dev.h
+	Applied patch from Alexander Ferrein to fix gcc 3.4 compile problem
+
+2005-02-24	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./Makefile.am
+	* ./acinclude.m4
+	* ./bootstrap
+	* ./configure.ac
+	* ./acdir/ax_append_to_file.m4
+	* ./acdir/ax_dist_rpm.m4
+	* ./acdir/ax_extra_dist.m4
+	* ./acdir/ax_file_escapes.m4
+	* ./acdir/ax_mk_macros.m4
+	* ./acdir/ax_print_to_file.m4
+	* ./acdir/ax_split_version.m4
+	* ./acdir/ax_upload.m4
+	* ./src/Makefile.am
+	More release system updates
+
+2005-02-11	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./PLATFORMS (added)
+	Added missing file
+
+2005-02-10	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./configure.ac
+	Update version number
+
+2005-02-10	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./configure.ac
+	Released rcssmonitor-10.0.0
+	You can access this release by running:
+	    `cvs -d:pserver:anonymous@cvs.sourceforge.net:/cvsroot/sserver login`
+	    `cvs -d:pserver:anonymous@cvs.sourceforge.net:/cvsroot/sserver co -r rcssmonitor-10_0_0 -d rcssmonitor-10.0.0 rcssmonitor`
+	The release will then be available in the rcssmonitor-10.0.0 directory
+
+2005-02-10	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./Makefile.am
+	* ./configure.ac
+	* ./acdir/ax_add_recursive_mk_macro.m4
+	* ./acdir/ax_append_to_file.m4
+	* ./acdir/ax_dist_rpm.m4
+	* ./acdir/ax_file_escapes.m4
+	* ./acdir/ax_mk_macros.m4
+	* ./acdir/ax_print_to_file.m4
+	* ./acdir/ax_split_version.m4
+	more release system fixes
+
+2005-02-08	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./Makefile.am
+	* ./bootstrap
+	* ./configure.ac
+	* ./acdir/ax_add_am_macro.m4 (removed)
+	* ./acdir/ax_add_mk_macro.m4 (added)
+	* ./acdir/ax_add_recursive_am_macro.m4 (removed)
+	* ./acdir/ax_add_recursive_mk_macro.m4 (added)
+	* ./acdir/ax_am_macros.m4 (removed)
+	* ./acdir/ax_append_to_file.m4
+	* ./acdir/ax_cvs.m4
+	* ./acdir/ax_dist_msi.m4
+	* ./acdir/ax_dist_rpm.m4
+	* ./acdir/ax_extra_dist.m4
+	* ./acdir/ax_file_escapes.m4
+	* ./acdir/ax_install_files.m4
+	* ./acdir/ax_mk_macros.m4 (added)
+	* ./acdir/ax_print_to_file.m4
+	* ./acdir/ax_split_version.m4
+	* ./acdir/ax_upload.m4
+	* ./src/Makefile.am
+	Fixed bug in dev macros
+
+2005-01-24	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./Makefile.am
+	* ./bootstrap
+	* ./rel.awk (removed)
+	* ./acdir/ax_add_am_macro.m4 (added)
+	* ./acdir/ax_add_recursive_am_macro.m4 (added)
+	* ./acdir/ax_am_macros.m4 (added)
+	* ./acdir/ax_append_to_file.m4 (added)
+	* ./acdir/ax_cvs.m4 (added)
+	* ./acdir/ax_dist_msi.m4 (added)
+	* ./acdir/ax_dist_rpm.m4 (added)
+	* ./acdir/ax_extra_dist.m4 (added)
+	* ./acdir/ax_file_escapes.m4 (added)
+	* ./acdir/ax_install_files.m4 (added)
+	* ./acdir/ax_print_to_file.m4 (added)
+	* ./acdir/ax_split_version.m4 (added)
+	* ./acdir/ax_upload.m4 (added)
+	* ./src/Makefile.am
+	* ./src/maplist.h
+	Added new developer helper macros and removed some old config stuff
+
+2003-04-29	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./configure.in
+	Released rcssmonitor-9.3.5
+
+2003-03-28	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./configure.in
+	Released rcssmonitor-9.3.4
+
+2003-03-18	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./configure.in
+	Released rcssmonitor-9.3.3
+
+2003-03-18	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./Makefile.am
+	Added quick releases
+
+2003-02-20	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./acinclude.m4
+	Added include for new macros
+
+2003-02-19	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./configure.in
+	Updated release number
+
+2003-02-17	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./configure.in
+	* ./src/client2dview.C
+	* ./src/smonitor_dev.C
+	now compiles with either sstream or strstream
+
+2003-01-28	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./configure.in
+	Released rcssmonitor-9.2.3
+
+2003-01-22	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./ChangeLog
+	* ./Makefile.am
+	* ./configure.in
+	* ./spec.tmpl
+	* ./src/Makefile.am
+	Merged from 9_2 branch
+
+2003-01-21	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./configure.in
+	Released rcssmonitor-9.2.2
+
+2003-01-21	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./Makefile.am
+	* ./configure.in
+	* ./spec.tmpl
+	* ./src/Makefile.am
+	Added rpm building support
+
+2003-01-02	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./configure.in
+	Released rcssmonitor-9.2.0
+
+2003-01-02	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./src/smonitor_dev.C
+	Fixed compilaton problems on gcc2.95.6
+
+2003-01-02	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./ChangeLog
+	* ./Makefile.am
+	Merged 9_1 branch
+
+2002-12-18	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./ChangeLog
+	* ./Makefile.am
+	Merged 9_1 branch
+
+2002-12-18	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./configure.in
+	Released rcssmonitor-9.1.5
+
+2002-12-11	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./Makefile.am
+	Fixed bugs in branching targets
+
+2002-12-11	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./ChangeLog
+	* ./Makefile.am
+	* ./NEWS
+	* ./rel.awk
+	Merged 9_1 branch
+
+2002-12-10	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./Makefile.am
+	Added branching targets
+
+2002-12-10	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./ChangeLog
+	* ./NEWS
+	* ./src/client2dview.C
+	Merges 9.1 branches
+
+2002-12-06	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./src/client2dview.C
+	Fixed warning about unused variable
+
+2002-12-04	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./ChangeLog
+	Merged 9.1.4 branch
+
+2002-12-03	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./configure.in
+	Released rcssmonitor-9.1.4
+
+2002-11-27	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./src/smonitor_dev.C
+	Fixed bug in repositioning of goal posts in set_goal_width
+
+2002-11-27	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./src/smonitor_dev.C
+	* ./src/smonitor_dev.h
+	Added goal posts
+
+2002-11-19	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./Makefile.am
+	Fixed bug in addlog
+
+2002-11-18	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./ChangeLog
+	* ./Makefile.am
+	* ./NEWS
+	* ./configure.in
+	* ./src/2dview.C
+	* ./src/angle.C
+	* ./src/angle.h
+	* ./src/ascii_dev.C
+	* ./src/ascii_dev.h
+	* ./src/ascii_processor.C
+	* ./src/client2dview.C
+	* ./src/coder.C
+	* ./src/coder.h
+	* ./src/conv.C
+	* ./src/conv.h
+	* ./src/display_x11.C
+	* ./src/global_defs.h
+	* ./src/maplist.h
+	* ./src/menu_x11.C
+	* ./src/multi.h
+	* ./src/popup_x11.C
+	* ./src/rgb_db.C
+	* ./src/rwbin.h
+	* ./src/smonitor_dev.C
+	* ./src/smonitor_dev.h
+	* ./src/str2val.C
+	* ./src/tcpsocket.C
+	* ./src/udpsocket.C
+	* ./src/valueparser.C
+	* ./src/valueparser.h
+	* ./src/vector2d.C
+	* ./src/vector2d.h
+	Merged sstream branch
+
+2002-11-18	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./configure.in
+	Updated version
+
+	* ./src/client2dview.C
+	Fixed gcc3.2 warnings
+
+2002-11-15	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./ChangeLog
+	Moved changes from rcsoccersim/ChangeLog.base
+
+	* ./Makefile.am
+	addlog no longer creates empty logs
+
+2002-11-15	Michael Gollin	<michaelgollin@users.sourceforge.net>
+
+	* ./src/2dview.C
+	* ./src/angle.C
+	* ./src/angle.h
+	* ./src/ascii_dev.C
+	* ./src/ascii_dev.h
+	* ./src/ascii_processor.C
+	* ./src/client2dview.C
+	* ./src/coder.C
+	* ./src/coder.h
+	* ./src/conv.C
+	* ./src/conv.h
+	* ./src/display_x11.C
+	* ./src/global_defs.h
+	* ./src/maplist.h
+	* ./src/menu_x11.C
+	* ./src/multi.h
+	* ./src/popup_x11.C
+	* ./src/rgb_db.C
+	* ./src/rwbin.h
+	* ./src/smonitor_dev.C
+	* ./src/smonitor_dev.h
+	* ./src/str2val.C
+	* ./src/tcpsocket.C
+	* ./src/udpsocket.C
+	* ./src/valueparser.C
+	* ./src/valueparser.h
+	* ./src/vector2d.C
+	* ./src/vector2d.h
+	removed warnings concerning deprecated header files (gcc 3.2)
+
+2002-11-15	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./Makefile.am
+	tag target now creates branch
+
+2002-11-11	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./configure.in
+	Released rcssmonitor-9.1.0
+
+2002-10-30	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./src/menu_x11.C
+	Fixed bug on some systems when the menu's label was not initialized
+
+2002-10-28	Greg Kuhlmann	<kuhlmanngj@users.sf.net>
+
+	* ./src/smonitor_dev.C
+	* ./src/smonitor_dev.h
+	Added keepaway features.
+
+2002-10-25	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./src/.cvsignore
+	Added rcssmonitor and client2dview to cvs ignore
+
+2002-10-25	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./src/menu_x11.C
+	* ./src/popup_x11.C
+	* ./src/udpsocket.C
+	* ./src/valueparser.C
+	Fixed some ISO C++ deviations
+
+2002-10-25	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./.cvsignore
+	* ./src/.cvsignore
+	Added cvs ignore files
+
+2002-10-25	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./Makefile.am
+	Updated addlog target
+
+	* ./bootstrap
+	Removed auto* generated files and added boostrap
+
+2002-08-05	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./src/Makefile.am
+	Hopefully fixed problem with missing separator
+
+2002-06-18	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./configure.in
+	Released rcssmonitor-8.05.8
+
+2002-06-10	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./configure.in
+	* ./src/client2dview.C
+	Added check of linux/joystick.h and placed joystick code between
+	#ifdefs
+
+2002-06-05	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./Makefile.am
+	* ./configure.in
+	Fixed problems with old awks.
+
+2002-05-23	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./src/angle.h
+	* ./src/area2d.C
+	* ./src/area2d.h
+	* ./src/builder_direct.C
+	* ./src/conv_area2d.h
+	* ./src/frame2d.C
+	* ./src/frame2d.h
+	* ./src/input_dev.h
+	* ./src/maplist.h
+	* ./src/smonitor_dev.C
+	* ./src/structure.C
+	* ./src/structure.h
+	* ./src/vector2d.C
+	* ./src/vector2d.h
+	* ./src/visobject.h
+	gcc3 compatibility changes
+
+2002-05-15	artur	<sserver-admin@lists.sf.net>
+
+	* ./src/smonitor_dev.C
+        small bug removed in ins_simle_obj
+
+2002-05-13      Artur Merke     <amerke@ira.uka.de>
+
+	*  src/angle.C
+	*  src/angle.h
+	*  src/ascii_dev.C
+	*  src/ascii_dev.h
+	*  src/ascii_processor.C
+	*  src/ascii_processor.h
+	*  src/client2dview.C
+	*  src/frame2d.C
+	*  src/frame2d.h
+	*  src/smonitor_dev.C
+	*  src/smonitor_dev.h
+	*  src/visobject.C
+	*  src/visobject.h
+        Added new play modes.
+	Improved drawing in the smonitor_dev.
+
+2002-04-16	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./Makefile.am
+	* ./configure.in
+	* ./rel.awk
+	Moved release number into version number
+
+2002-04-09	Tom Howard	<tomhoward@users.sf.net>
+
+	* ./Makefile.am
+	Added 'make addlog'
+
+2002-03-28	Automatic	<sserver-admin@lists.sf.net>
+
+ 	* ./ChangeLog
+	Released rcssmonitor-8.04-rel_3
+
+
+2002-03-28	Automatic	<sserver-admin@lists.sf.net>
+
+	* src/tcpsocket.C
+	Fixed gcc3 compilation problems.
+
+2002-03-27	Automatic	<sserver-admin@lists.sf.net>
+
+  	* ./ChangeLog
+	Released rcssmonitor-8.04-rel_2
+
+
+2002-03-04      Tom Howard <tomhoward@users.sf.net>
+
+	* src/tcpsocket.h
+	added sys/types.h
+
+2002-02-05      Tom Howard <tomhoward@users.sf.net>
+
+	* src/tcpsocket.C
+	* src/udpsocket.C
+	* src/tcpsocket.h
+	* src/udpsocket.h
+	* configure.in
+	* src/Makefile.am
+	Fixed compile problems on Solaris. It will now compile but some
+	functionality is disabled.
+	Removed used of depricated bzero function.  Memset is now used in it's
+	place.
+
+2002-02-04      Tom Howard <tomhoward@users.sf.net>
+
+	* src/Makefile.am
+	rcssmonitor.png is now installed
+
+2002-01-14      Tom Howard <tomhoward@users.sf.net>
+
+	* configure.in
+	* src/Makefile.am
+	Improved Solaris support
+
+2002-01-14      Tom Howard <tomhoward@users.sf.net>
+
+	* configure.in
+	* FAQ.TXT
+	Updated package version number
+
+2002-01-12	Tom Howard <tomhoward@users.sourceforge.net>
+
+	* configure.in
+	* src/2dview.C
+	Now uses PACKAGE and VERSION for naming which is automatically
+	generated by autoconf
+
+[8.03]
+
+        tcp/ip is now supported in the AsciiDevice (formerly only upd/ip
+        was supported)
+
+        the AsciiProcessor format changed a little bit:
+        after every command a semicolon is required now. For example
+        MOV 0 (1.0,1.0,3.14)   must change to
+        MOV 0 (1.0,1.0,3.14);
+
+        SHOW <int>; and HIDE <int>; were added to the AsciiProcessor format
+
+[8.02]
+	Rcssmonitor now comiples with gcc-3.0
+
+	added icon for monitor, rcssmonitor.png
+
+	added an 'unzoom' button which is equivalent to pressing the 'i' key
+	  (getting to the initial clipping)
+
+	new mode 'std' added (the old modes 'move' and 'view' are still there).
+	In this mode you can use the right mouse button to get a popup menu, in
+	which you can 'drop ball' or trigger a 'free kick left/right'. This is
+	equivalent to pressing the 'b', 'l', or 'r' key respectively (which
+	are supported in every mode).
+
+	a $HOME/.rcssmonitor file is read if it exists. Calling
+	rcssmonitor -conf_file <file> skips the possibly existent
+	$HOME/.rcssmonitor file and reads <file> instead
+
+	the 'start' button was renamed to 'kick off' to be more consistent
+	(the server must be started separately, the monitor can just start
+	 the game not the server)
+
+	also another options were added:
+
+	  1) rcssmonitor -gen_conf_file > <file> generate a sample conf file
+	     (this file can be read in with rcssmonitor using the -conf_file
+	     option)
+
+	  2) -font_inside defines the font for player numbers etc. this is
+	      can now be different form -font_name which defines the font for
+	      the status line.
+
+	  3) -m_scale <float> defines a default value for the scale button
+
+	  4) -m_detail <int> defines a default value for the scale button
+	      (detail 0 is also possible now)
+
+	  5) -m_mode defines a default value for the mode button (taking values
+	     'std', 'mode' and 'view') at the moment.
+
+	  6) setting -m_connect_on_start to 0 (or false) you can disable
+	     immediate connecting to the server after the start.
+
+	  7) -m_player_num_pos_x and -m_player_num_pos_y define the relative
+	      position of the number string/char relative to the center of a
+	      player
+
+[0.2]
+	Removed pipe2dview
+
+	Added sending of `(dispbye)' when the quit button is pressed
+[0.1]
+	Copyied from frameview 1.3
+
+	Moved to using automake and autoconf
+
+	Renamed executable from 2dview to rcssmonitor
+
+	Removed `-W' from compile flags

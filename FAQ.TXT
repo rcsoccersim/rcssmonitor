@@ -1,0 +1,326 @@
+The RoboCup Soccer Simulator Monitor - Frequently Asked Questions (FAQ)
+
+The information in this file is provided without warranty
+for its accuracy or completeness. Use of this file or its
+information is entirely at your own risk.
+
+CONTENTS
+
+     * 1 Introduction and General Information
+          + 1.1 What is The RoboCup Soccer Simulator Monitor?
+          + 1.2 Who has written it?
+          + 1.3 Does it run on my machine?
+          + 1.4 Does The RoboCup Soccer Simulator Monitor require any proprietary libraries to run?
+          + 1.5 Is The RoboCup Soccer Simulator Monitor copyrighted? What is the licensing agreement?
+          + 1.6 What is the latest version of The RoboCup Soccer Simulator Monitor?
+          + 1.7 How do I send a bug report?
+          + 1.8 How do I send a compilation bug report?
+     * 2 Network Sources and Resources
+          + 2.1 Where can I get The RoboCup Soccer Simulator Monitor?
+          + 2.2 Does The RoboCup Soccer Simulator Monitor have a mailing list?
+          + 2.3 Does The RoboCup Soccer Simulator Monitor have a world wide web home-page?
+     * 3 General Features
+          + 3.1 How do I get help on the command line?
+          + 3.2 How do I zoom in and out in the viewer?
+          + 3.3 How do I get the initial zoom area?
+          + 3.4 How do I move the viewing area?
+          + 3.5 How do I quit the The RoboCup Soccer Simulator Monitor?
+          + 3.6 How do I visualize my data?
+          + 3.7 Can I use doxygen to produce an online documentation 
+                of the source code?
+     * 4 Usage with of the Soccer Monitor Device (of the robocup.org)
+          + 4.1 How do I connect to the soccer server?
+          + 4.2 How do I drag and drop players/ball on the screen?
+          + 4.3 Are there some short-keys to move players or the ball?
+          + 4.4 What does 'skipped n SHOW messages' mean?
+          + 4.5 What's the meaning of the 'scale 1.0' button?
+          + 4.6 What's the meaning of the 'detail 1' button?
+          + 4.7 How do I connect with protocol version 1 instead of 2?
+     * 5 Common Problems
+          + 5.1 ...
+     _________________________________________________________________
+
+1 INTRODUCTION AND GENERAL INFORMATION
+
+1.1 What is The RoboCup Soccer Simulator Monitor?
+
+   The RoboCup Soccer Simulator Monitor is a viewer for moved 2d vector graphics. It runs on 
+   Linux (Unix) computers that run the X Window System. 
+   The RoboCup Soccer Simulator Monitor was born from a need to easily visualize 2 dimensional 
+   systems. In 1999 when the development started it was the need to 
+   visualize (with all details!) the soccer field of the robocup
+   simulation league. The architecture of The RoboCup Soccer Simulator Monitor was from the
+   beginning kept as general and modular as possible and not just
+   hacked to fit the  needs of the robocup soccer server. So by now
+   The RoboCup Soccer Simulator Monitor is also used to  visualize many other two dimensional
+   system. 
+
+   You can use UDP/IP communication sockets to send commands 
+   to The RoboCup Soccer Simulator Monitor. For applications which are independent of The RoboCup Soccer Simulator Monitor
+   you can easily define communication stubs as it is the case for the
+   robocup soccer server. A generic communication device is also included.
+   It understands a very easy description language to build and move 2d 
+   objects. 
+
+1.2 Who has written it?
+
+   The RoboCup Soccer Simulator Monitor was taken from FramView2d version 1.3 and development since
+   then has been made by the RoboCup Soccer Server Maintenance Committee. 
+   
+   FrameView2d was written by Artur Merke. The development started in
+   August 1999 (after the robocup championship in Stockholm ;-) and was
+   gradually improved.
+
+1.3 Does it run on my machine?
+
+   The RoboCup Soccer Simulator Monitor is just tested to run for Linux. However it should also
+   run on any other Unix systems (actually the development started
+   under SunOS), provided that system is running the X Window System,
+   version X11/R6. 
+
+   The RoboCup Soccer Simulator Monitor does not require any of the X11 extensions that many other 
+   programs need to compile or run (no Gtk, Qt or Motif is needed)!
+
+1.4 Does The RoboCup Soccer Simulator Monitor require any proprietary libraries to compile/run?
+
+   No. The RoboCup Soccer Simulator Monitor requires only the basic X11 library (libX11) to run
+   which is available as free-ware.
+
+   The RoboCup Soccer Simulator Monitor does not require any of the X11 extensions that many other 
+   programs need to compile or run (so no Gtk, Qt or Motif is needed)!
+
+1.5 Is The RoboCup Soccer Simulator Monitor copyrighted? What is the licensing agreement?
+
+   The RoboCup Soccer Simulator Monitor is licensed under the GNU GENERAL PUBLIC LICENSE. This means
+   that you can freely distribute The RoboCup Soccer Simulator Monitor under certain conditions. The
+   file COPYING.TXT contains the full licensing agreement. You are advised
+   to read this license to be sure of your restrictions and obligations
+   when modifying or distributing The RoboCup Soccer Simulator Monitor.
+
+1.6 What is the latest version of The RoboCup Soccer Simulator Monitor?
+
+   The distribution that this FAQ.TXT file was packed into is
+
+       The RoboCup Soccer Simulator Monitor version 8.03
+
+   created on
+
+       15th Jan 2002
+
+   (or some later version/date if I forgot to actualize the upper
+    entries ;-)
+
+1.7 How do I send a bug report?
+
+   If you discover a bug, please comply with the following procedure:
+
+      *  Make sure you have the latest version. Do NOT report a bug
+         from an old version.
+
+      *  Find out exactly how to reproduce the bug. If it is a
+         behavioural problem, define it in detail, explaining the exact
+         key presses and key releases involved. Suggest exactly how you 
+         would like it to function.
+
+      *  If an error message was reported, quote the error message in
+         full, letter for letter.
+
+      *  If the bug is a program crash, recompile The RoboCup Soccer
+	 Simulator Monitor with the -g option and use gdb to list a
+	 backtrace.
+
+      *  Sumbit the bug on our porject page on Source Forge
+	 (http://sourceforge.net/projects/sserver/). Be sure to quote
+	 the version number. The operating system version, the version
+	 of libc you are using, and the version of X.
+
+      *  It is not necessary to prove that there really is a problem
+         with a lengthly litigative argument. Rather demonstrate it
+         with a precise procedure.
+
+1.8 How do I send a compilation bug report?
+
+   It is considered important when The RoboCup Soccer Simulator Monitor
+   does not compile and install cleanly on a particular system,
+   hence please report such problems. 
+
+   If you have a genuine compilation difficulty, please send the
+   version number, the output of make and build phases of the
+   installation, as explained in the INSTALL.TXT file.
+
+   However WE ARE NOT HERE TO TEACH YOU HOW TO INSTALL A PROGRAM. 
+
+2 NETWORK SOURCES AND RESOURCES
+
+2.1 Where can I get The RoboCup Soccer Simulator Monitor?
+
+   The latest stable release can be obtained from
+       http://sourceforge.net/projects/sserver/
+
+2.2 Does The RoboCup Soccer Simulator Monitor have a mailing list?
+
+   The RoboCup Simulator Mailing List: robocup-sim-l@usc.edu
+
+   see http://www.cs.cmu.edu/~galk/Links/RoboCup/robocup-sim-l/
+   for details
+
+2.3 Does The RoboCup Soccer Simulator Monitor have a world wide web
+    home-page?
+
+   http://sserver.sourceforge.net/index.html
+
+3 GENERAL FEATURES
+
+3.1 How do I get help on the command line?
+
+   Just type
+
+      rcssmonitor -help
+   or 
+      rcssmonitor -help | less
+
+   to view the list of command line options.
+
+3.2 How do I zoom in and out in the viewer? 
+
+   You can use the left mouse button to define a new rectangle to zoom
+   into a smaller region. You can also use the '+'/'-' keys to zoom in
+   and out in the region.
+
+3.3 How do I get the initial zoom area? 
+
+   You can press the 'i' key in the The RoboCup Soccer Simulator
+   Monitor screen to get the
+   initial magnification factor. More sophisticated UNDO/REDO
+   facilities of zooming areas are not yet supported.
+
+3.4 How do move the viewing area?
+
+   You can use the cursor keys to move the viewing area. 
+   You can also use a short click of the left mouse button to change
+   the center of the viewing area.
+
+3.5 How do I quit the The RoboCup Soccer Simulator Monitor?
+
+   You can always quit The RoboCup Soccer Simulator Monitor hitting the 'q' key. Some devices
+   also support a quit button.
+
+3.6 How do I visualize my data?
+
+   There are two possibilities to use The RoboCup Soccer Simulator Monitor to visualize own
+   data. You can use the generic device AsciiDevice by calling
+
+      rcssmonitor -ascii  ...
+
+   and then send you data in the AsciiDevice format over an UDP
+   connection. See the 
+    
+      client2dview.C
+
+   file for some simple examples ('make Client2dview' to get a working sample)
+
+   The other way is to extend The RoboCup Soccer Simulator Monitor by writing your own device. 
+
+3.7 Can I use doxygen to produce an online documentation of the source code?
+
+   Yes. There is a 'Doxyfile' contained in the source code release. 
+   So just run
+
+   doxygen
+
+   in your The RoboCup Soccer Simulator Monitor directory to get an new subdirectory doc/html
+   containing the documentation. 
+
+4 USAGE WITH OF THE SOCCER MONITOR DEVICE (of the robocup.org)	
+
+4.1 How do I connect to the soccer server?
+
+    See 3.1 for command line options or just type
+
+       rcssmonitor -m_host <machine.name>
+
+    you can skip the m_host option if the soccer server runs on 
+    the same machine as The RoboCup Soccer Simulator Monitor.
+
+4.2 How do I drag and drop players/ball on the screen?
+
+    You need at least soccer server version 7.02 to use this
+    feature (look at www.robocup.org)
+
+    To move a player or the ball you have to click with the right 
+    (or middle) mouse button on it. As long as you hold the mouse button
+    on an object you can drag it to a new position. The old
+    position is marked with a cross inside a circle. This is useful
+    if you drag a player during a running game.
+
+4.3 Are there some short-keys to move players or the ball?
+
+   Yes. It is sometimes more convenient to instantly move an object. 
+   Put 
+
+      rcssmonitor -keys 
+
+   to get a description how to do it. You can also hit the 'k' key
+   in the The RoboCup Soccer Simulator Monitor screen to get a description on the xterm from 
+   which you started The RoboCup Soccer Simulator Monitor. 
+
+4.4 What does 'skipped n SHOW messages' mean
+
+   This is a message indicates that The RoboCup Soccer Simulator Monitor gets more messages
+   then it can actually process. There can be several reasons for
+   this
+
+   * your machine or X11 connection are simply to slow. 
+
+   * you did connect more the once to the server. This can happen if
+     you hit the 'c' or press the '(re)connect' button while a 
+     connection is already running. 
+
+   * you quit the The RoboCup Soccer Simulator Monitor while connected to the soccer
+     server. Because there is no possibility to say the soccer server
+     to stop sending the visual information it can happen that if you
+     restart The RoboCup Soccer Simulator Monitor you'll get new visual data AND the old visual
+     data (you get the new data automaticly because The RoboCup Soccer Simulator Monitor always
+    tries to establish a connection to soccer server)
+
+4.5 What's the meaning of the 'scale 1.0' button?	
+   
+   Click with the right mouse button on this menu button.
+   This gets you to 'scale 1.2'. This means that all players and the
+   ball are show 1.2 as large as they really are. You resize the
+   objects up to factor 2.0 (but it is easy to change it to any other
+   factor)  
+
+   To get the objects smaller just reduce the scale clicking the 
+   left mouse button on the 'scale X.X' menu button.
+
+4.6 What's the meaning of the 'detail 1' button?
+
+   Use the right/left mouse buttons to change the details level. The
+   default level is 1, on which you can just see the player numbers. 
+   Increasing the level you can also see the type of players (not yet
+   implemented) and their stamina  (already implemented).
+
+4.7 How do I connect with protocol version 1 instead of 2?
+
+   You can connect to the soccer server with the old version 1 including
+   the option
+
+   -m_version 1
+
+   into you command line call. The default version is 2, because it
+   can show the positions of the players more exactly (using
+   SHOWINFO_SCALE2) and provides information about the type, stamina
+   and neck_angle of players. But sometimes there are reasons to use 
+   protocol version 1, e.g.:
+
+   *   you use own tools which still communicate with the version 1 of
+       the soccer monitor protocol.
+
+   *   because version 2 of the robocup soccer monitor protocol 
+       needs more bandwidth, on some slow networks version 1 could
+       perform better.
+
+5 COMMON PROBLEMS
+
+5.1 ...

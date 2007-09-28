@@ -1,0 +1,30 @@
+#Author : Artur Merke <amerke@ira.uka.de> 
+
+#set visual area to this rectangle
+VA (2,3,6,6);
+BG 009900;
+
+#empty screen
+EMP 0;
+
+
+INS STRING col=000000 (1,0,"000000");
+INS STRING col=330000 (1,1,"330000");
+INS STRING col=660000 (1,2,"660000");
+INS STRING col=990000 (1,3,"990000");
+INS STRING col=cc0000 (1,4,"cc0000");
+INS STRING col=ff0000 (1,5,"ff0000");
+
+INS STRING col=000000 (2,0,"000000");
+INS STRING col=003300 (2,1,"003300");
+INS STRING col=006600 (2,2,"006600");
+INS STRING col=009900 (2,3,"009900");
+INS STRING col=00cc00 (2,4,"00cc00");
+INS STRING col=00ff00 (2,5,"00ff00");
+
+INS STRING col=000000 (3,0,"000000");
+INS STRING col=000033 (3,1,"000033");
+INS STRING col=000066 (3,2,"000066");
+INS STRING col=000099 (3,3,"000099");
+INS STRING col=0000cc (3,4,"0000cc");
+INS STRING col=0000ff (3,5,"0000ff");

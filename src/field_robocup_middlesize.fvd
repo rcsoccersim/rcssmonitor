@@ -1,0 +1,40 @@
+#empty screen
+EMP 0;
+
+#set visual area to this rectangle
+VA (0,0,11,6);
+
+#background
+BG 009900;
+#BG cccccc;
+
+#black line represents the fence
+#INS POLYGON col=000000 fil= 1 (-4.60,-2.60)(4.60,-2.60)(4.60,2.60)(-4.60,2.60);
+
+#white line around the field
+INS POLYGON col=ffffff fil= 1 (-4.55,-2.55)(4.55,-2.55)(4.55,2.55)(-4.55,2.55);
+
+#field
+INS POLYGON col=009900 fil= 1 (-4.5,-2.5)(4.5,-2.5)(4.5,2.5)(-4.5,2.5);
+
+#middle circle 
+INS CIRCLE col= ffffff fil= 1 (0,0,1.025);
+INS CIRCLE col= 009900 fil= 1 (0,0,0.975);
+
+#middle and penalty points
+INS CIRCLE col= ffffff fil= 1 (0,0,0.1) (-2.5,0,0.1) (2.5,0,0.1);
+
+#middle line
+INS POLYGON col=ffffff fil= 1 (-0.025,-2.5)(0.025,-2.5)(0.025,2.5)(-0.025,2.5);
+#left and right penalty area
+INS POLYGON col=ffffff fil= 1 (-4.5,-1.525) (-3.475,-1.525) (-3.475,1.525)(-4.5,1.525)(-4.5,1.475)(-3.525,1.475)(-3.525,-1.475)(-4.5,-1.475);
+INS POLYGON col=ffffff fil= 1 ( 4.5,-1.525) ( 3.475,-1.525) ( 3.475,1.525)( 4.5,1.525)( 4.5,1.475)( 3.525,1.475)( 3.525,-1.475)( 4.5,-1.475);
+
+#left goal
+INS POLYGON col=ffcc00 fil= 1 (-5.25,-1)(-4.55,-1)(-4.55,1)(-5.25,1);
+#right goal
+INS POLYGON col=0000cc fil= 1 ( 5.25,-1)( 4.55,-1)( 4.55,1)( 5.25,1);
+
+#ball
+INS FRAME id=1 lay= 1 (1,0,0);
+INS 1 CIRCLE col=cc0000 fil= 1 (0,0,0.15);

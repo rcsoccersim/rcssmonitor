@@ -1,0 +1,34 @@
+Summary: The RoboCup Soccer Simulator Monitor
+Name: @PACKAGE@
+Version: @VERSION@
+Release: 0
+Copyright: GPL
+Group: X11/Applications
+Source0: http://prdownloads.sourceforge.net/sserver/%{name}-%{version}.tar.gz
+URL: http://sserver.sf.net
+BuildRoot: %{_tmppath}/%{name}-root
+
+%description
+The RoboCup Soccer Simulator Monitor (rcssmonitor) is used to
+view a simulation as it takes place by connecting to the rcssserver
+or to view the playback of a simulation by connecting to the rcsslogplayer.
+
+%prep
+%setup
+
+%build
+%configure
+make
+
+%install
+%makeinstall
+
+%clean
+rm -rf $RPM_BUILD_ROOT
+
+%files
+
+
+%doc AUTHORS BUGS COPYING ChangeLog FAQ.TXT INSTALL NEWS README PLATFORMS
+
+%changelog
