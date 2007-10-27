@@ -516,7 +516,7 @@ class PlayerTypes {
     double kickable_margin;
   };
   static double ball_radius;
-  static const int NUM_TYPES= 7;
+  static const int NUM_TYPES= 14;
   static _player_type std_type;
   static _player_type types[NUM_TYPES];
 public:

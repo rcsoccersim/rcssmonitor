@@ -1,3 +1,8 @@
+2007-10-27  Hidehisa Akiyama  <akky@users.sourceforge.jp>
+
+	* smonitor_dev.C:
+	- Changed NUM_TYPES to 14.
+
 2007-08-27  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
 	* configure.ac:

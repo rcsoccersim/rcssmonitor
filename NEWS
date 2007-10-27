@@ -1,3 +1,6 @@
+[12.0.0-pre]
+  * Changed NUM_TYPES to 14.
+
 [11.1.1]
   * Changed the default font color for right team to dark
 	blue(#00008b).
