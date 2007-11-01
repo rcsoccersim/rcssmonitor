@@ -137,6 +137,9 @@ class VisualPlayer: public VisualObject2d {
   VisualLine2d head_dir;
   VisualString2d label;
 
+  Frame2d reverse_body_frame;
+    //bool body_frame_chg;
+
   Frame2d head_frame;
   bool head_frame_chg;
 
@@ -168,6 +171,7 @@ class VisualPlayer: public VisualObject2d {
   void actualize(const Frame2d& f, bool chg);
 
   void set_type(int type);
+  void set_body_angle( const Angle & a);
   void set_head_angle( const Angle & a);
   void set_active(bool flag= true);
   void set_label(const char * lab);   ///< copies the content of lab into his own label

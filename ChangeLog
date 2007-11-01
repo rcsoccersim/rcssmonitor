@@ -1,5 +1,11 @@
 2007-11-01  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
+	* src/2dview.C:
+	* src/smonitor_dev.C:
+	* src/smonitor_dev.h:
+	- changed a player number position.
+	- changed a default player number font and its color.
+
 	* src/display_x11.h:
 	* src/object2d.h:
 	* src/smonitor_dev.C:

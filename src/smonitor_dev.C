@@ -901,6 +901,9 @@ void VisualPlayer::init(int my_key, int my_layer, char p_char,
   label.content.set_cur_size(1);
   label.content.tab[0]= p_char;
   label.set_color(c_font);
+
+  //body_frame_chg = false;
+  head_frame_chg = false;
 }
 
 void VisualPlayer::draw(DisplayBase * disp, const Area2d & area, const Frame2d & p_frame, bool chg) {
@@ -948,7 +951,11 @@ void VisualPlayer::draw(DisplayBase * disp, const Area2d & area, const Frame2d &
   head_frame_chg= false;
 
   if (use_number)
-    label.draw(disp,area,p_frame,changed);
+  {
+      //label.draw(disp,area,p_frame * body_frame,changed || body_frame_chg);
+      label.draw(disp,area,p_frame * reverse_body_frame,changed);
+      //body_frame_chg = false;
+  }
 
   changed= false;
 }
@@ -965,7 +972,9 @@ void VisualPlayer::actualize(const Frame2d& f, bool chg) {
   head_dir.actualize(f * head_frame, changed || head_frame_chg); //must be changed
   head_frame_chg= false;
 
-  label.actualize(f,changed);
+  label.actualize(f * reverse_body_frame,changed);
+  //label.actualize(f * body_frame,changed || body_frame_chg);
+  //body_frame_chg = false;
 
   changed= false;
 }
@@ -1010,6 +1019,11 @@ void VisualPlayer::set_type(int t) {
 
   head_dir.rel.p2.x= large_r;
   head_dir.changed= true;
+}
+
+void VisualPlayer::set_body_angle( const Angle & a) {
+    //body_frame_chg = true;
+    reverse_body_frame.set_angle(-a);
 }
 
 void VisualPlayer::set_head_angle( const Angle & a) {
@@ -1346,6 +1360,8 @@ SMonitorDevice::Options::Options() {
 
   player_radius= 0.3;
   player_skin= 1;
+  player_num_pos.x = 1.2;
+  player_num_pos.y = 0.0;
   kick_radius= 1.085;
   ball_radius= 0.3;//0.085;
   ball_skin= 1;
@@ -1353,12 +1369,12 @@ SMonitorDevice::Options::Options() {
 
   c_team_l= RGBcolor(255,255,0);
   c_goalie_l= RGBcolor(0,255,0);
-  c_font_l= RGBcolor(255,0,0);//(255,0,0);
+  c_font_l= RGBcolor(255,255,255);//(255,0,0);
   c_invalid_l= RGBcolor(0,0,0);
 
   c_team_r= RGBcolor(0,255,255);
   c_goalie_r= RGBcolor(255,153,255);
-  c_font_r= RGBcolor(0,0,139); //(0,255,0);//(255,0,0);
+  c_font_r= RGBcolor(255,255,255); //(0,0,139);
   c_invalid_r= RGBcolor(0,0,0);
 
 
@@ -3085,6 +3101,8 @@ bool SMonitorDevice::server_interpret_showinfo_t2(BuilderBase * build, void *ptr
     p.view_quality= s_view_quality;
     p.stamina= double(l_stamina) / SHOWINFO_SCALE2;
     p.alive= s_mode != DISABLE;
+
+    vis_p.set_body_angle(p.body_angle);
 
     if (options.active_in_mode != i || options.mode != Options::MODE_MOVE ) {
       build->set_cmd_set_frame_pos_ang(p_frame(i),p.pos,p.body_angle);
