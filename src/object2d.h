@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 - 2001, Artur Merke <amerke@ira.uka.de> 
+ * Copyright (c) 1999 - 2001, Artur Merke <amerke@ira.uka.de>
  *
  * This file is part of FrameView2d.
  *
@@ -32,10 +32,20 @@ struct Line2d {
 };
 
 struct Circle2d {
-  Point2d center;
-  double radius;
-  Circle2d() { radius= 0.0; }
-  Circle2d(const Point2d& c,double r) { center= c; radius= r; }
+    Point2d center;
+    double radius;
+    int min_pixel;
+    Circle2d()
+      {
+          radius= 0.0;
+          min_pixel = 0;
+      }
+    Circle2d(const Point2d& c,double r, int min_pix = 0 )
+      {
+          center= c;
+          radius= r;
+          min_pixel = min_pix;
+      }
 };
 
 struct CircleArc2d {
@@ -44,7 +54,7 @@ struct CircleArc2d {
   Angle ang1;
   Angle ang2;
   CircleArc2d() { radius= 0.0; }
-  CircleArc2d(const Point2d& c,double r,const Angle& a1,const Angle& a2) { 
+  CircleArc2d(const Point2d& c,double r,const Angle& a1,const Angle& a2) {
     center= c; radius= r; ang1= a1; ang2= a2;
   }
 };

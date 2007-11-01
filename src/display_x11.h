@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 - 2001, Artur Merke <amerke@ira.uka.de> 
+ * Copyright (c) 1999 - 2001, Artur Merke <amerke@ira.uka.de>
  *
  * This file is part of FrameView2d.
  *
@@ -27,11 +27,13 @@
 #include "area2d.h"
 #include "multi.h"
 
+#include <algorithm>
+
 
 class DisplayX11: public DisplayBase {
 private:
   Display *disp;
-  //Window win;  
+  //Window win;
   Pixmap pixmap;
   GC gc;
   WinPlaneConverter conv;
@@ -40,7 +42,7 @@ private:
   void step_area_number();
 
   void ASetForeground(unsigned long pix) { XSetForeground (disp, gc, pix); }
-  
+
  public:
   DisplayX11(Display*,Pixmap,GC);
   virtual ~DisplayX11() {}
@@ -71,8 +73,8 @@ private:
     unsigned long XColor_pixel;
     Multi<XPoint> pp;
     /** because D_XPoints is also used in representations of Polygons
-	(which need one point more) at this point we just spend an 
-	additional field element! 
+	(which need one point more) at this point we just spend an
+	additional field element!
     */
     void set_max_size(int num) { pp.set_max_size(num+1); }
   };
@@ -107,7 +109,7 @@ private:
 
   D_XPoint d_xpoint;
   D_XPoints d_xpoints;
-  
+
   D_XSegment d_xsegment;
   D_XSegments d_xsegments;
 
@@ -116,21 +118,21 @@ private:
  public:
   void draw_point(DisplayObject * d_obj, const RGBcolor & col, const Point2d & );
   DisplayObject * create_point() { return new(D_XPoint); }
-  
+
   void draw_points(DisplayObject * d_obj, const RGBcolor & col, int num, const Point2d * );
   DisplayObject * create_points(int num) { return new(D_XPoints)(num); }
 
   //the endpoints of the line are absolute coordinates
   void draw_line(DisplayObject * d_obj, const RGBcolor & col, const Line2d & );
   DisplayObject * create_line() { return new(D_XSegment); }
-  
+
   void draw_lines(DisplayObject * d_obj, const RGBcolor & col, int num, const Line2d * );
   DisplayObject * create_lines(int num) { return new(D_XSegments)(num); }
-  
+
   void draw_circle(DisplayObject * d_obj, const RGBcolor & col, const Circle2d & );
   void fill_circle(DisplayObject * d_obj, const RGBcolor & col, const Circle2d & );
   DisplayObject * create_circle() { return new(D_XArc); }
-  
+
   void draw_circles(DisplayObject * d_obj, const RGBcolor & col, int num, const Circle2d * );
   void fill_circles(DisplayObject * d_obj, const RGBcolor & col, int num, const Circle2d * );
   DisplayObject * create_circles(int num) { return new(D_XArcs)(num); }
@@ -140,7 +142,7 @@ private:
   void draw_circlearc(DisplayObject * d_obj, const RGBcolor & col, const CircleArc2d & );
   void fill_circlearc(DisplayObject * d_obj, const RGBcolor & col, const CircleArc2d & );
   DisplayObject * create_circlearc() { return new(D_XArc); }
-  
+
   void draw_circlearcs(DisplayObject * d_obj, const RGBcolor & col, int num, const CircleArc2d * );
   void fill_circlearcs(DisplayObject * d_obj, const RGBcolor & col, int num, const CircleArc2d * );
   DisplayObject * create_circlearcs(int num) { return new(D_XArcs)(num); }
@@ -148,11 +150,11 @@ private:
   //all boudary points of the polygon are treated as absolute coordinates
   void draw_polyline(DisplayObject * d_obj, const RGBcolor & col, int num, const Point2d * );
   DisplayObject * create_polyline(int num) { return new(D_XPoints)(num); }
-  
+
   void draw_polygon(DisplayObject * d_obj, const RGBcolor & col, int num, const Point2d * );
   void fill_polygon(DisplayObject * d_obj, const RGBcolor & col, int num, const Point2d * );
   DisplayObject * create_polygon(int num) { return new(D_XPoints)(num+1); }
-  
+
   void draw_string(DisplayObject * d_obj, const RGBcolor & col, const Point2d &,int len, const char * str);
   DisplayObject * create_string() { return new(D_XPoint); }
 
@@ -177,11 +179,11 @@ private:
 #if 0
     a.x= conv.x_Plane_to_x_Win(circle.center.x-circle.radius);
     a.y= conv.y_Plane_to_y_Win(circle.center.y+circle.radius);
-    a.width= conv.size_x_Plane_to_size_x_Win(circle.radius*2);  
+    a.width= conv.size_x_Plane_to_size_x_Win(circle.radius*2);
     a.height= conv.size_y_Plane_to_size_y_Win(circle.radius*2);
 #else
-    a.width= conv.size_x_Plane_to_size_x_Win(circle.radius);  
-    a.height= conv.size_y_Plane_to_size_y_Win(circle.radius);
+    a.width= std::max( conv.size_x_Plane_to_size_x_Win(circle.radius), circle.min_pixel);
+    a.height= std::max( conv.size_y_Plane_to_size_y_Win(circle.radius), circle.min_pixel);
     a.x= conv.x_Plane_to_x_Win(circle.center.x);
     a.y= conv.y_Plane_to_y_Win(circle.center.y);
     a.x-= a.width;
@@ -198,7 +200,7 @@ private:
     Angle ang= circlearc.ang2- circlearc.ang1;
     a.x= conv.x_Plane_to_x_Win(circlearc.center.x-circlearc.radius);
     a.y= conv.y_Plane_to_y_Win(circlearc.center.y+circlearc.radius);
-    a.width= conv.size_x_Plane_to_size_x_Win(circlearc.radius*2);  
+    a.width= conv.size_x_Plane_to_size_x_Win(circlearc.radius*2);
     a.height= conv.size_y_Plane_to_size_y_Win(circlearc.radius*2);
     if (circlearc.ang1.get_value() == circlearc.ang2.get_value() ) {
       a.angle1= 0;

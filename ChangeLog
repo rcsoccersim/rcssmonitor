@@ -1,3 +1,10 @@
+2007-11-01  Hidehisa Akiyama  <akky@users.sourceforge.jp>
+
+	* src/display_x11.h:
+	* src/object2d.h:
+	* src/smonitor_dev.C:
+	- increase the minimum draw radius of goal posts to 2.
+
 2007-10-27  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
 	* smonitor_dev.C:

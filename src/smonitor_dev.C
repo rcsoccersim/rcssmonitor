@@ -1212,16 +1212,20 @@ void VisualField::init(int my_key, int my_layer,
   Circle2d gpost_circles[ 4 ];
   gpost_circles[ 0 ] = Circle2d( Point2d( HLEN-GPOST_RAD,
                                           FIELD_GOAL_WIDTH*0.5 + GPOST_RAD ),
-                                 GPOST_RAD );
+                                 GPOST_RAD,
+                                 2 );
   gpost_circles[ 1 ] = Circle2d( Point2d( HLEN-GPOST_RAD,
                                           -FIELD_GOAL_WIDTH*0.5 - GPOST_RAD ),
-                                 GPOST_RAD );
+                                 GPOST_RAD,
+                                 2 );
   gpost_circles[ 2 ] = Circle2d( Point2d( -HLEN+GPOST_RAD,
                                           FIELD_GOAL_WIDTH*0.5 + GPOST_RAD ),
-                                 GPOST_RAD );
+                                 GPOST_RAD,
+                                 2 );
   gpost_circles[ 3 ] = Circle2d( Point2d( -HLEN+GPOST_RAD,
                                           -FIELD_GOAL_WIDTH*0.5 - GPOST_RAD ),
-                                 GPOST_RAD );
+                                 GPOST_RAD,
+                                 2 );
   goal_posts.set_circles(4, gpost_circles);
   goal_posts.set_color(c_goal);
   goal_posts.filled= true;
