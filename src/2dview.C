@@ -298,9 +298,9 @@ bool Options::set_defaults() {
   window_size_y= 450;
 
   line_thickness= 1;
-  strcpy(font_name,"6x13bold");
-  //strcpy(font_inside,"6x13bold");
-  strcpy(font_inside,"6x13");
+  std::strcpy( font_name, "6x13bold" );
+  //std::strcpy( font_inside, "6x13bold" );
+  std::strcpy( font_inside, "6x13" );
 
   auto_quit_mode = false;
   auto_quit_wait = 5;
@@ -1074,30 +1074,37 @@ int main(int argc,char ** argv) {
   Options::set_defaults();
   INPUTDEV->set_defaults();
 
-  const char * HOME = getenv("HOME");
-  if ( strlen(HOME) + strlen(PACKAGE) + strlen(".conf") + 3 < MAX_NAME_LEN ) {
-    strcpy(Options::conf_file,HOME);
-    strcat(Options::conf_file,"/.");
-    strcat(Options::conf_file,PACKAGE);
-    strcat(Options::conf_file,".conf");
-    //test for existence of Options::conf_file
-    std::ifstream is(Options::conf_file);
-    if (!is) {
-      std::ofstream out(Options::conf_file);
-      if (!out) {
-	ERROR_OUT << "\ncouldn't open " << Options::conf_file << " to create a conf file";
-	out.close();
+  const char * HOME = getenv( "HOME" );
+  if ( std::strlen( HOME ) + std::strlen( PACKAGE ) + std::strlen( ".conf" ) + 3
+       < MAX_NAME_LEN )
+  {
+      std::strcpy( Options::conf_file, HOME );
+      std::strcat( Options::conf_file, "/." );
+      std::strcat( Options::conf_file, PACKAGE );
+      std::strcat( Options::conf_file, ".conf" );
+      //test for existence of Options::conf_file
+      std::ifstream is( Options::conf_file );
+      if ( ! is )
+      {
+          std::ofstream out( Options::conf_file );
+          if ( ! out )
+          {
+              ERROR_OUT << "\ncouldn't open " << Options::conf_file << " to create a conf file";
+              out.close();
+          }
+          else
+          {
+              Options::generate_file_options( out, PACKAGE );
+              std::cout << "\ncreated config file, " << Options::conf_file;
+          }
+          Options::conf_file[0]= '\0';
       }
-      else {
-	Options::generate_file_options(out,PACKAGE);
-	std::cout << "\ncreated config file, " << Options::conf_file;
-      }
-      Options::conf_file[0]= '\0';
-    }
-    is.close();
+      is.close();
   }
   else
+  {
     ERROR_OUT << "\nHOME path too long";
+  }
 
   Options::read(argc,argv);
   std::cout << std::flush;

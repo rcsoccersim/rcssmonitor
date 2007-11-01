@@ -1350,7 +1350,7 @@ const int SMonitorDevice::id_invalid= -2;
 
 SMonitorDevice::Options::Options() {
   server_port= 6000;
-  strcpy(server_host,"localhost");
+  std::strcpy( server_host, "127.0.0.1" );
   coach_port= server_port+1;
   protocol_version= 2;
   connect_on_start= true;
