@@ -159,7 +159,8 @@ class VisualPlayer: public VisualObject2d {
  public:
   VisualPlayer();
 
-  void init(int my_key, int my_layer, char p_char,
+  void init(int my_key, int my_layer,
+            int p_number,
 	    const RGBcolor & my_c_invalid,
 	    const RGBcolor & my_c_player,
 	    const RGBcolor & my_c_goalie,
@@ -498,7 +499,8 @@ class SMonitorDevice: public InputDevice {
     std::vector< PenaltyState > M_penalty_state;
 
   void vis_ball_set_info_level(int lev);
-  void vis_player_set_info_level(int lev, VisualPlayer & vis_p, const Positions::Player & p);
+    void vis_player_set_info_level(int lev, VisualPlayer & vis_p, const Positions::Player & p,
+                                   const int unum );
   void vis_player_set_info_level(int lev);
 
   int server_msg_type(void * ptr);

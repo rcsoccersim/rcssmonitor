@@ -5,6 +5,8 @@
 	* src/smonitor_dev.h:
 	- changed a player number position.
 	- changed a default player number font and its color.
+	- changed a player's uniform number character to decimal number.
+	- fixed initial player positions.
 
 	* src/display_x11.h:
 	* src/object2d.h:

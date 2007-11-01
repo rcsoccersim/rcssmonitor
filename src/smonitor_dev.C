@@ -819,7 +819,8 @@ VisualPlayer::VisualPlayer() {
     c_olive  = RGBcolor( 128, 128, 0 );
 }
 
-void VisualPlayer::init(int my_key, int my_layer, char p_char,
+void VisualPlayer::init(int my_key, int my_layer,
+                        int p_number,
 			const RGBcolor & my_c_invalid,
 			const RGBcolor & my_c_player,
 			const RGBcolor & my_c_goalie,
@@ -898,8 +899,13 @@ void VisualPlayer::init(int my_key, int my_layer, char p_char,
   head_dir.set_color(c_red);
 
   label.content.set_max_size(MAX_LABEL_LEN);
-  label.content.set_cur_size(1);
-  label.content.tab[0]= p_char;
+  char unum_str[4];
+  std::snprintf( unum_str, 3, "%d", p_number );
+  label.content.set_cur_size( std::strlen( unum_str ) );
+  for ( int i = 0; i < label.content.cur_size; ++i )
+  {
+      label.content.tab[i]= unum_str[i];
+  }
   label.set_color(c_font);
 
   //body_frame_chg = false;
@@ -1032,7 +1038,8 @@ void VisualPlayer::set_head_angle( const Angle & a) {
 }
 
 void VisualPlayer::set_label(const char * lab) {
-  label.content.cur_size= 1;
+  label.content.cur_size= 0;
+
   if ( !lab || *lab == '\0')
     return;
 
@@ -2282,7 +2289,8 @@ bool SMonitorDevice::init_frames(BuilderBase * build){
   build->set_cmd_set_frame_visible(frame_shadow,0);
 
   //players
-  double init_y= 35.2;
+  //double init_y= 35.2;
+  double init_y= 68.0/2.0 + 3.0;
 #ifdef WEBFIELD
   init_y= 60;
 #endif
@@ -2291,18 +2299,20 @@ bool SMonitorDevice::init_frames(BuilderBase * build){
     RGBcolor c_player= options.c_team_l;
     RGBcolor c_goalie= options.c_goalie_l;
     RGBcolor c_font= options.c_font_l;
-    Point2d pos_player= Point2d(-8.0 -i*3.0*k_rad,init_y);
+    //Point2d pos_player= Point2d(-8.0 -i*3.0*k_rad,init_y);
+    Point2d pos_player= Point2d( -( (i+1)*3.0 ), init_y);
     if ( p_right(i) ) {
       c_invalid= options.c_invalid_r;
       c_player= options.c_team_r;
       c_goalie= options.c_goalie_r;
       c_font= options.c_font_r;
       //pos_player= Point2d(8.0 + (i-MAX_PLAYER)*3.0*k_rad,init_y);
-      pos_player= Point2d(8.0 + (i-MAX_PLAYER)*3.0*k_rad,init_y);
+      //pos_player= Point2d(8.0 + (i-MAX_PLAYER)*3.0*k_rad,init_y);
+      pos_player= Point2d( (i+1-MAX_PLAYER)*3.0, init_y );
     }
     server_pos.set_player(i,pos_player,0.0);
     build->set_cmd_insert_frame(0,p_frame(i),pos_player,0.0,layer+1);
-    vis_player[i].init(0,0,p_char(i), c_invalid, c_player, c_goalie, c_font);
+    vis_player[i].init(0, 0, p_number(i), c_invalid, c_player, c_goalie, c_font);
     build->set_cmd_insert_visobject(p_frame(i),vis_player+i);
     vis_player[i].set_label_pos( options.player_num_pos );
   }
@@ -2493,19 +2503,25 @@ void SMonitorDevice::vis_ball_set_info_level(int lev) {
     vis_ball.unset_show_vel_string();
 }
 
-void SMonitorDevice::vis_player_set_info_level(int lev, VisualPlayer & vis_p, const Positions::Player & p) {
+void SMonitorDevice::vis_player_set_info_level(int lev, VisualPlayer & vis_p,
+                                               const Positions::Player & p,
+                                               const int unum ) {
   char dum[20];
   vis_p.set_use_number(true);
   switch (options.info_level) {
   case 0:
     vis_p.set_use_number(false);
     break;
+  case 1:
+      std::snprintf( dum, 19, "%d", unum );
+      vis_p.set_label( dum );
+      break;
   case 2:
-    sprintf(dum," %d", (int)p.stamina);
+      std::snprintf( dum, 19, "%d,%d", unum, (int)p.stamina);
     vis_p.set_label(dum);
     break;
   case 3:
-    sprintf(dum," %d, t%d", (int)p.stamina, p.type);
+      std::snprintf( dum, 19, "%d,%d,t%d", unum, (int)p.stamina, p.type);
     vis_p.set_label(dum);
     break;
   default:
@@ -2517,7 +2533,7 @@ void SMonitorDevice::vis_player_set_info_level(int lev) {
   for (int i=0; i < MAX_PLAYER*2; i++) {
     Positions::Player & p= server_pos.ref_player(i);
     VisualPlayer & vis_p= vis_player[i];
-    vis_player_set_info_level(lev,vis_p,p);
+    vis_player_set_info_level( lev, vis_p, p, p_number( i ) );
   }
 
 }
@@ -3131,7 +3147,7 @@ bool SMonitorDevice::server_interpret_showinfo_t2(BuilderBase * build, void *ptr
 
     if ( guess.use_stamina) vis_p.set_low_stamina_indicator( p.stamina < 1500.0);
 
-    vis_player_set_info_level(options.info_level, vis_p, p);
+    vis_player_set_info_level(options.info_level, vis_p, p, p_number( i ) );
   }
 
 #if 1
