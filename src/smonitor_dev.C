@@ -32,7 +32,7 @@
 #include <strstream>
 #endif
 
-
+#include <map>
 #include <iostream>
 #include <iomanip>
 #include <cstdio>      /* Standard I/O definitions. */
@@ -509,16 +509,23 @@ std::ostream & operator<< (std::ostream & o, const RGBcolor & col) {
 }
 
 class PlayerTypes {
-  struct _player_type {
-    _player_type() { valid= false; }
-    bool valid;
-    double player_radius;
-    double kickable_margin;
-  };
+    struct _player_type {
+        bool valid;
+        double player_radius;
+        double kickable_margin;
+
+        _player_type()
+            : valid( false )
+            , player_radius( 0.3 )
+            , kickable_margin( 0.7 )
+          {  }
+    };
+
   static double ball_radius;
-  static const int NUM_TYPES= 14;
+    //static const int NUM_TYPES= 14;
   static _player_type std_type;
-  static _player_type types[NUM_TYPES];
+    //static _player_type types[NUM_TYPES];
+    static std::map< int, _player_type > types;
 public:
   static bool use_std_type;
 
@@ -530,55 +537,74 @@ public:
     use_std_type= true;
   }
 
-  static void set_type(int type, double player_radius, double kickable_margin) {
-    if (type < 0 || type >= NUM_TYPES) {
-      WARNING_OUT << "\nwrong player type number" << type << " (ignoring)";
-      return;
-    }
-    types[type].valid= true;
-    types[type].player_radius= player_radius;
-    types[type].kickable_margin= kickable_margin;
-  }
+  static
+  void set_type(int type, double player_radius, double kickable_margin)
+      {
+          //if (type < 0 || type >= NUM_TYPES) {
+          //WARNING_OUT << "\nwrong player type number" << type << " (ignoring)";
+          //return;
+          //}
+          types[type].valid= true;
+          types[type].player_radius= player_radius;
+          types[type].kickable_margin= kickable_margin;
+      }
 
-  static double get_player_radius(int type) {
-    if (type == -1 || use_std_type) // default type
-      return std_type.player_radius;
+  static
+  double get_player_radius( int type )
+      {
+          if ( type == -1 || use_std_type ) // default type
+          {
+              return std_type.player_radius;
+          }
 
-    if (type < 0 || type >= NUM_TYPES) {
-      WARNING_OUT << "\nwrong player type number" << type << " (using std type)";
-      return std_type.player_radius;
-    }
+          std::map< int, _player_type >::iterator it = types.find( type );
+          if ( it == types.end() )
+          {
+              WARNING_OUT << "\nwrong player type number" << type << " (using std type)";
+              return std_type.player_radius;
+          }
 
-    if ( !types[ type ].valid ) {
-      WARNING_OUT << "\nplayer type " << type << " not valid (using std type)";
-      return std_type.player_radius;
-    }
+          if ( ! it->second.valid )
+          {
+              WARNING_OUT << "\nplayer type " << type << " not valid (using std type)";
+              return std_type.player_radius;
+          }
 
-    return types[type].player_radius;
-  }
+          return it->second.player_radius;
+      }
 
-  static double get_kick_radius(int type) {
-    double def_result= std_type.player_radius + std_type.kickable_margin + ball_radius;
+    static
+    double get_kick_radius( int type )
+      {
+          double def_result = std_type.player_radius + std_type.kickable_margin + ball_radius;
 
-    if (type == -1 || use_std_type) // default type
-      return def_result;
+          if ( type == -1 || use_std_type ) // default type
+          {
+              return def_result;
+          }
 
-    if (type < 0 || type >= NUM_TYPES) {
-      WARNING_OUT << "\nwrong player type number" << type << " (using std type)";
-      return def_result;
-    }
-    if ( !types[ type ].valid ) {
-      WARNING_OUT << "\nplayer type " << type << " not valid (using std type)";
-      return def_result;
-    }
-    return types[type].player_radius + types[type].kickable_margin + ball_radius;
-  }
+
+          std::map< int, _player_type >::iterator it = types.find( type );
+          if ( it == types.end() )
+          {
+              WARNING_OUT << "\nwrong player type number" << type << " (using std type)";
+              return def_result;
+          }
+
+          if ( ! it->second.valid )
+          {
+              WARNING_OUT << "\nplayer type " << type << " not valid (using std type)";
+              return def_result;
+          }
+
+          return it->second.player_radius + it->second.kickable_margin + ball_radius;
+      }
 };
 
 //definition of the static internal data of PlayerTypes
 double PlayerTypes::ball_radius;
 PlayerTypes::_player_type PlayerTypes::std_type;
-PlayerTypes::_player_type PlayerTypes::types[PlayerTypes::NUM_TYPES];
+std::map< int, PlayerTypes::_player_type > PlayerTypes::types;
 bool PlayerTypes::use_std_type;
 
 /******************************************************************************/
@@ -3261,6 +3287,10 @@ bool SMonitorDevice::server_interpret_server_params_t(BuilderBase * build, void 
 
   vis_field.set_goal_width( double(ntohl(server_params.gwidth)) / SHOWINFO_SCALE2 );
   vis_ball.set_ball_decay( double(ntohl(server_params.bdecay)) / SHOWINFO_SCALE2 );
+
+  PlayerTypes::init( double(ntohl(server_params.bsize)) / SHOWINFO_SCALE2,
+                     double(ntohl(server_params.psize)) / SHOWINFO_SCALE2,
+                     double(ntohl(server_params.kmargin)) / SHOWINFO_SCALE2 );
 
 #if 0
   Int32 stamina_inc ;                          /* player stamina inc */
