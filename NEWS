@@ -1,11 +1,7 @@
-[12.0.0a-20071111]
+[12.0.0_pre-20071217]
   * implemneted a resizable player type parameters.
 
-[12.0.0a-20071109]
   * improved several drawing options.
-
-[12.0.0-pre]
-  * Changed NUM_TYPES to 14.
 
 [11.1.1]
   * Changed the default font color for right team to dark
