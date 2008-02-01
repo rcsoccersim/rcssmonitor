@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 - 2001, Artur Merke <amerke@ira.uka.de> 
+ * Copyright (c) 1999 - 2001, Artur Merke <amerke@ira.uka.de>
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,23 +20,23 @@ int strfind(char const* str,char chr, char const* & next);
 
 int strskip(char const* str,char chr, char const* & next);
 inline int strskip(char const* str,char chr) {
-  const char * dum;
-  return strskip(str,chr,dum);
+    const char * dum;
+    return strskip(str,chr,dum);
 }
 
 /*skips just the expression, regardless of what follows in str, this is
- different to the earlier version of strskip */
+  different to the earlier version of strskip */
 int strskip(char const* str,char const* expr, char const* & next);
 inline int strskip(char const* str,char const* expr) {
-  const char * dum;
-  return strskip(str,expr,dum);
+    const char * dum;
+    return strskip(str,expr,dum);
 }
 
 /*tests if this string contains just white space until ist end*/
 int strempty(char const* str, char const* & next);
 inline int strempty(char const* str) {
-  const char * dum;
-  return strempty(str,dum);
+    const char * dum;
+    return strempty(str,dum);
 }
 
 /*tests if this string contains at least 1 white space char at its begin*/
@@ -51,24 +51,24 @@ int str2val(char const* str,  float & val, char const* & next);
 int str2val(char const* str,   bool & val, char const* & next);
 
 inline int str2val(char const* str,    int & val) {
-  const char * dum;
-  return str2val(str, val, dum);
+    const char * dum;
+    return str2val(str, val, dum);
 }
 inline int str2val(char const* str,   long & val) {
-  const char * dum;
-  return str2val(str, val, dum);
+    const char * dum;
+    return str2val(str, val, dum);
 }
 inline int str2val(char const* str, double & val) {
-  const char * dum;
-  return str2val(str, val, dum);
+    const char * dum;
+    return str2val(str, val, dum);
 }
 inline int str2val(char const* str,  float & val) {
-  const char * dum;
-  return str2val(str, val, dum);
+    const char * dum;
+    return str2val(str, val, dum);
 }
 inline int str2val(char const* str,   bool & val) {
-  const char * dum;
-  return str2val(str, val, dum);
+    const char * dum;
+    return str2val(str, val, dum);
 }
 
 int str2val(char const* str, int num,    int * val, char const* & next);
@@ -78,24 +78,24 @@ int str2val(char const* str, int num,  float * val, char const* & next);
 int str2val(char const* str, int num,   bool * val, char const* & next);
 
 inline int str2val(char const* str, int num,    int * val) {
-  const char * dum;
-  return str2val(str, num, val, dum);
+    const char * dum;
+    return str2val(str, num, val, dum);
 }
 inline int str2val(char const* str, int num,   long * val) {
-  const char * dum;
-  return str2val(str, num, val, dum);
+    const char * dum;
+    return str2val(str, num, val, dum);
 }
 inline int str2val(char const* str, int num, double * val) {
-  const char * dum;
-  return str2val(str, num, val, dum);
+    const char * dum;
+    return str2val(str, num, val, dum);
 }
 inline int str2val(char const* str, int num,  float * val) {
-  const char * dum;
-  return str2val(str, num, val, dum);
+    const char * dum;
+    return str2val(str, num, val, dum);
 }
 inline int str2val(char const* str, int num,   bool * val) {
-  const char * dum;
-  return str2val(str, num, val, dum);
+    const char * dum;
+    return str2val(str, num, val, dum);
 }
 
 #endif
