@@ -33,7 +33,8 @@
 
 std::ostream & operator<< (std::ostream & o, const RGBcolor & col);
 
-class VisualPlayersViewArea: public VisualObject2d {
+class VisualPlayersViewArea
+    : public VisualObject2d {
 public:
     static const int LOW;
     static const int HIGH;
@@ -47,11 +48,21 @@ private:
     int view_quality;
     double view_width;
 public:
-    VisualPlayersViewArea();
-    void init(int my_key, int my_layer, const RGBcolor & my_exact, const RGBcolor & my_fuzzy);
-    virtual ~VisualPlayersViewArea() { }
 
-    void draw(DisplayBase * disp, const Area2d & area, const Frame2d & p_frame, bool chg);
+    VisualPlayersViewArea();
+
+    virtual
+    ~VisualPlayersViewArea() { }
+
+    void init( const int my_key,
+               const int my_layer,
+               const RGBcolor & my_exact,
+               const RGBcolor & my_fuzzy );
+
+    void draw( DisplayBase * disp,
+               const Area2d & area,
+               const Frame2d & p_frame,
+               const bool chg );
     void actualize(const Frame2d& f, bool chg);
     void set_view_mode( int quality, double width );
 };
@@ -389,15 +400,34 @@ class SMonitorDevice: public InputDevice {
     struct ServerState {
         //long last_packet_ms_time;
         struct Charfield {
-            char	name[512] ;
+            char	name[512];
             int len;
-            Charfield() { name[0]= '\0'; len = 0;}
-            void set( const char* str ) { strncpy(name,str,16); len= strlen(name); }
-            void reset() { name[0]= '\0'; }
+            Charfield()
+              {
+                  name[0]= '\0';
+                  len = 0;
+              }
+            void set( const char * str )
+              {
+                  std::strncpy( name, str, 16 );
+                  len = std::strlen( name );
+              }
+            void reset()
+              {
+                  name[0]= '\0';
+              }
         };
         ServerState();
+        int current_time;
+        std::string playmode_string;
         Charfield left_teamname;
         Charfield right_teamname;
+        int left_score;
+        int right_score;
+        int left_pen_score;
+        int right_pen_score;
+        int left_pen_miss;
+        int right_pen_miss;
         Charfield match_information;
         bool reconnected;
         void reset();

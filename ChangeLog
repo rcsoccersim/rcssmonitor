@@ -1,3 +1,10 @@
+2008-02-04  Hidehisa Akiyama  <akky@users.sourceforge.jp>
+
+	* src/2dview.C:
+	* src/smonitor_dev.C:
+	* src/smonitor_dev.h:
+	- implemented v3 protocol parser alpha version.
+
 2007-11-11  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
 	* src/smonitor_dev.C:
