@@ -334,12 +334,13 @@ public:
 
     VisualField();
 
-    void init(int my_key, int my_layer,
-              const RGBcolor & my_c_line,
-              const RGBcolor & my_c_goal,
-              bool my_keepaway,
-              double my_keepaway_length,
-              double my_keepaway_width);
+    void init( const int my_key,
+               const int my_layer,
+               const RGBcolor & my_c_line,
+               const RGBcolor & my_c_goal,
+               const bool my_keepaway,
+               const double & my_keepaway_length,
+               const double & my_keepaway_width );
 
     virtual
     ~VisualField()
@@ -359,16 +360,22 @@ public:
     void actualize( const Frame2d & f,
                     const bool chg );
 
-    void set_goal_width(double width);
+    void set_goal_width( const double & width );
 
-    void use_vertical_stripe(bool flag= true) { vertical_stripe.visible= flag; }
-    void set_vertical_stripe(double x1, double x2) {
-        vertical_stripe.changed= true;
-        vertical_stripe.rel.tab[0].x= x1;
-        vertical_stripe.rel.tab[1].x= x2;
-        vertical_stripe.rel.tab[2].x= x2;
-        vertical_stripe.rel.tab[3].x= x1;
-    }
+    void use_vertical_stripe( const bool flag = true )
+      {
+          vertical_stripe.visible = flag;
+      }
+
+    void set_vertical_stripe( const double & x1,
+                              const double & x2 )
+      {
+          vertical_stripe.changed = true;
+          vertical_stripe.rel.tab[0].x = x1;
+          vertical_stripe.rel.tab[1].x = x2;
+          vertical_stripe.rel.tab[2].x = x2;
+          vertical_stripe.rel.tab[3].x = x1;
+      }
 };
 
 class SMonitorDevice: public InputDevice {
@@ -454,7 +461,7 @@ class SMonitorDevice: public InputDevice {
         static const double scale_level_inc;
         static const double scale_level_beg;
         double scale_factor() const;
-        bool set_scale_level_from_double(double s);
+        bool set_scale_level_from_double( const double & s );
 
         static const int MODE_STANDARD;
         static const int MODE_MOVE;
@@ -490,11 +497,17 @@ class SMonitorDevice: public InputDevice {
     };
 
     struct GuessState {
-        GuessState() { reset(); }
-        void reset() {
-            use_stamina= false;
-            use_type= false;
+        GuessState()
+          {
+              reset();
+          }
+
+        void reset()
+          {
+            use_stamina = false;
+            use_type = false;
         }
+
         bool use_stamina;
         bool use_type;
     };
@@ -528,21 +541,48 @@ class SMonitorDevice: public InputDevice {
         Ball ball;
         Player player[MAX_PLAYER*2];
 
-        Player & ref_player(int i) { return player[i]; };
-        void set_player_alive(int i,bool flag=true) { player[i].alive= flag; }
-        bool player_alive(int i) { return player[i].alive; }
-        void set_player(int i,const Point2d & p,const Angle & a);
-        void set_player_pos(int i,const Point2d & p) { player[i].pos= p; }
-        void set_ball_pos(const Point2d & p) { ball.pos= p; }
-        void set_ball(const Point2d & p, const Point2d & v) { ball.pos= p; ball.vel= v; }
-        void print_inline(std::ostream & o);
-        void print_formation(std::ostream & o, bool left_half, bool left_team);
+        Player & ref_player( const int i )
+          {
+              return player[i];
+          }
+
+        void set_player_alive( const int i,
+                               bool flag = true )
+          {
+              player[i].alive = flag;
+          }
+
+        bool player_alive( const int i) const
+          {
+              return player[i].alive;
+          }
+
+        void set_player( const int i,
+                         const Point2d & p,
+                         const Angle & a);
+
+        void set_player_pos( const int i,
+                             const Point2d & p )
+          {
+              player[i].pos = p;
+          }
+
+        void set_ball_pos( const Point2d & p )
+          {
+              ball.pos = p;
+          }
+
+        std::ostream & print_inline( std::ostream & o ) const;
+
+        std::ostream & print_formation( std::ostream & o,
+                                        bool left_half,
+                                        bool left_team ) const;
 
         //some info messages (useful for example to recognize offside lines (considers players p1 <= p < p2)
-        bool max_x_pos(int p1, int p2, double & x1) const;
-        bool max_x_pos(int p1, int p2, double & x1, double & x2) const;
-        bool min_x_pos(int p1, int p2, double & x1) const;
-        bool min_x_pos(int p1, int p2, double & x1, double & x2) const;
+        bool max_x_pos( const int p1, const int p2, double & x1 ) const;
+        bool max_x_pos( const int p1, const int p2, double & x1, double & x2) const;
+        bool min_x_pos( const int p1, const int p2, double & x1 ) const;
+        bool min_x_pos( const int p1, const int p2, double & x1, double & x2 ) const;
         //lt= left_team, rt= right_team
         bool lt_max_x_pos(double & x1) const { return max_x_pos(0,MAX_PLAYER,x1); }
         bool lt_min_x_pos(double & x1) const { return min_x_pos(0,MAX_PLAYER,x1); }

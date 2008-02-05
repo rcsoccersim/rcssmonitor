@@ -604,14 +604,15 @@ class VisualString2d
 public:
     bool changed;
     Point2d rel;
-    Multi< char > content;
+    std::string content;
 
     VisualString2d();
     VisualString2d( const int my_key,
                     const int my_layer,
                     const RGBcolor & my_color,
                     const Point2d & my_pos,
-                    const Multi< char > & my_data);
+                    //const Multi< char > & my_data);
+                    const std::string & my_data );
     VisualString2d( const int my_key,
                     const int my_layer,
                     const RGBcolor & my_color,

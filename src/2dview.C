@@ -360,8 +360,8 @@ bool Options::read(int argc,char **argv) {
         exit(0);
     }
 
-    cl.get("conf_file",conf_file,MAX_NAME_LEN);
-    if ( strlen(conf_file) ) {
+    cl.get( "conf_file", conf_file, MAX_NAME_LEN );
+    if ( std::strlen( conf_file ) ) {
         std::cout << "\nreading options from file: " << conf_file;
         ValueParser vp(conf_file);
         //vp.set_verbose(true);
@@ -431,8 +431,8 @@ void Rectangle::set_ratio(int window_width, int window_height) {
 
 void Rectangle::conform() {
     if (use_ratio) {
-        double ratio_width= fabs( double(p2x-p1x) / double(win_width) );
-        double ratio_height= fabs( double(p2y-p1y) / double(win_height) );
+        double ratio_width = std::fabs( double(p2x-p1x) / double(win_width) );
+        double ratio_height = std::fabs( double(p2y-p1y) / double(win_height) );
 
         if ( ratio_width > ratio_height ) {
             if (p2y > p1y)
@@ -1027,7 +1027,7 @@ redraw_current_tree()
     else
     {
         dum = INPUTDEV->status_line();
-        dum_len= strlen(dum);
+        dum_len= std::strlen( dum );
     }
     if (dum_len)
         XDrawImageString(WIN::disp, WIN::pixmap,WIN::sl_gc,0,WIN::win_height-2,dum,dum_len);
@@ -1055,12 +1055,14 @@ int main(int argc,char ** argv) {
 
     argc--; argv++;
     bool smonitor_dev= true;
-    if (argc>0 && strcmp(argv[0],"-ascii") == 0 ) {
+    if ( argc>0 && std::strcmp(argv[0],"-ascii") == 0 )
+    {
         argc--; argv++;
         smonitor_dev= false;
     }
 
-    if (smonitor_dev) { //standard device
+    if ( smonitor_dev )  //standard device
+    {
         INPUTDEV = new SMonitorDevice();
 
         RUN::conv_area.set_min_size_x( 10.0 );
@@ -1075,7 +1077,9 @@ int main(int argc,char ** argv) {
         RUN::conv_area.set_max_pos_y( 0.5*extent );
     }
     else
-        INPUTDEV = new AsciiDevice(6010);
+    {
+        INPUTDEV = new AsciiDevice( 6010 );
+    }
 
     Options::set_defaults();
     INPUTDEV->set_defaults();

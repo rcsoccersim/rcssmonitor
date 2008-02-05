@@ -34,7 +34,7 @@ void DisplayX11::step_area_number() {
 DisplayX11::DisplayX11(Display* d,Pixmap p,GC g) : d_xpoints(32), d_xsegments(32), d_xarcs(32) {
    disp= d;
    pixmap= p;
-   gc= g;	
+   gc= g;
    init_area_number();
 }
 
@@ -77,7 +77,7 @@ void DisplayX11::ASetBackground(char* color) {
 }
 
 void DisplayX11::AFillRectangle(double a1,double a2,double w,double h) {
-  XFillRectangle(disp, pixmap, gc, 
+  XFillRectangle(disp, pixmap, gc,
 		 conv.x_Plane_to_x_Win(a1),
 		 conv.y_Plane_to_y_Win(a2),
 		 conv.size_x_Plane_to_size_x_Win(w),
@@ -96,13 +96,13 @@ void DisplayX11::draw_point(DisplayObject * d_obj, const RGBcolor & col, const P
   else
     myobj= static_cast<D_XPoint*>(d_obj); //dynamic_cast should also work, but it doesn't <- why?
 
-  if (myobj->col_change) { 
+  if (myobj->col_change) {
     myobj->col_change= false;
     myobj->XColor_pixel= AGetColor(col);
   }
 
-  if (myobj->area_number != area_number) { 
-    myobj->area_number= area_number; 
+  if (myobj->area_number != area_number) {
+    myobj->area_number= area_number;
     copy_2_XPoint(myobj->p,point);
   }
 
@@ -127,13 +127,13 @@ void DisplayX11::draw_points(DisplayObject * d_obj, const RGBcolor & col, int nu
 
   //here we have the assumption num= myobj->pp.max_size; i.e. the it is not allowed to change the number of points
 
-  if (myobj->col_change) { 
+  if (myobj->col_change) {
     myobj->col_change= false;
     myobj->XColor_pixel= AGetColor(col);
   }
 
-  if (myobj->area_number != area_number) { 
-    myobj->area_number= area_number; 
+  if (myobj->area_number != area_number) {
+    myobj->area_number= area_number;
     copy_2_XPoints(myobj->pp.tab, num, vec);
   }
 
@@ -152,13 +152,13 @@ void DisplayX11::draw_line(DisplayObject * d_obj, const RGBcolor & col, const Li
   else
     myobj= static_cast<D_XSegment*>(d_obj); //dynamic_cast should also work, but it doesn't <- why?
 
-  if (myobj->col_change) { 
+  if (myobj->col_change) {
     myobj->col_change= false;
     myobj->XColor_pixel= AGetColor(col);
   }
 
-  if (myobj->area_number != area_number) { 
-    myobj->area_number= area_number; 
+  if (myobj->area_number != area_number) {
+    myobj->area_number= area_number;
     copy_2_XSegment(myobj->s,line);
   }
 
@@ -182,13 +182,13 @@ void DisplayX11::draw_lines(DisplayObject * d_obj, const RGBcolor & col, int num
 
   //here we have the assumption num= myobj->ss.max_size; i.e. the it is not allowed to change the number of points
 
-  if (myobj->col_change) { 
+  if (myobj->col_change) {
     myobj->col_change= false;
     myobj->XColor_pixel= AGetColor(col);
   }
 
-  if (myobj->area_number != area_number) { 
-    myobj->area_number= area_number; 
+  if (myobj->area_number != area_number) {
+    myobj->area_number= area_number;
     copy_2_XSegments(myobj->ss.tab, num, vec);
   }
 
@@ -207,13 +207,13 @@ void DisplayX11::draw_circle(DisplayObject * d_obj, const RGBcolor & col, const 
   else
     myobj= static_cast<D_XArc*>(d_obj); //dynamic_cast should also work, but it doesn't <- why?
 
-  if (myobj->col_change) { 
+  if (myobj->col_change) {
     myobj->col_change= false;
     myobj->XColor_pixel= AGetColor(col);
   }
 
-  if (myobj->area_number != area_number) { 
-    myobj->area_number= area_number; 
+  if (myobj->area_number != area_number) {
+    myobj->area_number= area_number;
     copy_2_XArc(myobj->a,circle);
   }
 
@@ -242,13 +242,13 @@ void DisplayX11::draw_circles(DisplayObject * d_obj, const RGBcolor & col, int n
 
   //here we have the assumption num= myobj->pp.max_size; i.e. the it is not allowed to change the number of arcs
 
-  if (myobj->col_change) { 
+  if (myobj->col_change) {
     myobj->col_change= false;
     myobj->XColor_pixel= AGetColor(col);
   }
 
-  if (myobj->area_number != area_number) { 
-    myobj->area_number= area_number; 
+  if (myobj->area_number != area_number) {
+    myobj->area_number= area_number;
     copy_2_XArcs(myobj->aa.tab, num, vec);
   }
 
@@ -267,13 +267,13 @@ void DisplayX11::fill_circle(DisplayObject * d_obj, const RGBcolor & col, const 
   else
     myobj= static_cast<D_XArc*>(d_obj); //dynamic_cast should also work, but it doesn't <- why?
 
-  if (myobj->col_change) { 
+  if (myobj->col_change) {
     myobj->col_change= false;
     myobj->XColor_pixel= AGetColor(col);
   }
 
-  if (myobj->area_number != area_number) { 
-    myobj->area_number= area_number; 
+  if (myobj->area_number != area_number) {
+    myobj->area_number= area_number;
     copy_2_XArc(myobj->a,circlearc);
   }
 
@@ -302,13 +302,13 @@ void DisplayX11::fill_circles(DisplayObject * d_obj, const RGBcolor & col, int n
 
   //here we have the assumption num= myobj->pp.max_size; i.e. the it is not allowed to change the number of arcs
 
-  if (myobj->col_change) { 
+  if (myobj->col_change) {
     myobj->col_change= false;
     myobj->XColor_pixel= AGetColor(col);
   }
 
-  if (myobj->area_number != area_number) { 
-    myobj->area_number= area_number; 
+  if (myobj->area_number != area_number) {
+    myobj->area_number= area_number;
     copy_2_XArcs(myobj->aa.tab, num, vec);
   }
 
@@ -328,12 +328,12 @@ void DisplayX11::draw_circlearc(DisplayObject * d_obj, const RGBcolor & col, con
   else
     myobj= static_cast<D_XArc*>(d_obj); //dynamic_cast should also work, but it doesn't <- why?
 
-  if (myobj->col_change) { 
+  if (myobj->col_change) {
     myobj->col_change= false;
     myobj->XColor_pixel= AGetColor(col);
   }
 
-  if (myobj->area_number != area_number) { 
+  if (myobj->area_number != area_number) {
     myobj->area_number= area_number;
     copy_2_XArc(myobj->a,circlearc);
   }
@@ -363,13 +363,13 @@ void DisplayX11::draw_circlearcs(DisplayObject * d_obj, const RGBcolor & col, in
 
   //here we have the assumption num= myobj->pp.max_size; i.e. the it is not allowed to change the number of arcs
 
-  if (myobj->col_change) { 
+  if (myobj->col_change) {
     myobj->col_change= false;
     myobj->XColor_pixel= AGetColor(col);
   }
 
-  if (myobj->area_number != area_number) { 
-    myobj->area_number= area_number; 
+  if (myobj->area_number != area_number) {
+    myobj->area_number= area_number;
     copy_2_XArcs(myobj->aa.tab, num, vec);
   }
 
@@ -388,13 +388,13 @@ void DisplayX11::fill_circlearc(DisplayObject * d_obj, const RGBcolor & col, con
   else
     myobj= static_cast<D_XArc*>(d_obj); //dynamic_cast should also work, but it doesn't <- why?
 
-  if (myobj->col_change) { 
+  if (myobj->col_change) {
     myobj->col_change= false;
     myobj->XColor_pixel= AGetColor(col);
   }
 
-  if (myobj->area_number != area_number) { 
-    myobj->area_number= area_number; 
+  if (myobj->area_number != area_number) {
+    myobj->area_number= area_number;
     copy_2_XArc(myobj->a,circlearc);
   }
 
@@ -423,13 +423,13 @@ void DisplayX11::fill_circlearcs(DisplayObject * d_obj, const RGBcolor & col, in
 
   //here we have the assumption num= myobj->pp.max_size; i.e. the it is not allowed to change the number of arcs
 
-  if (myobj->col_change) { 
+  if (myobj->col_change) {
     myobj->col_change= false;
     myobj->XColor_pixel= AGetColor(col);
   }
 
-  if (myobj->area_number != area_number) { 
-    myobj->area_number= area_number; 
+  if (myobj->area_number != area_number) {
+    myobj->area_number= area_number;
     copy_2_XArcs(myobj->aa.tab, num, vec);
   }
 
@@ -454,13 +454,13 @@ void DisplayX11::draw_polyline(DisplayObject * d_obj, const RGBcolor & col, int 
 
   //here we have the assumption num= myobj->pp.max_size; i.e. the it is not allowed to change the number of points
 
-  if (myobj->col_change) { 
+  if (myobj->col_change) {
     myobj->col_change= false;
     myobj->XColor_pixel= AGetColor(col);
   }
 
-  if (myobj->area_number != area_number) { 
-    myobj->area_number= area_number; 
+  if (myobj->area_number != area_number) {
+    myobj->area_number= area_number;
     copy_2_XPoints(myobj->pp.tab, num, vec);
   }
 
@@ -484,13 +484,13 @@ void DisplayX11::draw_polygon(DisplayObject * d_obj, const RGBcolor & col, int n
 
   //here we have the assumption num= myobj->pp.max_size; i.e. the it is not allowed to change the number of points
 
-  if (myobj->col_change) { 
+  if (myobj->col_change) {
     myobj->col_change= false;
     myobj->XColor_pixel= AGetColor(col);
   }
 
-  if (myobj->area_number != area_number) { 
-    myobj->area_number= area_number; 
+  if (myobj->area_number != area_number) {
+    myobj->area_number= area_number;
     copy_2_XPoints(myobj->pp.tab, num, vec, vec[0]);
   }
 
@@ -514,13 +514,13 @@ void DisplayX11::fill_polygon(DisplayObject * d_obj, const RGBcolor & col, int n
 
   //here we have the assumption num= myobj->pp.max_size; i.e. the it is not allowed to change the number of points
 
-  if (myobj->col_change) { 
+  if (myobj->col_change) {
     myobj->col_change= false;
     myobj->XColor_pixel= AGetColor(col);
   }
 
-  if (myobj->area_number != area_number) { 
-    myobj->area_number= area_number; 
+  if (myobj->area_number != area_number) {
+    myobj->area_number= area_number;
     copy_2_XPoints(myobj->pp.tab, num, vec);
   }
 
@@ -528,7 +528,12 @@ void DisplayX11::fill_polygon(DisplayObject * d_obj, const RGBcolor & col, int n
   XFillPolygon(disp,pixmap,gc,myobj->pp.tab,num,Complex,CoordModeOrigin);
 }
 
-void DisplayX11::draw_string(DisplayObject * d_obj, const RGBcolor & col, const Point2d & pos, int len, const char * str) {
+void DisplayX11::draw_string( DisplayObject * d_obj,
+                              const RGBcolor & col,
+                              const Point2d & pos,
+                              int len,
+                              const char * str )
+{
   D_XPoint *myobj;
 
   if (!d_obj) {
@@ -539,13 +544,13 @@ void DisplayX11::draw_string(DisplayObject * d_obj, const RGBcolor & col, const 
   else
     myobj= static_cast<D_XPoint*>(d_obj); //dynamic_cast should also work, but it doesn't <- why?
 
-  if (myobj->col_change) { 
+  if (myobj->col_change) {
     myobj->col_change= false;
     myobj->XColor_pixel= AGetColor(col);
   }
 
-  if (myobj->area_number != area_number) { 
-    myobj->area_number= area_number; 
+  if (myobj->area_number != area_number) {
+    myobj->area_number= area_number;
     copy_2_XPoint(myobj->p,pos);
   }
 
@@ -563,29 +568,28 @@ void DisplayX11::set_background_color(const RGBcolor & col) {
 }
 
 void DisplayX11::copy_2_XPoints(XPoint * dest,int num,const Point2d * vec) const  {
-  for (int i= 0; i<num; i++) 
+  for (int i= 0; i<num; i++)
     copy_2_XPoint(dest[i],vec[i]);
 }
 
 void DisplayX11::copy_2_XPoints(XPoint * dest,int num,const Point2d * vec, const Point2d & point) const  {
-  for (int i= 0; i<num; i++) 
+  for (int i= 0; i<num; i++)
     copy_2_XPoint(dest[i],vec[i]);
 
   copy_2_XPoint(dest[num],point);
 }
 
 void DisplayX11::copy_2_XSegments(XSegment * dest,int num, const Line2d * vec) const  {
-  for (int i= 0; i<num; i++) 
+  for (int i= 0; i<num; i++)
     copy_2_XSegment(dest[i],vec[i]);
 }
 
 void DisplayX11::copy_2_XArcs(XArc * dest,int num, const Circle2d * vec) const  {
-  for (int i= 0; i<num; i++) 
+  for (int i= 0; i<num; i++)
     copy_2_XArc(dest[i],vec[i]);
 }
 
 void DisplayX11::copy_2_XArcs(XArc * dest,int num,const CircleArc2d * vec) const  {
-  for (int i= 0; i<num; i++) 
+  for (int i= 0; i<num; i++)
     copy_2_XArc(dest[i],vec[i]);
 }
-

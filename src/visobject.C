@@ -1257,7 +1257,8 @@ VisualString2d::VisualString2d( const int my_key,
                                 const int my_layer,
                                 const RGBcolor & my_color,
                                 const Point2d & my_pos,
-                                const Multi< char > & my_data )
+                                //const Multi< char > & my_data )
+                                const std::string & my_data )
     : VisualObject2d()
 {
     init();
@@ -1285,7 +1286,8 @@ VisualString2d::VisualString2d( const int my_key,
     color = my_color;
 
     rel = my_pos;
-    content.clone( len_data, data );
+    //content.clone( len_data, data );
+    content.assign( data, len_data );
 }
 
 VisualString2d::VisualString2d()
@@ -1328,7 +1330,8 @@ VisualString2d::draw( DisplayBase * disp,
         d_obj = disp->create_string();
     }
 
-    disp->draw_string( d_obj, color, abs, content.cur_size, content.tab );
+    //disp->draw_string( d_obj, color, abs, content.cur_size, content.tab );
+    disp->draw_string( d_obj, color, abs, content.length(), content.c_str() );
 }
 
 

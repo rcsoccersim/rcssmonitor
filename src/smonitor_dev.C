@@ -784,9 +784,6 @@ VisualBall::init( const int my_key,
     line_markers.use_intersects_area = false;
     line_markers.set_color( c_line_markers );
 
-    label.content.set_max_size( MAX_LABEL_LEN );
-    label.content.set_cur_size( 0 );
-    //label.content.tab[0] = 'b';
     label.set_color( c_font );
 }
 
@@ -886,12 +883,13 @@ VisualBall::set_show_vel( const Point2d & vel_as_point )
 void
 VisualBall::set_show_vel_string( const Point2d & vel )
 {
-    //sprintf( label.content.tab,"( %.2lf,%.2lf )  ", vel.x, vel.y );
-    show_vel_string = true;
-    std::snprintf( label.content.tab, sizeof( label.content.tab ),
+    char buf[32];
+    std::snprintf( buf, 32,
                    "(%.2f,%.2f)",
                    vel.x, vel.y );
-    label.content.cur_size = strlen( label.content.tab );
+    label.content = buf;
+
+    show_vel_string = true;
     label.changed = true;
     //cout << "\nlabel = " << label.content.tab << flush;
 }
@@ -994,16 +992,9 @@ VisualPlayer::init( const int my_key,
     head_dir.use_intersects_area = false;
     head_dir.set_color( c_red );
 
-    label.content.set_max_size( MAX_LABEL_LEN );
-
     char unum_str[4];
     std::snprintf( unum_str, 4, "%d", p_number );
-    label.content.set_cur_size( std::strlen( unum_str ) );
-
-    for ( int i = 0; i < label.content.cur_size; ++i )
-    {
-        label.content.tab[i] = unum_str[i];
-    }
+    label.content = unum_str;
     label.set_color( c_font );
 
     //body_frame_chg = false;
@@ -1149,32 +1140,41 @@ VisualPlayer::set_body_angle( const Angle & a )
     reverse_body_frame.set_angle( -a );
 }
 
-void VisualPlayer::set_head_angle( const Angle & a ) {
+void
+VisualPlayer::set_head_angle( const Angle & a )
+{
     head_frame_chg = true;
     head_frame.set_angle( a );
 }
 
-void VisualPlayer::set_label( const char * lab ) {
-    label.content.cur_size = 0;
+void
+VisualPlayer::set_label( const char * lab )
+{
 
-    if ( !lab || *lab == '\0' )
+    label.content.erase();
+
+    if ( ! lab || *lab == '\0' )
+    {
         return;
-
-    while ( label.content.cur_size < label.content.max_size
-            && *lab != '\0' ) {
-        label.content.tab[label.content.cur_size] = *lab;
-        lab++;
-        label.content.cur_size++;
     }
+
+    label.content.assign( lab,
+                          std::min( std::strlen( lab ),
+                                    size_t( MAX_LABEL_LEN ) ) );
 }
 
-void VisualPlayer::set_active( bool flag ) {
+void
+VisualPlayer::set_active( bool flag )
+{
     if ( flag == is_active )
+    {
         return;
+    }
 
     is_active = flag;
 
-    if ( !is_active ) {
+    if ( !is_active )
+    {
         body_bg.set_color( c_invalid );
         return;
     }
@@ -1182,24 +1182,38 @@ void VisualPlayer::set_active( bool flag ) {
     is_goalie = false;
 
     if ( is_goalie )
+    {
         body_bg.set_color( c_goalie );
+    }
     else
+    {
         body_bg.set_color( c_player );
+    }
 }
 
-void VisualPlayer::set_goalie( bool flag ) {
+void
+VisualPlayer::set_goalie( bool flag )
+{
     if ( flag == is_goalie )
+    {
         return;
+    }
 
     is_goalie = flag;
 
-    if ( !is_active )
+    if ( ! is_active )
+    {
         return;
+    }
 
     if ( is_goalie )
+    {
         body_bg.set_color( c_goalie );
+    }
     else
+    {
         body_bg.set_color( c_player );
+    }
 }
 
 /******************************************************************************/
@@ -1229,15 +1243,19 @@ const double VisualField::GOAL_Y = FIELD_GOAL_AREA_WIDTH / 2.0;
 const double VisualField::GPOST_RAD = 0.06;
 
 
-VisualField::VisualField() {
+VisualField::VisualField()
+{
+
 }
 
-void VisualField::init( int my_key, int my_layer,
-                       const RGBcolor & my_c_line,
-                       const RGBcolor & my_c_goal,
-                       bool my_keepaway,
-                       double my_keepaway_length,
-                       double my_keepaway_width ) {
+void VisualField::init( const int my_key,
+                        const int my_layer,
+                        const RGBcolor & my_c_line,
+                        const RGBcolor & my_c_goal,
+                        const bool my_keepaway,
+                        const double & my_keepaway_length,
+                        const double & my_keepaway_width )
+{
     key = my_key;
     layer = my_layer;
 
@@ -1408,7 +1426,8 @@ VisualField::actualize( const Frame2d & f,
     changed = false;
 }
 
-void VisualField::set_goal_width( double width ) {
+void VisualField::set_goal_width( const double & width )
+{
     //cerr << "\nchanging goal width to " << width << flush;
 
     goal_l.rel.tab[0].y = -width*0.5 - GPOST_RAD;
@@ -1472,7 +1491,8 @@ const int SMonitorDevice::id_ball = -1;
 const int SMonitorDevice::id_invalid = -2;
 
 
-SMonitorDevice::Options::Options() {
+SMonitorDevice::Options::Options()
+{
     server_port = 6000;
     std::strcpy( server_host, "127.0.0.1" );
     coach_port = server_port+1;
@@ -1529,21 +1549,31 @@ SMonitorDevice::Options::Options() {
     rt_show_spare_space_to_offside_line = false;
 }
 
-double SMonitorDevice::Options::scale_factor() const {
+double
+SMonitorDevice::Options::scale_factor() const
+{
     return scale_level_beg + scale_level * scale_level_inc;
 }
 
-bool SMonitorDevice::Options::set_scale_level_from_double( double s ) {
-    for ( int i =scale_level_max; i >= 0; i-- )
-        if ( s >=  scale_level_beg + i * scale_level_inc - 0.0001 ) {
-            scale_level =  i;
+bool
+SMonitorDevice::Options::set_scale_level_from_double( const double & s )
+{
+    for ( int i = scale_level_max; i >= 0; --i )
+    {
+        if ( s >= scale_level_beg + i * scale_level_inc - 0.0001 )
+        {
+            scale_level = i;
             return true;
         }
+    }
+
     scale_level = scale_level_min;
     return true;
 }
 
-const char * SMonitorDevice::Options::get_mode_string() const {
+const char *
+SMonitorDevice::Options::get_mode_string() const
+{
     if ( mode == MODE_STANDARD )
         return "mode std ";
     if ( mode == MODE_MOVE )
@@ -1553,7 +1583,9 @@ const char * SMonitorDevice::Options::get_mode_string() const {
     return "mode ????";
 }
 
-const char * SMonitorDevice::Options::get_mode_value_string() const {
+const char *
+SMonitorDevice::Options::get_mode_value_string() const
+{
     if ( mode == MODE_STANDARD )
         return "std";
     if ( mode == MODE_MOVE )
@@ -1563,12 +1595,14 @@ const char * SMonitorDevice::Options::get_mode_value_string() const {
     return "????";
 }
 
-bool SMonitorDevice::Options::set_mode_from_string( const char * s ) {
-    if ( strcmp( "std",s ) == 0 )
+bool
+SMonitorDevice::Options::set_mode_from_string( const char * s )
+{
+    if ( ! std::strcmp( "std", s ) )
         mode = MODE_STANDARD;
-    else if ( strcmp( "move",s ) == 0 )
+    else if ( ! std::strcmp( "move", s ) )
         mode = MODE_MOVE;
-    else if ( strcmp( "view",s ) == 0 )
+    else if ( ! std::strcmp( "view", s ) )
         mode = MODE_SHOW_VIEW_AREA;
     else
         return false;
@@ -1581,7 +1615,9 @@ SMonitorDevice::ServerState::ServerState()
     reset();
 }
 
-void SMonitorDevice::ServerState::reset() {
+void
+SMonitorDevice::ServerState::reset()
+{
     //last_packet_ms_time = -1;
     reconnected = true;
     left_teamname.erase();
@@ -1593,80 +1629,121 @@ void SMonitorDevice::ServerState::reset() {
         = left_pen_miss = right_pen_miss = -1;
 }
 
-void SMonitorDevice::Positions::set_player( int i,const Point2d & p,const Angle & a ) {
+void
+SMonitorDevice::Positions::set_player( const int i,
+                                       const Point2d & p,
+                                       const Angle & a )
+{
     player[i].pos = p;
     player[i].body_angle = a;
 }
 
-bool SMonitorDevice::Positions::max_x_pos( int p1, int p2, double & x1 ) const {
+bool
+SMonitorDevice::Positions::max_x_pos( const int p1,
+                                      const int p2,
+                                      double & x1 ) const
+{
     bool res = false;
-    for ( int i =p1; i < p2; i++ ) {
+    for ( int i =p1; i < p2; ++i )
+    {
         const Player & p = player[i];
         if ( ! p.alive )
             continue;
 
-        if ( !res ) {
+        if ( ! res )
+        {
             x1 = p.pos.x;
             res = true;
         }
         else if ( p.pos.x > x1 )
+        {
             x1 = p.pos.x;
+        }
     }
     return res;
 }
 
 //copy of max_x_pos with > replaced by <
-bool SMonitorDevice::Positions::min_x_pos( int p1, int p2, double & x1 ) const {
+bool
+SMonitorDevice::Positions::min_x_pos( const int p1,
+                                      const int p2,
+                                      double & x1 ) const
+{
     bool res = false;
-    for ( int i =p1; i < p2; i++ ) {
+    for ( int i =p1; i < p2; ++i )
+    {
         const Player & p = player[i];
         if ( ! p.alive )
             continue;
 
-        if ( !res ) {
+        if ( ! res )
+        {
             x1 = p.pos.x;
             res = true;
         }
         else if ( p.pos.x < x1 )
+        {
             x1 = p.pos.x;
+        }
     }
     return res;
 }
 
-bool SMonitorDevice::Positions::max_x_pos( int p1, int p2, double & x1, double & x2 ) const {
+bool
+SMonitorDevice::Positions::max_x_pos( const int p1,
+                                      const int p2,
+                                      double & x1,
+                                      double & x2 ) const
+{
     int res = 0;
-    for ( int i =p1; i < p2; i++ ) {
+    for ( int i =p1; i < p2; ++i )
+    {
         const Player & p = player[i];
 
         if ( !p.alive )
             continue;
 
-        if ( res == 0 ) {
+        if ( res == 0 )
+        {
             x1 = p.pos.x;
             res = 1;
         }
-        else if ( res == 1 ) {
+        else if ( res == 1 )
+        {
             res = 2;
-            if ( p.pos.x > x1 ) {
+            if ( p.pos.x > x1 )
+            {
                 x2 = x1;
                 x1 = p.pos.x;
             }
             else
+            {
                 x2 = p.pos.x;
+            }
         }
-        else if ( p.pos.x > x2 ) {
-            if ( p.pos.x > x1 ) {
+        else if ( p.pos.x > x2 )
+        {
+            if ( p.pos.x > x1 )
+            {
                 x2 = x1;
                 x1 = p.pos.x;
             }
             else
+            {
                 x2 = p.pos.x;
+            }
         }
     }
     return ( res ==2 );
 }
+
 //copy of max_x_pos with > replaced by <
-bool SMonitorDevice::Positions::min_x_pos( int p1, int p2, double & x1, double & x2 ) const {
+bool
+SMonitorDevice::Positions::min_x_pos( const int p1,
+                                      const int p2,
+                                      double & x1,
+                                      double & x2 ) const
+{
     int res = 0;
     for ( int i =p1; i < p2; i++ ) {
         const Player & p = player[i];
@@ -1699,49 +1776,67 @@ bool SMonitorDevice::Positions::min_x_pos( int p1, int p2, double & x1, double &
     return ( res ==2 );
 }
 
-void SMonitorDevice::Positions::print_inline( std::ostream & out ) {
+std::ostream &
+SMonitorDevice::Positions::print_inline( std::ostream & out ) const
+{
     int prec = 4;
     out << std::setprecision( prec ) << ball.pos.x
         << " " << std::setprecision( prec ) << ball.pos.y
         << " " << std::setprecision( prec ) << ball.vel.x
         << " " << std::setprecision( prec ) << ball.vel.y;
-    for ( int i = 0; i < MAX_PLAYER*2; i++ )
+    for ( int i = 0; i < MAX_PLAYER*2; ++i )
+    {
         out << "    " << std::setprecision( prec ) << player[i].pos.x
             << " " << std::setprecision( prec ) << player[i].pos.y
             << " " << std::setprecision( prec ) << player[i].body_angle.get_value()
             << " 0 0"; // the velocity is 0
+    }
+    return out;
 }
 
-void SMonitorDevice::Positions::print_formation( std::ostream & out, bool left_half, bool left_team ) {
+std::ostream &
+SMonitorDevice::Positions::print_formation( std::ostream & out,
+                                            bool left_half,
+                                            bool left_team ) const
+{
     int start_idx = 0;
     double dum = 0.0;
-    if ( left_half ) {
+    if ( left_half )
+    {
         out << "\n[left half";
         dum = 52.5;
     }
     else
+    {
         out << "\n[right half";
+    }
 
     if ( left_team )
+    {
         out << ", left team]";
-    else {
+    }
+    else
+    {
         out << ", right team]";
         start_idx = 11;
     }
 
     char buffer[200];
-    for ( int i = 1+start_idx; i< MAX_PLAYER+start_idx; i++ ) {
+    for ( int i = 1+start_idx; i< MAX_PLAYER+start_idx; ++i )
+    {
         float x = ( player[i].pos.x + dum )/52.5;
         if ( x<0.0 ) x = 0.0;
         if ( x>1.0 ) x = 1.0;
         float y = ( player[i].pos.y + 34.0 )/68.0;
         if ( y<0.0 ) y = 0.0;
         if ( y>1.0 ) y = 1.0;
-        sprintf( buffer,"\npos_%-2d = %.2f %.2f *",i-start_idx,x,y );
+        std::snprintf( buffer, 200,
+                       "\npos_%-2d = %.2f %.2f *",
+                       i - start_idx, x, y  );
         out << buffer;
     }
 
-    out << std::flush;
+    return out << std::flush;
 }
 /*****************************************************************************/
 /*****************************************************************************/
@@ -1937,13 +2032,18 @@ void SMonitorDevice::generate_file_options( std::ostream & o ) const {
     generic_description_of_options( o,0 );
 }
 
-bool SMonitorDevice::process_char_command( BuilderBase * build, MenuBase * menu, const InputEvent & event ) {
+bool
+SMonitorDevice::process_char_command( BuilderBase * build,
+                                      MenuBase * menu,
+                                      const InputEvent & event )
+{
     bool redraw = false;
     //  static char buf[100];
     //  ostrstream dum_str( buf,100 );
     switch ( event.key ) {
     case 'c':
-        if ( options.just_edit ) {
+        if ( options.just_edit )
+        {
             std::cout << "\nthis key is not set in edit mode";
             break;
         }
@@ -1952,7 +2052,8 @@ bool SMonitorDevice::process_char_command( BuilderBase * build, MenuBase * menu,
         server_state.reset();
         break;
     case 'l':
-        if ( options.just_edit ) {
+        if ( options.just_edit )
+        {
             std::cout << "\nthis key is not set in edit mode";
             break;
         }
@@ -1961,14 +2062,17 @@ bool SMonitorDevice::process_char_command( BuilderBase * build, MenuBase * menu,
 #if 1
     case 'm':
         options.active_in_mode = id_invalid;
-        if ( options.mode == Options::MODE_STANDARD ) {
+        if ( options.mode == Options::MODE_STANDARD )
+        {
             options.mode = Options::MODE_MOVE;
         }
-        else if ( options.mode == Options::MODE_MOVE ) {
+        else if ( options.mode == Options::MODE_MOVE )
+        {
             build->set_cmd_set_frame_visible( frame_shadow,0 );
             options.mode = Options::MODE_SHOW_VIEW_AREA;
         }
-        else if ( options.mode == Options::MODE_SHOW_VIEW_AREA ) {
+        else if ( options.mode == Options::MODE_SHOW_VIEW_AREA )
+        {
             build->set_cmd_set_frame_visible( frame_varea,0 );
             options.mode = Options::MODE_STANDARD;
         }
@@ -1990,14 +2094,16 @@ bool SMonitorDevice::process_char_command( BuilderBase * build, MenuBase * menu,
         //options.toggle_track_ball();
         break;
     case 'r':
-        if ( options.just_edit ) {
+        if ( options.just_edit )
+        {
             std::cout << "\nthis key is not set in edit mode";
             break;
         }
         send_dispfoul_right( event.pos );
         break;
     case 's':
-        if ( options.just_edit ) {
+        if ( options.just_edit )
+        {
             std::cout << "\nthis key is not set in edit mode";
             break;
         }
@@ -2006,10 +2112,12 @@ bool SMonitorDevice::process_char_command( BuilderBase * build, MenuBase * menu,
         break;
     case 'v':
         options.toggle_show_ball_vel();
-        if ( options.show_ball_vel ) {
+        if ( options.show_ball_vel )
+        {
             vis_ball.set_show_vel( server_pos.ball.vel );
         }
-        else {
+        else
+        {
             vis_ball.unset_show_vel();
         }
         return true;
@@ -2017,8 +2125,11 @@ bool SMonitorDevice::process_char_command( BuilderBase * build, MenuBase * menu,
     case '>':
         break; // just a debugging feature
         if ( options.lt_show_spare_space_to_offside_line )
+        {
             options.lt_show_spare_space_to_offside_line = false;
-        else {
+        }
+        else
+        {
             options.lt_show_spare_space_to_offside_line = true;
             options.rt_show_spare_space_to_offside_line = false;
         }
@@ -2026,8 +2137,11 @@ bool SMonitorDevice::process_char_command( BuilderBase * build, MenuBase * menu,
     case '<':
         break; //just a debugging feature
         if ( options.rt_show_spare_space_to_offside_line )
+        {
             options.rt_show_spare_space_to_offside_line = false;
-        else {
+        }
+        else
+        {
             options.rt_show_spare_space_to_offside_line = true;
             options.lt_show_spare_space_to_offside_line = false;
         }
@@ -2041,12 +2155,16 @@ bool SMonitorDevice::process_char_command( BuilderBase * build, MenuBase * menu,
     else o_id = int( event.key )-49;
     if ( p_valid( o_id ) && !coach_state.left_team ) o_id += 11;
 
-    if ( options.mode == Options::MODE_MOVE && o_valid( o_id ) || id_ball == o_id ) {
-        if ( options.just_edit ) {
+    if ( options.mode == Options::MODE_MOVE && o_valid( o_id )
+         || id_ball == o_id )
+    {
+        if ( options.just_edit )
+        {
             set_object_pos( build,o_id,event.pos );
             return true;
         }
-        else {
+        else
+        {
 #if 1 // if there is no connection to the server, this is needed
             send_object_pos( o_id,event.pos );
             set_object_pos( build,o_id,event.pos );
@@ -2058,12 +2176,16 @@ bool SMonitorDevice::process_char_command( BuilderBase * build, MenuBase * menu,
         }
     }
 
-    if ( options.mode == Options::MODE_SHOW_VIEW_AREA && p_valid( o_id ) ) {
-        if ( options.active_in_mode == o_id ) {
+    if ( options.mode == Options::MODE_SHOW_VIEW_AREA
+         && p_valid( o_id ) )
+    {
+        if ( options.active_in_mode == o_id )
+        {
             options.active_in_mode = id_invalid;
             build->set_cmd_set_frame_visible( frame_varea,0 );
         }
-        else {
+        else
+        {
             options.active_in_mode = o_id;
             Positions::Player & p = server_pos.ref_player( options.active_in_mode );
             build->set_cmd_set_frame_pos_ang( frame_varea,p.pos,p.body_angle+p.head_angle_rel );
@@ -2077,7 +2199,8 @@ bool SMonitorDevice::process_char_command( BuilderBase * build, MenuBase * menu,
     case 't': coach_state.toggle_team(); break;
     case 'e':
 #if 0
-        if ( options.just_edit ) {
+        if ( options.just_edit )
+        {
             std::cout << "\nthis key is not set in edit mode";
             break;
         }
@@ -2091,25 +2214,33 @@ bool SMonitorDevice::process_char_command( BuilderBase * build, MenuBase * menu,
     return redraw;
 }
 
-bool SMonitorDevice::process_mouse_button_event( BuilderBase * build, const InputEvent & event ) {
+bool
+SMonitorDevice::process_mouse_button_event( BuilderBase * build,
+                                            const InputEvent & event )
+{
     //options.active_in_mode = id_invalid;
-    static unsigned long last_time =0;
+    static unsigned long last_time = 0;
     //if ( event.mouse_button ! = 2 )
     //  return false;
 
     if ( event.mouse_button == 2 &&
-         event.mouse_button_state == InputEvent::MOUSE_BUTTON_PRESSED ) {
+         event.mouse_button_state == InputEvent::MOUSE_BUTTON_PRESSED )
+    {
         Point2d rel;
         double min = 100.0;
         int p_min = id_invalid;
-        for ( int i =0; i<MAX_PLAYER*2; i++ ) {
+        for ( int i =0; i<MAX_PLAYER*2; i++ )
+        {
             rel.x = event.pos.x - server_pos.player[i].pos.x;
             rel.y = event.pos.y - server_pos.player[i].pos.y;
 
             //take the greater absolute value
-            double dum =  fabs( rel.x ) > fabs( rel.y ) ? fabs( rel.x ) : fabs( rel.y );
+            double dum = ( std::fabs( rel.x ) > fabs( rel.y )
+                           ? std::fabs( rel.x )
+                           : std::fabs( rel.y ) );
 
-            if ( dum < min ) {
+            if ( dum < min )
+            {
                 min = dum;
                 p_min = i;
             }
@@ -2395,9 +2526,9 @@ bool SMonitorDevice::init_frames( BuilderBase * build ){
                   options.c_ball,
                   c_red, c_red, c_black );
 
-    server_pos.set_ball_pos( Point2d( 2.0,0.0 ) );
+    server_pos.set_ball_pos( Point2d( 2.0, 0.0 ) );
 #ifdef WEBFIELD
-    server_pos.set_ball_pos( Point2d( 2.0,60.0 ) );
+    server_pos.set_ball_pos( Point2d( 2.0, 60.0 ) );
 #endif
     build->set_cmd_insert_frame( 0,frame_ball, server_pos.ball.pos,0.0,layer+3 );
 
@@ -2461,9 +2592,12 @@ bool SMonitorDevice::init_frames( BuilderBase * build ){
     return true;
 }
 
-bool SMonitorDevice::init_connection() {
+bool SMonitorDevice::init_connection()
+{
     if ( options.just_edit )
+    {
         return true;
+    }
 
     server.init_socket_fd();
     //server.init_socket_fd( 6010 ); //test to use client2dview with smonitor_dev.C
@@ -2477,32 +2611,49 @@ bool SMonitorDevice::init_connection() {
 #endif
 
     if ( options.connect_on_start )
+    {
         send_dispinit();
+    }
     return true;
 }
 
-bool SMonitorDevice::uses_mouse() const {
-    if ( options.mode == Options::MODE_MOVE ||
-        options.mode == Options::MODE_SHOW_VIEW_AREA )
+bool
+SMonitorDevice::uses_mouse() const
+{
+    if ( options.mode == Options::MODE_MOVE
+         || options.mode == Options::MODE_SHOW_VIEW_AREA )
+    {
         return true;
+    }
     return false;
 }
 
-bool SMonitorDevice::uses_popup() const {
+bool
+SMonitorDevice::uses_popup() const
+{
     if ( options.mode == Options::MODE_STANDARD )
+    {
         return true;
+    }
     return false;
 }
 
-bool SMonitorDevice::destruct() {
+bool
+SMonitorDevice::destruct()
+{
     send_dispbye();
     //some stuff should be still done here
     return true;
 }
 
-bool SMonitorDevice::process_input( fd_set * set, BuilderBase * build ) {
+bool
+SMonitorDevice::process_input( fd_set * set,
+                               BuilderBase * build )
+{
     if ( options.just_edit )
+    {
         return true;
+    }
 
     bool redraw = false;
     //process server commands
@@ -2889,8 +3040,12 @@ SMonitorDevice::server_interpret_showinfo_t( BuilderBase * build,
 
     const SSrv::showinfo_t & showinfo = dispinfo->body.show; //shortcut
     server_state.current_time = ntohs( showinfo.time );
-    server_state.left_teamname.assign( showinfo.team[0].name, 16 );
-    server_state.right_teamname.assign( showinfo.team[1].name, 16 );
+    server_state.left_teamname.assign( showinfo.team[0].name,
+                                       std::min( std::strlen( showinfo.team[0].name ),
+                                                 16u ) );
+    server_state.right_teamname.assign( showinfo.team[1].name,
+                                        std::min( std::strlen( showinfo.team[1].name ),
+                                                  16u ) );
     //match info
     Int16 s_l = ntohs( showinfo.team[0].score );
     Int16 s_r = ntohs( showinfo.team[1].score );
@@ -3215,7 +3370,8 @@ bool SMonitorDevice::server_interpret_frameview_msg( BuilderBase * build, const 
         const char * beg_msg = msg;
         int res = false;
 
-        if ( strncmp ( msg,"CLEAR",5 ) == 0 ) {
+        if ( ! std::strncmp ( msg, "CLEAR", 5 ) )
+        {
             //clear drawing plane
             msg += 5;
             DEBUG( << " refreshing drawarea" );
@@ -3225,11 +3381,16 @@ bool SMonitorDevice::server_interpret_frameview_msg( BuilderBase * build, const 
                 res = true;
         }
         else if ( msg[0] == 'l' || msg[0] == 'c' || msg[0] == 'p' )
+        {
             res = ins_simple_obj( msg,canvas,build,msg );
+        }
         else
+        {
             res = AsciiProcessor::ins_obj( msg,canvas,build,msg );
+        }
 
-        if ( !res ) {
+        if ( !res )
+        {
             ERROR_OUT << "\nDrawing input parse error:\n";
             //ERROR_STREAM << "\noriginal message: " << str;
             //ERROR_STREAM << "\n\n>>>";
@@ -3283,8 +3444,12 @@ SMonitorDevice::server_interpret_showinfo_t2( BuilderBase * build,
 
     const SSrv::showinfo_t2 & showinfo = dispinfo->body.show; //shortcut
     server_state.current_time = ntohs( showinfo.time );
-    server_state.left_teamname.assign( showinfo.team[0].name, 16 );
-    server_state.right_teamname.assign( showinfo.team[1].name, 16 );
+    server_state.left_teamname.assign( showinfo.team[0].name,
+                                       std::min( std::strlen( showinfo.team[0].name ),
+                                                 16u ) );
+    server_state.right_teamname.assign( showinfo.team[1].name,
+                                        std::min( std::strlen( showinfo.team[1].name ),
+                                                  16u ) );
     //match info
     Int16 s_l = ntohs( showinfo.team[0].score );
     Int16 s_r = ntohs( showinfo.team[1].score );
@@ -3447,15 +3612,21 @@ SMonitorDevice::server_interpret_showinfo_t2( BuilderBase * build,
         vis_p.set_tackling_fault( s_mode & TACKLE_FAULT );
 
         if ( options.show_ball_collisions )
+        {
             vis_p.set_ball_collision( s_mode & BALL_COLLIDE );
+        }
 
-        if ( guess.use_stamina ) vis_p.set_low_stamina_indicator( p.stamina < 1500.0 );
+        if ( guess.use_stamina )
+        {
+            vis_p.set_low_stamina_indicator( p.stamina < 1500.0 );
+        }
 
         vis_player_set_info_level( options.info_level, vis_p, p, p_number( i ) );
     }
 
 #if 1
-    if ( options.rt_show_spare_space_to_offside_line ) {
+    if ( options.rt_show_spare_space_to_offside_line )
+    {
         double x1, x2, x3;
         bool res = server_pos.lt_min_x_pos( x1,x2 ) && server_pos.rt_min_x_pos( x3 );
         //std::cout << "\nres = " << res << " x1 = " << x1 << " x2 = " << x2 << "; x3 = " << x3 << flush;
@@ -3944,13 +4115,17 @@ SMonitorDevice::server_interpret_team_v3( BuilderBase * build,
     if ( std::strlen( name_l ) != 4
          || std::strncmp( name_l, "null", 4 ) != 0 )
     {
-        server_state.left_teamname.assign( name_l, 16 );
+        server_state.left_teamname.assign( name_l,
+                                           std::min( std::strlen( name_l ),
+                                                     16u ) );
     }
 
     if ( std::strlen( name_r ) != 4
          || std::strncmp( name_r, "null", 4 ) != 0 )
     {
-        server_state.right_teamname.assign( name_r, 16 );
+        server_state.right_teamname.assign( name_r,
+                                           std::min( std::strlen( name_r ),
+                                                     16u ) );
     }
 
     // update scoreborad message
@@ -4276,7 +4451,7 @@ void SMonitorDevice::send_object_pos( int o_id, const Point2d & pos ) {
     coach.send_msg( dum_str.str().c_str(), dum_str.str().length() );
 #else
     dum_str << std::ends;
-    coach.send_msg( dum_str.str(), strlen( dum_str.str() ) );
+    coach.send_msg( dum_str.str(), std::strlen( dum_str.str() ) );
     dum_str.freeze( false );
 #endif
 
@@ -4303,13 +4478,15 @@ void SMonitorDevice::send_object_pos( int o_id, const Point2d & pos ) {
     server.send_msg( dum_str.str().c_str(), dum_str.str().length() );
 #else
     dum_str << std::ends;
-    server.send_msg( dum_str.str(), strlen( dum_str.str() ) );
+    server.send_msg( dum_str.str(), std::strlen( dum_str.str() ) );
     dum_str.freeze( false );
 #endif
 #endif
 }
 
-void SMonitorDevice::send_dispinit() {
+void
+SMonitorDevice::send_dispinit()
+{
     if ( options.protocol_version >= 2 )
     {
         //const char msg[] = "(dispinit version 2)";
@@ -4329,32 +4506,51 @@ void SMonitorDevice::send_dispinit() {
     M_penalty_state.clear();
 }
 
-void SMonitorDevice::send_dispstart() {
+void
+SMonitorDevice::send_dispstart()
+{
     const char msg[] = "(dispstart)";
-    server.send_msg( msg,strlen( msg )+1 );
+    server.send_msg( msg, std::strlen( msg ) + 1 );
 }
 
-void SMonitorDevice::send_dispball( const Point2d & pos ) {
+void
+SMonitorDevice::send_dispball( const Point2d & pos )
+{
+    char buf[100];
+    std::snprintf( buf, 100,
+                   "(dispfoul %d %d 0)",
+                   int( pos.x * SHOWINFO_SCALE ),
+                   int( - pos.y * SHOWINFO_SCALE ) );
+    server.send_msg( buf, std::strlen( buf ) + 1 );
+}
+
+void
+SMonitorDevice::send_dispfoul_left( const Point2d & pos )
+{
+    char buf[100];
+    std::snprintf( buf, 100,
+                   "(dispfoul %d %d 1)",
+                   int( pos.x * SHOWINFO_SCALE ),
+                   int( - pos.y * SHOWINFO_SCALE ) );
+    server.send_msg( buf, std::strlen( buf ) + 1 );
+}
+
+void
+SMonitorDevice::send_dispfoul_right( const Point2d & pos )
+{
     static char buf[100];
-    sprintf( buf,"(dispfoul %d %d 0)",int( pos.x * SHOWINFO_SCALE ),int( - pos.y * SHOWINFO_SCALE ) );
-    server.send_msg( buf,strlen( buf )+1 );
+    std::snprintf( buf, 100,
+                   "(dispfoul %d %d -1)",
+                   int( pos.x * SHOWINFO_SCALE ),
+                   int( - pos.y * SHOWINFO_SCALE ) );
+    server.send_msg( buf, std::strlen( buf ) + 1 );
 }
 
-void SMonitorDevice::send_dispfoul_left( const Point2d & pos ) {
-    static char buf[100];
-    sprintf( buf,"(dispfoul %d %d 1)",int( pos.x * SHOWINFO_SCALE ),int( - pos.y * SHOWINFO_SCALE ) );
-    server.send_msg( buf,strlen( buf )+1 );
-}
-
-void SMonitorDevice::send_dispfoul_right( const Point2d & pos ) {
-    static char buf[100];
-    sprintf( buf,"(dispfoul %d %d -1)",int( pos.x * SHOWINFO_SCALE ),int( - pos.y * SHOWINFO_SCALE ) );
-    server.send_msg( buf,strlen( buf )+1 );
-}
-
-void SMonitorDevice::send_dispbye () {
+void
+SMonitorDevice::send_dispbye()
+{
     const char msg[] = "(dispbye)";
-    server.send_msg( msg,strlen( msg )+1 );
+    server.send_msg( msg, std::strlen( msg ) + 1 );
 }
 
 /*

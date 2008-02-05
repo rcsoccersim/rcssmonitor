@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 - 2001, Artur Merke <amerke@ira.uka.de> 
+ * Copyright (c) 1999 - 2001, Artur Merke <amerke@ira.uka.de>
  *
  * This file is part of FrameView2d.
  *
@@ -21,28 +21,56 @@
 #ifndef _AREA2d_
 #define _AREA2d_
 
-#include <iostream>
 #include "object2d.h"
 
+#include <iostream>
 
+/*!
+  \brief 2d rectangle area
+ */
 struct Area2d {
-  friend std::ostream& operator<< (std::ostream&,const Area2d&);
+
   Point2d center;
   double size_x;
   double size_y;
-  Area2d() { size_x= 0.0; size_y= 0.0; }
-  Area2d(const Point2d &,double sx,double sy); 
-  void init(const Point2d &,double sx,double sy); 
-  /** most of the routines do get a result, which is conservative, i.e. 
+
+  Area2d()
+      : size_x( 0.0 ),
+        size_y( 0.0 )
+      { }
+
+  Area2d( const Point2d & c,
+          const double & sx,
+          const double & sy )
+      : center( c ),
+        size_x( sx ),
+        size_y( sy )
+      { }
+
+  void init( const Point2d &,
+             const double & sx,
+             const double & sy );
+
+  /** most of the routines do get a result, which is conservative, i.e.
       1) if false is returned, then the is surely no intersection
       2) if true is returned, then the is not nececcerly a intersection.
   */
-  bool intersects(const Point2d &) const;
-  bool intersects(const Line2d &) const;
-  bool intersects(const Circle2d &) const;
-  bool intersects(const CircleArc2d &) const;
-  bool intersects_area_of(const Circle2d &) const;
-  bool intersects_area_of(const CircleArc2d &) const;
+  bool intersects( const Point2d & ) const;
+  bool intersects( const Line2d & ) const;
+  bool intersects( const Circle2d & ) const;
+  bool intersects( const CircleArc2d & ) const;
+  bool intersects_area_of( const Circle2d & ) const;
+  bool intersects_area_of( const CircleArc2d & ) const;
 };
+
+inline
+std::ostream &
+operator<<( std::ostream & o,
+            const Area2d & a )
+{
+    return o << "\n   center= (" << a.center.x  << "," << a.center.y << ")"
+             << " size_x= " << a.size_x
+             << " size_y= " << a.size_y;
+}
 
 #endif
