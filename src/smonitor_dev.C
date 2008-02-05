@@ -3872,6 +3872,7 @@ SMonitorDevice::server_interpret_showinfo_v3( BuilderBase * build,
                           &n_read ) != 10 )
         {
             WARNING_OUT << "\nIllegal player " << i << " info in show info ";
+            //<< std::string( buf, 16 );
             break;
         }
         buf += n_read;
@@ -4019,12 +4020,13 @@ SMonitorDevice::server_interpret_msginfo_v3( BuilderBase * build,
 {
     // ( msg <board_type> "<message_string>" )
 
+    int time = 0;
     int board = 0;
     char msg[8192];
 
     if ( std::sscanf( buf,
-                      " ( msg %d \"%8191[^\"]\" ) ",
-                      &board, msg ) != 2 )
+                      " ( msg %d %d \"%8191[^\"]\" ) ",
+                      &time, &board, msg ) != 3 )
     {
         ERROR_OUT << "\nIllegal msg info.";
         return false;
@@ -4046,16 +4048,19 @@ bool
 SMonitorDevice::server_interpret_playmode_v3( BuilderBase * build,
                                               const char * buf )
 {
+    int time = 0;
     char pmode[256];
 
     if ( std::sscanf( buf,
-                      " ( playmode %255[^ )] ) ", pmode ) != 1
+                      " ( playmode %d %255[^ )] ) ",
+                      &time, pmode ) != 2
          || std::strlen( pmode ) == 0 )
     {
         ERROR_OUT << "\nIllegal playmode info.";
         return false;
     }
 
+    server_state.current_time = time;
     server_state.playmode_string = pmode;
 
     if ( server_state.playmode_string == "time_over" )
@@ -4086,6 +4091,7 @@ bool
 SMonitorDevice::server_interpret_team_v3( BuilderBase * build,
                                           const char * buf )
 {
+    int time = 0;
     char name_l[256];
     char name_r[256];
     int score_l = 0, score_r = 0;
@@ -4093,9 +4099,10 @@ SMonitorDevice::server_interpret_team_v3( BuilderBase * build,
     int n_read = 0;
 
     if ( std::sscanf( buf,
-                      " ( team %255s %255s %d %d %n ",
+                      " ( team %d %255s %255s %d %d %n ",
+                      &time,
                       name_l, name_r, &score_l, &score_r,
-                      &n_read ) != 4 )
+                      &n_read ) != 5 )
     {
         ERROR_OUT << "\nIllegal team info.";
         return false;
@@ -4128,7 +4135,9 @@ SMonitorDevice::server_interpret_team_v3( BuilderBase * build,
                                                      16u ) );
     }
 
-    // update scoreborad message
+    // update match status
+
+    server_state.current_time = time;
 
     if ( pen_score_l < 0 )
     {

@@ -15,6 +15,9 @@
 	* src/visobject.h:
 	- fixed coding style.
 
+	* src/smonitor_dev.C:
+	- slightly changed monitor protocol v3.
+
 2008-02-04  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
 	* src/2dview.C:
