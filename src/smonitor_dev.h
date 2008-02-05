@@ -685,15 +685,11 @@ class SMonitorDevice: public InputDevice {
     int p_frame(int i) { return i+1; }
 
     /// maps player ID to number of this player in his team
-    int p_number(int i) { return i<MAX_PLAYER?i+1:i+1-MAX_PLAYER; }
-    /// maps player ID to team ID
-    int p_team(int i) { return i<MAX_PLAYER?0:1; }
+    int p_number( int i ) { return i < MAX_PLAYER ? i + 1 : i + 1 - MAX_PLAYER; }
     /// return true if player ID belongs to the left team
-    bool p_left(int i) { return i<MAX_PLAYER?true:false; }
+    bool p_left( int i ) { return i < MAX_PLAYER ? true : false; }
     /// return true if player ID belongs to the left team
-    bool p_right(int i) { return i<MAX_PLAYER?false:true; }
-    /// maps player ID to character in '1' ... '9' , 'A', 'B'
-    char p_char(int i);
+    bool p_right( int i ) { return i < MAX_PLAYER ? false : true; }
 
     ///sets player position,
     void set_object_pos(BuilderBase * build, int p_num, const Point2d & pos);

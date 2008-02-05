@@ -2360,7 +2360,7 @@ bool SMonitorDevice::process_menu_button( BuilderBase * build, MenuBase * menu, 
         }
         if ( chg ) {
             double scale = options.scale_factor();
-            sprintf( buf,"scale %.1f", scale );
+            std::snprintf( buf, sizeof( buf ), "scale %.1f", scale );
             menu->set_button_label( BUTTON_SCALE_LEVEL,buf );
             set_all_objects_scale( build, scale );
         }
@@ -2380,8 +2380,9 @@ bool SMonitorDevice::process_menu_button( BuilderBase * build, MenuBase * menu, 
                 chg = true;
             }
         }
-        if ( chg ) {
-            sprintf( buf,"detail %d", options.info_level );
+        if ( chg )
+        {
+            std::snprintf( buf, sizeof( buf ), "detail %d", options.info_level );
             vis_player_set_info_level( options.info_level );
             vis_ball_set_info_level( options.info_level );
             menu->set_button_label( BUTTON_INFO_LEVEL,buf );
@@ -2460,7 +2461,9 @@ bool SMonitorDevice::process_popup_button( BuilderBase * build, MenuBase * popup
     return true;
 };
 
-bool SMonitorDevice::init_menu( MenuBase * menu ) {
+bool
+SMonitorDevice::init_menu( MenuBase * menu )
+{
 #ifdef WEBFIELD
     return false; //TEST
 #endif
@@ -2469,9 +2472,9 @@ bool SMonitorDevice::init_menu( MenuBase * menu ) {
     menu->set_button_label( BUTTON_START,"kick off" );
     menu->set_button_label( BUTTON_RECONNECT,"connect" );
     double scale = options.scale_factor();
-    sprintf( buf,"scale %.1f", scale );
+    std::snprintf( buf, sizeof( buf ), "scale %.1f", scale );
     menu->set_button_label( BUTTON_SCALE_LEVEL,buf );
-    sprintf( buf,"detail %d", options.info_level );
+    std::snprintf( buf, sizeof( buf ), "detail %d", options.info_level );
     menu->set_button_label( BUTTON_INFO_LEVEL,buf );
     menu->set_button_label( BUTTON_MODE,options.get_mode_string() );
     menu->set_button_label( BUTTON_UNZOOM,"unzoom" );
@@ -2482,15 +2485,19 @@ bool SMonitorDevice::init_menu( MenuBase * menu ) {
     return true;
 };
 
-bool SMonitorDevice::init_popup( MenuBase * popup ) {
+bool
+SMonitorDevice::init_popup( MenuBase * popup )
+{
     popup->set_number_of_buttons( POPUP_BUTTON_NUMBER );
-    popup->set_button_label( POPUP_BUTTON_DROP_BALL,"drop ball" );
-    popup->set_button_label( POPUP_BUTTON_FREE_KICK_LEFT,"free kick left" );
-    popup->set_button_label( POPUP_BUTTON_FREE_KICK_RIGHT,"free kick right" );
+    popup->set_button_label( POPUP_BUTTON_DROP_BALL, "drop ball" );
+    popup->set_button_label( POPUP_BUTTON_FREE_KICK_LEFT, "free kick left" );
+    popup->set_button_label( POPUP_BUTTON_FREE_KICK_RIGHT, "free kick right" );
     return false; //don't redraw!!!
 };
 
-bool SMonitorDevice::init_frames( BuilderBase * build ){
+bool
+SMonitorDevice::init_frames( BuilderBase * build )
+{
     int layer = -1;
 
     RGBcolor c_black( 0,0,0 );
@@ -2560,14 +2567,16 @@ bool SMonitorDevice::init_frames( BuilderBase * build ){
 #ifdef WEBFIELD
     init_y = 60;
 #endif
-    for ( int i = 0; i<MAX_PLAYER*2; ++i ) {
+    for ( int i = 0; i < MAX_PLAYER*2; ++i )
+    {
         RGBcolor c_invalid = options.c_invalid_l;
         RGBcolor c_player = options.c_team_l;
         RGBcolor c_goalie = options.c_goalie_l;
         RGBcolor c_font = options.c_font_l;
         //Point2d pos_player = Point2d( -8.0 -i*3.0*k_rad,init_y );
         Point2d pos_player = Point2d( -( ( i+1 )*3.0 ), init_y );
-        if ( p_right( i ) ) {
+        if ( p_right( i ) )
+        {
             c_invalid = options.c_invalid_r;
             c_player = options.c_team_r;
             c_goalie = options.c_goalie_r;
@@ -2588,11 +2597,15 @@ bool SMonitorDevice::init_frames( BuilderBase * build ){
 
     double scale = options.scale_factor();
     if ( scale != 1.0 )
+    {
         set_all_objects_scale( build, scale );
+    }
+
     return true;
 }
 
-bool SMonitorDevice::init_connection()
+bool
+SMonitorDevice::init_connection()
 {
     if ( options.just_edit )
     {
@@ -3042,10 +3055,10 @@ SMonitorDevice::server_interpret_showinfo_t( BuilderBase * build,
     server_state.current_time = ntohs( showinfo.time );
     server_state.left_teamname.assign( showinfo.team[0].name,
                                        std::min( std::strlen( showinfo.team[0].name ),
-                                                 16u ) );
+                                                 size_t( 16 ) ) );
     server_state.right_teamname.assign( showinfo.team[1].name,
                                         std::min( std::strlen( showinfo.team[1].name ),
-                                                  16u ) );
+                                                  size_t( 16 ) ) );
     //match info
     Int16 s_l = ntohs( showinfo.team[0].score );
     Int16 s_r = ntohs( showinfo.team[1].score );
@@ -3485,10 +3498,10 @@ SMonitorDevice::server_interpret_showinfo_t2( BuilderBase * build,
     server_state.current_time = ntohs( showinfo.time );
     server_state.left_teamname.assign( showinfo.team[0].name,
                                        std::min( std::strlen( showinfo.team[0].name ),
-                                                 16u ) );
+                                                 size_t( 16 ) ) );
     server_state.right_teamname.assign( showinfo.team[1].name,
                                         std::min( std::strlen( showinfo.team[1].name ),
-                                                  16u ) );
+                                                  size_t( 16 ) ) );
     //match info
     Int16 s_l = ntohs( showinfo.team[0].score );
     Int16 s_r = ntohs( showinfo.team[1].score );
@@ -4124,7 +4137,8 @@ SMonitorDevice::server_interpret_playmode_v3( BuilderBase * build,
         static const char * s_playmode_strings[] = PLAYMODE_STRINGS;
         for ( int i = 0; i < sizeof( s_playmode_strings ); ++i )
         {
-            if ( ! std::strcmp( pmode, s_playmode_strings[i] ) )
+            if ( ! std::strncmp( pmode, s_playmode_strings[i],
+                                 std::strlen( s_playmode_strings[i] ) ) )
             {
                 pm = static_cast< char >( i );
                 break;
@@ -4174,7 +4188,7 @@ SMonitorDevice::server_interpret_team_v3( BuilderBase * build,
     {
         server_state.left_teamname.assign( name_l,
                                            std::min( std::strlen( name_l ),
-                                                     16u ) );
+                                                     size_t( 16 ) ) );
     }
 
     if ( std::strlen( name_r ) != 4
@@ -4182,7 +4196,7 @@ SMonitorDevice::server_interpret_team_v3( BuilderBase * build,
     {
         server_state.right_teamname.assign( name_r,
                                            std::min( std::strlen( name_r ),
-                                                     16u ) );
+                                                     size_t( 16 ) ) );
     }
 
     // update match status
@@ -4448,17 +4462,13 @@ SMonitorDevice::updatePenaltyState( const int current_time,
     }
 }
 
-char SMonitorDevice::p_char( int i ) {
-    int k = p_number( i );
-    char dum;
-    dum = char ( k+48 );
-    if ( k ==10 ) dum = 'A';
-    if ( k ==11 ) dum = 'B';
-    return dum;
-}
-
-void SMonitorDevice::set_object_pos( BuilderBase * build, int o_id, const Point2d & pos ) {
-    if ( o_ball( o_id ) ) {
+void
+SMonitorDevice::set_object_pos( BuilderBase * build,
+                                int o_id,
+                                const Point2d & pos )
+{
+    if ( o_ball( o_id ) )
+    {
         server_pos.set_ball_pos( pos ); //just to collect informations
         build->set_cmd_set_frame_pos( frame_ball,pos );
         return;

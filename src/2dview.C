@@ -1055,7 +1055,8 @@ int main(int argc,char ** argv) {
 
     argc--; argv++;
     bool smonitor_dev= true;
-    if ( argc>0 && std::strcmp(argv[0],"-ascii") == 0 )
+    if ( argc > 0
+         && ! std::strncmp( argv[0], "-ascii", std::strlen( "-ascii" ) ) )
     {
         argc--; argv++;
         smonitor_dev= false;

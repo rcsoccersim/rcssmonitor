@@ -792,7 +792,7 @@ ValueParser::getValue( const char * key,
     bool warning = false;
     int read_entries = -1;
 
-    for ( int idx= kv_tab.cur_size-1; idx >= 0; --idx )
+    for ( int idx = kv_tab.cur_size - 1; idx >= 0; --idx )
     {
         KeyValueTab::Entry * entry = kv_tab.tab+idx;
         if ( entry->key == 0)
@@ -801,7 +801,7 @@ ValueParser::getValue( const char * key,
             continue;
         }
 
-        if ( std::strcmp( key, entry->key ) != 0 )
+        if ( std::strncmp( key, entry->key, std::strlen( entry->key ) ) != 0 )
         {
             continue;
         }

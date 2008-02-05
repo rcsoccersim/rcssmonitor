@@ -603,7 +603,9 @@ bool joy_input(UDPsocket & sock) {
         if (x>3)
             x=0.0;
         char msg[20];
-        sprintf(msg,"MOV 1 (%lf,%lf); MOV 2 (%lf,2);MOV 3 (3,%lf);",1.2+x,x,x,-2.5+x*2);
+        std::snprintf( msg, 20,
+                       "MOV 1 (%lf,%lf); MOV 2 (%lf,2);MOV 3 (3,%lf);",
+                       1.2+x,x,x,-2.5+x*2);
         sock.send_msg( msg, std::strlen( msg ) );
         //usleep(41666);
         //usleep(20000);

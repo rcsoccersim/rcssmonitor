@@ -1,3 +1,8 @@
+2008-02-06  Hidehisa Akiyama  <akky@users.sourceforge.jp>
+
+	* src/smonitor_dev.C:
+	- fixed variable type errors for std::min.
+
 2008-02-05  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
 	* src/angle.C:
