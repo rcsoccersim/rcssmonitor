@@ -3052,6 +3052,9 @@ SMonitorDevice::server_interpret_showinfo_t( BuilderBase * build,
     if ( server_state.left_teamname.empty() ) s_l = 0;
     if ( server_state.right_teamname.empty() ) s_r = 0;
 
+    server_state.left_score = s_l;
+    server_state.right_score = s_r;
+
     if ( showinfo.pmode >= 0 && showinfo.pmode < SSrv::PLAYMODE_STRINGS_SIZE )
     {
         server_state.playmode_string = PlayModeString[( int )( showinfo.pmode )];
@@ -3091,26 +3094,37 @@ SMonitorDevice::server_interpret_showinfo_t( BuilderBase * build,
     {
         std::snprintf( score_board_msg, 512,
                        " %10s %d:%d %-10s %16s %6d    ",
-                       showinfo.team[0].name, int( s_l ),int( s_r ),
+                       showinfo.team[0].name,
+                       server_state.left_score,
+                       server_state.right_score,
                        showinfo.team[1].name,
                        server_state.playmode_string.c_str(),
                        server_state.current_time );
     }
     else
     {
+        server_state.left_pen_score = pstate->left_score_;
+        server_state.right_pen_score = pstate->right_score_;
+        server_state.left_pen_miss = pstate->left_trial_ - pstate->left_score_;
+        server_state.right_pen_miss = pstate->right_trial_ - pstate->right_score_;
+
         std::snprintf( score_board_msg, 512,
                        " %10s %d( %d/%d ):%d( %d/%d ) %-10s %16s %6d",
                        showinfo.team[0].name,
-                       int( s_l ), pstate->left_score_, pstate->left_trial_,
-                       int( s_r ), pstate->right_score_, pstate->right_trial_,
+                       server_state.left_score,
+                       pstate->left_score_, pstate->left_trial_,
+                       server_state.right_score,
+                       pstate->right_score_, pstate->right_trial_,
                        showinfo.team[1].name,
                        server_state.playmode_string.c_str(),
                        server_state.current_time );
     }
+
     server_state.match_information = score_board_msg;
 
     if ( server_state.reconnected )
-    {//clear the drawing plane
+    {
+        //clear the drawing plane
         DEBUG( << " refreshing drawarea" );
         build->set_cmd_empty_frame( frame_canvas_left );
         build->set_cmd_empty_frame( frame_canvas_right );
@@ -3141,7 +3155,8 @@ SMonitorDevice::server_interpret_showinfo_t( BuilderBase * build,
         }
     }
 
-    for ( int i = 0; i< 2*MAX_PLAYER; i++ ) { //players [0 ... MAX_PLAYER*2-1]
+    for ( int i = 0; i < 2*MAX_PLAYER; ++i ) //players [0 ... MAX_PLAYER*2-1]
+    {
         /* Zwischenspeicherung als short notwendig, da ansonsten ntohs nicht richtig funkioniert */
         Int16 s_x      = ntohs( showinfo.pos[i+1].x );
         Int16 s_y      = ntohs( showinfo.pos[i+1].y );
@@ -3156,10 +3171,15 @@ SMonitorDevice::server_interpret_showinfo_t( BuilderBase * build,
 
         server_pos.set_player( i,pos,angle ); //just to collect informations
 
-        if ( options.active_in_mode != i || options.mode != Options::MODE_MOVE )
+        if ( options.active_in_mode != i
+             || options.mode != Options::MODE_MOVE )
+        {
             build->set_cmd_set_frame_pos_ang( p_frame( i ),pos,angle );
+        }
         else
+        {
             build->set_cmd_set_frame_pos_ang( frame_shadow,pos,angle );
+        }
 
         vis_player[i].set_active( s_mode != DISABLE );
         vis_player[i].set_goalie( s_mode & GOALIE );
@@ -3193,14 +3213,14 @@ bool SMonitorDevice::server_interpret_drawinfo_t( BuilderBase * build, void *ptr
         return false;
     }
 
-    const SSrv::drawinfo_t &drawinfo = dispinfo->body.draw; //shortcut
+    const SSrv::drawinfo_t & drawinfo = dispinfo->body.draw; //shortcut
     switch ( ntohs( drawinfo.mode ) ) {
     case DrawPoint:
         redraw = true;
-        s_x   = ntohs( drawinfo.object.pinfo.x );
-        s_y   = ntohs( drawinfo.object.pinfo.y );
-        pos.x     = x_SERVER_2_LP ( s_x );
-        pos.y     = y_SERVER_2_LP ( s_y );
+        s_x = ntohs( drawinfo.object.pinfo.x );
+        s_y = ntohs( drawinfo.object.pinfo.y );
+        pos.x = x_SERVER_2_LP ( s_x );
+        pos.y = y_SERVER_2_LP ( s_y );
         //std::cout << "\nDrawPoint " << draw_obj_idx << " x,y = " << x << "," << y;
         build->set_cmd_insert_point( frame_canvas_left,idx_zero,pos,0,
                                     RGB_DB::XNamedColor_to_RGBcolor( drawinfo.object.pinfo.color ) );
@@ -3208,12 +3228,12 @@ bool SMonitorDevice::server_interpret_drawinfo_t( BuilderBase * build, void *ptr
         break;
     case DrawCircle:
         redraw = true;
-        s_x   = ntohs( drawinfo.object.cinfo.x );
-        s_y   = ntohs( drawinfo.object.cinfo.y );
-        s_r   = ntohs( drawinfo.object.cinfo.r );
-        r     = s_r;
-        pos.x     = x_SERVER_2_LP ( s_x ) + r;
-        pos.y     = y_SERVER_2_LP ( s_y ) - r;
+        s_x = ntohs( drawinfo.object.cinfo.x );
+        s_y = ntohs( drawinfo.object.cinfo.y );
+        s_r = ntohs( drawinfo.object.cinfo.r );
+        r = s_r;
+        pos.x = x_SERVER_2_LP ( s_x ) + r;
+        pos.y = y_SERVER_2_LP ( s_y ) - r;
 
         //std::cout << "\nDrawCircle " << draw_obj_idx << " ( x,y ),r = ( " << x << "," << y << " ), "<< r;
         build->set_cmd_insert_circle( frame_canvas_left,idx_zero,Circle2d( pos,r ),0,
@@ -3221,16 +3241,17 @@ bool SMonitorDevice::server_interpret_drawinfo_t( BuilderBase * build, void *ptr
         break;
     case DrawLine:
         redraw = true;
-        s_x   = ntohs( drawinfo.object.linfo.x1 );
-        s_y   = ntohs( drawinfo.object.linfo.y1 );
-        s_x2  = ntohs( drawinfo.object.linfo.x2 );
-        s_y2  = ntohs( drawinfo.object.linfo.y2 );
-        pos.x     = x_SERVER_2_LP ( s_x  );
-        pos.y     = y_SERVER_2_LP ( s_y  );
-        pos2.x    = x_SERVER_2_LP ( s_x2 );
-        pos2.y    = y_SERVER_2_LP ( s_y2 );
-        build->set_cmd_insert_line( frame_canvas_left,idx_zero,Line2d( pos,pos2 ),0,
-                                   RGB_DB::XNamedColor_to_RGBcolor( drawinfo.object.linfo.color ) );
+        s_x = ntohs( drawinfo.object.linfo.x1 );
+        s_y = ntohs( drawinfo.object.linfo.y1 );
+        s_x2 = ntohs( drawinfo.object.linfo.x2 );
+        s_y2 = ntohs( drawinfo.object.linfo.y2 );
+        pos.x = x_SERVER_2_LP ( s_x  );
+        pos.y = y_SERVER_2_LP ( s_y  );
+        pos2.x = x_SERVER_2_LP ( s_x2 );
+        pos2.y = y_SERVER_2_LP ( s_y2 );
+        build->set_cmd_insert_line( frame_canvas_left, idx_zero,
+                                    Line2d( pos,pos2 ), 0,
+                                    RGB_DB::XNamedColor_to_RGBcolor( drawinfo.object.linfo.color ) );
         break;
     case DrawClear:
         redraw = true;
@@ -3339,33 +3360,50 @@ void SMonitorDevice::show_parser_error_point( std::ostream & out, const char * o
 }
 
 
-bool SMonitorDevice::server_interpret_frameview_msg( BuilderBase * build, const char * msg, bool enforce_frame, int frame ) {
+bool
+SMonitorDevice::server_interpret_frameview_msg( BuilderBase * build,
+                                                const char * msg,
+                                                bool enforce_frame,
+                                                int frame )
+{
     int canvas;
-    if ( ! strskip( msg,"_2D_",msg ) ) {
+    if ( ! strskip( msg,"_2D_",msg ) )
+    {
         ERROR_OUT << "\nNOT recognized as 2d object" << std::flush;
         return false;
     }
 
     if ( enforce_frame )
+    {
         canvas = frame;
-    else {
-        if ( msg[0] == 'R' ) {
+    }
+    else
+    {
+        if ( msg[0] == 'R' )
+        {
             canvas = frame_canvas_right;
             msg++;
         }
-        else if ( msg[0] == 'L' ) {
+        else if ( msg[0] == 'L' )
+        {
             canvas = frame_canvas_left;
             msg++;
         }
         else
+        {
             canvas = frame_canvas_left;
+        }
     }
     //std::cout << "\ngot 2D message " << msg << flush;
 
-    while ( true ) {
-        strspace( msg,msg );
+    while ( 1 )
+    {
+        strspace( msg, msg );
+
         if ( msg[0] == '\0' )
+        {
             break;
+        }
 
         const char * beg_msg = msg;
         int res = false;
@@ -3389,7 +3427,7 @@ bool SMonitorDevice::server_interpret_frameview_msg( BuilderBase * build, const 
             res = AsciiProcessor::ins_obj( msg,canvas,build,msg );
         }
 
-        if ( !res )
+        if ( ! res )
         {
             ERROR_OUT << "\nDrawing input parse error:\n";
             //ERROR_STREAM << "\noriginal message: " << str;
@@ -3403,7 +3441,8 @@ bool SMonitorDevice::server_interpret_frameview_msg( BuilderBase * build, const 
 }
 
 bool
-SMonitorDevice::server_interpret_command_msg( BuilderBase * build, const char * msg )
+SMonitorDevice::server_interpret_command_msg( BuilderBase * build,
+                                              const char * msg )
 {
     if ( ! std::strncmp( msg, "(change_player_type",
                          std::strlen( "(change_player_type" ) ) )
@@ -3456,6 +3495,9 @@ SMonitorDevice::server_interpret_showinfo_t2( BuilderBase * build,
     if ( server_state.left_teamname.empty() ) s_l = 0;
     if ( server_state.right_teamname.empty() ) s_r = 0;
 
+    server_state.left_score = s_l;
+    server_state.right_score = s_r;
+
     if ( showinfo.pmode >= 0 && showinfo.pmode < SSrv::PLAYMODE_STRINGS_SIZE )
     {
         server_state.playmode_string = PlayModeString[( int )( showinfo.pmode )];
@@ -3496,18 +3538,26 @@ SMonitorDevice::server_interpret_showinfo_t2( BuilderBase * build,
         std::snprintf( score_board_msg, 512,
                        " %10s %d:%d %-10s %16s %6d    ",
                        showinfo.team[0].name,
-                       int( s_l ),int( s_r ),
+                       server_state.left_score,
+                       server_state.right_score,
                        showinfo.team[1].name,
                        server_state.playmode_string.c_str(),
                        server_state.current_time );
     }
     else
     {
+        server_state.left_pen_score = pstate->left_score_;
+        server_state.right_pen_score = pstate->right_score_;
+        server_state.left_pen_miss = pstate->left_trial_ - pstate->left_score_;
+        server_state.right_pen_miss = pstate->right_trial_ - pstate->right_score_;
+
         std::snprintf( score_board_msg, 512,
                        " %10s %d( %d/%d ):%d( %d/%d ) %-10s %16s %6d    ",
                        showinfo.team[0].name,
-                       int( s_l ), pstate->left_score_, pstate->left_trial_,
-                       int( s_r ), pstate->right_score_, pstate->right_trial_,
+                       server_state.left_score,
+                       pstate->left_score_, pstate->left_trial_,
+                       server_state.right_score,
+                       pstate->right_score_, pstate->right_trial_,
                        showinfo.team[1].name,
                        server_state.playmode_string.c_str(),
                        server_state.current_time );
