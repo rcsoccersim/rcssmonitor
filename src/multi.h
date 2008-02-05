@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 - 2001, Artur Merke <amerke@ira.uka.de> 
+ * Copyright (c) 1999 - 2001, Artur Merke <amerke@ira.uka.de>
  *
  * This file is part of FrameView2d.
  *
@@ -23,71 +23,109 @@
 
 #include <cstring> //memcpy
 
-template <class T>
+template < typename T >
 struct Multi {
-  int cur_size;
-  int max_size;
-  T* tab;
-  Multi() { tab= 0; cur_size= 0; max_size= 0;}
-  Multi(int msize) { set_max_size(msize); }
-  ~Multi() { if (tab) delete[] tab; }
+    int cur_size;
+    int max_size;
+    T * tab;
+    Multi()
+        : cur_size( 0 ),
+          max_size( 0 ),
+          tab( static_cast< T * >( 0 ) )
+      { }
 
-  bool set_max_size(int s) { 
-    cur_size= 0;
-    if (s<0) return false;
-    if (s<=max_size) return true;
-    max_size= s;
-    if (tab) delete[] tab;
-    if (0==max_size) 
-      tab= 0;
-    else
-      tab= new T[max_size];
+    explicit
+    Multi( const int msize )
+      {
+          set_max_size( msize );
+      }
 
-    return true;
-  }
+    ~Multi()
+      {
+          if ( tab ) delete [] tab;
+      }
 
-  bool set_max_size_and_preserve_cur_size(int s) { 
-    if (s<0) return false;
-    if (s<=max_size) return true;
-    if (cur_size > max_size)
-      cur_size= max_size;
-    max_size= s;
-    if (cur_size<= 0 || tab==0) {
-      if (tab) delete[] tab;
-      if (0==max_size) 
-	tab= 0;
-      else
-	tab= new T[max_size];
-    } else {
-      T *dum= tab;
-      tab= new T[max_size];
-      memcpy( (void*)tab,(void*)dum, sizeof(T) * cur_size);
-      delete[] dum;
+    bool set_max_size( const int s )
+      {
+          cur_size = 0;
+          if ( s < 0) return false;
+          if ( s <= max_size) return true;
+          max_size = s;
+          if ( tab ) delete [] tab;
+          if ( 0 == max_size )
+          {
+              tab = static_cast< T * >( 0 );;
+          }
+          else
+          {
+              tab = new T[max_size];
+          }
+
+          return true;
+      }
+
+    bool set_max_size_and_preserve_cur_size( const int s )
+      {
+        if ( s < 0 ) return false;
+        if ( s <= max_size ) return true;
+        if ( cur_size > max_size )
+        {
+            cur_size= max_size;
+        }
+        max_size= s;
+        if ( cur_size <= 0 || tab == 0 )
+        {
+            if ( tab ) delete [] tab;
+            if ( 0 == max_size )
+            {
+                tab = 0;
+            }
+            else
+            {
+                tab = new T[max_size];
+            }
+        }
+        else
+        {
+            T * dum = tab;
+            tab = new T[max_size];
+            std::memcpy( (void*)tab, (void*)dum, sizeof( T ) * cur_size );
+            delete [] dum;
+        }
+        return true;
     }
-    return true;
-  }
 
-  bool set_cur_size(int s) { 
-    cur_size= 0;
-    if (s>max_size || s<0) return false;
-    cur_size= s;
-    return true;
-  }
-
-  void operator=(const Multi<T>& mul) {
-    if (set_max_size(mul.cur_size)) {
-      cur_size= mul.cur_size;
-      //cout << "\nMULTI: cur_size= " << cur_size;
-      for (int i=0; i<cur_size; i++) 
-	tab[i]= mul.tab[i];
+    bool set_cur_size( const int s )
+      {
+        cur_size = 0;
+        if ( s > max_size || s < 0 )
+        {
+            return false;
+        }
+        cur_size = s;
+        return true;
     }
-  }
 
-  void clone(int len,const T * val) {
-    set_max_size(len);
-    cur_size= len;
-    memcpy( (void*)tab,(void*)val, sizeof(T) * cur_size);
-  }
+    void operator=( const Multi< T > & mul )
+      {
+        if ( set_max_size( mul.cur_size ) )
+        {
+            cur_size= mul.cur_size;
+            //cout << "\nMULTI: cur_size= " << cur_size;
+            for ( int i = 0; i < cur_size; ++i )
+            {
+                tab[i] = mul.tab[i];
+            }
+        }
+    }
+
+    void clone( const int len,
+                const T * val )
+      {
+          set_max_size( len );
+          cur_size = len;
+          std::memcpy( (void*)tab, (void*)val, sizeof( T ) * cur_size );
+      }
 };
 
 #endif

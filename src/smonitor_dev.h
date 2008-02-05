@@ -31,8 +31,6 @@
 
 #define MAX_PLAYER 11
 
-std::ostream & operator<< (std::ostream & o, const RGBcolor & col);
-
 class VisualPlayersViewArea
     : public VisualObject2d {
 public:
@@ -60,10 +58,17 @@ public:
                const RGBcolor & my_exact,
                const RGBcolor & my_fuzzy );
 
+    /*!
+      \brief virtual method
+     */
     void draw( DisplayBase * disp,
                const Area2d & area,
                const Frame2d & p_frame,
                const bool chg );
+
+    /*!
+      \brief virtual method
+     */
     void actualize( const Frame2d & f,
                     const bool chg );
     void set_view_mode( const int quality,
@@ -113,10 +118,17 @@ public:
     ~VisualBall()
       { }
 
+    /*!
+      \brief virtual method.
+     */
     void draw( DisplayBase * disp,
                const Area2d & area,
                const Frame2d & p_frame,
                const bool chg );
+
+    /*!
+      \brief virtual method
+     */
     void actualize( const Frame2d & f,
                     const bool chg );
 
@@ -214,11 +226,17 @@ public:
     ~VisualPlayer()
       { }
 
+    /*!
+      \brief virtual method
+     */
     void draw( DisplayBase * disp,
                const Area2d & area,
                const Frame2d & p_frame,
                const bool chg );
 
+    /*!
+      \brief virtual method
+     */
     void actualize( const Frame2d & f,
                     const bool chg );
 
@@ -262,7 +280,8 @@ public:
     }
 };
 
-class VisualField: public VisualObject2d {
+class VisualField
+    : public VisualObject2d {
 
     static const double FIELD_LENGTH;
     static const double FIELD_WIDTH;
@@ -312,6 +331,7 @@ class VisualField: public VisualObject2d {
 
     bool changed;
 public:
+
     VisualField();
 
     void init(int my_key, int my_layer,
@@ -321,10 +341,24 @@ public:
               double my_keepaway_length,
               double my_keepaway_width);
 
-    virtual ~VisualField() {}
+    virtual
+    ~VisualField()
+      { }
 
-    void draw(DisplayBase * disp, const Area2d & area, const Frame2d & p_frame, bool chg);
-    void actualize(const Frame2d& f, bool chg);
+    /*!
+      \brief virtual method
+     */
+    void draw( DisplayBase * disp,
+               const Area2d & area,
+               const Frame2d & p_frame,
+               const bool chg);
+
+    /*!
+      \brief virtual method
+     */
+    void actualize( const Frame2d & f,
+                    const bool chg );
+
     void set_goal_width(double width);
 
     void use_vertical_stripe(bool flag= true) { vertical_stripe.visible= flag; }
@@ -438,39 +472,21 @@ class SMonitorDevice: public InputDevice {
     };
 
     struct ServerState {
-        //long last_packet_ms_time;
-        struct Charfield {
-            char	name[512];
-            int len;
-            Charfield()
-              {
-                  name[0]= '\0';
-                  len = 0;
-              }
-            void set( const char * str )
-              {
-                  std::strncpy( name, str, 16 );
-                  len = std::strlen( name );
-              }
-            void reset()
-              {
-                  name[0]= '\0';
-              }
-        };
         ServerState();
+        void reset();
+
         int current_time;
         std::string playmode_string;
-        Charfield left_teamname;
-        Charfield right_teamname;
+        std::string left_teamname;
+        std::string right_teamname;
         int left_score;
         int right_score;
         int left_pen_score;
         int right_pen_score;
         int left_pen_miss;
         int right_pen_miss;
-        Charfield match_information;
+        std::string match_information;
         bool reconnected;
-        void reset();
     };
 
     struct GuessState {
@@ -688,7 +704,8 @@ public:
 
     bool process_input(fd_set * , BuilderBase * build);
 
-    const char * status_line() { return server_state.match_information.name; }
+    const char * status_line() { return server_state.match_information.c_str(); }
+
     int set_fds(fd_set * set);
     bool got_fds(fd_set * set);
 

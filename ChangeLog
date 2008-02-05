@@ -4,6 +4,9 @@
 	* src/angle.h:
 	* src/display_x11.h:
 	* src/frame2d.C:
+	* src/multi.h:
+	* src/rgbcolor.C:
+	* src/rgbcolor.h:
 	* src/smonitor_dev.C:
 	* src/smonitor_dev.h:
 	* src/vector2d.C:

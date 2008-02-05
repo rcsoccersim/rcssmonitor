@@ -44,7 +44,8 @@ public:
     bool visible;
 
     VisualObject2d();
-    virtual ~VisualObject2d()
+    virtual
+    ~VisualObject2d()
       { }
 
     int get_key() const { return key; }
@@ -103,14 +104,23 @@ public:
           if ( d_obj ) delete d_obj;
       }
 
+    /*!
+      \brief virtual method
+     */
     void draw( DisplayBase * disp,
                const Area2d & area,
                const Frame2d & p_frame,
                const bool chg );
 
+    /*!
+      \brief virtual method
+     */
     void actualize( const Frame2d & f,
                     const bool chg );
 
+    /*!
+      \brief virtual method
+     */
     void set_color( const RGBcolor & );
 
     bool intersects_area( const Area2d & );
@@ -122,10 +132,10 @@ class VisualPoints2d
     DisplayObject * d_obj;
     RGBcolor color;
 
-    Multi<Point2d> abs;
+    Multi< Point2d > abs;
     void init();
 public:
-    Multi<Point2d> rel;
+    Multi< Point2d > rel;
     bool changed;
     bool use_intersects_area;
 
@@ -141,13 +151,24 @@ public:
           if ( d_obj ) delete d_obj;
       }
 
+    /*!
+      \brief virtual method
+     */
     void draw( DisplayBase * disp,
                const Area2d & area,
                const Frame2d & p_frame,
                const bool chg );
+
+    /*!
+      \brief virtual method
+     */
     void actualize( const Frame2d & f,
                     const bool chg );
+    /*!
+      \brief virtual method
+     */
     void set_color( const RGBcolor & );
+
     void set_points( const int len_data,
                      const Point2d * data );
     bool intersects_area( const Area2d & );
@@ -178,12 +199,23 @@ public:
           if ( d_obj ) delete d_obj;
       }
 
+    /*!
+      \brief virtual method
+     */
     void draw( DisplayBase * disp,
                const Area2d & area,
                const Frame2d & p_frame,
                const bool chg );
+
+    /*!
+      \brief virtual method
+     */
     void actualize( const Frame2d & f,
                     const bool chg );
+
+    /*!
+      \brief virtual method
+     */
     void set_color( const RGBcolor & );
 
     bool intersects_area( const Area2d & );
@@ -194,7 +226,7 @@ class VisualLines2d
 
     DisplayObject * d_obj;
     RGBcolor color;
-    Multi<Line2d> abs;
+    Multi< Line2d > abs;
 
     void init();
 public:
@@ -214,13 +246,25 @@ public:
           if ( d_obj ) delete d_obj;
       }
 
+    /*!
+      \brief virtual method
+     */
     void draw( DisplayBase * disp,
                const Area2d & area,
                const Frame2d & p_frame,
                const bool chg );
+
+    /*!
+      \brief virtual method
+     */
     void actualize( const Frame2d & f,
                     const bool chg );
+
+    /*!
+      \brief virtual method
+     */
     void set_color( const RGBcolor & );
+
     void set_lines( const int len_data,
                     const Line2d * data );
 
@@ -266,12 +310,23 @@ public:
           if ( d_obj ) delete d_obj;
       }
 
+    /*!
+      \brief virtual method
+     */
     void draw( DisplayBase * disp,
                const Area2d & area,
                const Frame2d & p_frame,
                const bool chg );
+
+    /*!
+      \brief virtual method
+     */
     void actualize( const Frame2d & f,
                     const bool chg );
+
+    /*!
+      \brief virtual method
+     */
     void set_color( const RGBcolor & );
 
     bool intersects_area( const Area2d & );
@@ -305,13 +360,25 @@ public:
           if ( d_obj ) delete d_obj;
       }
 
+    /*!
+      \brief virtual method
+     */
     void draw( DisplayBase * disp,
                const Area2d & area,
                const Frame2d & p_frame,
                const bool chg );
+
+    /*!
+      \brief virtual method
+     */
     void actualize( const Frame2d & f,
                     const bool chg );
+
+    /*!
+      \brief virtual method
+     */
     void set_color( const RGBcolor & );
+
     void set_circles( const int len_data,
                       const Circle2d * data );
 
@@ -343,12 +410,24 @@ public:
       {
           if ( d_obj ) delete d_obj;
       }
+
+    /*!
+      \brief virtual method
+     */
     void draw( DisplayBase * disp,
                const Area2d & area,
                const Frame2d & p_frame,
                const bool chg );
+
+    /*!
+      \brief virtual method
+     */
     void actualize( const Frame2d & f,
                     const bool chg );
+
+    /*!
+      \brief virtual method
+     */
     void set_color( const RGBcolor & );
 
     bool intersects_area( const Area2d & );
@@ -381,13 +460,25 @@ public:
       {
           if ( d_obj ) delete d_obj;
       }
+
+    /*!
+      \brief virtual method
+     */
     void draw( DisplayBase * disp,
                const Area2d & area,
                const Frame2d & p_frame,
                const bool chg );
+
+    /*!
+      \brief virtual method
+     */
     void actualize( const Frame2d & f,
                     const bool chg );
+    /*!
+      \brief virtual method
+     */
     void set_color( const RGBcolor & );
+
     void set_circlearcs( const int len_data,
                          const CircleArc2d * data );
 
@@ -421,13 +512,25 @@ public:
           if ( d_obj ) delete d_obj;
       }
 
+    /*!
+      \brief virtual method
+     */
     void draw( DisplayBase * disp,
                const Area2d & area,
                const Frame2d & p_frame,
                const bool chg );
+
+    /*!
+      \brief virtual method
+     */
     void actualize( const Frame2d & f,
                     const bool chg );
+
+    /*!
+      \brief virtual method
+     */
     void set_color( const RGBcolor & );
+
     void set_points( const int len_data,
                      const Point2d * data );
 
@@ -463,13 +566,25 @@ public:
           if ( d_obj ) delete d_obj;
       }
 
+    /*!
+      \brief virtual method
+     */
     void draw( DisplayBase * disp,
                const Area2d & area,
                const Frame2d & p_frame,
                const bool chg );
+
+    /*!
+      \brief virtual method
+     */
     void actualize( const Frame2d & f,
                     const bool chg );
+
+    /*!
+      \brief virtual method
+     */
     void set_color( const RGBcolor & );
+
     void set_points( const int len_data,
                      const Point2d * data );
 
@@ -512,13 +627,23 @@ public:
           if ( d_obj ) delete d_obj;
       }
 
+    /*!
+      \brief virtual method
+     */
     void draw( DisplayBase * disp,
                const Area2d & area,
                const Frame2d & p_frame,
                const bool chg );
+
+    /*!
+      \brief virtual method
+     */
     void actualize( const Frame2d & f,
                     const bool chg );
 
+    /*!
+      \brief virtual method
+     */
     void set_color( const RGBcolor & );
 
     void set_changed()

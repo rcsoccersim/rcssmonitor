@@ -226,7 +226,9 @@ VisualPoints2d::set_color( const RGBcolor & col )
     {
         color= col;
         if ( d_obj )
+        {
             d_obj->mark_col_change();
+        }
     }
 }
 

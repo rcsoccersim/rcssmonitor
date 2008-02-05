@@ -515,17 +515,6 @@ typedef struct {
 
 /******************************************************************************/
 
-std::ostream &
-operator<<( std::ostream & o,
-            const RGBcolor & col )
-{
-    const char numbers[16]= {'0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'};
-    o << numbers[col.red/16] << numbers[col.red%16]
-      << numbers[col.green/16] <<numbers[ col.green%16]
-      << numbers[col.blue/16] << numbers[col.blue%16];
-    return o;
-}
-
 class PlayerTypes {
     struct _player_type {
         bool valid;
@@ -1381,7 +1370,11 @@ void VisualField::init( int my_key, int my_layer,
     goal_posts.use_intersects_area = false;
 }
 
-void VisualField::draw( DisplayBase * disp, const Area2d & area, const Frame2d & p_frame, bool chg ) {
+void VisualField::draw( DisplayBase * disp,
+                        const Area2d & area,
+                        const Frame2d & p_frame,
+                        const bool chg )
+{
     changed = changed || chg;
 
     vertical_stripe.draw( disp,area,p_frame,changed );
@@ -1400,8 +1393,11 @@ void VisualField::draw( DisplayBase * disp, const Area2d & area, const Frame2d &
     changed = false;
 }
 
-void VisualField::actualize( const Frame2d& f, bool chg ) {
-    changed = changed || chg;
+void
+VisualField::actualize( const Frame2d & f,
+                        const bool chg )
+{
+    changed = ( changed || chg );
 
     goal_l.actualize( f,changed );
     goal_r.actualize( f,changed );
@@ -1588,9 +1584,9 @@ SMonitorDevice::ServerState::ServerState()
 void SMonitorDevice::ServerState::reset() {
     //last_packet_ms_time = -1;
     reconnected = true;
-    left_teamname.reset();
-    right_teamname.reset();
-    match_information.reset();
+    left_teamname.erase();
+    right_teamname.erase();
+    match_information.erase();
 
     left_score = right_score = 0;
     left_pen_score = right_pen_score
@@ -2893,13 +2889,13 @@ SMonitorDevice::server_interpret_showinfo_t( BuilderBase * build,
 
     const SSrv::showinfo_t & showinfo = dispinfo->body.show; //shortcut
     server_state.current_time = ntohs( showinfo.time );
-    server_state.left_teamname.set( showinfo.team[0].name );
-    server_state.right_teamname.set( showinfo.team[1].name );
+    server_state.left_teamname.assign( showinfo.team[0].name, 16 );
+    server_state.right_teamname.assign( showinfo.team[1].name, 16 );
     //match info
     Int16 s_l = ntohs( showinfo.team[0].score );
     Int16 s_r = ntohs( showinfo.team[1].score );
-    if ( '\0' == server_state.left_teamname.name[0] ) s_l = 0;
-    if ( '\0' == server_state.right_teamname.name[0] ) s_r = 0;
+    if ( server_state.left_teamname.empty() ) s_l = 0;
+    if ( server_state.right_teamname.empty() ) s_r = 0;
 
     if ( showinfo.pmode >= 0 && showinfo.pmode < SSrv::PLAYMODE_STRINGS_SIZE )
     {
@@ -2935,9 +2931,10 @@ SMonitorDevice::server_interpret_showinfo_t( BuilderBase * build,
         }
     }
 
+    char score_board_msg[512];
     if ( ! pstate )
     {
-        std::snprintf( server_state.match_information.name, 512,
+        std::snprintf( score_board_msg, 512,
                        " %10s %d:%d %-10s %16s %6d    ",
                        showinfo.team[0].name, int( s_l ),int( s_r ),
                        showinfo.team[1].name,
@@ -2946,7 +2943,7 @@ SMonitorDevice::server_interpret_showinfo_t( BuilderBase * build,
     }
     else
     {
-        std::snprintf( server_state.match_information.name, 512,
+        std::snprintf( score_board_msg, 512,
                        " %10s %d( %d/%d ):%d( %d/%d ) %-10s %16s %6d",
                        showinfo.team[0].name,
                        int( s_l ), pstate->left_score_, pstate->left_trial_,
@@ -2955,6 +2952,7 @@ SMonitorDevice::server_interpret_showinfo_t( BuilderBase * build,
                        server_state.playmode_string.c_str(),
                        server_state.current_time );
     }
+    server_state.match_information = score_board_msg;
 
     if ( server_state.reconnected )
     {//clear the drawing plane
@@ -3285,13 +3283,13 @@ SMonitorDevice::server_interpret_showinfo_t2( BuilderBase * build,
 
     const SSrv::showinfo_t2 & showinfo = dispinfo->body.show; //shortcut
     server_state.current_time = ntohs( showinfo.time );
-    server_state.left_teamname.set( showinfo.team[0].name );
-    server_state.right_teamname.set( showinfo.team[1].name );
+    server_state.left_teamname.assign( showinfo.team[0].name, 16 );
+    server_state.right_teamname.assign( showinfo.team[1].name, 16 );
     //match info
     Int16 s_l = ntohs( showinfo.team[0].score );
     Int16 s_r = ntohs( showinfo.team[1].score );
-    if ( '\0' ==server_state.left_teamname.name[0] ) s_l = 0;
-    if ( '\0' ==server_state.right_teamname.name[0] ) s_r = 0;
+    if ( server_state.left_teamname.empty() ) s_l = 0;
+    if ( server_state.right_teamname.empty() ) s_r = 0;
 
     if ( showinfo.pmode >= 0 && showinfo.pmode < SSrv::PLAYMODE_STRINGS_SIZE )
     {
@@ -3327,9 +3325,10 @@ SMonitorDevice::server_interpret_showinfo_t2( BuilderBase * build,
         }
     }
 
+    char score_board_msg[512];
     if ( ! pstate )
     {
-        std::snprintf( server_state.match_information.name, 512,
+        std::snprintf( score_board_msg, 512,
                        " %10s %d:%d %-10s %16s %6d    ",
                        showinfo.team[0].name,
                        int( s_l ),int( s_r ),
@@ -3339,7 +3338,7 @@ SMonitorDevice::server_interpret_showinfo_t2( BuilderBase * build,
     }
     else
     {
-        std::snprintf( server_state.match_information.name, 512,
+        std::snprintf( score_board_msg, 512,
                        " %10s %d( %d/%d ):%d( %d/%d ) %-10s %16s %6d    ",
                        showinfo.team[0].name,
                        int( s_l ), pstate->left_score_, pstate->left_trial_,
@@ -3348,6 +3347,8 @@ SMonitorDevice::server_interpret_showinfo_t2( BuilderBase * build,
                        server_state.playmode_string.c_str(),
                        server_state.current_time );
     }
+
+    server_state.match_information = score_board_msg;
 
     if ( server_state.reconnected )
     {//clear the drawing plane
@@ -3607,32 +3608,35 @@ SMonitorDevice::server_interpret_showinfo_v3( BuilderBase * build,
 
     server_state.current_time = time;
 
+    char score_board_msg[512];
     if ( server_state.left_pen_score < 0 )
     {
-        std::sprintf( server_state.match_information.name,
-                      " %10s %d:%d %-10s %16s %6d    ",
-                      server_state.left_teamname.name,
-                      server_state.left_score,
-                      server_state.right_score,
-                      server_state.right_teamname.name,
-                      server_state.playmode_string.c_str(),
-                      server_state.current_time );
+        std::snprintf( score_board_msg, 512,
+                       " %10s %d:%d %-10s %16s %6d    ",
+                       server_state.left_teamname.c_str(),
+                       server_state.left_score,
+                       server_state.right_score,
+                       server_state.right_teamname.c_str(),
+                       server_state.playmode_string.c_str(),
+                       server_state.current_time );
     }
     else
     {
-        std::snprintf( server_state.match_information.name, 512,
+        std::snprintf( score_board_msg, 512,
                        " %10s %d( %d/%d ):%d( %d/%d ) %-10s %16s %6d",
-                       server_state.left_teamname.name,
+                       server_state.left_teamname.c_str(),
                        server_state.left_score,
                        server_state.left_pen_score,
                        server_state.left_pen_score + server_state.left_pen_miss,
                        server_state.right_score,
                        server_state.right_pen_score,
                        server_state.right_pen_score + server_state.right_pen_miss,
-                       server_state.right_teamname.name,
+                       server_state.right_teamname.c_str(),
                        server_state.playmode_string.c_str(),
                        server_state.current_time );
     }
+
+    server_state.match_information = score_board_msg;
 
 
     if ( server_state.reconnected )
@@ -3940,12 +3944,13 @@ SMonitorDevice::server_interpret_team_v3( BuilderBase * build,
     if ( std::strlen( name_l ) != 4
          || std::strncmp( name_l, "null", 4 ) != 0 )
     {
-        server_state.left_teamname.set( name_l );
+        server_state.left_teamname.assign( name_l, 16 );
     }
+
     if ( std::strlen( name_r ) != 4
          || std::strncmp( name_r, "null", 4 ) != 0 )
     {
-        server_state.right_teamname.set( name_r );
+        server_state.right_teamname.assign( name_r, 16 );
     }
 
     // update scoreborad message
@@ -4257,9 +4262,13 @@ void SMonitorDevice::send_object_pos( int o_id, const Point2d & pos ) {
 #if 0 // #if USE_COACH for server version < 7.02
     dum_str << "(move ( player ";
     if ( p_left( o_id ) )
-        dum_str << server_state.left_teamname.name;
+    {
+        dum_str << server_state.left_teamname;
+    }
     else
-        dum_str << server_state.right_teamname.name;
+    {
+        dum_str << server_state.right_teamname;
+    }
     dum_str << " " << p_number( o_id ) << " ) " << int( pos.x )
             << " " <<  int( -pos.y ) << " )";
 
