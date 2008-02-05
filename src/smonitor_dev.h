@@ -52,7 +52,8 @@ public:
     VisualPlayersViewArea();
 
     virtual
-    ~VisualPlayersViewArea() { }
+    ~VisualPlayersViewArea()
+      { }
 
     void init( const int my_key,
                const int my_layer,
@@ -63,11 +64,15 @@ public:
                const Area2d & area,
                const Frame2d & p_frame,
                const bool chg );
-    void actualize(const Frame2d& f, bool chg);
-    void set_view_mode( int quality, double width );
+    void actualize( const Frame2d & f,
+                    const bool chg );
+    void set_view_mode( const int quality,
+                        const double & width );
 };
 
-class VisualBall: public VisualObject2d {
+class VisualBall
+    : public VisualObject2d {
+
     RGBcolor c_ball;
     RGBcolor c_line_until_ball_stops;
     RGBcolor c_line_markers;
@@ -90,37 +95,63 @@ class VisualBall: public VisualObject2d {
     bool changed;
     static const int MAX_LINE_MARKERS_NUM;
     static const int MAX_LABEL_LEN;
+
 public:
+
     VisualBall();
 
-    void init(int my_key, int my_layer, double my_small_r, double my_large_r,
-              const RGBcolor & my_c_ball,
-              const RGBcolor & my_c_line_until_ball_stops,
-              const RGBcolor & my_c_line_unitl_ball_out_of_field,
-              const RGBcolor & my_c_font);
+    void init( const int my_key,
+               const int my_layer,
+               const double & my_small_r,
+               const double & my_large_r,
+               const RGBcolor & my_c_ball,
+               const RGBcolor & my_c_line_until_ball_stops,
+               const RGBcolor & my_c_line_unitl_ball_out_of_field,
+               const RGBcolor & my_c_font );
 
-    virtual ~VisualBall() {}
+    virtual
+    ~VisualBall()
+      { }
 
-    void draw(DisplayBase * disp, const Area2d & area, const Frame2d & p_frame, bool chg);
-    void actualize(const Frame2d& f, bool chg);
+    void draw( DisplayBase * disp,
+               const Area2d & area,
+               const Frame2d & p_frame,
+               const bool chg );
+    void actualize( const Frame2d & f,
+                    const bool chg );
 
-    void unset_show_vel() { show_vel= false; }
-    void set_show_vel(const Point2d & vel);
+    void unset_show_vel()
+      {
+          show_vel = false;
+      }
 
-    void unset_show_vel_string() { show_vel_string= false; }
-    void set_show_vel_string(const Point2d & vel);
+    /*!
+      \brief set ball velocity marker lines.
+     */
+    void set_show_vel( const Point2d & vel );
 
-    void set_label_pos(const Point2d & p) {
-        label.rel= p;
-        label.changed= true;
-    }
-    void set_ball_decay(double bdecay) {
-        ball_decay= bdecay;
-        //cout << "\nbdecay setting=" << bdecay << flush;
-    }
+    void unset_show_vel_string()
+      {
+          show_vel_string = false;
+      }
+
+    void set_show_vel_string( const Point2d & vel );
+
+    void set_label_pos( const Point2d & p )
+      {
+          label.rel = p;
+          label.changed = true;
+      }
+
+    void set_ball_decay( const double & bdecay )
+      {
+          ball_decay = bdecay;
+          //cout << "\nbdecay setting=" << bdecay << flush;
+      }
 };
 
-class VisualPlayer: public VisualObject2d {
+class VisualPlayer
+    : public VisualObject2d {
     RGBcolor c_invalid;
     RGBcolor c_player;
     RGBcolor c_goalie;
@@ -168,21 +199,30 @@ class VisualPlayer: public VisualObject2d {
     static const int MAX_LABEL_LEN;
 
 public:
+
     VisualPlayer();
 
-    void init(int my_key, int my_layer,
-              int p_number,
-              const RGBcolor & my_c_invalid,
-              const RGBcolor & my_c_player,
-              const RGBcolor & my_c_goalie,
-              const RGBcolor & my_c_font);
+    void init( const int my_key,
+               const int my_layer,
+               const int p_number,
+               const RGBcolor & my_c_invalid,
+               const RGBcolor & my_c_player,
+               const RGBcolor & my_c_goalie,
+               const RGBcolor & my_c_font );
 
-    virtual ~VisualPlayer() {}
+    virtual
+    ~VisualPlayer()
+      { }
 
-    void draw(DisplayBase * disp, const Area2d & area, const Frame2d & p_frame, bool chg);
-    void actualize(const Frame2d& f, bool chg);
+    void draw( DisplayBase * disp,
+               const Area2d & area,
+               const Frame2d & p_frame,
+               const bool chg );
 
-    void set_type(int type);
+    void actualize( const Frame2d & f,
+                    const bool chg );
+
+    void set_type( const int type );
     void set_body_angle( const Angle & a);
     void set_head_angle( const Angle & a);
     void set_active(bool flag= true);
@@ -444,12 +484,20 @@ class SMonitorDevice: public InputDevice {
     };
 
     struct Positions {
+
         struct Ball {
             Point2d pos;
             Point2d vel;
         };
+
         struct Player {
-            Player() { alive= false; type= 0; view_quality= VisualPlayersViewArea::FEEL_RANGE, view_width= 0.0; };
+            Player()
+                : alive( false ),
+                  type( 0 ),
+                  view_quality( VisualPlayersViewArea::FEEL_RANGE ),
+                  view_width( 0.0 )
+              { }
+
             bool alive;
             int type;
             Point2d pos;

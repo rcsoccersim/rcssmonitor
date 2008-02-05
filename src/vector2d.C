@@ -20,66 +20,26 @@
 
 #include "vector2d.h"
 
-void Vector2d::init_polar(double n, const Angle& a) {
-  x= n*cos(a);
-  y= n*sin(a);
+Angle
+Vector2d::arg() const
+{
+    if ( 0.0 == x && 0.0 == y )
+    {
+        return 0.0;
+    }
+
+    return Angle( std::atan2( y, x ) );
 }
 
-void Vector2d::operator +=(const Vector2d& v) {
-  x += v.x ;
-  y += v.y ;
+const
+Vector2d &
+Vector2d::rotate( const Angle & ang )
+{
+    double r1 = norm();
+    Angle a = arg() + ang;
+
+    x = r1 * a.cos();
+    y = r1 * a.sin();
+
+    return *this;
 }
-
-void Vector2d::operator -=(const Vector2d& v) {
-  x -= v.x ;
-  y -= v.y ;
-}
-
-void Vector2d::operator *=(double a) {
-  x *= a ;
-  y *= a ;
-}
-
-void Vector2d::operator /=(double a) {
-  x /= a ;
-  y /= a ;
-}
-
-Angle Vector2d::arg() const {
-  if (0.0==x && 0.0==y) return 0.0;
-  double tmp= atan2(y,x);
-  return Angle(tmp);  
-}
-
-std::ostream& operator<< (std::ostream& o, const Vector2d& v) {
-  return o << "#V[" << v.x << "," << v.y << "]" ;
-}
-
-Vector2d operator +(const Vector2d& a, const Vector2d& b) {
-  return Vector2d((a.x + b.x), (a.y + b.y)) ;
-}
-
-Vector2d operator -(const Vector2d& a, const Vector2d& b) {
-  return Vector2d((a.x - b.x), (a.y - b.y)) ;
-}
-
-Vector2d operator *(double a, const Vector2d& b) {
-  return Vector2d((a * b.x), (a * b.y)) ;
-}
-
-double Vector2d::distance(const Vector2d& orig) const {
-  return (*this - orig).norm() ;
-}
-
-Angle Vector2d::angle(const Vector2d& dir) const {
-  return dir.arg() - arg() ;
-}
-
-void Vector2d::rotate(const Angle& ang) {
-  double r1 = norm() ;
-  Angle th1 = arg() ;
-
-  x = r1 * cos(th1 + ang) ;
-  y = r1 * sin(th1 + ang) ;
-}
-

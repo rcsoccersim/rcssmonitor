@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 - 2001, Artur Merke <amerke@ira.uka.de> 
+ * Copyright (c) 1999 - 2001, Artur Merke <amerke@ira.uka.de>
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,78 +13,110 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include "angle.h"
 #include <cmath>
 
 const double Angle::TwoPi = 2*M_PI;
 
-double cos(const Angle &a) {
-  return std::cos(a.ang);
+// double
+// cos( const Angle & a )
+// {
+//     return std::cos( a.ang );
+// }
+
+// double
+// sin( const Angle & a )
+// {
+//     return std::sin( a.ang );
+// }
+
+
+
+void
+Angle::set_value( const double & d )
+{
+    ang = std::fmod( d, TwoPi );
+    if ( ang < 0.0 )
+    {
+        ang += TwoPi;
+    }
 }
 
-double sin(const Angle &a) {
-  return std::sin(a.ang);
-}
 
 #if 0
-ostream& operator<< (ostream& o,const Angle &a) {
-  return o << a.ang;
+std::ostream &
+operator<<( std::ostream & o,
+            const Angle & a )
+{
+    return o << a.ang;
 }
 
-istream& operator>> (istream& i,Angle &a) {
-  cout << "\n istream& operator>> (istream& i,Angle &a)";
-  return i >> a.ang;
+std::istream &
+operator>>( std::istream & i, Angle & a)
+{
+    std::cout << "\n istream& operator>> (istream& i,Angle &a)";
+    return i >> a.ang;
 }
 #endif
 
-Angle operator+(const Angle &a1, const Angle &a2) {
-  Angle res;
-  res.ang= a1.ang+a2.ang;
-  if (res.ang >= Angle::TwoPi) 
-    res.ang-= Angle::TwoPi;
-  return res;
+// Angle
+// operator+( const Angle & a1,
+//            const Angle & a2 )
+// {
+//     Angle res;
+//     res.ang = a1.ang + a2.ang;
+//     if ( res.ang >= Angle::TwoPi )
+//     {
+//         res.ang-= Angle::TwoPi;
+//     }
+//     return res;
+// }
+
+// Angle
+// operator-( const Angle & a1,
+//            const Angle & a2 )
+// {
+//     Angle res;
+//     res.ang = a1.ang - a2.ang;
+//     if ( res.ang < 0.0 )
+//     {
+//         res.ang += Angle::TwoPi;
+//     }
+//     return res;
+// }
+
+// Angle
+// operator-( const Angle & a1 )
+// {
+//     Angle res = a1;
+//     res.ang = -res.ang + Angle::TwoPi;
+//     return res;
+// }
+
+const
+Angle &
+Angle::operator+=( const Angle & a )
+{
+    ang += a.ang;
+    if ( ang >= TwoPi )
+    {
+        ang -= TwoPi;
+    }
+    return *this;
 }
 
-Angle operator-(const Angle &a1, const Angle &a2) {
-  Angle res;
-  res.ang= a1.ang-a2.ang;
-  if (res.ang < 0.0) 
-    res.ang+= Angle::TwoPi;
-  return res;
-}
-
-Angle operator-(const Angle &a1) {
-  Angle res= a1;
-  res.ang= -res.ang + Angle::TwoPi;
-  return res;
-}
-
-void Angle::operator +=(const Angle & a) {
-  ang+= a.ang;
-  if (ang >= TwoPi) 
-    ang-= TwoPi;
-}
-
-void Angle::operator -=(const Angle & a) {
-  ang-= a.ang;
-  if (ang < 0.0) 
-    ang+= TwoPi;
-}
-
-Angle::Angle() {
-  ang= 0.0;
-}
-
-Angle::Angle( const Angle& a) {
-  ang= a.ang;
-}
-
-Angle::Angle( double d) {
-  set_value(d);
-}
-
-void Angle::set_value( double d) {
-  ang= fmod(d,TwoPi);
-  if (ang < 0.0) 
-    ang+= TwoPi;
+const
+Angle &
+Angle::operator-=( const Angle & a )
+{
+    ang -= a.ang;
+    if ( ang < 0.0 )
+    {
+        ang += TwoPi;
+    }
+    return *this;
 }

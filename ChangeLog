@@ -1,3 +1,17 @@
+2008-02-05  Hidehisa Akiyama  <akky@users.sourceforge.jp>
+
+	* src/angle.C:
+	* src/angle.h:
+	* src/display_x11.h:
+	* src/frame2d.C:
+	* src/smonitor_dev.C:
+	* src/smonitor_dev.h:
+	* src/vector2d.C:
+	* src/vector2d.h:
+	* src/visobject.C:
+	* src/visobject.h:
+	- fixed coding style.
+
 2008-02-04  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
 	* src/2dview.C:

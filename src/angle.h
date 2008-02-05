@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 - 2001, Artur Merke <amerke@ira.uka.de> 
+ * Copyright (c) 1999 - 2001, Artur Merke <amerke@ira.uka.de>
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,42 +20,91 @@
 #include <iostream>
 
 /**
-   This class is used for unambiguous representation of angles. 
-   
-   Angles are given in radians, and normalized to be in [0,...,2*PI). 
+   This class is used for unambiguous representation of angles.
+
+   Angles are given in radians, and normalized to be in [0,...,2*PI).
    It is allowed to use values not from [0,...,2*PI) as parameters, they
    will be always normalized to fit into this interval.
 
-            ^  
+            ^
             | 0.5 Pi
             |
    Pi       |          0
-     -------O--------> 
+     -------O-------->
             |
             |
             | 1.5 Pi
 */
 class Angle {
-  friend std::ostream& operator<< (std::ostream&,const Angle&);
-  friend std::istream& operator>> (std::istream&,Angle&);
-  friend double cos(const Angle &);
-  friend double sin(const Angle &);
-  friend Angle operator+(const Angle &, const Angle &);
-  friend Angle operator-(const Angle &, const Angle &);
-  friend Angle operator-(const Angle &);
-  double ang; 
-  static const double TwoPi;
-  //important class invariant:  0.0 <= ang < 2*PI
- public:
-  Angle();
-  Angle( const Angle& );
-  Angle( double );
-  double get_value() const { return ang; }
-  void set_value(double);
+private:
 
-  void    operator +=(const Angle & a);
-  void    operator -=(const Angle & a);
+    static const double TwoPi;
+    //important class invariant:  0.0 <= ang < 2*PI
+
+    double ang;
+
+public:
+
+    Angle()
+        : ang( 0.0 )
+      { }
+
+    Angle( const Angle & a )
+        : ang( a.ang )
+      { }
+
+    Angle( const double & a )
+      {
+          set_value( a );
+      }
+
+    const
+    double & get_value() const
+      {
+          return ang;
+      }
+
+    void set_value( const double & );
+
+    double cos() const
+      {
+          return std::cos( this->ang );
+      }
+
+    double sin() const
+      {
+          return std::sin( this->ang );
+      }
+
+    Angle operator-() const
+      {
+          Angle res( *this );
+          res.ang = -res.ang + Angle::TwoPi;
+          return res;
+      }
+
+    const
+    Angle & operator+=(const Angle & a);
+    const
+    Angle & operator-=(const Angle & a);
 };
 
-#endif
 
+inline
+Angle
+operator+( const Angle & lhs,
+           const Angle & rhs )
+{
+    return Angle( lhs ) += rhs;
+}
+
+inline
+Angle
+operator-( const Angle & lhs,
+           const Angle & rhs )
+{
+    return Angle( lhs ) -= rhs;
+}
+
+
+#endif

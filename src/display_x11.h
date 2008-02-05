@@ -197,7 +197,7 @@ private:
 
   inline void copy_2_XArc(XArc & a, const CircleArc2d & circlearc) const {
     const short two_pi= 360*64;
-    Angle ang= circlearc.ang2- circlearc.ang1;
+    Angle ang = circlearc.ang2 - circlearc.ang1;
     a.x= conv.x_Plane_to_x_Win(circlearc.center.x-circlearc.radius);
     a.y= conv.y_Plane_to_y_Win(circlearc.center.y+circlearc.radius);
     a.width= conv.size_x_Plane_to_size_x_Win(circlearc.radius*2);
