@@ -4473,7 +4473,7 @@ SMonitorDevice::updateScoreBoard( const int time )
             }
 
             std::snprintf( score_board_msg, 512,
-                           " %10s %d:%d |%-5s|:|%-5s| %-10s %16s %6d ",
+                           " %10s %d:%d |%-5s:%-5s| %-10s %16s %6d ",
                            server_state.left_teamname.c_str(),
                            score->second.left_score_,
                            score->second.right_score_,
