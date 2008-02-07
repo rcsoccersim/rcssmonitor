@@ -29,67 +29,67 @@
 #include "valueparser.h"
 
 class AsciiDevice: public InputDevice {
-  UDPsocket udp_sock;
-  TCPserver tcp_serv;
-  TCPsocket tcp_sock;
-  bool tcp_serv_can_accept;
-  bool tcp_sock_open;
+    UDPsocket udp_sock;
+    TCPserver tcp_serv;
+    TCPsocket tcp_sock;
+    bool tcp_serv_can_accept;
+    bool tcp_sock_open;
 
     enum {
         BUFFER_MAX_SIZE= 8192
     };
-  char state_string[120];
+    char state_string[120];
 
-  static const bool use_udp;
-  bool use_tcp;
-  static const bool use_stdin;
+    static const bool use_udp;
+    bool use_tcp;
+    static const bool use_stdin;
 
-  struct Options {
-    Options() { udp_port= 6010; tcp_port= 20000; }
-    int udp_port;
-    int tcp_port;
-  };
+    struct Options {
+        Options() { udp_port= 6010; tcp_port= 20000; }
+        int udp_port;
+        int tcp_port;
+    };
 
-  Options options;
+    Options options;
 
-  bool process_options(const ValueParser & vp);
+    bool process_options(const ValueParser & vp);
 
-  template <class T>
-  void print_option_entry(std::ostream & o,int mode, const char * option, const T & val, const char * description) const;
-  void generic_description_of_options(std::ostream & o, int mode) const;
+    template <class T>
+    void print_option_entry(std::ostream & o,int mode, const char * option, const T & val, const char * description) const;
+    void generic_description_of_options(std::ostream & o, int mode) const;
 
-  bool process_tcp_input(fd_set *set, BuilderBase * buid);
- public:
-  AsciiDevice(int port= 0);
-  bool process_options(const char * fname);
-  bool process_options(int argc, char const* const* argv);
-  //bool process_char_command(BuilderBase * build, char c,double x, double y) { return false; }
-  void help_options(std::ostream & o) const;
-  void help_char_command(std::ostream & o) const { o << "\nascii commands:\n\n<no commands>"; }
-  void generate_file_options(std::ostream & o) const;
+    bool process_tcp_input(fd_set *set, BuilderBase * buid);
+public:
+    AsciiDevice(int port= 0);
+    bool process_options(const char * fname);
+    bool process_options(int argc, char const* const* argv);
+    //bool process_char_command(BuilderBase * build, char c,double x, double y) { return false; }
+    void help_options(std::ostream & o) const;
+    void help_char_command(std::ostream & o) const { o << "\nascii commands:\n\n<no commands>"; }
+    void generate_file_options(std::ostream & o) const;
 
-  bool init_frames(BuilderBase * build);
-  bool init_connection();
+    bool init_frames(BuilderBase * build);
+    bool init_connection();
 
-  bool destruct();
+    bool destruct();
 
-  bool process_input(fd_set * , BuilderBase * build);
+    bool process_input(fd_set * , BuilderBase * build);
 
-  const char * status_line() { return state_string; }
-  int set_fds(fd_set * set);// { add_fd_to_set(sock.socket_fd,set); return sock.socket_fd; }
-  bool got_fds(fd_set * set);// { return is_fd_in_set(sock.socket_fd,set); }
+    const char * status_line() const { return state_string; }
+    int set_fds(fd_set * set);// { add_fd_to_set(sock.socket_fd,set); return sock.socket_fd; }
+    bool got_fds(fd_set * set);// { return is_fd_in_set(sock.socket_fd,set); }
 };
 
 template <class T>
 void AsciiDevice::print_option_entry(std::ostream & o,int mode, const char * option, const T & val, const char * description) const {
-  if (mode == 0)
-    o << "\n"
-      << "\n# " << description << " (default " << val << ")"
-      << "\n" << option << " = "; //<< val;
-  else
-    o << "\n"
-      << "\n" << description
-      << "\n-a_" << option << " [" << val << "]";
+    if (mode == 0)
+        o << "\n"
+          << "\n# " << description << " (default " << val << ")"
+          << "\n" << option << " = "; //<< val;
+    else
+        o << "\n"
+          << "\n" << description
+          << "\n-a_" << option << " [" << val << "]";
 }
 
 #endif

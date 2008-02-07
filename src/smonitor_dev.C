@@ -673,9 +673,9 @@ void
 VisualPlayersViewArea::actualize( const Frame2d & f,
                                   const bool chg )
 {
-    circlearc1.actualize(f,chg );
-    circle.actualize(f,chg );
-    circlearc2.actualize(f,chg );
+    circlearc1.actualize( f, chg );
+    circle.actualize( f, chg );
+    circlearc2.actualize( f, chg );
 }
 
 void
@@ -1618,15 +1618,12 @@ SMonitorDevice::ServerState::ServerState()
 void
 SMonitorDevice::ServerState::reset()
 {
-    //last_packet_ms_time = -1;
-    reconnected = true;
+    current_time = 0;
+    playmode = 0;
+    playmode_string.erase();
     left_teamname.erase();
     right_teamname.erase();
-    match_information.erase();
-
-    left_score = right_score = 0;
-    left_pen_score = right_pen_score
-        = left_pen_miss = right_pen_miss = -1;
+    reconnected = true;
 }
 
 void
@@ -2013,7 +2010,9 @@ void SMonitorDevice:: help_char_command( std::ostream & o ) const {
       << "		                 B which means 11\n";
 }
 
-void SMonitorDevice::help_options( std::ostream & o ) const {
+void
+SMonitorDevice::help_options( std::ostream & o ) const
+{
     o << "\nsoccer monitor options:"
       << "\n"
       << "\n( all colors are define by their rrggbb values )";
@@ -2021,7 +2020,9 @@ void SMonitorDevice::help_options( std::ostream & o ) const {
     generic_description_of_options( o,1 );
 }
 
-void SMonitorDevice::generate_file_options( std::ostream & o ) const {
+void
+SMonitorDevice::generate_file_options( std::ostream & o ) const
+{
     o << "\n[SMonitorDevice]"
       << "\n"
       << "\n### all options can be used on the command line if prefixed with '-m_'"
@@ -2050,6 +2051,7 @@ SMonitorDevice::process_char_command( BuilderBase * build,
         server.init_serv_addr( options.server_host,options.server_port );
         send_dispinit();
         server_state.reset();
+        M_score_board_string.erase();
         break;
     case 'l':
         if ( options.just_edit )
@@ -2223,13 +2225,13 @@ SMonitorDevice::process_mouse_button_event( BuilderBase * build,
     //if ( event.mouse_button ! = 2 )
     //  return false;
 
-    if ( event.mouse_button == 2 &&
-         event.mouse_button_state == InputEvent::MOUSE_BUTTON_PRESSED )
+    if ( event.mouse_button == 2
+         && event.mouse_button_state == InputEvent::MOUSE_BUTTON_PRESSED )
     {
         Point2d rel;
         double min = 100.0;
         int p_min = id_invalid;
-        for ( int i =0; i<MAX_PLAYER*2; i++ )
+        for ( int i = 0; i < MAX_PLAYER*2; ++i )
         {
             rel.x = event.pos.x - server_pos.player[i].pos.x;
             rel.y = event.pos.y - server_pos.player[i].pos.y;
@@ -2247,26 +2249,42 @@ SMonitorDevice::process_mouse_button_event( BuilderBase * build,
         }
         rel.x = event.pos.x - server_pos.ball.pos.x;
         rel.y = event.pos.y - server_pos.ball.pos.y;
-        double dum =  fabs( rel.x ) > fabs( rel.y ) ? fabs( rel.x ) : fabs( rel.y );
-        if ( dum < min ) {
+
+        double dum = ( std::fabs( rel.x ) > std::fabs( rel.y )
+                       ? std::fabs( rel.x )
+                       : std::fabs( rel.y ) );
+        if ( dum < min )
+        {
             min = dum;
             p_min = id_ball;
         }
+
         if ( min <= options.kick_radius * 1.5 * options.scale_factor() )
+        {
             options.active_in_mode = p_min;
+        }
         else
+        {
             options.active_in_mode = id_invalid;
+        }
+
         //std::cout << "\noptions.active_in_mode = " << options.active_in_mode << flush;
-        if ( options.mode == Options::MODE_MOVE ) {
-            if ( o_valid( options.active_in_mode ) ) {
+        if ( options.mode == Options::MODE_MOVE )
+        {
+            if ( o_valid( options.active_in_mode ) )
+            {
                 build->set_cmd_set_frame_pos( frame_shadow, event.pos );
-                build->set_cmd_set_frame_visible( frame_shadow,1 );
+                build->set_cmd_set_frame_visible( frame_shadow, 1 );
             }
         }
-        else if ( options.mode == Options::MODE_SHOW_VIEW_AREA ) {
+        else if ( options.mode == Options::MODE_SHOW_VIEW_AREA )
+        {
             if ( !p_valid( options.active_in_mode ) )
+            {
                 build->set_cmd_set_frame_visible( frame_varea,0 );
-            else {
+            }
+            else
+            {
                 Positions::Player & p = server_pos.ref_player( options.active_in_mode );
                 build->set_cmd_set_frame_pos_ang( frame_varea,p.pos,p.body_angle+p.head_angle_rel );
                 vis_view_area.set_view_mode( p.view_quality, p.view_width );
@@ -2298,17 +2316,23 @@ SMonitorDevice::process_mouse_button_event( BuilderBase * build,
         else
             return false;
 
-    if ( event.mouse_button == 2 &&
-         event.mouse_button_state == InputEvent::MOUSE_BUTTON_RELEASED && options.mode == Options::MODE_MOVE ) {
-        if ( !o_valid( options.active_in_mode ) )
+    if ( event.mouse_button == 2
+         && event.mouse_button_state == InputEvent::MOUSE_BUTTON_RELEASED
+         && options.mode == Options::MODE_MOVE )
+    {
+        if ( ! o_valid( options.active_in_mode ) )
+        {
             return false;
+        }
 
         bool res = false;
-        if ( options.just_edit ) {
+        if ( options.just_edit )
+        {
             set_object_pos( build,options.active_in_mode, event.pos );
             res = true;
         }
-        else {
+        else
+        {
 #if 1
             set_object_pos( build,options.active_in_mode, event.pos ); //is needed
             res = true;                       // when no connection to a server is established
@@ -2325,7 +2349,11 @@ SMonitorDevice::process_mouse_button_event( BuilderBase * build,
     return false;
 }
 
-bool SMonitorDevice::process_menu_button( BuilderBase * build, MenuBase * menu, const InputEvent & event ) {
+bool
+SMonitorDevice::process_menu_button( BuilderBase * build,
+                                     MenuBase * menu,
+                                     const InputEvent & event )
+{
     char buf[20];
     bool chg = false;
     //static unsigned long last_time =0;
@@ -2335,30 +2363,38 @@ bool SMonitorDevice::process_menu_button( BuilderBase * build, MenuBase * menu, 
         return false;
 
     case BUTTON_RECONNECT:
-        if ( options.just_edit ) {
+        if ( options.just_edit )
+        {
             std::cout << "\nthis key is not set in edit mode";
             break;
         }
         server.init_serv_addr( options.server_host,options.server_port );
         send_dispinit();
         server_state.reset();
+        M_score_board_string.erase();
         return false;
 
     case BUTTON_SCALE_LEVEL:
-        if ( event.mouse_button ==1 ) {
+        if ( event.mouse_button == 1 )
+        {
             chg = false;
-            if ( options.scale_level > options.scale_level_min ) {
+            if ( options.scale_level > options.scale_level_min )
+            {
                 options.scale_level--;
                 chg = true;
             }
         }
-        else {
-            if ( options.scale_level < options.scale_level_max ) {
+        else
+        {
+            if ( options.scale_level < options.scale_level_max )
+            {
                 options.scale_level++;
                 chg = true;
             }
         }
-        if ( chg ) {
+
+        if ( chg )
+        {
             double scale = options.scale_factor();
             std::snprintf( buf, sizeof( buf ), "scale %.1f", scale );
             menu->set_button_label( BUTTON_SCALE_LEVEL,buf );
@@ -2367,19 +2403,24 @@ bool SMonitorDevice::process_menu_button( BuilderBase * build, MenuBase * menu, 
         return chg;
 
     case BUTTON_INFO_LEVEL:
-        if ( event.mouse_button ==1 ) {
+        if ( event.mouse_button == 1 )
+        {
             chg = false;
-            if ( options.info_level > options.info_level_min ) {
+            if ( options.info_level > options.info_level_min )
+            {
                 options.info_level--;
                 chg = true;
             }
         }
-        else {
-            if ( options.info_level < options.info_level_max ) {
+        else
+        {
+            if ( options.info_level < options.info_level_max )
+            {
                 options.info_level++;
                 chg = true;
             }
         }
+
         if ( chg )
         {
             std::snprintf( buf, sizeof( buf ), "detail %d", options.info_level );
@@ -2393,31 +2434,40 @@ bool SMonitorDevice::process_menu_button( BuilderBase * build, MenuBase * menu, 
         options.active_in_mode = id_invalid;
 
         chg = false;
-        if ( event.mouse_button ==1 ) {
-            if ( options.mode == Options::MODE_MOVE ) {
-                build->set_cmd_set_frame_visible( frame_shadow,0 );
+        if ( event.mouse_button ==1 )
+        {
+            if ( options.mode == Options::MODE_MOVE )
+            {
+                build->set_cmd_set_frame_visible( frame_shadow, 0 );
                 options.mode = Options::MODE_STANDARD;
                 chg = true;
             }
-            else if ( options.mode == Options::MODE_SHOW_VIEW_AREA ) {
-                build->set_cmd_set_frame_visible( frame_varea,0 );
+            else if ( options.mode == Options::MODE_SHOW_VIEW_AREA )
+            {
+                build->set_cmd_set_frame_visible( frame_varea, 0 );
                 options.mode = Options::MODE_MOVE;
                 chg = true;
             }
         }
-        else {
-            if ( options.mode == Options::MODE_STANDARD ) {
+        else
+        {
+            if ( options.mode == Options::MODE_STANDARD )
+            {
                 options.mode = Options::MODE_MOVE;
                 chg = true;
             }
-            else if ( options.mode == Options::MODE_MOVE ) {
-                build->set_cmd_set_frame_visible( frame_shadow,0 );
+            else if ( options.mode == Options::MODE_MOVE )
+            {
+                build->set_cmd_set_frame_visible( frame_shadow, 0 );
                 options.mode = Options::MODE_SHOW_VIEW_AREA;
                 chg = true;
             }
         }
+
         if ( chg )
+        {
             menu->set_button_label( BUTTON_MODE,options.get_mode_string() );
+        }
 
         return chg;
     case BUTTON_UNZOOM:
@@ -2425,14 +2475,19 @@ bool SMonitorDevice::process_menu_button( BuilderBase * build, MenuBase * menu, 
         return true;
     case BUTTON_QUIT:
         menu->set_exit_program();
-
         return false;
-
+    default:
+        break;
     }
+
     return false;
 }
 
-bool SMonitorDevice::process_popup_button( BuilderBase * build, MenuBase * popup, const InputEvent & event ) {
+bool
+SMonitorDevice::process_popup_button( BuilderBase * build,
+                                      MenuBase * popup,
+                                      const InputEvent & event )
+{
     static Point2d pos;
 
     //std::cout << "\npos = " << pos.x << "," << pos.y << flush;
@@ -2520,7 +2575,7 @@ SMonitorDevice::init_frames( BuilderBase * build )
 
     //PlayerTypes::init( options.ball_radius, options.player_radius,
     PlayerTypes::init( 0.085, options.player_radius,
-                      options.kick_radius - 0.085 - options.player_radius );
+                       options.kick_radius - 0.085 - options.player_radius );
 
     //in this frame the logger drawings are displayed
     build->set_cmd_insert_frame( 0, frame_canvas_left, Point2d( 0.0,0.0 ),0.0, layer+4 );
@@ -3041,8 +3096,6 @@ bool
 SMonitorDevice::server_interpret_showinfo_t( BuilderBase * build,
                                              void * ptr )
 {
-    static char *PlayModeString[] = PLAYMODE_STRINGS;
-
     SSrv::dispinfo_t * dispinfo = reinterpret_cast< SSrv::dispinfo_t * >( ptr );
 
     if ( ntohs( dispinfo->mode ) != SSrv::SHOW_MODE )
@@ -3053,6 +3106,7 @@ SMonitorDevice::server_interpret_showinfo_t( BuilderBase * build,
 
     const SSrv::showinfo_t & showinfo = dispinfo->body.show; //shortcut
     server_state.current_time = ntohs( showinfo.time );
+    server_state.playmode = static_cast< int >( showinfo.pmode );
     server_state.left_teamname.assign( showinfo.team[0].name,
                                        std::min( std::strlen( showinfo.team[0].name ),
                                                  size_t( 16 ) ) );
@@ -3065,75 +3119,12 @@ SMonitorDevice::server_interpret_showinfo_t( BuilderBase * build,
     if ( server_state.left_teamname.empty() ) s_l = 0;
     if ( server_state.right_teamname.empty() ) s_r = 0;
 
-    server_state.left_score = s_l;
-    server_state.right_score = s_r;
+    updatePlayMode( server_state.playmode );
+    updateScores( server_state.current_time,
+                  server_state.playmode,
+                  s_l, s_r );
 
-    if ( showinfo.pmode >= 0 && showinfo.pmode < SSrv::PLAYMODE_STRINGS_SIZE )
-    {
-        server_state.playmode_string = PlayModeString[( int )( showinfo.pmode )];
-        if ( showinfo.pmode == 2 )
-        {
-            timeover = true;
-        }
-        else
-        {
-            updatePenaltyState( server_state.current_time, showinfo.pmode );
-        }
-    }
-    else
-    {
-        char dum[30];
-        std::snprintf( dum, 30, "sim_mode %d", showinfo.pmode );
-        server_state.playmode_string = dum;
-    }
-
-    const PenaltyState * pstate = NULL;
-    for ( std::vector< PenaltyState >::iterator it = M_penalty_state.begin();
-          it != M_penalty_state.end();
-          ++it )
-    {
-        if ( it->time_ <= server_state.current_time )
-        {
-            pstate = &( *it );
-        }
-        else
-        {
-            break;
-        }
-    }
-
-    char score_board_msg[512];
-    if ( ! pstate )
-    {
-        std::snprintf( score_board_msg, 512,
-                       " %10s %d:%d %-10s %16s %6d    ",
-                       showinfo.team[0].name,
-                       server_state.left_score,
-                       server_state.right_score,
-                       showinfo.team[1].name,
-                       server_state.playmode_string.c_str(),
-                       server_state.current_time );
-    }
-    else
-    {
-        server_state.left_pen_score = pstate->left_score_;
-        server_state.right_pen_score = pstate->right_score_;
-        server_state.left_pen_miss = pstate->left_trial_ - pstate->left_score_;
-        server_state.right_pen_miss = pstate->right_trial_ - pstate->right_score_;
-
-        std::snprintf( score_board_msg, 512,
-                       " %10s %d( %d/%d ):%d( %d/%d ) %-10s %16s %6d",
-                       showinfo.team[0].name,
-                       server_state.left_score,
-                       pstate->left_score_, pstate->left_trial_,
-                       server_state.right_score,
-                       pstate->right_score_, pstate->right_trial_,
-                       showinfo.team[1].name,
-                       server_state.playmode_string.c_str(),
-                       server_state.current_time );
-    }
-
-    server_state.match_information = score_board_msg;
+    updateScoreBoard( server_state.current_time );
 
     if ( server_state.reconnected )
     {
@@ -3211,8 +3202,11 @@ SMonitorDevice::server_interpret_showinfo_t( BuilderBase * build,
 }
 
 
-bool SMonitorDevice::server_interpret_drawinfo_t( BuilderBase * build, void *ptr ) {
-    SSrv::dispinfo_t *dispinfo = ( SSrv::dispinfo_t* )ptr;
+bool
+SMonitorDevice::server_interpret_drawinfo_t( BuilderBase * build,
+                                             void * ptr )
+{
+    SSrv::dispinfo_t * dispinfo = reinterpret_cast< SSrv::dispinfo_t * >( ptr );
 
     Int16 s_x, s_y, s_x2, s_y2, s_r;
     Point2d pos, pos2;
@@ -3280,15 +3274,22 @@ bool SMonitorDevice::server_interpret_drawinfo_t( BuilderBase * build, void *ptr
 }
 
 //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-bool SMonitorDevice::server_interpret_msginfo_t( BuilderBase * build, void *ptr ) {
+bool
+SMonitorDevice::server_interpret_msginfo_t( BuilderBase * build,
+                                            void * ptr )
+{
+    if ( options.protocol_version >= 3 )
+    {
+        return false;
+    }
 
-    const SSrv::dispinfo_t *dispinfo = NULL;
-    const SSrv::dispinfo_t2 *dispinfo2 = NULL;
+    const SSrv::dispinfo_t * dispinfo = NULL;
+    const SSrv::dispinfo_t2 * dispinfo2 = NULL;
     const SSrv::msginfo_t * msg = NULL;
 
     if ( options.protocol_version == 2 )
     {
-        dispinfo2 = ( SSrv::dispinfo_t2* )ptr;
+        dispinfo2 = reinterpret_cast< SSrv::dispinfo_t2 * >( ptr );
         if ( ntohs( dispinfo2->mode ) != SSrv::MSG_MODE )
         {
             ERROR_OUT << "\nmode != MSG_MODE";
@@ -3298,7 +3299,7 @@ bool SMonitorDevice::server_interpret_msginfo_t( BuilderBase * build, void *ptr 
     }
     else
     {
-        dispinfo = ( SSrv::dispinfo_t* )ptr;
+        dispinfo = reinterpret_cast< SSrv::dispinfo_t * >( ptr );
         if ( ntohs( dispinfo->mode ) != SSrv::MSG_MODE )
         {
             ERROR_OUT << "\nmode != MSG_MODE";
@@ -3318,18 +3319,12 @@ bool SMonitorDevice::server_interpret_msginfo_t( BuilderBase * build, void *ptr 
     }
 
     //std::cout <<"\nMSG_MODE ";
-    int canvas;
 
     //left player is sending on MSG_BOARD, right player is sending on LOG_BOARD
     //coordinates of right player have to be converted
-    if ( ntohs( msg->board ) == LOG_BOARD )
-    {
-        canvas = frame_canvas_right;
-    }
-    else
-    {
-        canvas = frame_canvas_left;
-    }
+    int canvas = ( ntohs( msg->board ) == LOG_BOARD
+                   ? frame_canvas_right
+                   : frame_canvas_left );
 
 #if 0
     std::cout <<"\n got message, canvas = " << canvas << " msg = ";
@@ -3348,28 +3343,44 @@ bool SMonitorDevice::server_interpret_msginfo_t( BuilderBase * build, void *ptr 
     return server_interpret_frameview_msg( build, msg->message, true, canvas );
 }
 
-void SMonitorDevice::show_parser_error_point( std::ostream & out, const char * origin, const char * parse_error_point ) {
+void
+SMonitorDevice::show_parser_error_point( std::ostream & out,
+                                         const char * origin,
+                                         const char * parse_error_point )
+{
     if ( parse_error_point )
-        for ( ; origin<parse_error_point && *origin!= '\0';origin++ )
+    {
+        for ( ; origin<parse_error_point && *origin!= '\0'; ++origin )
+        {
             out << *origin;
-    else {
+        }
+    }
+    else
+    {
         out << origin
             << "\n[no parse error point provided]";
     }
 
-    if ( origin != parse_error_point ) {
+    if ( origin != parse_error_point )
+    {
         out << "\n[something wrong with parse error point]";
         return;
     }
+
     out << "   <***parse error***>   ";
+
     int i =0;
-    while ( i<25 && *origin != '\0' ) {
+    while ( i < 25 && *origin != '\0' )
+    {
         out << *origin;
-        origin++;
-        i++;
+        ++origin;
+        ++i;
     }
+
     if ( *origin != '\0' )
+    {
         out << " .......";
+    }
 }
 
 
@@ -3485,7 +3496,6 @@ bool
 SMonitorDevice::server_interpret_showinfo_t2( BuilderBase * build,
                                               void * ptr )
 {
-    static char *PlayModeString[] = PLAYMODE_STRINGS;
     SSrv::dispinfo_t2 * dispinfo = reinterpret_cast< SSrv::dispinfo_t2 * >( ptr );
 
     if ( ntohs( dispinfo->mode ) != SSrv::SHOW_MODE )
@@ -3496,6 +3506,7 @@ SMonitorDevice::server_interpret_showinfo_t2( BuilderBase * build,
 
     const SSrv::showinfo_t2 & showinfo = dispinfo->body.show; //shortcut
     server_state.current_time = ntohs( showinfo.time );
+    server_state.playmode = static_cast< int >( showinfo.pmode );
     server_state.left_teamname.assign( showinfo.team[0].name,
                                        std::min( std::strlen( showinfo.team[0].name ),
                                                  size_t( 16 ) ) );
@@ -3508,78 +3519,16 @@ SMonitorDevice::server_interpret_showinfo_t2( BuilderBase * build,
     if ( server_state.left_teamname.empty() ) s_l = 0;
     if ( server_state.right_teamname.empty() ) s_r = 0;
 
-    server_state.left_score = s_l;
-    server_state.right_score = s_r;
+    updatePlayMode( server_state.playmode );
+    updateScores( server_state.current_time,
+                  server_state.playmode,
+                  s_l, s_r );
 
-    if ( showinfo.pmode >= 0 && showinfo.pmode < SSrv::PLAYMODE_STRINGS_SIZE )
-    {
-        server_state.playmode_string = PlayModeString[( int )( showinfo.pmode )];
-        if ( showinfo.pmode == 2 )
-        {
-            timeover = true;
-        }
-        else
-        {
-            updatePenaltyState( server_state.current_time, showinfo.pmode );
-        }
-    }
-    else
-    {
-        char dum[30];
-        std::snprintf( dum, 30, "sim_mode %d", showinfo.pmode );
-        server_state.playmode_string = dum;
-    }
-
-    const PenaltyState * pstate = NULL;
-    for ( std::vector< PenaltyState >::iterator it = M_penalty_state.begin();
-          it != M_penalty_state.end();
-          ++it )
-    {
-        if ( it->time_ <= server_state.current_time )
-        {
-            pstate = &( *it );
-        }
-        else
-        {
-            break;
-        }
-    }
-
-    char score_board_msg[512];
-    if ( ! pstate )
-    {
-        std::snprintf( score_board_msg, 512,
-                       " %10s %d:%d %-10s %16s %6d    ",
-                       showinfo.team[0].name,
-                       server_state.left_score,
-                       server_state.right_score,
-                       showinfo.team[1].name,
-                       server_state.playmode_string.c_str(),
-                       server_state.current_time );
-    }
-    else
-    {
-        server_state.left_pen_score = pstate->left_score_;
-        server_state.right_pen_score = pstate->right_score_;
-        server_state.left_pen_miss = pstate->left_trial_ - pstate->left_score_;
-        server_state.right_pen_miss = pstate->right_trial_ - pstate->right_score_;
-
-        std::snprintf( score_board_msg, 512,
-                       " %10s %d( %d/%d ):%d( %d/%d ) %-10s %16s %6d    ",
-                       showinfo.team[0].name,
-                       server_state.left_score,
-                       pstate->left_score_, pstate->left_trial_,
-                       server_state.right_score,
-                       pstate->right_score_, pstate->right_trial_,
-                       showinfo.team[1].name,
-                       server_state.playmode_string.c_str(),
-                       server_state.current_time );
-    }
-
-    server_state.match_information = score_board_msg;
+    updateScoreBoard( server_state.current_time );
 
     if ( server_state.reconnected )
-    {//clear the drawing plane
+    {
+        //clear the drawing plane
         DEBUG( << " refreshing drawarea" );
         build->set_cmd_empty_frame( frame_canvas_left );
         build->set_cmd_empty_frame( frame_canvas_right );
@@ -3621,7 +3570,8 @@ SMonitorDevice::server_interpret_showinfo_t2( BuilderBase * build,
     }
 
     //set players
-    for ( int i = 0; i< 2*MAX_PLAYER; i++ ) {
+    for ( int i = 0; i< 2*MAX_PLAYER; ++i )
+    {
         const SSrv::player_t & info_pos = showinfo.pos[i];
         /* Zwischenspeicherung als short notwendig, da ansonsten ntohs nicht richtig funkioniert */
         Int32 l_x      = ntohl( info_pos.x );
@@ -3731,8 +3681,11 @@ SMonitorDevice::server_interpret_showinfo_t2( BuilderBase * build,
     return true;
 }
 
-bool SMonitorDevice::server_interpret_player_type_t( BuilderBase * build, void *ptr ) {
-    SSrv::dispinfo_t2 *dispinfo = ( SSrv::dispinfo_t2* )ptr;
+bool
+SMonitorDevice::server_interpret_player_type_t( BuilderBase * build,
+                                                void * ptr )
+{
+    SSrv::dispinfo_t2 * dispinfo = reinterpret_cast< SSrv::dispinfo_t2 * >( ptr );
 
     if ( ntohs( dispinfo->mode ) != SSrv::PT_MODE )
     {
@@ -3764,8 +3717,10 @@ bool SMonitorDevice::server_interpret_player_type_t( BuilderBase * build, void *
 
     static bool put_warning = false;
 
-    if ( fabs( player_size ) < 0.01 ) {
-        if ( !put_warning ) {
+    if ( std::fabs( player_size ) < 0.01 )
+    {
+        if ( ! put_warning )
+        {
             WARNING_OUT << "\nlogplayer seems not to send player types info ( check for version >= 7.08 )";
             PlayerTypes::use_std_type = true;
             put_warning = true;
@@ -3786,7 +3741,7 @@ bool
 SMonitorDevice::server_interpret_server_params_t( BuilderBase * build,
                                                   void * ptr )
 {
-    SSrv::dispinfo_t2 *dispinfo = ( SSrv::dispinfo_t2* )ptr;
+    SSrv::dispinfo_t2 * dispinfo = reinterpret_cast< SSrv::dispinfo_t2 * >( ptr );
 
     if ( ntohs( dispinfo->mode ) != SSrv::PARAM_MODE )
     {
@@ -3797,7 +3752,8 @@ SMonitorDevice::server_interpret_server_params_t( BuilderBase * build,
     const SSrv::server_params_t &server_params = dispinfo->body.sparams; //shortcut
 
     double goal_width = double( ntohl( server_params.gwidth ) ) / SHOWINFO_SCALE2;
-    if ( fabs( goal_width ) < 0.01 ) {
+    if ( std::fabs( goal_width ) < 0.01 )
+    {
         WARNING_OUT << "\nlogplayer seems not to send correct server parameters ( check for version >= 7.08 )";
         return false;
     }
@@ -3831,47 +3787,65 @@ SMonitorDevice::server_interpret_showinfo_v3( BuilderBase * build,
 
     int time = 0;
 
-    if ( std::sscanf( buf, " (show %d %n ", &time, &n_read ) != 1 )
+    if ( std::sscanf( buf, " ( show %d %n ", &time, &n_read ) != 1 )
     {
         ERROR_OUT << "\nIllegal time value in show info.";
         return false;
     }
     buf += n_read;
 
-    std::cout << "\nshow " << time << " len =" << std::strlen( buf );
+    //std::cerr << "\nshow " << time << " len =" << std::strlen( buf );
 
-    server_state.current_time = time;
+    int playmode = 0;
 
-    char score_board_msg[512];
-    if ( server_state.left_pen_score < 0 )
+    if ( std::sscanf( buf, " ( pm %d ) %n ",
+                      &playmode, &n_read ) != 1 )
     {
-        std::snprintf( score_board_msg, 512,
-                       " %10s %d:%d %-10s %16s %6d    ",
-                       server_state.left_teamname.c_str(),
-                       server_state.left_score,
-                       server_state.right_score,
-                       server_state.right_teamname.c_str(),
-                       server_state.playmode_string.c_str(),
-                       server_state.current_time );
+        ERROR_OUT << "\nIllegal playmode in show info.";
+        return false;
+    }
+    buf += n_read;
+
+    int score_l = 0, score_r = 0;
+    int pen_score_l = 0, pen_miss_l = 0, pen_score_r = 0, pen_miss_r = 0;
+
+    if ( std::sscanf( buf, " ( score %d %d %n ",
+                      &score_l, &score_r,
+                      &n_read) != 2 )
+    {
+        ERROR_OUT << "\nIllegal score in show info.";
+        return false;
+    }
+    buf += n_read;
+
+    if ( *buf != ')' )
+    {
+        if ( std::sscanf( buf, " %d %d %d %d ) %n ",
+                          &pen_score_l, &pen_miss_l,
+                          &pen_score_r, &pen_miss_r,
+                          &n_read ) != 4 )
+        {
+            ERROR_OUT << "\nIllegal penalty scores in show info.";
+            return false;
+        }
+        buf += n_read;
     }
     else
     {
-        std::snprintf( score_board_msg, 512,
-                       " %10s %d( %d/%d ):%d( %d/%d ) %-10s %16s %6d",
-                       server_state.left_teamname.c_str(),
-                       server_state.left_score,
-                       server_state.left_pen_score,
-                       server_state.left_pen_score + server_state.left_pen_miss,
-                       server_state.right_score,
-                       server_state.right_pen_score,
-                       server_state.right_pen_score + server_state.right_pen_miss,
-                       server_state.right_teamname.c_str(),
-                       server_state.playmode_string.c_str(),
-                       server_state.current_time );
+        ++buf;
     }
 
-    server_state.match_information = score_board_msg;
+    server_state.current_time = time;
+    server_state.playmode = playmode;
 
+    updatePlayMode( playmode );
+    updateScores( time, playmode,
+                  score_l, score_r,
+                  pen_score_l, pen_miss_l,
+                  pen_score_r, pen_miss_r,
+                  true ); // has penalty score info
+
+    updateScoreBoard( time );
 
     if ( server_state.reconnected )
     {
@@ -4130,23 +4104,6 @@ SMonitorDevice::server_interpret_playmode_v3( BuilderBase * build,
     {
         timeover = true;
     }
-    else
-    {
-        char pm = 0;
-
-        static const char * s_playmode_strings[] = PLAYMODE_STRINGS;
-        for ( int i = 0; i < sizeof( s_playmode_strings ); ++i )
-        {
-            if ( ! std::strncmp( pmode, s_playmode_strings[i],
-                                 std::strlen( s_playmode_strings[i] ) ) )
-            {
-                pm = static_cast< char >( i );
-                break;
-            }
-        }
-
-        updatePenaltyState( server_state.current_time, pm );
-    }
 
     return true;
 }
@@ -4159,29 +4116,22 @@ SMonitorDevice::server_interpret_team_v3( BuilderBase * build,
     char name_l[256];
     char name_r[256];
     int score_l = 0, score_r = 0;
-    int pen_score_l = -1, pen_miss_l = 0, pen_score_r = 0, pen_miss_r = 0;
-    int n_read = 0;
+    int pen_score_l = 0, pen_miss_l = 0, pen_score_r = 0, pen_miss_r = 0;
 
-    if ( std::sscanf( buf,
-                      " ( team %d %255s %255s %d %d %n ",
-                      &time,
-                      name_l, name_r, &score_l, &score_r,
-                      &n_read ) != 5 )
+    int n = std::sscanf( buf,
+                         " ( team %d %255s %255s %d %d %d %d %d %d ",
+                         &time,
+                         name_l, name_r,
+                         &score_l, &score_r,
+                         &pen_score_l, &pen_miss_l,
+                         &pen_score_r, &pen_miss_r );
+
+    if ( n != 5 && n != 9 )
     {
-        ERROR_OUT << "\nIllegal team info.";
+        ERROR_OUT << "\nIllegal team info. n = ";
         return false;
     }
 
-    buf += n_read;
-
-    if ( *buf != ')'
-         && std::sscanf( buf,
-                         " %d %d %d %d ) ",
-                         &pen_score_l, &pen_miss_l,
-                         &pen_score_r, &pen_miss_r ) != 4 )
-    {
-        WARNING_OUT << "\nIllegal penalty score in team info.";
-    }
 
     if ( std::strlen( name_l ) != 4
          || std::strncmp( name_l, "null", 4 ) != 0 )
@@ -4203,20 +4153,12 @@ SMonitorDevice::server_interpret_team_v3( BuilderBase * build,
 
     server_state.current_time = time;
 
-    if ( pen_score_l < 0 )
-    {
-        server_state.left_score = score_l;
-        server_state.right_score = score_r;
-    }
-    else
-    {
-        server_state.left_score = score_l;
-        server_state.right_score = score_r;
-        server_state.left_pen_score = pen_score_l;
-        server_state.right_pen_score = pen_score_r;
-        server_state.left_pen_miss = pen_miss_l;
-        server_state.right_pen_miss = pen_miss_r;
-    }
+//     updateScores( time,
+//                   server_state.playmode,
+//                   score_l, score_r,
+//                   pen_score_l, pen_miss_l,
+//                   pen_score_r, pen_miss_r,
+//                   true );
 
     return true;
 }
@@ -4375,12 +4317,59 @@ SMonitorDevice::server_interpret_server_param_v3( BuilderBase * build,
     return true;
 }
 
+void
+SMonitorDevice::updatePlayMode( const int pmode )
+{
+    static const char * const PlayModeString[] = PLAYMODE_STRINGS;
+
+    if ( pmode >= 0 && pmode < SSrv::PLAYMODE_STRINGS_SIZE )
+    {
+        server_state.playmode_string = PlayModeString[pmode];
+        if ( pmode == 2 )
+        {
+            timeover = true;
+        }
+    }
+    else
+    {
+        char dum[30];
+        std::snprintf( dum, 30, "sim_mode %d", pmode );
+        server_state.playmode_string = dum;
+    }
+}
 
 void
-SMonitorDevice::updatePenaltyState( const int current_time,
-                                    const char pmode )
+SMonitorDevice::updateScores( const int time,
+                              const int pmode,
+                              const int score_l,
+                              const int score_r,
+                              const int pen_score_l,
+                              const int pen_miss_l,
+                              const int pen_score_r,
+                              const int pen_miss_r,
+                              const bool has_pen_score )
 {
-    static char s_last_pmode = 0;
+    std::map< int, Score >::iterator it = M_scores.lower_bound( time );
+
+    if ( it == M_scores.end()
+         || it->second.left_score_ != score_l
+         || it->second.right_score_ != score_r
+         || ( has_pen_score
+              && ( it->second.left_pen_score_ != pen_score_l
+                   || it->second.right_pen_score_ != pen_score_r
+                   || it->second.left_pen_miss_ != pen_miss_l
+                   || it->second.right_pen_miss_ != pen_miss_r ) )
+         )
+    {
+        M_scores.insert( std::pair< int, Score >( time,
+                                                  Score( score_l, score_r,
+                                                         pen_score_l, pen_miss_l,
+                                                         pen_score_r, pen_miss_r ) ) );
+        std::cerr << '\n' << time << " added new score info " << std::endl;
+        return;
+    }
+
+    static int s_last_pmode = 0;
 
     if ( s_last_pmode == pmode )
     {
@@ -4388,78 +4377,139 @@ SMonitorDevice::updatePenaltyState( const int current_time,
     }
     s_last_pmode = pmode;
 
-    switch ( pmode ) {
-    case 46: // penalty_miss_l
-        if ( M_penalty_state.empty() )
+    // penalty score or miss, but no score information
+    if ( 46 <= pmode && pmode <= 49
+         && pen_score_l == 0
+         && pen_score_r == 0
+         && pen_miss_l == 0
+         && pen_miss_r == 0 )
+    {
+        Score new_score( 0, 0, 0, 0, 0, 0 );
+
+        if ( it != M_scores.end() )
         {
-            PenaltyState state;
-            state.time_ = current_time;
-            state.left_trial_ = 1;
-            M_penalty_state.push_back( state );
+            new_score = it->second;
         }
-        else if ( M_penalty_state.back().time_ < current_time )
-        {
-            PenaltyState state = M_penalty_state.back();
-            state.time_ = current_time;
-            state.left_trial_ += 1;
-            M_penalty_state.push_back( state );
+
+        switch ( pmode ) {
+        case 46: // penalty_miss_l
+            new_score.left_pen_miss_ += 1;
+            break;
+        case 47: // penalty_miss_r
+            new_score.right_pen_miss_ += 1;
+            break;
+        case 48: // penalty_score_l
+            new_score.left_pen_score_ += 1;
+            break;
+        case 49: // penalty_score_r
+            new_score.right_pen_score_ += 1;
+            break;
+        default:
+            // no new score info
+            return;
         }
-        break;
-    case 47: // penalty_miss_r
-        if ( M_penalty_state.empty() )
-        {
-            PenaltyState state;
-            state.time_ = current_time;
-            state.right_trial_ = 1;
-            M_penalty_state.push_back( state );
-        }
-        else if ( M_penalty_state.back().time_ < current_time )
-        {
-            PenaltyState state = M_penalty_state.back();
-            state.time_ = current_time;
-            state.right_trial_ += 1;
-            M_penalty_state.push_back( state );
-        }
-        break;
-    case 48: // penalty_score_l
-        if ( M_penalty_state.empty() )
-        {
-            PenaltyState state;
-            state.time_ = current_time;
-            state.left_score_ = 1;
-            state.left_trial_ = 1;
-            M_penalty_state.push_back( state );
-        }
-        else if ( M_penalty_state.back().time_ < current_time )
-        {
-            PenaltyState state = M_penalty_state.back();
-            state.time_ = current_time;
-            state.left_score_ += 1;
-            state.left_trial_ += 1;
-            M_penalty_state.push_back( state );
-        }
-        break;
-    case 49: // penalty_score_r
-        if ( M_penalty_state.empty() )
-        {
-            PenaltyState state;
-            state.time_ = current_time;
-            state.right_score_ = 1;
-            state.right_trial_ = 1;
-            M_penalty_state.push_back( state );
-        }
-        else if ( M_penalty_state.back().time_ < current_time )
-        {
-            PenaltyState state = M_penalty_state.back();
-            state.time_ = current_time;
-            state.right_score_ += 1;
-            state.right_trial_ += 1;
-            M_penalty_state.push_back( state );
-        }
-        break;
-    default:
-        break;
+
+        M_scores.insert( std::pair< int, Score >( time, new_score ) );
+        std::cerr << time << " added new penalty score info " << std::endl;
     }
+
+}
+
+void
+SMonitorDevice::updateScoreBoard( const int time )
+{
+    char score_board_msg[512];
+
+    std::map< int, Score >::iterator score = M_scores.lower_bound( time );
+
+    if ( score == M_scores.end() )
+    {
+        std::snprintf( score_board_msg, 512,
+                       " %10s %d:%d %-10s %16s %6d    ",
+                       "", 0, 0, "", "", time );
+    }
+    else
+    {
+        //if ( ! score->second.hasPenaltyScore() )
+        if ( ( 40 <= server_state.playmode     // penalty_setup_l
+               && server_state.playmode <= 49 ) // penalty_score_r
+             || score->second.hasPenaltyScore() )
+        {
+            std::string left_penalty;
+            std::string right_penalty;
+            int l_s = 0, l_m = 0, r_s = 0, r_m = 0;
+            for ( std::map< int, Score >::reverse_iterator it = M_scores.rbegin();
+                  it != M_scores.rend();
+                  ++it )
+            {
+                if ( it->first > time ) break;
+
+//                 std::cerr << it->first << ": "
+//                           << it->second.left_pen_score_ << ','
+//                           << it->second.left_pen_miss_ << '-'
+//                           << it->second.right_pen_score_ << ','
+//                           << it->second.right_pen_miss_ << std::endl;
+
+                if ( it->second.left_pen_score_ != l_s )
+                {
+                    left_penalty += 'o';
+                    l_s = it->second.left_pen_score_;
+                }
+                else if ( it->second.left_pen_miss_ != l_m )
+                {
+                    left_penalty += 'x';
+                    l_m = it->second.left_pen_miss_;
+                }
+                else if ( it->second.right_pen_score_ != r_s )
+                {
+                    right_penalty += 'o';
+                    r_s = it->second.right_pen_score_;
+                }
+                else if ( it->second.right_pen_miss_ != r_m )
+                {
+                    right_penalty += 'x';
+                    r_m = it->second.right_pen_miss_;
+                }
+            }
+
+            std::snprintf( score_board_msg, 512,
+                           " %10s %d:%d |%-5s|:|%-5s| %-10s %16s %6d ",
+                           server_state.left_teamname.c_str(),
+                           score->second.left_score_,
+                           score->second.right_score_,
+                           left_penalty.c_str(),
+                           right_penalty.c_str(),
+                           server_state.right_teamname.c_str(),
+                           server_state.playmode_string.c_str(),
+                           time );
+
+//             std::snprintf( score_board_msg, 512,
+//                            " %10s %d(%d/%d):%d(%d/%d) %-10s %16s %6d",
+//                            server_state.left_teamname.c_str(),
+//                            score->second.left_score_,
+//                            score->second.left_pen_score_,
+//                            score->second.left_pen_score_ + score->second.left_pen_miss_,
+//                            score->second.right_score_,
+//                            score->second.right_pen_score_,
+//                            score->second.right_pen_score_ + score->second.right_pen_miss_,
+//                            server_state.right_teamname.c_str(),
+//                            server_state.playmode_string.c_str(),
+//                            time );
+        }
+        else
+        {
+            std::snprintf( score_board_msg, 512,
+                           " %10s %d:%d %-10s %16s %6d    ",
+                           server_state.left_teamname.c_str(),
+                           score->second.left_score_,
+                           score->second.right_score_,
+                           server_state.right_teamname.c_str(),
+                           server_state.playmode_string.c_str(),
+                           time );
+        }
+    }
+
+    M_score_board_string = score_board_msg;
 }
 
 void
@@ -4484,15 +4534,24 @@ SMonitorDevice::set_object_pos( BuilderBase * build,
     }
 }
 
-void SMonitorDevice::set_all_objects_scale( BuilderBase * build, double scale ) {
+void
+SMonitorDevice::set_all_objects_scale( BuilderBase * build,
+                                       double scale )
+{
     build->set_cmd_set_frame_scale( frame_ball, scale );
     build->set_cmd_set_frame_scale( frame_shadow, scale );
-    for ( int i =0; i< 2*MAX_PLAYER; i++ )
-        build->set_cmd_set_frame_scale( p_frame( i ),scale );
+    for ( int i = 0; i < 2*MAX_PLAYER; ++i )
+    {
+        build->set_cmd_set_frame_scale( p_frame( i ), scale );
+    }
 }
 
-void SMonitorDevice::send_object_pos( int o_id, const Point2d & pos ) {
-    if ( o_ball( o_id ) ) {
+void
+SMonitorDevice::send_object_pos( int o_id,
+                                 const Point2d & pos )
+{
+    if ( o_ball( o_id ) )
+    {
         send_dispball( pos );
         return;
     }
@@ -4529,9 +4588,13 @@ void SMonitorDevice::send_object_pos( int o_id, const Point2d & pos ) {
        ( dispplayer ... ) command ( works in server 7.02 upwards ) */
     dum_str << "(dispplayer";
     if ( p_left( o_id ) )
+    {
         dum_str << " 1";
+    }
     else
+    {
         dum_str << " -1";
+    }
 
     //preserve the angle of the player
     int tmp = int( -( server_pos.player[o_id].body_angle.get_value()- 2*M_PI ) * 180.0/M_PI );
@@ -4572,7 +4635,7 @@ SMonitorDevice::send_dispinit()
         //std::cout << "\ntime =" << TOOLS::get_current_ms_time() << ", sending msg =:" << msg << flush;
     }
 
-    M_penalty_state.clear();
+    M_scores.clear();
 }
 
 void

@@ -157,7 +157,7 @@ class InputDevice {
   virtual bool process_input(fd_set * , BuilderBase * build)= 0;
 
   /// this routine shouldn't any longer be used (use the corresponding BuiderBase command)
-  virtual const char * status_line() { return "\0"; }
+  virtual const char * status_line() const { return "\0"; }
 
   /** sets file descriptors this device is responsible for
      \return the biggest file descriptor set in this method

@@ -27,6 +27,7 @@
 #include "valueparser.h"
 
 #include <vector>
+#include <map>
 #include <cstring>
 
 #define MAX_PLAYER 11
@@ -483,16 +484,11 @@ class SMonitorDevice: public InputDevice {
         void reset();
 
         int current_time;
+        int playmode;
         std::string playmode_string;
         std::string left_teamname;
         std::string right_teamname;
-        int left_score;
-        int right_score;
-        int left_pen_score;
-        int right_pen_score;
-        int left_pen_miss;
-        int right_pen_miss;
-        std::string match_information;
+
         bool reconnected;
     };
 
@@ -600,26 +596,54 @@ class SMonitorDevice: public InputDevice {
         void toggle_team() { left_team= !left_team; }
     };
 
-    struct PenaltyState {
-        int time_;
+    struct Score {
         int left_score_;
-        int left_trial_;
         int right_score_;
-        int right_trial_;
-        PenaltyState()
-            : time_( 0 )
-            , left_score_( 0 )
-            , left_trial_( 0 )
-            , right_score_( 0 )
-            , right_trial_( 0 )
+        int left_pen_score_;
+        int left_pen_miss_;
+        int right_pen_score_;
+        int right_pen_miss_;
+
+        Score( const int left_score,
+               const int right_score )
+            : left_score_( left_score )
+            , right_score_( right_score )
+            , left_pen_score_( 0 )
+            , right_pen_score_( 0 )
+            , left_pen_miss_( 0 )
+            , right_pen_miss_( 0 )
           { }
+
+       Score( const int left_score,
+              const int right_score,
+              const int left_pen_score,
+              const int left_pen_miss,
+              const int right_pen_score,
+              const int right_pen_miss )
+            :left_score_( left_score )
+            , right_score_( right_score )
+            , left_pen_score_( left_pen_score )
+            , left_pen_miss_( left_pen_miss )
+            , right_pen_score_( right_pen_score )
+            , right_pen_miss_( right_pen_miss )
+          { }
+
+        bool hasPenaltyScore() const
+          {
+              return ( left_pen_score_
+                       + left_pen_miss_
+                       + right_pen_score_
+                       + right_pen_miss_ > 0 );
+          }
     };
+
     /****************************************************************************/
     /* end of SMonitorDevice internal types declaration                         */
     /****************************************************************************/
 
     Options options;
     ServerState server_state;
+    std::string M_score_board_string;
     GuessState guess;
     Positions server_pos;
     CoachState coach_state;
@@ -630,7 +654,8 @@ class SMonitorDevice: public InputDevice {
     VisualField vis_field;
     Area2d initial_area;
 
-    std::vector< PenaltyState > M_penalty_state;
+    //! key: time, value: team names & scores
+    std::map< int, Score, std::greater< int > > M_scores;
 
     void vis_ball_set_info_level(int lev);
     void vis_player_set_info_level(int lev, VisualPlayer & vis_p, const Positions::Player & p,
@@ -660,8 +685,18 @@ class SMonitorDevice: public InputDevice {
     bool server_interpret_server_param_v3( BuilderBase * build,
                                            const char * buf );
 
-    void updatePenaltyState( const int current_time,
-                             const char pmode );
+    void updatePlayMode( const int pmode );
+    void updateScores( const int time,
+                       const int pmode,
+                       const int score_l,
+                       const int score_r,
+                       const int pen_score_l = 0,
+                       const int pen_score_r = 0,
+                       const int pen_miss_l = 0,
+                       const int pen_miss_r = 0,
+                       const bool has_pen_score = false);
+
+    void updateScoreBoard( const int time );
 
     void show_parser_error_point(std::ostream & out, const char * origin, const char * parse_error_point);
     bool ins_simple_obj(const char * buf, int fref, BuilderBase * build, const char* & next);
@@ -740,7 +775,11 @@ public:
 
     bool process_input(fd_set * , BuilderBase * build);
 
-    const char * status_line() { return server_state.match_information.c_str(); }
+    const
+    char * status_line() const
+      {
+          return M_score_board_string.c_str();
+      }
 
     int set_fds(fd_set * set);
     bool got_fds(fd_set * set);
