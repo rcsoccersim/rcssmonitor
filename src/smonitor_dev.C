@@ -4365,7 +4365,7 @@ SMonitorDevice::updateScores( const int time,
                                                   Score( score_l, score_r,
                                                          pen_score_l, pen_miss_l,
                                                          pen_score_r, pen_miss_r ) ) );
-        std::cerr << '\n' << time << " added new score info " << std::endl;
+        //std::cerr << '\n' << time << " added new score info " << std::endl;
         return;
     }
 
@@ -4410,7 +4410,7 @@ SMonitorDevice::updateScores( const int time,
         }
 
         M_scores.insert( std::pair< int, Score >( time, new_score ) );
-        std::cerr << time << " added new penalty score info " << std::endl;
+        //std::cerr << time << " added new penalty score info " << std::endl;
     }
 
 }

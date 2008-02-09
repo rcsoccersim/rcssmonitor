@@ -801,7 +801,7 @@ ValueParser::getValue( const char * key,
             continue;
         }
 
-        if ( std::strncmp( key, entry->key, std::strlen( entry->key ) ) != 0 )
+        if ( std::strcmp( key, entry->key ) != 0 )
         {
             continue;
         }
