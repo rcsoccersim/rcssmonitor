@@ -1,3 +1,9 @@
+[12.0.0_pre-20080209]
+
+  * supported a monitor protocol version 3 (not completed yet).
+
+  * improved a score board message.
+
 [12.0.0_pre-20071217]
   * implemneted a resizable player type parameters.
 

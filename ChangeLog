@@ -1,8 +1,14 @@
 2008-02-09  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
+	* NEWS:
+	* configure.ac:
+	- updated a version number string and news messages.
+	Release 12.0.0_pre-20080209
+
 	* src/smonitor_dev.C:
 	* src/valueparser.C:
 	- commented out some debugging messages.
+	- improved a score board message.
 	- fixed a bun in the parameter name comparison.
 
 2008-02-07  Hidehisa Akiyama  <akky@users.sourceforge.jp>

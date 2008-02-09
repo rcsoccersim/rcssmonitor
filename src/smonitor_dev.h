@@ -383,7 +383,7 @@ class SMonitorDevice: public InputDevice {
     UDPsocket server;
     //UDPsocket coach;
 
-    bool timeover;
+    bool M_timeover;
 
     enum {
         BUFFER_MAX_SIZE= 8192,
@@ -423,6 +423,8 @@ class SMonitorDevice: public InputDevice {
         int coach_port;
         int protocol_version;
         bool connect_on_start;
+
+        int pen_taken_wait;
 
         bool keepaway;
         double keepaway_length;
@@ -483,13 +485,14 @@ class SMonitorDevice: public InputDevice {
         ServerState();
         void reset();
 
-        int current_time;
-        int playmode;
-        std::string playmode_string;
-        std::string left_teamname;
-        std::string right_teamname;
+        int current_time_;
+        int pen_taken_timer_;
+        int playmode_;
+        std::string playmode_string_;
+        std::string left_teamname_;
+        std::string right_teamname_;
 
-        bool reconnected;
+        bool reconnected_;
     };
 
     struct GuessState {
@@ -784,19 +787,29 @@ public:
     int set_fds(fd_set * set);
     bool got_fds(fd_set * set);
 
-    virtual bool is_timeover() const { return timeover; }
+    virtual bool is_timeover() const { return M_timeover; }
 };
 
 template <class T>
-void SMonitorDevice::print_option_entry(std::ostream & o,int mode, const char * option, const T & val, const char * description) const {
-    if (mode == 0)
+void
+SMonitorDevice::print_option_entry( std::ostream & o,
+                                    int mode,
+                                    const char * option,
+                                    const T & val,
+                                    const char * description ) const
+{
+    if ( mode == 0 )
+    {
         o << "\n"
           << "\n# " << description << " (default " << val << ")"
           << "\n" << option << " = "; //<< val;
+    }
     else
+    {
         o << "\n"
           << "\n" << description
           << "\n-m_" << option << " [" << val << "]";
+    }
 }
 
 
