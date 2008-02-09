@@ -4,7 +4,8 @@ AC_INIT([RCSSMonitor], 12.0.0_pre-20080209, sserver-admin@users.sf.net, rcssmoni
 AC_PREREQ(2.59)
 
 AC_CONFIG_SRCDIR([src/2dview.C])
-AM_INIT_AUTOMAKE([gnu 1.7.2 check-news dist-bzip2 dist-zip])
+#AM_INIT_AUTOMAKE([gnu 1.7.2 check-news dist-bzip2 dist-zip])
+AM_INIT_AUTOMAKE([gnu 1.7.2 check-news])
 AM_CONFIG_HEADER(config.h)
 AC_PROG_MAKE_SET
 
