@@ -1,9 +1,12 @@
-2008-02-09  Hidehisa Akiyama  <akky@users.sourceforge.jp>
+2008-02-10  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
 	* NEWS:
 	* configure.ac:
+	- updated a NEWS file.
 	- updated a version number string and news messages.
-	Release 12.0.0_pre-20080209
+	Release 12.0.0_pre-20080210
+
+2008-02-09  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
 	* src/smonitor_dev.C:
 	* src/valueparser.C:

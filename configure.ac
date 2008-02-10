@@ -1,5 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT([RCSSMonitor], 12.0.0_pre-20080209, sserver-admin@users.sf.net, rcssmonitor)
+AC_INIT([RCSSMonitor], 12.0.0_pre-20080210, sserver-admin@users.sf.net, rcssmonitor)
 
 AC_PREREQ(2.59)
 
