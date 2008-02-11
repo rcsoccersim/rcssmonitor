@@ -1907,7 +1907,9 @@ void SMonitorDevice::generic_description_of_options( std::ostream & o, int mode 
     o << "\n";
 }
 
-bool SMonitorDevice::process_options( const ValueParser & vp ) {
+bool
+SMonitorDevice::process_options( const ValueParser & vp )
+{
     double tmp_double;
     int res;
 
@@ -1983,8 +1985,10 @@ bool SMonitorDevice::process_options( const ValueParser & vp ) {
     return true;
 }
 
-bool SMonitorDevice::process_options( const char * fname ) {
-    ValueParser vp( fname,"SMonitorDevice" );
+bool
+SMonitorDevice::process_options( const char * fname )
+{
+    ValueParser vp( fname, "SMonitorDevice" );
     return process_options( vp );
 }
 

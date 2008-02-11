@@ -309,11 +309,13 @@ bool Options::set_defaults() {
     return true;
 }
 
-bool Options::process_options(ValueParser & vp) {
-    vp.get("plane_origin_x",plane.center.x);
-    vp.get("plane_origin_y",plane.center.y);
-    vp.get("plane_size_x",plane.size_x);
-    vp.get("plane_size_y",plane.size_y);
+bool
+Options::process_options( ValueParser & vp )
+{
+    vp.get( "plane_origin_x", plane.center.x );
+    vp.get( "plane_origin_y", plane.center.y );
+    vp.get( "plane_size_x", plane.size_x );
+    vp.get( "plane_size_y", plane.size_y );
 
 #if 0
     if ( vp.get("window_left_x",window_left_x) > 0 )
@@ -361,16 +363,17 @@ bool Options::read(int argc,char **argv) {
     }
 
     cl.get( "conf_file", conf_file, MAX_NAME_LEN );
-    if ( std::strlen( conf_file ) ) {
+    if ( std::strlen( conf_file ) )
+    {
         std::cout << "\nreading options from file: " << conf_file;
-        ValueParser vp(conf_file);
+        ValueParser vp( conf_file );
         //vp.set_verbose(true);
-        process_options(vp);
-        INPUTDEV->process_options(conf_file);
+        process_options( vp );
+        INPUTDEV->process_options( conf_file );
     }
-    process_options(cl);
-    INPUTDEV->process_options(argc,argv);
-
+    process_options( cl );
+    INPUTDEV->process_options( argc, argv );
+    std::cout << "End process_options" << std::endl;
     return res;
 }
 
@@ -960,7 +963,7 @@ bool process_x11_events() {
                     RUN::conv_area.set_area( Options::plane );
                     break;
                 case 'k':
-                    RUN::show_key_bindings(std::cerr);
+                    RUN::show_key_bindings( std::cerr );
                     break;
                 case 'q':
                     RUN::quit= true;
@@ -1046,7 +1049,9 @@ int max(int a,int b) {
     return b;
 }
 
-int main(int argc,char ** argv) {
+int
+main( int argc, char ** argv )
+{
     TOOLS::get_current_ms_time(); //just init the starting time of this application;
 
     std::cout << "Copyright (c) 1999 - 2001, Artur Merke <amerke@ira.uka.de>"
@@ -1133,15 +1138,15 @@ int main(int argc,char ** argv) {
 
     unsigned long fg, bg;
 
-    WIN::disp = XOpenDisplay(0);
-    if (WIN::disp == (Display *) NULL) {
+    WIN::disp = XOpenDisplay( 0 );
+    if ( WIN::disp == (Display *) NULL )
+    {
         ERROR_OUT << "\nCould not open display!";
-        exit(1);
+        return 1;
     }
-    WIN::x11_fd= XConnectionNumber(WIN::disp);
-    RGB_DB::disp= WIN::disp;
+    WIN::x11_fd = XConnectionNumber( WIN::disp );
+    RGB_DB::disp = WIN::disp;
     //cout << "\n connection fd= " << WIN::x11_fd << flush;
-
     screen = DefaultScreen(WIN::disp);
     fg = BlackPixel(WIN::disp, screen);
     bg = WhitePixel(WIN::disp, screen);
@@ -1155,7 +1160,6 @@ int main(int argc,char ** argv) {
     WIN::window = XCreateSimpleWindow (WIN::disp, DefaultRootWindow(WIN::disp),
                                        hint.x, hint.y, hint.width, hint.height, 5, fg, bg);
     WIN::pixmap = XCreatePixmap (WIN::disp, WIN::window, WIN::win_width, WIN::win_height, WIN::win_depth);
-
     XSetStandardProperties( WIN::disp, WIN::window,
                             PACKAGE_VERSION,
                             PACKAGE,
@@ -1199,7 +1203,6 @@ int main(int argc,char ** argv) {
 
     init_window_hints(WIN::disp,WIN::window);
     init_window_input(WIN::disp,WIN::window);
-
 #if 0
     XMoveWindow(WIN::disp, WIN::window, 10,10);
     XWindowChanges dum; dum.x= 10; dum.y= 10; XConfigureWindow(WIN::disp, WIN::window, CWX | CWY, &dum);
@@ -1221,7 +1224,6 @@ int main(int argc,char ** argv) {
     XDefineCursor(WIN::disp, WIN::window, cursor);
 #endif
     //XFillRectangle (WIN::disp, WIN::pixmap, WIN::bg_gc, 0, 0, WIN::win_width, WIN::win_height);
-
     {
         XpmCreatePixmapFromData( WIN::disp, WIN::window,
                                  rcssmonitor_xpm,
@@ -1236,10 +1238,10 @@ int main(int argc,char ** argv) {
             h = &wm_hints;
             h->flags = 0;
         }
+
         h->icon_pixmap = WIN::icon_pixmap;
         h->icon_mask = WIN::icon_mask;
         h->flags |= IconPixmapHint | IconMaskHint;
-
         XSetWMHints( WIN::disp, WIN::window, h );
 
         if ( got_hints )
@@ -1247,7 +1249,6 @@ int main(int argc,char ** argv) {
             XFree( (char *)h );
         }
     }
-
 
     /////////////////////
     // View Converter init
@@ -1257,8 +1258,10 @@ int main(int argc,char ** argv) {
     WIN::menu= new MenuX11(WIN::disp,WIN::window,WIN::bt_gc,WIN::win_width,15);
     WIN::menu->set_background_color(RGBcolor(0xcc,0xcc,0xcc));
     WIN::menu->set_foreground_color(RGBcolor(0,0,0));
-    if (INPUTDEV->init_menu(WIN::menu))
+    if ( INPUTDEV->init_menu( WIN::menu ) )
+    {
         WIN::menu->redraw();
+    }
 
 #ifdef POPUP
     //init the popup
@@ -1271,15 +1274,18 @@ int main(int argc,char ** argv) {
 #endif
 
     //init frames
-    INPUTDEV->init_frames(&RUN::builder);
-    if ( RUN::conv_area.needs_update() ) {
+    INPUTDEV->init_frames( &RUN::builder );
+    if ( RUN::conv_area.needs_update() )
+    {
         RUN::conv_area.update();
-        RUN::conv_area.get_area(Options::plane); //this area will be restored when 'i' is pressed!
+        RUN::conv_area.get_area( Options::plane ); //this area will be restored when 'i' is pressed!
         DDD->ASetPlainArea( Options::plane );
     }
-    if (RUN::builder.new_bg_color) {
-        RUN::builder.new_bg_color= false;
-        XSetForeground(WIN::disp, WIN::bg_gc, DDD->AGetColor(RUN::builder.bg_color));
+
+    if ( RUN::builder.new_bg_color )
+    {
+        RUN::builder.new_bg_color = false;
+        XSetForeground( WIN::disp, WIN::bg_gc, DDD->AGetColor( RUN::builder.bg_color ) );
         DDD->set_background_color( RUN::builder.bg_color );
         //WIN::menu->set_background_color( RUN::builder.bg_color );
     }
@@ -1300,30 +1306,38 @@ int main(int argc,char ** argv) {
     struct timeval tv;
     int retval;
 
-    if (FD_SETSIZE < 4)
+    if ( FD_SETSIZE < 4 )
+    {
         std::cerr << "\nFD_SETSIZE < 4";
+    }
 
     /* Watch stdin (fd 0) to see when it has input. */
-    while (!RUN::quit) {
-        FD_ZERO(&rfds);
+    while ( ! RUN::quit )
+    {
+        FD_ZERO( &rfds );
         //FD_SET(0, &rfds); //Standardeingabe
-        FD_SET(WIN::x11_fd, &rfds);
-        int num= INPUTDEV->set_fds(&rfds);
-        int max_fd_plus_1=  max(WIN::x11_fd,num)+1;
+        FD_SET( WIN::x11_fd, &rfds );
+        int num = INPUTDEV->set_fds( &rfds );
+        int max_fd_plus_1 = std::max( WIN::x11_fd, num ) + 1;
 
         /* Wait up to five seconds. */
         tv.tv_sec = 5; tv.tv_usec = 0;
 
-        retval = select(max_fd_plus_1, &rfds, NULL, NULL, &tv);
+        retval = select( max_fd_plus_1, &rfds, NULL, NULL, &tv );
         /* Don't rely on the value of tv now! */
 
-        if (retval>0) {
-            bool redraw= false;
+        if ( retval > 0 )
+        {
+            bool redraw = false;
             nodata_seconds = 0;
-            if ( FD_ISSET(WIN::x11_fd,&rfds) ) {
+            if ( FD_ISSET( WIN::x11_fd, &rfds ) )
+            {
                 if ( process_x11_events() )
-                    redraw= true;
+                {
+                    redraw = true;
+                }
             }
+
             if ( INPUTDEV->got_fds( &rfds ) )
             {
                 if ( INPUTDEV->process_input( &rfds, &RUN::builder ) )
@@ -1384,10 +1398,11 @@ int main(int argc,char ** argv) {
                 }
             }
         }
-        else {
+        else
+        {
 #if 1
             ERROR_OUT << "\nselect: error occured";
-            switch (errno) {
+            switch ( errno ) {
             case EBADF:
                 ERROR_STREAM << "\n an  invalid file descriptor was given in one of the sets";
                 break;
@@ -1406,13 +1421,14 @@ int main(int argc,char ** argv) {
 #endif
         }
     }
-    XFreeGC (WIN::disp, WIN::gc);
-    XFreeGC (WIN::disp, WIN::xor_gc);
-    XFreeGC (WIN::disp, WIN::bg_gc);
-    XFreeGC (WIN::disp, WIN::sl_gc);
-    XFreePixmap (WIN::disp, WIN::pixmap);
-    XFreePixmap (WIN::disp, WIN::icon_pixmap);
-    XFreePixmap (WIN::disp, WIN::icon_mask);
+
+    XFreeGC( WIN::disp, WIN::gc );
+    XFreeGC( WIN::disp, WIN::xor_gc );
+    XFreeGC( WIN::disp, WIN::bg_gc );
+    XFreeGC( WIN::disp, WIN::sl_gc );
+    XFreePixmap( WIN::disp, WIN::pixmap );
+    XFreePixmap( WIN::disp, WIN::icon_pixmap );
+    XFreePixmap( WIN::disp, WIN::icon_mask );
 
     INPUTDEV->destruct();
     delete INPUTDEV;
@@ -1424,10 +1440,10 @@ int main(int argc,char ** argv) {
     XCloseDisplay (WIN::disp);
 
     ///
-    long t= TOOLS::get_current_ms_time() / 1000;
+    long t = TOOLS::get_current_ms_time() / 1000;
     std::cerr << "\n" << PACKAGE << "-" << VERSION << " was active for ";
-    if (t/3600) std::cerr << t/3600 << "h ";
-    if (t/60)   std::cerr << (t/60)%60   << "m ";
+    if ( t / 3600 ) std::cerr << t / 3600 << "h ";
+    if ( t / 60 )   std::cerr << ( t / 60 ) % 60   << "m ";
     std::cerr << t % 60 << "s\n";
-    exit(0);
+    return 0;
 }

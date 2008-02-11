@@ -794,8 +794,8 @@ ValueParser::getValue( const char * key,
 
     for ( int idx = kv_tab.cur_size - 1; idx >= 0; --idx )
     {
-        KeyValueTab::Entry * entry = kv_tab.tab+idx;
-        if ( entry->key == 0)
+        KeyValueTab::Entry * entry = kv_tab.tab + idx;
+        if ( entry->key == 0 )
         {
             std::cerr << "\nat index " << idx << " a zero key entry";
             continue;
@@ -833,7 +833,7 @@ ValueParser::getValue( const char * key,
         return read_entries;
     }
 
-    value_str= kv_tab.tab[key_idx].val;
+    value_str = kv_tab.tab[key_idx].val;
     value_str_len = 0;
     if ( value_str )
     {
@@ -877,14 +877,14 @@ ValueParser::getValue( const char * key,
 
     if ( read_entries < 0 )
     {
-        read_entries= 0; //the key was there, so the minimum of options is 0
+        read_entries = 0; //the key was there, so the minimum of options is 0
     }
 
     if ( warning && warnings_mode
          || verbose_mode )
     {
         std::cout << "\nentry: res= " << read_entries;
-        showValue(key,type,value,arr_length);
+        showValue( key, type, value, arr_length );
         if ( warning && warnings_mode )
         {
             std::cout <<  "   WARNING: read from  [" << value_str << "]";
