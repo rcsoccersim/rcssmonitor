@@ -1248,13 +1248,14 @@ VisualField::VisualField()
 
 }
 
-void VisualField::init( const int my_key,
-                        const int my_layer,
-                        const RGBcolor & my_c_line,
-                        const RGBcolor & my_c_goal,
-                        const bool my_keepaway,
-                        const double & my_keepaway_length,
-                        const double & my_keepaway_width )
+void
+VisualField::init( const int my_key,
+                   const int my_layer,
+                   const RGBcolor & my_c_line,
+                   const RGBcolor & my_c_goal,
+                   const bool my_keepaway,
+                   const double & my_keepaway_length,
+                   const double & my_keepaway_width )
 {
     key = my_key;
     layer = my_layer;
@@ -1388,10 +1389,11 @@ void VisualField::init( const int my_key,
     goal_posts.use_intersects_area = false;
 }
 
-void VisualField::draw( DisplayBase * disp,
-                        const Area2d & area,
-                        const Frame2d & p_frame,
-                        const bool chg )
+void
+VisualField::draw( DisplayBase * disp,
+                   const Area2d & area,
+                   const Frame2d & p_frame,
+                   const bool chg )
 {
     changed = changed || chg;
 
@@ -1855,11 +1857,15 @@ y_SERVER_2_LP( const double & y )
     return -y;
 }
 
-double ang_SERVER_2_LP( double a ) {
+inline
+double
+ang_SERVER_2_LP( double a )
+{
     a = ( a*PI )/180.0;
     if ( a < 0.0 ) return -a;
     return -a+2*PI;
 }
+
 /*****************************************************************************/
 /*****************************************************************************/
 
@@ -1870,7 +1876,10 @@ SMonitorDevice::SMonitorDevice()
     //init_connection(); //vorlaeufig
 }
 
-void SMonitorDevice::generic_description_of_options( std::ostream & o, int mode ) const {
+void
+SMonitorDevice::generic_description_of_options( std::ostream & o,
+                                                int mode ) const
+{
     print_option_entry( o,mode,"port",options.server_port,"defines the socket port for communication" );
     print_option_entry( o,mode,"host",options.server_host,"defines the host on which the soccer server is running" );
     print_option_entry( o,mode,"version",options.protocol_version,"version of monitor <-> server protocol" );
@@ -1992,12 +2001,17 @@ SMonitorDevice::process_options( const char * fname )
     return process_options( vp );
 }
 
-bool SMonitorDevice::process_options( int argc, char const* const* argv ) {
+bool
+SMonitorDevice::process_options( int argc,
+                                 char const* const* argv )
+{
     ValueParser vp( argc,argv,"m_" );
     return process_options( vp );
 }
 
-void SMonitorDevice:: help_char_command( std::ostream & o ) const {
+void
+SMonitorDevice:: help_char_command( std::ostream & o ) const
+{
     o << "\n"
       << "server commands:\n"
       << "b = drop ball at current mouse pointer position\n"
@@ -2621,7 +2635,7 @@ SMonitorDevice::init_frames( BuilderBase * build )
     }
 #endif
     //shadow
-    build->set_cmd_insert_frame( 0,frame_shadow,Point2d( 2.0,0.0 ),0.0,layer+3 );
+    build->set_cmd_insert_frame( 0, frame_shadow, Point2d( 2.0,0.0 ), 0.0, layer + 3 );
     build->set_cmd_insert_circle( frame_shadow,0,Circle2d( Point2d( 0.0,0.0 ), k_rad ),0,c_black );
     build->set_cmd_insert_line( frame_shadow,0,Line2d( Point2d( -k_rad,0.0 ),Point2d( k_rad,0.0 ) ),0,c_black );
     build->set_cmd_insert_line( frame_shadow,0,Line2d( Point2d( 0.0,-k_rad ),Point2d( 0.0,k_rad ) ),0,c_black );
@@ -2651,10 +2665,10 @@ SMonitorDevice::init_frames( BuilderBase * build )
             //pos_player = Point2d( 8.0 + ( i-MAX_PLAYER )*3.0*k_rad,init_y );
             pos_player = Point2d( ( i+1-MAX_PLAYER )*3.0, init_y );
         }
-        server_pos.set_player( i,pos_player,0.0 );
-        build->set_cmd_insert_frame( 0,p_frame( i ),pos_player,0.0,layer+1 );
+        server_pos.set_player( i, pos_player, 0.0 );
+        build->set_cmd_insert_frame( 0, p_frame( i ), pos_player, 0.0, layer+1 );
         vis_player[i].init( 0, 0, p_number( i ), c_invalid, c_player, c_goalie, c_font );
-        build->set_cmd_insert_visobject( p_frame( i ),vis_player+i );
+        build->set_cmd_insert_visobject( p_frame( i ),vis_player + i );
         vis_player[i].set_label_pos( options.player_num_pos );
     }
 
@@ -2919,9 +2933,14 @@ SMonitorDevice::process_input( fd_set * set,
     return redraw;
 }
 
-int  SMonitorDevice::set_fds( fd_set * set ) {
+int
+SMonitorDevice::set_fds( fd_set * set )
+{
     if ( options.just_edit )
+    {
         return -1;
+    }
+
     add_fd_to_set( server.socket_fd,set );
 #if USE_COACH
     add_fd_to_set( coach.socket_fd,set );
@@ -2932,9 +2951,14 @@ int  SMonitorDevice::set_fds( fd_set * set ) {
 
 }
 
-bool SMonitorDevice::got_fds( fd_set * set ) {
+bool
+SMonitorDevice::got_fds( fd_set * set )
+{
     if ( options.just_edit )
+    {
         return false;
+    }
+
     if ( is_fd_in_set( server.socket_fd,set ) ) return true;
 #if USE_COACH
     return is_fd_in_set( coach.socket_fd,set );
@@ -2945,16 +2969,24 @@ bool SMonitorDevice::got_fds( fd_set * set ) {
 
 
 /* private methods */
-void SMonitorDevice::vis_ball_set_info_level( int lev ) {
+void
+SMonitorDevice::vis_ball_set_info_level( int lev )
+{
     if ( lev >= 2 )
+    {
         vis_ball.set_show_vel_string( server_pos.ball.vel );
+    }
     else
+    {
         vis_ball.unset_show_vel_string();
+    }
 }
 
-void SMonitorDevice::vis_player_set_info_level( int lev, VisualPlayer & vis_p,
-                                                const Positions::Player & p,
-                                                const int unum ) {
+void
+SMonitorDevice::vis_player_set_info_level( int lev, VisualPlayer & vis_p,
+                                           const Positions::Player & p,
+                                           const int unum )
+{
     char dum[20];
     vis_p.set_use_number( true );
     switch ( options.info_level ) {
@@ -2978,13 +3010,15 @@ void SMonitorDevice::vis_player_set_info_level( int lev, VisualPlayer & vis_p,
     }
 }
 
-void SMonitorDevice::vis_player_set_info_level( int lev ) {
-    for ( int i =0; i < MAX_PLAYER*2; i++ ) {
+void
+SMonitorDevice::vis_player_set_info_level( int lev )
+{
+    for ( int i = 0; i < MAX_PLAYER * 2; ++i )
+    {
         Positions::Player & p = server_pos.ref_player( i );
         VisualPlayer & vis_p = vis_player[i];
         vis_player_set_info_level( lev, vis_p, p, p_number( i ) );
     }
-
 }
 
 int
@@ -3040,7 +3074,12 @@ SMonitorDevice::server_msg_type( void * ptr )
 }
 
 
-bool SMonitorDevice::ins_simple_obj( const char * buf, int fref, BuilderBase * build,const char* & next ) {
+bool
+SMonitorDevice::ins_simple_obj( const char * buf,
+                                int fref,
+                                BuilderBase * build,
+                                const char* & next )
+{
     const int idx_zero = 0;
     RGBcolor col;
     int num_entries;
@@ -3048,16 +3087,24 @@ bool SMonitorDevice::ins_simple_obj( const char * buf, int fref, BuilderBase * b
     next = buf;
     strspace( next,next );
     if ( *next == 'l' )
+    {
         num_entries = 4;
+    }
     else if ( *next == 'c' )
+    {
         num_entries = 3;
+    }
     else if ( *next == 'p' )
+    {
         num_entries = 2;
+    }
     else
+    {
         return false;
+    }
 
     buf = next;
-    next++;
+    ++next;
 
     double dd[4];
     if ( num_entries != str2val( next, num_entries,dd,next ) )
@@ -3065,10 +3112,13 @@ bool SMonitorDevice::ins_simple_obj( const char * buf, int fref, BuilderBase * b
 
     strspace( next,next );
     if ( next[0] == '#' )
+    {
         next++;
+    }
 
     const char * dum;
     if ( next[0] != ';' )
+    {
         if ( AsciiProcessor::get_col( next,col,dum ) )
             next = dum;
         else {
@@ -3085,6 +3135,7 @@ bool SMonitorDevice::ins_simple_obj( const char * buf, int fref, BuilderBase * b
             }
             col = RGB_DB::XNamedColor_to_RGBcolor( dum );
         }
+    }
 
     switch ( *buf ) {
     case 'l':
@@ -3183,7 +3234,9 @@ SMonitorDevice::server_interpret_showinfo_t( BuilderBase * build,
         pos.y     = y_SERVER_2_LP ( s_y / SHOWINFO_SCALE );
         Angle angle = Angle( ang_SERVER_2_LP ( double( s_angle ) ) );
 
-        server_pos.set_player( i,pos,angle ); //just to collect informations
+        server_pos.set_player( i, pos, angle ); //just to collect informations
+
+        vis_player[i].set_body_angle( angle.get_value() );
 
         if ( options.active_in_mode != i
              || options.mode != Options::MODE_MOVE )
@@ -3611,16 +3664,21 @@ SMonitorDevice::server_interpret_showinfo_t2( BuilderBase * build,
 
         vis_p.set_body_angle( p.body_angle );
 
-        if ( options.active_in_mode != i || options.mode != Options::MODE_MOVE ) {
+        if ( options.active_in_mode != i || options.mode != Options::MODE_MOVE )
+        {
             build->set_cmd_set_frame_pos_ang( p_frame( i ),p.pos,p.body_angle );
             vis_p.set_head_angle( p.head_angle_rel );
         }
         else
-            build->set_cmd_set_frame_pos_ang( frame_shadow,p.pos,p.body_angle );
+        {
+            build->set_cmd_set_frame_pos_ang( frame_shadow, p.pos, p.body_angle );
+        }
 
-        if ( options.active_in_mode == i && options.mode == Options::MODE_SHOW_VIEW_AREA ) {
+        if ( options.active_in_mode == i && options.mode == Options::MODE_SHOW_VIEW_AREA )
+        {
             vis_view_area.set_view_mode( p.view_quality,p.view_width );
-            build->set_cmd_set_frame_pos_ang( frame_varea, p.pos,p.body_angle + p.head_angle_rel );
+            build->set_cmd_set_frame_pos_ang( frame_varea,
+                                              p.pos,p.body_angle + p.head_angle_rel );
         }
 
         if ( guess.use_type ) vis_p.set_type( p.type );
