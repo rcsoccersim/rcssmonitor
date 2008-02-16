@@ -4121,7 +4121,7 @@ bool
 SMonitorDevice::server_interpret_msginfo_v3( BuilderBase * build,
                                              const char * buf )
 {
-    // ( msg <board_type> "<message_string>" )
+    // ( msg <time> <board_type> "<message_string>" )
 
     int time = 0;
     int board = 0;
