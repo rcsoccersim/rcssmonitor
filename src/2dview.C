@@ -249,7 +249,7 @@ void show_copyright_notice(std::ostream & o) {
       << "\n"
       << "Copyright (c) 1999 - 2001, Artur Merke\n"
       << "\t<amerke@ira.uka.de>\n"
-      << "Copyright (c) 2001 - 2007, The RoboCup Soccer Simulator Maintainance Group.\n"
+      << "Copyright (c) 2001 - 2008, The RoboCup Soccer Simulator Maintainance Group.\n"
       << "\t<sserver-admin@lists.sourceforge.net>\n"
       << "\n"
       << PACKAGE << "-" << VERSION << " is free software; you can redistribute it and/or modify\n"
