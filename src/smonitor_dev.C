@@ -1499,7 +1499,7 @@ SMonitorDevice::Options::Options()
     server_port = 6000;
     std::strcpy( server_host, "127.0.0.1" );
     coach_port = server_port+1;
-    protocol_version = 2;
+    protocol_version = 3;
     connect_on_start = true;
 
     pen_taken_wait = 200;
@@ -3873,12 +3873,14 @@ SMonitorDevice::server_interpret_showinfo_v3( BuilderBase * build,
     }
     buf += n_read;
 
+    char name_l[32], name_r[32];
     int score_l = 0, score_r = 0;
     int pen_score_l = 0, pen_miss_l = 0, pen_score_r = 0, pen_miss_r = 0;
 
-    if ( std::sscanf( buf, " ( score %d %d %n ",
+    if ( std::sscanf( buf, " ( tm %31s %31s %d %d %n ",
+                      name_l, name_r,
                       &score_l, &score_r,
-                      &n_read) != 2 )
+                      &n_read ) != 4 )
     {
         ERROR_OUT << "\nIllegal score in show info.";
         return false;
@@ -3900,6 +3902,22 @@ SMonitorDevice::server_interpret_showinfo_v3( BuilderBase * build,
     else
     {
         ++buf;
+    }
+
+    if ( std::strlen( name_l ) != 4
+         || std::strncmp( name_l, "null", 4 ) != 0 )
+    {
+        server_state.left_teamname_.assign( name_l,
+                                            std::min( std::strlen( name_l ),
+                                                      size_t( 16 ) ) );
+    }
+
+    if ( std::strlen( name_r ) != 4
+         || std::strncmp( name_r, "null", 4 ) != 0 )
+    {
+        server_state.right_teamname_.assign( name_r,
+                                            std::min( std::strlen( name_r ),
+                                                      size_t( 16 ) ) );
     }
 
     server_state.current_time_ = time;
@@ -3974,8 +3992,8 @@ SMonitorDevice::server_interpret_showinfo_v3( BuilderBase * build,
                           &x, &y, &vx, &vy, &body, &neck,
                           &n_read ) != 10 )
         {
-            WARNING_OUT << "\nIllegal player " << i << " info in show info ";
-            //<< std::string( buf, 16 );
+            WARNING_OUT << "\nIllegal player " << i << " info in show info.";
+            //<< std::string( buf, 32 ) << ']';
             break;
         }
         buf += n_read;
