@@ -1055,7 +1055,7 @@ main( int argc, char ** argv )
     TOOLS::get_current_ms_time(); //just init the starting time of this application;
 
     std::cout << "Copyright (c) 1999 - 2001, Artur Merke <amerke@ira.uka.de>"
-              << "\nCopyright (c) 2001 - 2007, The RoboCup Soccer Server Maintainance Group."
+              << "\nCopyright (c) 2001 - 2008, The RoboCup Soccer Server Maintainance Group."
               << "\n\t<sserver-admin@lists.sourceforge.net>";
 
     argc--; argv++;
