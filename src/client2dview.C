@@ -342,12 +342,12 @@ void halma_input(UDPsocket & sock) {
 #endif
 
 #ifdef HAVE_LINUX_JOYSTICK_H
+#include "vector2d.h"
+#include <cstdlib>
 #include <linux/joystick.h>
 #include <sys/ioctl.h>
-#include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include "vector2d.h"
 
 class Robot {
 

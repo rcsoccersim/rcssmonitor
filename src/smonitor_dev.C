@@ -4338,7 +4338,7 @@ SMonitorDevice::server_interpret_server_param_v3( BuilderBase * build,
     {
         char message_type[32];
         int n_read = 0;
-        if ( std::sscanf( buf, " ( %31s %n ", message_type ) != 1
+        if ( std::sscanf( buf, " ( %31s %n ", message_type, &n_read ) != 1
              || std::strncmp( message_type, "server_param",
                               std::strlen( "server_param" ) ) != 0 )
         {

@@ -1,12 +1,12 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT([RCSSMonitor], 12.0.0_pre-20080210, sserver-admin@users.sf.net, rcssmonitor)
+AC_INIT([RCSSMonitor], 12.0.0, sserver-admin@users.sf.net, rcssmonitor)
 
-AC_PREREQ(2.59)
+AC_PREREQ(2.61)
 
-AC_CONFIG_SRCDIR([src/2dview.C])
 #AM_INIT_AUTOMAKE([gnu 1.7.2 check-news dist-bzip2 dist-zip])
 AM_INIT_AUTOMAKE([gnu 1.7.2 check-news])
-AM_CONFIG_HEADER(config.h)
+AC_CONFIG_SRCDIR([config.h.in])
+AM_CONFIG_HEADER([config.h])
 AC_PROG_MAKE_SET
 
 dnl Checks for programs.
@@ -16,12 +16,12 @@ AC_PROG_CXX
 AC_PROG_AWK
 
 dnl Checks for libraries.
-AC_CHECK_LIB(m, cos)
+AC_CHECK_LIB([m], [cos])
 
 dnl Checks for header files
 ##AC_PATH_X.
 AC_HEADER_STDC
-AC_CHECK_HEADERS([arpa/inet.h fcntl.h netdb.h netinet/in.h stdlib.h sys/ioctl.h sys/socket.h sys/time.h unistd.h])
+AC_CHECK_HEADERS([arpa/inet.h fcntl.h netdb.h netinet/in.h sys/ioctl.h sys/socket.h sys/time.h unistd.h])
 AC_CHECK_HEADERS(linux/joystick.h)
 
 AC_ARG_WITH(sstream,
@@ -37,6 +37,8 @@ dnl Checks for typedefs, structures, and compiler characteristics.
 AC_HEADER_STDBOOL
 AC_C_CONST
 AC_C_INLINE
+#AC_TYPE_INT16_T
+#AC_TYPE_INT32_T
 AC_TYPE_SIZE_T
 AC_HEADER_TIME
 
