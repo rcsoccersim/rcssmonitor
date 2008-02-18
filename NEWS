@@ -1,5 +1,6 @@
 [12.0.0]
-  * supported a monitor protocol version 3.
+  * supported a monitor protocol version 3. Now, the version 3
+  	protocol is used by	default.
 
 [12.0.0_pre-20080210]
   * supported a monitor protocol version 3 (not completed yet).
