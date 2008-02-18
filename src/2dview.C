@@ -73,13 +73,25 @@ struct Pointer {
 
 struct Rectangle {
     bool active;
-    int x,y;
+    int x, y;
     unsigned int width,height;
     Rectangle();
-    Rectangle(int window_width, int window_height);
-    void set_ratio(int window_width, int widow_height);
-    void set_origin(int px,int py) { p1x= px; p1y= py; p2x= p1x; p2y= p1y; conform();}
-    void set_point(int px,int py) { p2x= px; p2y= py; conform();}
+    Rectangle( int window_width, int window_height );
+    void set_ratio( int window_width, int widow_height );
+    void set_origin( int px, int py )
+      {
+          p1x = px;
+          p1y = py;
+          p2x = p1x;
+          p2y = p1y;
+          conform();
+      }
+    void set_point( int px, int py )
+      {
+          p2x = px;
+          p2y= py;
+          conform();
+      }
 private:
     void conform();
     bool use_ratio;
@@ -89,6 +101,7 @@ private:
 };
 
 namespace Options {
+
 //specifies the clip of euclidean plane
 Area2d plane;
 
@@ -110,10 +123,13 @@ int auto_quit_wait;
 char conf_file[MAX_NAME_LEN];
 /* =========================================================================*/
 bool set_defaults();
-bool process_options(ValueParser & vp);
-bool read(int argc,char **argv);
+bool process_options( ValueParser & vp );
+bool read( int argc,char **argv );
 
-void show_available_options(std::ostream & o, const char *fname) {
+void
+show_available_options( std::ostream & o,
+                        const char * fname )
+{
     o << "\n/*****************************************************************************/"
       << "\n                                   " << PACKAGE << "-" << VERSION << std::endl
       << "\nUsage: " << fname << " options"
@@ -157,12 +173,15 @@ void show_available_options(std::ostream & o, const char *fname) {
       << "\n-auto_quit_wait [" << auto_quit_wait << "]"
       << "\n";
 
-    INPUTDEV->help_options(o);
+    INPUTDEV->help_options( o );
     o << "\n/*****************************************************************************/"
       << "\n";
 }
 
-void generate_file_options(std::ostream & o, const char *fname) {
+void
+generate_file_options( std::ostream & o,
+                       const char * fname )
+{
     o << "#############################################################################"
       << "#                            " << PACKAGE << "-" << VERSION << std::endl
       << "#"
@@ -207,21 +226,29 @@ void generate_file_options(std::ostream & o, const char *fname) {
       << "\n# wait seconds in auto_quit_mode (default " << auto_quit_wait << ")"
       << "\nauto_quit_wait = "
       << "\n";
-    INPUTDEV->generate_file_options(o);
+    INPUTDEV->generate_file_options( o );
 }
 }
 
 namespace RUN {
+
 DrawTree tree;
 ConvArea2d conv_area;
 
-BuilderDirect builder(tree,conv_area);
+BuilderDirect builder( tree, conv_area );
 
-bool quit= false;
-bool freeze= false;
-void toggle_freeze() { freeze= !freeze; }
+bool quit = false;
+bool freeze = false;
 
-void show_key_bindings(std::ostream & o) {
+void
+toggle_freeze()
+{
+    freeze = ! freeze;
+}
+
+void
+show_key_bindings( std::ostream & o )
+{
     o << "\n"
       << "/*****************************************************************************/\n"
       << "\n"
@@ -242,7 +269,9 @@ void show_key_bindings(std::ostream & o) {
       << "/*****************************************************************************/\n";
 }
 
-void show_copyright_notice(std::ostream & o) {
+void
+show_copyright_notice( std::ostream & o )
+{
     o << "\n"
       << "/*****************************************************************************/\n"
       << "                                   "<< PACKAGE << "-" << VERSION << std::endl
@@ -263,12 +292,14 @@ void show_copyright_notice(std::ostream & o) {
       << "GNU General Public License for more details.\n"
       << "/*****************************************************************************/\n";
 }
-}
+
+} // end namespace RUN
 
 namespace WIN {
+
 int win_width, win_height;
 int win_depth;
-Display *disp;
+Display * disp;
 Pixmap pixmap;
 Window window;
 MenuX11 * menu= 0;
@@ -280,24 +311,27 @@ Pixmap icon_mask;
 GC gc, xor_gc, bg_gc, sl_gc, bt_gc; //sl= status line, bt= button
 
 Rectangle clip_rect;
-Pointer   mouse_point(0,0);
-unsigned int mouse_button= 0;
-bool rect_was_drawn= false;
+Pointer mouse_point( 0, 0 );
+unsigned int mouse_button = 0;
+bool rect_was_drawn = false;
 int x11_fd;
-}
+
+} // end namespace WIN
 
 
-bool Options::set_defaults() {
-    plane= Area2d(Point2d(0.0,2.0),112.0,85.0);
+bool
+Options::set_defaults()
+{
+    plane = Area2d( Point2d( 0.0, 2.0 ), 112.0, 85.0 );
 
-    set_window_pos= false;
-    window_left_x= 5;
-    window_top_y=  5;
+    set_window_pos = false;
+    window_left_x = 5;
+    window_top_y =  5;
 
-    window_size_x= 600;
-    window_size_y= 450;
+    window_size_x = 600;
+    window_size_y = 450;
 
-    line_thickness= 1;
+    line_thickness = 1;
     std::strcpy( font_name, "6x13bold" );
     //std::strcpy( font_inside, "6x13bold" );
     std::strcpy( font_inside, "6x13" );
@@ -330,7 +364,7 @@ Options::process_options( ValueParser & vp )
 
     int tmp= line_thickness;
     vp.get("line_thickness",tmp);
-    if (tmp < 4 && tmp > 0) line_thickness= tmp;
+    if ( tmp < 4 && tmp > 0 ) line_thickness= tmp;
     vp.get("font_name",font_name,MAX_NAME_LEN);
     vp.get("font_inside",font_inside,MAX_NAME_LEN);
 
@@ -339,27 +373,35 @@ Options::process_options( ValueParser & vp )
     return true;
 }
 
-bool Options::read(int argc,char **argv) {
-    bool res= true;
-    bool dum= true;
+bool
+Options::read( int argc,
+               char ** argv)
+{
+    bool res = true;
+    bool dum = true;
 
-    ValueParser cl(argc,argv);
+    ValueParser cl( argc, argv );
     //cl.set_verbose(true);
-    if ( cl.get("help",dum) >= 0 || cl.get("h",dum) >= 0) {
-        show_available_options(std::cout,PACKAGE);
-        exit(0);
+    if ( cl.get( "help", dum ) >= 0
+         || cl.get( "h", dum ) >= 0 )
+    {
+        show_available_options( std::cout, PACKAGE );
+        std::exit( 0 );
     }
-    if (cl.get("gen_conf_file",dum) >= 0) {
-        generate_file_options(std::cout,PACKAGE);
-        exit(0);
+    if ( cl.get( "gen_conf_file", dum ) >= 0 )
+    {
+        generate_file_options( std::cout, PACKAGE );
+        std::exit( 0 );
     }
-    if (cl.get("keys",dum) >= 0) {
-        RUN::show_key_bindings(std::cout);
-        exit(0);
+    if ( cl.get( "keys", dum ) >= 0 )
+    {
+        RUN::show_key_bindings( std::cout );
+        std::exit( 0 );
     }
-    if (cl.get("copyleft",dum) >= 0) {
-        RUN::show_copyright_notice(std::cout);
-        exit(0);
+    if ( cl.get( "copyleft", dum ) >= 0 )
+    {
+        RUN::show_copyright_notice( std::cout );
+        std::exit( 0 );
     }
 
     cl.get( "conf_file", conf_file, MAX_NAME_LEN );
@@ -377,20 +419,30 @@ bool Options::read(int argc,char **argv) {
     return res;
 }
 
-void convert_area_2_area_under_window_constrains(Area2d & a, int win_size_x, int win_size_y) {
-    double ratio_x= a.size_x / double(win_size_x);
-    double ratio_y= a.size_y / double(win_size_y);
-    if (ratio_x > ratio_y)
-        a.size_y= win_size_y * ratio_x;
+void
+convert_area_2_area_under_window_constrains( Area2d & a,
+                                             int win_size_x,
+                                             int win_size_y )
+{
+    double ratio_x = a.size_x / double( win_size_x );
+    double ratio_y = a.size_y / double( win_size_y );
+    if ( ratio_x > ratio_y )
+    {
+        a.size_y = win_size_y * ratio_x;
+    }
     else
-        a.size_x= win_size_x * ratio_y;
+    {
+        a.size_x = win_size_x * ratio_y;
+    }
 }
 
-void init_4_tree_and_display() {
-    DDD= new DisplayX11(WIN::disp,WIN::pixmap,WIN::gc);
+void
+init_4_tree_and_display()
+{
+    DDD = new DisplayX11( WIN::disp, WIN::pixmap, WIN::gc );
 
-    DDD->ASetWindowArea(WIN::win_width,WIN::win_height);
-    RUN::conv_area.set_win_size(WIN::win_width,WIN::win_height);
+    DDD->ASetWindowArea( WIN::win_width, WIN::win_height );
+    RUN::conv_area.set_win_size( WIN::win_width, WIN::win_height );
 
     RUN::conv_area.set_area( Options::plane );
     RUN::conv_area.update();
@@ -399,75 +451,101 @@ void init_4_tree_and_display() {
     DDD->ASetPlainArea( Options::plane );
 #if 0
     /*****************************************************************************/
-    for (int i= 1; i<= 2; i++) {
-        DrawFrame *d= new DrawFrame(i);
-        d->layer= i;
-        RUN::tree.insert_in_frame(i-1, d );
+    for (int i= 1; i<= 2; i++)
+    {
+        DrawFrame * d = new DrawFrame( i );
+        d->layer = i;
+        RUN::tree.insert_in_frame( i - 1, d );
     }
-    RUN::tree.translate_in_frame(0,1,10.0,0.0);
-    RUN::tree.translate_in_frame(1,2,0.0,10.0);
+    RUN::tree.translate_in_frame( 0, 1, 10.0, 0.0 );
+    RUN::tree.translate_in_frame( 1, 2, 0.0, 10.0 );
     std::cout << "\n----";
     std::cout << t;
     std::cout << "\n----";
 #endif
 }
 
-Rectangle::Rectangle() {
-    active= false;
-    use_ratio= false;
-    use_center= false;
-    set_origin(0,0); conform();
+Rectangle::Rectangle()
+{
+    active = false;
+    use_ratio = false;
+    use_center = false;
+    set_origin( 0, 0 );
+    conform();
 }
 
-Rectangle::Rectangle(int window_width, int window_height) {
+Rectangle::Rectangle( int window_width,
+                      int window_height )
+{
     //use_center= true;
-    use_center= false;
-    set_ratio(window_width,window_height);
-    set_origin(0,0); conform();
+    use_center = false;
+    set_ratio( window_width, window_height );
+    set_origin( 0, 0 );
+    conform();
 }
 
-void Rectangle::set_ratio(int window_width, int window_height) {
-    use_ratio= true;
-    win_width= window_width;
-    win_height= window_height;
+void
+Rectangle::set_ratio( int window_width,
+                      int window_height )
+{
+    use_ratio = true;
+    win_width = window_width;
+    win_height = window_height;
 }
 
-void Rectangle::conform() {
-    if (use_ratio) {
-        double ratio_width = std::fabs( double(p2x-p1x) / double(win_width) );
-        double ratio_height = std::fabs( double(p2y-p1y) / double(win_height) );
+void
+Rectangle::conform()
+{
+    if ( use_ratio )
+    {
+        double ratio_width = std::fabs( double( p2x - p1x ) / double( win_width ) );
+        double ratio_height = std::fabs( double( p2y - p1y ) / double( win_height ) );
 
-        if ( ratio_width > ratio_height ) {
-            if (p2y > p1y)
-                p2y= p1y+ (int)rint( double(win_height) * ratio_width );
+        if ( ratio_width > ratio_height )
+        {
+            if ( p2y > p1y )
+            {
+                p2y= p1y+ (int)rint( double( win_height ) * ratio_width );
+            }
             else
-                p2y= p1y- (int)rint( double(win_height) * ratio_width );
+            {
+                p2y= p1y- (int)rint( double( win_height ) * ratio_width );
+            }
         }
-        else {
-            if (p2x > p1x)
-                p2x= p1x+ (int)rint( double(win_width) * ratio_height );
+        else
+        {
+            if ( p2x > p1x )
+            {
+                p2x = p1x + (int)rint( double( win_width ) * ratio_height );
+            }
             else
-                p2x= p1x- (int)rint( double(win_width) * ratio_height );
+            {
+                p2x = p1x - (int)rint( double( win_width ) * ratio_height );
+            }
         }
     }
 
-    width= abs(p1x-p2x);
-    height= abs(p1y-p2y);
+    width = std::abs( p1x - p2x );
+    height = std::abs( p1y - p2y );
 
-    if (use_center) { //center
+    if ( use_center )
+    { //center
         x= p1x - width;
         y= p1y - height;
-        width*= 2;
-        height*= 2;
+        width *= 2;
+        height *= 2;
     }
-    else {
-        x= p1x<p2x?p1x:p2x;
-        y= p1y<p2y?p1y:p2y;
+    else
+    {
+        x = p1x < p2x ? p1x : p2x;
+        y = p1y < p2y ? p1y : p2y;
     }
 
 }
 
-void print_event_type(const XEvent & event) {
+void
+print_event_type( const XEvent & event )
+{
     switch(event.type) {
     case KeyPress        : std::cout << "\n KeyPress        "; break;
     case KeyRelease      : std::cout << "\n KeyRelease      "; break;
@@ -507,7 +585,10 @@ void print_event_type(const XEvent & event) {
     std::cout << std::flush;
 }
 
-void init_window_hints(Display *disp, Window win) {
+void
+init_window_hints( Display * disp,
+                   Window win )
+{
 #if 1
     XSizeHints hint;
     XWMHints wmhints;
@@ -565,29 +646,38 @@ void init_window_hints(Display *disp, Window win) {
 
     char * window_name= PACKAGE_VERSION;
     char * icon_name= PACKAGE;
-    if (!XStringListToTextProperty(&window_name, 1, &windowName))
-        PwindowName= NULL;
-    if (!XStringListToTextProperty(&icon_name, 1, &iconName))
-        PiconName= NULL;
+    if ( ! XStringListToTextProperty(&window_name, 1, &windowName ) )
+    {
+        PwindowName = NULL;
+    }
+    if ( ! XStringListToTextProperty(&icon_name, 1, &iconName ) )
+    {
+        PiconName = NULL;
+    }
 
-    XSetWMProperties(disp, win, NULL,NULL,/* PwindowName, PiconName,*/
-                     NULL, 0, &size_hints, &wm_hints,
-                     &class_hints);
+    XSetWMProperties( disp, win, NULL,NULL,/* PwindowName, PiconName,*/
+                      NULL, 0, &size_hints, &wm_hints,
+                      &class_hints );
 
-    if (PwindowName)
-        XFree(windowName.value);
-    if (PiconName)
-        XFree(iconName.value);
+    if ( PwindowName )
+    {
+        XFree( windowName.value );
+    }
+
+    if ( PiconName )
+    {
+        XFree( iconName.value );
+    }
 #endif
 #if 0
     int x_return, y_return;
     int width_return;
     int height_return;
     int gravity_return;
-    char user_geom[]="+5+0";
-    char def_geom[]="+0+0";
-    XWMGeometry(disp,DefaultScreen(disp), user_geom, def_geom,
-                5, &hint, &x_return, &y_return, &width_return, &height_return, &gravity_return);
+    char user_geom[] = "+5+0";
+    char def_geom[] = "+0+0";
+    XWMGeometry( disp,DefaultScreen( disp ), user_geom, def_geom,
+                 5, &hint, &x_return, &y_return, &width_return, &height_return, &gravity_return );
     std::cout << "\nx= " << x_return
               << "\ny= " << y_return
               << "\nwidth= " << width_return
@@ -596,9 +686,12 @@ void init_window_hints(Display *disp, Window win) {
 #endif
 }
 
-void init_window_input(Display *disp, Window win) {
+void
+init_window_input( Display * disp,
+                   Window win )
+{
 #if 1
-    XSelectInput (disp, win,
+    XSelectInput( disp, win,
                   KeyPressMask
                   | KeyReleaseMask
                   | StructureNotifyMask
@@ -611,67 +704,70 @@ void init_window_input(Display *disp, Window win) {
                   //| Button2PressMask | Button2ReleaseMask | Button2MotionMask
                   );
 #else
-    XSelectInput(disp,win,
-                 KeyPressMask
-                 | KeyReleaseMask
-                 | ButtonPressMask
-                 | ButtonReleaseMask
-                 | EnterWindowMask
-                 | LeaveWindowMask
-                 | PointerMotionMask
-                 | PointerMotionHintMask
-                 | Button1MotionMask
-                 | Button2MotionMask
-                 | Button3MotionMask
-                 | ButtonMotionMask
-                 | KeymapStateMask
-                 | ExposureMask
-                 | VisibilityChangeMask
-                 | StructureNotifyMask
-                 | ResizeRedirectMask
-                 | PropertyChangeMask
-                 );
+    XSelectInput( disp,win,
+                  KeyPressMask
+                  | KeyReleaseMask
+                  | ButtonPressMask
+                  | ButtonReleaseMask
+                  | EnterWindowMask
+                  | LeaveWindowMask
+                  | PointerMotionMask
+                  | PointerMotionHintMask
+                  | Button1MotionMask
+                  | Button2MotionMask
+                  | Button3MotionMask
+                  | ButtonMotionMask
+                  | KeymapStateMask
+                  | ExposureMask
+                  | VisibilityChangeMask
+                  | StructureNotifyMask
+                  | ResizeRedirectMask
+                  | PropertyChangeMask
+                  );
 #endif
 }
 
-void XEvent_to_InputEvent(const XEvent & xevent, InputEvent & input_event) {
-    int x= 0;
-    int y= 0;
+void
+XEvent_to_InputEvent( const XEvent & xevent,
+                      InputEvent & input_event )
+{
+    int x = 0;
+    int y = 0;
     int len;
     KeySym key;
     static char text[30];
     input_event.init();
-    switch (xevent.type) {
-    case KeyPress        :
-    case KeyRelease      :
+    switch ( xevent.type ) {
+    case KeyPress:
+    case KeyRelease:
         //cout << "\n KeyPress or Release        ";
-        x= xevent.xkey.x;
-        y= xevent.xkey.y;
-        len = XLookupString ((XKeyEvent *)&xevent, text, 10, &key, 0);
+        x = xevent.xkey.x;
+        y = xevent.xkey.y;
+        len = XLookupString( (XKeyEvent *)&xevent, text, 10, &key, 0 );
         input_event.key= text[0];
         break;
-    case ButtonPress     :
-        x= xevent.xbutton.x;
-        y= xevent.xbutton.y;
-        input_event.time= xevent.xbutton.time;
-        input_event.mouse_button= xevent.xbutton.button;
-        input_event.mouse_button_state= InputEvent::MOUSE_BUTTON_PRESSED;
+    case ButtonPress:
+        x = xevent.xbutton.x;
+        y = xevent.xbutton.y;
+        input_event.time = xevent.xbutton.time;
+        input_event.mouse_button = xevent.xbutton.button;
+        input_event.mouse_button_state = InputEvent::MOUSE_BUTTON_PRESSED;
         //cout << "\nPRESSED " << input_event.time << flush;
         break;
-    case ButtonRelease   :
-        x= xevent.xbutton.x;
-        y= xevent.xbutton.y;
-        input_event.time= xevent.xbutton.time;
-        input_event.mouse_button= xevent.xbutton.button;
-        input_event.mouse_button_state= InputEvent::MOUSE_BUTTON_RELEASED;
+    case ButtonRelease:
+        x = xevent.xbutton.x;
+        y = xevent.xbutton.y;
+        input_event.time = xevent.xbutton.time;
+        input_event.mouse_button = xevent.xbutton.button;
+        input_event.mouse_button_state = InputEvent::MOUSE_BUTTON_RELEASED;
         //cout << "\nRELEASE " << input_event.time << flush;
         break;
-    case MotionNotify    :
-        x= xevent.xbutton.x;
-        y= xevent.xbutton.y;
-        input_event.time= xevent.xbutton.time;
-        input_event.mouse_button= xevent.xbutton.button;
-        input_event.mouse_button_state= InputEvent::MOUSE_BUTTON_MOTION;
+    case MotionNotify:
+        x = xevent.xbutton.x;
+        y = xevent.xbutton.y;
+        input_event.time = xevent.xbutton.time;
+        input_event.mouse_button = xevent.xbutton.button;
+        input_event.mouse_button_state = InputEvent::MOUSE_BUTTON_MOTION;
         //cout << "\nMOTION " << input_event.time << flush;
         break;
 #if 0
@@ -706,16 +802,23 @@ void XEvent_to_InputEvent(const XEvent & xevent, InputEvent & input_event) {
     default:               std::cout << "\n UNKNOWN EVENT";
 #endif
     }
-    input_event.pos= RUN::conv_area.get_point_from_win_pos(x,y);
+    input_event.pos = RUN::conv_area.get_point_from_win_pos( x, y );
 }
 
-bool process_x11_events() {
-    if (RUN::quit) return false;  //ein hack, damit das Abschalten richtig funkioniert!
-    bool redraw= false;
+bool
+process_x11_events()
+{
+    if ( RUN::quit )
+    {
+        return false;  //ein hack, damit das Abschalten richtig funkioniert!
+    }
 
-    while ( XEventsQueued(WIN::disp, QueuedAfterReading)) {
-        bool do_process_key= false;
-        char process_key= '\0';
+    bool redraw = false;
+
+    while ( XEventsQueued( WIN::disp, QueuedAfterReading ) )
+    {
+        bool do_process_key = false;
+        char process_key = '\0';
         XEvent event;
         KeySym key;
         char text[30];
@@ -726,66 +829,81 @@ bool process_x11_events() {
         Pixmap dum_pixmap;
         InputEvent input_event;
 
-        XNextEvent(WIN::disp, &event);
+        XNextEvent( WIN::disp, &event );
         //print_event_type(event);
 
-        if ( WIN::menu->responsible_for_event(event) ) {
-            dum_res= WIN::menu->process_event(event);
-            if (dum_res) { //don't wait for the expose event in the main window, redraw now
-                XCopyArea(WIN::disp, WIN::pixmap, WIN::window, WIN::gc, 0, 0, WIN::win_width, WIN::win_height, 0, 0);
-                XFlush(WIN::disp);
+        if ( WIN::menu->responsible_for_event( event ) )
+        {
+            dum_res= WIN::menu->process_event( event );
+            if ( dum_res )
+            { //don't wait for the expose event in the main window, redraw now
+                XCopyArea( WIN::disp, WIN::pixmap, WIN::window, WIN::gc,
+                           0, 0, WIN::win_width, WIN::win_height, 0, 0 );
+                XFlush( WIN::disp );
                 //cout << "\nexposing main window after menu event" << flush;
             }
+
             int dum_button,dum_mouse_button;
-            int res= WIN::menu->button_pressed(event,dum_button,dum_mouse_button);
-            if (res) {
-                XEvent_to_InputEvent(event,input_event);
-                input_event.menu_button= dum_button;
-                input_event.mouse_button= dum_mouse_button;
-                res= INPUTDEV->process_menu_button(&RUN::builder,WIN::menu,input_event);
-                if (WIN::menu->needs_redraw() ) {
+            int res= WIN::menu->button_pressed( event,dum_button,dum_mouse_button );
+            if ( res )
+            {
+                XEvent_to_InputEvent( event,input_event );
+                input_event.menu_button = dum_button;
+                input_event.mouse_button = dum_mouse_button;
+                res = INPUTDEV->process_menu_button( &RUN::builder, WIN::menu,input_event );
+                if ( WIN::menu->needs_redraw() )
+                {
                     redraw= true;
                     WIN::menu->redraw();
                 }
-                if (WIN::menu->get_exit_program())
-                    RUN::quit= true;
-                redraw= true;
+
+                if ( WIN::menu->get_exit_program() )
+                {
+                    RUN::quit = true;
+                }
+                redraw = true;
             }
         }
 #ifdef POPUP
-        else if ( WIN::popup->responsible_for_event(event) ) {
-            dum_res= WIN::popup->process_event(event);
-            if (dum_res) { //don't wait for the expose event in the main window, redraw now
+        else if ( WIN::popup->responsible_for_event( event ) )
+        {
+            dum_res = WIN::popup->process_event( event );
+            if ( dum_res )
+            { //don't wait for the expose event in the main window, redraw now
                 std::cout << "\nshould never enter this code " << std::flush;
-                XCopyArea(WIN::disp, WIN::pixmap, WIN::window, WIN::gc, 0, 0, WIN::win_width, WIN::win_height, 0, 0);
-                XFlush(WIN::disp);
+                XCopyArea( WIN::disp, WIN::pixmap, WIN::window, WIN::gc,
+                           0, 0, WIN::win_width, WIN::win_height, 0, 0 );
+                XFlush( WIN::disp );
                 //cout << "\nexposing main window after menu event" << flush;
             }
-            int dum_button,dum_mouse_button;
-            int res= WIN::popup->button_pressed(event,dum_button,dum_mouse_button);
 
-            if (res) {
+            int dum_button,dum_mouse_button;
+            int res = WIN::popup->button_pressed( event,dum_button, dum_mouse_button );
+
+            if ( res )
+            {
                 //cout << "\npressed button " << dum_button << " mouse_button " << dum_mouse_button << flush;
-                XEvent_to_InputEvent(event,input_event);
+                XEvent_to_InputEvent( event,input_event );
                 input_event.menu_button = dum_button;
 
-                res= INPUTDEV->process_popup_button(&RUN::builder,WIN::popup, input_event);
+                res = INPUTDEV->process_popup_button( &RUN::builder, WIN::popup, input_event );
                 //if (WIN::popup->needs_redraw() ) {
                 //  redraw= true;
                 //  WIN::popup->redraw();
                 //}
 
                 WIN::popup->set_popup_invisible();
-                WIN::popup->get_rectangle(dum1,dum2,dum3,dum4);
-                XCopyArea(WIN::disp, WIN::pixmap, WIN::window, WIN::gc,
-                          dum1,dum2,dum3+2,dum4+2,dum1,dum2);
+                WIN::popup->get_rectangle( dum1, dum2, dum3, dum4 );
+                XCopyArea( WIN::disp, WIN::pixmap, WIN::window, WIN::gc,
+                           dum1, dum2, dum3 + 2, dum4 + 2, dum1, dum2 );
 
-                XFlush(WIN::disp);
-                WIN::mouse_button= 0;
+                XFlush( WIN::disp );
+                WIN::mouse_button = 0;
             }
         }
 #endif
         else
+        {
             switch (event.type) {
             case MappingNotify:
                 XRefreshKeyboardMapping ((XMappingEvent *)&event);
@@ -794,8 +912,9 @@ bool process_x11_events() {
                 if ( 0 == event.xexpose.count ) {
                     //cout << "\nexpose in draw window" << flush;
                     //don't need to set redraw= true; because the picture is still in our pixmap!!!
-                    XCopyArea(WIN::disp, WIN::pixmap, WIN::window, WIN::gc, 0, 0, WIN::win_width, WIN::win_height, 0, 0);
-                    XFlush(WIN::disp);
+                    XCopyArea( WIN::disp, WIN::pixmap, WIN::window, WIN::gc,
+                               0, 0, WIN::win_width, WIN::win_height, 0, 0 );
+                    XFlush( WIN::disp );
                     //cout << "\nexposing main window, redraw= " << redraw << flush;
                     //redraw= true;
                 }
@@ -806,24 +925,25 @@ bool process_x11_events() {
                     redraw= true;
                     WIN::win_width = event.xconfigure.width;
                     WIN::win_height = event.xconfigure.height;//-letheight-1;
-                    WIN::clip_rect.set_ratio(WIN::win_width,WIN::win_height);
+                    WIN::clip_rect.set_ratio( WIN::win_width, WIN::win_height );
 
-                    RUN::conv_area.set_win_size(WIN::win_width,WIN::win_height);
+                    RUN::conv_area.set_win_size( WIN::win_width, WIN::win_height );
 #if 0
                     RUN::conv_area.update();
-                    RUN::conv_area.get_area(dum_area);
-                    DDD->ASetPlainArea(dum_area);
+                    RUN::conv_area.get_area( dum_area );
+                    DDD->ASetPlainArea( dum_area );
 #endif
-                    DDD->ASetWindowArea(WIN::win_width,WIN::win_height);
+                    DDD->ASetWindowArea( WIN::win_width, WIN::win_height );
 
-                    dum_pixmap= WIN::pixmap;
+                    dum_pixmap = WIN::pixmap;
                     //set new size for the pixmap
-                    WIN::pixmap = XCreatePixmap (WIN::disp, WIN::window, WIN::win_width, WIN::win_height, WIN::win_depth);
+                    WIN::pixmap = XCreatePixmap( WIN::disp, WIN::window,
+                                                 WIN::win_width, WIN::win_height, WIN::win_depth );
                     //XFillRectangle(WIN::disp, WIN::pixmap, WIN::bg_gc, 0, 0, WIN::win_width, WIN::win_height);
-                    DDD->ASetNewPixmap(WIN::pixmap);
-                    XFreePixmap (WIN::disp, dum_pixmap);
+                    DDD->ASetNewPixmap( WIN::pixmap );
+                    XFreePixmap( WIN::disp, dum_pixmap );
 
-                    WIN::menu->resize(WIN::win_width);
+                    WIN::menu->resize( WIN::win_width );
                 }
                 break;
             case  ButtonPress: //speichere 1 Koordinate
@@ -985,12 +1105,16 @@ bool process_x11_events() {
                 }
                 break;
             }
+        }
 
-        if (do_process_key) {
-            XEvent_to_InputEvent(event, input_event);
-            dum_res= INPUTDEV->process_char_command(&RUN::builder, WIN::menu, input_event);
-            if (WIN::menu->needs_redraw() )
+        if ( do_process_key )
+        {
+            XEvent_to_InputEvent( event, input_event );
+            dum_res = INPUTDEV->process_char_command( &RUN::builder, WIN::menu, input_event );
+            if ( WIN::menu->needs_redraw() )
+            {
                 WIN::menu->redraw();
+            }
             redraw= dum_res || redraw;
         }
     }
@@ -1022,9 +1146,10 @@ redraw_current_tree()
 
     const char* dum;
     int dum_len;
-    if ( RUN::builder.status_line ) {
-        dum= RUN::builder.status_line;
-        dum_len= RUN::builder.status_line_len;
+    if ( RUN::builder.status_line )
+    {
+        dum = RUN::builder.status_line;
+        dum_len = RUN::builder.status_line_len;
         //staus line should persist RUN::builder.status_line= 0;
     }
     else
@@ -1032,21 +1157,25 @@ redraw_current_tree()
         dum = INPUTDEV->status_line();
         dum_len= std::strlen( dum );
     }
-    if (dum_len)
-        XDrawImageString(WIN::disp, WIN::pixmap,WIN::sl_gc,0,WIN::win_height-2,dum,dum_len);
+    if ( dum_len )
+    {
+        XDrawImageString( WIN::disp, WIN::pixmap, WIN::sl_gc,
+                          0, WIN::win_height - 2,
+                          dum, dum_len );
+    }
 
     /* update display:	*/
-    XCopyArea(WIN::disp, WIN::pixmap, WIN::window, WIN::gc, 0, 0, WIN::win_width, WIN::win_height, 0, 0);
+    XCopyArea( WIN::disp, WIN::pixmap, WIN::window, WIN::gc,
+               0, 0, WIN::win_width, WIN::win_height, 0, 0 );
 
     if ( WIN::rect_was_drawn )//( WIN::clip_rect.active)
-        XDrawRectangle(WIN::disp,WIN::window,WIN::xor_gc,WIN::clip_rect.x,WIN::clip_rect.y,WIN::clip_rect.width,WIN::clip_rect.height);
+    {
+        XDrawRectangle( WIN::disp, WIN::window, WIN::xor_gc,
+                        WIN::clip_rect.x, WIN::clip_rect.y,
+                        WIN::clip_rect.width, WIN::clip_rect.height );
+    }
 
     XFlush(WIN::disp);
-}
-
-int max(int a,int b) {
-    if (a>=b) return a;
-    return b;
 }
 
 int
@@ -1058,7 +1187,7 @@ main( int argc, char ** argv )
               << "\nCopyright (c) 2001 - 2008, The RoboCup Soccer Server Maintainance Group."
               << "\n\t<sserver-admin@lists.sourceforge.net>";
 
-    argc--; argv++;
+    --argc; ++argv;
     bool smonitor_dev= true;
     if ( argc > 0
          && ! std::strncmp( argv[0], "-ascii", std::strlen( "-ascii" ) ) )
@@ -1122,7 +1251,7 @@ main( int argc, char ** argv )
         ERROR_OUT << "\nHOME path too long";
     }
 
-    Options::read(argc,argv);
+    Options::read( argc, argv );
     std::cout << std::flush;
 
     INPUTDEV->set_initial_area( Options::plane );
@@ -1139,7 +1268,7 @@ main( int argc, char ** argv )
     unsigned long fg, bg;
 
     WIN::disp = XOpenDisplay( 0 );
-    if ( WIN::disp == (Display *) NULL )
+    if ( WIN::disp == (Display *)NULL )
     {
         ERROR_OUT << "\nCould not open display!";
         return 1;
@@ -1147,81 +1276,88 @@ main( int argc, char ** argv )
     WIN::x11_fd = XConnectionNumber( WIN::disp );
     RGB_DB::disp = WIN::disp;
     //cout << "\n connection fd= " << WIN::x11_fd << flush;
-    screen = DefaultScreen(WIN::disp);
-    fg = BlackPixel(WIN::disp, screen);
-    bg = WhitePixel(WIN::disp, screen);
+    screen = DefaultScreen( WIN::disp );
+    fg = BlackPixel( WIN::disp, screen );
+    bg = WhitePixel( WIN::disp, screen );
     //hint.x = 150; hint.y = 10;
     hint.x = 200; hint.y = 20;
     hint.width = Options::window_size_x;
     hint.height = Options::window_size_y;
     hint.flags = PPosition | PSize;
     WIN::win_width = hint.width; WIN::win_height = hint.height;//-letheight-1;
-    WIN::win_depth = DefaultDepth (WIN::disp, screen);
-    WIN::window = XCreateSimpleWindow (WIN::disp, DefaultRootWindow(WIN::disp),
-                                       hint.x, hint.y, hint.width, hint.height, 5, fg, bg);
-    WIN::pixmap = XCreatePixmap (WIN::disp, WIN::window, WIN::win_width, WIN::win_height, WIN::win_depth);
+    WIN::win_depth = DefaultDepth( WIN::disp, screen );
+    WIN::window = XCreateSimpleWindow( WIN::disp, DefaultRootWindow(WIN::disp),
+                                       hint.x, hint.y, hint.width, hint.height, 5, fg, bg );
+    WIN::pixmap = XCreatePixmap( WIN::disp, WIN::window, WIN::win_width, WIN::win_height, WIN::win_depth );
     XSetStandardProperties( WIN::disp, WIN::window,
                             PACKAGE_VERSION,
                             PACKAGE,
                             None, //WIN::icon_pixmap,
                             argv, argc, &hint );
 
-    WIN::gc = XCreateGC (WIN::disp, WIN::window, 0, 0);
-    XSetGraphicsExposures(WIN::disp, WIN::gc, 0);	/* IMPORTANT!  If you do not
-                                                     specifically ask not to get Expose events, every XCopyArea
-                                                     will generate one, & the event queue will fill up.	*/
-    XSetLineAttributes(WIN::disp, WIN::gc, Options::line_thickness,LineSolid, CapButt,JoinMiter);
-    //XCopyGC(WIN::disp,WIN::gc,0,WIN::xor_gc);
+    WIN::gc = XCreateGC( WIN::disp, WIN::window, 0, 0 );
+    XSetGraphicsExposures( WIN::disp, WIN::gc, 0 );	/* IMPORTANT!  If you do not
+                                                       specifically ask not to get Expose events, every XCopyArea
+                                                       will generate one, & the event queue will fill up.	*/
+    XSetLineAttributes( WIN::disp, WIN::gc,
+                        Options::line_thickness, LineSolid,
+                        CapButt, JoinMiter );
+    //XCopyGC( WIN::disp,WIN::gc,0,WIN::xor_gc );
 
-    WIN::xor_gc= XCreateGC (WIN::disp, WIN::window, 0, 0);
+    WIN::xor_gc = XCreateGC( WIN::disp, WIN::window, 0, 0 );
     //XSetFunction(WIN::disp,WIN::xor_gc,GXxor);
-    XSetFunction(WIN::disp,WIN::xor_gc,GXinvert);
+    XSetFunction( WIN::disp, WIN::xor_gc, GXinvert );
     //XSetPlaneMask(WIN::disp,WIN::xor_gc,3); //wichtig, aber warum? ;-)
 
-    font= XLoadFont(WIN::disp,Options::font_name);
-    font_inside= XLoadFont(WIN::disp,Options::font_inside);
+    font = XLoadFont( WIN::disp, Options::font_name );
+    font_inside = XLoadFont( WIN::disp,Options::font_inside );
     //font = XLoadFont(WIN::disp, "10x20\0");	/* If you don't have this font, try replacing it with 9x15\0	*/
-    XSetFont(WIN::disp, WIN::gc, font_inside);
+    XSetFont( WIN::disp, WIN::gc, font_inside );
 
-    WIN::bg_gc = XCreateGC (WIN::disp, WIN::window, 0, 0);
-    WIN::sl_gc = XCreateGC (WIN::disp, WIN::window, 0, 0);
-    WIN::bt_gc = XCreateGC (WIN::disp, WIN::window, 0, 0);
-    XSetBackground (WIN::disp, WIN::gc, bg);
-    XSetForeground (WIN::disp, WIN::gc, fg);
-    XSetBackground (WIN::disp, WIN::xor_gc, bg);
-    XSetForeground (WIN::disp, WIN::xor_gc, fg);
-    XSetForeground (WIN::disp, WIN::bg_gc, bg);  /* fg of pixmap is bg of window */
-    XSetBackground (WIN::disp, WIN::bg_gc, fg);
+    WIN::bg_gc = XCreateGC( WIN::disp, WIN::window, 0, 0 );
+    WIN::sl_gc = XCreateGC( WIN::disp, WIN::window, 0, 0 );
+    WIN::bt_gc = XCreateGC( WIN::disp, WIN::window, 0, 0 );
+    XSetBackground( WIN::disp, WIN::gc, bg );
+    XSetForeground( WIN::disp, WIN::gc, fg );
+    XSetBackground( WIN::disp, WIN::xor_gc, bg );
+    XSetForeground( WIN::disp, WIN::xor_gc, fg );
+    XSetForeground( WIN::disp, WIN::bg_gc, bg );  /* fg of pixmap is bg of window */
+    XSetBackground( WIN::disp, WIN::bg_gc, fg );
 
-    XSetForeground (WIN::disp, WIN::sl_gc, bg);
-    XSetBackground (WIN::disp, WIN::sl_gc, fg);
+    XSetForeground( WIN::disp, WIN::sl_gc, bg );
+    XSetBackground( WIN::disp, WIN::sl_gc, fg );
 
-    XSetForeground (WIN::disp, WIN::bt_gc, fg);
-    XSetBackground (WIN::disp, WIN::bt_gc, bg);
-    XSetFont(WIN::disp, WIN::bg_gc, font);
-    XSetFont(WIN::disp, WIN::sl_gc, font);
+    XSetForeground( WIN::disp, WIN::bt_gc, fg );
+    XSetBackground( WIN::disp, WIN::bt_gc, bg );
+    XSetFont( WIN::disp, WIN::bg_gc, font );
+    XSetFont( WIN::disp, WIN::sl_gc, font );
 
-    init_window_hints(WIN::disp,WIN::window);
-    init_window_input(WIN::disp,WIN::window);
+    init_window_hints( WIN::disp,WIN::window );
+    init_window_input( WIN::disp,WIN::window );
 #if 0
-    XMoveWindow(WIN::disp, WIN::window, 10,10);
-    XWindowChanges dum; dum.x= 10; dum.y= 10; XConfigureWindow(WIN::disp, WIN::window, CWX | CWY, &dum);
+    XMoveWindow( WIN::disp, WIN::window, 10, 10 );
+    XWindowChanges dum;
+    dum.x = 10;
+    dum.y = 10;
+    XConfigureWindow( WIN::disp, WIN::window, CWX | CWY, &dum );
 #endif
 
-    XMapRaised (WIN::disp, WIN::window);
-    //XMapWindow(WIN::disp, WIN::window);
+    XMapRaised( WIN::disp, WIN::window );
+    //XMapWindow( WIN::disp, WIN::window );
 
 #if 0
-    if (Options::set_window_pos)
-        XMoveWindow(WIN::disp, WIN::window, Options::window_left_x,Options::window_top_y);
+    if ( Options::set_window_pos )
+    {
+        XMoveWindow( WIN::disp, WIN::window, Options::window_left_x, Options::window_top_y );
+    }
 #endif
     /* Erase cursor. Just delete next 5 lines if any error.	*/
-    cmap = XDefaultColormap(WIN::disp, screen);
+    cmap = XDefaultColormap( WIN::disp, screen );
 #if 1
     //XAllocNamedColor(WIN::disp, cmap, "Black", &exact, &black);
-    cursor = XCreateFontCursor(WIN::disp, XC_crosshair);
+    cursor = XCreateFontCursor( WIN::disp, XC_crosshair );
     //XRecolorCursor(WIN::disp, cursor, &black, &black);
-    XDefineCursor(WIN::disp, WIN::window, cursor);
+    XDefineCursor( WIN::disp, WIN::window, cursor );
 #endif
     //XFillRectangle (WIN::disp, WIN::pixmap, WIN::bg_gc, 0, 0, WIN::win_width, WIN::win_height);
     {

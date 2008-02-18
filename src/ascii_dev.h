@@ -45,9 +45,12 @@ class AsciiDevice: public InputDevice {
     static const bool use_stdin;
 
     struct Options {
-        Options() { udp_port= 6010; tcp_port= 20000; }
         int udp_port;
         int tcp_port;
+        Options()
+            : udp_port( 6010 )
+            , tcp_port( 20000 )
+          { }
     };
 
     Options options;
