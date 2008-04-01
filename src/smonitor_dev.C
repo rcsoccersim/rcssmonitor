@@ -2080,10 +2080,8 @@ SMonitorDevice::process_char_command( BuilderBase * build,
             std::cout << "\nthis key is not set in edit mode";
             break;
         }
-        server.init_serv_addr( options.server_host,options.server_port );
-        send_dispinit();
-        server_state.reset();
-        M_score_board_string.erase();
+
+        reconnect();
         break;
     case 'l':
         if ( options.just_edit )
@@ -4929,6 +4927,16 @@ SMonitorDevice::send_dispbye()
 {
     const char msg[] = "(dispbye)";
     server.send_msg( msg, std::strlen( msg ) + 1 );
+}
+
+bool
+SMonitorDevice::reconnect()
+{
+    server.init_serv_addr( options.server_host, options.server_port );
+    send_dispinit();
+    server_state.reset();
+    M_score_board_string.erase();
+    return true;
 }
 
 /*

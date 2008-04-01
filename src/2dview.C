@@ -230,6 +230,9 @@ char font_inside[MAX_NAME_LEN];
 bool auto_quit_mode;
 int auto_quit_wait;
 
+bool auto_reconnect_mode;
+int auto_reconnect_wait;
+
 char conf_file[MAX_NAME_LEN];
 
 /* =========================================================================*/
@@ -279,6 +282,9 @@ show_available_options( std::ostream & o,
       << "\n"
       << "\n-auto_quit_mode [" << auto_quit_mode << "]"
       << "\n-auto_quit_wait [" << auto_quit_wait << "]"
+      << "\n"
+      << "\n-auto_reconnect_mode [" << auto_reconnect_mode << "]"
+      << "\n-auto_reconnect_wait [" << auto_reconnect_wait << "]"
       << "\n";
 
     INPUTDEV->help_options( o );
@@ -333,6 +339,11 @@ generate_file_options( std::ostream & o,
       << "\nauto_quit_mode = "
       << "\n# wait seconds in auto_quit_mode (default " << auto_quit_wait << ")"
       << "\nauto_quit_wait = "
+      << "\n"
+      << "\n# determins whether monitor program tries to reconnect automatically (default 0)."
+      << "\nauto_reconnect_mode = "
+      << "\n# wait seconds in auto_reconnect_mode (default " << auto_reconnect_wait << ")"
+      << "\nauto_reconnect_wait = "
       << "\n";
     INPUTDEV->generate_file_options( o );
 }
@@ -357,6 +368,9 @@ set_defaults()
 
     auto_quit_mode = false;
     auto_quit_wait = 5;
+
+    auto_reconnect_mode = false;
+    auto_reconnect_wait = 5;
 
     conf_file[0] = '\0';
     return true;
@@ -389,6 +403,9 @@ process_options( ValueParser & vp )
 
     vp.get( "auto_quit_mode", auto_quit_mode );
     vp.get( "auto_quit_wait", auto_quit_wait );
+
+    vp.get( "auto_reconnect_mode", auto_reconnect_mode );
+    vp.get( "auto_reconnect_wait", auto_reconnect_wait );
     return true;
 }
 
@@ -1556,17 +1573,26 @@ main( int argc, char ** argv )
                 }
             }
         }
-        else if ( retval == 0)
+        else if ( retval == 0 )
         {
             //cout << "No Data is available now." << endl;
             nodata_seconds += 5;
-            if ( Options::auto_quit_mode
-                 && nodata_seconds + timeover_seconds >= Options::auto_quit_wait )
+            if ( Options::auto_reconnect_mode )
             {
-                if ( received )
+                if ( nodata_seconds + timeover_seconds >= Options::auto_reconnect_wait )
                 {
-                    std::cout << "\nNo messeges from server." << std::endl;
-                    RUN::quit= true;
+                    INPUTDEV->reconnect();
+                }
+            }
+            else if ( Options::auto_quit_mode )
+            {
+                if ( nodata_seconds + timeover_seconds >= Options::auto_quit_wait )
+                {
+                    if ( received )
+                    {
+                        std::cout << "\nNo messeges from server." << std::endl;
+                        RUN::quit = true;
+                    }
                 }
             }
         }

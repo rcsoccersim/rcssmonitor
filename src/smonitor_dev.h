@@ -792,6 +792,7 @@ public:
     bool got_fds(fd_set * set);
 
     virtual bool is_timeover() const { return M_timeover; }
+    virtual bool reconnect();
 };
 
 template <class T>

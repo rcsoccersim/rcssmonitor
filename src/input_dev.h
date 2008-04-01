@@ -171,6 +171,7 @@ class InputDevice {
   virtual bool got_fds(fd_set * set)= 0;
 
     virtual bool is_timeover() const { return false; }
+    virtual bool reconnect() { return false; }
 };
 
 #endif
