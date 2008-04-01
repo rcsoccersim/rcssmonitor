@@ -4197,7 +4197,7 @@ SMonitorDevice::server_interpret_drawinfo_v3( BuilderBase * build,
         double x, y;
         char col[64];
         if ( std::sscanf( buf,
-                          " %lf %lf \"%63[^\"]\" ) ",
+                          " (point %lf %lf \"%63[^\"]\" ) ",
                           &x, &y, col ) != 3 )
         {
             ERROR_OUT << "\nIllegal draw point info.";
@@ -4219,7 +4219,7 @@ SMonitorDevice::server_interpret_drawinfo_v3( BuilderBase * build,
         double x, y, r;
         char col[64];
         if ( std::sscanf( buf,
-                          " %lf %lf %lf \"%63[^\"]\" ) ",
+                          " (circle %lf %lf %lf \"%63[^\"]\" ) ",
                           &x, &y, &r, col ) != 4 )
         {
             ERROR_OUT << "\nIllegal draw circle info.";
@@ -4242,7 +4242,7 @@ SMonitorDevice::server_interpret_drawinfo_v3( BuilderBase * build,
         char col[64];
 
         if ( std::sscanf( buf,
-                          " %lf %lf %lf %lf \"%63[^\"]\" ) ",
+                          " (line %lf %lf %lf %lf \"%63[^\"]\" ) ",
                           &sx, &sy, &ex, &ey, col ) != 4 )
         {
             ERROR_OUT << "\nIllegal draw line info.";
