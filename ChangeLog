@@ -3,6 +3,7 @@
 	* src/smonitor_dev.C:
 	* src/smonitor_dev.h:
 	- added pointto info painting in info level 3.
+	- supported draw info in the v3 protocol.
 
 2008-02-18  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 

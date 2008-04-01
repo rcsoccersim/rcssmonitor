@@ -1544,6 +1544,8 @@ SMonitorDevice::Options::Options()
     c_varea_exact = RGBcolor( 0,180,0 ); // 0, 0xB4, 0
     c_varea_fuzzy = RGBcolor( 0,170,0 ); // 0, 0xAA, 0
 
+    c_pointto = RGBcolor( 255, 0, 0 );
+
     info_level = info_level_def;
     scale_level = scale_level_def;
 
@@ -1914,6 +1916,7 @@ SMonitorDevice::generic_description_of_options( std::ostream & o,
     print_option_entry( o,mode,"c_goal",options.c_goal,"color of the soccer field goals" );
     print_option_entry( o,mode,"c_varea_exact",options.c_varea_exact,"color of the exact view area" );
     print_option_entry( o,mode,"c_varea_fuzzy",options.c_varea_fuzzy,"color of the fuzzy view area" );
+    print_option_entry( o,mode,"c_pointto",options.c_pointto,"color of the pointto lines" );
     o << "\n";
 }
 
@@ -1986,7 +1989,10 @@ SMonitorDevice::process_options( const ValueParser & vp )
     vp.get( "c_varea_exact",rgb_str,20,'\0' ); AsciiProcessor::get_col( rgb_str,options.c_varea_exact );
     vp.get( "c_varea_fuzzy",rgb_str,20,'\0' ); AsciiProcessor::get_col( rgb_str,options.c_varea_fuzzy );
 
-    if ( vp.num_of_not_accessed_entries() ) {
+    vp.get( "c_pointto", rgb_str, 20, '\0' ); AsciiProcessor::get_col( rgb_str, options.c_pointto );
+
+    if ( vp.num_of_not_accessed_entries() )
+    {
         ERROR_OUT << "\nSMonitorDevice: not recognized options:";
         vp.show_not_accessed_entries( ERROR_STREAM );
         return false;
@@ -2804,6 +2810,8 @@ SMonitorDevice::process_input( fd_set * set,
             else if ( SSrv::V3_DRAW_MODE == msg_type )
             {
                 std::cerr << "\nmode = V3_DRAW_MODE not yet implemented";
+                bool res = server_interpret_drawinfo_v3( build, buf );
+                redraw = redraw || res;
             }
             else if ( SSrv::DRAW_MODE == msg_type )
             {
@@ -3041,6 +3049,10 @@ SMonitorDevice::server_msg_type( void * ptr )
         if ( ! std::strncmp( buf, "(show ", 6 ) )
         {
             return SSrv::V3_SHOW_MODE;
+        }
+        else if ( ! std::strncmp( buf, "(draw ", 6 ) )
+        {
+            return SSrv::V3_DRAW_MODE;
         }
         else if ( ! std::strncmp( buf, "(playmode ", 10 ) )
         {
@@ -4113,15 +4125,12 @@ SMonitorDevice::server_interpret_showinfo_v3( BuilderBase * build,
         if ( options.info_level >= 3
              && is_pointing )
         {
-            std::cerr << "pointto (" << side << " " << unum << ") "
-                      << point_x << ", "<< point_y << std::endl;
-
             Point2d pointto_pos;
             pointto_pos.x = x_SERVER_2_LP( point_x );
             pointto_pos.y = y_SERVER_2_LP( point_y );
             build->set_cmd_insert_line( frame_pointto, 0,
                                         Line2d( p.pos, pointto_pos ), 0,
-                                        RGB_DB::XNamedColor_to_RGBcolor( "red" ) );
+                                        options.c_pointto );
         }
 
         if ( guess.use_type )
@@ -4156,6 +4165,114 @@ SMonitorDevice::server_interpret_showinfo_v3( BuilderBase * build,
     server_state.reconnected_ = false;
 
     return true;
+}
+
+bool
+SMonitorDevice::server_interpret_drawinfo_v3( BuilderBase * build,
+                                              const char * buf )
+{
+    // ( draw <time> (point <x> <y> "<color>"))
+    // ( draw <time> (circle <x> <y> <radius> "<color>"))
+    // ( draw <time> (line <sx> <sy> <ex> <ey> "<color>"))
+    // ( draw <time> (clear))
+
+    bool redraw = false;
+
+    int n_read = 0;
+
+    int time = 0;
+
+    if ( std::sscanf( buf,
+                      " ( draw %d %n ",
+                      &time, &n_read ) != 1 )
+    {
+        ERROR_OUT << "\nIllegal draw info.";
+        return false;
+    }
+    buf += n_read;
+
+
+    if ( ! std::strncmp( buf, "(point ", 7 ) )
+    {
+        double x, y;
+        char col[64];
+        if ( std::sscanf( buf,
+                          " %lf %lf \"%63[^\"]\" ) ",
+                          &x, &y, col ) != 3 )
+        {
+            ERROR_OUT << "\nIllegal draw point info.";
+            return false;
+        }
+
+        redraw = true;
+
+        Point2d pos;
+        pos.x = x_SERVER_2_LP ( x );
+        pos.y = y_SERVER_2_LP ( y );
+
+        build->set_cmd_insert_point( frame_canvas_left, 0,
+                                     pos, 0,
+                                     RGB_DB::XNamedColor_to_RGBcolor( col ) );
+    }
+    else if ( ! std::strncmp( buf, "(circle ", 8 ) )
+    {
+        double x, y, r;
+        char col[64];
+        if ( std::sscanf( buf,
+                          " %lf %lf %lf \"%63[^\"]\" ) ",
+                          &x, &y, &r, col ) != 4 )
+        {
+            ERROR_OUT << "\nIllegal draw circle info.";
+            return false;
+        }
+
+        redraw = true;
+
+        Point2d pos;
+        pos.x = x_SERVER_2_LP ( x );
+        pos.y = y_SERVER_2_LP ( y );
+
+        build->set_cmd_insert_circle( frame_canvas_left, 0,
+                                      Circle2d( pos, r ), 0,
+                                      RGB_DB::XNamedColor_to_RGBcolor( col ) );
+    }
+    else if ( ! std::strncmp( buf, "(line ", 6 ) )
+    {
+        double sx, sy, ex, ey;
+        char col[64];
+
+        if ( std::sscanf( buf,
+                          " %lf %lf %lf %lf \"%63[^\"]\" ) ",
+                          &sx, &sy, &ex, &ey, col ) != 4 )
+        {
+            ERROR_OUT << "\nIllegal draw line info.";
+            return false;
+        }
+
+        Point2d spos, epos;
+
+        spos.x = x_SERVER_2_LP ( sx );
+        spos.y = y_SERVER_2_LP ( sy );
+        epos.x = x_SERVER_2_LP ( ex );
+        epos.y = y_SERVER_2_LP ( ey );
+
+        build->set_cmd_insert_line( frame_canvas_left, 0,
+                                    Line2d( spos, epos ), 0,
+                                    RGB_DB::XNamedColor_to_RGBcolor( col ) );
+    }
+    else if ( ! std::strncmp( buf, "(clear)", 7 ) )
+    {
+        redraw = true;
+        DEBUG( << " refreshing drawarea" );
+        build->set_cmd_empty_frame( frame_canvas_left );
+        build->set_cmd_empty_frame( frame_canvas_right );
+    }
+    else
+    {
+        ERROR_OUT << "\nIllegal draw info " << buf ;
+    }
+
+    return redraw;
 }
 
 bool

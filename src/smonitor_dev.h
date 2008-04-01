@@ -452,6 +452,7 @@ class SMonitorDevice: public InputDevice {
         RGBcolor c_team_r, c_goalie_r, c_font_r, c_invalid_r;
         RGBcolor c_ball, c_field, c_marigin, c_line, c_goal;
         RGBcolor c_varea_exact, c_varea_fuzzy;
+        RGBcolor c_pointto;
 
         int info_level;
         static const int info_level_min;
@@ -677,6 +678,8 @@ class SMonitorDevice: public InputDevice {
 
     // version 3
     bool server_interpret_showinfo_v3( BuilderBase * build,
+                                       const char * buf );
+    bool server_interpret_drawinfo_v3( BuilderBase * build,
                                        const char * buf );
     bool server_interpret_msginfo_v3( BuilderBase * build,
                                       const char * buf );
