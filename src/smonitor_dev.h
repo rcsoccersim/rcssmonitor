@@ -397,6 +397,7 @@ class SMonitorDevice: public InputDevice {
     static const int frame_ball;
     static const int frame_varea;
     static const int frame_shadow;
+    static const int frame_pointto;
 
     static const int BUTTON_START;
     static const int BUTTON_RECONNECT;

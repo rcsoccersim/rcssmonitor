@@ -1,3 +1,9 @@
+2008-04-01  Hidehisa Akiyama  <akky@users.sourceforge.jp>
+
+	* src/smonitor_dev.C:
+	* src/smonitor_dev.h:
+	- added pointto info painting in info level 3.
+
 2008-02-18  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
 	* NEWS:

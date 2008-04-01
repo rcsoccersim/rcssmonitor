@@ -1459,6 +1459,7 @@ const int SMonitorDevice::frame_canvas_right = 95;
 const int SMonitorDevice::frame_ball = 96;
 const int SMonitorDevice::frame_varea = 97;
 const int SMonitorDevice::frame_shadow = 98;
+const int SMonitorDevice::frame_pointto = 99;
 
 const int SMonitorDevice::BUTTON_START = 0;
 const int SMonitorDevice::BUTTON_RECONNECT = 1;
@@ -2591,6 +2592,10 @@ SMonitorDevice::init_frames( BuilderBase * build )
     vis_view_area.init( 0,0, options.c_varea_exact, options.c_varea_fuzzy );
     build->set_cmd_insert_visobject( frame_varea, & vis_view_area );
     build->set_cmd_set_frame_visible( frame_varea,0 );
+
+    // pointto frame
+    build->set_cmd_insert_frame( 0, frame_pointto, Point2d( 0.0, 0.0 ), 0.0, layer + 1 );
+    build->set_cmd_set_frame_visible( frame_pointto, 1 );
 
     //soccer field
     vis_field.init( 0,layer,options.c_line,options.c_goal,
@@ -3939,6 +3944,8 @@ SMonitorDevice::server_interpret_showinfo_v3( BuilderBase * build,
         build->set_cmd_empty_frame( frame_canvas_right );
     }
 
+    build->set_cmd_empty_frame( frame_pointto );
+
     {
         double x, y, vx, vy;
 
@@ -3998,12 +4005,14 @@ SMonitorDevice::server_interpret_showinfo_v3( BuilderBase * build,
         }
         buf += n_read;
 
-        double arm_dist = -1.0, arm_head = 0.0;
+        bool is_pointing = false;
+        double point_x, point_y;
         if ( std::sscanf( buf,
                           " %lf %lf %n ",
-                          &arm_dist, &arm_head,
+                          &point_x, &point_y,
                           &n_read ) == 2 )
         {
+            is_pointing = true;
             buf += n_read;
         }
 
@@ -4099,6 +4108,20 @@ SMonitorDevice::server_interpret_showinfo_v3( BuilderBase * build,
             build->set_cmd_set_frame_pos_ang( frame_varea,
                                               p.pos,
                                               p.body_angle + p.head_angle_rel );
+        }
+
+        if ( options.info_level >= 3
+             && is_pointing )
+        {
+            std::cerr << "pointto (" << side << " " << unum << ") "
+                      << point_x << ", "<< point_y << std::endl;
+
+            Point2d pointto_pos;
+            pointto_pos.x = x_SERVER_2_LP( point_x );
+            pointto_pos.y = y_SERVER_2_LP( point_y );
+            build->set_cmd_insert_line( frame_pointto, 0,
+                                        Line2d( p.pos, pointto_pos ), 0,
+                                        RGB_DB::XNamedColor_to_RGBcolor( "red" ) );
         }
 
         if ( guess.use_type )
