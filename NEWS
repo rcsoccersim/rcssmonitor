@@ -1,3 +1,11 @@
+[12.1.0]
+  * supported pointto information in v3 protocol.
+
+  * supported draw information in v3 protocol.
+
+  * added new options, 'auto_reconnect_mode' and
+    'auto_reconnect_wait', to reconnect to the server automatically.
+
 [12.0.0]
   * supported a monitor protocol version 3. Now, the version 3
     protocol is used by default.
