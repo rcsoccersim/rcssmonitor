@@ -3,6 +3,7 @@
 	* NEWS:
 	* configure.ac:
 	- updated a version number string. Official release 12.1.0.
+	- removed unused macros.
 
 2008-04-02  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 

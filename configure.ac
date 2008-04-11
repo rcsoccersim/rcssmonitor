@@ -13,21 +13,18 @@ dnl Checks for programs.
 AC_PROG_CC
 AC_PROG_CPP
 AC_PROG_CXX
-AC_PROG_AWK
 
 dnl Checks for libraries.
 AC_CHECK_LIB([m], [cos])
 
 dnl Checks for header files
-##AC_PATH_X.
-AC_HEADER_STDC
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h netdb.h netinet/in.h sys/ioctl.h sys/socket.h sys/time.h unistd.h])
 AC_CHECK_HEADERS(linux/joystick.h)
 
 AC_ARG_WITH(sstream,
-        AC_HELP_STRING([--with-sstream],
-                       [use sstream instead of strstream (default=yes)]),
-                       use_sstream=$withval, use_sstream=yes)
+            AC_HELP_STRING([--with-sstream],
+                           [use sstream instead of strstream (default=yes)]),
+                            use_sstream=$withval, use_sstream=yes)
 if test "$use_sstream" = "yes"; then
    AC_CXX_HAVE_SSTREAM
 fi
@@ -49,6 +46,7 @@ AC_CHECK_TYPES([socklen_t], [], [], [
 
 dnl Checks for library functions.
 AC_PROG_GCC_TRADITIONAL
+AC_HEADER_STDC
 AC_FUNC_SELECT_ARGTYPES
 AC_FUNC_STRTOD
 AC_CHECK_FUNCS([floor gethostbyname gettimeofday inet_ntoa memset rint select socket sqrt strtol])
@@ -110,27 +108,6 @@ fi
 
 AC_DEFINE_UNQUOTED(PACKAGE_VERSION, "${PACKAGE}-${VERSION}", Package name and version)
 
-AC_ARG_VAR(SED, [name and location of sed executable.  If it is not
-set, it configure looks for sed in your PATH])
-
-if test "x$SED" = "x"; then
-    AC_PATH_PROG(SED, sed)
-fi
-
-AX_EXTRA_DIST
-AX_UPLOAD([ncftpput -v upload.sourceforge.net /incoming %%s])
-AX_RPM_GEN_SPEC([spec.tmpl],
-            [The RoboCup Soccer Simulator Monitor],
-            [GPL],
-            [Applications/Engineering],
-            [http://sserver.sf.net],
-            [http://prdownloads.sourceforge.net/sserver/],
-[The RoboCup Soccer Simulator Monitor (rcssmonitor) is a viewer for moved 2d vector
-graphics. It runs on Linux (Unix) computers that run the X Window System.])
-AX_DIST_RPM([spec.tmpl])
-#AX_DIST_MSI([Setup/Release/${PACKAGE_NAME}Setup.msi])
-AX_CVS([:pserver:anonymous@cvs.sourceforge.net:/cvsroot/sserver])
-
 AC_CONFIG_FILES([Makefile
-     src/Makefile])
+                src/Makefile])
 AC_OUTPUT
