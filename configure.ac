@@ -79,7 +79,10 @@ AC_PATH_XTRA
 #AC_SUBST(X_LIBS)
 if test -n $no_x; then
   if test $no_x = yes; then
-    echo disabling x
+#    echo disabling x
+    AC_MSG_ERROR([
+    X libraries cannot be found on your system. Please
+    install them, or specify the library location.])
   else
     save_LDFLAGS=$LDFLAGS
     LDFLAGS="$LDFLAGS $X_LIBS"

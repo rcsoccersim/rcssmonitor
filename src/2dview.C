@@ -1415,7 +1415,7 @@ main( int argc, char ** argv )
     //XFillRectangle (WIN::disp, WIN::pixmap, WIN::bg_gc, 0, 0, WIN::win_width, WIN::win_height);
     {
         XpmCreatePixmapFromData( WIN::disp, WIN::window,
-                                 rcssmonitor_xpm,
+				 const_cast< char** >( rcssmonitor_xpm ),
                                  &WIN::icon_pixmap,
                                  &WIN::icon_mask,
                                  NULL );

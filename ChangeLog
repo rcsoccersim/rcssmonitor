@@ -1,3 +1,11 @@
+2008-10-10  Hidehisa Akiyama  <akiyama@akym-ubuntu810>
+
+	* configure.ac: 
+	* src/2dview.C: 
+	* src/rcssmonitor.xpm: 
+	- improved X library checking.
+	- fixed gcc-4.2 warnings concerned with xpm data.
+
 2008-04-12  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
 	* NEWS:
