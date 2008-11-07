@@ -884,9 +884,9 @@ void
 VisualBall::set_show_vel_string( const Point2d & vel )
 {
     char buf[32];
-    std::snprintf( buf, 32,
-                   "(%.2f,%.2f)",
-                   vel.x, vel.y );
+    snprintf( buf, 32,
+              "(%.2f,%.2f)",
+              vel.x, vel.y );
     label.content = buf;
 
     show_vel_string = true;
@@ -993,7 +993,7 @@ VisualPlayer::init( const int my_key,
     head_dir.set_color( c_red );
 
     char unum_str[4];
-    std::snprintf( unum_str, 4, "%d", p_number );
+    snprintf( unum_str, 4, "%d", p_number );
     label.content = unum_str;
     label.set_color( c_font );
 
@@ -1500,7 +1500,7 @@ SMonitorDevice::Options::Options()
     server_port = 6000;
     std::strcpy( server_host, "127.0.0.1" );
     coach_port = server_port+1;
-    protocol_version = 3;
+    protocol_version = 4;
     connect_on_start = true;
 
     pen_taken_wait = 200;
@@ -1522,6 +1522,9 @@ SMonitorDevice::Options::Options()
     kick_radius = 1.085;
     ball_radius = 0.3;//0.085;
     ball_skin = 1;
+
+    stamina_max = 4000.0;
+    low_stamina_rate = 1500.0 / 4000.0;
 
 
     c_team_l = RGBcolor( 255,255,0 );
@@ -1836,9 +1839,9 @@ SMonitorDevice::Positions::print_formation( std::ostream & out,
         float y = ( player[i].pos.y + 34.0 )/68.0;
         if ( y<0.0 ) y = 0.0;
         if ( y>1.0 ) y = 1.0;
-        std::snprintf( buffer, 200,
-                       "\npos_%-2d = %.2f %.2f *",
-                       i - start_idx, x, y  );
+        snprintf( buffer, 200,
+                  "\npos_%-2d = %.2f %.2f *",
+                  i - start_idx, x, y  );
         out << buffer;
     }
 
@@ -2426,7 +2429,7 @@ SMonitorDevice::process_menu_button( BuilderBase * build,
         if ( chg )
         {
             double scale = options.scale_factor();
-            std::snprintf( buf, sizeof( buf ), "scale %.1f", scale );
+            snprintf( buf, sizeof( buf ), "scale %.1f", scale );
             menu->set_button_label( BUTTON_SCALE_LEVEL,buf );
             set_all_objects_scale( build, scale );
         }
@@ -2453,7 +2456,7 @@ SMonitorDevice::process_menu_button( BuilderBase * build,
 
         if ( chg )
         {
-            std::snprintf( buf, sizeof( buf ), "detail %d", options.info_level );
+            snprintf( buf, sizeof( buf ), "detail %d", options.info_level );
             vis_player_set_info_level( options.info_level );
             vis_ball_set_info_level( options.info_level );
             menu->set_button_label( BUTTON_INFO_LEVEL,buf );
@@ -2557,9 +2560,9 @@ SMonitorDevice::init_menu( MenuBase * menu )
     menu->set_button_label( BUTTON_START,"kick off" );
     menu->set_button_label( BUTTON_RECONNECT,"connect" );
     double scale = options.scale_factor();
-    std::snprintf( buf, sizeof( buf ), "scale %.1f", scale );
+    snprintf( buf, sizeof( buf ), "scale %.1f", scale );
     menu->set_button_label( BUTTON_SCALE_LEVEL,buf );
-    std::snprintf( buf, sizeof( buf ), "detail %d", options.info_level );
+    snprintf( buf, sizeof( buf ), "detail %d", options.info_level );
     menu->set_button_label( BUTTON_INFO_LEVEL,buf );
     menu->set_button_label( BUTTON_MODE,options.get_mode_string() );
     menu->set_button_label( BUTTON_UNZOOM,"unzoom" );
@@ -2998,22 +3001,37 @@ SMonitorDevice::vis_player_set_info_level( int lev, VisualPlayer & vis_p,
                                            const Positions::Player & p,
                                            const int unum )
 {
-    char dum[20];
+    char dum[64];
     vis_p.set_use_number( true );
     switch ( options.info_level ) {
     case 0:
         vis_p.set_use_number( false );
         break;
     case 1:
-        std::snprintf( dum, 19, "%d", unum );
+        snprintf( dum, 63, "%d", unum );
         vis_p.set_label( dum );
         break;
     case 2:
-        std::snprintf( dum, 19, "%d,%d", unum, ( int )p.stamina );
+        snprintf( dum, 63, "%d,%d", unum, ( int )p.stamina );
         vis_p.set_label( dum );
         break;
     case 3:
-        std::snprintf( dum, 19, "%d,%d,t%d", unum, ( int )p.stamina, p.type );
+        //snprintf( dum, 63, "%d,%d,t%d", unum, ( int )p.stamina, p.type );
+        if ( p.stamina_capacity >= 0.0 )
+        {
+            snprintf( dum, 63, "%d,%d/%d,t%d",
+                      unum,
+                      static_cast< int >( p.stamina ),
+                      static_cast< int >( p.stamina_capacity ),
+                      p.type );
+        }
+        else
+        {
+            snprintf( dum, 63, "%d,%d,t%d",
+                      unum,
+                      static_cast< int >( p.stamina ),
+                      p.type );
+        }
         vis_p.set_label( dum );
         break;
     default:
@@ -3042,7 +3060,7 @@ SMonitorDevice::server_msg_type( void * ptr )
         return SSrv::FRAMEVIEW_MODE;
     }
 
-    if ( options.protocol_version == 3 )
+    if ( options.protocol_version >= 3 )
     {
         if ( ! std::strncmp( buf, "(show ", 6 ) )
         {
@@ -3588,8 +3606,8 @@ SMonitorDevice::server_interpret_showinfo_t2( BuilderBase * build,
                                         std::min( std::strlen( showinfo.team[0].name ),
                                                   size_t( 16 ) ) );
     server_state.right_teamname_.assign( showinfo.team[1].name,
-                                        std::min( std::strlen( showinfo.team[1].name ),
-                                                  size_t( 16 ) ) );
+                                         std::min( std::strlen( showinfo.team[1].name ),
+                                                   size_t( 16 ) ) );
     //match info
     Int16 s_l = ntohs( showinfo.team[0].score );
     Int16 s_r = ntohs( showinfo.team[1].score );
@@ -3645,6 +3663,8 @@ SMonitorDevice::server_interpret_showinfo_t2( BuilderBase * build,
             build->set_cmd_set_frame_pos( 0, Point2d( -b.pos.x, -b.pos.y ) );
         }
     }
+
+    const double low_stamina = options.stamina_max * options.low_stamina_rate;
 
     //set players
     for ( int i = 0; i< 2*MAX_PLAYER; ++i )
@@ -3713,7 +3733,8 @@ SMonitorDevice::server_interpret_showinfo_t2( BuilderBase * build,
 
         if ( guess.use_stamina )
         {
-            vis_p.set_low_stamina_indicator( p.stamina < 1500.0 );
+            //vis_p.set_low_stamina_indicator( p.stamina < 1500.0 );
+            vis_p.set_low_stamina_indicator( p.stamina < low_stamina );
         }
 
         vis_player_set_info_level( options.info_level, vis_p, p, p_number( i ) );
@@ -3775,7 +3796,7 @@ SMonitorDevice::server_interpret_player_type_t( BuilderBase * build,
         return false;
     }
 
-    const SSrv::player_type_t &player_type = dispinfo->body.ptinfo; //shortcut
+    const SSrv::player_type_t & player_type = dispinfo->body.ptinfo; //shortcut
     if ( options.list_player_types ) {
         std::cout << ""
                   << "\ntype = " << ntohs( player_type.id )
@@ -3831,7 +3852,7 @@ SMonitorDevice::server_interpret_server_params_t( BuilderBase * build,
         return false;
     }
 
-    const SSrv::server_params_t &server_params = dispinfo->body.sparams; //shortcut
+    const SSrv::server_params_t & server_params = dispinfo->body.sparams; //shortcut
 
     double goal_width = double( ntohl( server_params.gwidth ) ) / SHOWINFO_SCALE2;
     if ( std::fabs( goal_width ) < 0.01 )
@@ -3839,6 +3860,8 @@ SMonitorDevice::server_interpret_server_params_t( BuilderBase * build,
         WARNING_OUT << "\nlogplayer seems not to send correct server parameters ( check for version >= 7.08 )";
         return false;
     }
+
+    options.stamina_max = double( ntohl( server_params.stamina_max ) ) / SHOWINFO_SCALE2;
 
     vis_field.set_goal_width( double( ntohl( server_params.gwidth ) ) / SHOWINFO_SCALE2 );
     vis_ball.set_ball_decay( double( ntohl( server_params.bdecay ) ) / SHOWINFO_SCALE2 );
@@ -3931,8 +3954,8 @@ SMonitorDevice::server_interpret_showinfo_v3( BuilderBase * build,
          || std::strncmp( name_r, "null", 4 ) != 0 )
     {
         server_state.right_teamname_.assign( name_r,
-                                            std::min( std::strlen( name_r ),
-                                                      size_t( 16 ) ) );
+                                             std::min( std::strlen( name_r ),
+                                                       size_t( 16 ) ) );
     }
 
     server_state.current_time_ = time;
@@ -4038,11 +4061,18 @@ SMonitorDevice::server_interpret_showinfo_v3( BuilderBase * build,
         }
         buf += n_read;
 
-        double stamina, effort, recovery;
-        if ( std::sscanf( buf,
-                          " ( s %lf %lf %lf ) %n ",
-                          &stamina, &effort, &recovery,
-                          &n_read ) != 3 )
+        double stamina, effort, recovery, capacity = -1.0;
+        if ( ( options.protocol_version >= 4
+               && std::sscanf( buf,
+                               " ( s %lf %lf %lf %lf ) %n ",
+                               &stamina, &effort, &recovery, &capacity,
+                               &n_read ) != 4 )
+             || ( options.protocol_version == 3
+                  && std::sscanf( buf,
+                                  " ( s %lf %lf %lf ) %n ",
+                                  &stamina, &effort, &recovery,
+                                  &n_read ) != 3 )
+             )
         {
             WARNING_OUT << "\nIllegal player " << i << " stamina info in show info";
             break;
@@ -4096,6 +4126,9 @@ SMonitorDevice::server_interpret_showinfo_v3( BuilderBase * build,
                            : VisualPlayersViewArea::LOW );
         p.view_width = view_width * M_PI / 180.0;
         p.stamina = stamina;
+        p.effort = effort;
+        p.recovery = recovery;
+        p.stamina_capacity = capacity;
         p.alive = ( state != DISABLE );
 
         vis_p.set_body_angle( p.body_angle );
@@ -4367,8 +4400,8 @@ SMonitorDevice::server_interpret_team_v3( BuilderBase * build,
          || std::strncmp( name_r, "null", 4 ) != 0 )
     {
         server_state.right_teamname_.assign( name_r,
-                                            std::min( std::strlen( name_r ),
-                                                      size_t( 16 ) ) );
+                                             std::min( std::strlen( name_r ),
+                                                       size_t( 16 ) ) );
     }
 
     // update match status
@@ -4465,6 +4498,7 @@ SMonitorDevice::server_interpret_server_param_v3( BuilderBase * build,
     double ball_decay = 0.96;
     double player_size = 0.3;
     double kickable_margin = 0.7;
+    double stamina_max = 4000.0;
 
     std::map< std::string, double * > param_map;
     param_map[ "goal_width" ] = &goal_width;
@@ -4472,6 +4506,7 @@ SMonitorDevice::server_interpret_server_param_v3( BuilderBase * build,
     param_map[ "ball_decay" ] = &ball_decay;
     param_map[ "player_size" ] = &player_size;
     param_map[ "kickable_margin" ] = &kickable_margin;
+    param_map[ "stamina_max" ] = &stamina_max;
 
     {
         char message_type[32];
@@ -4531,6 +4566,8 @@ SMonitorDevice::server_interpret_server_param_v3( BuilderBase * build,
         return false;
     }
 
+    options.stamina_max = stamina_max;
+
     vis_field.set_goal_width( goal_width );
     vis_ball.set_ball_decay( ball_decay );
 
@@ -4567,7 +4604,7 @@ SMonitorDevice::updatePlayMode( const int pmode )
     else
     {
         char dum[30];
-        std::snprintf( dum, 30, "sim_mode %d", pmode );
+        snprintf( dum, 30, "sim_mode %d", pmode );
         server_state.playmode_string_ = dum;
     }
 }
@@ -4658,9 +4695,9 @@ SMonitorDevice::updateScoreBoard( const int time )
 
     if ( score == M_scores.end() )
     {
-        std::snprintf( score_board_msg, 512,
-                       " %10s %d:%d %-10s %16s %6d    ",
-                       "", 0, 0, "", "", time );
+        snprintf( score_board_msg, 512,
+                  " %10s %d:%d %-10s %16s %6d    ",
+                  "", 0, 0, "", "", time );
     }
     else
     {
@@ -4711,23 +4748,23 @@ SMonitorDevice::updateScoreBoard( const int time )
             if ( server_state.playmode_ == 44
                  || server_state.playmode_ == 45 ) // pen_taken_[lr]
             {
-                std::snprintf( pen_timer, 32, "%4d", server_state.pen_taken_timer_ );
+                snprintf( pen_timer, 32, "%4d", server_state.pen_taken_timer_ );
                 server_state.pen_taken_timer_ = std::max( 0, server_state.pen_taken_timer_ - 1 );
             }
 
-            std::snprintf( score_board_msg, 512,
-                           " %10s %d:%d |%-5s:%-5s| %-10s %16s%s %6d ",
-                           server_state.left_teamname_.c_str(),
-                           score->second.left_score_,
-                           score->second.right_score_,
-                           left_penalty.c_str(),
-                           right_penalty.c_str(),
-                           server_state.right_teamname_.c_str(),
-                           server_state.playmode_string_.c_str(),
-                           pen_timer,
-                           time );
+            snprintf( score_board_msg, 512,
+                      " %10s %d:%d |%-5s:%-5s| %-10s %16s%s %6d ",
+                      server_state.left_teamname_.c_str(),
+                      score->second.left_score_,
+                      score->second.right_score_,
+                      left_penalty.c_str(),
+                      right_penalty.c_str(),
+                      server_state.right_teamname_.c_str(),
+                      server_state.playmode_string_.c_str(),
+                      pen_timer,
+                      time );
 
-            //             std::snprintf( score_board_msg, 512,
+            //             snprintf( score_board_msg, 512,
             //                            " %10s %d(%d/%d):%d(%d/%d) %-10s %16s %6d",
             //                            server_state.left_teamname_.c_str(),
             //                            score->second.left_score_,
@@ -4742,14 +4779,14 @@ SMonitorDevice::updateScoreBoard( const int time )
         }
         else
         {
-            std::snprintf( score_board_msg, 512,
-                           " %10s %d:%d %-10s %16s %6d    ",
-                           server_state.left_teamname_.c_str(),
-                           score->second.left_score_,
-                           score->second.right_score_,
-                           server_state.right_teamname_.c_str(),
-                           server_state.playmode_string_.c_str(),
-                           time );
+            snprintf( score_board_msg, 512,
+                      " %10s %d:%d %-10s %16s %6d    ",
+                      server_state.left_teamname_.c_str(),
+                      score->second.left_score_,
+                      score->second.right_score_,
+                      server_state.right_teamname_.c_str(),
+                      server_state.playmode_string_.c_str(),
+                      time );
         }
     }
 
@@ -4867,9 +4904,9 @@ SMonitorDevice::send_dispinit()
     {
         //const char msg[] = "(dispinit version 2)";
         char msg[32];
-        std::snprintf( msg, 32,
-                       "(dispinit version %d)",
-                       options.protocol_version );
+        snprintf( msg, 32,
+                  "(dispinit version %d)",
+                  options.protocol_version );
         server.send_msg( msg, std::strlen( msg ) + 1 );
     }
     else
@@ -4893,10 +4930,10 @@ void
 SMonitorDevice::send_dispball( const Point2d & pos )
 {
     char buf[100];
-    std::snprintf( buf, 100,
-                   "(dispfoul %d %d 0)",
-                   int( pos.x * SHOWINFO_SCALE ),
-                   int( - pos.y * SHOWINFO_SCALE ) );
+    snprintf( buf, 100,
+              "(dispfoul %d %d 0)",
+              int( pos.x * SHOWINFO_SCALE ),
+              int( - pos.y * SHOWINFO_SCALE ) );
     server.send_msg( buf, std::strlen( buf ) + 1 );
 }
 
@@ -4904,10 +4941,10 @@ void
 SMonitorDevice::send_dispfoul_left( const Point2d & pos )
 {
     char buf[100];
-    std::snprintf( buf, 100,
-                   "(dispfoul %d %d 1)",
-                   int( pos.x * SHOWINFO_SCALE ),
-                   int( - pos.y * SHOWINFO_SCALE ) );
+    snprintf( buf, 100,
+              "(dispfoul %d %d 1)",
+              int( pos.x * SHOWINFO_SCALE ),
+              int( - pos.y * SHOWINFO_SCALE ) );
     server.send_msg( buf, std::strlen( buf ) + 1 );
 }
 
@@ -4915,10 +4952,10 @@ void
 SMonitorDevice::send_dispfoul_right( const Point2d & pos )
 {
     static char buf[100];
-    std::snprintf( buf, 100,
-                   "(dispfoul %d %d -1)",
-                   int( pos.x * SHOWINFO_SCALE ),
-                   int( - pos.y * SHOWINFO_SCALE ) );
+    snprintf( buf, 100,
+              "(dispfoul %d %d -1)",
+              int( pos.x * SHOWINFO_SCALE ),
+              int( - pos.y * SHOWINFO_SCALE ) );
     server.send_msg( buf, std::strlen( buf ) + 1 );
 }
 

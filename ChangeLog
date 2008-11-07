@@ -1,8 +1,27 @@
+2008-11-03  Hidehisa Akiyama  <akky@users.sourceforge.jp>
+
+	* NEWS:
+	* configure.ac:
+	- updated a version number string. Official release 13.0.0.
+
+	* src/valueparser.C:
+	- fixed gcc-4.3 compiler warnings.
+
+	* src/Makefile.am:
+	* src/client2dview.C:
+	* src/display_base.h:
+	* src/smonitor_dev.C:
+	* src/smonitor_dev.h:
+	* src/valueparser.C:
+	- supported v4 monitor protocol.
+	- added the drawing of stamina capacity information.
+	- set options to check the strict compiler warning.
+
 2008-10-10  Hidehisa Akiyama  <akiyama@akym-ubuntu810>
 
-	* configure.ac: 
-	* src/2dview.C: 
-	* src/rcssmonitor.xpm: 
+	* configure.ac:
+	* src/2dview.C:
+	* src/rcssmonitor.xpm:
 	- improved X library checking.
 	- fixed gcc-4.2 warnings concerned with xpm data.
 

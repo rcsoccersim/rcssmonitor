@@ -199,7 +199,7 @@ command_line_input( UDPsocket & sock )
 }
 
 void
-middle_size_input( UDPsocket & sock )
+middle_size_input( UDPsocket & )
 {
 
 }
@@ -355,7 +355,9 @@ public:
     virtual ~Robot() { }
 
     int frame;
-    virtual void read_joystick(int num_axes, int * axis) { }
+    virtual void read_joystick( int /*num_axes*/ ,
+                                int * /*axis*/ )
+      { }
     virtual void print_pos(std::ostream &) { }
     virtual void print_skin(std::ostream &)= 0;
 };
@@ -365,6 +367,7 @@ public:
     Vector2d pos;
     Angle ang;
     static const double size= 1.25;
+
     void print_skin(std::ostream & out) {
         out << "INS FRAME id=" << frame << ";"
             << "INS " << frame << " POLYGON fil=1 col=000099 "
@@ -393,10 +396,14 @@ public:
             << "(" << size *  -0.125 << "," << size * 0.020 << ");";
         print_pos(out);
     }
+
     void print_pos(std::ostream & out) {
         out << "MOV " << frame << " (" << pos.x << "," << pos.y << "," << ang.get_value()-M_PI*0.5 << ");";
     }
-    void read_joystick(int num_axes, int * axis) {
+
+    void read_joystick( int /*num_axes*/,
+                        int * axis )
+      {
         const double scale= 0.1;
         Vector2d tmp;
         tmp.init_polar(1,ang.get_value());
@@ -431,35 +438,42 @@ class RobotGolem: public Robot {
 public:
     Vector2d pos;
     Angle ang;
-    void print_skin(std::ostream & out) {
-        double factor= 0.2;
-        out << "\nINS FRAME id=" << frame << " (" << pos.x << "," << pos.y << "," << ang.get_value() << ");";
-        out << "\nINS " << frame << " POLYGON fil=1 col=666666 ";
-        Vector2d vec1L(-0.25,-1), vec1R(0.25,-1);
-        rotate(out, factor, 0, 2, vec1L, vec1R);
-        rotate(out, factor, M_PI * 2.0/3.0, 2, vec1L, vec1R);
-        rotate(out, factor, -M_PI * 2.0/3.0, 2, vec1L, vec1R);
-        Vector2d v0(-0.25,-1.1), v1(0.25,-1.1), v2( 0.25,-1.3), v3(-0.25,-1.3);
-        out << ";";
-        out << "\nINS " << frame << " POLYGON fil=1 col=000000 ";
-        rotate(out, factor, 0, 4, v0,v1,v2,v3);
-        out << ";";
-        out << "\nINS " << frame << " POLYGON fil=1 col=000000 ";
-        rotate(out, factor, M_PI * 2.0/3.0, 4, v0,v1,v2,v3);
-        out << ";";
-        out << "\nINS " << frame << " POLYGON fil=1 col=000000 ";
-        rotate(out, factor, -M_PI * 2.0/3.0, 4, v0,v1,v2,v3);
-        out << ";";
+
+    void print_skin( std::ostream & out )
+      {
+          double factor= 0.2;
+          out << "\nINS FRAME id=" << frame << " (" << pos.x << "," << pos.y << "," << ang.get_value() << ");";
+          out << "\nINS " << frame << " POLYGON fil=1 col=666666 ";
+          Vector2d vec1L(-0.25,-1), vec1R(0.25,-1);
+          rotate(out, factor, 0, 2, vec1L, vec1R);
+          rotate(out, factor, M_PI * 2.0/3.0, 2, vec1L, vec1R);
+          rotate(out, factor, -M_PI * 2.0/3.0, 2, vec1L, vec1R);
+          Vector2d v0(-0.25,-1.1), v1(0.25,-1.1), v2( 0.25,-1.3), v3(-0.25,-1.3);
+          out << ";";
+          out << "\nINS " << frame << " POLYGON fil=1 col=000000 ";
+          rotate(out, factor, 0, 4, v0,v1,v2,v3);
+          out << ";";
+          out << "\nINS " << frame << " POLYGON fil=1 col=000000 ";
+          rotate(out, factor, M_PI * 2.0/3.0, 4, v0,v1,v2,v3);
+          out << ";";
+          out << "\nINS " << frame << " POLYGON fil=1 col=000000 ";
+          rotate(out, factor, -M_PI * 2.0/3.0, 4, v0,v1,v2,v3);
+          out << ";";
     }
-    void print_pos(std::ostream & out) {
-        out << "MOV " << frame << " (" << pos.x << "," << pos.y << "," << ang.get_value() << ");";
-    }
-    void read_joystick(int num_axes, int * axis) {
-        const double scale= 0.1;
-        pos.x+=  scale * double(axis[0])/ 32767.0;
-        pos.y-=  scale * double(axis[1])/ 32767.0;
-        ang+= scale * double(-axis[3])/ 32767.0;
-    }
+
+    void print_pos( std::ostream & out )
+      {
+          out << "MOV " << frame << " (" << pos.x << "," << pos.y << "," << ang.get_value() << ");";
+      }
+
+    void read_joystick( int /*num_axes*/ ,
+                        int * axis )
+      {
+          const double scale= 0.1;
+          pos.x+=  scale * double(axis[0])/ 32767.0;
+          pos.y-=  scale * double(axis[1])/ 32767.0;
+          ang+= scale * double(-axis[3])/ 32767.0;
+      }
 };
 
 class Joystick {

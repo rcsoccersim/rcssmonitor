@@ -38,7 +38,10 @@ rcssmonitor_SOURCES = \
 rcssmonitor_CXXFLAGS =
 rcssmonitor_LDADD = @X_PRE_LIBS@ @X_LIBS@ @X_EXTRA_LIBS@
 
-AM_CXXFLAGS = -Wall @COMP_FLAGS@ @X_CFLAGS@
+AM_CPPFLAGS =
+AM_CFLAGS =
+AM_CXXFLAGS = -W -Wall @COMP_FLAGS@ @X_CFLAGS@
+AM_LDFLAGS =
 
 EXTRA_PROGRAMS = \
 	client2dview

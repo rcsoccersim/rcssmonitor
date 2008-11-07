@@ -357,7 +357,8 @@ ValueParser::ValueParser(int argc, char const* const * argv, const char *prefix_
     //cerr << "->found " << numEntries << " entries.";
 }
 
-ValueParser::ValueParser(int mode, const char * line)
+ValueParser::ValueParser( int /*mode*/ ,
+                          const char * line )
     : kv_tab( 10 ),
       max_key_length( 0 )
 {
@@ -880,7 +881,7 @@ ValueParser::getValue( const char * key,
         read_entries = 0; //the key was there, so the minimum of options is 0
     }
 
-    if ( warning && warnings_mode
+    if ( ( warning && warnings_mode )
          || verbose_mode )
     {
         std::cout << "\nentry: res= " << read_entries;

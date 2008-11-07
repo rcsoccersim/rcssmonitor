@@ -1,26 +1,32 @@
+[13.0.0]
+  * Supported a monitor protocol version 4. Now, the version 4
+    protocol is used by default.
+
+  * Supported a stamina capacity information and its drawing.
+
 [12.1.0]
-  * supported pointto information in v3 protocol.
+  * Supported pointto information in v3 protocol.
 
-  * supported draw information in v3 protocol.
+  * Supported draw information in v3 protocol.
 
-  * added new options, 'auto_reconnect_mode' and
+  * Added new options, 'auto_reconnect_mode' and
     'auto_reconnect_wait', to reconnect to the server automatically.
 
 [12.0.0]
-  * supported a monitor protocol version 3. Now, the version 3
+  * Supported a monitor protocol version 3. Now, the version 3
     protocol is used by default.
 
 [12.0.0_pre-20080210]
-  * supported a monitor protocol version 3 (not completed yet).
+  * Supported a monitor protocol version 3 (not completed yet).
 
   * improved a score board message.
 
-  * cleaned up the code.
+  * Cleaned up the code.
 
 [12.0.0_pre-20071217]
-  * implemneted a resizable player type parameters.
+  * Implemneted a resizable player type parameters.
 
-  * improved several drawing options.
+  * Improved several drawing options.
 
 [11.1.1]
   * Changed the default font color for right team to dark

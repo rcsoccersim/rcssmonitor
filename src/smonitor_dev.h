@@ -445,6 +445,9 @@ class SMonitorDevice: public InputDevice {
 
         double kick_radius;
 
+        double stamina_max;
+        double low_stamina_rate;
+
         void toggle_track_ball() { track_ball= !track_ball; }
         void toggle_show_ball_vel() { show_ball_vel= !show_ball_vel; }
 
@@ -524,8 +527,15 @@ class SMonitorDevice: public InputDevice {
             Player()
                 : alive( false ),
                   type( 0 ),
+                  pos(),
+                  body_angle(),
+                  head_angle_rel(),
+                  view_width( 0.0 ),
                   view_quality( VisualPlayersViewArea::FEEL_RANGE ),
-                  view_width( 0.0 )
+                  stamina( 0.0 ),
+                  effort( 1.0 ),
+                  recovery( 1.0 ),
+                  stamina_capacity( -1.0 )
               { }
 
             bool alive;
@@ -536,6 +546,9 @@ class SMonitorDevice: public InputDevice {
             double view_width;
             int view_quality;
             double stamina;
+            double effort;
+            double recovery;
+            double stamina_capacity;
         };
 
         Positions() {};
