@@ -7,12 +7,13 @@ AC_PREREQ(2.61)
 AM_INIT_AUTOMAKE([gnu 1.7.2 check-news])
 AC_CONFIG_SRCDIR([config.h.in])
 AM_CONFIG_HEADER([config.h])
-AC_PROG_MAKE_SET
+AC_CONFIG_MACRO_DIR([m4])
 
 dnl Checks for programs.
 AC_PROG_CC
 AC_PROG_CPP
 AC_PROG_CXX
+AC_PROG_MAKE_SET
 
 dnl Checks for libraries.
 AC_CHECK_LIB([m], [cos])
