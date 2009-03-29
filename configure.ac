@@ -89,7 +89,10 @@ if test -n $no_x; then
     LDFLAGS="$LDFLAGS $X_LIBS"
     AC_CHECK_LIB([Xpm], [XpmCreatePixmapFromData],
                  [X_LIBS="$X_LIBS -lXpm"],
-                 [AC_MSG_ERROR([*** -lXpm not found! ***])])
+                 [AC_MSG_ERROR([*** libXpm cannot be found on your system! ***])])
+    AC_CHECK_HEADER([X11/xpm.h],
+                    [AC_DEFINE([HAVE_XPM_H],,[The presence of libXpm header file.])],
+                    [AC_MSG_ERROR([*** X11/xpm.h cannot be found on your system! ***])])
     AC_CHECK_LIB([X11], [XFree],
                  [X_LIBS="$X_LIBS -lX11"])
   fi

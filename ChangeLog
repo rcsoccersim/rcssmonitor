@@ -1,3 +1,9 @@
+2009-03-29  Hidehisa Akiyama  <akky@users.sourceforge.jp>
+
+	* configure.ac:
+	* src/2dview.C:
+	- added the checking of "X11/xpm.h"'.
+
 2008-12-10  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
 	* configure.ac:

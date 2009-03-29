@@ -34,7 +34,9 @@
 #include <X11/cursorfont.h>	/* For erasing cursor - not important	*/
 #include <X11/keysym.h>  /* ART! */
 #include <X11/keysymdef.h> /* ART! */
+#ifdef HAVE_XPM_H
 #include <X11/xpm.h>
+#endif
 
 #include <csignal>
 #include <sys/time.h>
@@ -57,8 +59,9 @@
 #include <cerrno>   //for return values of select
 #include <unistd.h>
 
+#ifdef HAVE_XPM_H
 #include "rcssmonitor.xpm"
-
+#endif
 
 namespace {
 void
@@ -1419,6 +1422,8 @@ main( int argc, char ** argv )
     XDefineCursor( WIN::disp, WIN::window, cursor );
 #endif
     //XFillRectangle (WIN::disp, WIN::pixmap, WIN::bg_gc, 0, 0, WIN::win_width, WIN::win_height);
+
+#ifdef HAVE_XPM_H
     {
         XpmCreatePixmapFromData( WIN::disp, WIN::window,
                                  const_cast< char** >( rcssmonitor_xpm ),
@@ -1444,6 +1449,7 @@ main( int argc, char ** argv )
             XFree( (char *)h );
         }
     }
+#endif
 
     /////////////////////
     // View Converter init
