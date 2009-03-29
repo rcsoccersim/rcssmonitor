@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 - 2001, Artur Merke <amerke@ira.uka.de> 
+ * Copyright (c) 1999 - 2001, Artur Merke <amerke@ira.uka.de>
  *
  * This file is part of FrameView2d.
  *
@@ -18,12 +18,13 @@
  * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#ifndef _TOOLS_H_
-#define _TOOLS_H_
+#ifndef TOOLS_H
+#define TOOLS_H
 
 struct TOOLS {
-  //returns time in ms since first call to this routine
-  static long get_current_ms_time();
+    //returns time in ms since first call to this routine
+    static long get_current_ms_time();
 
 };
+
 #endif

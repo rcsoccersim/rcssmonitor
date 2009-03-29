@@ -27,7 +27,7 @@
 /******************************************************************************/
 /******************************************************************************/
 
-const int MenuX11::opener_size_x= 6;
+const int MenuX11::opener_size_x = 6;
 
 MenuX11::MyWin::MyWin()
 {
@@ -48,53 +48,79 @@ MenuX11::MyWin::destroy_window( Display * disp )
     }
 }
 
-void MenuX11::MyWin::create_window(Display * disp, Window parent, int x, int y, int size_x,int size_y) {
+void
+MenuX11::MyWin::create_window( Display * disp,
+                               Window parent,
+                               int x,
+                               int y,
+                               int size_x,
+                               int size_y )
+{
     XSetWindowAttributes attr;
 
     attr.background_pixel = bg_pixel;
     attr.border_pixel = fg_pixel;
     attr.backing_store = NotUseful;
-    attr.event_mask = ButtonPressMask    |ExposureMask | ButtonReleaseMask;
+    attr.event_mask = ButtonPressMask    | ExposureMask | ButtonReleaseMask;
     //    | EnterWindowMask | LeaveWindowMask;
 
     attr.bit_gravity = NorthWestGravity;
     attr.win_gravity = NorthWestGravity;
     attr.save_under = False;
 
-    win = XCreateWindow(disp, parent, x, y, size_x, size_y,
-                        1, 0, InputOutput, CopyFromParent,
-                        CWBackPixel | CWBorderPixel | CWEventMask |
-                        CWBitGravity | CWWinGravity | CWBackingStore |
-                        CWSaveUnder, &attr);
+    win = XCreateWindow( disp, parent, x, y, size_x, size_y,
+                         1, 0, InputOutput, CopyFromParent,
+                         CWBackPixel | CWBorderPixel | CWEventMask |
+                         CWBitGravity | CWWinGravity | CWBackingStore |
+                         CWSaveUnder, &attr );
     exists = true;
     //visible = false;
 }
 
-void MenuX11::MyWin::set_window_visible(Display * disp,bool flag) {
-    if (!exists)
+void
+MenuX11::MyWin::set_window_visible( Display * disp,
+                                    bool flag )
+{
+    if ( ! exists )
+    {
         return;
+    }
 
     visible = flag;
-    if (flag) {
-        if (!mapped) {
-            XMapWindow(disp,win);
+
+    if ( flag )
+    {
+        if ( ! mapped )
+        {
+            XMapWindow( disp, win );
             mapped = true;
         }
     }
     else
-        if (mapped) {
-            XUnmapWindow(disp,win);
+    {
+        if ( mapped )
+        {
+            XUnmapWindow( disp, win );
             mapped = false;
         }
+    }
 }
 
 
 /******************************************************************************/
-int MenuX11::get_text_width(const char * str,int len) const {
-    return len* text_max_width;
+int
+MenuX11::get_text_width( const char * str,
+                         int len ) const
+{
+    return len * text_max_width;
 }
 
-MenuX11::MenuX11(Display *d, Window pw, GC g, int x, int y) {
+MenuX11::MenuX11( Display *d,
+                  Window pw,
+                  GC g,
+                  int x,
+                  int y )
+{
     label = NULL;
     disp = d;
     win = pw;
@@ -108,63 +134,76 @@ MenuX11::MenuX11(Display *d, Window pw, GC g, int x, int y) {
 
     flag_needs_redraw = true;
 #if 1
-    gc_context = XGContextFromGC(gc);
+    gc_context = XGContextFromGC( gc );
     //XQueryTextExtents
     //XFontStruct * fontstruct = XQueryFont(disp, font);
-    XFontStruct * fontstruct = XQueryFont(disp, gc_context);
+    XFontStruct * fontstruct = XQueryFont( disp, gc_context );
 
-    if (fontstruct) {
+    if ( fontstruct )
+    {
         text_max_width = fontstruct->max_bounds.width;
         text_max_ascent = fontstruct->max_bounds.ascent;
         text_max_descent = fontstruct->max_bounds.descent;
 
         //cout << "\n max font: width =" << text_max_width << " ascent =" << text_max_ascent << " descent =" << text_max_descent << flush;
 
-        XFreeFontInfo(0,fontstruct,1);
-        size_y = text_max_ascent+text_max_descent + 4;
+        XFreeFontInfo( 0, fontstruct, 1 );
+        size_y = text_max_ascent + text_max_descent + 4;
     }
-    else {
+    else
+    {
         text_max_width = 7;
         text_max_ascent = 12;
         text_max_descent = 3;
         size_y = 17;
         WARNING_OUT << "\nfontstruct = 0, setting default values " << std::flush;
     }
+
 #endif
 }
 
-MenuX11::~MenuX11() {
-    buttons.destroy_window(disp);
-    opener.destroy_window(disp);
+MenuX11::~MenuX11()
+{
+    buttons.destroy_window( disp );
+    opener.destroy_window( disp );
 }
 
-unsigned int MenuX11::get_color_pixel(const RGBcolor & col) const {
+unsigned int
+MenuX11::get_color_pixel( const RGBcolor & col ) const
+{
     XColor xcol;
     xcol.red = col.get_red();
     xcol.green = col.get_green();
     xcol.blue = col.get_blue();
+
     if ( ! XAllocColor( disp, DefaultColormap( disp, 0 ), &xcol ) )
     {
         std::cerr << "\nwarning: problem with allocating color:"
-                  << "\n(red,green,blue) = (" << int(col.red) << "," << int(col.green) << "," << int(col.blue)
-                  << "\n(Red,Green,Blue) = (" << col.get_red() << "," << col.get_green() << ","<< col.get_blue() << ")"
+                  << "\n(red,green,blue) = (" << int( col.red ) << "," << int( col.green ) << "," << int( col.blue )
+                  << "\n(Red,Green,Blue) = (" << col.get_red() << "," << col.get_green() << "," << col.get_blue() << ")"
                   << "\nresulting in XColor.pixel = " << xcol.pixel
-                  << "\n(XRed,XGreen,XBlue) = (" << xcol.red << "," << xcol.green << ","<< xcol.blue << ")";
+                  << "\n(XRed,XGreen,XBlue) = (" << xcol.red << "," << xcol.green << "," << xcol.blue << ")";
     }
+
     return xcol.pixel;
 }
 
 
 
-void MenuX11::buttons_redraw() {
-    if (!buttons.visible)
+void
+MenuX11::buttons_redraw()
+{
+    if ( ! buttons.visible )
+    {
         return;
+    }
 
-    XClearWindow(disp,buttons.win);
+    XClearWindow( disp, buttons.win );
 
     int x = 0;
 
     int dum_xx = 0;
+
     for ( int i = 0; i < num_buttons; ++i )
     {
         dum_xx += label[i].width_max;
@@ -176,7 +215,7 @@ void MenuX11::buttons_redraw() {
     }
     else
     {
-        dum_xx = (buttons_size_x -dum_xx)/(num_buttons);
+        dum_xx = ( buttons_size_x - dum_xx ) / ( num_buttons );
     }
 
     for ( int i = 0; i < num_buttons; ++i )
@@ -184,13 +223,15 @@ void MenuX11::buttons_redraw() {
         if ( label[i].str )
         {
             XDrawString( disp, buttons.win, gc,
-                         x + dum_xx/2, size_y - text_max_descent - 1,
+                         x + dum_xx / 2, size_y - text_max_descent - 1,
                          label[i].str, label[i].len );
         }
+
         //x+ = dum_x;
         x += label[i].width_max + dum_xx;
+
         //cout << "x[" << i << "] = " << x;
-        XDrawLine(disp,buttons.win,gc, x,0,x,size_y);
+        XDrawLine( disp, buttons.win, gc, x, 0, x, size_y );
     }
 }
 
@@ -206,18 +247,25 @@ MenuX11::opener_redraw()
 
     if ( ! buttons.visible )
     {
-        pp[0].x = 0; pp[0].y = 0;
-        pp[1].x = 0; pp[1].y = size_y;
-        pp[2].x = opener_size_x; pp[2].y = size_y/2;
+        pp[0].x = 0;
+        pp[0].y = 0;
+        pp[1].x = 0;
+        pp[1].y = size_y;
+        pp[2].x = opener_size_x;
+        pp[2].y = size_y / 2;
     }
     else
     {
-        pp[0].x = opener_size_x; pp[0].y = 0;
-        pp[1].x = opener_size_x; pp[1].y = size_y;
-        pp[2].x = 0; pp[2].y = size_y/2;
+        pp[0].x = opener_size_x;
+        pp[0].y = 0;
+        pp[1].x = opener_size_x;
+        pp[1].y = size_y;
+        pp[2].x = 0;
+        pp[2].y = size_y / 2;
     }
-    XClearWindow(disp,opener.win);
-    XFillPolygon(disp,opener.win,gc,pp,3,Complex,CoordModeOrigin);
+
+    XClearWindow( disp, opener.win );
+    XFillPolygon( disp, opener.win, gc, pp, 3, Complex, CoordModeOrigin );
 }
 
 bool
@@ -248,43 +296,53 @@ MenuX11::process_event( const XEvent & event )
          && event.xany.window == buttons.win )
     {
         switch ( event.type ) {
+
         case Expose:
             //cout << "\nexpose me";
             buttons.redraw = true;
             break;
+
         case ButtonPress:
             break;
         }
     }
 
     bool buttons_window_disappears = false;
+
     if ( opener.exists
          && opener.visible
          && event.xany.window == opener.win )
     {
-        switch (event.type) {
+        switch ( event.type ) {
+
         case Expose:
             //cout << "\nexpose me";
             opener.redraw = true;
             break;
-        case ButtonPress:
-            if (!buttons.exists)
-                buttons.create_window(disp,win, opener_size_x+1, 0, buttons_size_x, size_y);
 
-            if (buttons.visible) {
-                buttons.set_window_visible(disp,false);
+        case ButtonPress:
+
+            if ( !buttons.exists )
+                buttons.create_window( disp, win, opener_size_x + 1, 0, buttons_size_x, size_y );
+
+            if ( buttons.visible )
+            {
+                buttons.set_window_visible( disp, false );
                 buttons_window_disappears = true;
             }
+
             else
-                buttons.set_window_visible(disp,true);
+                buttons.set_window_visible( disp, true );
 
             opener.redraw = true;
+
             //cerr << "\n buttons.visible = " << buttons.visible;
             break;
         }
     }
 
     bool redrawn = false;
+
     if ( buttons.redraw )
     {
         buttons_redraw();
@@ -307,7 +365,11 @@ MenuX11::process_event( const XEvent & event )
     return buttons_window_disappears;
 }
 
-bool MenuX11::button_pressed(const XEvent & event, int & button, int & mouse_button) const {
+bool
+MenuX11::button_pressed( const XEvent & event,
+                         int & button,
+                         int & mouse_button ) const
+{
     if ( ! buttons.exists
          || ! buttons.visible
          || event.xany.window != buttons.win )
@@ -322,6 +384,7 @@ bool MenuX11::button_pressed(const XEvent & event, int & button, int & mouse_but
         int res_button = -1;
 
         int dum_xx = 0;
+
         for ( int i = 0; i < num_buttons; ++i )
         {
             dum_xx += label[i].width_max;
@@ -331,14 +394,16 @@ bool MenuX11::button_pressed(const XEvent & event, int & button, int & mouse_but
         {
             dum_xx = 2;
         }
+
         else
         {
-            dum_xx = (buttons_size_x -dum_xx) / (num_buttons);
+            dum_xx = ( buttons_size_x - dum_xx ) / ( num_buttons );
         }
 
         for ( int i = 0; i < num_buttons; ++i )
         {
             x += label[i].width_max + dum_xx;
+
             if ( x > event.xbutton.x )
             {
                 res_button = i;
@@ -352,8 +417,10 @@ bool MenuX11::button_pressed(const XEvent & event, int & button, int & mouse_but
             mouse_button = event.xbutton.button;
             return true;
         }
+
         //cout << "\nyou pressed button num = " << button;
     }
+
     return false;
 }
 
@@ -376,6 +443,7 @@ MenuX11::set_background_color( const RGBcolor & col )
     {
         buttons.bg_color = col;
         buttons.bg_pixel = pixel;
+
         if ( buttons.exists )
         {
             XSetWindowBackground( disp, buttons.win, buttons.bg_pixel );
@@ -386,6 +454,7 @@ MenuX11::set_background_color( const RGBcolor & col )
     {
         opener.bg_color = col;
         opener.bg_pixel = pixel;
+
         if ( opener.exists )
         {
             XSetWindowBackground( disp, opener.win, opener.bg_pixel );
@@ -414,6 +483,7 @@ MenuX11::resize( int s_x, int s_y )
     }
 
     size_x = s_x;
+
     buttons_size_x = size_x - opener_size_x;
 
     if ( s_y != size_y )
@@ -425,6 +495,7 @@ MenuX11::resize( int s_x, int s_y )
     }
 
     buttons.destroy_window( disp );
+
     buttons.create_window( disp, win,
                            opener_size_x + 1, 0,
                            buttons_size_x, size_y );
@@ -432,9 +503,9 @@ MenuX11::resize( int s_x, int s_y )
 }
 
 void
-MenuX11::resize(int s_x)
+MenuX11::resize( int s_x )
 {
-    resize(s_x,size_y);
+    resize( s_x, size_y );
 }
 
 /******************************************************************************/
@@ -455,14 +526,17 @@ MenuX11::set_number_of_buttons( int num )
     {
         Label * old = label;
         label = new Label[num];
-        for ( int i =0; i< num_buttons_max; ++i )
+
+        for ( int i = 0; i < num_buttons_max; ++i )
         {
             label[i].str = old[i].str;
             label[i].len = old[i].len;
             label[i].len_max = old[i].len_max;
             label[i].width_max = old[i].width_max;
         }
+
         num_buttons_max = num;
+
         num_buttons = num;
         delete [] old;
     }
@@ -494,16 +568,21 @@ MenuX11::set_button_label( int num,
     }
 
     int len = std::strlen( lab );
+
     if ( len >= label[num].len_max )
     {
         if ( label[num].str )
         {
             delete[] label[num].str;
         }
+
         label[num].str = new char[len+1];
+
         label[num].len_max = len;
     }
+
     std::strcpy( label[num].str, lab );
+
     label[num].len = len;
     label[num].width_max = get_text_width( lab, len );
 

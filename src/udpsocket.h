@@ -12,16 +12,18 @@
  * GNU General Public License for more details.
  *
  */
-#ifndef _UDPSOCKET_H_
-#define _UDPSOCKET_H_
+#ifndef UDPSOCKET_H
+#define UDPSOCKET_H
 
 #include <sys/types.h>
 #include <netinet/in.h>
 
 class UDPsocket {
+
 public:
     static void set_fd_nonblock( const int fd );
     static void set_fd_sigio( const int fd );
+
 public:
     void set_fd_nonblock()
       {
@@ -37,7 +39,8 @@ public:
         MAXMESG = 8192
     };
 
-    int			socket_fd;
+    int socket_fd;
+
     struct sockaddr_in	serv_addr;
 
     UDPsocket()
@@ -49,8 +52,13 @@ public:
                          const int port );
     bool send_msg( const char* buf,
                    const int len );
-    bool recv_msg( char * buf, int & len, bool redirect = false );
-    bool recv_msg( char * buf, int & len, int max_len, bool redirect );
+    bool recv_msg( char * buf,
+                   int & len,
+                   bool redirect = false );
+    bool recv_msg( char * buf,
+                   int & len,
+                   int max_len,
+                   bool redirect );
     void close_socket_fd();
 };
 

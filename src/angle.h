@@ -13,18 +13,19 @@
  *
  */
 
-#ifndef _ANGLE_H_
-#define _ANGLE_H_
+#ifndef ANGLE_H
+#define ANGLE_H
 
 #include <cmath>
 #include <iostream>
 
-/**
-   This class is used for unambiguous representation of angles.
+/*!
+  \class Angle
+  \brief This class is used for unambiguous representation of angles.
 
-   Angles are given in radians, and normalized to be in [0,...,2*PI).
-   It is allowed to use values not from [0,...,2*PI) as parameters, they
-   will be always normalized to fit into this interval.
+  Angles are given in radians, and normalized to be in [0,...,2*PI).
+  It is allowed to use values not from [0,...,2*PI) as parameters, they
+  will be always normalized to fit into this interval.
 
             ^
             | 0.5 Pi
@@ -41,52 +42,75 @@ private:
     static const double TwoPi;
     //important class invariant:  0.0 <= ang < 2*PI
 
-    double ang;
+    double M_angle;
 
 public:
 
     Angle()
-        : ang( 0.0 )
-      { }
-
-    Angle( const Angle & a )
-        : ang( a.ang )
+        : M_angle( 0.0 )
       { }
 
     Angle( const double & a )
       {
-          set_value( a );
+          assign( a );
       }
 
     const
     double & get_value() const
       {
-          return ang;
+          return M_angle;
       }
 
-    void set_value( const double & );
+    const
+    Angle & assign( const double & d )
+      {
+          M_angle = std::fmod( d, TwoPi );
+          if ( M_angle < 0.0 )
+          {
+              M_angle += TwoPi;
+          }
+          return *this;
+      }
 
     double cos() const
       {
-          return std::cos( this->ang );
+          return std::cos( this->M_angle );
       }
 
     double sin() const
       {
-          return std::sin( this->ang );
+          return std::sin( this->M_angle );
       }
 
     Angle operator-() const
       {
           Angle res( *this );
-          res.ang = -res.ang + Angle::TwoPi;
+          res.M_angle = -res.M_angle + TwoPi;
           return res;
       }
 
     const
-    Angle & operator+=(const Angle & a);
+    Angle & operator+=( const Angle & a )
+      {
+          M_angle += a.M_angle;
+          if ( M_angle >= TwoPi )
+          {
+              M_angle -= TwoPi;
+          }
+          return *this;
+      }
+
     const
-    Angle & operator-=(const Angle & a);
+    Angle & operator-=( const Angle & a )
+      {
+          M_angle -= a.M_angle;
+          if ( M_angle < 0.0 )
+          {
+              M_angle += TwoPi;
+          }
+          return *this;
+      }
+
 };
 
 

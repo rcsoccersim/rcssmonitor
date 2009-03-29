@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 - 2001, Artur Merke <amerke@ira.uka.de> 
+ * Copyright (c) 1999 - 2001, Artur Merke <amerke@ira.uka.de>
  *
  * This file is part of FrameView2d.
  *
@@ -17,17 +17,18 @@
  * along with FrameView2d; see the file COPYING.  If not, write to
  * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  */
-#ifndef _RGB_DB_H_
-#define _RGB_DB_H_
+#ifndef RGB_DB_H
+#define RGB_DB_H
 
-#include "X11/Xlib.h"
+#include <X11/Xlib.h>
 #include "rgbcolor.h"
 
 class RGB_DB {
- public: //volaeufig
-  static Display * disp;
- public:
-  static RGBcolor XNamedColor_to_RGBcolor(const char *);
+public: //volaeufig
+    static Display * disp;
+
+public:
+    static RGBcolor XNamedColor_to_RGBcolor( const char * );
 };
 
 #endif

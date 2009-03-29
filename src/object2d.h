@@ -18,44 +18,70 @@
  * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#ifndef _OBJECT2D_H_
-#define _OBJECT2D_H_
+#ifndef OBJECT2D_H
+#define OBJECT2D_H
 
 #include "angle.h"
 #include "point2d.h"
 
 struct Line2d {
-  Point2d p1;
-  Point2d p2;
-  Line2d() {}
-  Line2d(const Point2d& pp1, const Point2d& pp2) { p1= pp1; p2= pp2;}
+
+    Point2d p1;
+    Point2d p2;
+
+    Line2d() {}
+
+    Line2d( const Point2d & pp1,
+            const Point2d & pp2 )
+      {
+          p1 = pp1;
+          p2 = pp2;
+      }
 };
 
 struct Circle2d {
     Point2d center;
     double radius;
     int min_pixel;
+
     Circle2d()
       {
-          radius= 0.0;
+          radius = 0.0;
           min_pixel = 0;
       }
-    Circle2d(const Point2d& c,double r, int min_pix = 0 )
+
+    Circle2d( const Point2d & c,
+              const double & r,
+              const int min_pix = 0 )
       {
-          center= c;
-          radius= r;
+          center = c;
+          radius = r;
           min_pixel = min_pix;
       }
 };
 
 struct CircleArc2d {
-  Point2d center;
-  double radius;
-  Angle ang1;
-  Angle ang2;
-  CircleArc2d() { radius= 0.0; }
-  CircleArc2d(const Point2d& c,double r,const Angle& a1,const Angle& a2) {
-    center= c; radius= r; ang1= a1; ang2= a2;
-  }
+
+    Point2d center;
+    double radius;
+    Angle ang1;
+    Angle ang2;
+
+    CircleArc2d()
+      {
+          radius = 0.0;
+      }
+
+    CircleArc2d( const Point2d & c,
+                 const double & r,
+                 const Angle & a1,
+                 const Angle & a2 )
+      {
+          center = c;
+          radius = r;
+          ang1 = a1;
+          ang2 = a2;
+      }
 };
+
 #endif

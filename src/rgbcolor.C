@@ -31,36 +31,46 @@
 #include <iostream>
 #include <iomanip>
 
-main() {
-    RGBcolor w(0,0,0);
-    RGBcolor b(1,0,0);
-    if (w != b) {
+main()
+{
+    RGBcolor w( 0, 0, 0 );
+    RGBcolor b( 1, 0, 0 );
+
+    if ( w != b )
+    {
         cout << "\nw!=b";
     }
     else
+    {
         cout << "\nw==b";
+    }
 
     return 0;
-    for (unsigned char i; i<128; i++) {
-        cout.setf(ios::dec);
+
+    for ( unsigned char i; i < 128; i++ )
+    {
+        cout.setf( ios::dec );
         cout << "\n " << i;
-        cout.setf(ios::oct);
+        cout.setf( ios::oct );
         cout << " "  << i;
-        cout.setf(ios::hex);
+        cout.setf( ios::hex );
         cout << " "  << i;
     }
-    cout << "\nsizeof(unsigned short)= " << sizeof(unsigned short);
-    cout << "\nsizeof(unsigned char)= " << sizeof(unsigned char);
-    RGBcolor c(255,255,255);
+
+    cout << "\nsizeof(unsigned short)= " << sizeof( unsigned short );
+
+    cout << "\nsizeof(unsigned char)= " << sizeof( unsigned char );
+    RGBcolor c( 255, 255, 255 );
     cout << "\nred= "   << c.red << "(" << c.get_red() << ")"
          << "  green= " << c.green << "(" << c.get_green() << ")"
          << "  blue= "  << c.blue << "(" << c.get_blue() << ")";
 
-    unsigned char x= 255;
-    unsigned int X = (unsigned int)(x);
+    unsigned char x = 255;
+    unsigned int X = ( unsigned int )( x );
     cout << "\n" << X ;
-    cout << "\n" << (X*257) ;
+    cout << "\n" << ( X*257 ) ;
     cout << "\n";
     return 1;
 }
+
 #endif

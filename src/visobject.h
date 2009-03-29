@@ -18,8 +18,8 @@
  * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#ifndef _VISOBJECT_
-#define _VISOBJECT_
+#ifndef VISOBJECT_H
+#define VISOBJECT_H
 
 #include "vector2d.h"
 #include "frame2d.h"
@@ -35,7 +35,9 @@
     visual object from this class, you will have to provide the
     draw and the actualize methods.
 */
+
 class VisualObject2d {
+
 protected:
     int key;
     int layer;
@@ -48,9 +50,20 @@ public:
     ~VisualObject2d()
       { }
 
-    int get_key() const { return key; }
-    int get_layer() const { return layer; }
-    bool get_visible() const { return visible; }
+    int get_key() const
+      {
+          return key;
+      }
+
+    int get_layer() const
+      {
+          return layer;
+      }
+
+    bool get_visible() const
+      {
+          return visible;
+      }
 
     /// will be removed in future releases
     virtual
@@ -81,11 +94,13 @@ public:
 
 class VisualPoint2d
     : public VisualObject2d {
+
     DisplayObject * d_obj;
     RGBcolor color;
     Point2d abs;
 
     void init();
+
 public:
     Point2d rel;
     bool changed;
@@ -106,7 +121,7 @@ public:
 
     /*!
       \brief virtual method
-     */
+    */
     void draw( DisplayBase * disp,
                const Area2d & area,
                const Frame2d & p_frame,
@@ -114,13 +129,13 @@ public:
 
     /*!
       \brief virtual method
-     */
+    */
     void actualize( const Frame2d & f,
                     const bool chg );
 
     /*!
       \brief virtual method
-     */
+    */
     void set_color( const RGBcolor & );
 
     bool intersects_area( const Area2d & );
@@ -134,6 +149,7 @@ class VisualPoints2d
 
     Multi< Point2d > abs;
     void init();
+
 public:
     Multi< Point2d > rel;
     bool changed;
@@ -144,7 +160,7 @@ public:
                     const int my_layer,
                     const RGBcolor & my_color,
                     const int len_data,
-                    const Point2d * data);
+                    const Point2d * data );
     virtual
     ~VisualPoints2d()
       {
@@ -153,7 +169,7 @@ public:
 
     /*!
       \brief virtual method
-     */
+    */
     void draw( DisplayBase * disp,
                const Area2d & area,
                const Frame2d & p_frame,
@@ -161,12 +177,12 @@ public:
 
     /*!
       \brief virtual method
-     */
+    */
     void actualize( const Frame2d & f,
                     const bool chg );
     /*!
       \brief virtual method
-     */
+    */
     void set_color( const RGBcolor & );
 
     void set_points( const int len_data,
@@ -183,6 +199,7 @@ class VisualLine2d
     Line2d abs;
 
     void init();
+
 public:
     bool changed;
     bool use_intersects_area;
@@ -201,7 +218,7 @@ public:
 
     /*!
       \brief virtual method
-     */
+    */
     void draw( DisplayBase * disp,
                const Area2d & area,
                const Frame2d & p_frame,
@@ -209,13 +226,13 @@ public:
 
     /*!
       \brief virtual method
-     */
+    */
     void actualize( const Frame2d & f,
                     const bool chg );
 
     /*!
       \brief virtual method
-     */
+    */
     void set_color( const RGBcolor & );
 
     bool intersects_area( const Area2d & );
@@ -229,6 +246,7 @@ class VisualLines2d
     Multi< Line2d > abs;
 
     void init();
+
 public:
     Multi< Line2d > rel;
     bool changed;
@@ -248,7 +266,7 @@ public:
 
     /*!
       \brief virtual method
-     */
+    */
     void draw( DisplayBase * disp,
                const Area2d & area,
                const Frame2d & p_frame,
@@ -256,13 +274,13 @@ public:
 
     /*!
       \brief virtual method
-     */
+    */
     void actualize( const Frame2d & f,
                     const bool chg );
 
     /*!
       \brief virtual method
-     */
+    */
     void set_color( const RGBcolor & );
 
     void set_lines( const int len_data,
@@ -270,15 +288,15 @@ public:
 
     void set_max_size( const int s )
       {
-        abs.set_max_size( s );
-        rel.set_max_size( s );
-    }
+          abs.set_max_size( s );
+          rel.set_max_size( s );
+      }
 
     void set_cur_size( const int s )
       {
-        abs.set_cur_size( s );
-        rel.set_cur_size( s );
-    }
+          abs.set_cur_size( s );
+          rel.set_cur_size( s );
+      }
 
     bool intersects_area( const Area2d & );
 };
@@ -312,7 +330,7 @@ public:
 
     /*!
       \brief virtual method
-     */
+    */
     void draw( DisplayBase * disp,
                const Area2d & area,
                const Frame2d & p_frame,
@@ -320,13 +338,13 @@ public:
 
     /*!
       \brief virtual method
-     */
+    */
     void actualize( const Frame2d & f,
                     const bool chg );
 
     /*!
       \brief virtual method
-     */
+    */
     void set_color( const RGBcolor & );
 
     bool intersects_area( const Area2d & );
@@ -341,6 +359,7 @@ class VisualCircles2d
     Multi< Circle2d > abs;
 
     void init();
+
 public:
     Multi< Circle2d > rel;
     bool changed;
@@ -362,7 +381,7 @@ public:
 
     /*!
       \brief virtual method
-     */
+    */
     void draw( DisplayBase * disp,
                const Area2d & area,
                const Frame2d & p_frame,
@@ -370,13 +389,13 @@ public:
 
     /*!
       \brief virtual method
-     */
+    */
     void actualize( const Frame2d & f,
                     const bool chg );
 
     /*!
       \brief virtual method
-     */
+    */
     void set_color( const RGBcolor & );
 
     void set_circles( const int len_data,
@@ -413,7 +432,7 @@ public:
 
     /*!
       \brief virtual method
-     */
+    */
     void draw( DisplayBase * disp,
                const Area2d & area,
                const Frame2d & p_frame,
@@ -421,13 +440,13 @@ public:
 
     /*!
       \brief virtual method
-     */
+    */
     void actualize( const Frame2d & f,
                     const bool chg );
 
     /*!
       \brief virtual method
-     */
+    */
     void set_color( const RGBcolor & );
 
     bool intersects_area( const Area2d & );
@@ -463,7 +482,7 @@ public:
 
     /*!
       \brief virtual method
-     */
+    */
     void draw( DisplayBase * disp,
                const Area2d & area,
                const Frame2d & p_frame,
@@ -471,12 +490,12 @@ public:
 
     /*!
       \brief virtual method
-     */
+    */
     void actualize( const Frame2d & f,
                     const bool chg );
     /*!
       \brief virtual method
-     */
+    */
     void set_color( const RGBcolor & );
 
     void set_circlearcs( const int len_data,
@@ -514,7 +533,7 @@ public:
 
     /*!
       \brief virtual method
-     */
+    */
     void draw( DisplayBase * disp,
                const Area2d & area,
                const Frame2d & p_frame,
@@ -522,13 +541,13 @@ public:
 
     /*!
       \brief virtual method
-     */
+    */
     void actualize( const Frame2d & f,
                     const bool chg );
 
     /*!
       \brief virtual method
-     */
+    */
     void set_color( const RGBcolor & );
 
     void set_points( const int len_data,
@@ -568,7 +587,7 @@ public:
 
     /*!
       \brief virtual method
-     */
+    */
     void draw( DisplayBase * disp,
                const Area2d & area,
                const Frame2d & p_frame,
@@ -576,13 +595,13 @@ public:
 
     /*!
       \brief virtual method
-     */
+    */
     void actualize( const Frame2d & f,
                     const bool chg );
 
     /*!
       \brief virtual method
-     */
+    */
     void set_color( const RGBcolor & );
 
     void set_points( const int len_data,
@@ -601,6 +620,7 @@ class VisualString2d
     Point2d abs;
 
     void init();
+
 public:
     bool changed;
     Point2d rel;
@@ -630,7 +650,7 @@ public:
 
     /*!
       \brief virtual method
-     */
+    */
     void draw( DisplayBase * disp,
                const Area2d & area,
                const Frame2d & p_frame,
@@ -638,13 +658,13 @@ public:
 
     /*!
       \brief virtual method
-     */
+    */
     void actualize( const Frame2d & f,
                     const bool chg );
 
     /*!
       \brief virtual method
-     */
+    */
     void set_color( const RGBcolor & );
 
     void set_changed()

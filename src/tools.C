@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 - 2001, Artur Merke <amerke@ira.uka.de> 
+ * Copyright (c) 1999 - 2001, Artur Merke <amerke@ira.uka.de>
  *
  * This file is part of FrameView2d.
  *
@@ -21,14 +21,20 @@
 #include "global_defs.h"
 #include <sys/time.h>
 
-long TOOLS::get_current_ms_time() { 
-  timeval tval;
-  static long s_time_at_start= 0;
-  if (gettimeofday(&tval,NULL))
-    ERROR_OUT << "\n something wrong with time mesurement";
+long TOOLS::get_current_ms_time()
+{
+    timeval tval;
+    static long s_time_at_start = 0;
 
-  if ( 0 == s_time_at_start ) 
-    s_time_at_start= tval.tv_sec;
-  
-  return (tval.tv_sec - s_time_at_start) * 1000 + tval.tv_usec / 1000;
+    if ( gettimeofday( &tval, NULL ) )
+    {
+        ERROR_OUT << "\n something wrong with time mesurement";
+    }
+
+    if ( 0 == s_time_at_start )
+    {
+        s_time_at_start = tval.tv_sec;
+    }
+
+    return ( tval.tv_sec - s_time_at_start ) * 1000 + tval.tv_usec / 1000;
 }

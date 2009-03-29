@@ -25,7 +25,7 @@ Vector2d::arg() const
 {
     if ( 0.0 == x && 0.0 == y )
     {
-        return 0.0;
+        return Angle( 0.0 );
     }
 
     return Angle( std::atan2( y, x ) );

@@ -18,8 +18,8 @@
  * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#ifndef _VECTOR2D_H_
-#define _VECTOR2D_H_
+#ifndef VECTOR2D_H
+#define VECTOR2D_H
 
 #include "angle.h"
 
@@ -30,7 +30,9 @@
    The class Vector2d is used to represent 2 dimensional vectors. It supports
    (almost) all operations  you can perform with 2 dimensional vectors.
 */
+
 class Vector2d {
+
 public:
     double x;
     double y;

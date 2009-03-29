@@ -35,10 +35,12 @@ VisualObject2d::set_color( const RGBcolor & col )
     if ( color != col )
     {
         color = col;
+
         if ( d_obj )
             d_obj->mark_col_change();
     }
 }
+
 #endif
 
 VisualPoint2d::VisualPoint2d()
@@ -122,7 +124,8 @@ VisualPoint2d::set_color( const RGBcolor & col )
 {
     if ( color != col )
     {
-        color= col;
+        color = col;
+
         if ( d_obj )
         {
             d_obj->mark_col_change();
@@ -224,7 +227,8 @@ VisualPoints2d::set_color( const RGBcolor & col )
 {
     if ( color != col )
     {
-        color= col;
+        color = col;
+
         if ( d_obj )
         {
             d_obj->mark_col_change();
@@ -242,6 +246,7 @@ VisualPoints2d::set_points( const int len_data,
     }
 
     rel.clone( len_data, data );
+
     abs = rel;
     changed = true;
 }
@@ -253,8 +258,10 @@ VisualPoints2d::intersects_area( const Area2d & a )
     {
         if ( a.intersects( abs.tab[i] ) ) return true;
     }
+
     return false;
 }
+
 /*****************************************************************************/
 
 VisualLine2d::VisualLine2d()
@@ -326,6 +333,7 @@ VisualLine2d::actualize( const Frame2d & f,
     }
 
     abs.p1 = f * rel.p1;
+
     abs.p2 = f * rel.p2;
 
     if ( d_obj )
@@ -342,6 +350,7 @@ VisualLine2d::set_color( const RGBcolor & col )
     if ( color != col )
     {
         color = col;
+
         if ( d_obj )
         {
             d_obj->mark_col_change();
@@ -428,8 +437,8 @@ VisualLines2d::actualize( const Frame2d & f,
 
     for ( int i = 0; i < abs.cur_size; ++i )
     {
-        abs.tab[i].p1 = f*rel.tab[i].p1;
-        abs.tab[i].p2 = f*rel.tab[i].p2;
+        abs.tab[i].p1 = f * rel.tab[i].p1;
+        abs.tab[i].p2 = f * rel.tab[i].p2;
     }
 
     if ( d_obj )
@@ -445,7 +454,8 @@ VisualLines2d::set_color( const RGBcolor & col )
 {
     if ( color != col )
     {
-        color= col;
+        color = col;
+
         if ( d_obj )
         {
             d_obj->mark_col_change();
@@ -463,6 +473,7 @@ VisualLines2d::set_lines( const int len_data,
     }
 
     rel.clone( len_data, data );
+
     abs = rel;
     changed = true;
 }
@@ -474,8 +485,10 @@ VisualLines2d::intersects_area( const Area2d & a )
     {
         if ( a.intersects( abs.tab[i] ) ) return true;
     }
+
     return false;
 }
+
 /*****************************************************************************/
 
 VisualCircle2d::VisualCircle2d()
@@ -554,6 +567,7 @@ VisualCircle2d::actualize( const Frame2d & f,
     }
 
     abs.center = f * rel.center;
+
     abs.radius = f.get_scale() * rel.radius;
 
     if ( d_obj )
@@ -570,6 +584,7 @@ VisualCircle2d::set_color( const RGBcolor & col )
     if ( color != col )
     {
         color = col;
+
         if ( d_obj )
         {
             d_obj->mark_col_change();
@@ -584,6 +599,7 @@ VisualCircle2d::intersects_area( const Area2d & a )
     {
         return a.intersects( abs );
     }
+
     return a.intersects_area_of( abs );
 }
 
@@ -685,6 +701,7 @@ VisualCircles2d::set_color( const RGBcolor & col )
     if ( color != col )
     {
         color = col;
+
         if ( d_obj )
         {
             d_obj->mark_col_change();
@@ -694,13 +711,15 @@ VisualCircles2d::set_color( const RGBcolor & col )
 
 void
 VisualCircles2d::set_circles( const int len_data,
-                              const Circle2d * data ) {
+                              const Circle2d * data )
+{
     if ( d_obj )
     {
         d_obj->set_max_size( len_data );
     }
 
     rel.clone( len_data, data );
+
     abs = rel;
     changed = true;
 }
@@ -803,11 +822,13 @@ VisualCircleArc2d::actualize( const Frame2d & f,
     }
 
     abs.center = f * rel.center;
+
     abs.radius = f.get_scale() * rel.radius;
 
     Angle ang = f.get_angle();
     abs.ang1 = ang + rel.ang1;
     abs.ang2 = ang + rel.ang2;
+
     if ( d_obj )
     {
         d_obj->mark_pos_change();
@@ -822,6 +843,7 @@ VisualCircleArc2d::set_color( const RGBcolor & col )
     if ( color != col )
     {
         color = col;
+
         if ( d_obj )
         {
             d_obj->mark_col_change();
@@ -836,6 +858,7 @@ VisualCircleArc2d::intersects_area( const Area2d & a )
     {
         return a.intersects( abs );
     }
+
     return a.intersects_area_of( abs );
 }
 
@@ -919,11 +942,11 @@ VisualCircleArcs2d::actualize( const Frame2d & f,
 
     for ( int i = 0; i < abs.cur_size; ++i )
     {
-        abs.tab[i].center = f* rel.tab[i].center;
+        abs.tab[i].center = f * rel.tab[i].center;
         abs.tab[i].radius = f.get_scale() * rel.tab[i].radius;
         Angle ang = f.get_angle();
-        abs.tab[i].ang1 = ang+ rel.tab[i].ang1;
-        abs.tab[i].ang2 = ang+ rel.tab[i].ang2;
+        abs.tab[i].ang1 = ang + rel.tab[i].ang1;
+        abs.tab[i].ang2 = ang + rel.tab[i].ang2;
     }
 
     if ( d_obj )
@@ -940,6 +963,7 @@ VisualCircleArcs2d::set_color( const RGBcolor & col )
     if ( color != col )
     {
         color = col;
+
         if ( d_obj )
         {
             d_obj->mark_col_change();
@@ -957,6 +981,7 @@ VisualCircleArcs2d::set_circlearcs( const int len_data,
     }
 
     rel.clone( len_data, data );
+
     abs = rel;
     changed = true;
 }
@@ -966,14 +991,14 @@ VisualCircleArcs2d::intersects_area( const Area2d & a )
 {
     if ( !filled )
     {
-        for ( int i =0; i<abs.cur_size; i++ )
+        for ( int i = 0; i < abs.cur_size; i++ )
         {
             if ( a.intersects( abs.tab[i] ) ) return true;
         }
     }
     else
     {
-        for ( int i =0; i<abs.cur_size; i++ )
+        for ( int i = 0; i < abs.cur_size; i++ )
         {
             if ( a.intersects_area_of( abs.tab[i] ) ) return true;
         }
@@ -981,6 +1006,7 @@ VisualCircleArcs2d::intersects_area( const Area2d & a )
 
     return false;
 }
+
 /*****************************************************************************/
 
 VisualPolyline2d::VisualPolyline2d()
@@ -1071,6 +1097,7 @@ VisualPolyline2d::set_color( const RGBcolor & col )
     if ( color != col )
     {
         color = col;
+
         if ( d_obj )
         {
             d_obj->mark_col_change();
@@ -1088,6 +1115,7 @@ VisualPolyline2d::set_points( const int len_data,
     }
 
     rel.clone( len_data, data );
+
     abs = rel;
     changed = true;
 }
@@ -1099,13 +1127,14 @@ VisualPolyline2d::intersects_area( const Area2d & a )
     //it the vertices of the polyline are out of the area a, then the corresponding line
     //segment will not be drawn ( but acutally there are situation, where the line segment
     //is visible!
-    for ( int i =0; i<abs.cur_size; ++i )
+    for ( int i = 0; i < abs.cur_size; ++i )
     {
         if ( a.intersects( abs.tab[i] ) ) return true;
     }
 
     return false;
 }
+
 /*****************************************************************************/
 
 VisualPolygon2d::VisualPolygon2d()
@@ -1204,6 +1233,7 @@ VisualPolygon2d::set_color( const RGBcolor & col )
     if ( color != col )
     {
         color = col;
+
         if ( d_obj )
         {
             d_obj->mark_col_change();
@@ -1221,6 +1251,7 @@ VisualPolygon2d::set_points( const int len_data,
     }
 
     rel.clone( len_data, data );
+
     abs = rel;
     changed = true;
 }
@@ -1230,7 +1261,7 @@ VisualPolygon2d::intersects_area( const Area2d & a )
 {
     if ( ! filled )
     {
-        for ( int i =0; i<abs.cur_size; i++ )
+        for ( int i = 0; i < abs.cur_size; i++ )
         {
             if ( a.intersects( abs.tab[i] ) ) return true;
         }
@@ -1242,6 +1273,7 @@ VisualPolygon2d::intersects_area( const Area2d & a )
 
     return false;
 }
+
 /*****************************************************************************/
 
 void VisualString2d::init()
@@ -1360,6 +1392,7 @@ VisualString2d::set_color( const RGBcolor & col )
     if ( color != col )
     {
         color = col;
+
         if ( d_obj )
         {
             d_obj->mark_col_change();

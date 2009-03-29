@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 - 2001, Artur Merke <amerke@ira.uka.de> 
+ * Copyright (c) 1999 - 2001, Artur Merke <amerke@ira.uka.de>
  *
  * This file is part of FrameView2d.
  *
@@ -18,13 +18,23 @@
  * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#ifndef _POINT2D_H_
-#define _POINT2D_H_
+#ifndef POINT2D_H
+#define POINT2D_H
 
 struct Point2d {
-  Point2d() { x= 0.0; y= 0.0; }
-  Point2d(double xx, double yy) { x= xx; y= yy;}
-  double x,y;
+
+    double x, y;
+
+    Point2d()
+        : x( 0.0 ),
+          y( 0.0 )
+      { }
+
+    Point2d( const double & xx,
+             const double & yy )
+        : x( xx ),
+          y( yy )
+      { }
 };
 
 #endif

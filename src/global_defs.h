@@ -1,5 +1,5 @@
-#ifndef _GLOBAL_DEFS_H_
-#define _GLOBAL_DEFS_H_
+#ifndef GLOBAL_DEFS_H
+#define GLOBAL_DEFS_H
 
 #include <iostream>
 

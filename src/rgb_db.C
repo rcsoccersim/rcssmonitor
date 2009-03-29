@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 - 2001, Artur Merke <amerke@ira.uka.de> 
+ * Copyright (c) 1999 - 2001, Artur Merke <amerke@ira.uka.de>
  *
  * This file is part of FrameView2d.
  *
@@ -21,16 +21,24 @@
 #include "rgb_db.h"
 #include <iostream>
 #include <cerrno>
-Display * RGB_DB::disp=0;
+Display * RGB_DB::disp = 0;
 
-RGBcolor RGB_DB::XNamedColor_to_RGBcolor(const char * colstr) {
-  XColor screen;
-  XColor exact;
-  if (!XAllocNamedColor(disp, DefaultColormap (disp, 0),colstr, &screen, &exact)) {
-    std::cout << "\ncolor allocation failed, using black";
-    if (errno == BadColor) 
-      std::cout << "(color " << colstr << " not in the rgb database";
-    return RGBcolor(0,0,0);
-  }
-  return RGBcolor(exact.red/257,exact.green/257,exact.blue/257);
+RGBcolor RGB_DB::XNamedColor_to_RGBcolor( const char * colstr )
+{
+    XColor screen;
+    XColor exact;
+
+    if ( !XAllocNamedColor( disp, DefaultColormap ( disp, 0 ), colstr, &screen, &exact ) )
+    {
+        std::cout << "\ncolor allocation failed, using black";
+
+        if ( errno == BadColor )
+        {
+            std::cout << "(color " << colstr << " not in the rgb database";
+        }
+
+        return RGBcolor( 0, 0, 0 );
+    }
+
+    return RGBcolor( exact.red / 257, exact.green / 257, exact.blue / 257 );
 }

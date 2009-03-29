@@ -36,22 +36,29 @@
 bool
 UDPsocket::init_socket_fd( const int port )
 {
+
     struct sockaddr_in cli_addr;
     int fd;
-    if( (fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+
+    if ( ( fd = socket( AF_INET, SOCK_DGRAM, 0 ) ) < 0 )
+    {
         return false ;       /* Can't open socket. */
     }
 
-    memset((char *) &cli_addr, 0, sizeof(cli_addr)) ;
-    cli_addr.sin_family           = AF_INET ;
-    cli_addr.sin_addr.s_addr      = htonl(INADDR_ANY) ;
-    cli_addr.sin_port             = htons(port) ;
+    memset( ( char * ) &cli_addr, 0, sizeof( cli_addr ) ) ;
 
-    if (bind(fd, (struct sockaddr *) &cli_addr, sizeof(cli_addr)) < 0){
+    cli_addr.sin_family           = AF_INET ;
+    cli_addr.sin_addr.s_addr      = htonl( INADDR_ANY ) ;
+    cli_addr.sin_port             = htons( port ) ;
+
+    if ( bind( fd, ( struct sockaddr * ) &cli_addr, sizeof( cli_addr ) ) < 0 )
+    {
         return false ;  /* Can't bind local address */
     }
+
     //set_fd_nonblock(fd);
-    socket_fd= fd;
+    socket_fd = fd;
+
     return true;
 }
 
@@ -59,24 +66,27 @@ bool
 UDPsocket::init_serv_addr( const char * host,
                            const int port )
 {
+
     struct hostent * host_ent;
+
     struct in_addr * addr_ptr;
 
-    if ( ( host_ent = (struct hostent *)gethostbyname( host ) ) == NULL )
+    if ( ( host_ent = ( struct hostent * )gethostbyname( host ) ) == NULL )
     {
         /* Check if a numeric address */
-        if ( (int)inet_addr( host ) == -1)
+        if ( ( int )inet_addr( host ) == -1 )
         {
             return false;
         }
     }
     else
     {
-        addr_ptr = (struct in_addr *)*host_ent->h_addr_list;
+        addr_ptr = ( struct in_addr * ) * host_ent->h_addr_list;
         host = inet_ntoa( *addr_ptr );
     }
 
-    std::memset( (char *)&serv_addr, 0, sizeof( serv_addr ) );
+    std::memset( ( char * )&serv_addr, 0, sizeof( serv_addr ) );
+
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr	= inet_addr( host );
     serv_addr.sin_port	= htons( port );
@@ -88,12 +98,14 @@ UDPsocket::send_msg( const char * buf,
                      const int len )
 {
     if ( ! buf ) return false;
+
     //n = std::strlen( buf );
 
     int res = sendto( socket_fd,
                       buf, len,
                       0,
-                      (struct sockaddr *)&serv_addr, sizeof( serv_addr ));
+                      ( struct sockaddr * ) & serv_addr, sizeof( serv_addr ) );
+
     if ( res != len )
     {
         std::cerr << __FILE__ << ": " << __LINE__ << ": Error Sending to socket: ";
@@ -119,23 +131,28 @@ UDPsocket::recv_msg( char * buf,
                      bool redirect = false )
 {
     unsigned int addr_len ;
+
     struct sockaddr_in    recv_addr ;
 
-    addr_len = (unsigned int)sizeof(recv_addr) ;
+    addr_len = ( unsigned int )sizeof( recv_addr ) ;
     len = recvfrom( socket_fd,
                     buf, max_len,
                     0,
-                    (struct sockaddr *)&recv_addr, &addr_len );
+                    ( struct sockaddr * ) & recv_addr, &addr_len );
+
     if ( len < 0 )
     {
         if ( len == -1 && errno == EWOULDBLOCK )
         {
             //cout << "-" << flush;
         }
+
         len = 0;
+
         buf[0] = '\0';
         return false;
     }
+
     //cout << buf << flush;
     buf[len] = '\0';
 
@@ -149,6 +166,7 @@ UDPsocket::recv_msg( char * buf,
                   << " on same server";
         serv_addr.sin_port = recv_addr.sin_port; // Aendert die Sendeadresse, muss noch geaendet werden
     }
+
     return true;
 
 }
@@ -172,7 +190,7 @@ UDPsocket::set_fd_nonblock( const int fd )
        SIGURG signals that are delivered when out-of-band data arrives on that socket; see section Out-of-Band Data.
     */
 
-    if ( fcntl( fd , F_SETOWN, getpid()) == -1)
+    if ( fcntl( fd , F_SETOWN, getpid() ) == -1 )
     {
         std::cout << "\nfcntl returns -1";
     }
@@ -243,16 +261,18 @@ UDPsocket::close_socket_fd()
 /*****************************************************************************/
 /*****************************************************************************/
 /***************  T  E  S  T**************************************************/
-main() {
+main()
+{
     char buf[MAXMESG];
     int len;
     UDPsocket sock;
     cout << "\ninit_socket_fd = " << sock.init_socket_fd();
-    cout << "\ninit_serv_addr = " << sock.init_serv_addr("robocup3",6000);
-    cout << "\nsend_msg       = " << sock.send_msg("(init BS2k (version 5.25))");
-    cout << "\nrecv_msg       = " << sock.recv_msg(buf,len);
+    cout << "\ninit_serv_addr = " << sock.init_serv_addr( "robocup3", 6000 );
+    cout << "\nsend_msg       = " << sock.send_msg( "(init BS2k (version 5.25))" );
+    cout << "\nrecv_msg       = " << sock.recv_msg( buf, len );
     cout << "\nbuf= " << buf;
-    sock.send_msg("(dash 100)");
+    sock.send_msg( "(dash 100)" );
     sock.close_socket_fd();
 }
+
 #endif

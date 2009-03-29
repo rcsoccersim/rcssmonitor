@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 - 2001, Artur Merke <amerke@ira.uka.de> 
+ * Copyright (c) 1999 - 2001, Artur Merke <amerke@ira.uka.de>
  *
  * This file is part of FrameView2d.
  *
@@ -17,20 +17,22 @@
  * along with FrameView2d; see the file COPYING.  If not, write to
  * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  */
-#ifndef _MENU_BASE_H_
-#define _MENU_BASE_H_
+#ifndef MENU_BASE_H
+#define MENU_BASE_H
 
 class MenuBase {
- public:
+
+public:
     virtual ~MenuBase()
       { }
-  virtual bool needs_redraw() const= 0;
-  virtual bool set_number_of_buttons(int num)= 0;
-  virtual int  get_nubber_of_buttons() const =0;
-  virtual bool set_button_label(int num, const char * lab)= 0;
-  virtual const char * get_button_label(int num) const =0;
-  virtual bool set_menu_extended(bool flag= true)= 0;
-  virtual bool set_exit_program() = 0;
+
+    virtual bool needs_redraw() const = 0;
+    virtual bool set_number_of_buttons( int num ) = 0;
+    virtual int  get_nubber_of_buttons() const = 0;
+    virtual bool set_button_label( int num, const char * lab ) = 0;
+    virtual const char * get_button_label( int num ) const = 0;
+    virtual bool set_menu_extended( bool flag = true ) = 0;
+    virtual bool set_exit_program() = 0;
 };
 
 #endif

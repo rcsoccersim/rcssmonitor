@@ -18,18 +18,12 @@
  * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #include "area2d.h"
 
-
-void
-Area2d::init( const Point2d & c,
-              const double & sx,
-              const double & sy )
-{
-    center = c;
-    size_x = sx;
-    size_y = sy;
-}
 
 bool
 Area2d::intersects( const Point2d & p ) const
@@ -48,16 +42,16 @@ Area2d::intersects( const Line2d & l ) const
     // ist auf achsenparallele Gerade optimiert!
     if ( std::fabs( center.x - l.p1.x ) > size_x*0.5
          && std::fabs( center.x - l.p2.x ) > size_x*0.5
-         && ( (center.x > l.p1.x && center.x > l.p2.x)
-              || (center.x < l.p1.x && center.x < l.p2.x)))
+         && ( ( center.x > l.p1.x && center.x > l.p2.x )
+              || ( center.x < l.p1.x && center.x < l.p2.x ) ) )
     {
         return false;
     }
 
-    if ( std::fabs(center.y - l.p1.y) > size_y*0.5
-         && std::fabs(center.y -l.p2.y) > size_y*0.5
-         && ( (center.y > l.p1.y && center.y > l.p2.y)
-              || (center.y < l.p1.y && center.y < l.p2.y)))
+    if ( std::fabs( center.y - l.p1.y ) > size_y*0.5
+         && std::fabs( center.y -l.p2.y ) > size_y*0.5
+         && ( ( center.y > l.p1.y && center.y > l.p2.y )
+              || ( center.y < l.p1.y && center.y < l.p2.y ) ) )
     {
         return false;
     }
@@ -117,7 +111,7 @@ Area2d::intersects_area_of( const Circle2d & c ) const
 bool
 Area2d::intersects_area_of( const CircleArc2d & c ) const
 {
-    if ( std::fabs(center.x - c.center.x) > size_x*0.5 + c.radius )
+    if ( std::fabs( center.x - c.center.x ) > size_x*0.5 + c.radius )
     {
         return false;
     }

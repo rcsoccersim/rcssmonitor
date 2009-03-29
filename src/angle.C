@@ -18,6 +18,7 @@
 #endif
 
 #include "angle.h"
+
 #include <cmath>
 
 const double Angle::TwoPi = 2*M_PI;
@@ -36,15 +37,17 @@ const double Angle::TwoPi = 2*M_PI;
 
 
 
-void
-Angle::set_value( const double & d )
-{
-    ang = std::fmod( d, TwoPi );
-    if ( ang < 0.0 )
-    {
-        ang += TwoPi;
-    }
-}
+// const
+// Angle &
+// Angle::set_value( const double & d )
+// {
+//     M_angle = std::fmod( d, TwoPi );
+//     if ( M_angle < 0.0 )
+//     {
+//         M_angle += TwoPi;
+//     }
+//     return *this;
+// }
 
 
 #if 0
@@ -97,26 +100,26 @@ operator>>( std::istream & i, Angle & a)
 //     return res;
 // }
 
-const
-Angle &
-Angle::operator+=( const Angle & a )
-{
-    ang += a.ang;
-    if ( ang >= TwoPi )
-    {
-        ang -= TwoPi;
-    }
-    return *this;
-}
+// const
+// Angle &
+// Angle::operator+=( const Angle & a )
+// {
+//     M_angle += a.M_angle;
+//     if ( M_angle >= TwoPi )
+//     {
+//         M_angle -= TwoPi;
+//     }
+//     return *this;
+// }
 
-const
-Angle &
-Angle::operator-=( const Angle & a )
-{
-    ang -= a.ang;
-    if ( ang < 0.0 )
-    {
-        ang += TwoPi;
-    }
-    return *this;
-}
+// const
+// Angle &
+// Angle::operator-=( const Angle & a )
+// {
+//     M_angle -= a.M_angle;
+//     if ( M_angle < 0.0 )
+//     {
+//         M_angle += TwoPi;
+//     }
+//     return *this;
+// }

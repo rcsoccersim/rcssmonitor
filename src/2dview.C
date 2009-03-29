@@ -87,7 +87,7 @@ show_copyright_notice( std::ostream & o )
 }
 
 
-DisplayX11 *DDD;
+DisplayX11 * DDD;
 
 InputDevice * INPUTDEV;
 
@@ -96,7 +96,8 @@ InputDevice * INPUTDEV;
 struct Pointer {
     int x;
     int y;
-    Pointer(int xx, int yy)
+    Pointer( int xx,
+             int yy )
         : x( xx )
         , y( yy )
       { }
@@ -106,10 +107,14 @@ struct Rectangle {
     bool active;
     int x, y;
     unsigned int width, height;
+
     Rectangle();
-    Rectangle( int window_width, int window_height );
-    void set_ratio( int window_width, int widow_height );
-    void set_origin( int px, int py )
+    Rectangle( int window_width,
+               int window_height );
+    void set_ratio( int window_width,
+                    int widow_height );
+    void set_origin( int px,
+                     int py )
       {
           p1x = px;
           p1y = py;
@@ -117,10 +122,11 @@ struct Rectangle {
           p2y = p1y;
           conform();
       }
-    void set_point( int px, int py )
+    void set_point( int px,
+                    int py )
       {
           p2x = px;
-          p2y= py;
+          p2y = py;
           conform();
       }
 private:
@@ -171,11 +177,11 @@ Rectangle::conform()
         {
             if ( p2y > p1y )
             {
-                p2y= p1y+ (int)rint( double( win_height ) * ratio_width );
+                p2y = p1y + (int)rint( double( win_height ) * ratio_width );
             }
             else
             {
-                p2y= p1y- (int)rint( double( win_height ) * ratio_width );
+                p2y = p1y - (int)rint( double( win_height ) * ratio_width );
             }
         }
         else
@@ -1192,10 +1198,10 @@ redraw_current_tree()
     }
 
     /* erase objects	*/
-    XFillRectangle(WIN::disp, WIN::pixmap, WIN::bg_gc, 0, 0, WIN::win_width, WIN::win_height);
+    XFillRectangle( WIN::disp, WIN::pixmap, WIN::bg_gc, 0, 0, WIN::win_width, WIN::win_height );
 
     //RUN::tree.draw(area);
-    RUN::tree.draw(DDD,area);
+    RUN::tree.draw( DDD, area );
 
     const char* dum;
     int dum_len;
@@ -1208,7 +1214,7 @@ redraw_current_tree()
     else
     {
         dum = INPUTDEV->status_line();
-        dum_len= std::strlen( dum );
+        dum_len = std::strlen( dum );
     }
     if ( dum_len )
     {
@@ -1228,7 +1234,7 @@ redraw_current_tree()
                         WIN::clip_rect.width, WIN::clip_rect.height );
     }
 
-    XFlush(WIN::disp);
+    XFlush( WIN::disp );
 }
 
 int
@@ -1237,7 +1243,7 @@ main( int argc, char ** argv )
     TOOLS::get_current_ms_time(); //just init the starting time of this application;
 
     std::cout << "Copyright (c) 1999 - 2001, Artur Merke <amerke@ira.uka.de>"
-              << "\nCopyright (c) 2001 - 2008, The RoboCup Soccer Server Maintainance Group."
+              << "\nCopyright (c) 2001 - 2009, The RoboCup Soccer Server Maintainance Group."
               << "\n\t<sserver-admin@lists.sourceforge.net>";
 
     --argc; ++argv;
@@ -1339,7 +1345,7 @@ main( int argc, char ** argv )
     hint.flags = PPosition | PSize;
     WIN::win_width = hint.width; WIN::win_height = hint.height;//-letheight-1;
     WIN::win_depth = DefaultDepth( WIN::disp, screen );
-    WIN::window = XCreateSimpleWindow( WIN::disp, DefaultRootWindow(WIN::disp),
+    WIN::window = XCreateSimpleWindow( WIN::disp, DefaultRootWindow( WIN::disp ),
                                        hint.x, hint.y, hint.width, hint.height, 5, fg, bg );
     WIN::pixmap = XCreatePixmap( WIN::disp, WIN::window, WIN::win_width, WIN::win_height, WIN::win_depth );
     XSetStandardProperties( WIN::disp, WIN::window,
@@ -1415,7 +1421,7 @@ main( int argc, char ** argv )
     //XFillRectangle (WIN::disp, WIN::pixmap, WIN::bg_gc, 0, 0, WIN::win_width, WIN::win_height);
     {
         XpmCreatePixmapFromData( WIN::disp, WIN::window,
-				 const_cast< char** >( rcssmonitor_xpm ),
+                                 const_cast< char** >( rcssmonitor_xpm ),
                                  &WIN::icon_pixmap,
                                  &WIN::icon_mask,
                                  NULL );
@@ -1444,9 +1450,9 @@ main( int argc, char ** argv )
     init_4_tree_and_display();
 
     //init the menu
-    WIN::menu= new MenuX11(WIN::disp,WIN::window,WIN::bt_gc,WIN::win_width,15);
-    WIN::menu->set_background_color(RGBcolor(0xcc,0xcc,0xcc));
-    WIN::menu->set_foreground_color(RGBcolor(0,0,0));
+    WIN::menu = new MenuX11( WIN::disp, WIN::window, WIN::bt_gc, WIN::win_width, 15 );
+    WIN::menu->set_background_color( RGBcolor( 0xcc, 0xcc, 0xcc ) );
+    WIN::menu->set_foreground_color( RGBcolor( 0, 0, 0 ) );
     if ( INPUTDEV->init_menu( WIN::menu ) )
     {
         WIN::menu->redraw();
@@ -1454,12 +1460,12 @@ main( int argc, char ** argv )
 
 #ifdef POPUP
     //init the popup
-    WIN::popup= new PopupX11(WIN::disp,WIN::window,WIN::bt_gc);
-    WIN::popup->set_background_color(RGBcolor(0xcc,0xcc,0xcc));
-    WIN::popup->set_foreground_color(RGBcolor(0,0,0));
-    WIN::popup->set_highlight_color(RGBcolor(0x99,0x99,0x99));
+    WIN::popup = new PopupX11( WIN::disp, WIN::window, WIN::bt_gc );
+    WIN::popup->set_background_color( RGBcolor( 0xcc, 0xcc, 0xcc ) );
+    WIN::popup->set_foreground_color( RGBcolor( 0, 0, 0 ) );
+    WIN::popup->set_highlight_color( RGBcolor( 0x99, 0x99, 0x99 ) );
     WIN::popup->set_popup_invisible();
-    INPUTDEV->init_popup(WIN::popup);
+    INPUTDEV->init_popup( WIN::popup );
 #endif
 
     //init frames
@@ -1564,7 +1570,7 @@ main( int argc, char ** argv )
                     if ( timeover_seconds >= Options::auto_quit_wait )
                     {
                         std::cout << "\n Game is over." << std::endl;
-                        RUN::quit= true;
+                        RUN::quit = true;
                     }
                 }
                 else

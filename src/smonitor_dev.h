@@ -17,8 +17,8 @@
  * along with FrameView2d; see the file COPYING.  If not, write to
  * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  */
-#ifndef _SMONITOR_DEV_H_
-#define _SMONITOR_DEV_H_
+#ifndef SMONITOR_DEV_H
+#define SMONITOR_DEV_H
 
 #include "input_dev.h"
 #include "rgbcolor.h"
@@ -34,10 +34,12 @@
 
 class VisualPlayersViewArea
     : public VisualObject2d {
+
 public:
     static const int LOW;
     static const int HIGH;
     static const int FEEL_RANGE;
+
 private:
     VisualCircleArc2d  circlearc1;
     VisualCircle2d     circle;
@@ -46,6 +48,7 @@ private:
     RGBcolor c_fuzzy;
     int view_quality;
     double view_width;
+
 public:
 
     VisualPlayersViewArea();
@@ -61,7 +64,7 @@ public:
 
     /*!
       \brief virtual method
-     */
+    */
     void draw( DisplayBase * disp,
                const Area2d & area,
                const Frame2d & p_frame,
@@ -69,7 +72,7 @@ public:
 
     /*!
       \brief virtual method
-     */
+    */
     void actualize( const Frame2d & f,
                     const bool chg );
     void set_view_mode( const int quality,
@@ -121,7 +124,7 @@ public:
 
     /*!
       \brief virtual method.
-     */
+    */
     void draw( DisplayBase * disp,
                const Area2d & area,
                const Frame2d & p_frame,
@@ -129,7 +132,7 @@ public:
 
     /*!
       \brief virtual method
-     */
+    */
     void actualize( const Frame2d & f,
                     const bool chg );
 
@@ -140,7 +143,7 @@ public:
 
     /*!
       \brief set ball velocity marker lines.
-     */
+    */
     void set_show_vel( const Point2d & vel );
 
     void unset_show_vel_string()
@@ -229,7 +232,7 @@ public:
 
     /*!
       \brief virtual method
-     */
+    */
     void draw( DisplayBase * disp,
                const Area2d & area,
                const Frame2d & p_frame,
@@ -237,48 +240,62 @@ public:
 
     /*!
       \brief virtual method
-     */
+    */
     void actualize( const Frame2d & f,
                     const bool chg );
 
     void set_type( const int type );
-    void set_body_angle( const Angle & a);
-    void set_head_angle( const Angle & a);
-    void set_active(bool flag= true);
-    void set_label(const char * lab);   ///< copies the content of lab into his own label
-    void set_use_number(bool flag= true) {
-        use_number= flag;
-        label.changed= true;
-    }
-    void set_goalie(bool flag= true);
-    void set_kicking(bool flag= true) {
-        show_kick= flag;
-    }
+    void set_body_angle( const Angle & a );
+    void set_head_angle( const Angle & a );
+    void set_active( bool flag = true );
+    void set_label( const char * lab ); ///< copies the content of lab into his own label
+    void set_use_number( bool flag = true )
+      {
+          use_number = flag;
+          label.changed = true;
+      }
+
+    void set_goalie( bool flag = true );
+    void set_kicking( bool flag = true )
+      {
+          show_kick = flag;
+      }
+
     void set_kicking_fault( bool flag = true )
       {
           show_kick_fault = flag;
       }
+
     void set_tackling( bool flag = true )
       {
           show_tackle = flag;
       }
+
     void set_tackling_fault( bool flag = true )
       {
           show_tackle_fault = flag;
       }
+
     void set_catching_fault( bool flag = true )
       {
           show_catch_fault = flag;
       }
-    void set_ball_collision( bool flag= true ) {
-        ball_collision= flag;
-    }
-    void set_low_stamina_indicator(bool flag= true) { body.filled= flag; }
 
-    void set_label_pos(const Point2d & p) {
-        label.rel= p;
-        label.changed= true;
-    }
+    void set_ball_collision( bool flag = true )
+      {
+          ball_collision = flag;
+      }
+
+    void set_low_stamina_indicator( bool flag = true )
+      {
+          body.filled = flag;
+      }
+
+    void set_label_pos( const Point2d & p )
+      {
+          label.rel = p;
+          label.changed = true;
+      }
 };
 
 class VisualField
@@ -331,6 +348,7 @@ class VisualField
     VisualPolygon2d keep_area;
 
     bool changed;
+
 public:
 
     VisualField();
@@ -349,15 +367,15 @@ public:
 
     /*!
       \brief virtual method
-     */
+    */
     void draw( DisplayBase * disp,
                const Area2d & area,
                const Frame2d & p_frame,
-               const bool chg);
+               const bool chg );
 
     /*!
       \brief virtual method
-     */
+    */
     void actualize( const Frame2d & f,
                     const bool chg );
 
@@ -379,16 +397,19 @@ public:
       }
 };
 
-class SMonitorDevice: public InputDevice {
+class SMonitorDevice
+    : public InputDevice {
+
     UDPsocket server;
     //UDPsocket coach;
 
     bool M_timeover;
 
     enum {
-        BUFFER_MAX_SIZE= 8192,
-        STRING_MAX_SIZE= 512,
+        BUFFER_MAX_SIZE = 8192,
+        STRING_MAX_SIZE = 512,
     };
+
     char buffer1[BUFFER_MAX_SIZE];
     char buffer2[BUFFER_MAX_SIZE];
 
@@ -448,8 +469,15 @@ class SMonitorDevice: public InputDevice {
         double stamina_max;
         double low_stamina_rate;
 
-        void toggle_track_ball() { track_ball= !track_ball; }
-        void toggle_show_ball_vel() { show_ball_vel= !show_ball_vel; }
+        void toggle_track_ball()
+          {
+              track_ball = !track_ball;
+          }
+
+        void toggle_show_ball_vel()
+          {
+              show_ball_vel = !show_ball_vel;
+          }
 
         RGBcolor c_team_l, c_goalie_l, c_font_l, c_invalid_l;
         RGBcolor c_team_r, c_goalie_r, c_font_r, c_invalid_r;
@@ -480,7 +508,7 @@ class SMonitorDevice: public InputDevice {
 
         const char * get_mode_string() const;
         const char * get_mode_value_string() const;
-        bool set_mode_from_string(const char * s);
+        bool set_mode_from_string( const char * s );
 
         bool lt_show_spare_space_to_offside_line;
         bool rt_show_spare_space_to_offside_line;
@@ -508,9 +536,9 @@ class SMonitorDevice: public InputDevice {
 
         void reset()
           {
-            use_stamina = false;
-            use_type = false;
-        }
+              use_stamina = false;
+              use_type = false;
+          }
 
         bool use_stamina;
         bool use_type;
@@ -551,7 +579,9 @@ class SMonitorDevice: public InputDevice {
             double stamina_capacity;
         };
 
-        Positions() {};
+        Positions()
+          { };
+
         Ball ball;
         Player player[MAX_PLAYER*2];
 
@@ -566,14 +596,14 @@ class SMonitorDevice: public InputDevice {
               player[i].alive = flag;
           }
 
-        bool player_alive( const int i) const
+        bool player_alive( const int i ) const
           {
               return player[i].alive;
           }
 
         void set_player( const int i,
                          const Point2d & p,
-                         const Angle & a);
+                         const Angle & a );
 
         void set_player_pos( const int i,
                              const Point2d & p )
@@ -594,24 +624,66 @@ class SMonitorDevice: public InputDevice {
 
         //some info messages (useful for example to recognize offside lines (considers players p1 <= p < p2)
         bool max_x_pos( const int p1, const int p2, double & x1 ) const;
-        bool max_x_pos( const int p1, const int p2, double & x1, double & x2) const;
+        bool max_x_pos( const int p1, const int p2, double & x1, double & x2 ) const;
         bool min_x_pos( const int p1, const int p2, double & x1 ) const;
         bool min_x_pos( const int p1, const int p2, double & x1, double & x2 ) const;
         //lt= left_team, rt= right_team
-        bool lt_max_x_pos(double & x1) const { return max_x_pos(0,MAX_PLAYER,x1); }
-        bool lt_min_x_pos(double & x1) const { return min_x_pos(0,MAX_PLAYER,x1); }
-        bool lt_max_x_pos(double & x1, double & x2) const { return max_x_pos(0,MAX_PLAYER,x1,x2); }
-        bool lt_min_x_pos(double & x1, double & x2) const { return min_x_pos(0,MAX_PLAYER,x1,x2); }
-        bool rt_max_x_pos(double & x1) const { return max_x_pos(MAX_PLAYER,MAX_PLAYER*2,x1); }
-        bool rt_min_x_pos(double & x1) const { return min_x_pos(MAX_PLAYER,MAX_PLAYER*2,x1); }
-        bool rt_max_x_pos(double & x1, double & x2) const { return max_x_pos(MAX_PLAYER,MAX_PLAYER*2,x1,x2); }
-        bool rt_min_x_pos(double & x1, double & x2) const { return min_x_pos(MAX_PLAYER,MAX_PLAYER*2,x1,x2); }
+        bool lt_max_x_pos( double & x1 ) const
+          {
+              return max_x_pos( 0, MAX_PLAYER, x1 );
+          }
+
+        bool lt_min_x_pos( double & x1 ) const
+          {
+              return min_x_pos( 0, MAX_PLAYER, x1 );
+          }
+
+        bool lt_max_x_pos( double & x1,
+                           double & x2 ) const
+          {
+              return max_x_pos( 0, MAX_PLAYER, x1, x2 );
+          }
+
+        bool lt_min_x_pos( double & x1,
+                           double & x2 ) const
+          {
+              return min_x_pos( 0, MAX_PLAYER, x1, x2 );
+          }
+
+        bool rt_max_x_pos( double & x1 ) const
+          {
+              return max_x_pos( MAX_PLAYER, MAX_PLAYER*2, x1 );
+          }
+
+        bool rt_min_x_pos( double & x1 ) const
+          {
+              return min_x_pos( MAX_PLAYER, MAX_PLAYER*2, x1 );
+          }
+
+        bool rt_max_x_pos( double & x1,
+                           double & x2 ) const
+          {
+              return max_x_pos( MAX_PLAYER, MAX_PLAYER*2, x1, x2 );
+          }
+
+        bool rt_min_x_pos( double & x1,
+                           double & x2 ) const
+          {
+              return min_x_pos( MAX_PLAYER, MAX_PLAYER*2, x1, x2 );
+          }
     };
 
     struct CoachState {
-        CoachState() { left_team= true; }
+        CoachState()
+          {
+              left_team = true;
+          }
+
         bool left_team;
-        void toggle_team() { left_team= !left_team; }
+        void toggle_team()
+          {
+              left_team = !left_team;
+          }
     };
 
     struct Score {
@@ -632,13 +704,13 @@ class SMonitorDevice: public InputDevice {
             , right_pen_miss_( 0 )
           { }
 
-       Score( const int left_score,
-              const int right_score,
-              const int left_pen_score,
-              const int left_pen_miss,
-              const int right_pen_score,
-              const int right_pen_miss )
-            :left_score_( left_score )
+        Score( const int left_score,
+               const int right_score,
+               const int left_pen_score,
+               const int left_pen_miss,
+               const int right_pen_score,
+               const int right_pen_miss )
+            : left_score_( left_score )
             , right_score_( right_score )
             , left_pen_score_( left_pen_score )
             , left_pen_miss_( left_pen_miss )
@@ -675,21 +747,30 @@ class SMonitorDevice: public InputDevice {
     //! key: time, value: team names & scores
     std::map< int, Score, std::greater< int > > M_scores;
 
-    void vis_ball_set_info_level(int lev);
-    void vis_player_set_info_level(int lev, VisualPlayer & vis_p, const Positions::Player & p,
-                                   const int unum );
-    void vis_player_set_info_level(int lev);
+    void vis_ball_set_info_level( int lev );
+    void vis_player_set_info_level( int lev,
+                                    VisualPlayer & vis_p,
+                                    const Positions::Player & p,
+                                    const int unum );
+    void vis_player_set_info_level( int lev );
 
-    int server_msg_type(void * ptr);
-    bool server_interpret_showinfo_t(BuilderBase * build, void *ptr);
-    bool server_interpret_msginfo_t(BuilderBase * build, void *ptr);
-    bool server_interpret_drawinfo_t(BuilderBase * build, void *ptr);
+    int server_msg_type( void * ptr );
+    bool server_interpret_showinfo_t( BuilderBase * build,
+                                      void * ptr );
+    bool server_interpret_msginfo_t( BuilderBase * build,
+                                     void * ptr );
+    bool server_interpret_drawinfo_t( BuilderBase * build,
+                                      void * ptr );
 
-    bool server_interpret_showinfo_t2(BuilderBase * build, void *ptr); //ver. 2
-    bool server_interpret_player_type_t(BuilderBase * build, void *ptr); //ver. 2
-    bool server_interpret_server_params_t(BuilderBase * build, void *ptr); //ver. 2
+    // version 2
+    bool server_interpret_showinfo_t2( BuilderBase * build,
+                                       void *ptr );
+    bool server_interpret_player_type_t( BuilderBase * build,
+                                         void *ptr );
+    bool server_interpret_server_params_t( BuilderBase * build,
+                                           void *ptr );
 
-    // version 3
+    // version 3 or 4
     bool server_interpret_showinfo_v3( BuilderBase * build,
                                        const char * buf );
     bool server_interpret_drawinfo_v3( BuilderBase * build,
@@ -714,78 +795,144 @@ class SMonitorDevice: public InputDevice {
                        const int pen_score_r = 0,
                        const int pen_miss_l = 0,
                        const int pen_miss_r = 0,
-                       const bool has_pen_score = false);
+                       const bool has_pen_score = false );
 
     void updateScoreBoard( const int time );
 
-    void show_parser_error_point(std::ostream & out, const char * origin, const char * parse_error_point);
-    bool ins_simple_obj(const char * buf, int fref, BuilderBase * build, const char* & next);
-    bool server_interpret_frameview_msg(BuilderBase * build, const char * msg, bool enforce_frame= false, int frame= -1); //art!
+    void show_parser_error_point( std::ostream & out,
+                                  const char * origin,
+                                  const char * parse_error_point );
+    bool ins_simple_obj( const char * buf,
+                         int fref,
+                         BuilderBase * build,
+                         const char* & next );
+    bool server_interpret_frameview_msg( BuilderBase * build,
+                                         const char * msg,
+                                         bool enforce_frame = false,
+                                         int frame = -1 ); //art!
 
-    bool server_interpret_command_msg(BuilderBase * build, const char * msg);
+    bool server_interpret_command_msg( BuilderBase * build,
+                                       const char * msg );
 
     /// the object ID of the ball
     static const int id_ball;
     static const int id_invalid;
 
     /// true if object ID means the ball or a valid player
-    bool o_valid(int i) { return ( o_ball(i) || p_valid(i))?true:false; }
+    bool o_valid( int i )
+      {
+          return ( o_ball( i ) || p_valid( i ) ) ? true : false;
+      }
+
     /// true if object ID means the ball
-    bool o_ball(int i) { return (i == id_ball)?true:false; }
+    bool o_ball( int i )
+      {
+          return ( i == id_ball ) ? true : false;
+      }
+
     /// true if object ID means a player ball
-    bool o_player(int i) { return p_valid(i); }
+    bool o_player( int i )
+      {
+          return p_valid( i );
+      }
+
     /// true if the player ID is valid
-    bool p_valid(int i) { return (i>= 0 && i < MAX_PLAYER*2)?true:false; }
+    bool p_valid( int i )
+      {
+          return ( i >= 0 && i < MAX_PLAYER*2 ) ? true : false;
+      }
+
     /// maps player ID to frame number of this player
-    int p_frame(int i) { return i+1; }
+    int p_frame( int i )
+      {
+          return i + 1;
+      }
 
     /// maps player ID to number of this player in his team
-    int p_number( int i ) { return i < MAX_PLAYER ? i + 1 : i + 1 - MAX_PLAYER; }
+    int p_number( int i )
+      {
+          return i < MAX_PLAYER ? i + 1 : i + 1 - MAX_PLAYER;
+      }
+
     /// return true if player ID belongs to the left team
-    bool p_left( int i ) { return i < MAX_PLAYER ? true : false; }
+    bool p_left( int i )
+      {
+          return i < MAX_PLAYER ? true : false;
+      }
+
     /// return true if player ID belongs to the left team
-    bool p_right( int i ) { return i < MAX_PLAYER ? false : true; }
+    bool p_right( int i )
+      {
+          return i < MAX_PLAYER ? false : true;
+      }
 
     ///sets player position,
-    void set_object_pos(BuilderBase * build, int p_num, const Point2d & pos);
+    void set_object_pos( BuilderBase * build,
+                         int p_num,
+                         const Point2d & pos );
 
-    void set_all_objects_scale(BuilderBase * build, double scale);
+    void set_all_objects_scale( BuilderBase * build,
+                                double scale );
 
-    void send_object_pos(int p_num, const Point2d & pos);
+    void send_object_pos( int p_num,
+                          const Point2d & pos );
     void send_dispinit();
     void send_dispstart();
-    void send_dispball(const Point2d & pos);
-    void send_dispfoul_left(const Point2d & pos);
-    void send_dispfoul_right(const Point2d & pos);
+    void send_dispball( const Point2d & pos );
+    void send_dispfoul_left( const Point2d & pos );
+    void send_dispfoul_right( const Point2d & pos );
     void send_dispbye();
 
-    bool process_options(const ValueParser & vp);
+    bool process_options( const ValueParser & vp );
 
-    template <class T>
-    void print_option_entry(std::ostream & o,int mode, const char * option, const T & val, const char * description) const;
-    void generic_description_of_options(std::ostream & o, int mode) const;
+    template < typename T >
+    void print_option_entry( std::ostream & o,
+                             int mode,
+                             const char * option,
+                             const T & val,
+                             const char * description ) const;
+    void generic_description_of_options( std::ostream & o,
+                                         int mode ) const;
+
 public:
     /****************************************************************************/
     /* public interface of SMonitorDevice as defined in InputDevice             */
     /****************************************************************************/
+
     SMonitorDevice();
-    virtual ~SMonitorDevice() { }
 
-    bool set_initial_area(const Area2d & area) { initial_area= area; return true; }
-    bool process_options(const char * fname);
-    bool process_options(int argc, char const* const* argv);
-    void help_options(std::ostream & o) const;
-    void help_char_command(std::ostream & o) const;
-    void generate_file_options(std::ostream & o) const;
+    virtual
+    ~SMonitorDevice()
+      { }
 
-    bool process_char_command(BuilderBase * build, MenuBase * menu, const InputEvent & event);
-    bool process_mouse_button_event(BuilderBase * build, const InputEvent & event);
-    bool process_menu_button(BuilderBase * build, MenuBase * menu, const InputEvent & event);
-    bool process_popup_button(BuilderBase * build, MenuBase * popup, const InputEvent & event);
+    bool set_initial_area( const Area2d & area )
+      {
+          initial_area = area;
+          return true;
+      }
 
-    bool init_menu(MenuBase * menu);
-    bool init_popup(MenuBase * popup);
-    bool init_frames(BuilderBase * build);
+    bool process_options( const char * fname );
+    bool process_options( int argc,
+                          char const* const* argv );
+    void help_options( std::ostream & o ) const;
+    void help_char_command( std::ostream & o ) const;
+    void generate_file_options( std::ostream & o ) const;
+
+    bool process_char_command( BuilderBase * build,
+                               MenuBase * menu,
+                               const InputEvent & event );
+    bool process_mouse_button_event( BuilderBase * build,
+                                     const InputEvent & event );
+    bool process_menu_button( BuilderBase * build,
+                              MenuBase * menu,
+                              const InputEvent & event );
+    bool process_popup_button( BuilderBase * build,
+                               MenuBase * popup,
+                               const InputEvent & event );
+
+    bool init_menu( MenuBase * menu );
+    bool init_popup( MenuBase * popup );
+    bool init_frames( BuilderBase * build );
     bool init_connection();
 
     bool uses_mouse() const;
@@ -793,7 +940,8 @@ public:
 
     bool destruct();
 
-    bool process_input(fd_set * , BuilderBase * build);
+    bool process_input( fd_set *,
+                        BuilderBase * build );
 
     const
     char * status_line() const
@@ -801,14 +949,18 @@ public:
           return M_score_board_string.c_str();
       }
 
-    int set_fds(fd_set * set);
-    bool got_fds(fd_set * set);
+    int set_fds( fd_set * set );
+    bool got_fds( fd_set * set );
 
-    virtual bool is_timeover() const { return M_timeover; }
+    virtual bool is_timeover() const
+      {
+          return M_timeover;
+      }
+
     virtual bool reconnect();
 };
 
-template <class T>
+template < typename T >
 void
 SMonitorDevice::print_option_entry( std::ostream & o,
                                     int mode,
@@ -822,6 +974,7 @@ SMonitorDevice::print_option_entry( std::ostream & o,
           << "\n# " << description << " (default " << val << ")"
           << "\n" << option << " = "; //<< val;
     }
+
     else
     {
         o << "\n"
