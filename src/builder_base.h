@@ -39,7 +39,10 @@ public:
     ~BuilderBase()
     { }
 
-    ///
+    /*!
+      \param pos coordinates translation relative to the parent frame
+      \param ang coordinates rotation relative to the parent frame
+     */
     virtual
     bool set_cmd_insert_frame( int parent_frame,
                                int this_frame,

@@ -105,7 +105,6 @@ AsciiProcessor::ins_obj( const char * buf,
     }
 
     // ==========================================================
-
     else if ( strskip( buf, "CIRCLE", next ) )
     {
         buf = next;
@@ -437,7 +436,6 @@ AsciiProcessor::scan_and_parse( BuilderBase * build,
                     buf = next;
                 }
             }
-
             else if ( buf[1] == 'H' && buf[2] == 'O' && buf[3] == 'W' )
             {
                 if ( visible_cmd( buf + 4, build, next, 1 ) )
@@ -603,7 +601,6 @@ AsciiProcessor::ins_point( const char * buf,
     {
         build->set_cmd_insert_point( fref, id, points.tab[0], lay, col );
     }
-
     else
     {
         build->set_cmd_insert_points( fref, id, points.cur_size, points.tab, lay, col );
@@ -637,7 +634,6 @@ AsciiProcessor::ins_line( const char * buf,
     {
         build->set_cmd_insert_line( fref, id, lines.tab[0], lay, col );
     }
-
     else
     {
         build->set_cmd_insert_lines( fref, id, lines.cur_size, lines.tab, lay, col );
@@ -673,20 +669,17 @@ AsciiProcessor::ins_circle( const char * buf,
         {
             build->set_cmd_insert_circle( fref, id, circles.tab[0], lay, col );
         }
-
         else
         {
             build->set_cmd_insert_f_circle( fref, id, circles.tab[0], lay, col );
         }
     }
-
     else
     {
         if ( !fil )
         {
             build->set_cmd_insert_circles( fref, id, circles.cur_size, circles.tab, lay, col );
         }
-
         else
         {
             build->set_cmd_insert_f_circles( fref, id, circles.cur_size, circles.tab, lay, col );
@@ -721,7 +714,6 @@ AsciiProcessor::ins_polygon( const char * buf,
     {
         build->set_cmd_insert_polygon( fref, id, points.cur_size, points.tab, lay, col );
     }
-
     else
     {
         build->set_cmd_insert_f_polygon( fref, id, points.cur_size, points.tab, lay, col );
@@ -1084,7 +1076,6 @@ AsciiProcessor:: get_obj_attr( const char * buf,
 
             buf = next;
         }
-
         else if ( strskip( buf, "lay", next ) )
         {
             if ( got_attr[1] )
@@ -1110,7 +1101,6 @@ AsciiProcessor:: get_obj_attr( const char * buf,
 
             buf = next;
         }
-
         else if ( strskip( buf, "col", next ) )
         {
             if ( got_attr[2] )
@@ -1150,7 +1140,6 @@ AsciiProcessor:: get_obj_attr( const char * buf,
             //return false;
             buf = next;
         }
-
         else if ( strskip( buf, "fil", next ) )
         {
             if ( got_attr[3] )
@@ -1180,7 +1169,6 @@ AsciiProcessor:: get_obj_attr( const char * buf,
 
             buf = next;
         }
-
         else
         {
             next = buf;
@@ -1230,7 +1218,6 @@ AsciiProcessor:: get_frame_attr( const char * buf,
 
             buf = next;
         }
-
         else if ( strskip( buf, "lay", next ) )
         {
             if ( got_attr[1] )
@@ -1256,7 +1243,6 @@ AsciiProcessor:: get_frame_attr( const char * buf,
 
             buf = next;
         }
-
         else if ( strskip( buf, "vis", next ) )
         {
             bool b;
@@ -1286,7 +1272,6 @@ AsciiProcessor:: get_frame_attr( const char * buf,
 
             buf = next;
         }
-
         else
         {
             next = buf;
@@ -1344,7 +1329,6 @@ AsciiProcessor::get_col( const char * buf,
                 res = true;
             }
         }
-
         else
         {
             break;

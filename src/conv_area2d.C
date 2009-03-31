@@ -70,7 +70,6 @@ ConvArea2d::update()
             area.size_y = win_size_y * ratio_x;
             changed = true;
         }
-
         else
         {
             area.size_x = win_size_x * ratio_y;
@@ -270,9 +269,13 @@ ConvArea2d::scale_area_using_factor( double factor )
     area.size_y *= factor;
 
     if ( factor > 1 )
+    {
         update_level( 2 );
+    }
     else
+    {
         update_level( 3 );
+    }
 }
 
 void

@@ -129,7 +129,6 @@ DisplayX11::draw_point( DisplayObject * d_obj,
         myobj->mark_col_change();
         myobj->mark_pos_change();
     }
-
     else
     {
         myobj = static_cast< D_XPoint * >( d_obj ); //dynamic_cast should also work, but it doesn't <- why?
@@ -173,7 +172,6 @@ DisplayX11::draw_points( DisplayObject * d_obj,
         myobj->mark_col_change();
         myobj->mark_pos_change();
     }
-
     else
     {
         myobj = static_cast< D_XPoints * >( d_obj ); //dynamic_cast should also work, but it doesn't <- why?
@@ -212,7 +210,6 @@ DisplayX11::draw_line( DisplayObject * d_obj,
         myobj->mark_col_change();
         myobj->mark_pos_change();
     }
-
     else
     {
         myobj = static_cast< D_XSegment * >( d_obj ); //dynamic_cast should also work, but it doesn't <- why?
@@ -256,7 +253,6 @@ DisplayX11::draw_lines( DisplayObject * d_obj,
         myobj->mark_col_change();
         myobj->mark_pos_change();
     }
-
     else
     {
         myobj = static_cast< D_XSegments * >( d_obj ); //dynamic_cast should also work, but it doesn't <- why?
@@ -294,7 +290,6 @@ DisplayX11::draw_circle( DisplayObject * d_obj,
         myobj->mark_col_change();
         myobj->mark_pos_change();
     }
-
     else
     {
         myobj = static_cast< D_XArc * >( d_obj ); //dynamic_cast should also work, but it doesn't <- why?
@@ -346,7 +341,6 @@ DisplayX11::draw_circles( DisplayObject * d_obj,
         myobj->mark_col_change();
         myobj->mark_pos_change();
     }
-
     else
     {
         myobj = static_cast< D_XArcs * >( d_obj ); //dynamic_cast should also work, but it doesn't <- why?
@@ -384,7 +378,6 @@ DisplayX11::fill_circle( DisplayObject * d_obj,
         myobj->mark_col_change();
         myobj->mark_pos_change();
     }
-
     else
     {
         myobj = static_cast<D_XArc*>( d_obj ); //dynamic_cast should also work, but it doesn't <- why?
@@ -436,7 +429,6 @@ DisplayX11::fill_circles( DisplayObject * d_obj,
         myobj->mark_col_change();
         myobj->mark_pos_change();
     }
-
     else
     {
         myobj = static_cast< D_XArcs * >( d_obj ); //dynamic_cast should also work, but it doesn't <- why?
@@ -475,7 +467,6 @@ DisplayX11::draw_circlearc( DisplayObject * d_obj,
         myobj->mark_col_change();
         myobj->mark_pos_change();
     }
-
     else
     {
         myobj = static_cast< D_XArc * >( d_obj ); //dynamic_cast should also work, but it doesn't <- why?
@@ -527,7 +518,6 @@ DisplayX11::draw_circlearcs( DisplayObject * d_obj,
         myobj->mark_col_change();
         myobj->mark_pos_change();
     }
-
     else
     {
         myobj = static_cast< D_XArcs * >( d_obj ); //dynamic_cast should also work, but it doesn't <- why?
@@ -565,7 +555,6 @@ DisplayX11::fill_circlearc( DisplayObject * d_obj,
         myobj->mark_col_change();
         myobj->mark_pos_change();
     }
-
     else
     {
         myobj = static_cast< D_XArc * >( d_obj ); //dynamic_cast should also work, but it doesn't <- why?
@@ -617,7 +606,6 @@ DisplayX11::fill_circlearcs( DisplayObject * d_obj,
         myobj->mark_col_change();
         myobj->mark_pos_change();
     }
-
     else
     {
         myobj = static_cast< D_XArcs * >( d_obj ); //dynamic_cast should also work, but it doesn't <- why?
@@ -664,7 +652,6 @@ DisplayX11::draw_polyline( DisplayObject * d_obj,
         myobj->mark_col_change();
         myobj->mark_pos_change();
     }
-
     else
     {
         myobj = static_cast< D_XPoints * >( d_obj ); //dynamic_cast should also work, but it doesn't <- why?
@@ -710,7 +697,6 @@ DisplayX11::draw_polygon( DisplayObject * d_obj,
         myobj->mark_col_change();
         myobj->mark_pos_change();
     }
-
     else
     {
         myobj = static_cast<D_XPoints*>( d_obj ); //dynamic_cast should also work, but it doesn't <- why?
@@ -756,7 +742,6 @@ DisplayX11::fill_polygon( DisplayObject * d_obj,
         myobj->mark_col_change();
         myobj->mark_pos_change();
     }
-
     else
     {
         myobj = static_cast<D_XPoints*>( d_obj ); //dynamic_cast should also work, but it doesn't <- why?
@@ -796,7 +781,6 @@ DisplayX11::draw_string( DisplayObject * d_obj,
         myobj->mark_col_change();
         myobj->mark_pos_change();
     }
-
     else
     {
         myobj = static_cast< D_XPoint * >( d_obj ); //dynamic_cast should also work, but it doesn't <- why?

@@ -22,10 +22,10 @@
 #ifndef CONV_H
 #define CONV_H
 
-#include <iostream>
 #include "angle.h"
 #include "point2d.h"
 
+#include <iostream>
 
 /**
   The class WinPlaneConverter converts coordintes and sizes between a window and the
@@ -37,7 +37,7 @@
                    width
             /---------------------\
             |                     |
-    height  |			  |
+    height  |                     |
             |                     |
             \---------------------/
 
@@ -90,8 +90,13 @@
 */
 
 class WinPlaneConverter {
-    friend std::ostream & operator<<( std::ostream & o,
-                                      const WinPlaneConverter & c );
+private:
+    int Win_width;
+    int Win_height;
+    double Plane_east_x;
+    double Plane_size_x;
+    double Plane_south_y;
+    double Plane_size_y;
 public:
     WinPlaneConverter();
     WinPlaneConverter( int width,
@@ -110,89 +115,63 @@ public:
                      double size_x,
                      double size_y );
 
-    inline double x_Win_to_x_Plane( int ) const;
-    inline double y_Win_to_y_Plane( int ) const;
-    inline double size_x_Win_to_size_x_Plane( int ) const;
-    inline double size_y_Win_to_size_y_Plane( int ) const;
+    double x_Win_to_x_Plane( int x ) const
+      {
+          return Plane_east_x + Plane_size_x * x / Win_width;
+      }
 
+    double y_Win_to_y_Plane( int y ) const
+      {
+          return Plane_south_y + Plane_size_y * ( Win_height - y ) / Win_height;
+      }
 
-    inline int x_Plane_to_x_Win( double ) const;
-    inline int y_Plane_to_y_Win( double ) const;
+    double size_x_Win_to_size_x_Plane( int sx ) const
+      {
+          return ( Plane_size_x * sx ) / double( Win_width );
+      }
 
-    inline int size_x_Plane_to_size_x_Win( double ) const;
-    inline int size_y_Plane_to_size_y_Win( double ) const;
+    double size_y_Win_to_size_y_Plane( int sy ) const
+      {
+          return ( Plane_size_y * sy ) / double( Win_height );
+      }
 
-    inline int angle_Plane_to_angle_Win( const Angle& ) const;
+    int x_Plane_to_x_Win( double x ) const
+      {
+          return ( int )floor( ( double( Win_width ) * ( x - Plane_east_x ) ) / Plane_size_x );
+      }
+
+    int y_Plane_to_y_Win( double y ) const
+      {
+          return ( int )floor( double( Win_height ) - ( double( Win_height )*( y - Plane_south_y ) ) / Plane_size_y );
+      }
+
+    int size_x_Plane_to_size_x_Win( double s ) const
+      {
+          return ( int )rint( ( double( Win_width )*s ) / Plane_size_x );
+      }
+
+    int size_y_Plane_to_size_y_Win( double s ) const
+      {
+          return ( int )rint( ( double( Win_height )*s ) / Plane_size_y );
+      }
+
+    int angle_Plane_to_angle_Win( const Angle & a ) const
+      {
+          return ( int )rint( 64*a.get_value()*180.0 / M_PI );
+      }
 
     void get_Win( int & width, int & height ) const;
     void get_Plane( Point2d & center, double & size_x, double & size_y ) const;
 
-private:
-    int Win_width;
-    int Win_height;
-    double Plane_east_x;
-    double Plane_size_x;
-    double Plane_south_y;
-    double Plane_size_y;
+    std::ostream & print( std::ostream & os ) const;
 };
 
+inline
 std::ostream &
-operator<<( std::ostream & o,
-            const WinPlaneConverter & c );
-
-double
-WinPlaneConverter::x_Win_to_x_Plane( int x ) const
+operator<<( std::ostream & os,
+            const WinPlaneConverter & c )
 {
-    return Plane_east_x + Plane_size_x * x / Win_width;
-}
-
-double
-WinPlaneConverter::y_Win_to_y_Plane( int y ) const
-{
-    return Plane_south_y + Plane_size_y * ( Win_height - y ) / Win_height;
-}
-
-double
-WinPlaneConverter::size_x_Win_to_size_x_Plane( int sx ) const
-{
-    return ( Plane_size_x * sx ) / double( Win_width );
-}
-
-double
-WinPlaneConverter::size_y_Win_to_size_y_Plane( int sy ) const
-{
-    return ( Plane_size_y * sy ) / double( Win_height );
-}
-
-int
-WinPlaneConverter::x_Plane_to_x_Win( double x ) const
-{
-    return ( int )floor( ( double( Win_width ) * ( x - Plane_east_x ) ) / Plane_size_x );
-}
-
-int
-WinPlaneConverter::y_Plane_to_y_Win( double y ) const
-{
-    return ( int )floor( double( Win_height ) - ( double( Win_height )*( y - Plane_south_y ) ) / Plane_size_y );
-}
-
-int
-WinPlaneConverter::size_x_Plane_to_size_x_Win( double s ) const
-{
-    return ( int )rint( ( double( Win_width )*s ) / Plane_size_x );
-}
-
-int
-WinPlaneConverter::size_y_Plane_to_size_y_Win( double s ) const
-{
-    return ( int )rint( ( double( Win_height )*s ) / Plane_size_y );
-}
-
-
-int
-WinPlaneConverter::angle_Plane_to_angle_Win( const Angle & a ) const
-{
-    return ( int )rint( 64*a.get_value()*180.0 / M_PI );
+    return c.print( os );
 }
 
 #endif

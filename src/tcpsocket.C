@@ -454,9 +454,10 @@ recv_data_with_blocking( TCPsocket & sock )
             sock.close();
             break;
         }
-
         else
+        {
             cout << "\n[" << buf << "]" << flush;
+        }
     }
 }
 
@@ -500,9 +501,10 @@ recv_data( TCPsocket & sock )
                 sock.close();
                 break;
             }
-
             else
+            {
                 cout << "\n[" << buf << "]" << flush;
+            }
         }
     }
 }

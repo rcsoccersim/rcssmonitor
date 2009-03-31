@@ -23,6 +23,7 @@
 
 #include "frame2d.h"
 #include "angle.h"
+#include "point2d.h"
 #include "vector2d.h"
 #include "maplist.h"
 #include "visobject.h"
@@ -30,41 +31,43 @@
 
 class DrawFrameMap;
 
-class DrawFrame
-{
+class DrawFrame {
 
     friend class DrawTree;
-    friend std::ostream & operator<<( std::ostream &, const DrawFrame & );
-    //  friend main();
 
-    bool changed;
+    int M_key; //!< global index value of this object
+    int M_layer;
 
-    DrawFrame * up;
-    KeyMap_LayerList< DrawFrame > frames;
+    DrawFrame * M_parent; //!< parent frame
+    KeyMap_LayerList< DrawFrame > M_frames;
     //KeyMap_LayerList< DrawObject > objects;
-    KeyMap_LayerList< VisualObject2d > objects;
+    KeyMap_LayerList< VisualObject2d > M_objects;
 
-    Frame2d absFrame; // der Frame in Bezug auf den Ursprungs-Frame
+    Frame2d M_abs_transform; //!< grobal transformation matrix
+    Frame2d M_rel_transform; //!< relative transformation matrix
 
+    bool M_visible;
+    bool M_changed;
 public:
-    Frame2d relFrame; // der Frame selbst;
-    int key;
-    int layer;
+
     int get_key() const
       {
-          return key;
+          return M_key;
       }
 
     int get_layer() const
       {
-          return layer;
+          return M_layer;
       }
 
-    bool visible;
-
-    DrawFrame( int k );
+    DrawFrame( int key );
     ~DrawFrame();
-    // Precondition: f->key is unique, f->left= 0; f->right==0, f->up==0
+
+    void init( const Point2d & translation,
+               const Angle & rotation,
+               const int layer );
+
+    // Precondition: f->key is unique, f->parent==0
     bool insert( DrawFrame * );
     bool remove( DrawFrame * );
     bool insert( VisualObject2d * );
@@ -74,106 +77,99 @@ public:
     bool remove_all( DrawFrameMap & fmap );
 
     void actualize( const Frame2d & p_frame,
-                    bool );
+                    const bool chg );
     void draw();
     void draw( DisplayBase * disp,
                const Area2d & area,
                const Frame2d & p_frame,
-               bool chg );
+               const bool chg );
+
+    std::ostream & print( std::ostream & os ) const;
 };
 
-class DrawFrameMap
-{
+class DrawFrameMap {
 
-    friend std::ostream & operator<<( std::ostream &,
-                                      const DrawFrameMap & );
+    enum {
+        MAX_DIRECT = 100 //!< frames with key in (0..MAX_DIRECT) are mapped in O(1)
+    };
 
+    /*!
+      \brief list item
+     */
     class Item {
     public:
-        Item( DrawFrame* );
+        Item( DrawFrame * );
         int key;
         DrawFrame * frame;
         Item * next;
     };
 
-    Item * list;
-
-    enum {
-        MAX_DIRECT = 100 // frames with key in (0..MAX_DIRECT) are mapped in O(1)
-    };
-
-    DrawFrame * direct_map[MAX_DIRECT];
+    DrawFrame * M_direct_map[MAX_DIRECT]; //!< array frames
+    Item * M_list; //!< linked list frames
 
 public:
     DrawFrameMap();
     bool insert( DrawFrame * );
     bool remove( int key );
     DrawFrame * get( int key );
+
+
+    std::ostream & print( std::ostream & os ) const;
 };
 
-class DrawTree
-{
+class DrawTree {
 
-    friend std::ostream & operator<<( std::ostream &,
-                                      const DrawTree & );
-    DrawFrame * origin;
-    DrawFrameMap frameMap;
+    DrawFrame * M_origin;
+    DrawFrameMap M_frame_map;
 
 public:
     DrawTree();
-    bool insert_in_frame( int fkey,
+    bool insert_in_frame( const int fkey,
                           DrawFrame * );
-    bool insert_in_frame( int fkey,
+    bool insert_in_frame( const int fkey,
                           VisualObject2d * );
 
-    bool remove_frame( int fkey );
-    bool remove_in_frame( int fkey,
-                          int fo_key );
-    bool empty_frame( int fkey );
+    bool remove_frame( const int fkey );
+    bool remove_in_frame( const int fkey,
+                          const int fo_key );
+    bool empty_frame( const int fkey );
 
     //Drehung um eigenen Ursprung um einen Winkel, alle Objekte und Unterframes
     //drehen sich mit.
-    bool rotate_frame( int fkey,
+    bool rotate_frame( const int fkey,
                        const Angle & );
-    //Translation in Bezug auf das eigene Koordinatensystem, alle Objekte und
-    //Unterframes werden auch verschoben!
-    bool translate_frame( int fkey,
-                          double,
-                          double );
 
-    //Drehe ein Objekt oder ein UnterFrame (mit fo_key) um den Ursprung um einen Winkel
-    bool rotate_in_frame( int fkey,
-                          int fo_key,
-                          const Angle & );
     //Translation
-    bool translate_in_frame( int fkey,
-                             int fo_key,
-                             double,
-                             double );
+    bool translate_in_frame( const int fkey,
+                             const int fo_key,
+                             const double & x,
+                             const double & y );
 
-    bool set_object_color( int fkey,
-                           int okey,
+    bool set_object_color( const int fkey,
+                           const int okey,
                            const RGBcolor & );
 
-    bool set_position( int fkey,
-                       double,
-                       double );
-    bool set_visible( int fkey,
-                      bool val );
-    bool set_layer( int fkey,
-                    int val );
+    bool set_position( const int fkey,
+                       const double & x,
+                       const double & y );
+    bool set_visible( const int fkey,
+                      const bool val );
+    bool set_layer( const int fkey,
+                    const int val );
     //bool set_positon(int fkey,int ofkey,double,double);
-    bool set_angle( int fkey,
+    bool set_angle( const int fkey,
                     const Angle & );
-    bool set_scale( int fkey,
-                    double scale );
-    bool set_pos_ang( int fkey,
-                      double,
-                      double,
-                      const Angle & );
+    bool set_scale( const int fkey,
+                    const double & scale );
+    bool set_pos_ang( const int fkey,
+                      const double & x ,
+                      const double & y,
+                      const Angle & angle );
     void draw( const Area2d & );
     void draw( DisplayBase * disp,
                const Area2d & area );
+
+    std::ostream & print( std::ostream & os ) const;
 };
 
 #endif

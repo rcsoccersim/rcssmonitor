@@ -998,29 +998,38 @@ process_x11_events()
                 WIN::mouse_button= event.xbutton.button; //store the currently pressed mouse button
 
                 //if (event.xbutton.state & Button2Mask)
-                if (event.xbutton.button == 1) {
-                    WIN::clip_rect.set_origin(event.xbutton.x,event.xbutton.y);
+                if ( event.xbutton.button == 1 )
+                {
+                    WIN::clip_rect.set_origin( event.xbutton.x,event.xbutton.y );
                     WIN::clip_rect.active= true;
                     WIN::rect_was_drawn= false;
                 }
-                else if (event.xbutton.button == 2 || event.xbutton.button == 3) {
-                    XEvent_to_InputEvent(event,input_event);
+                else if ( event.xbutton.button == 2 || event.xbutton.button == 3 )
+                {
+                    XEvent_to_InputEvent( event, input_event );
 
-                    if ( INPUTDEV->uses_mouse() ) {
-                        dum_res= INPUTDEV->process_mouse_button_event(&RUN::builder, input_event);
+                    if ( INPUTDEV->uses_mouse() )
+                    {
+                        dum_res= INPUTDEV->process_mouse_button_event( &RUN::builder, input_event );
                         redraw= dum_res || redraw;
                     }
-                    if ( INPUTDEV->uses_popup() ) {
+
+                    if ( INPUTDEV->uses_popup() )
+                    {
                         WIN::popup->set_popup_visible( event.xbutton.x, event.xbutton.y, WIN::win_width, WIN::win_height);
-                        dum_res= INPUTDEV->process_popup_button(&RUN::builder,WIN::popup,input_event);
+                        dum_res= INPUTDEV->process_popup_button( &RUN::builder,WIN::popup,input_event );
                         redraw= dum_res || redraw;
                     }
                 }
                 break;
             case ButtonRelease: //speichere 2 Koordinate
-                if (event.xany.window != WIN::window)
+                if ( event.xany.window != WIN::window )
+                {
                     break;
-                if (WIN::mouse_button != event.xbutton.button) {//just process the originaly pressed button
+                }
+
+                if ( WIN::mouse_button != event.xbutton.button )
+                {//just process the originaly pressed button
                     //cerr << "\nold button= " << WIN::mouse_button << "!=" << event.xbutton.button << " = new button -> break;";
                     break;
                 }
@@ -1039,6 +1048,7 @@ process_x11_events()
                     }
                     WIN::clip_rect.set_point( event.xbutton.x, event.xbutton.y );
                     WIN::clip_rect.active= false;
+
                     if ( WIN::clip_rect.width == 0 || WIN::clip_rect.height == 0 )
                     {
                         redraw = true;
@@ -1046,6 +1056,7 @@ process_x11_events()
                         std::cerr << "\nnew center";
                         break;
                     }
+
                     if ( WIN::clip_rect.width < 20 || WIN::clip_rect.height < 20 )
                     {
                         std::cerr << "\nregion too small";
@@ -1203,10 +1214,9 @@ redraw_current_tree()
     /* erase objects	*/
     XFillRectangle( WIN::disp, WIN::pixmap, WIN::bg_gc, 0, 0, WIN::win_width, WIN::win_height );
 
-    //RUN::tree.draw(area);
     RUN::tree.draw( DDD, area );
 
-    const char* dum;
+    const char * dum;
     int dum_len;
     if ( RUN::builder.status_line )
     {
@@ -1219,6 +1229,7 @@ redraw_current_tree()
         dum = INPUTDEV->status_line();
         dum_len = std::strlen( dum );
     }
+
     if ( dum_len )
     {
         XDrawImageString( WIN::disp, WIN::pixmap, WIN::sl_gc,
@@ -1494,7 +1505,10 @@ main( int argc, char ** argv )
     redraw_current_tree();
     WIN::menu->redraw();
     WIN::clip_rect.set_ratio(WIN::win_width,WIN::win_height);
-
+#if 0
+    // debug print
+    RUN::tree.print( std::cout ) << std::endl;
+#endif
     INPUTDEV->init_connection();
 
     bool received = false;

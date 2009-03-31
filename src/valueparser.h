@@ -162,9 +162,6 @@ struct KeyValueTab {
 };
 
 class ValueParser {
-    friend std::ostream& operator<< ( std::ostream &,
-                                      const ValueParser & );
-
 protected:
     // Members
     KeyValueTab kv_tab;
@@ -523,7 +520,19 @@ public:
 
 
     //input of bool and string arrays not yet supported
+
+    std::ostream & print( std::ostream & os ) const;
 };
+
+inline
+std::ostream &
+operator<<( std::ostream & os,
+            const ValueParser & t )
+{
+    return t.print( os );
+}
+
+
 
 int
 str_to_int_array( bool & warning,

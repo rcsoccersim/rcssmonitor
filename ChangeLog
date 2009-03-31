@@ -1,3 +1,29 @@
+2009-03-31  Hidehisa Akiyama  <akky@users.sourceforge.jp>
+
+	* src/2dview.C:
+	* src/ascii_processor.C:
+	* src/builder_base.h:
+	* src/builder_direct.C:
+	* src/conv.C:
+	* src/conv.h:
+	* src/conv_area2d.C:
+	* src/display_x11.C:
+	* src/frame2d.C:
+	* src/frame2d.h:
+	* src/maplist.h:
+	* src/menu_x11.C:
+	* src/smonitor_dev.C:
+	* src/smonitor_dev.h:
+	* src/structure.C:
+	* src/structure.h:
+	* src/tcpsocket.C:
+	* src/valueparser.C:
+	* src/valueparser.h:
+	* src/vector2d.h:
+	* src/visobject.C:
+	* src/visobject.h:
+	- fixed coding style.
+
 2009-03-29  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
 	* configure.ac:

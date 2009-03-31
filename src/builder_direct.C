@@ -41,13 +41,13 @@ BuilderDirect::set_cmd_insert_frame( int parent_frame,
                                      const Angle & ang,
                                      int layer )
 {
-    bool res = false;
-    DrawFrame * f_dum;
-    f_dum = new DrawFrame( this_frame );
-    f_dum->relFrame = Frame2d::Translation( pos.x, pos.y ) * f_dum->relFrame;
-    f_dum->relFrame = f_dum->relFrame * Frame2d::Rotation( ang );
-    f_dum->layer = layer;
-    res = dtree->insert_in_frame( parent_frame, f_dum );
+    DrawFrame * f_dum = new DrawFrame( this_frame );
+//     f_dum->M_rel_frame = Frame2d::Translation( pos.x, pos.y ) * f_dum->M_rel_frame;
+//     f_dum->M_rel_frame = f_dum->M_rel_frame * Frame2d::Rotation( ang );
+//     f_dum->M_layer = layer;
+    f_dum->init( pos, ang, layer );
+
+    bool res = dtree->insert_in_frame( parent_frame, f_dum );
 
     if ( ! res )
     {
@@ -63,10 +63,9 @@ bool
 BuilderDirect::set_cmd_insert_visobject( int parent_frame,
                                          VisualObject2d * v_dum )
 {
-    bool res = false;
-    res = dtree->insert_in_frame( parent_frame, v_dum );
+    bool res = dtree->insert_in_frame( parent_frame, v_dum );
 
-    if ( !res )
+    if ( ! res )
     {
         delete v_dum;
         B_ERROR( "BuilderDirect: some error occured" );
@@ -83,10 +82,8 @@ BuilderDirect::set_cmd_insert_point( int parent_frame,
                                      int layer,
                                      const RGBcolor & col )
 {
-    bool res = false;
-    VisualObject2d* v_dum;
-    v_dum = new VisualPoint2d( this_object, layer, col, obj );
-    res = dtree->insert_in_frame( parent_frame, v_dum );
+    VisualObject2d * v_dum = new VisualPoint2d( this_object, layer, col, obj );
+    bool res = dtree->insert_in_frame( parent_frame, v_dum );
 
     if ( ! res )
     {
@@ -105,10 +102,8 @@ BuilderDirect::set_cmd_insert_points( int parent_frame,
                                       int layer,
                                       const RGBcolor & col )
 {
-    bool res = false;
-    VisualObject2d * v_dum;
-    v_dum = new VisualPoints2d( this_object, layer, col, len_data, data );
-    res = dtree->insert_in_frame( parent_frame, v_dum );
+    VisualObject2d * v_dum = new VisualPoints2d( this_object, layer, col, len_data, data );
+    bool res = dtree->insert_in_frame( parent_frame, v_dum );
 
     if ( ! res )
     {
@@ -127,10 +122,8 @@ BuilderDirect::set_cmd_insert_line( int parent_frame,
                                     int layer,
                                     const RGBcolor & col )
 {
-    bool res = false;
-    VisualObject2d* v_dum;
-    v_dum = new VisualLine2d( this_object, layer, col, obj );
-    res = dtree->insert_in_frame( parent_frame, v_dum );
+    VisualObject2d * v_dum = new VisualLine2d( this_object, layer, col, obj );
+    bool res = dtree->insert_in_frame( parent_frame, v_dum );
 
     if ( ! res )
     {
@@ -149,10 +142,8 @@ BuilderDirect::set_cmd_insert_lines( int parent_frame,
                                      int layer,
                                      const RGBcolor & col )
 {
-    bool res = false;
-    VisualObject2d* v_dum;
-    v_dum = new VisualLines2d( this_object, layer, col, len_data, data );
-    res = dtree->insert_in_frame( parent_frame, v_dum );
+    VisualObject2d * v_dum = new VisualLines2d( this_object, layer, col, len_data, data );
+    bool res = dtree->insert_in_frame( parent_frame, v_dum );
 
     if ( ! res )
     {
@@ -171,10 +162,8 @@ BuilderDirect::set_cmd_insert_circle( int parent_frame,
                                       int layer,
                                       const RGBcolor & col )
 {
-    bool res = false;
-    VisualObject2d * v_dum;
-    v_dum = new VisualCircle2d( this_object, layer, col, obj );
-    res = dtree->insert_in_frame( parent_frame, v_dum );
+    VisualObject2d * v_dum = new VisualCircle2d( this_object, layer, col, obj );
+    bool res = dtree->insert_in_frame( parent_frame, v_dum );
 
     if ( ! res )
     {
@@ -193,10 +182,8 @@ BuilderDirect::set_cmd_insert_circles( int parent_frame,
                                        int layer,
                                        const RGBcolor & col )
 {
-    bool res = false;
-    VisualObject2d* v_dum;
-    v_dum = new VisualCircles2d( this_object, layer, col, len_data, data );
-    res = dtree->insert_in_frame( parent_frame, v_dum );
+    VisualObject2d * v_dum = new VisualCircles2d( this_object, layer, col, len_data, data );
+    bool res = dtree->insert_in_frame( parent_frame, v_dum );
 
     if ( ! res )
     {
@@ -214,12 +201,10 @@ BuilderDirect::set_cmd_insert_f_circle( int parent_frame,
                                         int layer,
                                         const RGBcolor & col )
 {
-    bool res = false;
-    VisualCircle2d* v_dum;
-    v_dum = new VisualCircle2d( this_object, layer, col, obj );
+    VisualCircle2d * v_dum = new VisualCircle2d( this_object, layer, col, obj );
     v_dum->filled = true;
 
-    res = dtree->insert_in_frame( parent_frame, v_dum );
+    bool res = dtree->insert_in_frame( parent_frame, v_dum );
 
     if ( ! res )
     {
@@ -238,12 +223,10 @@ BuilderDirect::set_cmd_insert_f_circles( int parent_frame,
                                          int layer,
                                          const RGBcolor & col )
 {
-    bool res = false;
-    VisualCircles2d* v_dum;
-    v_dum = new VisualCircles2d( this_object, layer, col, len_data, data );
+    VisualCircles2d * v_dum = new VisualCircles2d( this_object, layer, col, len_data, data );
     v_dum->filled = true;
 
-    res = dtree->insert_in_frame( parent_frame, v_dum );
+    bool res = dtree->insert_in_frame( parent_frame, v_dum );
 
     if ( ! res )
     {
@@ -262,10 +245,8 @@ BuilderDirect::set_cmd_insert_circlearc( int parent_frame,
                                          int layer,
                                          const RGBcolor & col )
 {
-    bool res = false;
-    VisualObject2d * v_dum;
-    v_dum = new VisualCircleArc2d( this_object, layer, col, obj );
-    res = dtree->insert_in_frame( parent_frame, v_dum );
+    VisualObject2d * v_dum = new VisualCircleArc2d( this_object, layer, col, obj );
+    bool res = dtree->insert_in_frame( parent_frame, v_dum );
 
     if ( !res )
     {
@@ -284,10 +265,8 @@ BuilderDirect::set_cmd_insert_circlearcs( int parent_frame,
                                           int layer,
                                           const RGBcolor & col )
 {
-    bool res = false;
-    VisualObject2d * v_dum;
-    v_dum = new VisualCircleArcs2d( this_object, layer, col, len_data, data );
-    res = dtree->insert_in_frame( parent_frame, v_dum );
+    VisualObject2d * v_dum = new VisualCircleArcs2d( this_object, layer, col, len_data, data );
+    bool res = dtree->insert_in_frame( parent_frame, v_dum );
 
     if ( ! res )
     {
@@ -305,12 +284,10 @@ BuilderDirect::set_cmd_insert_f_circlearc( int parent_frame,
                                            int layer,
                                            const RGBcolor & col )
 {
-    bool res = false;
-    VisualCircleArc2d* v_dum;
-    v_dum = new VisualCircleArc2d( this_object, layer, col, obj );
+    VisualCircleArc2d * v_dum = new VisualCircleArc2d( this_object, layer, col, obj );
     v_dum->filled = true;
 
-    res = dtree->insert_in_frame( parent_frame, v_dum );
+    bool res = dtree->insert_in_frame( parent_frame, v_dum );
 
     if ( ! res )
     {
@@ -329,12 +306,10 @@ BuilderDirect::set_cmd_insert_f_circlearcs( int parent_frame,
                                             int layer,
                                             const RGBcolor & col )
 {
-    bool res = false;
-    VisualCircleArcs2d* v_dum;
-    v_dum = new VisualCircleArcs2d( this_object, layer, col, len_data, data );
+    VisualCircleArcs2d * v_dum = new VisualCircleArcs2d( this_object, layer, col, len_data, data );
     v_dum->filled = true;
 
-    res = dtree->insert_in_frame( parent_frame, v_dum );
+    bool res = dtree->insert_in_frame( parent_frame, v_dum );
 
     if ( ! res )
     {
@@ -354,10 +329,8 @@ BuilderDirect::set_cmd_insert_polyline( int parent_frame,
                                         int layer,
                                         const RGBcolor & col )
 {
-    bool res = false;
-    VisualObject2d* v_dum;
-    v_dum = new VisualPolyline2d( this_object, layer, col, len_data, data );
-    res = dtree->insert_in_frame( parent_frame, v_dum );
+    VisualObject2d * v_dum = new VisualPolyline2d( this_object, layer, col, len_data, data );
+    bool res = dtree->insert_in_frame( parent_frame, v_dum );
 
     if ( ! res )
     {
@@ -377,10 +350,8 @@ BuilderDirect::set_cmd_insert_polygon( int parent_frame,
                                        int layer,
                                        const RGBcolor & col )
 {
-    bool res = false;
-    VisualObject2d* v_dum;
-    v_dum = new VisualPolygon2d( this_object, layer, col, len_data, data );
-    res = dtree->insert_in_frame( parent_frame, v_dum );
+    VisualObject2d * v_dum = new VisualPolygon2d( this_object, layer, col, len_data, data );
+    bool res = dtree->insert_in_frame( parent_frame, v_dum );
 
     if ( ! res )
     {
@@ -399,12 +370,10 @@ BuilderDirect::set_cmd_insert_f_polygon( int parent_frame,
                                          int layer,
                                          const RGBcolor & col )
 {
-    bool res = false;
-    VisualPolygon2d* v_dum;
-    v_dum = new VisualPolygon2d( this_object, layer, col, len_data, data );
+    VisualPolygon2d * v_dum = new VisualPolygon2d( this_object, layer, col, len_data, data );
     v_dum->filled = true;
 
-    res = dtree->insert_in_frame( parent_frame, v_dum );
+    bool res = dtree->insert_in_frame( parent_frame, v_dum );
 
     if ( ! res )
     {
@@ -425,10 +394,8 @@ BuilderDirect::set_cmd_insert_string( int parent_frame,
                                       int layer,
                                       const RGBcolor & col )
 {
-    bool res = false;
-    VisualObject2d* v_dum;
-    v_dum = new VisualString2d( this_object, layer, col, pos, len_data, data );
-    res = dtree->insert_in_frame( parent_frame, v_dum );
+    VisualObject2d * v_dum = new VisualString2d( this_object, layer, col, pos, len_data, data );
+    bool res = dtree->insert_in_frame( parent_frame, v_dum );
 
     if ( ! res )
     {

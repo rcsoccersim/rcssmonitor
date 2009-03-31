@@ -18,25 +18,20 @@
  * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #include "conv.h"
 
-#include <cmath>
-#include <iostream>
 #include "global_defs.h"
 
-std::ostream &
-operator<<( std::ostream & o,
-            const WinPlaneConverter & c )
-{
-    std::cout << "[ Win= (" << c.Win_width << ", " << c.Win_height << ")"
-              << "  Plane= (" << c.Plane_east_x << ", " << c.Plane_south_y << ")"
-              << "  size=(" << c.Plane_size_x << ", " << c.Plane_size_y << ") ]";
-    return o;
-}
-
+#include <iostream>
+#include <cmath>
 
 WinPlaneConverter::WinPlaneConverter()
 {
+
 }
 
 WinPlaneConverter::WinPlaneConverter( int width,
@@ -108,6 +103,17 @@ WinPlaneConverter::get_Plane( Point2d & center,
     center.x = Plane_east_x + size_x * 0.5;
     center.y = Plane_south_y + size_y * 0.5;
 }
+
+
+std::ostream &
+WinPlaneConverter::print( std::ostream & os ) const
+{
+    os << "[ Win= (" << Win_width << ", " << Win_height << ")"
+       << "  Plane= (" << Plane_east_x << ", " << Plane_south_y << ")"
+       << "  size=(" << Plane_size_x << ", " << Plane_size_y << ") ]";
+    return os;
+}
+
 
 /*****************************************************************************/
 /*****************************************************************************/

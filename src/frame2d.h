@@ -22,7 +22,7 @@
 #define FRAME2D_H
 
 #include "vector2d.h"
-#include "object2d.h"
+#include "point2d.h"
 
 /**
    interesting facts about frames can be found in the very recommandable book
@@ -58,21 +58,47 @@
 */
 
 class Frame2d {
-    friend std::ostream & operator<<( std::ostream &, const Frame2d & );
-    friend Frame2d operator*( const Frame2d &, const Frame2d & );
-    friend Vector2d operator*( const Frame2d &, const Vector2d & );
-    friend Point2d operator*( const Frame2d &, const Point2d & );
+private:
+    /*!
+      \brief scale influences the magnification factor of all objects in a frame
+      normally scale should always be = 1.0, but if you want all objects in
+      your frame to be 2.5 as large, scale should be = 2.5
+    */
+    double scale;
+    double n_x, n_y, p_x, p_y;
 
 public:
 
-    Frame2d(); //init as identity frame
+    /*!
+      \brief init as identity frame
+     */
+    Frame2d();
 
     static Frame2d Translation( const double &,
                                 const double & );
 
     static Frame2d Rotation( const Angle & );
 
+    /*!
+      \brief get rotation angle
+     */
     Angle get_angle() const;
+
+    /*!
+      \brief get scalig factor
+     */
+    double get_scale() const
+      {
+          return scale;
+      }
+
+    /*!
+      \brief get translation vector
+     */
+    Vector2d get_pos() const
+      {
+          return Vector2d( p_x, p_y );
+      }
 
     Vector2d get_x_axis() const
       {
@@ -84,32 +110,79 @@ public:
           return Vector2d( -n_y, n_x );
       }
 
-    Vector2d get_pos() const
-      {
-          return Vector2d( p_x, p_y );
-      }
-
+    /*!
+      \brief set rotation matrix
+     */
     void set_angle( const Angle & );
 
-    void set_angle( const Vector2d & ); ///< set's angle correspoinding to the given vector
+    /*!
+      \brief set rotation matrix correspoinding to the given vector
+     */
+    void set_angle( const Vector2d & );
 
+    /*!
+      \brief set translation matrix
+     */
     void set_position( const double &,
                        const double & );
 
+    /*!
+      \brief set scaling factor
+     */
     void set_scale( const double & );
 
-    double get_scale() const
+
+    Vector2d transform( const Vector2d & v ) const
       {
-          return scale;
+          return Vector2d( n_x * v.x - n_y * v.y + p_x,
+                           n_y * v.x + n_x * v.y + p_y );
       }
 
-private:
-    /** \short scale influences the magnification factor of all objects in a frame
-        normally scale should always be = 1.0, but if you want all objects in
-        your frame to be 2.5 as large, scale should be = 2.5
-    */
-    double scale;
-    double n_x, n_y, p_x, p_y;
+    Point2d transform( const Point2d & v ) const
+      {
+          return Point2d( n_x * v.x - n_y * v.y + p_x,
+                          n_y * v.x + n_x * v.y + p_y );
+      }
+
+    Frame2d & operator*=( const Frame2d & f );
+
+    /*!
+      \brief output matrix values to an output stream
+     */
+    std::ostream & print( std::ostream & os ) const;
+
 };
+
+inline
+Frame2d
+operator*( const Frame2d & lhs,
+           const Frame2d & rhs )
+{
+    return Frame2d( lhs ) *= rhs;
+}
+
+inline
+Vector2d
+operator*( const Frame2d & lhs,
+           const Vector2d & rhs )
+{
+    return lhs.transform( rhs );
+}
+
+inline
+Point2d
+operator*( const Frame2d & lhs,
+           const Point2d & rhs )
+{
+    return lhs.transform( rhs );
+}
+
+inline
+std::ostream &
+operator<<( std::ostream & os,
+            const Frame2d & f )
+{
+    return f.print( os );
+}
 
 #endif

@@ -330,9 +330,10 @@ MenuX11::process_event( const XEvent & event )
                 buttons.set_window_visible( disp, false );
                 buttons_window_disappears = true;
             }
-
             else
+            {
                 buttons.set_window_visible( disp, true );
+            }
 
             opener.redraw = true;
 
@@ -394,7 +395,6 @@ MenuX11::button_pressed( const XEvent & event,
         {
             dum_xx = 2;
         }
-
         else
         {
             dum_xx = ( buttons_size_x - dum_xx ) / ( num_buttons );

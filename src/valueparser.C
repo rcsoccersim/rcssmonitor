@@ -225,7 +225,8 @@ KeyValueTab::append_val( int i,
     return true;
 }
 
-bool KeyValueTab::set_max_size( int new_max_size )
+bool
+KeyValueTab::set_max_size( int new_max_size )
 {
     if ( new_max_size < 0 ) return false;
 
@@ -285,17 +286,6 @@ operator<<( std::ostream & o,
 /*****************************************************************************/
 
 const int ValueParser::maxLineLength = 500;
-
-
-std::ostream &
-operator<<( std::ostream & o,
-            const ValueParser & t )
-{
-    o << "\n<ValueParser>";
-    o << t.kv_tab;
-    o << "\n</ValueParser>";
-    return o;
-}
 
 
 ValueParser::ValueParser( const char * fname,
@@ -1169,6 +1159,16 @@ ValueParser::showValue( const char * key,
     }
 
     std::cout << "]";
+}
+
+
+std::ostream &
+ValueParser::print( std::ostream & os ) const
+{
+    os << "\n<ValueParser>";
+    os << kv_tab;
+    os << "\n</ValueParser>";
+    return os;
 }
 
 

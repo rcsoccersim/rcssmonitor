@@ -25,9 +25,6 @@
 
 template < typename T >
 class KeyMap_LayerList {
-    //friend template<class T> ostream& operator<< (ostream&,const KeyMap_LayerList< T >&);
-    //friend ostream& operator<< (ostream&,const KeyMap_LayerList&);
-
 public: //vorlauefig, wegen <<
 
     struct Item {
@@ -61,7 +58,7 @@ public:
     bool remove ( int );
     bool remove ( T * );
     bool remove_all();
-    T* get( int );
+    T * get( int );
     void print();
 };
 
@@ -119,7 +116,8 @@ KeyMap_LayerList< T >::exists_item_with_key( int k )
 {
     Item * itr = list;
 
-    while ( itr && itr->content->get_key() != k )
+    while ( itr
+            && itr->content->get_key() != k )
     {
         itr = itr->next;
     }
@@ -128,10 +126,8 @@ KeyMap_LayerList< T >::exists_item_with_key( int k )
     {
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 template < typename T >
@@ -159,7 +155,7 @@ KeyMap_LayerList< T >::remove_item_with_key( int k )
 
     if ( itr->next )
     {
-        Item *dum = itr->next;
+        Item * dum = itr->next;
         itr->next = dum->next;
         delete dum;
         return true;
@@ -176,7 +172,8 @@ KeyMap_LayerList< T >::insert( T * t )
 {
     //there can be only one object for a key != 0
     //but multiple objects with the key== 0 are allowed
-    if ( t->get_key() != 0 && exists_item_with_key( t->get_key() ) )
+    if ( t->get_key() != 0
+         && exists_item_with_key( t->get_key() ) )
     {
         return false;
     }
@@ -196,9 +193,10 @@ KeyMap_LayerList< T >::insert( T * t )
         return true;
     }
 
-    Item *itr = list;
+    Item * itr = list;
 
-    while ( itr->next && itr->next->content->get_layer() <= ins->content->get_layer() )
+    while ( itr->next
+            && itr->next->content->get_layer() <= ins->content->get_layer() )
     {
         itr = itr->next;
     }
@@ -213,7 +211,7 @@ template < typename T >
 bool
 KeyMap_LayerList< T >::remove( T * t )
 {
-    if ( !t ) return false;
+    if ( ! t ) return false;
 
     if ( ! list )
     {
@@ -222,13 +220,13 @@ KeyMap_LayerList< T >::remove( T * t )
 
     if ( list->content == t )
     {
-        Item *dum = list;
+        Item * dum = list;
         list = list->next;
         delete dum;
         return true;
     }
 
-    Item *itr = list;
+    Item * itr = list;
 
     while ( itr->next && t != itr->next->content )
     {
@@ -237,15 +235,13 @@ KeyMap_LayerList< T >::remove( T * t )
 
     if ( itr->next )
     {
-        Item *dum = itr->next;
+        Item * dum = itr->next;
         itr->next = dum->next;
         delete dum;
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 template < typename T >
@@ -287,7 +283,8 @@ KeyMap_LayerList< T >::get( int k )
 {
     Item * itr = list;
 
-    while ( itr && itr->content->get_key() != k )
+    while ( itr
+            && itr->content->get_key() != k )
     {
         itr = itr->next;
     }
@@ -296,16 +293,15 @@ KeyMap_LayerList< T >::get( int k )
     {
         return itr->content;
     }
-    else
-    {
-        return static_cast< T * >( 0 );
-    }
+
+    return static_cast< T * >( 0 );
 }
 
 template < typename T >
-void KeyMap_LayerList< T >::print()
+void
+KeyMap_LayerList< T >::print()
 {
-    Item* itr = list;
+    Item * itr = list;
 
     while ( itr )
     {

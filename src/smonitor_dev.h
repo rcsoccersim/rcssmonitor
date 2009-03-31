@@ -87,7 +87,7 @@ class VisualBall
     RGBcolor c_line_markers;
     RGBcolor c_font;
 
-    VisualPoint2d  ball_point;;
+    VisualPoint2d  ball_point;
     VisualCircle2d ball_circle;
     VisualCircle2d ball_margin;
 
@@ -115,7 +115,7 @@ public:
                const double & my_large_r,
                const RGBcolor & my_c_ball,
                const RGBcolor & my_c_line_until_ball_stops,
-               const RGBcolor & my_c_line_unitl_ball_out_of_field,
+               const RGBcolor & my_c_line_markers,
                const RGBcolor & my_c_font );
 
     virtual
@@ -400,7 +400,7 @@ public:
 class SMonitorDevice
     : public InputDevice {
 
-    UDPsocket server;
+    UDPsocket M_server; //!< UDP connection to a soccer server
     //UDPsocket coach;
 
     bool M_timeover;
@@ -410,15 +410,16 @@ class SMonitorDevice
         STRING_MAX_SIZE = 512,
     };
 
-    char buffer1[BUFFER_MAX_SIZE];
-    char buffer2[BUFFER_MAX_SIZE];
+    char buffer1[BUFFER_MAX_SIZE]; //!< receive buffer
+    char buffer2[BUFFER_MAX_SIZE]; //!< receive buffer
 
-    static const int frame_canvas_left;
-    static const int frame_canvas_right;
-    static const int frame_ball;
-    static const int frame_varea;
-    static const int frame_shadow;
-    static const int frame_pointto;
+    static const int frame_team_graphic;
+    static const int frame_canvas_left; //!< key value of logger drawing frame for left team
+    static const int frame_canvas_right; //!< key value of logger drawing frame for right team
+    static const int frame_ball; //!< key value of ball drawing frame
+    static const int frame_varea; //!< key value of view area drawing frame
+    static const int frame_shadow; //!< key value of shadow drawing frame
+    static const int frame_pointto; //!< key value of pointto drawing frame
 
     static const int BUTTON_START;
     static const int BUTTON_RECONNECT;
@@ -582,23 +583,23 @@ class SMonitorDevice
         Positions()
           { };
 
-        Ball ball;
-        Player player[MAX_PLAYER*2];
+        Ball ball_;
+        Player players_[MAX_PLAYER*2];
 
         Player & ref_player( const int i )
           {
-              return player[i];
+              return players_[i];
           }
 
         void set_player_alive( const int i,
                                bool flag = true )
           {
-              player[i].alive = flag;
+              players_[i].alive = flag;
           }
 
         bool player_alive( const int i ) const
           {
-              return player[i].alive;
+              return players_[i].alive;
           }
 
         void set_player( const int i,
@@ -608,12 +609,12 @@ class SMonitorDevice
         void set_player_pos( const int i,
                              const Point2d & p )
           {
-              player[i].pos = p;
+              players_[i].pos = p;
           }
 
         void set_ball_pos( const Point2d & p )
           {
-              ball.pos = p;
+              ball_.pos = p;
           }
 
         std::ostream & print_inline( std::ostream & o ) const;
@@ -731,18 +732,18 @@ class SMonitorDevice
     /* end of SMonitorDevice internal types declaration                         */
     /****************************************************************************/
 
-    Options options;
-    ServerState server_state;
+    Options M_options;
+    ServerState M_server_state;
     std::string M_score_board_string;
-    GuessState guess;
-    Positions server_pos;
-    CoachState coach_state;
+    GuessState M_guess;
+    Positions M_positions;
+    CoachState M_coach_state;
 
-    VisualBall vis_ball;
-    VisualPlayer vis_player[MAX_PLAYER*2];
-    VisualPlayersViewArea vis_view_area;
-    VisualField vis_field;
-    Area2d initial_area;
+    VisualBall M_visual_ball;
+    VisualPlayer M_visual_players[MAX_PLAYER*2];
+    VisualPlayersViewArea M_visual_view_area;
+    VisualField M_visual_field;
+    Area2d M_initial_area; //!< the initial visible rectangle for unzoom operation
 
     //! key: time, value: team names & scores
     std::map< int, Score, std::greater< int > > M_scores;
@@ -839,10 +840,10 @@ class SMonitorDevice
     /// true if the player ID is valid
     bool p_valid( int i )
       {
-          return ( i >= 0 && i < MAX_PLAYER*2 ) ? true : false;
+          return ( 0<= i && i < MAX_PLAYER*2 ) ? true : false;
       }
 
-    /// maps player ID to frame number of this player
+    /// maps player ID to frame key number of this player
     int p_frame( int i )
       {
           return i + 1;
@@ -907,7 +908,7 @@ public:
 
     bool set_initial_area( const Area2d & area )
       {
-          initial_area = area;
+          M_initial_area = area;
           return true;
       }
 

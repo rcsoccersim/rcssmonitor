@@ -91,9 +91,11 @@ public:
           return std::sqrt( x*x + y*y );
       }
 
-    /** computes the argument of this vector as it would be a complex number. In
-        other words it computes the angle between this vector and the vector
-        (1,0). If this vector in the null vector a 0 is returned */
+    /*!
+      \brief computes the argument of this vector as it would be a complex number.
+      In other words it computes the angle between this vector and the vector
+      (1,0). If this vector in the null vector a 0 is returned
+    */
     Angle arg() const;
 
     /** */

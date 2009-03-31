@@ -28,40 +28,15 @@ extern DisplayBase *DDD
 
 
 /*****************************************************************************/
-std::ostream& operator<< ( std::ostream& o, const DrawFrame &f )
+
+DrawFrame::DrawFrame( int key )
+    : M_key( key ),
+    M_parent( static_cast< DrawFrame * >( 0 ) ),
+    M_visible( true ),
+    M_changed( true ),
+    M_layer( 0 )
 {
-    o << "Frame=[";
 
-    if ( f.changed )
-        o << "chg, ";
-
-    if ( f.up )
-        o << "up= " << f.up->key << ", ";
-
-    o << "key=" <<   f.key
-      << " ,layer=" <<   f.layer
-        //<< "\n relFrame= " << f.relFrame
-        //<< "\n absFrame= " << f.absFrame
-      << "]";
-
-    if ( false )
-        if ( !f.objects.empty() )
-        {
-            o  << "\n Objects={";
-            o << f.objects;
-        }
-
-    return o;
-}
-
-DrawFrame::DrawFrame( int k )
-{
-    key = k;
-    changed = true;
-    layer = 0;
-    visible = true;
-
-    up = 0;//NULL;
 }
 
 DrawFrame::~DrawFrame()
@@ -69,31 +44,43 @@ DrawFrame::~DrawFrame()
     //cout << "\nF.key= " << key;
 }
 
-bool
-DrawFrame::insert( DrawFrame* f )
+
+void
+DrawFrame::init( const Point2d & translation,
+                 const Angle & rotation,
+                 const int layer )
 {
-    f->up = this;
-    return frames.insert( f );
+    M_rel_transform = Frame2d::Translation( translation.x, translation.y ) * M_rel_transform;
+    M_rel_transform = M_rel_transform * Frame2d::Rotation( rotation );
+
+    M_layer = layer;
 }
 
 bool
-DrawFrame::remove( DrawFrame* f )
+DrawFrame::insert( DrawFrame * f )
 {
-    bool res = frames.remove( f );
+    f->M_parent = this;
+    return M_frames.insert( f );
+}
+
+bool
+DrawFrame::remove( DrawFrame * f )
+{
+    bool res = M_frames.remove( f );
     //delete f;
     return res;
 }
 
 bool
-DrawFrame::insert( VisualObject2d* f )
+DrawFrame::insert( VisualObject2d * f )
 {
-    return objects.insert( f );
+    return M_objects.insert( f );
 }
 
 bool
- DrawFrame::remove( VisualObject2d * f )
+DrawFrame::remove( VisualObject2d * f )
 {
-    bool res = objects.remove( f );
+    bool res = M_objects.remove( f );
     //delete f;
     return res;
 }
@@ -101,127 +88,120 @@ bool
 bool
 DrawFrame::remove_all( DrawFrameMap & fmap )
 {
-    KeyMap_LayerList<DrawFrame>::Iterator f_itr( frames );
-    KeyMap_LayerList<VisualObject2d>::Iterator o_itr( objects );
-    DrawFrame *f_dum;
-    VisualObject2d *o_dum;
+    KeyMap_LayerList< DrawFrame >::Iterator f_itr( M_frames );
+    KeyMap_LayerList< VisualObject2d >::Iterator o_itr( M_objects );
 
-    while ( ( f_dum = f_itr.get_next() ) )
+    DrawFrame * f_dum;
+    while ( f_dum = f_itr.get_next() )
     {
-        fmap.remove( f_dum->key ); //remove the key of this frame from the cache.
+        fmap.remove( f_dum->get_key() ); //remove the key of this frame from the cache.
         f_dum->remove_all( fmap );
         delete f_dum;
     }
 
-    while ( ( o_dum = o_itr.get_next() ) )
+    VisualObject2d * o_dum;
+    while ( o_dum = o_itr.get_next() )
     {
         //cout << "\nObject id= " << o_dum->key << flush;
         delete o_dum;
     }
 
-    frames.remove_all(); //delete the frames list
-
-    objects.remove_all();//delete the objects list
+    M_frames.remove_all(); //delete the frames list
+    M_objects.remove_all();//delete the objects list
     return true;
 }
 
 void
 DrawFrame::actualize( const Frame2d & p_frame,
-                      bool chg )
+                      const bool chg )
 {
-    changed = changed || chg;
+    M_changed = M_changed || chg;
 
-    if ( ! visible ) return;
+    if ( ! M_visible ) return;
 
-    KeyMap_LayerList<DrawFrame>::Iterator f_itr( frames );
+    KeyMap_LayerList< DrawFrame >::Iterator f_itr( M_frames );
+    KeyMap_LayerList< VisualObject2d >::Iterator o_itr( M_objects );
 
-    KeyMap_LayerList<VisualObject2d>::Iterator o_itr( objects );
-
-    DrawFrame *f_dum;
-
-    VisualObject2d *o_dum;
-
-    if ( changed )
+    if ( M_changed )
     {
-        if ( up )
+        if ( M_parent )
         {
-            //absFrame= up->absFrame * relFrame;
-            absFrame = p_frame * relFrame;
+            //M_abs_transform= M_parent->M_abs_transform * M_rel_transform;
+            M_abs_transform = p_frame * M_rel_transform;
         }
         else
         {
-            absFrame = relFrame;
+            M_abs_transform = M_rel_transform;
         }
     }
 
-    while ( ( f_dum = f_itr.get_next() ) )
+    DrawFrame * f_dum;
+    while ( f_dum = f_itr.get_next() )
     {
-        f_dum->actualize( absFrame, changed );
+        f_dum->actualize( M_abs_transform, M_changed );
     }
 
-    while ( ( o_dum = o_itr.get_next() ) )
+    VisualObject2d * o_dum;
+    while ( o_dum = o_itr.get_next() )
     {
-        o_dum->actualize( absFrame, changed );
+        o_dum->actualize( M_abs_transform, M_changed );
     }
 
-    changed = false;
+    M_changed = false;
 }
 
 void
 DrawFrame::draw( DisplayBase * disp,
                  const Area2d & area,
                  const Frame2d & p_frame,
-                 bool chg )
+                 const bool chg )
 {
-    changed = changed || chg;
+    M_changed = M_changed || chg;
 
-    if ( ! visible )
+    if ( ! M_visible )
     {
         return;
     }
 
     //cout << "\n " << key <<  " ----Frame: ";
-    KeyMap_LayerList<DrawFrame>::Iterator f_itr( frames );
+    KeyMap_LayerList< DrawFrame >::Iterator f_itr( M_frames );
+    KeyMap_LayerList< VisualObject2d >::Iterator o_itr( M_objects );
 
-    KeyMap_LayerList<VisualObject2d>::Iterator o_itr( objects );
-
-    DrawFrame *f_dum;
-
-    VisualObject2d *o_dum;
-
-    if ( changed )
+    if ( M_changed )
     {
-        if ( up )
+        if ( M_parent )
         {
-            //absFrame= up->absFrame * relFrame;
-            absFrame = p_frame * relFrame;
+            //M_abs_transform= M_parent->M_abs_transform * M_rel_transform;
+            M_abs_transform = p_frame * M_rel_transform;
         }
         else
         {
-            absFrame = relFrame;
+            M_abs_transform = M_rel_transform;
         }
     }
 
     //frames teke precedence over objects it they are in the same layer
     //cout << "\n\n>>>in frame: " << key << "\n";
-    o_dum = o_itr.get_next();
 
-    while ( ( f_dum = f_itr.get_next() ) )
+    DrawFrame * f_dum;
+    VisualObject2d * o_dum = o_itr.get_next();
+    while ( f_dum = f_itr.get_next() )
     {
-        while ( o_dum && o_dum->get_layer() < f_dum->layer )
+        while ( o_dum
+                && o_dum->get_layer() < f_dum->get_layer() )
         {
-            o_dum->draw( disp, area, absFrame, changed );
+            o_dum->draw( disp, area, M_abs_transform, M_changed );
             //cout << "\nobj_in: " << *o_dum;
             o_dum = o_itr.get_next();
         }
 
         //cout << "\n>frame: " << *f_dum;
-        f_dum->draw( disp, area, absFrame, changed );
+        f_dum->draw( disp, area, M_abs_transform, M_changed );
     }
 
     while ( o_dum )
     {
-        o_dum->draw( disp, area, absFrame, changed );
+        o_dum->draw( disp, area, M_abs_transform, M_changed );
         //cout << "\nobj_out: "<< *o_dum;
         o_dum = o_itr.get_next();
     }
@@ -229,9 +209,9 @@ DrawFrame::draw( DisplayBase * disp,
 #if 0
     Vector2d P, X, Y;
 
-    P = absFrame.get_pos();
-    X = P + absFrame.get_x_axis();
-    Y = P + absFrame.get_y_axis();
+    P = M_abs_transform.get_pos();
+    X = P + M_abs_transform.get_x_axis();
+    Y = P + M_abs_transform.get_y_axis();
 
     DDD->ASetForeground( "red" );
     DDD->ADrawLine( P.x, P.y, X.x, X.y );
@@ -241,24 +221,42 @@ DrawFrame::draw( DisplayBase * disp,
     //  DDD->ADrawString(P.x,P.y,1,"9");
 #endif
 
-    changed = false;
+    M_changed = false;
+}
+
+std::ostream &
+DrawFrame::print( std::ostream & os ) const
+{
+    os << "Frame=[";
+
+    if ( M_changed )
+    {
+        os << "chg, ";
+    }
+
+    if ( M_parent )
+    {
+        os << "up=" << M_parent->get_key() << ", ";
+    }
+
+    os << "key=" << get_key() << ", layer=" << get_layer()
+        //<< "\n M_rel_transform= " << f.M_rel_transform
+        //<< "\n M_abs_transform= " << f.M_abs_transform
+       << "]";
+
+    if ( false )
+    {
+        if ( ! M_objects.empty() )
+        {
+            os << "\n Objects={";
+            os << M_objects;
+        }
+    }
+
+    return os;
 }
 
 /*****************************************************************************/
-std::ostream &
-operator<< ( std::ostream & o,
-             const DrawFrameMap & m )
-{
-    DrawFrameMap::Item * itr = m.list;
-
-    while ( itr )
-    {
-        o << "\n" << *( itr->frame );
-        itr = itr->next;
-    }
-
-    return o;
-}
 
 DrawFrameMap::Item::Item( DrawFrame * f )
 {
@@ -269,11 +267,11 @@ DrawFrameMap::Item::Item( DrawFrame * f )
 
 DrawFrameMap::DrawFrameMap()
 {
-    list = 0;
+    M_list = static_cast< Item * >( 0 );
 
     for ( int i = 0; i < MAX_DIRECT; ++i )
     {
-        direct_map[i] = 0;
+        M_direct_map[i] = static_cast< DrawFrame * >( 0 );
     }
 }
 
@@ -282,46 +280,54 @@ DrawFrameMap::insert( DrawFrame * f )
 {
     int k = f->get_key();
 
-    if ( k >= 0 && k < MAX_DIRECT )
+    //
+    // insert to the array frames (direct access frames)
+    //
+    if ( 0 <= k && k < MAX_DIRECT )
     {
-        if ( direct_map[k] )
+        if ( M_direct_map[k] )
         {
             return false;
         }
 
-        direct_map[k] = f;
+        M_direct_map[k] = f;
         return true;
     }
 
-    Item *ins = new Item( f );
+    //
+    // insert to the list frames
+    //
 
-    if ( 0 == list )
+    Item * ins = new Item( f );
+
+    if ( ! M_list )
     {
-        list = ins;
+        M_list = ins;
         return true;
     }
 
-    if ( ins->key < list->key )
+    if ( ins->key < M_list->key )
     {
-        ins->next = list;
-        list = ins;
+        ins->next = M_list;
+        M_list = ins;
         return true;
     }
 
-    Item *itr = list;
+    Item * itr = M_list;
 
-    while ( itr->next && itr->next->key < ins->key )
+    while ( itr->next
+            && itr->next->key < ins->key )
     {
         itr = itr->next;
     }
 
-    if ( 0 == itr->next )
+    if ( ! itr->next )
     {
         itr->next = ins;
         return true;
     }
 
-    if ( itr->next->key  > ins->key )
+    if ( itr->next->key > ins->key )
     {
         ins->next = itr->next;
         itr->next = ins;
@@ -337,16 +343,24 @@ DrawFrameMap::insert( DrawFrame * f )
 bool
 DrawFrameMap::remove( int key )
 {
-    if ( key >= 0 && key < MAX_DIRECT )
+    //
+    // remove from array
+    //
+    if ( 0 <= key && key < MAX_DIRECT )
     {
-        direct_map[key] = 0;
+        M_direct_map[key] = static_cast< DrawFrame * >( 0 );
         return true;
     }
 
-    if ( ! list )
+    //
+    // remove from list
+    //
+    if ( ! M_list )
+    {
         return true;
+    }
 
-    Item *itr = list;
+    Item * itr = M_list;
 
     if ( itr->key > key )
     {
@@ -354,22 +368,23 @@ DrawFrameMap::remove( int key )
     }
     else if ( itr->key == key )
     {
-        list = itr->next;
+        M_list = itr->next;
         delete itr;
         return true;
     }
 
-    while ( itr->next && itr->next->key < key )
+    while ( itr->next
+            && itr->next->key < key )
     {
         itr = itr->next;
     }
 
-    if ( 0 == itr->next )
+    if ( ! itr->next )
     {
         return true;
     }
 
-    if ( itr->next->key  == key )
+    if ( itr->next->key == key )
     {
         Item * dum = itr->next;
         itr->next = dum->next;
@@ -382,58 +397,87 @@ DrawFrameMap::remove( int key )
 DrawFrame *
 DrawFrameMap::get( int key )
 {
-    if ( key >= 0 && key < MAX_DIRECT )
+    //
+    // get from array
+    //
+    if ( 0 <= key && key < MAX_DIRECT )
     {
-        return direct_map[key];
+        return M_direct_map[key];
     }
 
-    Item * itr = list;
+    //
+    // get from list
+    //
+    Item * itr = M_list;
 
-    while ( itr != 0 && itr->key < key )
+    while ( itr
+            && itr->key < key )
     {
         itr = itr->next;
     }
 
-    if ( 0 == itr )
+    if ( ! itr )
     {
         return 0;
     }
 
     if ( itr->key != key )
     {
-        return 0;
+        return static_cast< DrawFrame * >( 0 );
     }
 
     return itr->frame;
 }
 
-/*****************************************************************************/
-
 std::ostream &
-operator<< ( std::ostream & o,
-             const DrawTree & t )
+DrawFrameMap::print( std::ostream & os ) const
 {
-    return o << t.frameMap;
+    //
+    // print array frames
+    //
+    for ( int i = 0; i < MAX_DIRECT; ++i )
+    {
+        if ( M_direct_map[i] )
+        {
+            os << '\n';
+            M_direct_map[i]->print( os );
+        }
+    }
+
+    //
+    // print list frames
+    //
+    DrawFrameMap::Item * itr = M_list;
+    while ( itr )
+    {
+        //os << "\n" << *( itr->frame );
+        itr->frame->print( os ) << '\n';
+        itr = itr->next;
+    }
+
+    return os;
 }
+
+/*****************************************************************************/
 
 DrawTree::DrawTree()
 {
-    origin = new DrawFrame( 0 );
-    frameMap.insert( origin );
+    M_origin = new DrawFrame( 0 );
+    M_frame_map.insert( M_origin );
 }
 
 bool
-DrawTree::insert_in_frame( int fkey,
+DrawTree::insert_in_frame( const int fkey,
                            DrawFrame * f )
 {
-    DrawFrame *master = frameMap.get( fkey );
+    DrawFrame * master = M_frame_map.get( fkey );
 
     if ( master
-         && 0 == frameMap.get( f->get_key() ) )
+         && ! M_frame_map.get( f->get_key() ) )
     {
         if ( master->insert( f ) )
         {
-            frameMap.insert( f );
+            M_frame_map.insert( f );
             return true;
         }
     }
@@ -442,10 +486,10 @@ DrawTree::insert_in_frame( int fkey,
 }
 
 bool
-DrawTree::insert_in_frame( int fkey,
-                           VisualObject2d *f )
+DrawTree::insert_in_frame( const int fkey,
+                           VisualObject2d * f )
 {
-    DrawFrame * master = frameMap.get( fkey );
+    DrawFrame * master = M_frame_map.get( fkey );
 
     if ( master )
     {
@@ -455,35 +499,35 @@ DrawTree::insert_in_frame( int fkey,
     return false;
 }
 
-
 bool
-DrawTree::remove_frame( int fkey )
+DrawTree::remove_frame( const int fkey )
 {
-    DrawFrame *master = frameMap.get( fkey );
+    DrawFrame * master = M_frame_map.get( fkey );
 
-    if ( master && master->up )
+    if ( master
+         && master->M_parent )
     {
-        DrawFrame * up = master->up;
-        frameMap.remove( master->key );
-        master->remove_all( frameMap );
+        DrawFrame * parent = master->M_parent;
+        M_frame_map.remove( master->get_key() );
+        master->remove_all( M_frame_map ); // remove children frames
         delete master;
-        return up->remove( master );
+        return parent->remove( master );
     }
 
     return false;
 }
 
 bool
-DrawTree::remove_in_frame( int fkey,
-                           int fo_key )
+DrawTree::remove_in_frame( const int fkey,
+                           const int fo_key )
 {
-    DrawFrame * master = frameMap.get( fkey );
-    DrawFrame * slave = frameMap.get( fo_key );
+    DrawFrame * master = M_frame_map.get( fkey );
+    DrawFrame * slave = M_frame_map.get( fo_key );
 
     if ( master && slave && master != slave )
     {
-        frameMap.remove( slave->key );
-        slave->remove_all( frameMap );
+        M_frame_map.remove( slave->get_key() );
+        slave->remove_all( M_frame_map );
         delete slave;
         return master->remove( slave );
     }
@@ -492,13 +536,13 @@ DrawTree::remove_in_frame( int fkey,
 }
 
 bool
-DrawTree::empty_frame( int fkey )
+DrawTree::empty_frame( const int fkey )
 {
-    DrawFrame *master = frameMap.get( fkey );
+    DrawFrame * master = M_frame_map.get( fkey );
 
     if ( master )
     {
-        master->remove_all( frameMap );
+        master->remove_all( M_frame_map );
         return true;
     }
 
@@ -506,71 +550,56 @@ DrawTree::empty_frame( int fkey )
 }
 
 bool
-DrawTree::rotate_frame( int fkey,
+DrawTree::rotate_frame( const int fkey,
                         const Angle & ang )
 {
-    DrawFrame * master = frameMap.get( fkey );
+    DrawFrame * master = M_frame_map.get( fkey );
 
     if ( ! master )
     {
         return false;
     }
 
-    master->changed = true;
-    master->relFrame = master->relFrame * Frame2d::Rotation( ang );
+    master->M_changed = true;
+    master->M_rel_transform = master->M_rel_transform * Frame2d::Rotation( ang );
 
     return true;
 }
 
 bool
-DrawTree::translate_frame( int fkey,
-                           double, double )
+DrawTree::translate_in_frame( const int fkey,
+                              const int fo_key,
+                              const double & x,
+                              const double & y )
 {
-    return false;
-}
-
-bool
-DrawTree::rotate_in_frame( int fkey,
-                           int fo_key,
-                           const Angle & )
-{
-    return false;
-}
-
-bool
-DrawTree::translate_in_frame( int fkey,
-                              int fo_key,
-                              double x,
-                              double y )
-{
-    DrawFrame * master = frameMap.get( fkey );
-    DrawFrame * slave = frameMap.get( fo_key );
+    DrawFrame * master = M_frame_map.get( fkey );
+    DrawFrame * slave = M_frame_map.get( fo_key );
 
     if ( ! master || ! slave || master == slave )
     {
         return false;
     }
 
-    slave->changed = true;
+    slave->M_changed = true;
     //eigentlich braucht man hier master nicht!!!
-    slave->relFrame = Frame2d::Translation( x, y ) * slave->relFrame;
+    slave->M_rel_transform = Frame2d::Translation( x, y ) * slave->M_rel_transform;
 
     return true;
 }
 
 bool
-DrawTree::set_object_color( int fkey,
-                            int okey,
+DrawTree::set_object_color( const int fkey,
+                            const int okey,
                             const RGBcolor & c )
 {
-    DrawFrame * master = frameMap.get( fkey );
+    DrawFrame * master = M_frame_map.get( fkey );
 
     if ( ! master )
     {
         return false;
     }
 
-    VisualObject2d * obj = master->objects.get( okey );
+    VisualObject2d * obj = master->M_objects.get( okey );
 
     if ( ! obj )
     {
@@ -582,49 +611,49 @@ DrawTree::set_object_color( int fkey,
 }
 
 bool
-DrawTree::set_position( int fkey,
-                        double x,
-                        double y )
+DrawTree::set_position( const int fkey,
+                        const double & x,
+                        const double & y )
 {
-    DrawFrame * master = frameMap.get( fkey );
+    DrawFrame * master = M_frame_map.get( fkey );
 
     if ( ! master )
     {
         return false;
     }
 
-    master->changed = true;
-    master->relFrame.set_position( x, y );
+    master->M_changed = true;
+    master->M_rel_transform.set_position( x, y );
     return true;
 }
 
 bool
-DrawTree::set_visible( int fkey,
-                       bool val )
+DrawTree::set_visible( const int fkey,
+                       const bool val )
 {
-    DrawFrame * master = frameMap.get( fkey );
+    DrawFrame * master = M_frame_map.get( fkey );
 
     if ( ! master )
     {
         return false;
     }
 
-    if ( val != master->visible )
+    if ( val != master->M_visible )
     {
-        master->visible = val;
-        master->changed = true;
+        master->M_visible = val;
+        master->M_changed = true;
     }
 
     return true;
 }
 
 bool
-DrawTree::set_layer( int fkey,
-                     int val )
+DrawTree::set_layer( const int fkey,
+                     const int val )
 {
     return false;
-    /* buggy, it doesn't change the order in frameMap
-       DrawFrame *master= frameMap.get(fkey);
+    /* buggy, it doesn't change the order in M_frame_map
+       DrawFrame *master= M_frame_map.get(fkey);
        if (!master)
        return false;
        if (val!= master->layer) {
@@ -636,53 +665,53 @@ DrawTree::set_layer( int fkey,
 }
 
 bool
-DrawTree::set_angle( int fkey,
+DrawTree::set_angle( const int fkey,
                      const Angle & ang )
 {
-    DrawFrame * master = frameMap.get( fkey );
+    DrawFrame * master = M_frame_map.get( fkey );
 
     if ( ! master )
     {
         return false;
     }
 
-    master->changed = true;
-    master->relFrame.set_angle( ang );
+    master->M_changed = true;
+    master->M_rel_transform.set_angle( ang );
     return true;
 }
 
 bool
-DrawTree::set_scale( int fkey,
-                     double scale )
+DrawTree::set_scale( const int fkey,
+                     const double & scale )
 {
-    DrawFrame * master = frameMap.get( fkey );
+    DrawFrame * master = M_frame_map.get( fkey );
 
     if ( ! master )
     {
         return false;
     }
 
-    master->changed = true;
-    master->relFrame.set_scale( scale );
+    master->M_changed = true;
+    master->M_rel_transform.set_scale( scale );
     return true;
 }
 
 bool
-DrawTree::set_pos_ang( int fkey,
-                       double x,
-                       double y,
+DrawTree::set_pos_ang( const int fkey,
+                       const double & x,
+                       const double & y,
                        const Angle & ang )
 {
-    DrawFrame * master = frameMap.get( fkey );
+    DrawFrame * master = M_frame_map.get( fkey );
 
     if ( ! master )
     {
         return false;
     }
 
-    master->changed = true;
-    master->relFrame.set_position( x, y );
-    master->relFrame.set_angle( ang );
+    master->M_changed = true;
+    master->M_rel_transform.set_position( x, y );
+    master->M_rel_transform.set_angle( ang );
     return true;
 }
 
@@ -691,8 +720,14 @@ DrawTree::draw( DisplayBase * disp,
                 const Area2d & area )
 {
     static Frame2d dum;
-    origin->draw( disp, area, dum, false );
+    M_origin->draw( disp, area, dum, false );
     //cout << endl; //debug
+}
+
+std::ostream &
+DrawTree::print( std::ostream & os ) const
+{
+    return M_frame_map.print( os );
 }
 
 /**********************************************************************/

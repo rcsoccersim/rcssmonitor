@@ -109,7 +109,8 @@ VisualPoint2d::actualize( const Frame2d & f,
         return;
     }
 
-    abs = f * rel;
+    //abs = f * rel;
+    abs = f.transform( rel );
 
     if ( d_obj )
     {
@@ -211,7 +212,8 @@ VisualPoints2d::actualize( const Frame2d & f,
 
     for ( int i = 0; i < abs.cur_size; ++i )
     {
-        abs.tab[i] = f * rel.tab[i];
+        //abs.tab[i] = f * rel.tab[i];
+        abs.tab[i] = f.transform( rel.tab[i] );
     }
 
     if ( d_obj )
@@ -332,9 +334,10 @@ VisualLine2d::actualize( const Frame2d & f,
         return;
     }
 
-    abs.p1 = f * rel.p1;
-
-    abs.p2 = f * rel.p2;
+    //abs.p1 = f * rel.p1;
+    abs.p1 = f.transform( rel.p1 );
+    //abs.p2 = f * rel.p2;
+    abs.p2 = f.transform( rel.p2 );
 
     if ( d_obj )
     {
@@ -437,8 +440,10 @@ VisualLines2d::actualize( const Frame2d & f,
 
     for ( int i = 0; i < abs.cur_size; ++i )
     {
-        abs.tab[i].p1 = f * rel.tab[i].p1;
-        abs.tab[i].p2 = f * rel.tab[i].p2;
+        // abs.tab[i].p1 = f * rel.tab[i].p1;
+        // abs.tab[i].p2 = f * rel.tab[i].p2;
+        abs.tab[i].p1 = f.transform( rel.tab[i].p1 );
+        abs.tab[i].p2 = f.transform( rel.tab[i].p2 );
     }
 
     if ( d_obj )
@@ -566,7 +571,8 @@ VisualCircle2d::actualize( const Frame2d & f,
         return;
     }
 
-    abs.center = f * rel.center;
+    //abs.center = f * rel.center;
+    abs.center = f.transform( rel.center );
 
     abs.radius = f.get_scale() * rel.radius;
 
@@ -683,7 +689,8 @@ VisualCircles2d::actualize( const Frame2d & f,
 
     for ( int i = 0; i < abs.cur_size; ++i )
     {
-        abs.tab[i].center = f * rel.tab[i].center;
+        //abs.tab[i].center = f * rel.tab[i].center;
+        abs.tab[i].center = f.transform( rel.tab[i].center );
         abs.tab[i].radius = f.get_scale() * rel.tab[i].radius;
     }
 
@@ -821,7 +828,8 @@ VisualCircleArc2d::actualize( const Frame2d & f,
         return;
     }
 
-    abs.center = f * rel.center;
+    //abs.center = f * rel.center;
+    abs.center = f.transform( rel.center );
 
     abs.radius = f.get_scale() * rel.radius;
 
@@ -942,7 +950,8 @@ VisualCircleArcs2d::actualize( const Frame2d & f,
 
     for ( int i = 0; i < abs.cur_size; ++i )
     {
-        abs.tab[i].center = f * rel.tab[i].center;
+        //abs.tab[i].center = f * rel.tab[i].center;
+        abs.tab[i].center = f.transform( rel.tab[i].center );
         abs.tab[i].radius = f.get_scale() * rel.tab[i].radius;
         Angle ang = f.get_angle();
         abs.tab[i].ang1 = ang + rel.tab[i].ang1;
@@ -1080,7 +1089,8 @@ VisualPolyline2d::actualize( const Frame2d & f,
 
     for ( int i = 0; i < rel.cur_size; ++i )
     {
-        abs.tab[i] = f * rel.tab[i];
+        //abs.tab[i] = f * rel.tab[i];
+        abs.tab[i] = f.transform( rel.tab[i] );
     }
 
     if ( d_obj )
@@ -1216,7 +1226,7 @@ VisualPolygon2d::actualize( const Frame2d & f,
 
     for ( int i = 0; i < rel.cur_size; ++i )
     {
-        abs.tab[i] = f * rel.tab[i];
+        abs.tab[i] = f.transform( rel.tab[i] );
     }
 
     if ( d_obj )
@@ -1376,7 +1386,8 @@ VisualString2d::actualize( const Frame2d & f,
         return;
     }
 
-    abs = f * rel;
+    //abs = f * rel;
+    abs = f.transform( rel );
 
     if ( d_obj )
     {

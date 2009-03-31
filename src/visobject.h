@@ -303,6 +303,7 @@ public:
 
 class VisualCircle2d
     : public VisualObject2d {
+private:
 
     DisplayObject * d_obj;
     RGBcolor color;

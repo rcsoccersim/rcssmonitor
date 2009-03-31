@@ -18,48 +18,60 @@
  * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #include "frame2d.h"
 
-std::ostream &
-operator<<( std::ostream & o,
-            const Frame2d & f )
+Frame2d &
+Frame2d::operator*=( const Frame2d & f )
 {
-    return o << "\n   [" << f.n_x << " " << -f.n_y << " " << f.p_x << "]"
-             << "\n   [" << f.n_y << " " <<  f.n_x << " " << f.p_y << "]";
+    double nx = this->n_x * f.n_x - this->n_y * f.n_y;
+    double ny = this->n_y * f.n_x + this->n_x * f.n_y;
+    double px = this->n_x * f.p_x - this->n_y * f.p_y + this->p_x;
+    double py = this->n_y * f.p_x + this->n_x * f.p_y + this->p_y;
+
+    this->scale *= f.scale;
+    this->n_x = nx;
+    this->n_y = ny;
+    this->p_x = px;
+    this->p_y = py;
+    return *this;
 }
 
-Frame2d
-operator*( const Frame2d & f1,
-           const Frame2d & f2 )
-{
-    Frame2d res;
-    res.scale = f1.scale * f2.scale;
-    res.n_x = f1.n_x * f2.n_x - f1.n_y * f2.n_y;
-    res.n_y = f1.n_y * f2.n_x + f1.n_x * f2.n_y;
-    res.p_x = f1.n_x * f2.p_x - f1.n_y * f2.p_y + f1.p_x;
-    res.p_y = f1.n_y * f2.p_x + f1.n_x * f2.p_y + f1.p_y;
-    return res;
-}
+// Frame2d
+// operator*( const Frame2d & f1,
+//            const Frame2d & f2 )
+// {
+//     Frame2d res;
+//     res.scale = f1.scale * f2.scale;
+//     res.n_x = f1.n_x * f2.n_x - f1.n_y * f2.n_y;
+//     res.n_y = f1.n_y * f2.n_x + f1.n_x * f2.n_y;
+//     res.p_x = f1.n_x * f2.p_x - f1.n_y * f2.p_y + f1.p_x;
+//     res.p_y = f1.n_y * f2.p_x + f1.n_x * f2.p_y + f1.p_y;
+//     return res;
+// }
 
-Vector2d
-operator*( const Frame2d & f1,
-           const Vector2d & v )
-{
-    Vector2d res;
-    res.x = f1.n_x * v.x - f1.n_y * v.y + f1.p_x;
-    res.y = f1.n_y * v.x + f1.n_x * v.y + f1.p_y;
-    return res;
-}
+// Vector2d
+// operator*( const Frame2d & f1,
+//            const Vector2d & v )
+// {
+//     Vector2d res;
+//     res.x = f1.n_x * v.x - f1.n_y * v.y + f1.p_x;
+//     res.y = f1.n_y * v.x + f1.n_x * v.y + f1.p_y;
+//     return res;
+// }
 
-Point2d
-operator*( const Frame2d & f1,
-           const Point2d & v )
-{
-    Point2d res;
-    res.x = f1.n_x * v.x - f1.n_y * v.y + f1.p_x;
-    res.y = f1.n_y * v.x + f1.n_x * v.y + f1.p_y;
-    return res;
-}
+// Point2d
+// operator*( const Frame2d & f1,
+//            const Point2d & v )
+// {
+//     Point2d res;
+//     res.x = f1.n_x * v.x - f1.n_y * v.y + f1.p_x;
+//     res.y = f1.n_y * v.x + f1.n_x * v.y + f1.p_y;
+//     return res;
+// }
 
 Frame2d::Frame2d()
 {
@@ -71,20 +83,23 @@ Frame2d::Frame2d()
 }
 
 
-Angle Frame2d::get_angle() const
+Angle
+Frame2d::get_angle() const
 {
     Vector2d vec( n_x, n_y );
     return vec.arg();
 }
 
-void Frame2d::set_angle( const Angle & a )
+void
+Frame2d::set_angle( const Angle & a )
 {
     n_x = a.cos() * scale;
     n_y = a.sin() * scale;
     //f1.n_y= sqrt(1-f1.n_x*f1.n_x);
 }
 
-void Frame2d::set_angle( const Vector2d & vec )
+void
+Frame2d::set_angle( const Vector2d & vec )
 {
     double norm = vec.norm();
 
@@ -103,14 +118,16 @@ void Frame2d::set_angle( const Vector2d & vec )
     //f1.n_y= sqrt(1-f1.n_x*f1.n_x);
 }
 
-void Frame2d::set_position( const double & x,
-                            const double & y )
+void
+Frame2d::set_position( const double & x,
+                       const double & y )
 {
     p_x = x;
     p_y = y;
 }
 
-void Frame2d::set_scale( const double & s )
+void
+Frame2d::set_scale( const double & s )
 {
     n_x /= scale;
     n_y /= scale;
@@ -134,6 +151,14 @@ Frame2d::Rotation( const Angle & a )
     Frame2d f1;
     f1.set_angle( a );
     return f1;
+}
+
+
+std::ostream &
+Frame2d::print( std::ostream & os ) const
+{
+    return os << "\n   [" << n_x << " " << -n_y << " " << p_x << "]"
+              << "\n   [" << n_y << " " <<  n_x << " " << p_y << "]";
 }
 
 /*****************************************************************************/
