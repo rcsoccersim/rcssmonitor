@@ -21,7 +21,6 @@
 #include "display_x11.h"
 
 #include "area2d.h"
-#include "pixmap_image.h"
 #include "rgbcolor.h"
 
 #include <iostream>
