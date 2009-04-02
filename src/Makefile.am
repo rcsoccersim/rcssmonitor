@@ -34,14 +34,15 @@ rcssmonitor_SOURCES = \
 	builder_base.h     frame2d.h       object2d.h   structure.h \
 	builder_direct.h   global_defs.h   point2d.h    tools.h \
 	coder.h            input_dev.h     rgbcolor.h   udpsocket.h tcpsocket.h popup_x11.h \
-	team_graphic.h team_graphic.cpp
+	team_graphic.h team_graphic.cpp \
+	rectangle.h rectangle.cpp \
+	options.h options.cpp
 
-rcssmonitor_CXXFLAGS =
 rcssmonitor_LDADD = @X_PRE_LIBS@ @X_LIBS@ @X_EXTRA_LIBS@
 
 AM_CPPFLAGS =
-AM_CFLAGS =
-AM_CXXFLAGS = -W -Wall @COMP_FLAGS@ @X_CFLAGS@
+AM_CFLAGS = -W -Wall
+AM_CXXFLAGS = -W -Wall
 AM_LDFLAGS =
 
 EXTRA_PROGRAMS = \

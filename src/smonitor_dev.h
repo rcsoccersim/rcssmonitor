@@ -696,18 +696,18 @@ class SMonitorDevice
         int left_score_;
         int right_score_;
         int left_pen_score_;
-        int left_pen_miss_;
         int right_pen_score_;
+        int left_pen_miss_;
         int right_pen_miss_;
 
         Score( const int left_score,
                const int right_score )
-            : left_score_( left_score )
-            , right_score_( right_score )
-            , left_pen_score_( 0 )
-            , right_pen_score_( 0 )
-            , left_pen_miss_( 0 )
-            , right_pen_miss_( 0 )
+            : left_score_( left_score ),
+              right_score_( right_score ),
+              left_pen_score_( 0 ),
+              right_pen_score_( 0 ),
+              left_pen_miss_( 0 ),
+              right_pen_miss_( 0 )
           { }
 
         Score( const int left_score,
@@ -716,12 +716,12 @@ class SMonitorDevice
                const int left_pen_miss,
                const int right_pen_score,
                const int right_pen_miss )
-            : left_score_( left_score )
-            , right_score_( right_score )
-            , left_pen_score_( left_pen_score )
-            , left_pen_miss_( left_pen_miss )
-            , right_pen_score_( right_pen_score )
-            , right_pen_miss_( right_pen_miss )
+            : left_score_( left_score ),
+              right_score_( right_score ),
+              left_pen_score_( left_pen_score ),
+              right_pen_score_( right_pen_score ),
+              left_pen_miss_( left_pen_miss ),
+              right_pen_miss_( right_pen_miss )
           { }
 
         bool hasPenaltyScore() const

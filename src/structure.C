@@ -37,10 +37,10 @@ extern DisplayBase *DDD
 
 DrawFrame::DrawFrame( int key )
     : M_key( key ),
+    M_layer( 0 ),
     M_parent( static_cast< DrawFrame * >( 0 ) ),
     M_visible( true ),
-    M_changed( true ),
-    M_layer( 0 )
+    M_changed( true )
 {
 
 }
@@ -98,7 +98,7 @@ DrawFrame::remove_all( DrawFrameMap & fmap )
     KeyMap_LayerList< VisualObject2d >::Iterator o_itr( M_objects );
 
     DrawFrame * f_dum;
-    while ( f_dum = f_itr.get_next() )
+    while ( ( f_dum = f_itr.get_next() ) )
     {
         fmap.remove( f_dum->get_key() ); //remove the key of this frame from the cache.
         f_dum->remove_all( fmap );
@@ -106,7 +106,7 @@ DrawFrame::remove_all( DrawFrameMap & fmap )
     }
 
     VisualObject2d * o_dum;
-    while ( o_dum = o_itr.get_next() )
+    while ( ( o_dum = o_itr.get_next() ) )
     {
         //cout << "\nObject id= " << o_dum->key << flush;
         delete o_dum;
@@ -142,13 +142,13 @@ DrawFrame::actualize( const Frame2d & p_frame,
     }
 
     DrawFrame * f_dum;
-    while ( f_dum = f_itr.get_next() )
+    while ( ( f_dum = f_itr.get_next() ) )
     {
         f_dum->actualize( M_abs_transform, M_changed );
     }
 
     VisualObject2d * o_dum;
-    while ( o_dum = o_itr.get_next() )
+    while ( ( o_dum = o_itr.get_next() ) )
     {
         o_dum->actualize( M_abs_transform, M_changed );
     }
@@ -191,7 +191,7 @@ DrawFrame::draw( DisplayBase * disp,
 
     DrawFrame * f_dum;
     VisualObject2d * o_dum = o_itr.get_next();
-    while ( f_dum = f_itr.get_next() )
+    while ( ( f_dum = f_itr.get_next() ) )
     {
         while ( o_dum
                 && o_dum->get_layer() < f_dum->get_layer() )
@@ -654,8 +654,8 @@ DrawTree::set_visible( const int fkey,
 }
 
 bool
-DrawTree::set_layer( const int fkey,
-                     const int val )
+DrawTree::set_layer( const int,
+                     const int )
 {
     return false;
     /* buggy, it doesn't change the order in M_frame_map

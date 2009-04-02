@@ -106,7 +106,7 @@ public:
       }
 
     virtual
-    bool set_initial_area( const Area2d & area )
+    bool set_initial_area( const Area2d & )
       {
           return false;
       }
@@ -115,7 +115,7 @@ public:
         \param fname name of the file including options
     */
     virtual
-    bool process_options( const char * fname )
+    bool process_options( const char * )
       {
           return true;
       }
@@ -125,8 +125,8 @@ public:
         \param argv double array of '\0' terminated strings
     */
     virtual
-    bool process_options( int argc,
-                          char const * const * argv )
+    bool process_options( int ,
+                          char const * const * )
       {
           return true;
       }
@@ -155,9 +155,9 @@ public:
        \return true, if a redraw is needed afterwards, false else.
     */
     virtual
-    bool process_char_command( BuilderBase * build,
-                               MenuBase * menu,
-                               const InputEvent & event )
+    bool process_char_command( BuilderBase *,
+                               MenuBase *,
+                               const InputEvent & )
       {
           return false;
       }
@@ -167,8 +167,8 @@ public:
        \return true, if a redraw is needed afterwards, false else.
     */
     virtual
-    bool process_mouse_button_event( BuilderBase * build,
-                                     const InputEvent & event )
+    bool process_mouse_button_event( BuilderBase *,
+                                     const InputEvent & )
       {
           return false;
       }
@@ -178,9 +178,9 @@ public:
        \return true, if a redraw is needed afterwards, false else.
     */
     virtual
-    bool process_menu_button( BuilderBase * build,
-                              MenuBase * menu,
-                              const InputEvent & event )
+    bool process_menu_button( BuilderBase *,
+                              MenuBase *,
+                              const InputEvent & )
       {
           return false;
       }
@@ -190,15 +190,15 @@ public:
        \return true, if a redraw is needed afterwards, false else.
     */
     virtual
-    bool process_popup_button( BuilderBase * build,
-                               MenuBase * popup,
-                               const InputEvent & event )
+    bool process_popup_button( BuilderBase *,
+                               MenuBase *,
+                               const InputEvent & )
       {
           return false;
       }
 
     virtual
-    bool init_menu( MenuBase * menu )
+    bool init_menu( MenuBase * )
       {
           return false;
       }

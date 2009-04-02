@@ -43,11 +43,11 @@ ConvArea2d::ConvArea2d()
 bool
 ConvArea2d::update()
 {
-    DEBUG( cout << "\n--\nbefore update:"; show_area(); )
+    DEBUG( std::cout << "--\nbefore update:"; show_area(); )
 
     if ( level == 0 )
     {
-        DEBUG( cout << "\nNO UPDATE NEEDED" << flush; )
+        DEBUG( std::cout << "NO UPDATE NEEDED" << std::endl; )
         return false;
     }
 
@@ -76,7 +76,7 @@ ConvArea2d::update()
             changed = true;
         }
 
-        DEBUG( cout << "\n >> after level 4:"; show_area(); )
+        DEBUG( std::cout << " >> after level 4:"; show_area(); )
     }
 
     //---------------------------------------------------------------------------
@@ -103,7 +103,7 @@ ConvArea2d::update()
             changed = true;
         }
 
-        DEBUG( cout << "\n >> after level 3:"; show_area(); )
+        DEBUG( std::cout << " >> after level 3:"; show_area(); )
     }
 
     //---------------------------------------------------------------------------
@@ -130,7 +130,7 @@ ConvArea2d::update()
             changed = true;
         }
 
-        DEBUG( cout << "\n >> after level 2:"; show_area(); )
+        DEBUG( std::cout << " >> after level 2:"; show_area(); )
     }
 
     //---------------------------------------------------------------------------
@@ -179,7 +179,7 @@ ConvArea2d::update()
             }
         }
 
-        DEBUG( cout << "\n >> after level 1x:"; show_area(); )
+        DEBUG( std::cout << " >> after level 1x:"; show_area(); )
 
         //now analogously the changes for the y dimension
 
@@ -219,11 +219,11 @@ ConvArea2d::update()
             }
         }
 
-        DEBUG( cout << "\n >> after level 1y:"; show_area(); )
+        DEBUG( std::cout << " >> after level 1y:"; show_area(); )
     }
 
     //---------------------------------------------------------------------------
-    DEBUG( cout << "\nafter update:"; show_area(); cout << flush; )
+    DEBUG( std::cout << "after update:"; show_area(); )
     level = 0;
 
     return changed;

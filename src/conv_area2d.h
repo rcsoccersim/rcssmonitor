@@ -96,7 +96,7 @@ public:
     void set_win_size( int sx,
                        int sy );
 
-    void   set_min_size_x( double v )
+    void set_min_size_x( double v )
       {
           min_size_x = v;
           use_min_size_x = true;
@@ -108,7 +108,7 @@ public:
           use_min_size_x = false;
       }
 
-    void   set_min_size_y( double v )
+    void set_min_size_y( double v )
       {
           min_size_y = v;
           use_min_size_y = true;
@@ -120,7 +120,7 @@ public:
           use_min_size_y = false;
       }
 
-    void   set_max_size_x( double v )
+    void set_max_size_x( double v )
       {
           max_size_x = v;
           use_max_size_x = true;
@@ -132,7 +132,7 @@ public:
           use_max_size_x = false;
       }
 
-    void   set_max_size_y( double v )
+    void set_max_size_y( double v )
       {
           max_size_y = v;
           use_max_size_y = true;
@@ -144,7 +144,7 @@ public:
           use_max_size_y = false;
       }
 
-    void   set_min_pos_x( double v )
+    void set_min_pos_x( double v )
       {
           min_pos_x = v;
           use_min_pos_x = true;
@@ -156,7 +156,7 @@ public:
           use_min_pos_x = false;
       }
 
-    void   set_min_pos_y( double v )
+    void set_min_pos_y( double v )
       {
           min_pos_y = v;
           use_min_pos_y = true;
@@ -168,7 +168,7 @@ public:
           use_min_pos_y = false;
       }
 
-    void   set_max_pos_x( double v )
+    void set_max_pos_x( double v )
       {
           max_pos_x = v;
           use_max_pos_x = true;
@@ -180,7 +180,7 @@ public:
           use_max_pos_x = false;
       }
 
-    void   set_max_pos_y( double v )
+    void set_max_pos_y( double v )
       {
           max_pos_y = v;
           use_max_pos_y = true;
@@ -225,7 +225,8 @@ public:
     void show_area()
       {
           std::cout << "\nArea: center= (" << area.center.x << "," << area.center.y
-                    << ")  size_x= " << area.size_x << "  size_y= " << area.size_y;
+                    << ")  size_x= " << area.size_x << "  size_y= " << area.size_y
+                    << std::endl;;
       }
 
     Point2d get_point_from_win_pos( int x,

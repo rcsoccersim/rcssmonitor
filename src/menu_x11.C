@@ -109,7 +109,7 @@ MenuX11::MyWin::set_window_visible( Display * disp,
 
 /******************************************************************************/
 int
-MenuX11::get_text_width( const char * str,
+MenuX11::get_text_width( const char *,
                          int len ) const
 {
     return len * text_max_width;

@@ -1,6 +1,27 @@
 2009-04-02  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
 	* src/Makefile.am:
+	* src/options.cpp:
+	* src/options.h:
+	* src/rectangle.cpp:
+	* src/rectangle.h:
+	- added class Options.
+	- separated the implementation of Rectangle.
+
+	* src/2dview.C:
+	* src/ascii_dev.C:
+	* src/builder_direct.C:
+	* src/conv_area2d.C:
+	* src/conv_area2d.h:
+	* src/input_dev.h:
+	* src/menu_x11.C:
+	* src/popup_x11.h:
+	* src/smonitor_dev.C:
+	* src/smonitor_dev.h:
+	* src/structure.C:
+	- fixed copiler warnings.
+
+	* src/Makefile.am:
 	* src/team_graphic.cpp:
 	* src/team_graphic.h:
 	- added TeamGraphic class.

@@ -2719,8 +2719,8 @@ SMonitorDevice::process_menu_button( BuilderBase * build,
 }
 
 bool
-SMonitorDevice::process_popup_button( BuilderBase * build,
-                                      MenuBase * popup,
+SMonitorDevice::process_popup_button( BuilderBase *,
+                                      MenuBase *,
                                       const InputEvent & event )
 {
     static Point2d pos;
@@ -3260,7 +3260,7 @@ SMonitorDevice::vis_ball_set_info_level( int lev )
 }
 
 void
-SMonitorDevice::vis_player_set_info_level( int lev,
+SMonitorDevice::vis_player_set_info_level( int,
                                            VisualPlayer & vis_p,
                                            const Positions::Player & p,
                                            const int unum )
@@ -3894,7 +3894,7 @@ SMonitorDevice::server_interpret_frameview_msg( BuilderBase * build,
 }
 
 bool
-SMonitorDevice::server_interpret_command_msg( BuilderBase * build,
+SMonitorDevice::server_interpret_command_msg( BuilderBase *,
                                               const char * msg )
 {
     if ( ! std::strncmp( msg, "(change_player_type",
@@ -4161,7 +4161,7 @@ SMonitorDevice::server_interpret_showinfo_t2( BuilderBase * build,
 }
 
 bool
-SMonitorDevice::server_interpret_player_type_t( BuilderBase * build,
+SMonitorDevice::server_interpret_player_type_t( BuilderBase *,
                                                 void * ptr )
 {
     SSrv::dispinfo_t2 * dispinfo = reinterpret_cast< SSrv::dispinfo_t2 * >( ptr );
@@ -4223,7 +4223,7 @@ SMonitorDevice::server_interpret_player_type_t( BuilderBase * build,
 }
 
 bool
-SMonitorDevice::server_interpret_server_params_t( BuilderBase * build,
+SMonitorDevice::server_interpret_server_params_t( BuilderBase *,
                                                   void * ptr )
 {
     SSrv::dispinfo_t2 * dispinfo = reinterpret_cast< SSrv::dispinfo_t2 * >( ptr );
@@ -4761,7 +4761,7 @@ SMonitorDevice::server_interpret_msginfo_v3( BuilderBase * build,
 }
 
 bool
-SMonitorDevice::server_interpret_playmode_v3( BuilderBase * build,
+SMonitorDevice::server_interpret_playmode_v3( BuilderBase *,
                                               const char * buf )
 {
     int time = 0;
@@ -4788,7 +4788,7 @@ SMonitorDevice::server_interpret_playmode_v3( BuilderBase * build,
 }
 
 bool
-SMonitorDevice::server_interpret_team_v3( BuilderBase * build,
+SMonitorDevice::server_interpret_team_v3( BuilderBase *,
                                           const char * buf )
 {
     int time = 0;
@@ -4842,7 +4842,7 @@ SMonitorDevice::server_interpret_team_v3( BuilderBase * build,
 }
 
 bool
-SMonitorDevice::server_interpret_player_type_v3( BuilderBase * build,
+SMonitorDevice::server_interpret_player_type_v3( BuilderBase *,
                                                  const char * buf )
 {
     int n_read = 0;
@@ -4918,7 +4918,7 @@ SMonitorDevice::server_interpret_player_type_v3( BuilderBase * build,
 }
 
 bool
-SMonitorDevice::server_interpret_server_param_v3( BuilderBase * build,
+SMonitorDevice::server_interpret_server_param_v3( BuilderBase *,
                                                   const char * buf )
 {
     double goal_width = 14.02;

@@ -50,12 +50,14 @@
 #include "popup_x11.h"
 #include "structure.h"
 #include "builder_direct.h"
-#include "valueparser.h"
 #include "udpsocket.h"
 #include "rgb_db.h"
 
 #include "smonitor_dev.h"
 #include "ascii_dev.h"
+
+#include "options.h"
+#include "rectangle.h"
 
 #include <cerrno>   //for return values of select
 #include <unistd.h>
@@ -63,36 +65,6 @@
 #ifdef HAVE_XPM_H
 #include "rcssmonitor.xpm"
 #endif
-
-namespace {
-void
-show_copyright_notice( std::ostream & o )
-{
-    o << "\n"
-      << "/*****************************************************************************/\n"
-      << "                                   "<< PACKAGE << "-" << VERSION << '\n'
-      << "\n"
-      << "Copyright (c) 1999 - 2001, Artur Merke\n"
-      << "\t<amerke@ira.uka.de>\n"
-      << "Copyright (c) 2001 - 2008, The RoboCup Soccer Simulator Maintainance Group.\n"
-      << "\t<sserver-admin@lists.sourceforge.net>\n"
-      << "\n"
-      << PACKAGE << "-" << VERSION << " is free software; you can redistribute it and/or modify\n"
-      << "it under the terms of the GNU General Public License as published by\n"
-      << "the Free Software Foundation; either version 2, or (at your option)\n"
-      << "any later version.\n"
-      << "\n"
-      << PACKAGE << "-" << VERSION << " is distributed in the hope that it will be useful,\n"
-      << "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
-      << "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
-      << "GNU General Public License for more details.\n"
-      << "/*****************************************************************************/\n";
-}
-}
-
-
-DisplayX11 * DDD;
-InputDevice * INPUTDEV;
 
 #define POPUP
 
@@ -106,393 +78,6 @@ struct Pointer {
       { }
 };
 
-struct Rectangle {
-    bool active;
-    int x, y;
-    unsigned int width, height;
-
-    Rectangle();
-    Rectangle( int window_width,
-               int window_height );
-    void set_ratio( int window_width,
-                    int widow_height );
-    void set_origin( int px,
-                     int py )
-      {
-          p1x = px;
-          p1y = py;
-          p2x = p1x;
-          p2y = p1y;
-          conform();
-      }
-    void set_point( int px,
-                    int py )
-      {
-          p2x = px;
-          p2y = py;
-          conform();
-      }
-private:
-    void conform();
-    bool use_ratio;
-    bool use_center;
-    int win_width, win_height;
-    int p1x,p1y,p2x,p2y;
-};
-
-Rectangle::Rectangle()
-{
-    active = false;
-    use_ratio = false;
-    use_center = false;
-    set_origin( 0, 0 );
-    conform();
-}
-
-Rectangle::Rectangle( int window_width,
-                      int window_height )
-{
-    //use_center= true;
-    use_center = false;
-    set_ratio( window_width, window_height );
-    set_origin( 0, 0 );
-    conform();
-}
-
-void
-Rectangle::set_ratio( int window_width,
-                      int window_height )
-{
-    use_ratio = true;
-    win_width = window_width;
-    win_height = window_height;
-}
-
-void
-Rectangle::conform()
-{
-    if ( use_ratio )
-    {
-        double ratio_width = std::fabs( double( p2x - p1x ) / double( win_width ) );
-        double ratio_height = std::fabs( double( p2y - p1y ) / double( win_height ) );
-
-        if ( ratio_width > ratio_height )
-        {
-            if ( p2y > p1y )
-            {
-                p2y = p1y + (int)rint( double( win_height ) * ratio_width );
-            }
-            else
-            {
-                p2y = p1y - (int)rint( double( win_height ) * ratio_width );
-            }
-        }
-        else
-        {
-            if ( p2x > p1x )
-            {
-                p2x = p1x + (int)rint( double( win_width ) * ratio_height );
-            }
-            else
-            {
-                p2x = p1x - (int)rint( double( win_width ) * ratio_height );
-            }
-        }
-    }
-
-    width = std::abs( p1x - p2x );
-    height = std::abs( p1y - p2y );
-
-    if ( use_center )
-    { //center
-        x= p1x - width;
-        y= p1y - height;
-        width *= 2;
-        height *= 2;
-    }
-    else
-    {
-        x = p1x < p2x ? p1x : p2x;
-        y = p1y < p2y ? p1y : p2y;
-    }
-
-}
-
-
-namespace Options {
-
-//specifies the clip of euclidean plane
-Area2d plane;
-
-bool set_window_pos;
-
-int window_left_x;
-int window_top_y;
-
-int window_size_x;
-int window_size_y;
-
-int line_thickness;
-char font_name[MAX_NAME_LEN];
-char font_inside[MAX_NAME_LEN];
-
-bool auto_quit_mode;
-int auto_quit_wait;
-
-bool auto_reconnect_mode;
-int auto_reconnect_wait;
-
-char conf_file[MAX_NAME_LEN];
-
-/* =========================================================================*/
-
-void
-show_available_options( std::ostream & o,
-                        const char * fname )
-{
-    o << "\n/*****************************************************************************/"
-      << "\n                                   " << PACKAGE << "-" << VERSION << std::endl
-      << "\nUsage: " << fname << " options"
-      << "\n"
-      << "\nOptions can be read from a configuration file or from the command line."
-      << "\nValues in square brackets represent default values."
-      << "\n"
-      << "\nCommand line options:"
-      << "\n"
-      << "\n-h              this page"
-      << "\n-help           this page"
-      << "\n-copyleft       shows program information"
-      << "\n-gen_conf_file  generate a configuration file on standard output"
-      << "\n-keys           shows key bindings"
-      << "\n"
-      << "\n-conf_file      [\"\"]  configuration file to be read|"
-      << "\n"
-      << "\nCommand line options and configuration file options (command line has priority):"
-      << "\n"
-      << "\ngeneral options:"
-      << "\n"
-      << "\n-plane_origin_x [" << plane.center.x << "]"
-      << "\n-plane_origin_y [" << plane.center.y << "]"
-      << "\n-plane_size_x [" << plane.size_x << "]"
-      << "\n-plane_size_y [" << plane.size_y << "]"
-      << "\n"
-#if 0
-      << "\n-window_left_x [not set]"
-      << "\n-window_top_y  [not set]"
-#endif
-      << "\n-window_size_x [" << window_size_x << "]"
-      << "\n-window_size_y [" << window_size_y << "]"
-      << "\n"
-      << "\n-line_thickness [" << line_thickness << "]"
-      << "\nthis is the font in the status line"
-      << "\n-font_name      [" << font_name << "]"
-      << "\nthis is the font used in objects (like players in SMonitorDevice)"
-      << "\n-font_inside    [" << font_inside << "]"
-      << "\n"
-      << "\n-auto_quit_mode [" << auto_quit_mode << "]"
-      << "\n-auto_quit_wait [" << auto_quit_wait << "]"
-      << "\n"
-      << "\n-auto_reconnect_mode [" << auto_reconnect_mode << "]"
-      << "\n-auto_reconnect_wait [" << auto_reconnect_wait << "]"
-      << "\n";
-
-    INPUTDEV->help_options( o );
-    o << "\n/*****************************************************************************/"
-      << "\n";
-}
-
-void
-generate_file_options( std::ostream & o,
-                       const char * fname )
-{
-    o << "#############################################################################"
-      << "#                            " << PACKAGE << "-" << VERSION << std::endl
-      << "#"
-      << "# this configuration file was autamaticly generated by calling "
-      << "\n"
-      << "\n#    " << fname << " -gen_conf_file"
-      << "\n# you can use it to customize " << PACKAGE << "-" << VERSION << std::endl
-      << "\n"
-      << "\n# general options:"
-      << "\n"
-      << "\n### plane is the smallest part of the euclidean plane you wish to be set es default"
-      << "\n# x coordinate of the plane center (default " << plane.center.x << ")"
-      << "\nplane_origin_x = " //<< plane.center.x
-      << "\n# y coordinate of the plane center (default " << plane.center.x << ")"
-      << "\nplane_origin_y = " //<< plane.center.y
-      << "\n# width of the plane (default " << plane.size_x << ")"
-      << "\nplane_size_x = " //<< plane.size_x
-      << "\n# height of the plane (default " << plane.size_y << ")"
-      << "\nplane_size_y = " //<< plane.size_y
-      << "\n"
-#if 0
-      << "\n# left-top corner x pos of the window (default not set)"
-      << "\nwindow_left_x = " //<< window_left_x
-      << "\n# left-top corner y pos of the window (default not set)"
-      << "\nwindow_top_y = " //<< window_top_y
-#endif
-      << "\n# window width (default " << window_size_x << ")"
-      << "\nwindow_size_x = " //<< window_size_x
-      << "\n# window height (default " << window_size_y << ")"
-      << "\nwindow_size_y = " //<< window_size_y
-      << "\n"
-      << "\n# thickness of lines (default " << line_thickness << ")"
-      << "\nline_thickness = " //<< line_thickness
-      << "\n"
-      << "\n# font which is used in the status line (default " << font_name << ")"
-      << "\nfont_name = " //<< font_name
-      << "\n# this is the font used in objects [like players in SMonitorDevice] (default " << font_inside << ")"
-      << "\nfont_inside = " //<< font_inside
-      << "\n"
-      << "\n# determins whether monitor program quits automatically (default 0)."
-      << "\nauto_quit_mode = "
-      << "\n# wait seconds in auto_quit_mode (default " << auto_quit_wait << ")"
-      << "\nauto_quit_wait = "
-      << "\n"
-      << "\n# determins whether monitor program tries to reconnect automatically (default 0)."
-      << "\nauto_reconnect_mode = "
-      << "\n# wait seconds in auto_reconnect_mode (default " << auto_reconnect_wait << ")"
-      << "\nauto_reconnect_wait = "
-      << "\n";
-    INPUTDEV->generate_file_options( o );
-}
-
-
-bool
-set_defaults()
-{
-    plane = Area2d( Point2d( 0.0, 2.0 ), 112.0, 85.0 );
-
-    set_window_pos = false;
-    window_left_x = 5;
-    window_top_y =  5;
-
-    window_size_x = 600;
-    window_size_y = 450;
-
-    line_thickness = 1;
-    std::strcpy( font_name, "6x13bold" );
-    //std::strcpy( font_inside, "6x13bold" );
-    std::strcpy( font_inside, "6x13" );
-
-    auto_quit_mode = false;
-    auto_quit_wait = 5;
-
-    auto_reconnect_mode = false;
-    auto_reconnect_wait = 5;
-
-    conf_file[0] = '\0';
-    return true;
-}
-
-bool
-process_options( ValueParser & vp )
-{
-    vp.get( "plane_origin_x", plane.center.x );
-    vp.get( "plane_origin_y", plane.center.y );
-    vp.get( "plane_size_x", plane.size_x );
-    vp.get( "plane_size_y", plane.size_y );
-
-#if 0
-    if ( vp.get("window_left_x",window_left_x) > 0 )
-        set_window_pos= true;
-    if ( vp.get("window_top_y",window_top_y) > 0 )
-        set_window_pos= true;
-#endif
-
-    vp.get("window_size_y",window_size_y);
-    vp.get("window_size_x",window_size_x);
-    vp.get("window_size_y",window_size_y);
-
-    int tmp = line_thickness;
-    vp.get("line_thickness",tmp);
-    if ( tmp < 4 && tmp > 0 ) line_thickness= tmp;
-    vp.get("font_name",font_name,MAX_NAME_LEN);
-    vp.get("font_inside",font_inside,MAX_NAME_LEN);
-
-    vp.get( "auto_quit_mode", auto_quit_mode );
-    vp.get( "auto_quit_wait", auto_quit_wait );
-
-    vp.get( "auto_reconnect_mode", auto_reconnect_mode );
-    vp.get( "auto_reconnect_wait", auto_reconnect_wait );
-    return true;
-}
-
-
-void
-show_key_bindings( std::ostream & o )
-{
-    o << "\n"
-      << "/*****************************************************************************/\n"
-      << "\n"
-      << "                                   " << PACKAGE << "-" << VERSION << std::endl
-      << "\n"
-      << "viewer commands:\n"
-      << "f                  = freeze the screen\n"
-      << "i                  = set viewing clip to the initial clip\n"
-      << "k                  = show key bindings\n"
-      << "q                  = quit viewer\n"
-      << "+                  = zoom in\n"
-      << "-                  = zoom out\n"
-      << "single mouse click = change view center to mouse pointer position\n"
-      << "drag & drop        = define new rectangle view area (too small regions will be rejected)\n";
-    INPUTDEV->help_char_command(o);
-    o << "\n"
-      << "\n"
-      << "/*****************************************************************************/\n";
-}
-
-bool
-read( int argc,
-               char ** argv)
-{
-    bool res = true;
-    bool dum = true;
-
-    ValueParser cl( argc, argv );
-    //cl.set_verbose(true);
-
-    if ( cl.get( "help", dum ) >= 0
-         || cl.get( "h", dum ) >= 0 )
-    {
-        show_available_options( std::cout, PACKAGE );
-        std::exit( 0 );
-    }
-
-    if ( cl.get( "gen_conf_file", dum ) >= 0 )
-    {
-        generate_file_options( std::cout, PACKAGE );
-        std::exit( 0 );
-    }
-
-    if ( cl.get( "keys", dum ) >= 0 )
-    {
-        show_key_bindings( std::cout );
-        std::exit( 0 );
-    }
-
-    if ( cl.get( "copyleft", dum ) >= 0 )
-    {
-        show_copyright_notice( std::cout );
-        std::exit( 0 );
-    }
-
-    cl.get( "conf_file", conf_file, MAX_NAME_LEN );
-    if ( std::strlen( conf_file ) )
-    {
-        std::cout << "\nreading options from file: " << conf_file;
-        ValueParser vp( conf_file );
-        //vp.set_verbose(true);
-        process_options( vp );
-        INPUTDEV->process_options( conf_file );
-    }
-    process_options( cl );
-    INPUTDEV->process_options( argc, argv );
-    std::cout << "End process_options" << std::endl;
-    return res;
-}
-
-} // end namespace Options
 
 namespace RUN {
 
@@ -555,22 +140,38 @@ DisplayX11::x11Screen()
 }
 
 
+namespace {
+
+DisplayX11 * DDD;
+InputDevice * INPUTDEV;
+
+
 void
-convert_area_2_area_under_window_constrains( Area2d & a,
-                                             int win_size_x,
-                                             int win_size_y )
+create_input_device( const bool smonitor_dev )
 {
-    double ratio_x = a.size_x / double( win_size_x );
-    double ratio_y = a.size_y / double( win_size_y );
-    if ( ratio_x > ratio_y )
+    if ( smonitor_dev )  //standard device
     {
-        a.size_y = win_size_y * ratio_x;
+        INPUTDEV = new SMonitorDevice();
+
+        RUN::conv_area.set_min_size_x( 10.0 );
+        RUN::conv_area.set_min_size_y( 10.0 );
+        double extent= 200;
+        RUN::conv_area.set_max_size_x( extent );
+        RUN::conv_area.set_max_size_y( extent );
+
+        RUN::conv_area.set_min_pos_x( -0.5*extent );
+        RUN::conv_area.set_min_pos_y( -0.5*extent );
+        RUN::conv_area.set_max_pos_x( 0.5*extent );
+        RUN::conv_area.set_max_pos_y( 0.5*extent );
     }
     else
     {
-        a.size_x = win_size_x * ratio_y;
+        INPUTDEV = new AsciiDevice( 6010 );
     }
+
+    INPUTDEV->set_defaults();
 }
+
 
 void
 init_4_tree_and_display()
@@ -580,11 +181,11 @@ init_4_tree_and_display()
     DDD->ASetWindowArea( WIN::win_width, WIN::win_height );
     RUN::conv_area.set_win_size( WIN::win_width, WIN::win_height );
 
-    RUN::conv_area.set_area( Options::plane );
+    RUN::conv_area.set_area( Options::instance().plane );
     RUN::conv_area.update();
-    RUN::conv_area.get_area( Options::plane );
+    RUN::conv_area.get_area( Options::instance().plane );
 
-    DDD->ASetPlainArea( Options::plane );
+    DDD->ASetPlainArea( Options::instance().plane );
 #if 0
     /*****************************************************************************/
     for ( int i = 1; i <= 2; ++i )
@@ -600,6 +201,36 @@ init_4_tree_and_display()
     std::cout << "\n----";
 #endif
 }
+
+
+void
+create_menu()
+{
+    //init the menu
+    WIN::menu = new MenuX11( WIN::disp, WIN::window, WIN::bt_gc, WIN::win_width, 15 );
+    WIN::menu->set_background_color( RGBcolor( 0xcc, 0xcc, 0xcc ) );
+    WIN::menu->set_foreground_color( RGBcolor( 0, 0, 0 ) );
+    if ( INPUTDEV->init_menu( WIN::menu ) )
+    {
+        WIN::menu->redraw();
+    }
+}
+
+
+void
+create_popup()
+{
+#ifdef POPUP
+    //init the popup
+    WIN::popup = new PopupX11( WIN::disp, WIN::window, WIN::bt_gc );
+    WIN::popup->set_background_color( RGBcolor( 0xcc, 0xcc, 0xcc ) );
+    WIN::popup->set_foreground_color( RGBcolor( 0, 0, 0 ) );
+    WIN::popup->set_highlight_color( RGBcolor( 0x99, 0x99, 0x99 ) );
+    WIN::popup->set_popup_invisible();
+    INPUTDEV->init_popup( WIN::popup );
+#endif
+}
+
 
 void
 print_event_type( const XEvent & event )
@@ -648,22 +279,47 @@ init_window_hints( Display * disp,
                    Window win )
 {
 #if 1
-    XSizeHints hint;
-    XWMHints wmhints;
+    {
+        XWMHints * h = XGetWMHints( WIN::disp, WIN::window );
+        XWMHints wm_hints;
+        bool got_hints = ( h != 0 );
+        if ( ! got_hints )
+        {
+            h = &wm_hints;
+            h->flags = 0;
+        }
 
-    //
-    wmhints.flags = InputHint;
-    wmhints.input = True;
-    XSetWMHints(disp, win, &wmhints);
+        h->flags |= InputHint;
+        h->input = True;
+#ifdef HAVE_XPM_H
+        // set title bar icon
+        XpmCreatePixmapFromData( WIN::disp, WIN::window,
+                                 const_cast< char** >( rcssmonitor_xpm ),
+                                 &WIN::icon_pixmap,
+                                 &WIN::icon_mask,
+                                 NULL );
+        h->flags |= IconPixmapHint | IconMaskHint;
+        h->icon_pixmap = WIN::icon_pixmap;
+        h->icon_mask = WIN::icon_mask;
+#endif
+        XSetWMHints( disp, win, h );
 
-    //
-    hint.flags = PMinSize;// | PBaseSize;
-    hint.min_width= 400;
-    hint.min_height= 260;
-    //hint.base_width= 200;
-    //hint.base_height= 300;
+        if ( got_hints )
+        {
+            XFree( (char *)h );
+        }
+    }
+    {
+        XSizeHints hint;
 
-    XSetWMNormalHints(disp, win, &hint);
+        hint.flags = PMinSize;// | PBaseSize;
+        hint.min_width = 400;
+        hint.min_height = 260;
+        //hint.base_width= 200;
+        //hint.base_height= 300;
+
+        XSetWMNormalHints( disp, win, &hint );
+    }
 #endif
 
 #if 0
@@ -673,13 +329,13 @@ init_window_hints( Display * disp,
 
     size_hints.min_width= 400;
     size_hints.min_height= 260;
-    //size_hints.width= Options::window_size_x;
-    //size_hints.height= Options::window_size_y;
+    //size_hints.width = Options::instance().window_size_x;
+    //size_hints.height = Options::instance().window_size_y;
     size_hints.flags = /*PSize |*/ PMinSize;
 
-    //if (Options::window_left_x || Options::window_top_y) {
-    //  size_hints.x = Options::window_left_x;
-    //  size_hints.y = Options::window_top_y;
+    //if (Options::instance().window_left_x || Options::instance().window_top_y) {
+    //  size_hints.x = Options::instance().window_left_x;
+    //  size_hints.y = Options::instance().window_top_y;
     //  size_hints.flags |= PPosition;
     //}
 
@@ -699,11 +355,11 @@ init_window_hints( Display * disp,
 
 
     XTextProperty windowName, iconName;
-    XTextProperty * PwindowName= &windowName;
-    XTextProperty * PiconName= &iconName;
+    XTextProperty * PwindowName = &windowName;
+    XTextProperty * PiconName = &iconName;
 
-    char * window_name= PACKAGE_VERSION;
-    char * icon_name= PACKAGE;
+    char * window_name = PACKAGE_VERSION;
+    char * icon_name = PACKAGE;
     if ( ! XStringListToTextProperty(&window_name, 1, &windowName ) )
     {
         PwindowName = NULL;
@@ -727,6 +383,36 @@ init_window_hints( Display * disp,
         XFree( iconName.value );
     }
 #endif
+
+// #ifdef HAVE_XPM_H
+//     // set title bar icon
+//     {
+//         XpmCreatePixmapFromData( WIN::disp, WIN::window,
+//                                  const_cast< char** >( rcssmonitor_xpm ),
+//                                  &WIN::icon_pixmap,
+//                                  &WIN::icon_mask,
+//                                  NULL );
+//         XWMHints * h = XGetWMHints( WIN::disp, WIN::window );
+//         XWMHints wm_hints;
+//         bool got_hints = ( h != 0 );
+//         if ( ! got_hints )
+//         {
+//             h = &wm_hints;
+//             h->flags = 0;
+//         }
+
+//         h->icon_pixmap = WIN::icon_pixmap;
+//         h->icon_mask = WIN::icon_mask;
+//         h->flags |= IconPixmapHint | IconMaskHint;
+//         XSetWMHints( WIN::disp, WIN::window, h );
+
+//         if ( got_hints )
+//         {
+//             XFree( (char *)h );
+//         }
+//     }
+// #endif
+
 #if 0
     int x_return, y_return;
     int width_return;
@@ -784,6 +470,146 @@ init_window_input( Display * disp,
                   );
 #endif
 }
+
+
+bool
+init_x11_resources( int argc,
+                    char ** argv )
+{
+    Colormap cmap;
+    Cursor cursor;
+    Font font;
+    Font font_inside;
+
+    XSizeHints hint;
+
+    int screen;
+
+    unsigned long fg, bg;
+
+    WIN::disp = XOpenDisplay( 0 );
+    if ( WIN::disp == (Display *)NULL )
+    {
+        ERROR_OUT << "\nCould not open display!";
+        return false;
+    }
+    WIN::x11_fd = XConnectionNumber( WIN::disp );
+    RGB_DB::disp = WIN::disp;
+    //cout << "\n connection fd= " << WIN::x11_fd << flush;
+    screen = DefaultScreen( WIN::disp );
+    fg = BlackPixel( WIN::disp, screen );
+    bg = WhitePixel( WIN::disp, screen );
+    //hint.x = 150; hint.y = 10;
+    hint.x = 200; hint.y = 20;
+    hint.width = Options::instance().window_size_x;
+    hint.height = Options::instance().window_size_y;
+    hint.flags = PPosition | PSize;
+    WIN::win_width = hint.width; WIN::win_height = hint.height;//-letheight-1;
+    WIN::win_depth = DefaultDepth( WIN::disp, screen );
+    WIN::window = XCreateSimpleWindow( WIN::disp, DefaultRootWindow( WIN::disp ),
+                                       hint.x, hint.y, hint.width, hint.height, 5, fg, bg );
+    WIN::pixmap = XCreatePixmap( WIN::disp, WIN::window, WIN::win_width, WIN::win_height, WIN::win_depth );
+    XSetStandardProperties( WIN::disp, WIN::window,
+                            PACKAGE_VERSION,
+                            PACKAGE,
+                            None, //WIN::icon_pixmap,
+                            argv, argc, &hint );
+
+    WIN::gc = XCreateGC( WIN::disp, WIN::window, 0, 0 );
+    XSetGraphicsExposures( WIN::disp, WIN::gc, 0 );	/* IMPORTANT!  If you do not
+                                                       specifically ask not to get Expose events, every XCopyArea
+                                                       will generate one, & the event queue will fill up.	*/
+    XSetLineAttributes( WIN::disp, WIN::gc,
+                        Options::instance().line_thickness, LineSolid,
+                        CapButt, JoinMiter );
+    //XCopyGC( WIN::disp,WIN::gc,0,WIN::xor_gc );
+
+    WIN::xor_gc = XCreateGC( WIN::disp, WIN::window, 0, 0 );
+    //XSetFunction(WIN::disp,WIN::xor_gc,GXxor);
+    XSetFunction( WIN::disp, WIN::xor_gc, GXinvert );
+    //XSetPlaneMask(WIN::disp,WIN::xor_gc,3); //wichtig, aber warum? ;-)
+
+    font = XLoadFont( WIN::disp, Options::instance().font_name );
+    font_inside = XLoadFont( WIN::disp, Options::instance().font_inside );
+    //font = XLoadFont(WIN::disp, "10x20\0");	/* If you don't have this font, try replacing it with 9x15\0	*/
+    XSetFont( WIN::disp, WIN::gc, font_inside );
+
+    WIN::bg_gc = XCreateGC( WIN::disp, WIN::window, 0, 0 );
+    WIN::sl_gc = XCreateGC( WIN::disp, WIN::window, 0, 0 );
+    WIN::bt_gc = XCreateGC( WIN::disp, WIN::window, 0, 0 );
+
+    XSetBackground( WIN::disp, WIN::gc, bg );
+    XSetForeground( WIN::disp, WIN::gc, fg );
+
+    XSetBackground( WIN::disp, WIN::xor_gc, bg );
+    XSetForeground( WIN::disp, WIN::xor_gc, fg );
+
+    XSetForeground( WIN::disp, WIN::bg_gc, bg );  /* fg of pixmap is bg of window */
+    XSetBackground( WIN::disp, WIN::bg_gc, fg );
+
+    XSetForeground( WIN::disp, WIN::sl_gc, bg );
+    XSetBackground( WIN::disp, WIN::sl_gc, fg );
+
+    XSetForeground( WIN::disp, WIN::bt_gc, fg );
+    XSetBackground( WIN::disp, WIN::bt_gc, bg );
+
+    XSetFont( WIN::disp, WIN::bg_gc, font );
+    XSetFont( WIN::disp, WIN::sl_gc, font );
+
+    init_window_hints( WIN::disp, WIN::window );
+    init_window_input( WIN::disp, WIN::window );
+
+#if 0
+    XMoveWindow( WIN::disp, WIN::window, 10, 10 );
+    XWindowChanges dum;
+    dum.x = 10;
+    dum.y = 10;
+    XConfigureWindow( WIN::disp, WIN::window, CWX | CWY, &dum );
+#endif
+
+    XMapRaised( WIN::disp, WIN::window );
+    //XMapWindow( WIN::disp, WIN::window );
+
+#if 0
+    if ( Options::instance().set_window_pos )
+    {
+        XMoveWindow( WIN::disp, WIN::window, Options::instance().window_left_x, Options::instance().window_top_y );
+    }
+#endif
+    /* Erase cursor. Just delete next 5 lines if any error.	*/
+    cmap = XDefaultColormap( WIN::disp, screen );
+#if 1
+    //XAllocNamedColor(WIN::disp, cmap, "Black", &exact, &black);
+    cursor = XCreateFontCursor( WIN::disp, XC_crosshair );
+    //XRecolorCursor(WIN::disp, cursor, &black, &black);
+    XDefineCursor( WIN::disp, WIN::window, cursor );
+#endif
+    //XFillRectangle (WIN::disp, WIN::pixmap, WIN::bg_gc, 0, 0, WIN::win_width, WIN::win_height);
+    return true;
+}
+
+
+void
+destruct_resources()
+{
+    XFreeGC( WIN::disp, WIN::gc );
+    XFreeGC( WIN::disp, WIN::xor_gc );
+    XFreeGC( WIN::disp, WIN::bg_gc );
+    XFreeGC( WIN::disp, WIN::sl_gc );
+    XFreePixmap( WIN::disp, WIN::pixmap );
+    XFreePixmap( WIN::disp, WIN::icon_pixmap );
+    XFreePixmap( WIN::disp, WIN::icon_mask );
+
+    INPUTDEV->destruct();
+    delete INPUTDEV;
+
+    delete WIN::menu;
+    delete DDD;
+
+    XDestroyWindow( WIN::disp, WIN::window );
+    XCloseDisplay( WIN::disp );
+}
+
 
 void
 XEvent_to_InputEvent( const XEvent & xevent,
@@ -1025,8 +851,8 @@ process_x11_events()
                 if ( event.xbutton.button == 1 )
                 {
                     WIN::clip_rect.set_origin( event.xbutton.x,event.xbutton.y );
-                    WIN::clip_rect.active= true;
-                    WIN::rect_was_drawn= false;
+                    WIN::clip_rect.active = true;
+                    WIN::rect_was_drawn = false;
                 }
                 else if ( event.xbutton.button == 2 || event.xbutton.button == 3 )
                 {
@@ -1177,10 +1003,10 @@ process_x11_events()
                 case 'f': RUN::toggle_freeze(); break;
                 case 'i':
                     redraw = true;
-                    RUN::conv_area.set_area( Options::plane );
+                    RUN::conv_area.set_area( Options::instance().plane );
                     break;
                 case 'k':
-                    Options::show_key_bindings( std::cerr );
+                    Options::instance().show_key_bindings( std::cerr, INPUTDEV );
                     break;
                 case 'q':
                     RUN::quit = true;
@@ -1250,7 +1076,7 @@ redraw_current_tree()
     // draw status line (score board)
     //
     const char * dum;
-    int dum_len;
+    int dum_len = 0;
     if ( RUN::builder.status_line )
     {
         dum = RUN::builder.status_line;
@@ -1286,6 +1112,8 @@ redraw_current_tree()
     XFlush( WIN::disp );
 }
 
+} // noname namespace
+
 int
 main( int argc, char ** argv )
 {
@@ -1293,241 +1121,45 @@ main( int argc, char ** argv )
 
     std::cout << "Copyright (c) 1999 - 2001, Artur Merke <amerke@ira.uka.de>"
               << "\nCopyright (c) 2001 - 2009, The RoboCup Soccer Server Maintainance Group."
-              << "\n\t<sserver-admin@lists.sourceforge.net>";
+              << "\n\t<sserver-admin@lists.sourceforge.net>"
+              << std::endl;;
 
     --argc; ++argv;
-    bool smonitor_dev= true;
+    bool smonitor_dev = true;
     if ( argc > 0
          && ! std::strncmp( argv[0], "-ascii", std::strlen( "-ascii" ) ) )
     {
-        argc--; argv++;
-        smonitor_dev= false;
+        --argc; ++argv;
+        smonitor_dev = false;
     }
 
-    if ( smonitor_dev )  //standard device
-    {
-        INPUTDEV = new SMonitorDevice();
+    create_input_device( smonitor_dev );
 
-        RUN::conv_area.set_min_size_x( 10.0 );
-        RUN::conv_area.set_min_size_y( 10.0 );
-        double extent= 200;
-        RUN::conv_area.set_max_size_x( extent );
-        RUN::conv_area.set_max_size_y( extent );
+    Options::instance().read( argc, argv, INPUTDEV );
 
-        RUN::conv_area.set_min_pos_x( -0.5*extent );
-        RUN::conv_area.set_min_pos_y( -0.5*extent );
-        RUN::conv_area.set_max_pos_x( 0.5*extent );
-        RUN::conv_area.set_max_pos_y( 0.5*extent );
-    }
-    else
-    {
-        INPUTDEV = new AsciiDevice( 6010 );
-    }
+    INPUTDEV->set_initial_area( Options::instance().plane );
 
-    Options::set_defaults();
-    INPUTDEV->set_defaults();
-
-    const char * HOME = getenv( "HOME" );
-    if ( std::strlen( HOME ) + std::strlen( PACKAGE ) + std::strlen( ".conf" ) + 3
-         < MAX_NAME_LEN )
-    {
-        std::strcpy( Options::conf_file, HOME );
-        std::strcat( Options::conf_file, "/." );
-        std::strcat( Options::conf_file, PACKAGE );
-        std::strcat( Options::conf_file, ".conf" );
-        //test for existence of Options::conf_file
-        std::ifstream is( Options::conf_file );
-        if ( ! is )
-        {
-            std::ofstream out( Options::conf_file );
-            if ( ! out )
-            {
-                ERROR_OUT << "\ncouldn't open " << Options::conf_file << " to create a conf file";
-                out.close();
-            }
-            else
-            {
-                Options::generate_file_options( out, PACKAGE );
-                std::cout << "\ncreated config file, " << Options::conf_file;
-            }
-            Options::conf_file[0]= '\0';
-        }
-        is.close();
-    }
-    else
-    {
-        ERROR_OUT << "\nHOME path too long";
-    }
-
-    Options::read( argc, argv );
-    std::cout << std::flush;
-
-    INPUTDEV->set_initial_area( Options::plane );
     /////////////////////////////////////
-    Colormap cmap;
-    Cursor cursor;
-    Font font;
-    Font font_inside;
 
-    XSizeHints hint;
-
-    int screen;
-
-    unsigned long fg, bg;
-
-    WIN::disp = XOpenDisplay( 0 );
-    if ( WIN::disp == (Display *)NULL )
+    if ( ! init_x11_resources( argc, argv ) )
     {
-        ERROR_OUT << "\nCould not open display!";
         return 1;
     }
-    WIN::x11_fd = XConnectionNumber( WIN::disp );
-    RGB_DB::disp = WIN::disp;
-    //cout << "\n connection fd= " << WIN::x11_fd << flush;
-    screen = DefaultScreen( WIN::disp );
-    fg = BlackPixel( WIN::disp, screen );
-    bg = WhitePixel( WIN::disp, screen );
-    //hint.x = 150; hint.y = 10;
-    hint.x = 200; hint.y = 20;
-    hint.width = Options::window_size_x;
-    hint.height = Options::window_size_y;
-    hint.flags = PPosition | PSize;
-    WIN::win_width = hint.width; WIN::win_height = hint.height;//-letheight-1;
-    WIN::win_depth = DefaultDepth( WIN::disp, screen );
-    WIN::window = XCreateSimpleWindow( WIN::disp, DefaultRootWindow( WIN::disp ),
-                                       hint.x, hint.y, hint.width, hint.height, 5, fg, bg );
-    WIN::pixmap = XCreatePixmap( WIN::disp, WIN::window, WIN::win_width, WIN::win_height, WIN::win_depth );
-    XSetStandardProperties( WIN::disp, WIN::window,
-                            PACKAGE_VERSION,
-                            PACKAGE,
-                            None, //WIN::icon_pixmap,
-                            argv, argc, &hint );
 
-    WIN::gc = XCreateGC( WIN::disp, WIN::window, 0, 0 );
-    XSetGraphicsExposures( WIN::disp, WIN::gc, 0 );	/* IMPORTANT!  If you do not
-                                                       specifically ask not to get Expose events, every XCopyArea
-                                                       will generate one, & the event queue will fill up.	*/
-    XSetLineAttributes( WIN::disp, WIN::gc,
-                        Options::line_thickness, LineSolid,
-                        CapButt, JoinMiter );
-    //XCopyGC( WIN::disp,WIN::gc,0,WIN::xor_gc );
-
-    WIN::xor_gc = XCreateGC( WIN::disp, WIN::window, 0, 0 );
-    //XSetFunction(WIN::disp,WIN::xor_gc,GXxor);
-    XSetFunction( WIN::disp, WIN::xor_gc, GXinvert );
-    //XSetPlaneMask(WIN::disp,WIN::xor_gc,3); //wichtig, aber warum? ;-)
-
-    font = XLoadFont( WIN::disp, Options::font_name );
-    font_inside = XLoadFont( WIN::disp,Options::font_inside );
-    //font = XLoadFont(WIN::disp, "10x20\0");	/* If you don't have this font, try replacing it with 9x15\0	*/
-    XSetFont( WIN::disp, WIN::gc, font_inside );
-
-    WIN::bg_gc = XCreateGC( WIN::disp, WIN::window, 0, 0 );
-    WIN::sl_gc = XCreateGC( WIN::disp, WIN::window, 0, 0 );
-    WIN::bt_gc = XCreateGC( WIN::disp, WIN::window, 0, 0 );
-    XSetBackground( WIN::disp, WIN::gc, bg );
-    XSetForeground( WIN::disp, WIN::gc, fg );
-    XSetBackground( WIN::disp, WIN::xor_gc, bg );
-    XSetForeground( WIN::disp, WIN::xor_gc, fg );
-    XSetForeground( WIN::disp, WIN::bg_gc, bg );  /* fg of pixmap is bg of window */
-    XSetBackground( WIN::disp, WIN::bg_gc, fg );
-
-    XSetForeground( WIN::disp, WIN::sl_gc, bg );
-    XSetBackground( WIN::disp, WIN::sl_gc, fg );
-
-    XSetForeground( WIN::disp, WIN::bt_gc, fg );
-    XSetBackground( WIN::disp, WIN::bt_gc, bg );
-    XSetFont( WIN::disp, WIN::bg_gc, font );
-    XSetFont( WIN::disp, WIN::sl_gc, font );
-
-    init_window_hints( WIN::disp,WIN::window );
-    init_window_input( WIN::disp,WIN::window );
-#if 0
-    XMoveWindow( WIN::disp, WIN::window, 10, 10 );
-    XWindowChanges dum;
-    dum.x = 10;
-    dum.y = 10;
-    XConfigureWindow( WIN::disp, WIN::window, CWX | CWY, &dum );
-#endif
-
-    XMapRaised( WIN::disp, WIN::window );
-    //XMapWindow( WIN::disp, WIN::window );
-
-#if 0
-    if ( Options::set_window_pos )
-    {
-        XMoveWindow( WIN::disp, WIN::window, Options::window_left_x, Options::window_top_y );
-    }
-#endif
-    /* Erase cursor. Just delete next 5 lines if any error.	*/
-    cmap = XDefaultColormap( WIN::disp, screen );
-#if 1
-    //XAllocNamedColor(WIN::disp, cmap, "Black", &exact, &black);
-    cursor = XCreateFontCursor( WIN::disp, XC_crosshair );
-    //XRecolorCursor(WIN::disp, cursor, &black, &black);
-    XDefineCursor( WIN::disp, WIN::window, cursor );
-#endif
-    //XFillRectangle (WIN::disp, WIN::pixmap, WIN::bg_gc, 0, 0, WIN::win_width, WIN::win_height);
-
-#ifdef HAVE_XPM_H
-    // set title bar icon
-    {
-        XpmCreatePixmapFromData( WIN::disp, WIN::window,
-                                 const_cast< char** >( rcssmonitor_xpm ),
-                                 &WIN::icon_pixmap,
-                                 &WIN::icon_mask,
-                                 NULL );
-        XWMHints * h = XGetWMHints( WIN::disp, WIN::window );
-        XWMHints wm_hints;
-        bool got_hints = ( h != 0 );
-        if ( ! got_hints )
-        {
-            h = &wm_hints;
-            h->flags = 0;
-        }
-
-        h->icon_pixmap = WIN::icon_pixmap;
-        h->icon_mask = WIN::icon_mask;
-        h->flags |= IconPixmapHint | IconMaskHint;
-        XSetWMHints( WIN::disp, WIN::window, h );
-
-        if ( got_hints )
-        {
-            XFree( (char *)h );
-        }
-    }
-#endif
-
-    /////////////////////
-    // View Converter init
+    // init View Converter
     init_4_tree_and_display();
 
-    //init the menu
-    WIN::menu = new MenuX11( WIN::disp, WIN::window, WIN::bt_gc, WIN::win_width, 15 );
-    WIN::menu->set_background_color( RGBcolor( 0xcc, 0xcc, 0xcc ) );
-    WIN::menu->set_foreground_color( RGBcolor( 0, 0, 0 ) );
-    if ( INPUTDEV->init_menu( WIN::menu ) )
-    {
-        WIN::menu->redraw();
-    }
-
-#ifdef POPUP
-    //init the popup
-    WIN::popup = new PopupX11( WIN::disp, WIN::window, WIN::bt_gc );
-    WIN::popup->set_background_color( RGBcolor( 0xcc, 0xcc, 0xcc ) );
-    WIN::popup->set_foreground_color( RGBcolor( 0, 0, 0 ) );
-    WIN::popup->set_highlight_color( RGBcolor( 0x99, 0x99, 0x99 ) );
-    WIN::popup->set_popup_invisible();
-    INPUTDEV->init_popup( WIN::popup );
-#endif
+    create_menu();
+    create_popup();
 
     //init frames
     INPUTDEV->init_frames( &RUN::builder );
+
     if ( RUN::conv_area.needs_update() )
     {
         RUN::conv_area.update();
-        RUN::conv_area.get_area( Options::plane ); //this area will be restored when 'i' is pressed!
-        DDD->ASetPlainArea( Options::plane );
+        RUN::conv_area.get_area( Options::instance().plane ); //this area will be restored when 'i' is pressed!
+        DDD->ASetPlainArea( Options::instance().plane );
     }
 
     if ( RUN::builder.new_bg_color )
@@ -1616,14 +1248,14 @@ main( int argc, char ** argv )
                 redraw_current_tree();
             }
 
-            if ( Options::auto_quit_mode )
+            if ( Options::instance().auto_quit_mode )
             {
                 if ( INPUTDEV->is_timeover() )
                 {
                     std::time_t current;
                     std::time( &current );
                     timeover_seconds = static_cast< int >( std::difftime( current, last_receive_time ) );
-                    if ( timeover_seconds >= Options::auto_quit_wait )
+                    if ( timeover_seconds >= Options::instance().auto_quit_wait )
                     {
                         std::cout << "\n Game is over." << std::endl;
                         RUN::quit = true;
@@ -1639,16 +1271,16 @@ main( int argc, char ** argv )
         {
             //cout << "No Data is available now." << endl;
             nodata_seconds += 5;
-            if ( Options::auto_reconnect_mode )
+            if ( Options::instance().auto_reconnect_mode )
             {
-                if ( nodata_seconds + timeover_seconds >= Options::auto_reconnect_wait )
+                if ( nodata_seconds + timeover_seconds >= Options::instance().auto_reconnect_wait )
                 {
                     INPUTDEV->reconnect();
                 }
             }
-            else if ( Options::auto_quit_mode )
+            else if ( Options::instance().auto_quit_mode )
             {
-                if ( nodata_seconds + timeover_seconds >= Options::auto_quit_wait )
+                if ( nodata_seconds + timeover_seconds >= Options::instance().auto_quit_wait )
                 {
                     if ( received )
                     {
@@ -1661,43 +1293,29 @@ main( int argc, char ** argv )
         else
         {
 #if 1
-            ERROR_OUT << "\nselect: error occured";
+            std::cerr << "\n*** ERROR file=\"" << __FILE__ << "\" line=" <<__LINE__
+                      << "\nselect: error occured";
             switch ( errno ) {
             case EBADF:
-                ERROR_STREAM << "\n an  invalid file descriptor was given in one of the sets";
+                std::cerr << "\n an invalid file descriptor was given in one of the sets" << std::endl;;
                 break;
             case EINTR:
-                ERROR_STREAM << "\n a non blocked signal was caught";
+                std::cerr << "\n a non blocked signal was caught" << std::endl;
                 break;
             case EINVAL:
-                ERROR_STREAM << "\n n is negative";
+                std::cerr << "\n n is negative" << std::endl;
                 break;
             case ENOMEM:
-                ERROR_STREAM << "\n select was unable to allocate memory for internal tables";
+                std::cerr << "\n select was unable to allocate memory for internal tables" << std::endl;
                 break;
             default:
-                ERROR_STREAM << "\n error code " << errno;
+                std::cerr << "\n error code " << errno << std::endl;
             }
 #endif
         }
     }
 
-    XFreeGC( WIN::disp, WIN::gc );
-    XFreeGC( WIN::disp, WIN::xor_gc );
-    XFreeGC( WIN::disp, WIN::bg_gc );
-    XFreeGC( WIN::disp, WIN::sl_gc );
-    XFreePixmap( WIN::disp, WIN::pixmap );
-    XFreePixmap( WIN::disp, WIN::icon_pixmap );
-    XFreePixmap( WIN::disp, WIN::icon_mask );
-
-    INPUTDEV->destruct();
-    delete INPUTDEV;
-
-    delete WIN::menu;
-    delete DDD;
-
-    XDestroyWindow( WIN::disp, WIN::window );
-    XCloseDisplay( WIN::disp );
+    destruct_resources();
 
     ///
     long t = TOOLS::get_current_ms_time() / 1000;

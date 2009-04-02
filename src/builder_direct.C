@@ -416,9 +416,9 @@ BuilderDirect::set_cmd_insert_string( int parent_frame,
 
 ///
 bool
-BuilderDirect::set_cmd_set_object_visible( int frame,
-                                           int this_object,
-                                           int vis )
+BuilderDirect::set_cmd_set_object_visible( int,
+                                           int,
+                                           int )
 {
     B_ERROR( "BuilderDirect: not yet implemented" );
     return false;
@@ -426,9 +426,9 @@ BuilderDirect::set_cmd_set_object_visible( int frame,
 
 ///
 bool
-BuilderDirect::set_cmd_set_object_layer( int frame,
-                                         int this_object,
-                                         int layer )
+BuilderDirect::set_cmd_set_object_layer( int,
+                                         int,
+                                         int )
 {
     B_ERROR( "BuilderDirect: not yet implemented" );
     return false;

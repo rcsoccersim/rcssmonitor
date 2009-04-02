@@ -30,7 +30,7 @@
 const bool AsciiDevice::use_udp = true;
 const bool AsciiDevice::use_stdin = false;
 
-AsciiDevice::AsciiDevice( int port )
+AsciiDevice::AsciiDevice( int )
 {
     use_tcp = true;
     tcp_serv_can_accept = true;

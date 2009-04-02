@@ -71,8 +71,8 @@ class PopupX11
 
         Label()
             : len( 0 ),
-              str( 0 ),
-              len_max( 0 )
+              len_max( 0 ),
+              str( 0 )
           { }
     };
 
