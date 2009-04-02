@@ -1,6 +1,21 @@
 2009-04-02  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
 	* src/2dview.C:
+	* src/menu_x11.h:
+	* src/options.cpp:
+	* src/options.h:
+	* src/smonitor_dev.C:
+	* src/smonitor_dev.h:
+	* src/team_graphic.cpp:
+	* src/team_graphic.h:
+	- implemented a simple team_graphic support.
+
+	* src/display_x11.C:
+	* src/display_x11.h:
+	* src/display_base.h:
+	- removed draw_pixmap() and create_pixmap().
+
+	* src/2dview.C:
 	* src/Makefile.am:
 	* src/ascii_dev.C:
 	* src/ascii_processor.C:

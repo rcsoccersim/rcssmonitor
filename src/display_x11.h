@@ -314,16 +314,6 @@ public:
           return new D_XPoint;
       }
 
-
-    void draw_pixmap( DisplayObject * d_obj,
-                      const Point2d & top_left,
-                      const PixmapImage & pm );
-
-    DisplayObject * create_pixmap()
-      {
-          return new D_XPoint;
-      }
-
     //
     void set_background_color( const RGBcolor & col );
 

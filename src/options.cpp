@@ -70,6 +70,8 @@ Options::set_defaults()
     auto_reconnect_mode = false;
     auto_reconnect_wait = 5;
 
+    show_team_graphic = true;
+
     conf_file[0] = '\0';
 
     return true;
@@ -259,7 +261,11 @@ Options::generate_file_options( std::ostream & o,
       << "\nauto_reconnect_mode = "
       << "\n# wait seconds in auto_reconnect_mode (default " << auto_reconnect_wait << ")"
       << "\nauto_reconnect_wait = "
-      << "\n";
+      << "\n"
+      << "\n# determins whether the received team graphic is painted or not (default " << show_team_graphic << ")."
+      << "\nshow_team_graphic = "
+      << "\n"
+        ;
     input_dev->generate_file_options( o );
 }
 
@@ -275,6 +281,7 @@ Options::show_key_bindings( std::ostream & o,
       << "\n"
       << "viewer commands:\n"
       << "f                  = freeze the screen\n"
+      << "g                  = toggle team graphic painting\n"
       << "i                  = set viewing clip to the initial clip\n"
       << "k                  = show key bindings\n"
       << "q                  = quit viewer\n"
@@ -324,6 +331,8 @@ Options::process_options( ValueParser & vp )
 
     vp.get( "auto_reconnect_mode", auto_reconnect_mode );
     vp.get( "auto_reconnect_wait", auto_reconnect_wait );
+
+    vp.get( "show_team_graphic", show_team_graphic );
     return true;
 }
 
@@ -377,6 +386,8 @@ Options::show_available_options( std::ostream & o,
       << "\n"
       << "\n-auto_reconnect_mode [" << auto_reconnect_mode << "]"
       << "\n-auto_reconnect_wait [" << auto_reconnect_wait << "]"
+      << "\n"
+      << "\n-show_team_graphic [" << show_team_graphic << "]"
       << "\n";
 
     input_dev->help_options( o );

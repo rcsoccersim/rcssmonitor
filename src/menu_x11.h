@@ -115,7 +115,9 @@ public:
         can be useful
     */
     bool process_event( const XEvent & event );
-    bool button_pressed( const XEvent & event, int & button, int & mouse_button ) const;
+    bool button_pressed( const XEvent & event,
+                         int & button,
+                         int & mouse_button ) const;
 
     bool needs_redraw() const
       {

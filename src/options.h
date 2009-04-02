@@ -57,6 +57,8 @@ public:
     bool auto_reconnect_mode;
     int auto_reconnect_wait;
 
+    bool show_team_graphic;
+
 private:
     char conf_file[MAX_STR_LEN];
 
@@ -94,6 +96,13 @@ private:
     void show_available_options( std::ostream & os,
                                  const char * fname,
                                  const InputDevice * input_dev ) const;
+
+public:
+
+    void toggleShowTeamGraphic()
+      {
+          show_team_graphic = ! show_team_graphic;
+      }
 };
 
 

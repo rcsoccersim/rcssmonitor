@@ -27,7 +27,6 @@
 #include "object2d.h"
 #include "frame2d.h"
 #include "visobject.h"
-//#include "team_graphic.h"
 
 #include <vector>
 #include <map>
@@ -418,7 +417,6 @@ class SMonitorDevice
     char buffer1[BUFFER_MAX_SIZE]; //!< receive buffer
     char buffer2[BUFFER_MAX_SIZE]; //!< receive buffer
 
-    //    static const int frame_team_graphic;
     static const int frame_canvas_left; //!< key value of logger drawing frame for left team
     static const int frame_canvas_right; //!< key value of logger drawing frame for right team
     static const int frame_ball; //!< key value of ball drawing frame
@@ -752,9 +750,6 @@ class SMonitorDevice
 
     //! key: time, value: team names & scores
     std::map< int, Score, std::greater< int > > M_scores;
-
-//     rcsc::TeamGraphic M_team_graphic_left;
-//     rcsc::TeamGraphic M_team_graphic_right;
 
     void vis_ball_set_info_level( int lev );
     void vis_player_set_info_level( int lev,

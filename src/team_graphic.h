@@ -175,12 +175,19 @@ private:
     //! 8x8 xpm tiles
     Map M_tiles;
 
-public:
-
+private:
     /*!
       \brief initialize member variables with illegal values.
      */
     TeamGraphic();
+
+public:
+
+    static
+    TeamGraphic & left();
+
+    static
+    TeamGraphic & right();
 
     /*!
       \brief erase all data

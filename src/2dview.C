@@ -19,28 +19,8 @@
  */
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include <config.h>
 #endif
-
-
-#include <cstdio>
-#include <cstdlib>
-#include <cmath>
-#include <ctime>
-#include <iostream>
-
-#include <X11/Xlib.h>
-#include <X11/Xutil.h>
-#include <X11/cursorfont.h>	/* For erasing cursor - not important	*/
-#include <X11/keysym.h>  /* ART! */
-#include <X11/keysymdef.h> /* ART! */
-#ifdef HAVE_XPM_H
-#include <X11/xpm.h>
-#endif
-
-#include <csignal>
-#include <sys/time.h>
-#include <fstream>
 
 #include "conv_area2d.h"
 #include "tools.h"
@@ -57,8 +37,24 @@
 
 #include "options.h"
 #include "rectangle.h"
+#include "team_graphic.h"
 
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
+#include <X11/cursorfont.h>	/* For erasing cursor - not important	*/
+#include <X11/keysym.h>  /* ART! */
+#include <X11/keysymdef.h> /* ART! */
+#ifdef HAVE_XPM_H
+#include <X11/xpm.h>
+#endif
+
+#include <set>
+#include <iostream>
+
+#include <cstring>
 #include <cerrno>   //for return values of select
+#include <sys/time.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #ifdef HAVE_XPM_H
@@ -74,6 +70,25 @@ struct Pointer {
              int yy )
         : x( xx )
         , y( yy )
+      { }
+};
+
+
+struct TeamGraphicPixmap {
+    Pixmap pixmap;
+    Pixmap mask;
+    GC gc;
+    unsigned int width;
+    unsigned int height;
+
+    std::set< rcsc::TeamGraphic::Index > index_set;
+
+    TeamGraphicPixmap()
+        : pixmap( 0 ),
+          mask( 0 ),
+          gc( 0 ),
+          width( 0 ),
+          height( 0 )
       { }
 };
 
@@ -98,18 +113,27 @@ toggle_freeze()
 
 namespace WIN {
 
-int win_width, win_height;
+int win_width;
+int win_height;
 int win_depth;
+
 Display * disp;
-Pixmap pixmap;
-Window window;
+Pixmap pixmap; // main canvas
+Window window; // main window
 MenuX11 * menu = 0;
 PopupX11 * popup = 0;
 
+#ifdef HAVE_XPM_H
 Pixmap icon_pixmap;
 Pixmap icon_mask;
+#endif
 
 GC gc, xor_gc, bg_gc, sl_gc, bt_gc; //sl= status line, bt= button
+
+
+TeamGraphicPixmap team_graphic_left;
+TeamGraphicPixmap team_graphic_right;
+
 
 Rectangle clip_rect;
 Pointer mouse_point( 0, 0 );
@@ -326,8 +350,8 @@ init_window_hints( Display * disp,
     XWMHints wm_hints;
     XClassHint class_hints;
 
-    size_hints.min_width= 400;
-    size_hints.min_height= 260;
+    size_hints.min_width = 400;
+    size_hints.min_height = 260;
     //size_hints.width = Options::instance().window_size_x;
     //size_hints.height = Options::instance().window_size_y;
     size_hints.flags = /*PSize |*/ PMinSize;
@@ -494,12 +518,14 @@ init_x11_resources( int argc,
                   << "Could not open display!" << std::endl;
         return false;
     }
+
     WIN::x11_fd = XConnectionNumber( WIN::disp );
     RGB_DB::disp = WIN::disp;
     //cout << "\n connection fd= " << WIN::x11_fd << flush;
     screen = DefaultScreen( WIN::disp );
     fg = BlackPixel( WIN::disp, screen );
     bg = WhitePixel( WIN::disp, screen );
+
     //hint.x = 150; hint.y = 10;
     hint.x = 200; hint.y = 20;
     hint.width = Options::instance().window_size_x;
@@ -580,12 +606,29 @@ init_x11_resources( int argc,
     /* Erase cursor. Just delete next 5 lines if any error.	*/
     cmap = XDefaultColormap( WIN::disp, screen );
 #if 1
-    //XAllocNamedColor(WIN::disp, cmap, "Black", &exact, &black);
+    //XAllocNamedColor( WIN::disp, cmap, "Black", &exact, &black );
+
     cursor = XCreateFontCursor( WIN::disp, XC_crosshair );
-    //XRecolorCursor(WIN::disp, cursor, &black, &black);
+    //cursor = XCreateFontCursor( WIN::disp, XC_cross_reverse );
+    //cursor = XCreateFontCursor( WIN::disp, XC_diamond_cross );
+
+    //XRecolorCursor( WIN::disp, cursor, &black, &black );
     XDefineCursor( WIN::disp, WIN::window, cursor );
 #endif
     //XFillRectangle (WIN::disp, WIN::pixmap, WIN::bg_gc, 0, 0, WIN::win_width, WIN::win_height);
+
+
+    //
+    // team graphic gc
+    //
+    WIN::team_graphic_left.gc = XCreateGC( WIN::disp, WIN::window, 0, 0 );
+    XSetBackground( WIN::disp, WIN::team_graphic_left.gc, bg );
+    XSetForeground( WIN::disp, WIN::team_graphic_left.gc, fg );
+
+    WIN::team_graphic_right.gc = XCreateGC( WIN::disp, WIN::window, 0, 0 );
+    XSetBackground( WIN::disp, WIN::team_graphic_right.gc, bg );
+    XSetForeground( WIN::disp, WIN::team_graphic_right.gc, fg );
+
     return true;
 }
 
@@ -598,8 +641,30 @@ destruct_resources()
     XFreeGC( WIN::disp, WIN::bg_gc );
     XFreeGC( WIN::disp, WIN::sl_gc );
     XFreePixmap( WIN::disp, WIN::pixmap );
-    XFreePixmap( WIN::disp, WIN::icon_pixmap );
-    XFreePixmap( WIN::disp, WIN::icon_mask );
+#ifdef HAVE_XPM_H
+    if ( WIN::icon_pixmap ) XFreePixmap( WIN::disp, WIN::icon_pixmap );
+    if ( WIN::icon_mask )   XFreePixmap( WIN::disp, WIN::icon_mask );
+#endif
+
+    if ( WIN::team_graphic_left.pixmap )
+    {
+        XFreePixmap( WIN::disp, WIN::team_graphic_left.pixmap );
+    }
+    if ( WIN::team_graphic_left.mask )
+    {
+        XFreePixmap( WIN::disp, WIN::team_graphic_left.mask );
+    }
+    XFreeGC( WIN::disp, WIN::team_graphic_left.gc );
+
+    if ( WIN::team_graphic_right.pixmap )
+    {
+        XFreePixmap( WIN::disp, WIN::team_graphic_right.pixmap );
+    }
+    if ( WIN::team_graphic_right.mask )
+    {
+        XFreePixmap( WIN::disp, WIN::team_graphic_right.mask );
+    }
+    XFreeGC( WIN::disp, WIN::team_graphic_right.gc );
 
     INPUTDEV->destruct();
     delete INPUTDEV;
@@ -718,7 +783,8 @@ process_x11_menu_events( XEvent & event )
         input_event.menu_button = dum_button;
         input_event.mouse_button = dum_mouse_button;
         result = INPUTDEV->process_menu_button( &RUN::builder,
-                                                WIN::menu,input_event );
+                                                WIN::menu,
+                                                input_event );
         if ( WIN::menu->needs_redraw() )
         {
             redraw = true;
@@ -1080,6 +1146,9 @@ process_x11_event_KeyPress( XEvent & event )
     case 'f':
         RUN::toggle_freeze();
         break;
+    case 'g':
+        Options::instance().toggleShowTeamGraphic();
+        break;
     case 'i':
         redraw = true;
         RUN::conv_area.set_area( Options::instance().plane );
@@ -1268,6 +1337,57 @@ redraw_current_tree()
     }
 
     //
+    // draw team graphic
+    //
+    if ( Options::instance().show_team_graphic )
+    {
+        if ( WIN::team_graphic_left.pixmap )
+        {
+            unsigned int w = WIN::team_graphic_left.width;
+            unsigned int h = WIN::team_graphic_left.height;
+            unsigned int x = 0 + ( 256 - w ) / 2;
+            unsigned int y = 20 + ( 64 - h ) / 2;
+
+            if ( WIN::team_graphic_left.mask )
+            {
+                XSetClipMask( WIN::disp, WIN::team_graphic_left.gc,
+                              WIN::team_graphic_left.mask );
+                XSetClipOrigin( WIN::disp, WIN::team_graphic_left.gc, x, y );
+            }
+            XCopyArea( WIN::disp,
+                       WIN::team_graphic_left.pixmap,
+                       WIN::pixmap,
+                       WIN::team_graphic_left.gc,
+                       0, 0,
+                       w, h,
+                       x, y );
+        }
+
+        if ( WIN::team_graphic_right.pixmap )
+        {
+            unsigned int w = WIN::team_graphic_right.width;
+            unsigned int h = WIN::team_graphic_right.height;
+            unsigned int x = ( WIN::win_width - 256 ) + ( 256 - w ) / 2;
+            unsigned int y = 20 + ( 64 - h ) / 2;
+
+            if ( WIN::team_graphic_right.mask )
+            {
+                XSetClipMask( WIN::disp, WIN::team_graphic_right.gc,
+                              WIN::team_graphic_right.mask );
+                XSetClipOrigin( WIN::disp, WIN::team_graphic_right.gc,
+                                x, y );
+            }
+            XCopyArea( WIN::disp,
+                       WIN::team_graphic_right.pixmap,
+                       WIN::pixmap,
+                       WIN::team_graphic_right.gc,
+                       0, 0,
+                       w, h,
+                       x, y );
+        }
+    }
+
+    //
     // update display
     //
     XCopyArea( WIN::disp, WIN::pixmap, WIN::window, WIN::gc,
@@ -1282,6 +1402,193 @@ redraw_current_tree()
 
     XFlush( WIN::disp );
 }
+
+
+void
+update_team_graphic( const rcsc::TeamGraphic & team_graphic,
+                     TeamGraphicPixmap * image )
+{
+#ifdef HAVE_XPM_H
+    if ( team_graphic.tiles().empty() )
+    {
+        // no graphic data
+        if ( image->pixmap )
+        {
+            //std::cerr << "update_team_graphic: no graphic data. release old pixmap."
+            //          << " id=" << image->pixmap
+            //          << std::endl;
+            XFreePixmap( WIN::disp, image->pixmap );
+        }
+        if ( image->mask )
+        {
+            //std::cerr << "update_team_graphic: no graphic data. release old mask."
+            //          << " id=" << image->mask
+            //          << std::endl;
+            XFreePixmap( WIN::disp, image->mask );
+        }
+        image->pixmap = 0;
+        image->mask = 0;
+        image->width = 0;
+        image->height = 0;
+        image->index_set.clear();
+        return;
+    }
+
+    if ( team_graphic.tiles().size() == image->index_set.size() )
+    {
+        // already completed
+        return;
+    }
+
+    if ( ! team_graphic.isValid() )
+    {
+        // insufficient data
+        //std::cerr << "update_team_graphic: insufficient tiles" << std::endl;
+        return;
+    }
+
+    //
+    // crear old resources
+    //
+    if ( image->pixmap ) XFreePixmap( WIN::disp, image->pixmap );
+    if ( image->mask )   XFreePixmap( WIN::disp, image->mask );
+    image->pixmap = 0;
+    image->mask = 0;
+    image->width = 0;
+    image->height = 0;
+    image->index_set.clear();
+
+
+    const int header_size = 1 + team_graphic.colors().size();
+    const int array_size = header_size + team_graphic.height();
+    const int array_width = team_graphic.width() + 1;
+
+    //
+    // allocate memory
+    //
+
+    //std::cerr << __FILE__ << ' ' << __LINE__ << ':'
+    //          << " create xpm array. size=" << array_size
+    //          << std::endl;
+    char ** xpm;
+    xpm = new char*[ array_size ];
+
+    //
+    // header
+    //
+
+    //std::cerr << __FILE__ << ' ' << __LINE__ << ':'
+    //          << " print header." << std::endl;
+    xpm[0] = new char[64];
+    snprintf( xpm[0],
+              64, "%d %d %d 1",
+              team_graphic.width(), team_graphic.height(),
+              team_graphic.colors().size() );
+
+    int idx = 1;
+
+    //
+    // colors
+    //
+
+    //std::cerr << __FILE__ << ' ' << __LINE__ << ':'
+    //          << " print colors. color_size=" << team_graphic.colors().size()
+    //          << std::endl;
+    const std::vector< boost::shared_ptr< std::string > >::const_iterator c_end = team_graphic.colors().end();
+    for ( std::vector< boost::shared_ptr< std::string > >::const_iterator color = team_graphic.colors().begin();
+          color != c_end;
+          ++color, ++idx )
+    {
+        xpm[idx] = new char[ (*color)->length() + 1 ];
+        std::strcpy( xpm[idx], (*color)->c_str() );
+    }
+
+    //
+    // pixels
+    //
+
+    //std::cerr << __FILE__ << ' ' << __LINE__ << ':'
+    //          << " print pixels."
+    //          << " image_width="  << team_graphic.width()
+    //          << " image_height=" << team_graphic.height()
+    //          << std::endl;
+    for ( ; idx < array_size; ++idx )
+    {
+        xpm[idx] = new char[ array_width + 1 ];
+        std::memset( xpm[idx], 0, array_width + 1 );
+    }
+
+    const rcsc::TeamGraphic::Map::const_iterator t_end = team_graphic.tiles().end();
+    for ( rcsc::TeamGraphic::Map::const_iterator tile = team_graphic.tiles().begin();
+          tile != t_end;
+          ++tile )
+    {
+        image->index_set.insert( tile->first );
+
+        int x = ( tile->first.first * rcsc::TeamGraphic::TILE_SIZE );
+        int y = header_size + ( tile->first.second * rcsc::TeamGraphic::TILE_SIZE );
+
+        //std::cerr << __FILE__ << ' ' << __LINE__ << ':'
+        //          << " print tile (" << tile->first.first << ", " << tile->first.second << ")"
+        //          << " array=[" << x << ',' << y << ']'
+        //          << std::endl;
+
+        const std::vector< std::string >::const_iterator l_end = tile->second->pixelLines().end();
+        for ( std::vector< std::string >::const_iterator line = tile->second->pixelLines().begin();
+              line != l_end;
+              ++line, ++y )
+        {
+            std::memcpy( xpm[y] + x, line->c_str(), line->length() );
+        }
+    }
+
+    //std::cerr << __FILE__ << ' ' << __LINE__ << ':'
+    //          << " create team graphic pixmap"
+    //          << std::endl;
+
+    //
+    // create pixmap & mask
+    //
+
+    XpmAttributes atts;
+    atts.valuemask = XpmSize;
+    if ( XpmCreatePixmapFromData( WIN::disp,
+                                  WIN::window,
+                                  xpm,
+                                  &(image->pixmap),
+                                  &(image->mask),
+                                  &atts )
+         == XpmSuccess )
+    {
+        image->width = atts.width;
+        image->height = atts.height;
+        //std::cerr << "created team_graphic pixmap width=" << atts.width
+        //          << " height=" << atts.height
+        //          << " pixmapID=" << WIN::team_graphic_left.pixmap
+        //          << " maskID=" << WIN::team_graphic_left.mask
+        //          << std::endl;
+    }
+    XpmFreeAttributes( &atts );
+
+    //std::cerr << __FILE__ << ' ' << __LINE__ << ':'
+    //          << " created." << std::endl;
+
+    //
+    // release memories
+    //
+
+    //std::cerr << __FILE__ << ' ' << __LINE__ << ':'
+    //          << " release memory." << std::endl;
+    for ( int i = 0; i < array_size; ++i )
+    {
+        //std::cerr << xpm[i] << '\n';
+        delete [] xpm[i];
+    }
+    //std::cerr.flush();
+    delete [] xpm;
+#endif
+}
+
 
 void
 main_loop()
@@ -1335,8 +1642,13 @@ main_loop()
                     received = true;
                     if ( ! RUN::freeze )
                     {
-                        redraw= true;
+                        redraw = true;
                     }
+
+                    update_team_graphic( rcsc::TeamGraphic::left(),
+                                         &WIN::team_graphic_left );
+                    update_team_graphic( rcsc::TeamGraphic::right(),
+                                         &WIN::team_graphic_right );
                 }
 
                 if ( RUN::builder.new_bg_color )

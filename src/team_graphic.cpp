@@ -290,6 +290,28 @@ TeamGraphic::TeamGraphic()
 /*!
 
 */
+TeamGraphic &
+TeamGraphic::left()
+{
+    static TeamGraphic s_instance_left;
+    return s_instance_left;
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+TeamGraphic &
+TeamGraphic::right()
+{
+    static TeamGraphic s_instance_right;
+    return s_instance_right;
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
 void
 TeamGraphic::clear()
 {

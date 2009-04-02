@@ -28,6 +28,7 @@
 #include "ascii_processor.h"
 #include "str2val.h"
 #include "valueparser.h"
+#include "team_graphic.h"
 
 #include <boost/cstdint.hpp>
 
@@ -1496,7 +1497,6 @@ VisualField::set_goal_width( const double & width )
   1-22 : players
 */
 
-//const int SMonitorDevice::frame_team_graphic = 93;
 const int SMonitorDevice::frame_canvas_left = 94;
 const int SMonitorDevice::frame_canvas_right = 95;
 const int SMonitorDevice::frame_ball = 96;
@@ -1546,7 +1546,8 @@ SMonitorDevice::Options::Options()
     protocol_version = 4;
     connect_on_start = true;
 
-    pen_taken_wait = 200;
+    //pen_taken_wait = 200;
+    pen_taken_wait = 150;
 
     keepaway = false;
     keepaway_length = 20.0;
@@ -2222,8 +2223,7 @@ SMonitorDevice::process_char_command( BuilderBase * build,
     //  static char buf[100];
     //  ostrstream dum_str( buf,100 );
 
-    switch ( event.key )
-    {
+    switch ( event.key ) {
 
     case 'c':
 
@@ -3938,14 +3938,6 @@ SMonitorDevice::server_interpret_command_msg( BuilderBase *,
     {
         // TODO: added xpm holder
         server_interpret_team_graphic( msg );
-//         std::cerr << "team_graphic_left:"
-//                   << " width=" << M_team_graphic_left.width()
-//                   << " height=" << M_team_graphic_left.height()
-//                   << '\n';
-//         std::cerr << "team_graphic_right:"
-//                   << " width=" << M_team_graphic_right.width()
-//                   << " height=" << M_team_graphic_right.height()
-//                   << '\n';
         return true;
     }
 
@@ -5014,6 +5006,7 @@ SMonitorDevice::server_interpret_server_param_v3( BuilderBase *,
     double player_size = 0.3;
     double kickable_margin = 0.7;
     double stamina_max = 4000.0;
+    double pen_taken_wait = 150;
 
     std::map< std::string, double * > param_map;
     param_map[ "goal_width" ] = &goal_width;
@@ -5022,6 +5015,7 @@ SMonitorDevice::server_interpret_server_param_v3( BuilderBase *,
     param_map[ "player_size" ] = &player_size;
     param_map[ "kickable_margin" ] = &kickable_margin;
     param_map[ "stamina_max" ] = &stamina_max;
+    param_map[ "pen_taken_wait" ] = &pen_taken_wait;
 
     {
         char message_type[32];
@@ -5091,6 +5085,8 @@ SMonitorDevice::server_interpret_server_param_v3( BuilderBase *,
         return false;
     }
 
+    M_options.pen_taken_wait = static_cast< int >( pen_taken_wait );
+
     M_options.stamina_max = stamina_max;
 
     M_visual_field.set_goal_width( goal_width );
@@ -5121,19 +5117,23 @@ SMonitorDevice::server_interpret_team_graphic( const char * msg )
         return false;
     }
 
-//     if ( side == 'l' )
-//     {
-//         std::cerr << "recv team_graphic_l (" << x << ',' << y << ')'
-//                   << std::endl;
-//         return M_team_graphic_left.parse( msg );
-//     }
+    if ( side == 'l' )
+    {
+        return rcsc::TeamGraphic::left().parse( msg );
+        //std::cerr << "recv team_graphic_l (" << x << ',' << y << ')'
+        //          << " width=" << M_team_graphic_left.width()
+        //          << " height=" << M_team_graphic_left.height()
+        //          << std::endl;
+    }
 
-//     if ( side == 'r' )
-//     {
-//         std::cerr << "recv team_graphic_r (" << x << ',' << y << ')'
-//                   << std::endl;
-//         return M_team_graphic_right.parse( msg );
-//     }
+    if ( side == 'r' )
+    {
+        return rcsc::TeamGraphic::right().parse( msg );
+        //std::cerr << "recv team_graphic_r (" << x << ',' << y << ')'
+        //          << " width=" << M_team_graphic_right.width()
+        //          << " height=" << M_team_graphic_right.height()
+        //          << std::endl;
+    }
 
     return false;
 }
@@ -5560,8 +5560,8 @@ SMonitorDevice::reconnect()
     send_dispinit();
     M_server_state.reset();
     M_score_board_string.erase();
-//     M_team_graphic_left.clear();
-//     M_team_graphic_right.clear();
+    rcsc::TeamGraphic::left().clear();
+    rcsc::TeamGraphic::right().clear();
     return true;
 }
 
