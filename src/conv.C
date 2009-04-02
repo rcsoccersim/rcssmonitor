@@ -25,6 +25,7 @@
 #include "conv.h"
 
 #include "global_defs.h"
+#include "point2d.h"
 
 #include <iostream>
 #include <cmath>

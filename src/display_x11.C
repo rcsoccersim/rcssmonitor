@@ -19,6 +19,11 @@
  */
 
 #include "display_x11.h"
+
+#include "area2d.h"
+#include "pixmap_image.h"
+#include "rgbcolor.h"
+
 #include <iostream>
 
 void
@@ -809,6 +814,54 @@ DisplayX11::draw_string( DisplayObject * d_obj,
                  str,
                  len );
 }
+
+
+void
+DisplayX11::draw_pixmap( DisplayObject * d_obj,
+                         const Point2d & top_left,
+                         const PixmapImage & image )
+{
+    D_XPoint * my_obj;
+
+    if ( ! d_obj )
+    {
+        my_obj = &d_xpoint;
+        my_obj->mark_col_change();
+        my_obj->mark_pos_change();
+    }
+    else
+    {
+        my_obj = static_cast< D_XPoint * >( d_obj );
+    }
+
+//     if ( my_obj->col_change )
+//     {
+//         my_obj->col_change = false;
+//         my_obj->XColor_pixel = AGetColor( col );
+//     }
+
+    if ( my_obj->area_number != area_number )
+    {
+        my_obj->area_number = area_number;
+        copy_2_XPoint( my_obj->p, top_left );
+    }
+
+    ASetForeground( my_obj->XColor_pixel );
+
+    XSetClipMask( disp, gc, image.mask_ );
+    XSetClipOrigin( disp, gc, my_obj->p.x, my_obj->p.y );
+
+    // we can get the pixmap width and/or height via
+    // XGetGeometry() function.
+
+    XCopyArea( disp, image.pixmap_, pixmap, gc,
+               0, 0, image.width_, image.height_, // source
+               my_obj->p.x, my_obj->p.y ); //destination
+//     XCopyArea( disp, pm, pixmap, gc,
+//                0, 0, width, height,
+//                my_obj->p.x, my_obj->p.y );
+}
+
 
 void
 DisplayX11::set_background_color( const RGBcolor & col )

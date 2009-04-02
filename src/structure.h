@@ -22,12 +22,15 @@
 #define STRUCTURE_H
 
 #include "frame2d.h"
-#include "angle.h"
-#include "point2d.h"
-#include "vector2d.h"
 #include "maplist.h"
-#include "visobject.h"
 
+
+class Angle;
+class Point2d;
+class Area2d;
+class VisualObject2d;
+class RGBcolor;
+class DisplayBase;
 
 class DrawFrameMap;
 

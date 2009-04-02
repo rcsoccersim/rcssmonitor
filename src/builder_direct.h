@@ -22,8 +22,10 @@
 #define BUILDER_DIRECT_H
 
 #include "builder_base.h"
-#include "structure.h"
-#include "conv_area2d.h"
+#include "rgbcolor.h"
+
+class DrawTree;
+class ConvArea2d;
 
 class BuilderDirect
     : public BuilderBase {

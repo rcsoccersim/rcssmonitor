@@ -20,9 +20,14 @@
 #ifndef INPUT_DEV_H
 #define INPUT_DEV_H
 
-#include <sys/types.h> /* fd_set */
-#include "builder_base.h"
+// #include "builder_base.h"
 #include "menu_base.h"
+#include "object2d.h"
+
+#include <sys/types.h> /* fd_set */
+
+class Area2d;
+class BuilderBase;
 
 /**
    \short device event information

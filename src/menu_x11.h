@@ -20,9 +20,11 @@
 #ifndef MENU_X11_H
 #define MENU_X11_H
 
-#include <X11/Xlib.h>
 #include "menu_base.h"
 #include "rgbcolor.h"
+
+#include <X11/Xlib.h>
+
 
 class MenuX11
     : public MenuBase {

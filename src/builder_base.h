@@ -21,11 +21,14 @@
 #ifndef BUILDER_BASE_H
 #define BUILDER_BASE_H
 
-#include "rgbcolor.h"
-#include "vector2d.h"
-#include "object2d.h"
-#include "area2d.h"
-#include "visobject.h"
+class Angle;
+class Area2d;
+class Point2d;
+class Line2d;
+class Circle2d;
+class CircleArc2d;
+class RGBcolor;
+class VisualObject2d;
 
 /** This is an interface class. All classes which are used to influence
     the 2d viewing area by building or moving object must inherit from

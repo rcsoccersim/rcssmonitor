@@ -18,9 +18,15 @@
  * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include "global_defs.h"
 #include "ascii_processor.h"
+
+#include "area2d.h"
+#include "builder_base.h"
+#include "global_defs.h"
+#include "rgbcolor.h"
 #include "str2val.h"
+#include "visobject.h"
+
 #include <cstdlib>
 #include <cstdio>
 

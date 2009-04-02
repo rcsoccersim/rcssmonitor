@@ -18,7 +18,16 @@
  * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #include "visobject.h"
+
+#include "area2d.h"
+#include "frame2d.h"
+#include "display_base.h"
+
 
 VisualObject2d::VisualObject2d()
     : key( 0 ),
@@ -44,9 +53,16 @@ VisualObject2d::set_color( const RGBcolor & col )
 #endif
 
 VisualPoint2d::VisualPoint2d()
-    : VisualObject2d()
+    : VisualObject2d(),
+      d_obj( static_cast< DisplayObject * >( 0 ) )
 {
     init();
+}
+
+
+VisualPoint2d:: ~VisualPoint2d()
+{
+    if ( d_obj ) delete d_obj;
 }
 
 VisualPoint2d::VisualPoint2d( const int my_key,
@@ -140,19 +156,30 @@ VisualPoint2d::intersects_area( const Area2d & a )
     return a.intersects( abs );
 }
 
+
+
 ////
 VisualPoints2d::VisualPoints2d()
-    : VisualObject2d()
+    : VisualObject2d(),
+      d_obj( static_cast< DisplayObject * >( 0 ) )
 {
     init();
 }
+
+
+VisualPoints2d::~VisualPoints2d()
+{
+    if ( d_obj ) delete d_obj;
+}
+
 
 VisualPoints2d::VisualPoints2d( const int my_key,
                                 const int my_layer,
                                 const RGBcolor & my_color,
                                 const int len_data,
                                 const Point2d * data )
-    : VisualObject2d()
+    : VisualObject2d(),
+      d_obj( static_cast< DisplayObject * >( 0 ) )
 {
     init();
 
@@ -267,9 +294,16 @@ VisualPoints2d::intersects_area( const Area2d & a )
 /*****************************************************************************/
 
 VisualLine2d::VisualLine2d()
-    : VisualObject2d()
+    : VisualObject2d(),
+      d_obj( static_cast< DisplayObject * >( 0 ) )
 {
     init();
+}
+
+
+VisualLine2d::~VisualLine2d()
+{
+    if ( d_obj ) delete d_obj;
 }
 
 VisualLine2d::VisualLine2d( const int my_key,
@@ -367,11 +401,18 @@ VisualLine2d::intersects_area( const Area2d & a )
     return a.intersects( abs );
 }
 
+
 ////
 VisualLines2d::VisualLines2d()
-    : VisualObject2d()
+    : VisualObject2d(),
+      d_obj( static_cast< DisplayObject * >( 0 ) )
 {
     init();
+}
+
+VisualLines2d::~VisualLines2d()
+{
+    if ( d_obj ) delete d_obj;
 }
 
 VisualLines2d::VisualLines2d( const int my_key,
@@ -497,6 +538,8 @@ VisualLines2d::intersects_area( const Area2d & a )
 /*****************************************************************************/
 
 VisualCircle2d::VisualCircle2d()
+    : VisualObject2d(),
+      d_obj( static_cast< DisplayObject * >( 0 ) )
 {
     init();
 }
@@ -505,7 +548,8 @@ VisualCircle2d::VisualCircle2d( const int my_key,
                                 const int my_layer,
                                 const RGBcolor & my_color,
                                 const Circle2d & my_data )
-    : VisualObject2d()
+    : VisualObject2d(),
+      d_obj( static_cast< DisplayObject * >( 0 ) )
 {
     init();
 
@@ -516,6 +560,12 @@ VisualCircle2d::VisualCircle2d( const int my_key,
     rel = my_data;
     abs = rel;
 }
+
+VisualCircle2d::~VisualCircle2d()
+{
+    if ( d_obj ) delete d_obj;
+}
+
 
 void
 VisualCircle2d::init()
@@ -609,9 +659,11 @@ VisualCircle2d::intersects_area( const Area2d & a )
     return a.intersects_area_of( abs );
 }
 
+
 ////
 VisualCircles2d::VisualCircles2d()
-    : VisualObject2d()
+    : VisualObject2d(),
+      d_obj( static_cast< DisplayObject * >( 0 ) )
 {
     init();
 }
@@ -621,7 +673,8 @@ VisualCircles2d::VisualCircles2d( const int my_key,
                                   const RGBcolor & my_color,
                                   const int len_data,
                                   const Circle2d * data )
-    : VisualObject2d()
+    : VisualObject2d(),
+      d_obj( static_cast< DisplayObject * >( 0 ) )
 {
     init();
 
@@ -632,6 +685,12 @@ VisualCircles2d::VisualCircles2d( const int my_key,
     rel.clone( len_data, data );
     abs = rel;
 }
+
+VisualCircles2d::~VisualCircles2d()
+{
+    if ( d_obj ) delete d_obj;
+}
+
 
 void
 VisualCircles2d::init()
@@ -755,6 +814,8 @@ VisualCircles2d::intersects_area( const Area2d & a )
 /*****************************************************************************/
 
 VisualCircleArc2d::VisualCircleArc2d()
+    : VisualObject2d(),
+      d_obj( static_cast< DisplayObject * >( 0 ) )
 {
     init();
 }
@@ -763,7 +824,8 @@ VisualCircleArc2d::VisualCircleArc2d( const int my_key,
                                       const int my_layer,
                                       const RGBcolor & my_color,
                                       const CircleArc2d & my_data )
-    : VisualObject2d()
+    : VisualObject2d(),
+      d_obj( static_cast< DisplayObject * >( 0 ) )
 {
     init();
 
@@ -774,6 +836,12 @@ VisualCircleArc2d::VisualCircleArc2d( const int my_key,
     rel = my_data;
     abs = rel;
 }
+
+VisualCircleArc2d::~VisualCircleArc2d()
+{
+    if ( d_obj ) delete d_obj;
+}
+
 
 void
 VisualCircleArc2d::init()
@@ -786,10 +854,11 @@ VisualCircleArc2d::init()
     filled = false;
 }
 
-void VisualCircleArc2d::draw( DisplayBase * disp,
-                              const Area2d & area,
-                              const Frame2d & p_frame,
-                              const bool chg )
+void
+VisualCircleArc2d::draw( DisplayBase * disp,
+                         const Area2d & area,
+                         const Frame2d & p_frame,
+                         const bool chg )
 {
     if ( ! visible )
     {
@@ -872,7 +941,8 @@ VisualCircleArc2d::intersects_area( const Area2d & a )
 
 ////
 VisualCircleArcs2d::VisualCircleArcs2d()
-    : VisualObject2d()
+    : VisualObject2d(),
+      d_obj( static_cast< DisplayObject * >( 0 ) )
 {
     init();
 }
@@ -882,7 +952,8 @@ VisualCircleArcs2d::VisualCircleArcs2d( const int my_key,
                                         const RGBcolor & my_color,
                                         const int len_data,
                                         const CircleArc2d * data )
-    : VisualObject2d()
+    : VisualObject2d(),
+      d_obj( static_cast< DisplayObject * >( 0 ) )
 {
     init();
 
@@ -893,6 +964,12 @@ VisualCircleArcs2d::VisualCircleArcs2d( const int my_key,
     rel.clone( len_data, data );
     abs = rel;
 }
+
+VisualCircleArcs2d::~VisualCircleArcs2d()
+{
+    if ( d_obj ) delete d_obj;
+}
+
 
 void
 VisualCircleArcs2d::init()
@@ -1019,7 +1096,8 @@ VisualCircleArcs2d::intersects_area( const Area2d & a )
 /*****************************************************************************/
 
 VisualPolyline2d::VisualPolyline2d()
-    : VisualObject2d()
+    : VisualObject2d(),
+      d_obj( static_cast< DisplayObject * >( 0 ) )
 {
     init();
 }
@@ -1029,7 +1107,8 @@ VisualPolyline2d::VisualPolyline2d( const int my_key,
                                     const RGBcolor & my_color,
                                     const int len_data,
                                     const Point2d * data )
-    : VisualObject2d()
+    : VisualObject2d(),
+      d_obj( static_cast< DisplayObject * >( 0 ) )
 {
     init();
 
@@ -1039,6 +1118,12 @@ VisualPolyline2d::VisualPolyline2d( const int my_key,
 
     rel.clone( len_data, data );
     abs = rel;
+}
+
+
+VisualPolyline2d::~VisualPolyline2d()
+{
+    if ( d_obj ) delete d_obj;
 }
 
 void
@@ -1148,7 +1233,8 @@ VisualPolyline2d::intersects_area( const Area2d & a )
 /*****************************************************************************/
 
 VisualPolygon2d::VisualPolygon2d()
-    : VisualObject2d()
+    : VisualObject2d(),
+      d_obj( static_cast< DisplayObject * >( 0 ) )
 {
     init();
 }
@@ -1158,7 +1244,8 @@ VisualPolygon2d::VisualPolygon2d( const int my_key,
                                   const RGBcolor & my_color,
                                   const int len_data,
                                   const Point2d * data )
-    : VisualObject2d()
+    : VisualObject2d(),
+      d_obj( static_cast< DisplayObject * >( 0 ) )
 {
     init();
 
@@ -1168,6 +1255,11 @@ VisualPolygon2d::VisualPolygon2d( const int my_key,
 
     rel.clone( len_data, data );
     abs = rel;
+}
+
+VisualPolygon2d::~VisualPolygon2d()
+{
+    if ( d_obj ) delete d_obj;
 }
 
 void
@@ -1301,7 +1393,8 @@ VisualString2d::VisualString2d( const int my_key,
                                 const Point2d & my_pos,
                                 //const Multi< char > & my_data )
                                 const std::string & my_data )
-    : VisualObject2d()
+    : VisualObject2d(),
+      d_obj( static_cast< DisplayObject * >( 0 ) )
 {
     init();
 
@@ -1319,7 +1412,8 @@ VisualString2d::VisualString2d( const int my_key,
                                 const Point2d & my_pos,
                                 const int len_data,
                                 const char * data )
-    : VisualObject2d()
+    : VisualObject2d(),
+      d_obj( static_cast< DisplayObject * >( 0 ) )
 {
     init();
 
@@ -1333,9 +1427,15 @@ VisualString2d::VisualString2d( const int my_key,
 }
 
 VisualString2d::VisualString2d()
-    : VisualObject2d()
+    : VisualObject2d(),
+      d_obj( static_cast< DisplayObject * >( 0 ) )
 {
     init();
+}
+
+VisualString2d::~VisualString2d()
+{
+    if ( d_obj ) delete d_obj;
 }
 
 VisualString2d::VisualString2d( const int my_key,

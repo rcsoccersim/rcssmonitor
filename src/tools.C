@@ -17,8 +17,14 @@
  * along with FrameView2d; see the file COPYING.  If not, write to
  * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  */
+
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #include "tools.h"
 #include "global_defs.h"
+
 #include <sys/time.h>
 
 long TOOLS::get_current_ms_time()

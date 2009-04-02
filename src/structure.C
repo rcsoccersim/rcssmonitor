@@ -18,14 +18,20 @@
  * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #include "structure.h"
-#include <iostream>
 
 #if 0
 #include "display_base.h"
 extern DisplayBase *DDD
 #endif
 
+#include "visobject.h"
+
+#include <iostream>
 
 /*****************************************************************************/
 

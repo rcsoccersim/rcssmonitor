@@ -25,6 +25,7 @@
 #include "ascii_dev.h"
 #include "ascii_processor.h"
 #include "global_defs.h"
+#include "valueparser.h"
 
 const bool AsciiDevice::use_udp = true;
 const bool AsciiDevice::use_stdin = false;

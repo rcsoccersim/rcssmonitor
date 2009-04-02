@@ -23,10 +23,8 @@
 #include "input_dev.h"
 #include "udpsocket.h"
 #include "tcpsocket.h"
-#include "rgbcolor.h"
-#include "object2d.h"
-#include "multi.h"
-#include "valueparser.h"
+
+class ValueParser;
 
 class AsciiDevice
     : public InputDevice {

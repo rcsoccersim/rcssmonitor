@@ -21,14 +21,14 @@
 #ifndef VISOBJECT_H
 #define VISOBJECT_H
 
-#include "vector2d.h"
-#include "frame2d.h"
 #include "rgbcolor.h"
 #include "object2d.h"
-#include "area2d.h"
 #include "multi.h"
-#include "display_base.h"
 
+class Area2d;
+class Frame2d;
+class DisplayBase;
+class DisplayObject;
 
 /** \short Interface class for objects which can be drawn.
     This class is the base for all drawables. If you derive your
@@ -114,10 +114,7 @@ public:
                    const Point2d & my_data );
 
     virtual
-    ~VisualPoint2d()
-      {
-          if ( d_obj ) delete d_obj;
-      }
+    ~VisualPoint2d();
 
     /*!
       \brief virtual method
@@ -161,11 +158,9 @@ public:
                     const RGBcolor & my_color,
                     const int len_data,
                     const Point2d * data );
+
     virtual
-    ~VisualPoints2d()
-      {
-          if ( d_obj ) delete d_obj;
-      }
+    ~VisualPoints2d();
 
     /*!
       \brief virtual method
@@ -211,10 +206,7 @@ public:
                   const RGBcolor & my_color,
                   const Line2d & my_data );
     virtual
-    ~VisualLine2d()
-      {
-          if ( d_obj ) delete d_obj;
-      }
+    ~VisualLine2d();
 
     /*!
       \brief virtual method
@@ -259,10 +251,7 @@ public:
                    const int len_data,
                    const Line2d * data );
     virtual
-    ~VisualLines2d()
-      {
-          if ( d_obj ) delete d_obj;
-      }
+    ~VisualLines2d();
 
     /*!
       \brief virtual method
@@ -324,10 +313,7 @@ public:
                     const RGBcolor & my_color,
                     const Circle2d & my_data );
     virtual
-    ~VisualCircle2d()
-      {
-          if ( d_obj ) delete d_obj;
-      }
+    ~VisualCircle2d();
 
     /*!
       \brief virtual method
@@ -375,10 +361,8 @@ public:
                      const Circle2d * data );
 
     virtual
-    ~VisualCircles2d()
-      {
-          if ( d_obj ) delete d_obj;
-      }
+    ~VisualCircles2d();
+
 
     /*!
       \brief virtual method
@@ -426,10 +410,7 @@ public:
                        const RGBcolor & my_color,
                        const CircleArc2d & my_data );
     virtual
-    ~VisualCircleArc2d()
-      {
-          if ( d_obj ) delete d_obj;
-      }
+    ~VisualCircleArc2d();
 
     /*!
       \brief virtual method
@@ -476,10 +457,7 @@ public:
                         const int len_data,
                         const CircleArc2d * data );
     virtual
-    ~VisualCircleArcs2d()
-      {
-          if ( d_obj ) delete d_obj;
-      }
+    ~VisualCircleArcs2d();
 
     /*!
       \brief virtual method
@@ -527,10 +505,8 @@ public:
                       const int len_data,
                       const Point2d * data );
     virtual
-    ~VisualPolyline2d()
-      {
-          if ( d_obj ) delete d_obj;
-      }
+    ~VisualPolyline2d();
+
 
     /*!
       \brief virtual method
@@ -581,10 +557,7 @@ public:
                      const int len_data,
                      const Point2d * data );
     virtual
-    ~VisualPolygon2d()
-      {
-          if ( d_obj ) delete d_obj;
-      }
+    ~VisualPolygon2d();
 
     /*!
       \brief virtual method
@@ -644,10 +617,7 @@ public:
                     const int my_layer );
 
     virtual
-    ~VisualString2d()
-      {
-          if ( d_obj ) delete d_obj;
-      }
+    ~VisualString2d();
 
     /*!
       \brief virtual method

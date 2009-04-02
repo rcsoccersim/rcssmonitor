@@ -21,13 +21,16 @@
 #ifndef DISPLAY_X11_H
 #define DISPLAY_X11_H
 
-#include <X11/Xlib.h>
+
 #include "display_base.h"
 #include "conv.h"
-#include "area2d.h"
 #include "multi.h"
 
+#include <X11/Xlib.h>
+
 #include <algorithm>
+
+class Area2d;
 
 
 class DisplayX11
@@ -311,6 +314,16 @@ public:
           return new D_XPoint;
       }
 
+
+    void draw_pixmap( DisplayObject * d_obj,
+                      const Point2d & top_left,
+                      const PixmapImage & pm );
+
+    DisplayObject * create_pixmap()
+      {
+          return new D_XPoint;
+      }
+
     //
     void set_background_color( const RGBcolor & col );
 
@@ -394,6 +407,17 @@ protected:
     void copy_2_XArcs( XArc * dest,
                        const int num,
                        const CircleArc2d * vec ) const;
+
+public:
+
+    static
+    Display * x11Display();
+
+    static
+    Window x11RootWindow();
+
+    static
+    int x11Screen();
 };
 
 #endif

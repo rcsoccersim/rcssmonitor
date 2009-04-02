@@ -18,7 +18,15 @@
  * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #include "builder_direct.h"
+
+#include "conv_area2d.h"
+#include "structure.h"
+#include "visobject.h"
 
 #define B_ERROR(xxx) std::cerr << "\n" << __LINE__ << ":" << xxx
 

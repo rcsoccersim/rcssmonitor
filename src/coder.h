@@ -22,15 +22,16 @@
 #define CODER_H
 
 #include "rgbcolor.h"
-#include "vector2d.h"
 #include "object2d.h"
 #include "multi.h"
 #include "rwbin.h"
-#include "builder_base.h"
+
+class BuilderBase;
 
 inline
-void wbin( std::ostream & o,
-           const RGBcolor& col )
+void
+wbin( std::ostream & o,
+      const RGBcolor & col )
 {
     wbin( o, col.red );
     wbin( o, col.green );
@@ -38,8 +39,9 @@ void wbin( std::ostream & o,
 }
 
 inline
-void rbin( std::istream & i,
-           RGBcolor& col )
+void
+rbin( std::istream & i,
+      RGBcolor & col )
 {
     rbin( i, col.red );
     rbin( i, col.green );
@@ -47,15 +49,17 @@ void rbin( std::istream & i,
 }
 
 inline
-void wbin( std::ostream & o,
-           const Angle& ang )
+void
+wbin( std::ostream & o,
+      const Angle & ang )
 {
     wbin( o, ang.get_value() );
 }
 
 inline
-void rbin( std::istream & i,
-           Angle& ang )
+void
+rbin( std::istream & i,
+      Angle & ang )
 {
     double d;
     rbin( i, d );

@@ -21,9 +21,14 @@
 #ifndef DISPLAY_BASE_H
 #define DISPLAY_BASE_H
 
-#include "rgbcolor.h"
-#include "vector2d.h"
 #include "object2d.h"
+
+class Point2d;
+class Line2d;
+class Circle2d;
+class CircleArc2d;
+class RGBcolor;
+struct PixmapImage;
 
 struct DisplayObject {
     DisplayObject()
@@ -173,9 +178,19 @@ public:
     virtual
     DisplayObject * create_string() = 0;
 
+
+    virtual
+    void draw_pixmap( DisplayObject * d_obj,
+                      const Point2d & top_left,
+                      const PixmapImage & image ) = 0;
+
+    virtual
+    DisplayObject * create_pixmap() = 0;
+
     //
     virtual
     void set_background_color( const RGBcolor & col ) = 0;
+
 };
 
 #endif

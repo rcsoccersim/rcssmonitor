@@ -1,3 +1,39 @@
+2009-04-02  Hidehisa Akiyama  <akky@users.sourceforge.jp>
+
+	* src/Makefile.am:
+	* src/team_graphic.cpp:
+	* src/team_graphic.h:
+	- added TeamGraphic class.
+
+	* src/2dview.C:
+	* src/ascii_dev.C:
+	* src/ascii_dev.h:
+	* src/ascii_processor.C:
+	* src/ascii_processor.h:
+	* src/builder_base.h:
+	* src/builder_direct.C:
+	* src/builder_direct.h:
+	* src/coder.C:
+	* src/coder.h:
+	* src/conv.C:
+	* src/conv.h:
+	* src/display_base.h:
+	* src/display_x11.C:
+	* src/display_x11.h:
+	* src/input_dev.h:
+	* src/menu_x11.h:
+	* src/multi.h:
+	* src/popup_x11.h:
+	* src/smonitor_dev.C:
+	* src/smonitor_dev.h:
+	* src/structure.C:
+	* src/structure.h:
+	* src/tools.C:
+	* src/visobject.C:
+	* src/visobject.h:
+	- fixed coding style.
+	- fixed include dependencies.
+
 2009-03-31  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
 	* src/2dview.C:

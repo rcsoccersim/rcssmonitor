@@ -33,7 +33,8 @@ rcssmonitor_SOURCES = \
 	ascii_processor.h  display_x11.h   multi.h      str2val.h \
 	builder_base.h     frame2d.h       object2d.h   structure.h \
 	builder_direct.h   global_defs.h   point2d.h    tools.h \
-	coder.h            input_dev.h     rgbcolor.h   udpsocket.h tcpsocket.h popup_x11.h
+	coder.h            input_dev.h     rgbcolor.h   udpsocket.h tcpsocket.h popup_x11.h \
+	team_graphic.h team_graphic.cpp
 
 rcssmonitor_CXXFLAGS =
 rcssmonitor_LDADD = @X_PRE_LIBS@ @X_LIBS@ @X_EXTRA_LIBS@

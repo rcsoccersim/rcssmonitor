@@ -24,9 +24,7 @@
 #include <cstring> //memcpy
 
 template < typename T >
-
-struct Multi
-{
+struct Multi {
     int cur_size;
     int max_size;
     T * tab;
@@ -53,7 +51,6 @@ struct Multi
           cur_size = 0;
 
           if ( s < 0 ) return false;
-
           if ( s <= max_size ) return true;
 
           max_size = s;
@@ -64,7 +61,6 @@ struct Multi
           {
               tab = static_cast< T * >( 0 );;
           }
-
           else
           {
               tab = new T[max_size];
@@ -94,13 +90,11 @@ struct Multi
               {
                   tab = 0;
               }
-
               else
               {
                   tab = new T[max_size];
               }
           }
-
           else
           {
               T * dum = tab;
@@ -116,7 +110,7 @@ struct Multi
       {
           cur_size = 0;
 
-          if ( s > max_size || s < 0 )
+          if ( s < 0 || max_size < s )
           {
               return false;
           }

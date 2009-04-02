@@ -42,6 +42,7 @@
 #include <sys/time.h>
 #include <fstream>
 
+#include "conv_area2d.h"
 #include "global_defs.h"
 #include "tools.h"
 #include "display_x11.h"
@@ -91,7 +92,6 @@ show_copyright_notice( std::ostream & o )
 
 
 DisplayX11 * DDD;
-
 InputDevice * INPUTDEV;
 
 #define POPUP
@@ -536,6 +536,25 @@ int x11_fd;
 } // end namespace WIN
 
 
+Display *
+DisplayX11::x11Display()
+{
+    return WIN::disp;
+}
+
+Window
+DisplayX11::x11RootWindow()
+{
+    return WIN::window;
+}
+
+int
+DisplayX11::x11Screen()
+{
+    return DefaultScreen( WIN::disp );
+}
+
+
 void
 convert_area_2_area_under_window_constrains( Area2d & a,
                                              int win_size_x,
@@ -869,11 +888,11 @@ process_x11_events()
         InputEvent input_event;
 
         XNextEvent( WIN::disp, &event );
-        //print_event_type(event);
+        //print_event_type( event );
 
         if ( WIN::menu->responsible_for_event( event ) )
         {
-            dum_res= WIN::menu->process_event( event );
+            dum_res = WIN::menu->process_event( event );
             if ( dum_res )
             { //don't wait for the expose event in the main window, redraw now
                 XCopyArea( WIN::disp, WIN::pixmap, WIN::window, WIN::gc,
@@ -883,13 +902,14 @@ process_x11_events()
             }
 
             int dum_button,dum_mouse_button;
-            int res= WIN::menu->button_pressed( event,dum_button,dum_mouse_button );
+            int res = WIN::menu->button_pressed( event,dum_button,dum_mouse_button );
             if ( res )
             {
                 XEvent_to_InputEvent( event,input_event );
                 input_event.menu_button = dum_button;
                 input_event.mouse_button = dum_mouse_button;
-                res = INPUTDEV->process_menu_button( &RUN::builder, WIN::menu,input_event );
+                res = INPUTDEV->process_menu_button( &RUN::builder,
+                                                     WIN::menu,input_event );
                 if ( WIN::menu->needs_redraw() )
                 {
                     redraw= true;
@@ -989,11 +1009,15 @@ process_x11_events()
                 break;
             case  ButtonPress: //speichere 1 Koordinate
                 //cout << "\nxbutton: state= " << event.xbutton.state << ", button= " << event.xbutton.button << flush;
-                if (event.xany.window != WIN::window) //mouse event should be in the same window
+                if ( event.xany.window != WIN::window ) //mouse event should be in the same window
+                {
                     break;
+                }
 
-                if (WIN::mouse_button) //if a button is already down, don't process further button events
+                if ( WIN::mouse_button ) //if a button is already down, don't process further button events
+                {
                     break;
+                }
 
                 WIN::mouse_button= event.xbutton.button; //store the currently pressed mouse button
 
@@ -1211,11 +1235,20 @@ redraw_current_tree()
         RUN::conv_area.get_area( area );
     }
 
-    /* erase objects	*/
-    XFillRectangle( WIN::disp, WIN::pixmap, WIN::bg_gc, 0, 0, WIN::win_width, WIN::win_height );
+    //
+    // erase objects
+    //
+    XFillRectangle( WIN::disp, WIN::pixmap, WIN::bg_gc,
+                    0, 0, WIN::win_width, WIN::win_height );
 
+    //
+    // draw new objects
+    //
     RUN::tree.draw( DDD, area );
 
+    //
+    // draw status line (score board)
+    //
     const char * dum;
     int dum_len;
     if ( RUN::builder.status_line )
@@ -1237,7 +1270,9 @@ redraw_current_tree()
                           dum, dum_len );
     }
 
-    /* update display:	*/
+    //
+    // update display
+    //
     XCopyArea( WIN::disp, WIN::pixmap, WIN::window, WIN::gc,
                0, 0, WIN::win_width, WIN::win_height, 0, 0 );
 
@@ -1435,6 +1470,7 @@ main( int argc, char ** argv )
     //XFillRectangle (WIN::disp, WIN::pixmap, WIN::bg_gc, 0, 0, WIN::win_width, WIN::win_height);
 
 #ifdef HAVE_XPM_H
+    // set title bar icon
     {
         XpmCreatePixmapFromData( WIN::disp, WIN::window,
                                  const_cast< char** >( rcssmonitor_xpm ),
@@ -1504,7 +1540,7 @@ main( int argc, char ** argv )
 
     redraw_current_tree();
     WIN::menu->redraw();
-    WIN::clip_rect.set_ratio(WIN::win_width,WIN::win_height);
+    WIN::clip_rect.set_ratio( WIN::win_width,WIN::win_height );
 #if 0
     // debug print
     RUN::tree.print( std::cout ) << std::endl;
@@ -1660,8 +1696,8 @@ main( int argc, char ** argv )
     delete WIN::menu;
     delete DDD;
 
-    XDestroyWindow (WIN::disp, WIN::window);
-    XCloseDisplay (WIN::disp);
+    XDestroyWindow( WIN::disp, WIN::window );
+    XCloseDisplay( WIN::disp );
 
     ///
     long t = TOOLS::get_current_ms_time() / 1000;

@@ -21,7 +21,15 @@
 #ifndef ASCII_PROCESSOR_H
 #define ASCII_PROCESSOR_H
 
-#include "builder_base.h"
+#include "multi.h"
+
+class Angle;
+class Point2d;
+class Line2d;
+class Circle2d;
+class CircleArc2d;
+class BuilderBase;
+class RGBcolor;
 
 /*
   <root> ::= <cmd> <root>

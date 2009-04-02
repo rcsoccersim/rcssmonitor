@@ -23,9 +23,10 @@
 #define CONV_H
 
 #include "angle.h"
-#include "point2d.h"
 
 #include <iostream>
+
+class Point2d;
 
 /**
   The class WinPlaneConverter converts coordintes and sizes between a window and the

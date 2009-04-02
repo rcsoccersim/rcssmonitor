@@ -22,13 +22,13 @@
 #endif
 
 #include "smonitor_dev.h"
-#include "global_defs.h"
 
-//#include "object2d.h"
+#include "global_defs.h"
+#include "builder_base.h"
 #include "rgb_db.h"
 #include "ascii_processor.h"
 #include "str2val.h"
-//#include "tools.h"
+#include "valueparser.h"
 
 #include <boost/cstdint.hpp>
 
@@ -1297,8 +1297,10 @@ VisualField::init( const int my_key,
     ll[3] = Line2d( Point2d( -HLEN, + HWID ), Point2d( -HLEN, -HWID ) );
     //middle line
 
-    if ( !keepaway )
+    if ( ! keepaway )
+    {
         ll[4] = Line2d( Point2d(    0, -HWID ), Point2d(    0, + HWID ) );
+    }
 
     //left penalty area
     ll[5] = Line2d( Point2d( -HLEN, -PEN_Y ), Point2d( -PEN_X, -PEN_Y ) );
@@ -1484,7 +1486,7 @@ VisualField::set_goal_width( const double & width )
   1-22 : players
 */
 
-const int SMonitorDevice::frame_team_graphic = 93;
+//const int SMonitorDevice::frame_team_graphic = 93;
 const int SMonitorDevice::frame_canvas_left = 94;
 const int SMonitorDevice::frame_canvas_right = 95;
 const int SMonitorDevice::frame_ball = 96;
@@ -1981,6 +1983,12 @@ SMonitorDevice::SMonitorDevice()
 {
     M_server_state.reset();
     //init_connection(); //vorlaeufig
+}
+
+
+SMonitorDevice::~SMonitorDevice()
+{
+    //std::cerr << "delete SMonitorDevice" << std::endl;
 }
 
 void
@@ -2587,11 +2595,8 @@ SMonitorDevice::process_menu_button( BuilderBase * build,
             break;
         }
 
-        M_server.init_serv_addr( M_options.server_host, M_options.server_port );
+        reconnect();
 
-        send_dispinit();
-        M_server_state.reset();
-        M_score_board_string.erase();
         return false;
 
     case BUTTON_SCALE_LEVEL:
@@ -2812,15 +2817,17 @@ SMonitorDevice::init_frames( BuilderBase * build )
     build->set_cmd_insert_frame( 0, frame_pointto, Point2d( 0.0, 0.0 ), 0.0, layer + 1 );
     build->set_cmd_set_frame_visible( frame_pointto, 1 );
 
-    //soccer field
-    M_visual_field.init( 0, layer, M_options.c_line, M_options.c_goal,
-                         M_options.keepaway, M_options.keepaway_length,
-                         M_options.keepaway_width );
+    //
+    //soccer field (frame == 0)
+    //
+    M_visual_field.init( 0, // key
+                         layer, // layer
+                         M_options.c_line, // line color
+                         M_options.c_goal, // goal color
+                         M_options.keepaway, // keepaway mode
+                         M_options.keepaway_length, // keepaway area length
+                         M_options.keepaway_width ); // keepaway area width
     build->set_cmd_insert_visobject( 0, &M_visual_field );
-
-    //PlayerTypes::init( M_options.ball_radius, M_options.player_radius,
-    PlayerTypes::init( 0.085, M_options.player_radius,
-                       M_options.kick_radius - 0.085 - M_options.player_radius );
 
     //
     // logger drawing frames (left,right)
@@ -2879,6 +2886,11 @@ SMonitorDevice::init_frames( BuilderBase * build )
     //
     // player frames
     //
+
+    //PlayerTypes::init( M_options.ball_radius, M_options.player_radius,
+    PlayerTypes::init( 0.085, M_options.player_radius,
+                       M_options.kick_radius - 0.085 - M_options.player_radius );
+
     //double init_y = 35.2;
     double init_y = 68.0 / 2.0 + 3.0;
 #ifdef WEBFIELD
@@ -2907,7 +2919,10 @@ SMonitorDevice::init_frames( BuilderBase * build )
         M_positions.set_player( i, pos_player, 0.0 );
 
         build->set_cmd_insert_frame( 0, p_frame( i ), pos_player, 0.0, layer + 1 );
-        M_visual_players[i].init( 0, 0, p_number( i ), c_invalid, c_player, c_goalie, c_font );
+        M_visual_players[i].init( 0, // key
+                                  0, // layer
+                                  p_number( i ), // uniform number
+                                  c_invalid, c_player, c_goalie, c_font ); // colors
         build->set_cmd_insert_visobject( p_frame( i ), M_visual_players + i );
         M_visual_players[i].set_label_pos( M_options.player_num_pos );
     }
@@ -3492,11 +3507,9 @@ SMonitorDevice::server_interpret_showinfo_t( BuilderBase * build,
 
     //match info
     Int16 s_l = ntohs( showinfo.team[0].score );
-
     Int16 s_r = ntohs( showinfo.team[1].score );
 
     if ( M_server_state.left_teamname_.empty() ) s_l = 0;
-
     if ( M_server_state.right_teamname_.empty() ) s_r = 0;
 
     updatePlayMode( static_cast< int >( showinfo.pmode ) );
@@ -3678,9 +3691,7 @@ SMonitorDevice::server_interpret_msginfo_t( BuilderBase * build,
     }
 
     const SSrv::dispinfo_t * dispinfo = NULL;
-
     const SSrv::dispinfo_t2 * dispinfo2 = NULL;
-
     const SSrv::msginfo_t * msg = NULL;
 
     if ( M_options.protocol_version == 2 )
@@ -3897,6 +3908,15 @@ SMonitorDevice::server_interpret_command_msg( BuilderBase * build,
                          std::strlen( "(team_graphic" ) ) )
     {
         // TODO: added xpm holder
+        server_interpret_team_graphic( msg );
+//         std::cerr << "team_graphic_left:"
+//                   << " width=" << M_team_graphic_left.width()
+//                   << " height=" << M_team_graphic_left.height()
+//                   << '\n';
+//         std::cerr << "team_graphic_right:"
+//                   << " width=" << M_team_graphic_right.width()
+//                   << " height=" << M_team_graphic_right.height()
+//                   << '\n';
         return true;
     }
 
@@ -4699,19 +4719,35 @@ SMonitorDevice::server_interpret_msginfo_v3( BuilderBase * build,
 {
     // ( msg <time> <board_type> "<message_string>" )
 
+    int n_read = 0;
     int time = 0;
     int board = 0;
-    char msg[8192];
 
     if ( std::sscanf( buf,
-                      " ( msg %d %d \"%8191[^\"]\" ) ",
-                      &time, &board, msg ) != 3 )
+                      " ( msg %d %d \"%n",
+                      &time, &board, &n_read ) != 2 )
     {
         ERROR_OUT << "\nIllegal msg info.";
         return false;
     }
 
-    if ( server_interpret_command_msg( build, msg ) )
+    std::string msg( buf, n_read, std::string::npos );
+    if ( msg.length() <= 2 )
+    {
+        ERROR_OUT << "\nIllegal msg info. no message body.";
+        return false;
+    }
+
+    std::string::size_type pos = msg.rfind( "\")" );
+    if ( pos == std::string::npos )
+    {
+        ERROR_OUT << "\nIllegal msg info. No termination characters.";
+        return false;
+    }
+
+    msg.erase( pos );
+
+    if ( server_interpret_command_msg( build, msg.c_str() ) )
     {
         return true;
     }
@@ -4721,7 +4757,7 @@ SMonitorDevice::server_interpret_msginfo_v3( BuilderBase * build,
                    ? frame_canvas_right
                    : frame_canvas_left );
 
-    return server_interpret_frameview_msg( build, msg, true, canvas );;
+    return server_interpret_frameview_msg( build, msg.c_str(), true, canvas );;
 }
 
 bool
@@ -4974,6 +5010,42 @@ SMonitorDevice::server_interpret_server_param_v3( BuilderBase * build,
     return true;
 }
 
+bool
+SMonitorDevice::server_interpret_team_graphic( const char * msg )
+{
+    char side = '?';
+    int x = -1, y = -1;
+
+    if ( std::sscanf( msg,
+                      "(team_graphic_%c ( %d %d ",
+                      &side, &x, &y ) != 3
+         || ( side != 'l' && side != 'r' )
+         || x < 0
+         || y < 0 )
+    {
+        ERROR_OUT << "\nIllegal team_graphic message ["
+                  << msg << ']';
+        return false;
+    }
+
+//     if ( side == 'l' )
+//     {
+//         std::cerr << "recv team_graphic_l (" << x << ',' << y << ')'
+//                   << std::endl;
+//         return M_team_graphic_left.parse( msg );
+//     }
+
+//     if ( side == 'r' )
+//     {
+//         std::cerr << "recv team_graphic_r (" << x << ',' << y << ')'
+//                   << std::endl;
+//         return M_team_graphic_right.parse( msg );
+//     }
+
+    return false;
+}
+
+
 void
 SMonitorDevice::updatePlayMode( const int pmode )
 {
@@ -5163,7 +5235,6 @@ SMonitorDevice::updateScoreBoard( const int time )
             }
 
             snprintf( score_board_msg, 512,
-
                       " %10s %d:%d |%-5s:%-5s| %-10s %16s%s %6d ",
                       M_server_state.left_teamname_.c_str(),
                       score->second.left_score_,
@@ -5396,6 +5467,8 @@ SMonitorDevice::reconnect()
     send_dispinit();
     M_server_state.reset();
     M_score_board_string.erase();
+//     M_team_graphic_left.clear();
+//     M_team_graphic_right.clear();
     return true;
 }
 

@@ -23,12 +23,17 @@
 #include "input_dev.h"
 #include "rgbcolor.h"
 #include "udpsocket.h"
+#include "area2d.h"
 #include "object2d.h"
-#include "valueparser.h"
+#include "frame2d.h"
+#include "visobject.h"
+//#include "team_graphic.h"
 
 #include <vector>
 #include <map>
 #include <cstring>
+
+class ValueParser;
 
 #define MAX_PLAYER 11
 
@@ -413,7 +418,7 @@ class SMonitorDevice
     char buffer1[BUFFER_MAX_SIZE]; //!< receive buffer
     char buffer2[BUFFER_MAX_SIZE]; //!< receive buffer
 
-    static const int frame_team_graphic;
+    //    static const int frame_team_graphic;
     static const int frame_canvas_left; //!< key value of logger drawing frame for left team
     static const int frame_canvas_right; //!< key value of logger drawing frame for right team
     static const int frame_ball; //!< key value of ball drawing frame
@@ -748,6 +753,9 @@ class SMonitorDevice
     //! key: time, value: team names & scores
     std::map< int, Score, std::greater< int > > M_scores;
 
+//     rcsc::TeamGraphic M_team_graphic_left;
+//     rcsc::TeamGraphic M_team_graphic_right;
+
     void vis_ball_set_info_level( int lev );
     void vis_player_set_info_level( int lev,
                                     VisualPlayer & vis_p,
@@ -765,11 +773,11 @@ class SMonitorDevice
 
     // version 2
     bool server_interpret_showinfo_t2( BuilderBase * build,
-                                       void *ptr );
+                                       void * ptr );
     bool server_interpret_player_type_t( BuilderBase * build,
-                                         void *ptr );
+                                         void * ptr );
     bool server_interpret_server_params_t( BuilderBase * build,
-                                           void *ptr );
+                                           void * ptr );
 
     // version 3 or 4
     bool server_interpret_showinfo_v3( BuilderBase * build,
@@ -786,6 +794,9 @@ class SMonitorDevice
                                           const char * buf );
     bool server_interpret_server_param_v3( BuilderBase * build,
                                            const char * buf );
+
+    //
+    bool server_interpret_team_graphic( const char * buf );
 
     void updatePlayMode( const int pmode );
     void updateScores( const int time,
@@ -903,8 +914,7 @@ public:
     SMonitorDevice();
 
     virtual
-    ~SMonitorDevice()
-      { }
+    ~SMonitorDevice();
 
     bool set_initial_area( const Area2d & area )
       {
