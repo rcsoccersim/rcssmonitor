@@ -3,42 +3,73 @@ bin_PROGRAMS = \
 	rcssmonitor @CLIENT2DVIEW@
 
 rcssmonitor_SOURCES = \
-	2dview.C \
 	angle.C \
 	area2d.C \
+	ascii_dev.C \
+	ascii_processor.C \
+	builder_direct.C \
 	coder.C \
 	conv.C \
+	conv_area2d.C \
 	display_x11.C \
 	frame2d.C \
+	menu_x11.C \
+	options.cpp \
+	popup_x11.C \
+	rectangle.cpp \
+	rgb_db.C \
 	rgbcolor.C \
+	smonitor_dev.C \
+	str2val.C \
 	structure.C \
+	tcpsocket.C \
+	team_graphic.cpp \
+	tools.C \
+	udpsocket.C \
+	valueparser.C \
 	vector2d.C \
 	visobject.C \
-	rgb_db.C \
-	smonitor_dev.C \
-	ascii_dev.C \
-	builder_direct.C \
-	ascii_processor.C \
-	menu_x11.C \
-	popup_x11.C \
-	tools.C \
-	conv_area2d.C \
-	valueparser.C \
-	str2val.C \
-	udpsocket.C \
-	tcpsocket.C \
-	angle.h            conv_area2d.h   maplist.h    rgb_db.h        valueparser.h \
-	area2d.h           conv.h          menu_base.h  rwbin.h         vector2d.h \
-	ascii_dev.h        display_base.h  menu_x11.h   smonitor_dev.h  visobject.h \
-	ascii_processor.h  display_x11.h   multi.h      str2val.h \
-	builder_base.h     frame2d.h       object2d.h   structure.h \
-	builder_direct.h   global_defs.h   point2d.h    tools.h \
-	coder.h            input_dev.h     rgbcolor.h   udpsocket.h tcpsocket.h popup_x11.h \
-	team_graphic.h team_graphic.cpp \
-	rectangle.h rectangle.cpp \
-	options.h options.cpp
+	2dview.C
 
 rcssmonitor_LDADD = @X_PRE_LIBS@ @X_LIBS@ @X_EXTRA_LIBS@
+
+noinst_HEADERS = \
+	angle.h \
+	area2d.h \
+	ascii_dev.h \
+	ascii_processor.h \
+	builder_base.h \
+	builder_direct.h \
+	coder.h \
+	conv.h \
+	conv_area2d.h \
+	display_base.h \
+	display_x11.h \
+	frame2d.h\
+	input_dev.h \
+	maplist.h \
+	menu_base.h
+	menu_x11.h \
+	multi.h \
+	object2d.h \
+	options.h
+	point2d.h \
+	popup_x11.h \
+	rgbcolor.h \
+	rectangle.h \
+	rgb_db.h\
+	rwbin.h \
+	smonitor_dev.h \
+	str2val.h \
+	structure.h \
+	tcpsocket.h \
+	team_graphic.h \
+	tools.h \
+	udpsocket.h \
+	valueparser.h \
+	vector2d.h \
+	visobject.h
+
 
 AM_CPPFLAGS =
 AM_CFLAGS = -W -Wall

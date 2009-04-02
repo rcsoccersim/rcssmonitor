@@ -24,7 +24,6 @@
 
 #include "ascii_dev.h"
 #include "ascii_processor.h"
-#include "global_defs.h"
 #include "valueparser.h"
 
 const bool AsciiDevice::use_udp = true;
@@ -54,8 +53,10 @@ AsciiDevice::process_options( const ValueParser & vp )
 
     if ( vp.num_of_not_accessed_entries() )
     {
-        ERROR_OUT << "\nAsciiDevice: not recognized options:";
-        vp.show_not_accessed_entries( ERROR_STREAM );
+        std::cerr << "\n*** ERROR file=\"" << __FILE__ << "\" line=" <<__LINE__
+                  << "\nAsciiDevice: not recognized options:"
+                  << std::endl;
+        vp.show_not_accessed_entries( std::cerr );
         return false;
     }
 
@@ -181,7 +182,7 @@ AsciiDevice::init_connection()
         if ( ! tcp_serv.init( options.tcp_port ) )
         {
             use_tcp = false;
-            ERROR_STREAM << "\ntcp stopped";
+            std::cerr << "tcp stopped" << std::endl;
             return false;
         }
 
@@ -320,7 +321,9 @@ AsciiDevice::process_tcp_input( fd_set *set,
         std::cout << "\nserver message" << std::flush;
         if ( ! tcp_serv_can_accept )
         {
-            WARNING_OUT << "\njust one tcp connection is allowed (todo)";
+            std::cerr << "\n*** WARNING file=\"" << __FILE__ << "\" line=" << __LINE__
+                      << "\njust one tcp connection is allowed (todo)"
+                      << std::endl;
         }
         else
         {
@@ -334,7 +337,9 @@ AsciiDevice::process_tcp_input( fd_set *set,
             }
             else
             {
-                WARNING_OUT << "\nstrange server message" << std::flush;
+                std::cerr << "\n*** WARNING file=\"" << __FILE__ << "\" line=" << __LINE__
+                          << "\nstrange server message"
+                          << std::endl;
             }
             //return false; //no redraw
         }
@@ -368,7 +373,9 @@ AsciiDevice::process_tcp_input( fd_set *set,
             if ( *end_command != ';' )
             {
                 neg_offset= 0;
-                ERROR_OUT << "\ncommand longer then the available buffer";
+                std::cerr << "\n*** ERROR file=\"" << __FILE__ << "\" line=" <<__LINE__
+                          << "\ncommand longer then the available buffer"
+                          << std::endl;
                 continue;
             }
             ++end_command;

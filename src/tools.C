@@ -23,8 +23,8 @@
 #endif
 
 #include "tools.h"
-#include "global_defs.h"
 
+#include <iostream>
 #include <sys/time.h>
 
 long TOOLS::get_current_ms_time()
@@ -34,7 +34,9 @@ long TOOLS::get_current_ms_time()
 
     if ( gettimeofday( &tval, NULL ) )
     {
-        ERROR_OUT << "\n something wrong with time mesurement";
+        std::cerr << "\n*** ERROR file=\"" << __FILE__ << "\" line=" <<__LINE__
+                  << "\n something wrong with time mesurement"
+                  << std::endl;
     }
 
     if ( 0 == s_time_at_start )

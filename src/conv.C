@@ -24,7 +24,6 @@
 
 #include "conv.h"
 
-#include "global_defs.h"
 #include "point2d.h"
 
 #include <iostream>
@@ -61,7 +60,9 @@ WinPlaneConverter::init_win( int width,
 {
     if ( width < 20 || height < 20 )
     {
-        ERROR_OUT << "wrong view parameter";
+        std::cerr << "\n*** ERROR file=\"" << __FILE__ << "\" line=" <<__LINE__
+                  << "wrong view parameter"
+                  << std::endl;
     }
 
     Win_width    = width;
@@ -76,7 +77,9 @@ WinPlaneConverter::init_plane( const Point2d & center,
 {
     if ( size_x < 0 || size_y < 0 )
     {
-        ERROR_OUT << "wrong view parameter";
+        std::cerr << "\n*** ERROR file=\"" << __FILE__ << "\" line=" <<__LINE__
+                  << "wrong view parameter"
+                  << std::endl;
     }
 
     Plane_size_x = size_x;

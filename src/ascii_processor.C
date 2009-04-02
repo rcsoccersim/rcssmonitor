@@ -22,16 +22,18 @@
 
 #include "area2d.h"
 #include "builder_base.h"
-#include "global_defs.h"
 #include "rgbcolor.h"
 #include "str2val.h"
 #include "visobject.h"
 
+#include <iostream>
 #include <cstdlib>
 #include <cstdio>
 
-#define P_ERROR(xxx) ERROR_OUT << "\nparse error (" << __LINE__ << "): " << xxx
-#define P_WARNING(xxx) WARNING_OUT << "\nparse warning (" << __LINE__ << "): " << xxx
+#define ERROR_OUT std::cerr << "\n*** ERROR file=\"" << __FILE__ << "\" line=" <<__LINE__
+#define WARNING_OUT std::cerr << "\n*** WARNING file=\"" << __FILE__ << "\" line=" << __LINE__
+#define P_ERROR(xxx) ERROR_OUT << "\nparse error (" << __LINE__ << "): " << xxx << std::endl
+#define P_WARNING(xxx) WARNING_OUT << "\nparse warning (" << __LINE__ << "): " << xxx << std::endl
 #define P_MSG(xxx) //cerr << "\nparse msg: " << xxx
 
 const char AsciiProcessor::DELIMITER_CHAR = ';';

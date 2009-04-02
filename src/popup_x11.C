@@ -18,7 +18,6 @@
  * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include "global_defs.h"
 #include "popup_x11.h"
 
 #include <iostream>
@@ -219,7 +218,9 @@ PopupX11::PopupX11( Display * d,
         char_max_width = 7;
         char_max_ascent = 12;
         char_max_descent = 3;
-        WARNING_OUT << "\nfontstruct= 0, setting default values " << std::flush;
+        std::cerr << "\n*** WARNING file=\"" << __FILE__ << "\" line=" << __LINE__
+                  << "\nfontstruct= 0, setting default values "
+                  << std::endl;
     }
 
 #if 1

@@ -6,7 +6,6 @@
 #include "tcpsocket.h"
 #include "valueparser.h"
 //#include "randomize.h"
-#include "global_defs.h"
 #include "angle.h"
 
 #ifdef HAVE_CONFIG_H
@@ -599,6 +598,10 @@ public:
 
 class Joystick {
 public:
+    enum {
+        MAX_NAME_LEN = 512,
+    };
+
     int joystick_fd;
     int num_axes;
     int num_buttons;
@@ -625,7 +628,9 @@ public:
       {
           if ( ( joystick_fd = open( joydev, O_RDONLY ) ) < 0 )
           {
-              ERROR_OUT << "\ncould't open joystic device " << joydev;
+              std::cerr << "\n*** ERROR file=\"" << __FILE__ << "\" line=" <<__LINE__
+                        << "\ncould't open joystic device " << joydev
+                        << std::endl;;
               return false;
           }
 

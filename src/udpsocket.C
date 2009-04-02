@@ -160,10 +160,11 @@ UDPsocket::recv_msg( char * buf,
          && serv_addr.sin_addr.s_addr == recv_addr.sin_addr.s_addr //same host
          && serv_addr.sin_port != recv_addr.sin_port ) //but another port
     {
-        std::cout << "\nNow sender redirected from port "
+        std::cout << "Now sender redirected from port "
                   << ntohs( serv_addr.sin_port )
                   << " to port " << ntohs( recv_addr.sin_port )
-                  << " on same server";
+                  << " on same server"
+                  << std::endl;
         serv_addr.sin_port = recv_addr.sin_port; // Aendert die Sendeadresse, muss noch geaendet werden
     }
 

@@ -18,7 +18,6 @@
  * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include "global_defs.h"
 #include "menu_x11.h"
 
 #include <iostream>
@@ -156,7 +155,9 @@ MenuX11::MenuX11( Display *d,
         text_max_ascent = 12;
         text_max_descent = 3;
         size_y = 17;
-        WARNING_OUT << "\nfontstruct = 0, setting default values " << std::flush;
+        std::cerr << "\n*** WARNING file=\"" << __FILE__ << "\" line=" << __LINE__
+                  << "\nfontstruct = 0, setting default values "
+                  << std::endl;
     }
 
 #endif

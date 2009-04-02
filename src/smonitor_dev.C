@@ -23,7 +23,6 @@
 
 #include "smonitor_dev.h"
 
-#include "global_defs.h"
 #include "builder_base.h"
 #include "rgb_db.h"
 #include "ascii_processor.h"
@@ -578,15 +577,19 @@ public:
 
           if ( it == types.end() )
           {
-              WARNING_OUT << "\nwrong player type number" << type
-                          << " (using std type )";
+              std::cerr << "\n*** WARNING file=\"" << __FILE__ << "\" line=" << __LINE__
+                        << "\nwrong player type number" << type
+                        << " (using std type )"
+                        << std::endl;
               return std_type.player_radius;
           }
 
           if ( ! it->second.valid )
           {
-              WARNING_OUT << "\nplayer type " << type
-                          << " not valid (using std type )";
+              std::cerr << "\n*** WARNING file=\"" << __FILE__ << "\" line=" << __LINE__
+                        << "\nplayer type " << type
+                        << " not valid (using std type )"
+                        << std::endl;
               return std_type.player_radius;
           }
 
@@ -609,13 +612,17 @@ public:
 
           if ( it == types.end() )
           {
-              WARNING_OUT << "\nwrong player type number" << type << " (using std type )";
+              std::cerr << "\n*** WARNING file=\"" << __FILE__ << "\" line=" << __LINE__
+                        << "\nwrong player type number" << type << " (using std type )"
+                        << std::endl;
               return def_result;
           }
 
           if ( ! it->second.valid )
           {
-              WARNING_OUT << "\nplayer type " << type << " not valid (using std type )";
+              std::cerr << "\n*** WARNING file=\"" << __FILE__ << "\" line=" << __LINE__
+                        << "\nplayer type " << type << " not valid (using std type )"
+                        << std::endl;
               return def_result;
           }
 
@@ -723,7 +730,10 @@ VisualPlayersViewArea::set_view_mode( const int quality,
             break;
 
         default:
-            ERROR_OUT << "wrong view_quality " << view_width;
+            std::cerr << "\n*** ERROR file=\"" << __FILE__ << "\" line=" <<__LINE__
+                      << "wrong view_quality " << view_width
+                      << std::endl;
+            break;
         }
     }
 
@@ -2073,9 +2083,9 @@ SMonitorDevice::process_options( const ValueParser & vp )
         M_options.info_level = M_options.info_level_max;
     }
 
-    char tmp_str[MAX_NAME_LEN];
+    char tmp_str[512];
 
-    res = vp.get( "mode", tmp_str, MAX_NAME_LEN );
+    res = vp.get( "mode", tmp_str, 512 );
 
     if ( res > 0 )
     {
@@ -2129,8 +2139,10 @@ SMonitorDevice::process_options( const ValueParser & vp )
 
     if ( vp.num_of_not_accessed_entries() )
     {
-        ERROR_OUT << "\nSMonitorDevice: not recognized M_options:";
-        vp.show_not_accessed_entries( ERROR_STREAM );
+        std::cerr << "\n*** ERROR file=\"" << __FILE__ << "\" line=" <<__LINE__
+                  << "\nSMonitorDevice: not recognized M_options:"
+                  << std::endl;
+        vp.show_not_accessed_entries( std::cerr );
         return false;
     }
 
@@ -2494,7 +2506,7 @@ SMonitorDevice::process_mouse_button_event( BuilderBase * build,
         }
         else if ( M_options.mode == Options::MODE_SHOW_VIEW_AREA )
         {
-            if ( !p_valid( M_options.active_in_mode ) )
+            if ( ! p_valid( M_options.active_in_mode ) )
             {
                 build->set_cmd_set_frame_visible( frame_varea, 0 );
             }
@@ -3128,7 +3140,9 @@ SMonitorDevice::process_input( fd_set * set,
             }
             else
             {
-                ERROR_OUT << "\nunknown mode " << msg_type << " :";
+                std::cerr << "\n*** ERROR file=\"" << __FILE__ << "\" line=" <<__LINE__
+                          << "\nunknown mode " << msg_type << " :"
+                          << std::endl;
                 int i = 0;
 
                 while ( i < 50 )
@@ -3489,7 +3503,9 @@ SMonitorDevice::server_interpret_showinfo_t( BuilderBase * build,
 
     if ( ntohs( dispinfo->mode ) != SSrv::SHOW_MODE )
     {
-        ERROR_OUT << "\nmode != SHOW_MODE";
+        std::cerr << "\n*** ERROR file=\"" << __FILE__ << "\" line=" <<__LINE__
+                  << "\nmode != SHOW_MODE"
+                  << std::endl;
         return false;
     }
 
@@ -3616,7 +3632,9 @@ SMonitorDevice::server_interpret_drawinfo_t( BuilderBase * build,
 
     if ( ntohs ( dispinfo->mode ) != SSrv::DRAW_MODE )
     {
-        ERROR_OUT << "\nmode != DRAW_MODE";
+        std::cerr << "\n*** ERROR file=\"" << __FILE__ << "\" line=" <<__LINE__
+                  << "\nmode != DRAW_MODE"
+                  << std::endl;
         return false;
     }
 
@@ -3674,7 +3692,10 @@ SMonitorDevice::server_interpret_drawinfo_t( BuilderBase * build,
         break;
 
     default:
-        ERROR_OUT << "\nIllegal value in DRAW_MODE: " << ntohs( drawinfo.mode );
+        std::cerr << "\n*** ERROR file=\"" << __FILE__ << "\" line=" <<__LINE__
+                  << "\nIllegal value in DRAW_MODE: " << ntohs( drawinfo.mode )
+                  << std::endl;
+        break;
     }
 
     return redraw;
@@ -3700,7 +3721,9 @@ SMonitorDevice::server_interpret_msginfo_t( BuilderBase * build,
 
         if ( ntohs( dispinfo2->mode ) != SSrv::MSG_MODE )
         {
-            ERROR_OUT << "\nmode != MSG_MODE";
+            std::cerr << "\n*** ERROR file=\"" << __FILE__ << "\" line=" <<__LINE__
+                      << "\nmode != MSG_MODE"
+                      << std::endl;
             return false;
         }
 
@@ -3712,7 +3735,9 @@ SMonitorDevice::server_interpret_msginfo_t( BuilderBase * build,
 
         if ( ntohs( dispinfo->mode ) != SSrv::MSG_MODE )
         {
-            ERROR_OUT << "\nmode != MSG_MODE";
+            std::cerr << "\n*** ERROR file=\"" << __FILE__ << "\" line=" <<__LINE__
+                      << "\nmode != MSG_MODE"
+                      << std::endl;
             return false;
         }
 
@@ -3817,7 +3842,9 @@ SMonitorDevice::server_interpret_frameview_msg( BuilderBase * build,
 
     if ( ! strskip( msg, "_2D_", msg ) )
     {
-        ERROR_OUT << "\nNOT recognized as 2d object" << std::flush;
+        std::cerr << "\n*** ERROR file=\"" << __FILE__ << "\" line=" <<__LINE__
+                  << "\nNOT recognized as 2d object"
+                  << std::endl;
         return false;
     }
 
@@ -3880,10 +3907,12 @@ SMonitorDevice::server_interpret_frameview_msg( BuilderBase * build,
 
         if ( ! res )
         {
-            ERROR_OUT << "\nDrawing input parse error:\n";
+            std::cerr << "\n*** ERROR file=\"" << __FILE__ << "\" line=" <<__LINE__
+                      << "\nDrawing input parse error:"
+                      << std::endl;
             //ERROR_STREAM << "\noriginal message: " << str;
             //ERROR_STREAM << "\n\n>>>";
-            show_parser_error_point( ERROR_STREAM, beg_msg, msg );
+            show_parser_error_point( std::cerr, beg_msg, msg );
             return false;
         }
     }
@@ -3922,7 +3951,9 @@ SMonitorDevice::server_interpret_command_msg( BuilderBase *,
 
     if ( *msg == '(' )
     {
-        ERROR_OUT << "\nUnsupported message: " << msg << std::flush;
+        std::cerr << "\n*** ERROR file=\"" << __FILE__ << "\" line=" <<__LINE__
+                  << "\nUnsupported message: " << msg
+                  << std::endl;
     }
 
     return false;
@@ -3938,7 +3969,9 @@ SMonitorDevice::server_interpret_showinfo_t2( BuilderBase * build,
 
     if ( ntohs( dispinfo->mode ) != SSrv::SHOW_MODE )
     {
-        ERROR_OUT << "\nmode != SHOW_MODE";
+        std::cerr << "\n*** ERROR file=\"" << __FILE__ << "\" line=" <<__LINE__
+                  << "\nmode != SHOW_MODE"
+                  << std::endl;
         return false;
     }
 
@@ -4168,7 +4201,9 @@ SMonitorDevice::server_interpret_player_type_t( BuilderBase *,
 
     if ( ntohs( dispinfo->mode ) != SSrv::PT_MODE )
     {
-        ERROR_OUT << "\nmode != PT_MODE";
+        std::cerr << "\n*** ERROR file=\"" << __FILE__ << "\" line=" <<__LINE__
+                  << "\nmode != PT_MODE"
+                  << std::endl;
         return false;
     }
 
@@ -4203,7 +4238,9 @@ SMonitorDevice::server_interpret_player_type_t( BuilderBase *,
     {
         if ( ! put_warning )
         {
-            WARNING_OUT << "\nlogplayer seems not to send player types info ( check for version >= 7.08 )";
+            std::cerr << "\n*** WARNING file=\"" << __FILE__ << "\" line=" << __LINE__
+                      << "\nlogplayer seems not to send player types info ( check for version >= 7.08 )"
+                      << std::endl;
             PlayerTypes::use_std_type = true;
             put_warning = true;
         }
@@ -4230,7 +4267,9 @@ SMonitorDevice::server_interpret_server_params_t( BuilderBase *,
 
     if ( ntohs( dispinfo->mode ) != SSrv::PARAM_MODE )
     {
-        ERROR_OUT << "\nmode != PARAM_MODE";
+        std::cerr << "\n*** ERROR file=\"" << __FILE__ << "\" line=" <<__LINE__
+                  << "\nmode != PARAM_MODE"
+                  << std::endl;
         return false;
     }
 
@@ -4240,7 +4279,9 @@ SMonitorDevice::server_interpret_server_params_t( BuilderBase *,
 
     if ( std::fabs( goal_width ) < 0.01 )
     {
-        WARNING_OUT << "\nlogplayer seems not to send correct server parameters ( check for version >= 7.08 )";
+        std::cerr << "\n*** WARNING file=\"" << __FILE__ << "\" line=" << __LINE__
+                  << "\nlogplayer seems not to send correct server parameters ( check for version >= 7.08 )"
+                  << std::endl;
         return false;
     }
 
@@ -4277,7 +4318,9 @@ SMonitorDevice::server_interpret_showinfo_v3( BuilderBase * build,
 
     if ( std::sscanf( buf, " ( show %d %n ", &time, &n_read ) != 1 )
     {
-        ERROR_OUT << "\nIllegal time value in show info.";
+        std::cerr << "\n*** ERROR file=\"" << __FILE__ << "\" line=" <<__LINE__
+                  << "\nIllegal time value in show info."
+                  << std::endl;
         return false;
     }
 
@@ -4290,7 +4333,9 @@ SMonitorDevice::server_interpret_showinfo_v3( BuilderBase * build,
     if ( std::sscanf( buf, " ( pm %d ) %n ",
                       &playmode, &n_read ) != 1 )
     {
-        ERROR_OUT << "\nIllegal playmode in show info.";
+        std::cerr << "\n*** ERROR file=\"" << __FILE__ << "\" line=" <<__LINE__
+                  << "\nIllegal playmode in show info."
+                  << std::endl;
         return false;
     }
 
@@ -4305,7 +4350,9 @@ SMonitorDevice::server_interpret_showinfo_v3( BuilderBase * build,
                       &score_l, &score_r,
                       &n_read ) != 4 )
     {
-        ERROR_OUT << "\nIllegal score in show info.";
+        std::cerr << "\n*** ERROR file=\"" << __FILE__ << "\" line=" <<__LINE__
+                  << "\nIllegal score in show info."
+                  << std::endl;
         return false;
     }
 
@@ -4318,7 +4365,9 @@ SMonitorDevice::server_interpret_showinfo_v3( BuilderBase * build,
                           &pen_score_r, &pen_miss_r,
                           &n_read ) != 4 )
         {
-            ERROR_OUT << "\nIllegal penalty scores in show info.";
+            std::cerr << "\n*** ERROR file=\"" << __FILE__ << "\" line=" <<__LINE__
+                      << "\nIllegal penalty scores in show info."
+                      << std::endl;
             return false;
         }
 
@@ -4372,7 +4421,9 @@ SMonitorDevice::server_interpret_showinfo_v3( BuilderBase * build,
         if ( std::sscanf( buf, " ( ( b ) %lf %lf %lf %lf ) %n ",
                           &x, &y, &vx, &vy, &n_read ) != 4 )
         {
-            ERROR_OUT << "\nIllegal ball info in show info.";
+            std::cerr << "\n*** ERROR file=\"" << __FILE__ << "\" line=" <<__LINE__
+                      << "\nIllegal ball info in show info."
+                      << std::endl;
             return false;
         }
 
@@ -4425,7 +4476,9 @@ SMonitorDevice::server_interpret_showinfo_v3( BuilderBase * build,
                           &x, &y, &vx, &vy, &body, &neck,
                           &n_read ) != 10 )
         {
-            WARNING_OUT << "\nIllegal player " << i << " info in show info.";
+            std::cerr << "\n*** WARNING file=\"" << __FILE__ << "\" line=" << __LINE__
+                      << "\nIllegal player " << i << " info in show info."
+                      << std::endl;
             //<< std::string( buf, 32 ) << ']';
             break;
         }
@@ -4453,7 +4506,9 @@ SMonitorDevice::server_interpret_showinfo_v3( BuilderBase * build,
                           &view_quality, &view_width,
                           &n_read ) != 2 )
         {
-            WARNING_OUT << "\nIllegal player " << i << " view info in show info";
+            std::cerr << "\n*** WARNING file=\"" << __FILE__ << "\" line=" << __LINE__
+                      << "\nIllegal player " << i << " view info in show info"
+                      << std::endl;
             break;
         }
 
@@ -4473,7 +4528,9 @@ SMonitorDevice::server_interpret_showinfo_v3( BuilderBase * build,
                                   &n_read ) != 3 )
              )
         {
-            WARNING_OUT << "\nIllegal player " << i << " stamina info in show info";
+            std::cerr << "\n*** WARNING file=\"" << __FILE__ << "\" line=" << __LINE__
+                      << "\nIllegal player " << i << " stamina info in show info"
+                      << std::endl;
             break;
         }
 
@@ -4502,7 +4559,9 @@ SMonitorDevice::server_interpret_showinfo_v3( BuilderBase * build,
                           &n_pointto, &n_attentionto,
                           &n_read ) != 11 )
         {
-            WARNING_OUT << "\nIllegal player " << i << " count info in show info";
+            std::cerr << "\n*** WARNING file=\"" << __FILE__ << "\" line=" << __LINE__
+                      << "\nIllegal player " << i << " count info in show info"
+                      << std::endl;
             break;
         }
 
@@ -4514,7 +4573,9 @@ SMonitorDevice::server_interpret_showinfo_v3( BuilderBase * build,
 
         if ( idx < 0 || 2*MAX_PLAYER <= idx )
         {
-            WARNING_OUT << "\nIllegal player " << i << " unum in show info";
+            std::cerr << "\n*** WARNING file=\"" << __FILE__ << "\" line=" << __LINE__
+                      << "\nIllegal player " << i << " unum in show info"
+                      << std::endl;
             break;
         }
 
@@ -4622,7 +4683,9 @@ SMonitorDevice::server_interpret_drawinfo_v3( BuilderBase * build,
                       " ( draw %d %n ",
                       &time, &n_read ) != 1 )
     {
-        ERROR_OUT << "\nIllegal draw info.";
+        std::cerr << "\n*** ERROR file=\"" << __FILE__ << "\" line=" <<__LINE__
+                  << "\nIllegal draw info."
+                  << std::endl;
         return false;
     }
 
@@ -4637,7 +4700,9 @@ SMonitorDevice::server_interpret_drawinfo_v3( BuilderBase * build,
                           " (point %lf %lf \"%63[^\"]\" ) ",
                           &x, &y, col ) != 3 )
         {
-            ERROR_OUT << "\nIllegal draw point info.";
+            std::cerr << "\n*** ERROR file=\"" << __FILE__ << "\" line=" <<__LINE__
+                      << "\nIllegal draw point info."
+                      << std::endl;
             return false;
         }
 
@@ -4660,7 +4725,9 @@ SMonitorDevice::server_interpret_drawinfo_v3( BuilderBase * build,
                           " (circle %lf %lf %lf \"%63[^\"]\" ) ",
                           &x, &y, &r, col ) != 4 )
         {
-            ERROR_OUT << "\nIllegal draw circle info.";
+            std::cerr << "\n*** ERROR file=\"" << __FILE__ << "\" line=" <<__LINE__
+                      << "\nIllegal draw circle info."
+                      << std::endl;
             return false;
         }
 
@@ -4683,7 +4750,9 @@ SMonitorDevice::server_interpret_drawinfo_v3( BuilderBase * build,
                           " (line %lf %lf %lf %lf \"%63[^\"]\" ) ",
                           &sx, &sy, &ex, &ey, col ) != 4 )
         {
-            ERROR_OUT << "\nIllegal draw line info.";
+            std::cerr << "\n*** ERROR file=\"" << __FILE__ << "\" line=" <<__LINE__
+                      << "\nIllegal draw line info."
+                      << std::endl;
             return false;
         }
 
@@ -4707,7 +4776,9 @@ SMonitorDevice::server_interpret_drawinfo_v3( BuilderBase * build,
     }
     else
     {
-        ERROR_OUT << "\nIllegal draw info " << buf ;
+        std::cerr << "\n*** ERROR file=\"" << __FILE__ << "\" line=" <<__LINE__
+                  << "\nIllegal draw info " << buf
+                  << std::endl;
     }
 
     return redraw;
@@ -4727,21 +4798,27 @@ SMonitorDevice::server_interpret_msginfo_v3( BuilderBase * build,
                       " ( msg %d %d \"%n",
                       &time, &board, &n_read ) != 2 )
     {
-        ERROR_OUT << "\nIllegal msg info.";
+        std::cerr << "\n*** ERROR file=\"" << __FILE__ << "\" line=" <<__LINE__
+                  << "\nIllegal msg info."
+                  << std::endl;
         return false;
     }
 
     std::string msg( buf, n_read, std::string::npos );
     if ( msg.length() <= 2 )
     {
-        ERROR_OUT << "\nIllegal msg info. no message body.";
+        std::cerr << "\n*** ERROR file=\"" << __FILE__ << "\" line=" <<__LINE__
+                  << "\nIllegal msg info. no message body."
+                  << std::endl;
         return false;
     }
 
     std::string::size_type pos = msg.rfind( "\")" );
     if ( pos == std::string::npos )
     {
-        ERROR_OUT << "\nIllegal msg info. No termination characters.";
+        std::cerr << "\n*** ERROR file=\"" << __FILE__ << "\" line=" <<__LINE__
+                  << "\nIllegal msg info. No termination characters."
+                  << std::endl;
         return false;
     }
 
@@ -4772,7 +4849,9 @@ SMonitorDevice::server_interpret_playmode_v3( BuilderBase *,
                       &time, pmode ) != 2
          || std::strlen( pmode ) == 0 )
     {
-        ERROR_OUT << "\nIllegal playmode info.";
+        std::cerr << "\n*** ERROR file=\"" << __FILE__ << "\" line=" <<__LINE__
+                  << "\nIllegal playmode info."
+                  << std::endl;
         return false;
     }
 
@@ -4807,7 +4886,9 @@ SMonitorDevice::server_interpret_team_v3( BuilderBase *,
 
     if ( n != 5 && n != 9 )
     {
-        ERROR_OUT << "\nIllegal team info. n = ";
+        std::cerr << "\n*** ERROR file=\"" << __FILE__ << "\" line=" <<__LINE__
+                  << "\nIllegal team info. n = "
+                  << std::endl;
         return false;
     }
 
@@ -4855,7 +4936,9 @@ SMonitorDevice::server_interpret_player_type_v3( BuilderBase *,
                       &id, &n_read ) != 1
          || id < 0 )
     {
-        ERROR_OUT << "\nIllegal player type id. ";
+        std::cerr << "\n*** ERROR file=\"" << __FILE__ << "\" line=" <<__LINE__
+                  << "\nIllegal player type id. "
+                  << std::endl;
         return false;
     }
 
@@ -4874,7 +4957,9 @@ SMonitorDevice::server_interpret_player_type_v3( BuilderBase *,
                           &n_read ) != 2
              || n_read == 0 )
         {
-            ERROR_OUT << "\nIllegal parameter in playr_type message.";
+            std::cerr << "\n*** ERROR file=\"" << __FILE__ << "\" line=" <<__LINE__
+                      << "\nIllegal parameter in playr_type message."
+                      << std::endl;
             break;
         }
 
@@ -4898,7 +4983,9 @@ SMonitorDevice::server_interpret_player_type_v3( BuilderBase *,
     {
         if ( ! put_warning )
         {
-            WARNING_OUT << "\nlogplayer seems not to send player types info ( check for version >= 7.08 )";
+            std::cerr << "\n*** WARNING file=\"" << __FILE__ << "\" line=" << __LINE__
+                      << "\nlogplayer seems not to send player types info ( check for version >= 7.08 )"
+                      << std::endl;
             PlayerTypes::use_std_type = true;
             put_warning = true;
         }
@@ -4944,7 +5031,9 @@ SMonitorDevice::server_interpret_server_param_v3( BuilderBase *,
              || std::strncmp( message_type, "server_param",
                               std::strlen( "server_param" ) ) != 0 )
         {
-            ERROR_OUT << "\nIllegal message type.";
+            std::cerr << "\n*** ERROR file=\"" << __FILE__ << "\" line=" <<__LINE__
+                      << "\nIllegal message type."
+                      << std::endl;
             return false;
         }
 
@@ -4996,7 +5085,9 @@ SMonitorDevice::server_interpret_server_param_v3( BuilderBase *,
 
     if ( std::fabs( goal_width ) < 0.01 )
     {
-        WARNING_OUT << "\nlogplayer seems not to send correct server parameters ( check for version >= 7.08 )";
+        std::cerr << "\n*** WARNING file=\"" << __FILE__ << "\" line=" << __LINE__
+                  << "\nlogplayer seems not to send correct server parameters ( check for version >= 7.08 )"
+                  << std::endl;
         return false;
     }
 
@@ -5023,8 +5114,10 @@ SMonitorDevice::server_interpret_team_graphic( const char * msg )
          || x < 0
          || y < 0 )
     {
-        ERROR_OUT << "\nIllegal team_graphic message ["
-                  << msg << ']';
+        std::cerr << "\n*** ERROR file=\"" << __FILE__ << "\" line=" <<__LINE__
+                  << "\nIllegal team_graphic message ["
+                  << msg << ']'
+                  << std::endl;
         return false;
     }
 

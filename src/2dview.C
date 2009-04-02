@@ -43,7 +43,6 @@
 #include <fstream>
 
 #include "conv_area2d.h"
-#include "global_defs.h"
 #include "tools.h"
 #include "display_x11.h"
 #include "menu_x11.h"
@@ -66,7 +65,7 @@
 #include "rcssmonitor.xpm"
 #endif
 
-#define POPUP
+#define POPUP 1
 
 struct Pointer {
     int x;
@@ -430,6 +429,7 @@ init_window_hints( Display * disp,
 #endif
 }
 
+
 void
 init_window_input( Display * disp,
                    Window win )
@@ -490,7 +490,8 @@ init_x11_resources( int argc,
     WIN::disp = XOpenDisplay( 0 );
     if ( WIN::disp == (Display *)NULL )
     {
-        ERROR_OUT << "\nCould not open display!";
+        std::cerr << "\n*** ERROR file=\"" << __FILE__ << "\" line=" <<__LINE__
+                  << "Could not open display!" << std::endl;
         return false;
     }
     WIN::x11_fd = XConnectionNumber( WIN::disp );
@@ -621,6 +622,7 @@ XEvent_to_InputEvent( const XEvent & xevent,
     KeySym key;
     static char text[30];
     input_event.init();
+
     switch ( xevent.type ) {
     case KeyPress:
     case KeyRelease:
@@ -689,6 +691,459 @@ XEvent_to_InputEvent( const XEvent & xevent,
     input_event.pos = RUN::conv_area.get_point_from_win_pos( x, y );
 }
 
+/*!
+  \return redraw flag
+ */
+bool
+process_x11_menu_events( XEvent & event )
+{
+    bool redraw = false;
+
+    InputEvent input_event;
+
+    bool dummy_result = WIN::menu->process_event( event );
+    if ( dummy_result )
+    { //don't wait for the expose event in the main window, redraw now
+        XCopyArea( WIN::disp, WIN::pixmap, WIN::window, WIN::gc,
+                   0, 0, WIN::win_width, WIN::win_height, 0, 0 );
+        XFlush( WIN::disp );
+        //cout << "\nexposing main window after menu event" << flush;
+    }
+
+    int dum_button, dum_mouse_button;
+    int result = WIN::menu->button_pressed( event, dum_button, dum_mouse_button );
+    if ( result )
+    {
+        XEvent_to_InputEvent( event, input_event );
+        input_event.menu_button = dum_button;
+        input_event.mouse_button = dum_mouse_button;
+        result = INPUTDEV->process_menu_button( &RUN::builder,
+                                                WIN::menu,input_event );
+        if ( WIN::menu->needs_redraw() )
+        {
+            redraw = true;
+            WIN::menu->redraw();
+        }
+
+        if ( WIN::menu->get_exit_program() )
+        {
+            RUN::quit = true;
+        }
+        redraw = true;
+    }
+
+    return redraw;
+}
+
+
+/*!
+  \return redraw flag
+ */
+bool
+process_x11_popup_menu_events( XEvent & event )
+{
+    bool redraw = false;
+
+    InputEvent input_event;
+
+    bool dummy_result = WIN::popup->process_event( event );
+    if ( dummy_result )
+    {
+        //don't wait for the expose event in the main window, redraw now
+        std::cout << "\nshould never enter this code " << std::flush;
+        XCopyArea( WIN::disp, WIN::pixmap, WIN::window, WIN::gc,
+                   0, 0, WIN::win_width, WIN::win_height, 0, 0 );
+        XFlush( WIN::disp );
+        //cout << "\nexposing main window after menu event" << flush;
+    }
+
+    int dum_button, dum_mouse_button;
+    int result = WIN::popup->button_pressed( event, dum_button, dum_mouse_button );
+
+    if ( result )
+    {
+        //cout << "\npressed button " << dum_button << " mouse_button " << dum_mouse_button << flush;
+        XEvent_to_InputEvent( event,input_event );
+        input_event.menu_button = dum_button;
+
+        result = INPUTDEV->process_popup_button( &RUN::builder, WIN::popup, input_event );
+        //if (WIN::popup->needs_redraw() ) {
+        //  redraw = true;
+        //  WIN::popup->redraw();
+        //}
+
+        WIN::popup->set_popup_invisible();
+
+        int x, y, size_x, size_y;
+        WIN::popup->get_rectangle( x, y, size_x, size_y );
+        XCopyArea( WIN::disp, WIN::pixmap, WIN::window, WIN::gc,
+                   x, y, size_x + 2, size_y + 2,
+                   x, y );
+        XFlush( WIN::disp );
+        WIN::mouse_button = 0;
+    }
+
+    return redraw;
+}
+
+
+/*!
+  \return redraw flag
+ */
+bool
+process_x11_event_Expose( XEvent & event )
+{
+    if ( 0 == event.xexpose.count )
+    {
+        //cout << "\nexpose in draw window" << flush;
+        //don't need to set redraw= true; because the picture is still in our pixmap!!!
+        XCopyArea( WIN::disp, WIN::pixmap, WIN::window, WIN::gc,
+                   0, 0, WIN::win_width, WIN::win_height, 0, 0 );
+        XFlush( WIN::disp );
+        //cout << "\nexposing main window, redraw= " << redraw << flush;
+        //redraw= true;
+    }
+
+    return false;
+}
+
+/*!
+  \return redraw flag
+ */
+bool
+process_x11_event_ConfigureNotify( XEvent & event )
+{
+    bool redraw = false;
+
+    if ( WIN::win_width != event.xconfigure.width
+         || WIN::win_height != event.xconfigure.height )
+    {
+        redraw = true;
+        WIN::win_width = event.xconfigure.width;
+        WIN::win_height = event.xconfigure.height;//-letheight-1;
+        WIN::clip_rect.set_ratio( WIN::win_width, WIN::win_height );
+
+        RUN::conv_area.set_win_size( WIN::win_width, WIN::win_height );
+#if 0
+        RUN::conv_area.update();
+        RUN::conv_area.get_area( dum_area );
+        DDD->ASetPlainArea( dum_area );
+#endif
+        DDD->ASetWindowArea( WIN::win_width, WIN::win_height );
+
+        Pixmap dum_pixmap = WIN::pixmap;
+        //set new size for the pixmap
+        WIN::pixmap = XCreatePixmap( WIN::disp, WIN::window,
+                                     WIN::win_width, WIN::win_height, WIN::win_depth );
+        //XFillRectangle(WIN::disp, WIN::pixmap, WIN::bg_gc, 0, 0, WIN::win_width, WIN::win_height);
+        DDD->ASetNewPixmap( WIN::pixmap );
+        XFreePixmap( WIN::disp, dum_pixmap );
+
+        WIN::menu->resize( WIN::win_width );
+    }
+
+    return redraw;
+}
+
+/*!
+  \return redraw flag
+ */
+bool
+process_x11_event_ButtonPress( XEvent & event )
+{
+    bool redraw = false;
+
+    //cout << "\nxbutton: state= " << event.xbutton.state << ", button= " << event.xbutton.button << flush;
+    if ( event.xany.window != WIN::window ) //mouse event should be in the same window
+    {
+        return redraw;
+    }
+
+    if ( WIN::mouse_button ) //if a button is already down, don't process further button events
+    {
+        return redraw;
+    }
+
+    WIN::mouse_button = event.xbutton.button; //store the currently pressed mouse button
+
+    //if (event.xbutton.state & Button2Mask)
+    if ( event.xbutton.button == 1 )
+    {
+        WIN::clip_rect.set_origin( event.xbutton.x,event.xbutton.y );
+        WIN::clip_rect.active = true;
+        WIN::rect_was_drawn = false;
+    }
+    else if ( event.xbutton.button == 2 || event.xbutton.button == 3 )
+    {
+        InputEvent input_event;
+        XEvent_to_InputEvent( event, input_event );
+
+        if ( INPUTDEV->uses_mouse() )
+        {
+            bool dum_res = INPUTDEV->process_mouse_button_event( &RUN::builder, input_event );
+            redraw = dum_res || redraw;
+        }
+
+        if ( INPUTDEV->uses_popup() )
+        {
+            WIN::popup->set_popup_visible( event.xbutton.x, event.xbutton.y, WIN::win_width, WIN::win_height );
+            bool dum_res = INPUTDEV->process_popup_button( &RUN::builder,WIN::popup,input_event );
+            redraw = dum_res || redraw;
+        }
+    }
+
+    return redraw;
+}
+
+
+/*!
+  \return redraw flag
+ */
+bool
+process_x11_event_ButtonRelease( XEvent & event )
+{
+    bool redraw = false;
+
+    if ( event.xany.window != WIN::window )
+    {
+        return redraw;
+    }
+
+    if ( WIN::mouse_button != event.xbutton.button )
+    {
+        //just process the originaly pressed button
+        //cerr << "\nold button= " << WIN::mouse_button << "!=" << event.xbutton.button << " = new button -> break;";
+        return redraw;
+    }
+
+    //cerr << "\nbutton released";
+    WIN::mouse_button = 0;
+
+    if ( event.xbutton.button == 1 )
+    {
+        if ( WIN::rect_was_drawn )
+        { //remove old rectangle
+            XDrawRectangle( WIN::disp, WIN::window, WIN::xor_gc,
+                            WIN::clip_rect.x, WIN::clip_rect.y,
+                            WIN::clip_rect.width, WIN::clip_rect.height );
+            XFlush( WIN::disp );
+            WIN::rect_was_drawn = false;
+        }
+        WIN::clip_rect.set_point( event.xbutton.x, event.xbutton.y );
+        WIN::clip_rect.active= false;
+
+        if ( WIN::clip_rect.width == 0 || WIN::clip_rect.height == 0 )
+        {
+            redraw = true;
+            RUN::conv_area.change_area_using_win_pos( WIN::clip_rect.x, WIN::clip_rect.y );
+            std::cerr << "new center" << std::endl;
+        }
+        else if ( WIN::clip_rect.width < 20 || WIN::clip_rect.height < 20 )
+        {
+            std::cerr << "region too small" << std::endl;
+        }
+        else
+        {
+            RUN::conv_area.change_area_using_subwin( WIN::clip_rect.x, WIN::clip_rect.y,
+                                                     WIN::clip_rect.x + WIN::clip_rect.width,
+                                                     WIN::clip_rect.y + WIN::clip_rect.height );
+            redraw = true;
+        }
+    }
+    else if ( event.xbutton.button == 2 || event.xbutton.button == 3 )
+    {
+        InputEvent input_event;
+        XEvent_to_InputEvent( event, input_event );
+
+        if ( INPUTDEV->uses_mouse() )
+        {
+            bool dum_res = INPUTDEV->process_mouse_button_event( &RUN::builder, input_event );
+            redraw = ( dum_res || redraw );
+        }
+
+        WIN::popup->set_popup_invisible();
+        if ( INPUTDEV->uses_popup() )
+        {
+            int x, y, size_x, size_y;
+            WIN::popup->get_rectangle( x, y, size_x, size_y );
+            XCopyArea( WIN::disp, WIN::pixmap, WIN::window, WIN::gc,
+                       x, y, size_x + 2, size_y + 2,
+                       x, y );
+            XFlush( WIN::disp );
+            //cout << "\nXFlush BUTTON REALESSED" << flush;
+        }
+    }
+
+    return redraw;
+}
+
+
+/*!
+  \return redraw flag
+ */
+bool
+process_x11_event_MotionNotify( XEvent & event )
+{
+    bool redraw = false;
+
+    while ( XCheckMaskEvent( WIN::disp, PointerMotionMask | ButtonMotionMask, &event ) )
+    {
+        ; //nimmt nur das letzte Event vom Typ ButtonMotionMask, alle anderen werden verworfen
+    }
+
+    //cout << event.xmotion.x << "," << event.xmotion.y << endl;
+    if ( WIN::mouse_button == 1 )
+    {
+        WIN::mouse_point = Pointer( event.xmotion.x, event.xmotion.y );
+        if ( ! WIN::clip_rect.active )
+        {
+            return redraw;
+        }
+
+        if ( WIN::rect_was_drawn )
+        { // remove old rectangle
+            XDrawRectangle( WIN::disp, WIN::window, WIN::xor_gc,
+                            WIN::clip_rect.x, WIN::clip_rect.y,
+                            WIN::clip_rect.width, WIN::clip_rect.height );
+        }
+        //draw new rectangle
+        WIN::clip_rect.set_point( WIN::mouse_point.x, WIN::mouse_point.y );
+
+        XDrawRectangle( WIN::disp, WIN::window, WIN::xor_gc,
+                        WIN::clip_rect.x, WIN::clip_rect.y,
+                        WIN::clip_rect.width, WIN::clip_rect.height );
+        WIN::rect_was_drawn = true;
+    }
+    else if ( WIN::mouse_button == 2 )
+    {
+        InputEvent input_event;
+        XEvent_to_InputEvent( event, input_event );
+        //dum_pos= RUN::conv_area.get_point_from_win_pos( event.xbutton.x, event.xbutton.y );
+        bool dum_res = INPUTDEV->process_mouse_button_event( &RUN::builder, input_event );
+        redraw = dum_res || redraw;
+    }
+    else if ( WIN::mouse_button == 3 )
+    {
+        InputEvent input_event;
+        XEvent_to_InputEvent( event, input_event );
+        //dum_pos = RUN::conv_area.get_point_from_win_pos( event.xbutton.x, event.xbutton.y );
+        bool dum_res = INPUTDEV->process_mouse_button_event( &RUN::builder, input_event );
+        redraw = ( dum_res || redraw );
+    }
+
+    return redraw;
+}
+
+
+/*!
+  \return redraw flag
+ */
+bool
+process_x11_event_KeyPress( XEvent & event )
+{
+    bool redraw = false;
+
+    KeySym key;
+    char text[30];
+    int len = XLookupString( (XKeyEvent *)&event, text, 10, &key, 0 );
+
+    switch ( key ) {  /* ART! */
+        /*
+          case XK_Left:  t.translate_in_frame(0,I.actframe,-5.0,  0.0); break;
+          case XK_Right: t.translate_in_frame(0,I.actframe, 5.0,  0.0); break;
+          case XK_Up:    t.translate_in_frame(0,I.actframe, 0.0,  5.0); break;
+          case XK_Down:  t.translate_in_frame(0,I.actframe, 0.0, -5.0); break;
+        */
+    case XK_Left:  RUN::conv_area.move_area_dir_x_using_factor( -0.25 ); redraw = true; break;
+    case XK_Right: RUN::conv_area.move_area_dir_x_using_factor(  0.25 ); redraw = true; break;
+    case XK_Up:    RUN::conv_area.move_area_dir_y_using_factor(  0.25 ); redraw = true; break;
+    case XK_Down:  RUN::conv_area.move_area_dir_y_using_factor( -0.25 ); redraw = true; break;
+    default:
+        break;
+    }
+
+    if ( len != 1 ) return redraw;
+
+    switch ( text[0] ) {
+    case 'R':
+        redraw = true;
+        //RUN::tree.rotate_frame(I.actframe,-M_PI/4);
+        break;
+    case '+':
+        redraw = true;
+        RUN::conv_area.scale_area_using_factor( 3.0/4.0 );
+        break;
+    case '-':
+        redraw = true;
+        RUN::conv_area.scale_area_using_factor( 4.0/3.0 );
+        break;
+    case 'f':
+        RUN::toggle_freeze();
+        break;
+    case 'i':
+        redraw = true;
+        RUN::conv_area.set_area( Options::instance().plane );
+        break;
+    case 'k':
+        Options::instance().show_key_bindings( std::cerr, INPUTDEV );
+        break;
+    case 'q':
+        RUN::quit = true;
+        redraw = false;
+        break;
+    default:
+        break;
+    }
+
+    //dum_pos = RUN::conv_area.get_point_from_win_pos( event.xkey.x, event.xkey.y );
+    //do_process_key = true;
+    //char process_key = text[0];
+
+    InputEvent input_event;
+    XEvent_to_InputEvent( event, input_event );
+
+    bool dum_res = INPUTDEV->process_char_command( &RUN::builder, WIN::menu, input_event );
+    if ( WIN::menu->needs_redraw() )
+    {
+        WIN::menu->redraw();
+    }
+    redraw = dum_res || redraw;
+
+    return redraw;
+}
+
+
+
+/*!
+  \return redraw flag
+ */
+bool
+process_x11_event_KeyRelease( XEvent & event )
+{
+    bool redraw = false;
+
+    KeySym key;
+    char text[30];
+    int len = XLookupString( (XKeyEvent *)&event, text, 10, &key, 0 );
+
+    if ( len != 1 ) return redraw;
+
+    switch ( text[0] ) {
+    case 'q':
+        RUN::quit = true;
+        redraw = false;
+        break;
+    default:
+        break;
+    }
+
+    return redraw;
+}
+
+
+/*!
+  \return redraw flag
+ */
 bool
 process_x11_events()
 {
@@ -701,344 +1156,60 @@ process_x11_events()
 
     while ( XEventsQueued( WIN::disp, QueuedAfterReading ) )
     {
-        bool do_process_key = false;
-        char process_key = '\0';
         XEvent event;
-        KeySym key;
-        char text[30];
-        int len;
-        Point2d dum_pos;
-        bool dum_res;
-        int dum1,dum2,dum3,dum4;
-        Pixmap dum_pixmap;
-        InputEvent input_event;
-
         XNextEvent( WIN::disp, &event );
         //print_event_type( event );
 
         if ( WIN::menu->responsible_for_event( event ) )
         {
-            dum_res = WIN::menu->process_event( event );
-            if ( dum_res )
-            { //don't wait for the expose event in the main window, redraw now
-                XCopyArea( WIN::disp, WIN::pixmap, WIN::window, WIN::gc,
-                           0, 0, WIN::win_width, WIN::win_height, 0, 0 );
-                XFlush( WIN::disp );
-                //cout << "\nexposing main window after menu event" << flush;
-            }
-
-            int dum_button,dum_mouse_button;
-            int res = WIN::menu->button_pressed( event,dum_button,dum_mouse_button );
-            if ( res )
-            {
-                XEvent_to_InputEvent( event,input_event );
-                input_event.menu_button = dum_button;
-                input_event.mouse_button = dum_mouse_button;
-                res = INPUTDEV->process_menu_button( &RUN::builder,
-                                                     WIN::menu,input_event );
-                if ( WIN::menu->needs_redraw() )
-                {
-                    redraw= true;
-                    WIN::menu->redraw();
-                }
-
-                if ( WIN::menu->get_exit_program() )
-                {
-                    RUN::quit = true;
-                }
-                redraw = true;
-            }
+            redraw |= process_x11_menu_events( event );
         }
 #ifdef POPUP
         else if ( WIN::popup->responsible_for_event( event ) )
         {
-            dum_res = WIN::popup->process_event( event );
-            if ( dum_res )
-            { //don't wait for the expose event in the main window, redraw now
-                std::cout << "\nshould never enter this code " << std::flush;
-                XCopyArea( WIN::disp, WIN::pixmap, WIN::window, WIN::gc,
-                           0, 0, WIN::win_width, WIN::win_height, 0, 0 );
-                XFlush( WIN::disp );
-                //cout << "\nexposing main window after menu event" << flush;
-            }
-
-            int dum_button,dum_mouse_button;
-            int res = WIN::popup->button_pressed( event,dum_button, dum_mouse_button );
-
-            if ( res )
-            {
-                //cout << "\npressed button " << dum_button << " mouse_button " << dum_mouse_button << flush;
-                XEvent_to_InputEvent( event,input_event );
-                input_event.menu_button = dum_button;
-
-                res = INPUTDEV->process_popup_button( &RUN::builder, WIN::popup, input_event );
-                //if (WIN::popup->needs_redraw() ) {
-                //  redraw= true;
-                //  WIN::popup->redraw();
-                //}
-
-                WIN::popup->set_popup_invisible();
-                WIN::popup->get_rectangle( dum1, dum2, dum3, dum4 );
-                XCopyArea( WIN::disp, WIN::pixmap, WIN::window, WIN::gc,
-                           dum1, dum2, dum3 + 2, dum4 + 2, dum1, dum2 );
-
-                XFlush( WIN::disp );
-                WIN::mouse_button = 0;
-            }
+            redraw |= process_x11_popup_menu_events( event );
         }
 #endif
         else
         {
             switch ( event.type ) {
+
             case MappingNotify:
-                XRefreshKeyboardMapping( (XMappingEvent *)&event );
+                redraw |= XRefreshKeyboardMapping( (XMappingEvent *)&event );
                 break;
+
             case Expose:
-                if ( 0 == event.xexpose.count )
-                {
-                    //cout << "\nexpose in draw window" << flush;
-                    //don't need to set redraw= true; because the picture is still in our pixmap!!!
-                    XCopyArea( WIN::disp, WIN::pixmap, WIN::window, WIN::gc,
-                               0, 0, WIN::win_width, WIN::win_height, 0, 0 );
-                    XFlush( WIN::disp );
-                    //cout << "\nexposing main window, redraw= " << redraw << flush;
-                    //redraw= true;
-                }
+                redraw |= process_x11_event_Expose( event );
                 break;
+
             case ConfigureNotify:
-                if ( WIN::win_width != event.xconfigure.width
-                     || WIN::win_height != event.xconfigure.height )
-                {
-                    redraw = true;
-                    WIN::win_width = event.xconfigure.width;
-                    WIN::win_height = event.xconfigure.height;//-letheight-1;
-                    WIN::clip_rect.set_ratio( WIN::win_width, WIN::win_height );
+                redraw |= process_x11_event_ConfigureNotify( event );
 
-                    RUN::conv_area.set_win_size( WIN::win_width, WIN::win_height );
-#if 0
-                    RUN::conv_area.update();
-                    RUN::conv_area.get_area( dum_area );
-                    DDD->ASetPlainArea( dum_area );
-#endif
-                    DDD->ASetWindowArea( WIN::win_width, WIN::win_height );
-
-                    dum_pixmap = WIN::pixmap;
-                    //set new size for the pixmap
-                    WIN::pixmap = XCreatePixmap( WIN::disp, WIN::window,
-                                                 WIN::win_width, WIN::win_height, WIN::win_depth );
-                    //XFillRectangle(WIN::disp, WIN::pixmap, WIN::bg_gc, 0, 0, WIN::win_width, WIN::win_height);
-                    DDD->ASetNewPixmap( WIN::pixmap );
-                    XFreePixmap( WIN::disp, dum_pixmap );
-
-                    WIN::menu->resize( WIN::win_width );
-                }
                 break;
+
             case  ButtonPress: //speichere 1 Koordinate
-                //cout << "\nxbutton: state= " << event.xbutton.state << ", button= " << event.xbutton.button << flush;
-                if ( event.xany.window != WIN::window ) //mouse event should be in the same window
-                {
-                    break;
-                }
-
-                if ( WIN::mouse_button ) //if a button is already down, don't process further button events
-                {
-                    break;
-                }
-
-                WIN::mouse_button= event.xbutton.button; //store the currently pressed mouse button
-
-                //if (event.xbutton.state & Button2Mask)
-                if ( event.xbutton.button == 1 )
-                {
-                    WIN::clip_rect.set_origin( event.xbutton.x,event.xbutton.y );
-                    WIN::clip_rect.active = true;
-                    WIN::rect_was_drawn = false;
-                }
-                else if ( event.xbutton.button == 2 || event.xbutton.button == 3 )
-                {
-                    XEvent_to_InputEvent( event, input_event );
-
-                    if ( INPUTDEV->uses_mouse() )
-                    {
-                        dum_res= INPUTDEV->process_mouse_button_event( &RUN::builder, input_event );
-                        redraw= dum_res || redraw;
-                    }
-
-                    if ( INPUTDEV->uses_popup() )
-                    {
-                        WIN::popup->set_popup_visible( event.xbutton.x, event.xbutton.y, WIN::win_width, WIN::win_height);
-                        dum_res= INPUTDEV->process_popup_button( &RUN::builder,WIN::popup,input_event );
-                        redraw= dum_res || redraw;
-                    }
-                }
+                redraw |= process_x11_event_ButtonPress( event );
                 break;
+
             case ButtonRelease: //speichere 2 Koordinate
-                if ( event.xany.window != WIN::window )
-                {
-                    break;
-                }
-
-                if ( WIN::mouse_button != event.xbutton.button )
-                {//just process the originaly pressed button
-                    //cerr << "\nold button= " << WIN::mouse_button << "!=" << event.xbutton.button << " = new button -> break;";
-                    break;
-                }
-                //cerr << "\nbutton released";
-                WIN::mouse_button= 0;
-
-                if ( event.xbutton.button == 1 )
-                {
-                    if ( WIN::rect_was_drawn )
-                    { //remove old rectangle
-                        XDrawRectangle( WIN::disp, WIN::window, WIN::xor_gc,
-                                        WIN::clip_rect.x, WIN::clip_rect.y,
-                                        WIN::clip_rect.width, WIN::clip_rect.height );
-                        XFlush( WIN::disp );
-                        WIN::rect_was_drawn = false;
-                    }
-                    WIN::clip_rect.set_point( event.xbutton.x, event.xbutton.y );
-                    WIN::clip_rect.active= false;
-
-                    if ( WIN::clip_rect.width == 0 || WIN::clip_rect.height == 0 )
-                    {
-                        redraw = true;
-                        RUN::conv_area.change_area_using_win_pos( WIN::clip_rect.x, WIN::clip_rect.y );
-                        std::cerr << "\nnew center";
-                        break;
-                    }
-
-                    if ( WIN::clip_rect.width < 20 || WIN::clip_rect.height < 20 )
-                    {
-                        std::cerr << "\nregion too small";
-                        break;
-                    }
-                    RUN::conv_area.change_area_using_subwin( WIN::clip_rect.x, WIN::clip_rect.y,
-                                                             WIN::clip_rect.x + WIN::clip_rect.width,
-                                                             WIN::clip_rect.y + WIN::clip_rect.height );
-                    redraw = true;
-                }
-                else if ( event.xbutton.button == 2 || event.xbutton.button == 3 )
-                {
-                    XEvent_to_InputEvent( event,input_event );
-                    if ( INPUTDEV->uses_mouse() )
-                    {
-                        dum_res = INPUTDEV->process_mouse_button_event( &RUN::builder, input_event );
-                        redraw = ( dum_res || redraw );
-                    }
-                    WIN::popup->set_popup_invisible();
-                    if ( INPUTDEV->uses_popup() )
-                    {
-                        WIN::popup->get_rectangle( dum1, dum2, dum3, dum4 );
-                        XCopyArea( WIN::disp, WIN::pixmap, WIN::window, WIN::gc,
-                                   dum1, dum2, dum3 + 2, dum4 + 2, dum1, dum2 );
-                        XFlush( WIN::disp );
-                        //cout << "\nXFlush BUTTON REALESSED" << flush;
-                    }
-                }
+                redraw |= process_x11_event_ButtonRelease( event );
                 break;
+
             case MotionNotify:
-                while ( XCheckMaskEvent( WIN::disp,PointerMotionMask | ButtonMotionMask, &event ) )
-                    ; //nimmt nur das letzte Event vom Typ ButtonMotionMask, alle anderen werden verworfen
-                //cout << event.xmotion.x << "," << event.xmotion.y << endl;
-                if ( WIN::mouse_button == 1 )
-                {
-                    WIN::mouse_point = Pointer( event.xmotion.x, event.xmotion.y );
-                    if ( ! WIN::clip_rect.active )
-                    {
-                        break;
-                    }
-
-                    if ( WIN::rect_was_drawn )
-                    { // remove old rectangle
-                        XDrawRectangle( WIN::disp, WIN::window, WIN::xor_gc,
-                                        WIN::clip_rect.x, WIN::clip_rect.y,
-                                        WIN::clip_rect.width, WIN::clip_rect.height );
-                    }
-                    //draw new rectangle
-                    WIN::clip_rect.set_point( WIN::mouse_point.x, WIN::mouse_point.y );
-
-                    XDrawRectangle( WIN::disp, WIN::window, WIN::xor_gc,
-                                    WIN::clip_rect.x, WIN::clip_rect.y,
-                                    WIN::clip_rect.width, WIN::clip_rect.height );
-                    WIN::rect_was_drawn = true;
-                }
-                else if ( WIN::mouse_button == 2 )
-                {
-                    XEvent_to_InputEvent( event,input_event );
-                    //dum_pos= RUN::conv_area.get_point_from_win_pos( event.xbutton.x, event.xbutton.y );
-                    dum_res = INPUTDEV->process_mouse_button_event( &RUN::builder, input_event );
-                    redraw = dum_res || redraw;
-                }
-                else if ( WIN::mouse_button == 3 )
-                {
-                    XEvent_to_InputEvent( event, input_event );
-                    //dum_pos= RUN::conv_area.get_point_from_win_pos( event.xbutton.x, event.xbutton.y );
-                    dum_res= INPUTDEV->process_mouse_button_event( &RUN::builder, input_event );
-                    redraw = ( dum_res || redraw );
-                }
+                redraw |= process_x11_event_MotionNotify( event );
                 break;
+
             case KeyPress:
-                //cout << "\nkey pressed" << flush;
-                len = XLookupString( (XKeyEvent *)&event, text, 10, &key, 0 );
-                switch (key) {  /* ART! */
-                    /*
-                      case XK_Left:  t.translate_in_frame(0,I.actframe,-5.0,  0.0); break;
-                      case XK_Right: t.translate_in_frame(0,I.actframe, 5.0,  0.0); break;
-                      case XK_Up:    t.translate_in_frame(0,I.actframe, 0.0,  5.0); break;
-                      case XK_Down:  t.translate_in_frame(0,I.actframe, 0.0, -5.0); break;
-                    */
-                case XK_Left:  RUN::conv_area.move_area_dir_x_using_factor( -0.25 ); redraw = true; break;
-                case XK_Right: RUN::conv_area.move_area_dir_x_using_factor(  0.25 ); redraw = true; break;
-                case XK_Up:    RUN::conv_area.move_area_dir_y_using_factor(  0.25 ); redraw = true; break;
-                case XK_Down:  RUN::conv_area.move_area_dir_y_using_factor( -0.25 ); redraw = true; break;
-                }
-                if ( len != 1 ) break;
-                switch ( text[0] ) {
-                case 'R':
-                    redraw = true;
-                    //RUN::tree.rotate_frame(I.actframe,-M_PI/4);
-                    break;
-                case '+': redraw = true; RUN::conv_area.scale_area_using_factor( 3.0/4.0 ); break;
-                case '-': redraw = true; RUN::conv_area.scale_area_using_factor( 4.0/3.0 ); break;
-                case 'f': RUN::toggle_freeze(); break;
-                case 'i':
-                    redraw = true;
-                    RUN::conv_area.set_area( Options::instance().plane );
-                    break;
-                case 'k':
-                    Options::instance().show_key_bindings( std::cerr, INPUTDEV );
-                    break;
-                case 'q':
-                    RUN::quit = true;
-                    redraw = false;
-                    break;
-                }
-                dum_pos = RUN::conv_area.get_point_from_win_pos( event.xkey.x, event.xkey.y );
-                do_process_key = true;
-                process_key = text[0];
+                redraw |= process_x11_event_KeyPress( event );
                 break;
-            case KeyRelease:
-                len = XLookupString( (XKeyEvent *)&event, text, 10, &key, 0 );
-                if ( len != 1 ) break;
-                switch ( text[0] ) {
-                case 'q':
-                    RUN::quit = true;
-                    redraw = false;
-                    break;
-                }
-                break;
-            }
-        }
 
-        if ( do_process_key )
-        {
-            XEvent_to_InputEvent( event, input_event );
-            dum_res = INPUTDEV->process_char_command( &RUN::builder, WIN::menu, input_event );
-            if ( WIN::menu->needs_redraw() )
-            {
-                WIN::menu->redraw();
+            case KeyRelease:
+                redraw |= process_x11_event_KeyRelease( event );
+                break;
+
+            default:
+                break;
             }
-            redraw= dum_res || redraw;
         }
     }
 
@@ -1112,73 +1283,9 @@ redraw_current_tree()
     XFlush( WIN::disp );
 }
 
-} // noname namespace
-
-int
-main( int argc, char ** argv )
+void
+main_loop()
 {
-    TOOLS::get_current_ms_time(); //just init the starting time of this application;
-
-    std::cout << "Copyright (c) 1999 - 2001, Artur Merke <amerke@ira.uka.de>"
-              << "\nCopyright (c) 2001 - 2009, The RoboCup Soccer Server Maintainance Group."
-              << "\n\t<sserver-admin@lists.sourceforge.net>"
-              << std::endl;;
-
-    --argc; ++argv;
-    bool smonitor_dev = true;
-    if ( argc > 0
-         && ! std::strncmp( argv[0], "-ascii", std::strlen( "-ascii" ) ) )
-    {
-        --argc; ++argv;
-        smonitor_dev = false;
-    }
-
-    create_input_device( smonitor_dev );
-
-    Options::instance().read( argc, argv, INPUTDEV );
-
-    INPUTDEV->set_initial_area( Options::instance().plane );
-
-    /////////////////////////////////////
-
-    if ( ! init_x11_resources( argc, argv ) )
-    {
-        return 1;
-    }
-
-    // init View Converter
-    init_4_tree_and_display();
-
-    create_menu();
-    create_popup();
-
-    //init frames
-    INPUTDEV->init_frames( &RUN::builder );
-
-    if ( RUN::conv_area.needs_update() )
-    {
-        RUN::conv_area.update();
-        RUN::conv_area.get_area( Options::instance().plane ); //this area will be restored when 'i' is pressed!
-        DDD->ASetPlainArea( Options::instance().plane );
-    }
-
-    if ( RUN::builder.new_bg_color )
-    {
-        RUN::builder.new_bg_color = false;
-        XSetForeground( WIN::disp, WIN::bg_gc, DDD->AGetColor( RUN::builder.bg_color ) );
-        DDD->set_background_color( RUN::builder.bg_color );
-        //WIN::menu->set_background_color( RUN::builder.bg_color );
-    }
-
-    redraw_current_tree();
-    WIN::menu->redraw();
-    WIN::clip_rect.set_ratio( WIN::win_width,WIN::win_height );
-#if 0
-    // debug print
-    RUN::tree.print( std::cout ) << std::endl;
-#endif
-    INPUTDEV->init_connection();
-
     bool received = false;
     int nodata_seconds = 0;
     int timeover_seconds = 0;
@@ -1314,6 +1421,76 @@ main( int argc, char ** argv )
 #endif
         }
     }
+}
+
+} // noname namespace
+
+int
+main( int argc, char ** argv )
+{
+    TOOLS::get_current_ms_time(); //just init the starting time of this application;
+
+    std::cout << "Copyright (c) 1999 - 2001, Artur Merke <amerke@ira.uka.de>"
+              << "\nCopyright (c) 2001 - 2009, The RoboCup Soccer Server Maintainance Group."
+              << "\n\t<sserver-admin@lists.sourceforge.net>"
+              << std::endl;;
+
+    --argc; ++argv;
+    bool smonitor_dev = true;
+    if ( argc > 0
+         && ! std::strncmp( argv[0], "-ascii", std::strlen( "-ascii" ) ) )
+    {
+        --argc; ++argv;
+        smonitor_dev = false;
+    }
+
+    create_input_device( smonitor_dev );
+
+    Options::instance().read( argc, argv, INPUTDEV );
+
+    INPUTDEV->set_initial_area( Options::instance().plane );
+
+    /////////////////////////////////////
+
+    if ( ! init_x11_resources( argc, argv ) )
+    {
+        return 1;
+    }
+
+    // init View Converter
+    init_4_tree_and_display();
+
+    create_menu();
+    create_popup();
+
+    //init frames
+    INPUTDEV->init_frames( &RUN::builder );
+
+    if ( RUN::conv_area.needs_update() )
+    {
+        RUN::conv_area.update();
+        RUN::conv_area.get_area( Options::instance().plane ); //this area will be restored when 'i' is pressed!
+        DDD->ASetPlainArea( Options::instance().plane );
+    }
+
+    if ( RUN::builder.new_bg_color )
+    {
+        RUN::builder.new_bg_color = false;
+        XSetForeground( WIN::disp, WIN::bg_gc, DDD->AGetColor( RUN::builder.bg_color ) );
+        DDD->set_background_color( RUN::builder.bg_color );
+        //WIN::menu->set_background_color( RUN::builder.bg_color );
+    }
+
+    redraw_current_tree();
+    // debug print
+    //RUN::tree.print( std::cout ) << std::endl;
+
+    WIN::menu->redraw();
+    WIN::clip_rect.set_ratio( WIN::win_width, WIN::win_height );
+
+    INPUTDEV->init_connection();
+
+    main_loop();
 
     destruct_resources();
 
@@ -1322,6 +1499,6 @@ main( int argc, char ** argv )
     std::cerr << "\n" << PACKAGE << "-" << VERSION << " was active for ";
     if ( t / 3600 ) std::cerr << t / 3600 << "h ";
     if ( t / 60 )   std::cerr << ( t / 60 ) % 60   << "m ";
-    std::cerr << t % 60 << "s\n";
+    std::cerr << t % 60 << "s" << std::endl;
     return 0;
 }

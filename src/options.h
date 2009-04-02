@@ -22,7 +22,6 @@
 #ifndef RCSSMONITOR_OPTIONS_H
 #define RCSSMONITOR_OPTIONS_H
 
-#include "global_defs.h"
 #include "area2d.h"
 
 #include <iostream>

@@ -1,5 +1,19 @@
 2009-04-02  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
+	* src/2dview.C:
+	* src/Makefile.am:
+	* src/ascii_dev.C:
+	* src/ascii_processor.C:
+	* src/client2dview.C:
+	* src/conv.C:
+	* src/menu_x11.C:
+	* src/options.h:
+	* src/popup_x11.C:
+	* src/smonitor_dev.C:
+	* src/tools.C:
+	* src/udpsocket.C:
+	- cleaned up.
+
 	* src/Makefile.am:
 	* src/options.cpp:
 	* src/options.h:
