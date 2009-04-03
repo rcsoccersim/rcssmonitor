@@ -24,6 +24,7 @@
 
 #include "area2d.h"
 
+#include <cmath>
 
 bool
 Area2d::intersects( const Point2d & p ) const

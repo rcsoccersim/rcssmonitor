@@ -48,11 +48,11 @@ noinst_HEADERS = \
 	frame2d.h\
 	input_dev.h \
 	maplist.h \
-	menu_base.h
+	menu_base.h \
 	menu_x11.h \
 	multi.h \
 	object2d.h \
-	options.h
+	options.h \
 	point2d.h \
 	popup_x11.h \
 	rgbcolor.h \

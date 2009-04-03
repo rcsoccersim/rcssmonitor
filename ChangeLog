@@ -1,3 +1,13 @@
+2009-04-03  Hidehisa Akiyama  <akky@users.sourceforge.jp>
+
+	* configure.ac:
+	* NEWS:
+	- updated a version number string. Official release 13.1.0.
+
+	* src/area2d.C:
+	* src/Makefile.am
+	- fixed a defect of a distribution package.
+
 2009-04-02  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
 	* src/2dview.C:

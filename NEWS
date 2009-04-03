@@ -1,3 +1,12 @@
+[13.1.0]
+  * Supported a team_graphic protocol. Now rcssmonitor can draw the
+    received team graphic image.
+
+  * Added a new option, 'show_team_graphic', to show/hide team graphic
+    images.
+
+  * Added a new shortcut key, 'g', to show/hide team graphic images.
+
 [13.0.0]
   * Supported a monitor protocol version 4. Now, the version 4
     protocol is used by default.
