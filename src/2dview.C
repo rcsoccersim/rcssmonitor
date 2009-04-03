@@ -51,6 +51,7 @@
 #include <set>
 #include <iostream>
 
+#include <ctime>
 #include <cstring>
 #include <cerrno>   //for return values of select
 #include <sys/time.h>
@@ -1483,7 +1484,7 @@ update_team_graphic( const rcsc::TeamGraphic & team_graphic,
     snprintf( xpm[0],
               64, "%d %d %d 1",
               team_graphic.width(), team_graphic.height(),
-              team_graphic.colors().size() );
+              static_cast< int >( team_graphic.colors().size() ) );
 
     int idx = 1;
 
