@@ -38,7 +38,14 @@
 
 #include "field_canvas.h"
 
+#include "disp_holder.h"
 #include "field_painter.h"
+
+#include "ball_painter.h"
+#include "player_painter.h"
+#include "score_board_painter.h"
+#include "team_graphic_painter.h"
+
 #include "options.h"
 
 #include <iostream>
@@ -47,13 +54,14 @@
 /*!
 
 */
-FieldCanvas::FieldCanvas()
+FieldCanvas::FieldCanvas( DispHolder & disp_holder )
     :
 #ifdef USE_GLWIDGET
     QGLWidget( QGLFormat( QGL::SampleBuffers ) ),
 #else
     QWidget( /* parent, flags */ ),
 #endif
+    M_disp_holder( disp_holder ),
     M_monitor_menu( static_cast< QMenu * >( 0 ) )
 {
     this->setMouseTracking( true ); // need for the MouseMoveEvent
@@ -150,6 +158,11 @@ void
 FieldCanvas::createPainters()
 {
     M_field_painter = boost::shared_ptr< FieldPainter >( new FieldPainter() );
+
+    M_painters.push_back( boost::shared_ptr< PainterInterface >( new PlayerPainter( M_disp_holder ) ) );
+    M_painters.push_back( boost::shared_ptr< PainterInterface >( new BallPainter( M_disp_holder ) ) );
+    M_painters.push_back( boost::shared_ptr< PainterInterface >( new TeamGraphicPainter( M_disp_holder ) ) );
+    M_painters.push_back( boost::shared_ptr< PainterInterface >( new ScoreBoardPainter( M_disp_holder ) ) );
 }
 
 /*-------------------------------------------------------------------*/
@@ -228,6 +241,7 @@ FieldCanvas::mouseReleaseEvent( QMouseEvent * event )
     }
     else if ( event->button() == Qt::RightButton )
     {
+        std::cerr << "mouse 2 released" << std::endl;
         M_mouse_state[2].released();
     }
 }
@@ -270,27 +284,27 @@ FieldCanvas::mouseMoveEvent( QMouseEvent * event )
         M_mouse_state[i].moved( event->pos() );
     }
 
-    if ( M_mouse_state[2].isDragged() )
-    {
-        static QRect s_last_rect;
+//     if ( M_mouse_state[2].isDragged() )
+//     {
+//         static QRect s_last_rect;
+//         std::cerr << "mouse 2 dragged" << std::endl;
+//         if ( this->cursor().shape() != Qt::CrossCursor )
+//         {
+//             this->setCursor( QCursor( Qt::CrossCursor ) );
+//         }
 
-        if ( this->cursor().shape() != Qt::CrossCursor )
-        {
-            this->setCursor( QCursor( Qt::CrossCursor ) );
-        }
-
-        QRect new_rect
-            = QRect( M_mouse_state[2].pressedPoint(),
-                     M_mouse_state[2].draggedPoint() ).normalized();
-        new_rect.adjust( -32, -32, 32, 32 );
-        if ( new_rect.right() < M_mouse_state[2].draggedPoint().x() + 256 )
-        {
-            new_rect.setRight( M_mouse_state[2].draggedPoint().x() + 256 );
-        }
-        // draw mouse measure
-        this->update( s_last_rect.unite( new_rect ) );
-        s_last_rect = new_rect;
-    }
+//         QRect new_rect
+//             = QRect( M_mouse_state[2].pressedPoint(),
+//                      M_mouse_state[2].draggedPoint() ).normalized();
+//         new_rect.adjust( -32, -32, 32, 32 );
+//         if ( new_rect.right() < M_mouse_state[2].draggedPoint().x() + 256 )
+//         {
+//             new_rect.setRight( M_mouse_state[2].draggedPoint().x() + 256 );
+//         }
+//         // draw mouse measure
+//         this->update( s_last_rect.unite( new_rect ) );
+//         s_last_rect = new_rect;
+//     }
 
     emit mouseMoved( event->pos() );
 }
@@ -300,6 +314,7 @@ FieldCanvas::contextMenuEvent( QContextMenuEvent * event )
 {
     if ( event->reason() == QContextMenuEvent::Mouse )
     {
+        M_mouse_state[2].released();
         M_monitor_menu->exec( event->globalPos() );
     }
 }
@@ -330,11 +345,106 @@ FieldCanvas::paintEvent( QPaintEvent * )
 
 */
 void
+FieldCanvas::updateFocus()
+{
+    DispConstPtr disp = M_disp_holder.currentDisp();
+
+    if ( ! disp )
+    {
+        return;
+    }
+
+    // if auto select mode, update the ball nearest player
+    if ( Options::instance().playerAutoSelect() )
+    {
+        const rcss::rcg::ShowInfoT & show = disp->show_;
+
+        Options::PlayerSelectType old_type = Options::instance().playerSelectType();
+
+        float min_dist2 = 40000.0f;
+
+        rcss::rcg::Side side = rcss::rcg::NEUTRAL;
+        int unum = 0;
+
+        const int first = ( old_type == Options::SELECT_AUTO_RIGHT
+                            ? 11
+                            : 0 );
+        const int last = ( old_type == Options::SELECT_AUTO_LEFT
+                           ? 11
+                           : 22 );
+        for ( int i = first; i < last; ++i )
+        {
+            if ( show.player_[i].state_ != 0 )
+            {
+                float d2
+                    = std::pow( show.ball_.x_ - show.player_[i].x_, 2 )
+                    + std::pow( show.ball_.y_ - show.player_[i].y_, 2 );
+                if ( d2 < min_dist2 )
+                {
+                    min_dist2 = d2;
+                    side = show.player_[i].side();
+                    unum = show.player_[i].unum_;
+                }
+            }
+        }
+
+        if ( unum != 0 )
+        {
+            Options::instance().setSelectedNumber( side, unum );
+        }
+    }
+
+    // update focus point
+    if ( Options::instance().focusType() == Options::FOCUS_BALL )
+    {
+        Options::instance().setFocusPointReal( disp->show_.ball_.x_,
+                                               disp->show_.ball_.y_ );
+    }
+    else if ( Options::instance().focusType() == Options::FOCUS_PLAYER
+              && Options::instance().selectedNumber() != 0 )
+    {
+        int id = Options::instance().selectedNumber();
+        if ( id < 0 )
+        {
+            id = -1*id + 11;
+        }
+        id -= 1;
+
+        if ( disp->show_.player_[id].state_ != 0 )
+        {
+            Options::instance().setFocusPointReal( disp->show_.player_[id].x_,
+                                                   disp->show_.player_[id].y_ );
+        }
+    }
+    else
+    {
+        // already set
+    }
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+void
 FieldCanvas::draw( QPainter & painter )
 {
+    updateFocus();
     Options::instance().updateFieldSize( this->width(), this->height() );
 
     M_field_painter->draw( painter );
+
+    if ( ! M_disp_holder.currentDisp() )
+    {
+        return;
+    }
+
+    for ( std::vector< boost::shared_ptr< PainterInterface > >::iterator it = M_painters.begin();
+          it != M_painters.end();
+          ++it )
+    {
+        (*it)->draw( painter );
+    }
 }
 
 /*-------------------------------------------------------------------*/
@@ -344,7 +454,7 @@ FieldCanvas::draw( QPainter & painter )
 void
 FieldCanvas::dropBall()
 {
-    emit dropBall( M_mouse_state[0].pressedPoint() );
+    emit dropBall( M_mouse_state[2].pressedPoint() );
 }
 
 /*-------------------------------------------------------------------*/
@@ -354,7 +464,7 @@ FieldCanvas::dropBall()
 void
 FieldCanvas::freeKickLeft()
 {
-    emit freeKickLeft( M_mouse_state[0].pressedPoint() );
+    emit freeKickLeft( M_mouse_state[2].pressedPoint() );
 }
 
 /*-------------------------------------------------------------------*/
@@ -364,5 +474,5 @@ FieldCanvas::freeKickLeft()
 void
 FieldCanvas::freeKickRight()
 {
-    emit freeKickRight( M_mouse_state[0].pressedPoint() );
+    emit freeKickRight( M_mouse_state[2].pressedPoint() );
 }

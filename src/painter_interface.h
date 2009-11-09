@@ -36,8 +36,6 @@
 class QPainter;
 
 class PainterInterface {
-private:
-
 protected:
 
     PainterInterface()

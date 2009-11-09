@@ -37,7 +37,7 @@
 #include <QPoint>
 #include <QPointF>
 
-#include "types.h"
+#include <rcsslogplayer/types.h>
 
 #include <string>
 #include <cmath>
@@ -56,7 +56,7 @@ public:
         SELECT_AUTO_LEFT,
         SELECT_AUTO_RIGHT,
         SELECT_AUTO_ALL,
-        SELECT_UNSELECT,
+        UNSELECT,
     };
 
     enum FocusType {
@@ -103,14 +103,11 @@ private:
     std::string M_server_host;
     int M_server_port;
     int M_client_version;
-    bool M_time_shift_replay;
 
     //
-    // logplayer options
+    // monitor options
     //
-    bool M_minimum_mode;
-    std::string M_monitor_path;
-    int M_monitor_port;
+    int M_max_disp_buffer;
     std::string M_game_log_file; //!< game log file path to be opened
     std::string M_output_file;
     bool M_auto_quit_mode;
@@ -158,6 +155,7 @@ private:
     bool M_show_stamina;
     bool M_show_stamina_capacity;
     bool M_show_pointto;
+    bool M_show_card;
 
     bool M_show_offside_line;
     bool M_show_draw_info;
@@ -180,17 +178,6 @@ private:
     // player selection
     int M_selected_number; //!< selected player's uniform number.
     PlayerSelectType M_player_select_type; //!< flag for player auto selection
-
-    // ball trace
-    int M_ball_trace_start;
-    int M_ball_trace_end;
-
-    // player trace
-    int M_player_trace_start;
-    int M_player_trace_end;
-
-    // trace type
-    bool M_line_trace;
 
     // inertia movement
     int M_ball_vel_cycle; //!< specify the cycle to draw ball future point
@@ -257,28 +244,9 @@ public:
           return M_client_version;
       }
 
-    //
-    // logplayer options
-    //
-
-    bool minimumMode() const
+    int maxDispBuffer() const
       {
-          return M_minimum_mode;
-      }
-    void toggleMinimumMode()
-      {
-          M_minimum_mode = ! M_minimum_mode;
-      }
-
-    const
-    std::string & monitorPath() const
-      {
-          return M_monitor_path;
-      }
-
-    int monitorPort() const
-      {
-          return M_monitor_port;
+          return M_max_disp_buffer;
       }
 
     const
@@ -295,11 +263,6 @@ public:
     std::string & outputFile() const
       {
           return M_output_file;
-      }
-
-    bool timeShiftReplay() const
-      {
-          return M_time_shift_replay;
       }
 
     bool autoQuitMode() const
@@ -528,6 +491,15 @@ public:
           M_show_pointto = ! M_show_pointto;
       }
 
+    bool showCard() const
+      {
+          return M_show_card;
+      }
+    void toggleShowCard()
+      {
+          M_show_card = ! M_show_card;
+      }
+
     bool showOffsideLine() const
       {
           return M_show_offside_line;
@@ -685,67 +657,10 @@ public:
     bool playerAutoSelect() const
       {
           return ( M_player_select_type != SELECT_FIX
-                   && M_player_select_type != SELECT_UNSELECT );
+                   && M_player_select_type != UNSELECT );
       }
     void unselectPlayer();
     void setPlayerSelectType( const Options::PlayerSelectType type );
-
-    // ball trace
-
-    bool showBallTrace() const
-      {
-          return ( M_ball_trace_start < M_ball_trace_end );
-      }
-    void setBallTraceStart( const int cycle )
-      {
-          if ( 0 <= cycle ) M_ball_trace_start = cycle;
-      }
-    int ballTraceStart() const
-      {
-          return M_ball_trace_start;
-      }
-    void setBallTraceEnd( const int cycle )
-      {
-          if ( 0 <= cycle ) M_ball_trace_end = cycle;
-      }
-    int ballTraceEnd() const
-      {
-          return M_ball_trace_end;
-      }
-
-    // player trace
-
-    bool showPlayerTrace() const
-      {
-          return ( M_player_trace_start < M_player_trace_end );
-      }
-    void setPlayerTraceStart( const int cycle )
-      {
-          if ( 0 <= cycle ) M_player_trace_start = cycle;
-      }
-    int playerTraceStart() const
-      {
-          return M_player_trace_start;
-      }
-    void setPlayerTraceEnd( const int cycle )
-      {
-          if ( 0 <= cycle ) M_player_trace_end = cycle;
-      }
-    int playerTraceEnd() const
-      {
-          return M_player_trace_end;
-      }
-
-    // trace type
-
-    bool lineTrace() const
-      {
-          return M_line_trace;
-      }
-    void toggleLineTrace()
-      {
-          M_line_trace = ! M_line_trace;
-      }
 
     // ball move
 

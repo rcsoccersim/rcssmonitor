@@ -36,12 +36,12 @@
 #include <QObject>
 #include <QHostAddress>
 
-#include "types.h"
+#include <rcsslogplayer/types.h>
 
 class QHostInfo;
 class QTimer;
 class QUdpSocket;
-//class DispHolder;
+class DispHolder;
 
 class MonitorClient
     : public QObject {
@@ -50,7 +50,7 @@ class MonitorClient
 
 private:
 
-//     DispHolder & M_disp_holder;
+    DispHolder & M_disp_holder;
 
     QHostAddress M_server_addr;
     quint16 M_server_port;
@@ -69,7 +69,7 @@ private:
 public:
     //! constructor
     MonitorClient( QObject * parent,
-                   //DispHolder & disp_holder,
+                   DispHolder & disp_holder,
                    const char * hostname,
                    const int port,
                    const int version );

@@ -38,8 +38,7 @@
 
 #include "monitor_client.h"
 
-//#include "disp_holder.h"
-#include "options.h"
+#include "disp_holder.h"
 
 #include <sstream>
 #include <iostream>
@@ -55,13 +54,13 @@ const int POLL_INTERVAL_MS = 1000;
 
 */
 MonitorClient::MonitorClient( QObject * parent,
-                              //DispHolder & disp_holder,
+                              DispHolder & disp_holder,
                               const char * hostname,
                               const int port,
                               const int version )
 
     : QObject( parent )
-//    , M_disp_holder( disp_holder )
+    , M_disp_holder( disp_holder )
     , M_server_port( static_cast< quint16 >( port ) )
     , M_socket( new QUdpSocket( this ) )
     , M_timer( new QTimer( this ) )
@@ -180,7 +179,7 @@ MonitorClient::handleReceive()
             if ( n > 0 )
             {
                 buf[n] = '\0';
-//                 if ( ! M_disp_holder.addDispInfo3( buf ) )
+                if ( ! M_disp_holder.addDispInfoV3( buf ) )
                 {
                     std::cerr << "recv: " << buf << std::endl;
                 }
@@ -211,7 +210,7 @@ MonitorClient::handleReceive()
                                             &from_port );
             if ( n > 0 )
             {
-//                 if ( ! M_disp_holder.addDispInfo2( disp2 ) )
+                if ( ! M_disp_holder.addDispInfoV2( disp2 ) )
                 {
                     std::cerr << "recv: "
                               << reinterpret_cast< char * >( &disp2 )
@@ -244,7 +243,7 @@ MonitorClient::handleReceive()
                                              &from_port );
             if ( n > 0 )
             {
-//                 if ( ! M_disp_holder.addDispInfo1( disp1 ) )
+                if ( ! M_disp_holder.addDispInfoV1( disp1 ) )
                 {
                     std::cerr << "recv: "
                               << reinterpret_cast< char * >( &disp1 )

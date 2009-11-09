@@ -3,14 +3,24 @@
 bin_PROGRAMS = rcssmonitor
 
 rcssmonitor_SOURCES = \
+	rcsslogplayer/parser.cpp \
+	rcsslogplayer/types.cpp \
+	rcsslogplayer/util.cpp \
+	angle_deg.cpp \
+	ball_painter.cpp \
+	circle_2d.cpp \
+	disp_holder.cpp \
 	field_canvas.cpp \
 	field_painter.cpp \
+	line_2d.cpp \
 	main_window.cpp \
 	monitor_client.cpp \
 	options.cpp \
-	parser.cpp \
-	types.cpp \
-	util.cpp \
+	player_painter.cpp \
+	score_board_painter.cpp \
+	team_graphic.cpp \
+	team_graphic_painter.cpp \
+	vector_2d.cpp \
 	main.cpp
 
 nodist_rcssmonitor_SOURCES = \
@@ -19,19 +29,30 @@ nodist_rcssmonitor_SOURCES = \
 	moc_monitor_client.cpp
 
 noinst_HEADERS = \
+	rcsslogplayer/handler.h \
+	rcsslogplayer/parser.h \
+	rcsslogplayer/types.h \
+	rcsslogplayer/util.h \
+	angle_deg.h \
+	ball_painter.h \
+	circle_2d.h \
+	disp_holder.h \
 	field_canvas.h \
 	field_painter.h \
-	handler.h \
+	line_2d.h \
 	main_window.h \
 	monitor_client.h \
 	mouse_state.h \
 	options.h \
-	parser.h \
 	painter_interface.h \
-	types.h \
-	util.h
+	player_painter.h \
+	score_board_painter.h \
+	team_graphic.h \
+	team_graphic_painter.h \
+	vector_2d.h
 
-rcssmonitor_CPPFLAGS = -I$(top_srcdir) $(QT4_CPPFLAGS)
+
+rcssmonitor_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/src $(QT4_CPPFLAGS)
 rcssmonitor_CXXFLAGS = -W -Wall $(QT4_CXXFLAGS)
 rcssmonitor_LDFLAGS = $(QT4_LDFLAGS)
 rcssmonitor_LDADD = $(BOOST_PROGRAM_OPTIONS_LIB) $(QT4_LDADD)

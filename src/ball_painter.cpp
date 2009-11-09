@@ -38,7 +38,7 @@
 
 #include "ball_painter.h"
 
-#include "main_data.h"
+#include "disp_holder.h"
 #include "options.h"
 #include "vector_2d.h"
 
@@ -50,8 +50,8 @@
 /*!
 
 */
-BallPainter::BallPainter( const MainData & main_data )
-    : M_main_data( main_data )
+BallPainter::BallPainter( const DispHolder & disp_holder )
+    : M_disp_holder( disp_holder )
     , M_ball_pen( QColor( 255, 255, 255 ), 0, Qt::SolidLine )
     , M_ball_vel_pen( QColor( 255, 0, 0 ), 0, Qt::SolidLine )
     , M_ball_brush( QColor( 255, 255, 255 ), Qt::SolidPattern )
@@ -75,13 +75,8 @@ BallPainter::~BallPainter()
 void
 BallPainter::readSettings()
 {
-#ifndef Q_WS_WIN
-    QSettings settings( QDir::homePath() + "/.rcsslogplayer",
+    QSettings settings( Options::CONF_FILE,
                         QSettings::IniFormat );
-#else
-    QSettings settings( QDir::currentPath() + "/rcsslogplayer.ini",
-                        QSettings::IniFormat );
-#endif
 
     settings.beginGroup( "BallPainter" );
 
@@ -106,13 +101,8 @@ BallPainter::readSettings()
 void
 BallPainter::writeSettings()
 {
-#ifndef Q_WS_WIN
-    QSettings settings( QDir::homePath() + "/.rcsslogplayer",
+    QSettings settings( Options::CONF_FILE,
                         QSettings::IniFormat );
-#else
-    QSettings settings( QDir::currentPath() + "/rcsslogplayer.ini",
-                        QSettings::IniFormat );
-#endif
 
     settings.beginGroup( "BallPainter" );
 
@@ -132,29 +122,29 @@ BallPainter::draw( QPainter & painter )
 {
     const Options & opt = Options::instance();
 
-    if ( ! opt.showBall()
-         || opt.minimumMode() )
+    if ( ! opt.showBall() )
     {
         return;
     }
 
-    DispConstPtr disp = M_main_data.getDispInfo( M_main_data.index() );
+    DispConstPtr disp = M_disp_holder.currentDisp();
 
     if ( ! disp )
     {
+        std::cerr << "no dispinfo" << std::endl;
         return;
     }
 
-    const rcss::rcg::ServerParamT & sparam = M_main_data.serverParam();
+    const rcss::rcg::ServerParamT & SP = M_disp_holder.serverParam();
 
     // decide radius
     const int ball_radius = ( opt.ballSize() >= 0.01
                               ? opt.scale( opt.ballSize() )
-                              : std::max( 1, opt.scale( sparam.ball_size_ ) ) );
+                              : std::max( 1, opt.scale( SP.ball_size_ ) ) );
     const int kickable_radius
-        = std::max( 1, opt.scale( sparam.player_size_
-                                  + sparam.kickable_margin_
-                                  + sparam.ball_size_ ) );
+        = std::max( 1, opt.scale( SP.player_size_
+                                  + SP.kickable_margin_
+                                  + SP.ball_size_ ) );
     const int ix = opt.screenX( disp->show_.ball_.x_ );
     const int iy = opt.screenY( disp->show_.ball_.y_ );
 
@@ -175,15 +165,10 @@ BallPainter::draw( QPainter & painter )
                          kickable_radius * 2 );
 
     // draw future status
-    if ( Options::instance().ballVelCycle() > 0
+    if ( opt.ballVelCycle() > 0
          && disp->show_.ball_.hasVelocity() )
     {
         drawVelocity( painter );
-    }
-
-    if ( Options::instance().showBallTrace() )
-    {
-        drawTrace( painter );
     }
 }
 
@@ -201,11 +186,11 @@ BallPainter::drawVelocity( QPainter & painter ) const
         painter.setRenderHint( QPainter::Antialiasing, false );
     }
 
-    const rcss::rcg::ServerParamT & sparam = M_main_data.serverParam();
+    const rcss::rcg::ServerParamT & SP = M_disp_holder.serverParam();
 
-    DispConstPtr disp = M_main_data.getDispInfo( M_main_data.index() );
+    DispConstPtr disp = M_disp_holder.currentDisp();
 
-    const double bdecay = sparam.ball_decay_;
+    const double bdecay = SP.ball_decay_;
 
     Vector2D bpos( disp->show_.ball_.x_,
                    disp->show_.ball_.y_ );
@@ -245,83 +230,6 @@ BallPainter::drawVelocity( QPainter & painter ) const
     painter.setBrush( Qt::NoBrush );
 
     painter.drawPath( path );
-
-    if ( opt.antiAliasing() )
-    {
-        painter.setRenderHint( QPainter::Antialiasing );
-    }
-}
-
-/*-------------------------------------------------------------------*/
-/*!
-
-*/
-void
-BallPainter::drawTrace( QPainter & painter ) const
-{
-    const Options & opt = Options::instance();
-
-    const std::size_t first = M_main_data.dispHolder().getIndexOf( opt.ballTraceStart() );
-    const std::size_t last = M_main_data.dispHolder().getIndexOf( opt.ballTraceEnd() );
-    if ( first >= last )
-    {
-        return;
-    }
-
-    const std::vector< DispPtr > & cont = M_main_data.dispHolder().dispInfoCont();
-    if ( cont.empty() )
-    {
-        return;
-    }
-
-    if ( opt.antiAliasing() )
-    {
-        painter.setRenderHint( QPainter::Antialiasing, false );
-    }
-
-    const bool line_trace = opt.lineTrace();
-
-    QPen black_dot_pen( Qt::black );
-    black_dot_pen.setStyle( Qt::DotLine );
-
-    painter.setBrush( Qt::NoBrush );
-
-    std::size_t i = first;
-    int prev_x = opt.screenX( cont[i]->show_.ball_.x_ );
-    int prev_y = opt.screenX( cont[i]->show_.ball_.y_ );
-    ++i;
-    for ( ; i <= last; ++i )
-    {
-        switch ( cont[i]->pmode_ ) {
-        case rcss::rcg::PM_BeforeKickOff:
-        case rcss::rcg::PM_TimeOver:
-        case rcss::rcg::PM_KickOff_Left:
-        case rcss::rcg::PM_KickOff_Right:
-            prev_x = opt.screenX( 0.0 );
-            prev_y = opt.screenY( 0.0 );
-            continue;
-        case rcss::rcg::PM_PlayOn:
-        case rcss::rcg::PM_AfterGoal_Left:
-        case rcss::rcg::PM_AfterGoal_Right:
-            painter.setPen( M_ball_pen );
-            break;
-        default:
-            painter.setPen( black_dot_pen );
-            break;
-        }
-
-        int ix = opt.screenX( cont[i]->show_.ball_.x_ );
-        int iy = opt.screenY( cont[i]->show_.ball_.y_ );
-
-        painter.drawLine( prev_x, prev_y, ix, iy );
-        if ( ! line_trace )
-        {
-            painter.drawEllipse( ix - 2, iy - 2, 5, 5 );
-        }
-        prev_x = ix;
-        prev_y = iy;
-    }
-
 
     if ( opt.antiAliasing() )
     {

@@ -45,7 +45,9 @@
 
 class QMenu;
 
+class DispHolder;
 class FieldPainter;
+class PainterInterface;
 
 class FieldCanvas
 		:
@@ -60,20 +62,25 @@ class FieldCanvas
 
 private:
 
+    DispHolder & M_disp_holder;
+
     QMenu * M_monitor_menu;
 
     boost::shared_ptr< FieldPainter > M_field_painter;
+    std::vector< boost::shared_ptr< PainterInterface > > M_painters;
 
     //! 0: left, 1: middle, 2: right
     MouseState M_mouse_state[3];
 
     // not used
+    FieldCanvas();
     FieldCanvas( const FieldCanvas & );
     const FieldCanvas & operator=( const FieldCanvas & );
 
 public:
 
-    FieldCanvas();
+    explicit
+    FieldCanvas( DispHolder & disp_holder );
     ~FieldCanvas();
 
     void setMonitorMenu( QMenu * menu );
@@ -84,6 +91,8 @@ private:
     void writeSettings();
 
     void createPainters();
+
+    void updateFocus();
 
 protected:
 

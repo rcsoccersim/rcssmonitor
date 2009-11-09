@@ -1,3 +1,46 @@
+2009-11-09  Hidehisa Akiyama  <akky@users.sourceforge.jp>
+
+	* src/angle_deg.cpp:
+	* src/angle_deg.h:
+	* src/circle_2d.cpp:
+	* src/circle_2d.h:
+	* src/disp_holder.cpp:
+	* src/disp_holder.h:
+	* src/line_2d.cpp:
+	* src/line_2d.h:
+	* src/player_painter.cpp:
+	* src/player_painter.h:
+	* src/score_board_painter.cpp:
+	* src/score_board_painter.h:
+	* src/team_graphic.cpp:
+	* src/team_graphic.h:
+	* src/team_graphic_painter.cpp:
+	* src/team_graphic_painter.h:
+	* src/vector_2d.cpp:
+	* src/vector_2d.h:
+	* src/handler.h:
+	* src/parser.cpp:
+	* src/parser.h:
+	* src/types.cpp:
+	* src/types.h:
+	* src/util.cpp:
+	* src/util.h:
+	* ChangeLog:
+	* INSTALL:
+	* src/Makefile.am:
+	* src/ball_painter.cpp:
+	* src/ball_painter.h:
+	* src/field_canvas.cpp:
+	* src/field_canvas.h:
+	* src/main_window.cpp:
+	* src/main_window.h:
+	* src/monitor_client.cpp:
+	* src/monitor_client.h:
+	* src/options.cpp:
+	* src/options.h:
+	* src/painter_interface.h:
+	- implemented simple monitor features.
+
 2009-11-01  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
 	* AUTHORS:

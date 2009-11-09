@@ -1,15 +1,15 @@
 // -*-c++-*-
 
 /*!
-  \file ball_painer.h
-  \brief ball painter class Header File.
+  \file score_board_painter.h
+  \brief score board painter class Header File.
 */
 
 /*
  *Copyright:
 
- Copyright (C)  The RoboCup Soccer Server Maintenance Group.
- Hidehisa AKIYAMA
+ Copyright (C) The RoboCup Soccer Server Maintenance Group.
+ Hidehisa Akiyama
 
  This code is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -30,40 +30,44 @@
 
 /////////////////////////////////////////////////////////////////////
 
-#ifndef RCSSLOGPLAYER_BALL_PAINTER_H
-#define RCSSLOGPLAYER_BALL_PAINTER_H
+#ifndef RCSSLOGPLAYER_SCORE_BOARD_PAINTER_H
+#define RCSSLOGPLAYER_SCORE_BOARD_PAINTER_H
 
 #include "painter_interface.h"
 
+#include <QPen>
+#include <QBrush>
+#include <QFont>
+
 class DispHolder;
 
-class BallPainter
+class ScoreBoardPainter
     : public PainterInterface {
 private:
+
     const DispHolder & M_disp_holder;
 
-    QPen M_ball_pen;
-    QPen M_ball_vel_pen;
-    QBrush M_ball_brush;
+    QPen M_pen;
+    QBrush M_brush;
+    QFont M_font;
 
     // not used
-    BallPainter();
-    BallPainter( const BallPainter & );
-    const BallPainter & operator=( const BallPainter & );
+    ScoreBoardPainter();
+    ScoreBoardPainter( const ScoreBoardPainter & );
+    const ScoreBoardPainter & operator=( const ScoreBoardPainter & );
 public:
 
-    BallPainter( const DispHolder & disp_holder );
-    ~BallPainter();
+    explicit
+    ScoreBoardPainter( const DispHolder & disp_holder );
+    ~ScoreBoardPainter();
 
     void draw( QPainter & painter );
 
 private:
 
-
     void readSettings();
     void writeSettings();
 
-    void drawVelocity( QPainter & painter ) const;
 
 };
 

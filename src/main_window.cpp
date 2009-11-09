@@ -163,8 +163,6 @@ MainWindow::writeSettings()
 
     settings.setValue( "window_style", M_window_style );
 
-//     if ( ! Options::instance().minimumMode() )
-//     {
 //         settings.setValue( "window_width", this->width() );
 //         settings.setValue( "window_height", this->height() );
 //         settings.setValue( "window_x", this->pos().x() );
@@ -175,7 +173,6 @@ MainWindow::writeSettings()
 //         settings.setValue( "hide_tool_bar", ( M_log_player_tool_bar->isHidden()
 //                                               && M_log_slider_tool_bar->isHidden() ) );
 //         settings.setValue( "hide_status_bar", this->statusBar()->isHidden() );
-//     }
 
     settings.endGroup();
 }
@@ -264,7 +261,7 @@ MainWindow::createActionsReferee()
 #else
     M_kick_off_act->setShortcut( Qt::CTRL + Qt::Key_K );
 #endif
-    M_kick_off_act->setStatusTip( tr( "Send kick-off command to the connected rcssserver." ) );
+    M_kick_off_act->setStatusTip( tr( "Send kick-off command." ) );
     M_kick_off_act->setEnabled( false );
     connect( M_kick_off_act, SIGNAL( triggered() ),
              this, SLOT( kickOff() ) );
@@ -428,7 +425,7 @@ MainWindow::createStatusBar()
 void
 MainWindow::createFieldCanvas()
 {
-    M_field_canvas = new FieldCanvas();
+    M_field_canvas = new FieldCanvas( M_disp_holder );
     this->setCentralWidget( M_field_canvas );
 
     M_field_canvas->setFocus();
@@ -491,7 +488,7 @@ MainWindow::connectMonitorTo( const char * hostname )
     std::cerr << "Connect to [" << hostname << "] ..." << std::endl;
 
     M_monitor_client = new MonitorClient( this,
-                                          //M_main_data.dispHolder(),
+                                          M_disp_holder,
                                           hostname,
                                           Options::instance().serverPort(),
                                           Options::instance().clientVersion() );
@@ -505,7 +502,7 @@ MainWindow::connectMonitorTo( const char * hostname )
     }
 
     // reset all data
-//     M_main_data.clear();
+    M_disp_holder.clear();
 
 //     if ( M_player_type_dialog )
 //     {
@@ -523,7 +520,7 @@ MainWindow::connectMonitorTo( const char * hostname )
 //     M_save_image_act->setEnabled( false );
 //     M_open_output_act->setEnabled( true );
 
-//     M_kick_off_act->setEnabled( true );
+    M_kick_off_act->setEnabled( true );
 //     M_set_live_mode_act->setEnabled( true );
 //     M_connect_monitor_act->setEnabled( false );
 //     M_connect_monitor_to_act->setEnabled( false );
@@ -659,6 +656,15 @@ MainWindow::changeStyle( bool checked )
 void
 MainWindow::dropBall( const QPoint & point )
 {
+    {
+        double x = Options::instance().fieldX( point.x() );
+        double y = Options::instance().fieldY( point.y() );
+
+        std::cerr << "drop ball to ("
+                  << x << ", " << y << ")"
+                  << std::endl;
+    }
+
     if ( M_monitor_client
          && M_monitor_client->isConnected() )
     {
@@ -766,6 +772,7 @@ MainWindow::redCard( const char side,
 void
 MainWindow::receiveMonitorPacket()
 {
+    M_field_canvas->update();
 //     if ( M_log_player->isLiveMode() )
 //     {
 //         M_log_player->showLive();
@@ -828,10 +835,7 @@ MainWindow::resizeCanvas( const QSize & size )
 void
 MainWindow::updatePositionLabel( const QPoint & point )
 {
-    if ( M_position_label
-         && M_field_canvas
-         && statusBar()
-         && statusBar()->isVisible() )
+    if ( this->statusBar()->isVisible() )
     {
         double x = Options::instance().fieldX( point.x() );
         double y = Options::instance().fieldY( point.y() );

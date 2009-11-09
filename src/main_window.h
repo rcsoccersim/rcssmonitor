@@ -36,6 +36,8 @@
 #include <QMainWindow>
 #include <QString>
 
+#include "disp_holder.h"
+
 class QActionGroup;
 class QLabel;
 
@@ -50,6 +52,8 @@ class MainWindow
 private:
 
     QString M_window_style;
+
+    DispHolder M_disp_holder;
 
     FieldCanvas * M_field_canvas;
     MonitorClient * M_monitor_client;

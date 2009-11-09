@@ -104,10 +104,7 @@ Options::Options()
     , M_server_host( "127.0.0.1" )
     , M_server_port( 6000 )
     , M_client_version( 4 )
-    , M_time_shift_replay( true )
-    , M_minimum_mode( false )
-    , M_monitor_path( "self" )
-    , M_monitor_port( 6000 )
+    , M_max_disp_buffer( 100 )
     , M_game_log_file( "" )
     , M_output_file( "" )
     , M_auto_quit_mode( false )
@@ -140,6 +137,7 @@ Options::Options()
     , M_show_tackle_area( false )
     , M_show_stamina( false )
     , M_show_pointto( true )
+    , M_show_card( true )
     , M_show_offside_line( false )
     , M_show_draw_info( true )
     , M_ball_size( 0.35 )
@@ -152,12 +150,7 @@ Options::Options()
     , M_focus_type( FOCUS_POINT )
     , M_focus_point( 0.0, 0.0 )
     , M_selected_number( 0 )
-    , M_player_select_type( SELECT_UNSELECT )
-    , M_ball_trace_start( 0 )
-    , M_ball_trace_end( 0 )
-    , M_player_trace_start( 0 )
-    , M_player_trace_end( 0 )
-    , M_line_trace( true )
+    , M_player_select_type( UNSELECT )
     , M_ball_vel_cycle( 0 )
 {
     readSettings();
@@ -201,8 +194,8 @@ Options::readSettings()
 //     val = settings.value( "client-version" );
 //     if ( val.isValid() ) M_client_version = val.toInt();
 
-    val = settings.value( "monitor_port" );
-    if ( val.isValid() ) M_monitor_port = val.toInt();
+    val = settings.value( "max_disp_buffer" );
+    if ( val.isValid() ) M_max_disp_buffer = val.toInt();
 
     val = settings.value( "auto_quit_mode" );
     if ( val.isValid() ) M_auto_quit_mode = val.toBool();
@@ -294,6 +287,9 @@ Options::readSettings()
     val = settings.value( "show_pointto" );
     if ( val.isValid() ) M_show_pointto = val.toBool();
 
+    val = settings.value( "show_card" );
+    if ( val.isValid() ) M_show_card = val.toBool();
+
     val = settings.value( "ball_size", M_ball_size );
     if ( val.isValid() ) M_ball_size = val.toDouble();
 
@@ -334,8 +330,7 @@ Options::writeSettings()
 //     settings.setValue( "server-port", M_server_port );
 //     settings.setValue( "client-version", M_client_version );
 
-//     settings.setValue( "minimum_mode", M_minimum_mode );
-    settings.setValue( "monitor_port", M_monitor_port );
+    settings.setValue( "max_disp_buffer", M_max_disp_buffer );
     settings.setValue( "auto_quit_mode", M_auto_quit_mode );
     settings.setValue( "auto_quit_wait", M_auto_quit_wait );
     settings.setValue( "auto_loop_mode", M_auto_loop_mode );
@@ -366,6 +361,7 @@ Options::writeSettings()
     settings.setValue( "show_kick_accel_area", M_show_kick_accel_area );
     settings.setValue( "show_stamina", M_show_stamina );
     settings.setValue( "show_pointto", M_show_pointto );
+    settings.setValue( "show_card", M_show_card );
     settings.setValue( "ball_size", M_ball_size );
     settings.setValue( "player_size", M_player_size );
     settings.setValue( "show_grid_coord", M_show_grid_coord );
@@ -400,32 +396,19 @@ Options::parseCmdLine( int argc,
         // monitor options
         ( "connect,c",
           po::bool_switch( &M_connect ),
-          "start as a soccer monitor." )
+          "connect to the soccer server." )
         ( "server-host",
           po::value< std::string >( &M_server_host )->default_value( "127.0.0.1", "127.0.0.1" ),
-          "set host name to connect to rcssserver." )
+          "set host name or ip address where the soccer server is running." )
         ( "server-port",
           po::value< int >( &M_server_port )->default_value( 6000, "6000" ),
           "set port number to connect as the monitor client." )
         ( "client-version",
           po::value< int >( &M_client_version )->default_value( 4, "4" ),
           "set a monitor client protocol version." )
-//         ( "time-shift-replay",
-//           po::value< bool >( &M_time_shift_replay )->default_value( true, "on" ),
-//           "enable time shift replay mode." )
-        // logplayer options
-        ( "minimum-mode",
-          po::bool_switch( &M_minimum_mode )->default_value( M_minimum_mode ),
-          "start logplayer with minimum mode." )
-        ( "monitor-path,m",
-          po::value< std::string >( &M_monitor_path )->default_value( "self", "self" ),
-          "set the path to the monitor client invoked by rcsslogplayer." )
-        ( "monitor-port",
-          po::value< int >( &M_monitor_port )->default_value( 6000, "6000" ),
-          "set a port number to wait monitor client connections." )
-//         ( "output-file",
-//           po::value< std::string >( &M_output_file )->default_value( "", "" ),
-//           "set the output file path." )
+        ( "max_disp_buffer",
+          po::value< int >( &M_max_disp_buffer )->default_value( 100, "100" ),
+          "set max size of display information buffer." )
         ( "auto-quit-mode",
           po::value< bool >( &M_auto_quit_mode )->default_value( false, "off" ),
           "enable automatic quit mode." )
@@ -508,7 +491,10 @@ Options::parseCmdLine( int argc,
           "show player\'s stamina capacity." )
         ( "show-pointto",
           po::value< bool >( &M_show_pointto )->default_value( false, "off" ),
-          "show player\'s pointing to point." )
+          "show player\'s pointto status." )
+        ( "show-card",
+          po::value< bool >( &M_show_card )->default_value( true, "on" ),
+          "show player\'s yellow/red cards." )
         ( "ball-size",
           po::value< double >( &M_ball_size )->default_value( 0.35, "0.35" ),
           "set a ball radius in enlarge mode." )
@@ -803,7 +789,7 @@ Options::setFocusPoint( const int screen_x,
 void
 Options::unselectPlayer()
 {
-    M_player_select_type = Options::SELECT_UNSELECT;
+    M_player_select_type = Options::UNSELECT;
     setSelectedNumber( rcss::rcg::NEUTRAL, 0 );
     M_focus_type = Options::FOCUS_POINT;
 }
