@@ -87,6 +87,7 @@ PlayerPainter::PlayerPainter( const DispHolder & disp_holder )
     : M_disp_holder( disp_holder )
     , M_player_font( "Sans Serif", 10 )
     , M_player_pen( QColor( 0, 0, 0 ), 0, Qt::SolidLine )
+    , M_selected_player_pen( QColor( 0, 0, 0 ), 2, Qt::SolidLine )
     , M_left_team_pen( QColor( 255, 215, 0 ), 0, Qt::SolidLine )
     , M_left_team_brush( QColor( 255, 215, 0 ), Qt::SolidPattern )
     , M_left_goalie_pen( QColor( 39, 231, 31 ), 0, Qt::SolidLine )
@@ -144,7 +145,7 @@ PlayerPainter::readSettings()
     QSettings settings( Options::CONF_FILE,
                         QSettings::IniFormat );
 
-    settings.beginGroup( "PlayerPainter" );
+    settings.beginGroup( "Player" );
 
     QVariant val;
 
@@ -242,7 +243,7 @@ PlayerPainter::writeSettings()
     QSettings settings( Options::CONF_FILE,
                         QSettings::IniFormat );
 
-    settings.beginGroup( "PlayerPainter" );
+    settings.beginGroup( "Player" );
 
     settings.setValue( "player_font", M_player_font.toString() );
 
@@ -364,7 +365,14 @@ PlayerPainter::drawBody( QPainter & painter,
                          const PlayerPainter::Param & param ) const
 {
     // decide base color
-    painter.setPen( M_player_pen );
+    if ( Options::instance().selectedPlayer( param.player_.side(), param.player_.unum_ ) )
+    {
+        painter.setPen( M_selected_player_pen );
+    }
+    else
+    {
+        painter.setPen( M_player_pen );
+    }
 
     switch ( param.player_.side_ ) {
     case 'l':
@@ -1071,7 +1079,7 @@ PlayerPainter::drawText( QPainter & painter,
         //                ? M_left_team_pen
         //                : M_right_team_pen );
 
-        if ( text_radius < param.draw_radius_ )
+        if ( text_radius < param.draw_radius_ - 10 )
         {
             painter.setPen( M_player_number_inner_pen );
         }

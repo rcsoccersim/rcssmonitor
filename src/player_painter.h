@@ -76,6 +76,7 @@ private:
     QFont M_player_font;
 
     QPen M_player_pen;
+    QPen M_selected_player_pen;
     QPen M_left_team_pen;
     QBrush M_left_team_brush;
     QPen M_left_goalie_pen;

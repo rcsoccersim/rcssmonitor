@@ -9,6 +9,7 @@ rcssmonitor_SOURCES = \
 	angle_deg.cpp \
 	ball_painter.cpp \
 	circle_2d.cpp \
+	config_dialog.cpp \
 	disp_holder.cpp \
 	field_canvas.cpp \
 	field_painter.cpp \
@@ -24,6 +25,7 @@ rcssmonitor_SOURCES = \
 	main.cpp
 
 nodist_rcssmonitor_SOURCES = \
+	moc_config_dialog.cpp \
 	moc_field_canvas.cpp \
 	moc_main_window.cpp \
 	moc_monitor_client.cpp
@@ -36,6 +38,7 @@ noinst_HEADERS = \
 	angle_deg.h \
 	ball_painter.h \
 	circle_2d.h \
+	config_dialog.h \
 	disp_holder.h \
 	field_canvas.h \
 	field_painter.h \

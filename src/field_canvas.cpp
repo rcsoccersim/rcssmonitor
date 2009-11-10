@@ -62,13 +62,23 @@ FieldCanvas::FieldCanvas( DispHolder & disp_holder )
     QWidget( /* parent, flags */ ),
 #endif
     M_disp_holder( disp_holder ),
-    M_monitor_menu( static_cast< QMenu * >( 0 ) )
+    M_monitor_menu( static_cast< QMenu * >( 0 ) ),
+    M_measure_line_pen( QColor( 0, 255, 255 ), 0, Qt::SolidLine ),
+    M_measure_mark_pen( QColor( 255, 0, 0 ), 0, Qt::SolidLine ),
+    M_measure_font_pen( QColor( 255, 191, 191 ), 0, Qt::SolidLine ),
+    M_measure_font_pen2( QColor( 224, 224, 192 ), 0, Qt::SolidLine ),
+    M_measure_font( "Sans Serif", 9 )
 {
+    M_focus_move_mouse = &M_mouse_state[0];
+    M_measure_mouse = &M_mouse_state[1];
+    M_menu_mouse = &M_mouse_state[2];
+
     this->setMouseTracking( true ); // need for the MouseMoveEvent
     this->setFocusPolicy( Qt::WheelFocus );
 
     readSettings();
 
+    createPopupMenu();
     createPainters();
 }
 
@@ -86,45 +96,29 @@ FieldCanvas::~FieldCanvas()
 
 */
 void
-FieldCanvas::setMonitorMenu( QMenu * menu )
-{
-    if ( M_monitor_menu )
-    {
-        delete M_monitor_menu;
-        M_monitor_menu = static_cast< QMenu * >( 0 );
-    }
-
-    M_monitor_menu = menu;
-}
-
-/*-------------------------------------------------------------------*/
-/*!
-
-*/
-void
 FieldCanvas::readSettings()
 {
     QSettings settings( Options::CONF_FILE,
                         QSettings::IniFormat );
 
-    settings.beginGroup( "FieldCanvas" );
+    settings.beginGroup( "Field" );
 
-//     QVariant val;
+    QVariant val;
 
-//     val = settings.value( "measure_line_pen" );
-//     if ( val.isValid() ) M_measure_line_pen.setColor( val.toString() );
+    val = settings.value( "measure_line_pen" );
+    if ( val.isValid() ) M_measure_line_pen.setColor( val.toString() );
 
-//     val = settings.value( "measure_mark_pen" );
-//     if ( val.isValid() ) M_measure_mark_pen.setColor( val.toString() );
+    val = settings.value( "measure_mark_pen" );
+    if ( val.isValid() ) M_measure_mark_pen.setColor( val.toString() );
 
-//     val = settings.value( "measure_font_pen" );
-//     if ( val.isValid() ) M_measure_font_pen.setColor( val.toString() );
+    val = settings.value( "measure_font_pen" );
+    if ( val.isValid() ) M_measure_font_pen.setColor( val.toString() );
 
-//     val = settings.value( "measure_font_pen2" );
-//     if ( val.isValid() ) M_measure_font_pen2.setColor( val.toString() );
+    val = settings.value( "measure_font_pen2" );
+    if ( val.isValid() ) M_measure_font_pen2.setColor( val.toString() );
 
-//     val = settings.value( "measure_font" );
-//     if ( val.isValid() ) M_measure_font.fromString( val.toString() );
+    val = settings.value( "measure_font" );
+    if ( val.isValid() ) M_measure_font.fromString( val.toString() );
 
     settings.endGroup();
 }
@@ -139,13 +133,13 @@ FieldCanvas::writeSettings()
     QSettings settings( Options::CONF_FILE,
                         QSettings::IniFormat );
 
-    settings.beginGroup( "FieldCanvas" );
+    settings.beginGroup( "Field" );
 
-//     settings.setValue( "measure_line_pen", M_measure_line_pen.color().name() );
-//     settings.setValue( "measure_mark_pen", M_measure_mark_pen.color().name() );
-//     settings.setValue( "measure_font_pen", M_measure_font_pen.color().name() );
-//     settings.setValue( "measure_font_pen2", M_measure_font_pen2.color().name() );
-//     settings.setValue( "measure_font", M_measure_font.toString() );
+    settings.setValue( "measure_line_pen", M_measure_line_pen.color().name() );
+    settings.setValue( "measure_mark_pen", M_measure_mark_pen.color().name() );
+    settings.setValue( "measure_font_pen", M_measure_font_pen.color().name() );
+    settings.setValue( "measure_font_pen2", M_measure_font_pen2.color().name() );
+    settings.setValue( "measure_font", M_measure_font.toString() );
 
     settings.endGroup();
 }
@@ -155,9 +149,26 @@ FieldCanvas::writeSettings()
 
 */
 void
+FieldCanvas::createPopupMenu()
+{
+    // create & set context menus
+    M_monitor_menu = new QMenu( this );
+    M_monitor_menu->addAction( tr( "Drop Ball" ),
+                               this, SLOT( dropBall() ) );
+    M_monitor_menu->addAction( tr( "Free Kick Left" ),
+                               this, SLOT( freeKickLeft() ) );
+    M_monitor_menu->addAction( tr( "Free Kick Right" ),
+                               this, SLOT( freeKickRight() ) );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+void
 FieldCanvas::createPainters()
 {
-    M_field_painter = boost::shared_ptr< FieldPainter >( new FieldPainter() );
+    M_field_painter = boost::shared_ptr< FieldPainter >( new FieldPainter( M_disp_holder ) );
 
     M_painters.push_back( boost::shared_ptr< PainterInterface >( new PlayerPainter( M_disp_holder ) ) );
     M_painters.push_back( boost::shared_ptr< PainterInterface >( new BallPainter( M_disp_holder ) ) );
@@ -195,14 +206,7 @@ FieldCanvas::mousePressEvent( QMouseEvent * event )
             M_mouse_state[1].setMenuFailed( false );
         }
 
-        if ( event->modifiers() == Qt::ControlModifier )
-        {
-            emit focusChanged( event->pos() );
-        }
-//         else
-//         {
-//             selectPlayer( event->pos() );
-//         }
+        // selectPlayer( event->pos() );
     }
     else if ( event->button() == Qt::MidButton )
     {
@@ -241,7 +245,6 @@ FieldCanvas::mouseReleaseEvent( QMouseEvent * event )
     }
     else if ( event->button() == Qt::RightButton )
     {
-        std::cerr << "mouse 2 released" << std::endl;
         M_mouse_state[2].released();
     }
 }
@@ -258,7 +261,7 @@ FieldCanvas::mouseMoveEvent( QMouseEvent * event )
         this->unsetCursor();
     }
 
-    if ( M_mouse_state[0].isDragged() )
+    if ( M_focus_move_mouse->isDragged() )
     {
 #if QT_VERSION >= 0x040200
         if ( this->cursor().shape() != Qt::ClosedHandCursor )
@@ -274,8 +277,8 @@ FieldCanvas::mouseMoveEvent( QMouseEvent * event )
 
         int new_x = Options::instance().screenX( Options::instance().focusPoint().x() );
         int new_y = Options::instance().screenY( Options::instance().focusPoint().y() );
-        new_x -= ( event->pos().x() - M_mouse_state[0].draggedPoint().x() );
-        new_y -= ( event->pos().y() - M_mouse_state[0].draggedPoint().y() );
+        new_x -= ( event->pos().x() - M_focus_move_mouse->draggedPoint().x() );
+        new_y -= ( event->pos().y() - M_focus_move_mouse->draggedPoint().y() );
         emit focusChanged( QPoint( new_x, new_y ) );
     }
 
@@ -284,31 +287,34 @@ FieldCanvas::mouseMoveEvent( QMouseEvent * event )
         M_mouse_state[i].moved( event->pos() );
     }
 
-//     if ( M_mouse_state[2].isDragged() )
-//     {
-//         static QRect s_last_rect;
-//         std::cerr << "mouse 2 dragged" << std::endl;
-//         if ( this->cursor().shape() != Qt::CrossCursor )
-//         {
-//             this->setCursor( QCursor( Qt::CrossCursor ) );
-//         }
+    if ( M_measure_mouse->isDragged() )
+    {
+        static QRect s_last_rect;
 
-//         QRect new_rect
-//             = QRect( M_mouse_state[2].pressedPoint(),
-//                      M_mouse_state[2].draggedPoint() ).normalized();
-//         new_rect.adjust( -32, -32, 32, 32 );
-//         if ( new_rect.right() < M_mouse_state[2].draggedPoint().x() + 256 )
-//         {
-//             new_rect.setRight( M_mouse_state[2].draggedPoint().x() + 256 );
-//         }
-//         // draw mouse measure
-//         this->update( s_last_rect.unite( new_rect ) );
-//         s_last_rect = new_rect;
-//     }
+        if ( this->cursor().shape() != Qt::CrossCursor )
+        {
+            this->setCursor( QCursor( Qt::CrossCursor ) );
+        }
+
+        QRect new_rect = QRect( M_measure_mouse->pressedPoint(),
+                                M_measure_mouse->draggedPoint() ).normalized();
+        new_rect.adjust( -32, -32, 32, 32 );
+        if ( new_rect.right() < M_measure_mouse->draggedPoint().x() + 256 )
+        {
+            new_rect.setRight( M_measure_mouse->draggedPoint().x() + 256 );
+        }
+        // draw mouse measure
+        this->update( s_last_rect.unite( new_rect ) );
+        s_last_rect = new_rect;
+    }
 
     emit mouseMoved( event->pos() );
 }
 
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
 void
 FieldCanvas::contextMenuEvent( QContextMenuEvent * event )
 {
@@ -328,16 +334,12 @@ FieldCanvas::paintEvent( QPaintEvent * )
 {
     QPainter painter( this );
 
-    if ( Options::instance().antiAliasing() )
-    {
-#ifdef USE_GLWIDGET
-        painter.setRenderHint( QPainter::HighQualityAntialiasing );
-#else
-        painter.setRenderHint( QPainter::Antialiasing );
-#endif
-    }
-
     draw( painter );
+
+    if ( M_measure_mouse->isDragged() )
+    {
+        drawMouseMeasure( painter );
+    }
 }
 
 /*-------------------------------------------------------------------*/
@@ -445,6 +447,98 @@ FieldCanvas::draw( QPainter & painter )
     {
         (*it)->draw( painter );
     }
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+void
+FieldCanvas::drawMouseMeasure( QPainter & painter )
+{
+    const Options & opt = Options::instance();
+
+    QPoint start_point = M_measure_mouse->pressedPoint();
+    QPoint end_point = M_measure_mouse->draggedPoint();
+
+    if ( opt.antiAliasing() )
+    {
+        painter.setRenderHint( QPainter::Antialiasing, false );
+    }
+
+    // draw straight line
+    painter.setPen( M_measure_line_pen );
+    painter.setBrush( Qt::NoBrush );
+    painter.drawLine( start_point, end_point );
+
+    // draw mark
+    painter.setPen( M_measure_mark_pen );
+    painter.drawEllipse( start_point.x() - 2,
+                         start_point.y() - 2,
+                         4,
+                         4 );
+    painter.drawEllipse( end_point.x() - 2,
+                         end_point.y() - 2,
+                         4,
+                         4 );
+
+    if ( opt.antiAliasing() )
+    {
+        painter.setRenderHint( QPainter::Antialiasing );
+    }
+
+    // draw distance & angle text
+    painter.setFont( M_measure_font );
+    painter.setPen( M_measure_font_pen );
+
+    char buf[64];
+
+    // draw start point value
+    QPointF start_real( opt.fieldX( start_point.x() ),
+                        opt.fieldY( start_point.y() ) );
+    snprintf( buf, 64,
+              "(%.2f,%.2f)",
+              start_real.x(),
+              start_real.y() );
+    painter.drawText( start_point,
+                      QString::fromAscii( buf ) );
+
+    if ( std::abs( start_point.x() - end_point.x() ) < 1
+         && std::abs( start_point.y() - end_point.y() ) < 1 )
+    {
+        return;
+    }
+
+    // draw end point value
+    QPointF end_real( opt.fieldX( end_point.x() ),
+                      opt.fieldY( end_point.y() ) );
+    snprintf( buf, 64,
+              "(%.2f,%.2f)",
+              end_real.x(),
+              end_real.y() );
+    painter.drawText( end_point.x(),
+                      end_point.y(),
+                      QString::fromAscii( buf ) );
+
+    // draw relative coordinate value
+    painter.setPen( M_measure_font_pen2 );
+
+    QPointF rel( end_real - start_real );
+    double r = std::sqrt( std::pow( rel.x(), 2.0 ) + std::pow( rel.y(), 2.0 ) );
+    double th = ( rel.x() == 0.0 && rel.y() == 0.0
+                   ? 0.0
+                   : std::atan2( rel.y(), rel.x() ) * 180.0 / M_PI );
+
+    snprintf( buf, 64,
+              "rel(%.2f,%.2f) r%.2f th%.1f",
+              rel.x(), rel.y(), r, th );
+
+    int dist_add_y = ( end_point.y() > start_point.y()
+                       ? + painter.fontMetrics().height()
+                       : - painter.fontMetrics().height() );
+    painter.drawText( end_point.x(),
+                      end_point.y() + dist_add_y,
+                      QString::fromAscii( buf ) );
 }
 
 /*-------------------------------------------------------------------*/

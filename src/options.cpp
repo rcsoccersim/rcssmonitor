@@ -99,18 +99,15 @@ Options::instance()
 
  */
 Options::Options()
-    : M_monitor_client_mode( false )
-    , M_connect( false )
+    : M_connect( true )
     , M_server_host( "127.0.0.1" )
     , M_server_port( 6000 )
     , M_client_version( 4 )
     , M_max_disp_buffer( 100 )
-    , M_game_log_file( "" )
-    , M_output_file( "" )
+      //, M_game_log_file( "" )
+      //, M_output_file( "" )
     , M_auto_quit_mode( false )
     , M_auto_quit_wait( 5 )
-    , M_auto_loop_mode( false )
-    , M_timer_interval( Options::DEFAULT_TIMER_INTERVAL )
       // window options
     , M_window_x( -1 )
     , M_window_y( -1 )
@@ -175,12 +172,40 @@ Options::readSettings()
     QSettings settings( Options::CONF_FILE,
                         QSettings::IniFormat );
 
-    settings.beginGroup( "Global" );
-
     QVariant val;
 
-//     val = settings.value( "game_log_file" );
-//     if ( val.isValid() ) M_game_log_file = val.toString().toStdString();
+    settings.beginGroup( "MainWindow" );
+
+    val = settings.value( "window_width" );
+    if ( val.isValid() ) M_window_width = val.toInt();
+
+    val = settings.value( "window_height" );
+    if ( val.isValid() ) M_window_height = val.toInt();
+
+    val = settings.value( "window_x" );
+    if ( val.isValid() ) M_window_x = val.toInt();
+
+    val = settings.value( "window_y" );
+    if ( val.isValid() ) M_window_y = val.toInt();
+
+    val = settings.value( "maximize" );
+    if ( val.isValid() ) M_maximize = val.toBool();
+
+    val = settings.value( "full_screen" );
+    if ( val.isValid() ) M_full_screen = val.toBool();
+
+    val = settings.value( "hide_menu_bar" );
+    if ( val.isValid() ) M_hide_menu_bar = val.toBool();
+
+    val = settings.value( "hide_tool_bar" );
+    if ( val.isValid() ) M_hide_tool_bar = val.toBool();
+
+    val = settings.value( "hide_status_bar" );
+    if ( val.isValid() ) M_hide_status_bar = val.toBool();
+
+    settings.endGroup();
+
+    settings.beginGroup( "Monitor" );
 
 //     val = settings.value( "connect" );
 //     if ( val.isValid() ) M_connect  = val.toBool();
@@ -203,44 +228,9 @@ Options::readSettings()
     val = settings.value( "auto_quit_wait" );
     if ( val.isValid() ) M_auto_quit_wait = val.toInt();
 
-    val = settings.value( "auto_loop_mode" );
-    if ( val.isValid() ) M_auto_loop_mode = val.toBool();
+    settings.endGroup();
 
-    val = settings.value( "timer_interval" );
-    if ( val.isValid() ) M_timer_interval = val.toInt();
-
-    val = settings.value( "window_width" );
-    if ( val.isValid() ) M_window_width = val.toInt();
-
-    val = settings.value( "window_height" );
-    if ( val.isValid() ) M_window_height = val.toInt();
-
-    val = settings.value( "window_x" );
-    if ( val.isValid() ) M_window_x = val.toInt();
-
-    val = settings.value( "window_y" );
-    if ( val.isValid() ) M_window_y = val.toInt();
-
-//     val = settings.value( "canvas_width" );
-//     if ( val.isValid() ) M_canvas_width = val.toInt();
-
-//     val = settings.value( "canvas_height" );
-//     if ( val.isValid() ) M_canvas_height = val.toInt();
-
-    val = settings.value( "maximize" );
-    if ( val.isValid() ) M_maximize = val.toBool();
-
-    val = settings.value( "full_screen" );
-    if ( val.isValid() ) M_full_screen = val.toBool();
-
-    val = settings.value( "hide_menu_bar" );
-    if ( val.isValid() ) M_hide_menu_bar = val.toBool();
-
-    val = settings.value( "hide_tool_bar" );
-    if ( val.isValid() ) M_hide_tool_bar = val.toBool();
-
-    val = settings.value( "hide_status_bar" );
-    if ( val.isValid() ) M_hide_status_bar = val.toBool();
+    settings.beginGroup( "Field" );
 
     val = settings.value( "anti_aliasing" );
     if ( val.isValid() ) M_anti_aliasing = val.toBool();
@@ -290,17 +280,11 @@ Options::readSettings()
     val = settings.value( "show_card" );
     if ( val.isValid() ) M_show_card = val.toBool();
 
-    val = settings.value( "ball_size", M_ball_size );
-    if ( val.isValid() ) M_ball_size = val.toDouble();
-
-    val = settings.value( "player_size", M_player_size );
-    if ( val.isValid() ) M_player_size = val.toDouble();
+    val = settings.value( "grid_step", M_grid_step );
+    if ( val.isValid() ) M_grid_step = val.toDouble();
 
     val = settings.value( "show_grid_coord", M_show_grid_coord );
     if ( val.isValid() ) M_show_grid_coord = val.toBool();
-
-    val = settings.value( "grid_step", M_grid_step );
-    if ( val.isValid() ) M_grid_step = val.toDouble();
 
     val = settings.value( "show_flag", M_show_flag );
     if ( val.isValid() ) M_show_flag = val.toBool();
@@ -308,6 +292,16 @@ Options::readSettings()
     val = settings.value( "show_offside_line", M_show_offside_line );
     if ( val.isValid() ) M_show_offside_line = val.toBool();
 
+    settings.endGroup();
+
+    settings.beginGroup( "Ball" );
+    val = settings.value( "ball_size", M_ball_size );
+    if ( val.isValid() ) M_ball_size = val.toDouble();
+    settings.endGroup();
+
+    settings.beginGroup( "Player" );
+    val = settings.value( "player_size", M_player_size );
+    if ( val.isValid() ) M_player_size = val.toDouble();
     settings.endGroup();
 }
 
@@ -321,20 +315,7 @@ Options::writeSettings()
     QSettings settings( Options::CONF_FILE,
                         QSettings::IniFormat );
 
-    settings.beginGroup( "Global" );
-
-//     settings.setValue( "game_log_file", QString::fromStdString( M_game_log_file ) );
-
-//     settings.setValue( "connect", M_connect );
-//     settings.setValue( "server-host", QString::fromStdString( M_server_host ) );
-//     settings.setValue( "server-port", M_server_port );
-//     settings.setValue( "client-version", M_client_version );
-
-    settings.setValue( "max_disp_buffer", M_max_disp_buffer );
-    settings.setValue( "auto_quit_mode", M_auto_quit_mode );
-    settings.setValue( "auto_quit_wait", M_auto_quit_wait );
-    settings.setValue( "auto_loop_mode", M_auto_loop_mode );
-    settings.setValue( "timer_interval", M_timer_interval );
+    settings.beginGroup( "MainWindow" );
 //     settings.setValue( "window_width", M_window_width );
 //     settings.setValue( "window_height", M_window_height );
 //     settings.setValue( "window_x", M_window_x );
@@ -346,6 +327,19 @@ Options::writeSettings()
 //     settings.setValue( "hide_menu_bar", M_hide_menu_bar );
 //     settings.setValue( "hide_tool_bar", M_hide_tool_bar );
 //     settings.setValue( "hide_status_bar", M_hide_status_bar );
+    settings.endGroup();
+
+    settings.beginGroup( "Monitor" );
+//     settings.setValue( "connect", M_connect );
+//     settings.setValue( "server-host", QString::fromStdString( M_server_host ) );
+//     settings.setValue( "server-port", M_server_port );
+//     settings.setValue( "client-version", M_client_version );
+    settings.setValue( "max_disp_buffer", M_max_disp_buffer );
+    settings.setValue( "auto_quit_mode", M_auto_quit_mode );
+    settings.setValue( "auto_quit_wait", M_auto_quit_wait );
+    settings.endGroup();
+
+    settings.beginGroup( "Field" );
     settings.setValue( "anti_aliasing", M_anti_aliasing );
     settings.setValue( "show_score_board", M_show_score_board );
     settings.setValue( "show_keepaway_area", M_show_keepaway_area );
@@ -362,13 +356,21 @@ Options::writeSettings()
     settings.setValue( "show_stamina", M_show_stamina );
     settings.setValue( "show_pointto", M_show_pointto );
     settings.setValue( "show_card", M_show_card );
-    settings.setValue( "ball_size", M_ball_size );
-    settings.setValue( "player_size", M_player_size );
     settings.setValue( "show_grid_coord", M_show_grid_coord );
     settings.setValue( "grid_step", M_grid_step );
     settings.setValue( "show_flag", M_show_flag );
     settings.setValue( "show_offside_line", M_show_offside_line );
 
+    settings.endGroup();
+
+
+    settings.beginGroup( "Ball" );
+    settings.setValue( "ball_size", M_ball_size );
+    settings.endGroup();
+
+
+    settings.beginGroup( "Player" );
+    settings.setValue( "player_size", M_player_size );
     settings.endGroup();
 }
 
@@ -395,7 +397,7 @@ Options::parseCmdLine( int argc,
           "print version information." )
         // monitor options
         ( "connect,c",
-          po::bool_switch( &M_connect ),
+          po::bool_switch( &M_connect )->default_value( M_connect ),
           "connect to the soccer server." )
         ( "server-host",
           po::value< std::string >( &M_server_host )->default_value( "127.0.0.1", "127.0.0.1" ),
@@ -415,19 +417,10 @@ Options::parseCmdLine( int argc,
         ( "auto-quit-wait",
           po::value< int >( &M_auto_quit_wait )->default_value( 5, "5" ),
           "set a wait period for the automatic quit mode." )
-        ( "auto-loop-mode",
-          po::value< bool >( &M_auto_loop_mode )->default_value( false, "off" ),
-          "enable automatic replay loop mode." )
-        ( "timer-interval",
-          po::value< int >( &M_timer_interval )->default_value( DEFAULT_TIMER_INTERVAL ),
-          "set the logplayer timer interval." )
         // window options
         ( "geometry",
           po::value< std::string >( &geometry )->default_value( "" ),
           "specifies the window geometry ([WxH][+X+Y]). e.g. --geometry=1024x768+1+1" )
-//         ( "canvas-size",
-//           po::value< std::string >( &canvas_size )->default_value( "" ),
-//           "specifies the canvas size(WxH). e.g. --canvas-size=1024x768" )
         ( "maximize",
           po::bool_switch( &M_maximize )->default_value( M_maximize ),
           "start with a maximized window." )
@@ -437,9 +430,9 @@ Options::parseCmdLine( int argc,
         ( "hide-menu-bar",
           po::bool_switch( &M_hide_menu_bar )->default_value( M_hide_menu_bar ),
           "start without a menu bar." )
-        ( "hide-tool-bar",
-          po::bool_switch( &M_hide_tool_bar )->default_value( M_hide_tool_bar ),
-          "start without a tool bar." )
+//         ( "hide-tool-bar",
+//           po::bool_switch( &M_hide_tool_bar )->default_value( M_hide_tool_bar ),
+//           "start without a tool bar." )
         ( "hide-status-bar",
           po::bool_switch( &M_hide_status_bar )->default_value( M_hide_status_bar ),
           "start without a status bar." )
@@ -516,11 +509,11 @@ Options::parseCmdLine( int argc,
         ;
 
     po::options_description invisibles( "Invisibles" );
-    invisibles.add_options()
-        ( "game-log-file",
-          po::value< std::string >( &M_game_log_file )->default_value( "" ),
-          "set the path to Game Log file(.rcg) to be opened.")
-        ;
+//     invisibles.add_options()
+//         ( "game-log-file",
+//           po::value< std::string >( &M_game_log_file )->default_value( "" ),
+//           "set the path to Game Log file(.rcg) to be opened.")
+//         ;
 
     po::positional_options_description pdesc;
     pdesc.add( "game-log-file", 1 );
@@ -566,26 +559,26 @@ Options::parseCmdLine( int argc,
         return false;
     }
 
-    if ( M_timer_interval < 0 )
-    {
-        std::cerr << "Illegal timer interval " << M_timer_interval
-                  << ". set default value." << std::endl;
-        M_timer_interval = DEFAULT_TIMER_INTERVAL;
-    }
+//     if ( M_timer_interval < 0 )
+//     {
+//         std::cerr << "Illegal timer interval " << M_timer_interval
+//                   << ". set default value." << std::endl;
+//         M_timer_interval = DEFAULT_TIMER_INTERVAL;
+//     }
 
-    if ( M_timer_interval < 5 )
-    {
-        std::cerr << "Too small timer interval " << M_timer_interval
-                  << ".  replaced by 5." << std::endl;
-        M_timer_interval = 5;
-    }
+//     if ( M_timer_interval < 5 )
+//     {
+//         std::cerr << "Too small timer interval " << M_timer_interval
+//                   << ".  replaced by 5." << std::endl;
+//         M_timer_interval = 5;
+//     }
 
-    if ( M_timer_interval > 5000 )
-    {
-        std::cerr << "Too huge timer interval " << M_timer_interval
-                  << ".  replaced by 5000." << std::endl;
-        M_timer_interval = 5000;
-    }
+//     if ( M_timer_interval > 5000 )
+//     {
+//         std::cerr << "Too huge timer interval " << M_timer_interval
+//                   << ".  replaced by 5000." << std::endl;
+//         M_timer_interval = 5000;
+//     }
 
     if ( ! geometry.empty() )
     {
@@ -704,7 +697,7 @@ Options::zoomOut()
 
  */
 void
-Options::unzoom()
+Options::fitToScreen()
 {
     if ( M_zoomed
          || focusType() != Options::FOCUS_POINT

@@ -37,20 +37,24 @@
 #include <QPen>
 #include <QBrush>
 
+class DispHolder;
+
 class FieldPainter
     : public PainterInterface {
 private:
+
+    DispHolder & M_disp_holder;
 
     QBrush M_field_brush;
     QPen M_line_pen;
 
     // not used
+    FieldPainter();
     FieldPainter( const FieldPainter & );
     const FieldPainter & operator=( const FieldPainter & );
 public:
 
-
-    FieldPainter();
+    FieldPainter( DispHolder & disp_holder );
     ~FieldPainter();
 
     void draw( QPainter & painter );

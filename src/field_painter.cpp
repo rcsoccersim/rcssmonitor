@@ -38,6 +38,7 @@
 
 #include "field_painter.h"
 
+#include "disp_holder.h"
 #include "options.h"
 
 #include <iostream>
@@ -46,9 +47,10 @@
 /*!
 
  */
-FieldPainter::FieldPainter()
-    : M_field_brush( QColor( 31, 160, 31 ), Qt::SolidPattern )
-    , M_line_pen( QColor( 255, 255, 255 ),1, Qt::SolidLine )
+FieldPainter::FieldPainter( DispHolder & disp_holder )
+    : M_disp_holder( disp_holder ),
+      M_field_brush( QColor( 31, 160, 31 ), Qt::SolidPattern ),
+      M_line_pen( QColor( 255, 255, 255 ),1, Qt::SolidLine )
 {
     readSettings();
 }
@@ -72,7 +74,7 @@ FieldPainter::readSettings()
     QSettings settings( Options::CONF_FILE,
                         QSettings::IniFormat );
 
-    settings.beginGroup( "FieldPainter" );
+    settings.beginGroup( "Field" );
 
     QVariant val;
 
@@ -95,7 +97,7 @@ FieldPainter::writeSettings()
     QSettings settings( Options::CONF_FILE,
                         QSettings::IniFormat );
 
-    settings.beginGroup( "FieldPainter" );
+    settings.beginGroup( "Field" );
 
     settings.setValue( "field_brush", M_field_brush.color().name() );
     settings.setValue( "line_pen", M_line_pen.color().name() );
@@ -112,11 +114,7 @@ FieldPainter::draw( QPainter & painter )
 {
     if ( Options::instance().antiAliasing() )
     {
-#ifdef USE_GLWIDGET
-        painter.setRenderHint( QPainter::HighQualityAntialiasing, false );
-#else
         painter.setRenderHint( QPainter::Antialiasing, false );
-#endif
     }
 
     drawBackGround( painter );
@@ -135,11 +133,7 @@ FieldPainter::draw( QPainter & painter )
 
     if ( Options::instance().antiAliasing() )
     {
-#ifdef USE_GLWIDGET
-        painter.setRenderHint( QPainter::HighQualityAntialiasing );
-#else
         painter.setRenderHint( QPainter::Antialiasing );
-#endif
     }
 }
 
@@ -163,7 +157,7 @@ void
 FieldPainter::drawLines( QPainter & painter ) const
 {
     const Options & opt = Options::instance();
-    //    const rcss::rcg::ServerParamT & sparam = M_main_data.serverParam();
+    const rcss::rcg::ServerParamT & SP = M_disp_holder.serverParam();
 
     // set paint styles
     painter.setPen( M_line_pen );
@@ -181,20 +175,18 @@ FieldPainter::drawLines( QPainter & painter ) const
     painter.drawLine( right_x, bottom_y, left_x, bottom_y );
     painter.drawLine( left_x, bottom_y, left_x, top_y );
 
-#if 0
-    if ( sparam.keepaway_mode_
+    if ( SP.keepaway_mode_
          || opt.showKeepawayArea() )
     {
         // keepaway area
-        int ka_left = opt.screenX( - sparam.keepaway_length_ * 0.5 );
-        int ka_top = opt.screenY( - sparam.keepaway_width_ * 0.5 );
-        int ka_width = opt.scale( sparam.keepaway_width_  );
-        int ka_length = opt.scale( sparam.keepaway_length_ );
+        int ka_left = opt.screenX( - SP.keepaway_length_ * 0.5 );
+        int ka_top = opt.screenY( - SP.keepaway_width_ * 0.5 );
+        int ka_width = opt.scale( SP.keepaway_width_  );
+        int ka_length = opt.scale( SP.keepaway_length_ );
 
         painter.drawRect( ka_left, ka_top, ka_length, ka_width );
     }
     else
-#endif
     {
         // center line
         painter.drawLine( opt.fieldCenter().x(), top_y,

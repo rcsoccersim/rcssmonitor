@@ -81,7 +81,7 @@ ScoreBoardPainter::readSettings()
     QSettings settings( Options::CONF_FILE,
                         QSettings::IniFormat );
 
-    settings.beginGroup( "ScoreBoardPainter" );
+    settings.beginGroup( "ScoreBoard" );
 
     QVariant val;
 
@@ -107,7 +107,7 @@ ScoreBoardPainter::writeSettings()
     QSettings settings( Options::CONF_FILE,
                         QSettings::IniFormat );
 
-    settings.beginGroup( "ScoreBoardPainter" );
+    settings.beginGroup( "ScoreBoard" );
 
     settings.setValue( "score_board_pen", M_pen.color().name() );
     settings.setValue( "score_board_brush", M_brush.color().name() );

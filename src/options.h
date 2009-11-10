@@ -98,7 +98,6 @@ private:
     //
     // monitor client options
     //
-    bool M_monitor_client_mode;
     bool M_connect;
     std::string M_server_host;
     int M_server_port;
@@ -108,12 +107,10 @@ private:
     // monitor options
     //
     int M_max_disp_buffer;
-    std::string M_game_log_file; //!< game log file path to be opened
-    std::string M_output_file;
+    //std::string M_game_log_file; //!< game log file path to be opened
+    //std::string M_output_file;
     bool M_auto_quit_mode;
     int M_auto_quit_wait;
-    bool M_auto_loop_mode;
-    int M_timer_interval; //!< logplayer's timer interval. default 100[ms]
 
     //
     // window options
@@ -210,15 +207,6 @@ public:
     // monitor options
     //
 
-    bool monitorClientMode() const
-      {
-          return M_monitor_client_mode;
-      }
-    void setMonitorClientMode( const bool on )
-      {
-          M_monitor_client_mode = on;
-      }
-
     bool connect() const
       {
           return M_connect;
@@ -249,40 +237,13 @@ public:
           return M_max_disp_buffer;
       }
 
-    const
-    std::string & gameLogFile() const
-      {
-          return M_game_log_file;
-      }
-    void setGameLogFile( const std::string & path )
-      {
-          M_game_log_file = path;
-      }
+    //const std::string & gameLogFile() const { return M_game_log_file; }
+    //void setGameLogFile( const std::string & path ) { M_game_log_file = path; }
 
-    const
-    std::string & outputFile() const
-      {
-          return M_output_file;
-      }
+    //const std::string & outputFile() const { return M_output_file; }
 
-    bool autoQuitMode() const
-      {
-          return M_auto_quit_mode;
-      }
-    int autoQuitWait() const
-      {
-          return M_auto_quit_wait;
-      }
-
-    bool autoLoopMode() const
-      {
-          return M_auto_loop_mode;
-      }
-
-    int timerInterval() const
-      {
-          return M_timer_interval;
-      }
+    bool autoQuitMode() const { return M_auto_quit_mode; }
+    int autoQuitWait() const { return M_auto_quit_wait; }
 
     //
     // window option
@@ -577,7 +538,7 @@ public:
       }
     void zoomIn();
     void zoomOut();
-    void unzoom();
+    void fitToScreen();
 
     const
     QPoint & fieldCenter() const

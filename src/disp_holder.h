@@ -98,6 +98,8 @@ public:
     const TeamGraphic & teamGraphicLeft() const { return M_team_graphic_left; }
     const TeamGraphic & teamGraphicRight() const { return M_team_graphic_right; }
 
+    rcss::rcg::PlayMode playmode() const { return M_playmode; }
+
     DispConstPtr currentDisp() const;
 
     bool addDispInfoV1( const rcss::rcg::dispinfo_t & disp );

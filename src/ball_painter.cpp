@@ -78,7 +78,7 @@ BallPainter::readSettings()
     QSettings settings( Options::CONF_FILE,
                         QSettings::IniFormat );
 
-    settings.beginGroup( "BallPainter" );
+    settings.beginGroup( "Ball" );
 
     QVariant val;
 
@@ -104,7 +104,7 @@ BallPainter::writeSettings()
     QSettings settings( Options::CONF_FILE,
                         QSettings::IniFormat );
 
-    settings.beginGroup( "BallPainter" );
+    settings.beginGroup( "Ball" );
 
     settings.setValue( "ball_pen", M_ball_pen.color().name() );
     settings.setValue( "ball_vel_pen", M_ball_vel_pen.color().name() );

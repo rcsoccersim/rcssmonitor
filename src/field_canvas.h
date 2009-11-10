@@ -39,6 +39,9 @@
 #include <QWidget>
 #endif
 
+#include <QPen>
+#include <QFont>
+
 #include "mouse_state.h"
 
 #include <boost/shared_ptr.hpp>
@@ -72,6 +75,16 @@ private:
     //! 0: left, 1: middle, 2: right
     MouseState M_mouse_state[3];
 
+    const MouseState * M_focus_move_mouse;
+    const MouseState * M_measure_mouse;
+    const MouseState * M_menu_mouse;
+
+    QPen M_measure_line_pen;
+    QPen M_measure_mark_pen;
+    QPen M_measure_font_pen;
+    QPen M_measure_font_pen2;
+    QFont M_measure_font;
+
     // not used
     FieldCanvas();
     FieldCanvas( const FieldCanvas & );
@@ -83,13 +96,12 @@ public:
     FieldCanvas( DispHolder & disp_holder );
     ~FieldCanvas();
 
-    void setMonitorMenu( QMenu * menu );
-
 private:
 
     void readSettings();
     void writeSettings();
 
+    void createPopupMenu();
     void createPainters();
 
     void updateFocus();
@@ -106,10 +118,10 @@ protected:
 
     void paintEvent( QPaintEvent * );
 
-public:
+private:
 
     void draw( QPainter & painter );
-
+    void drawMouseMeasure( QPainter & painter );
 
 public slots:
 

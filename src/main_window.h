@@ -41,6 +41,7 @@
 class QActionGroup;
 class QLabel;
 
+class ConfigDialog;
 class FieldCanvas;
 class MonitorClient;
 
@@ -55,6 +56,7 @@ private:
 
     DispHolder M_disp_holder;
 
+    ConfigDialog * M_config_dialog;
     FieldCanvas * M_field_canvas;
     MonitorClient * M_monitor_client;
 
@@ -71,18 +73,18 @@ private:
 
     // referee actions
     QAction * M_kick_off_act;
-
+    QAction * M_yellow_card_act;
+    QAction * M_red_card_act;
 
     // view actions
-//     QAction * M_toggle_menu_bar_act;
+    QAction * M_toggle_menu_bar_act;
 //     QAction * M_toggle_tool_bar_act;
-//     QAction * M_toggle_status_bar_act;
-//     QAction * M_toggle_field_canvas_act;
+    QAction * M_toggle_status_bar_act;
 //     QAction * M_full_screen_act;
 //     QAction * M_show_player_type_dialog_act;
 //     QAction * M_show_detail_dialog_act;
     QActionGroup * M_style_act_group;
-//     QAction * M_show_config_dialog_act;
+    QAction * M_show_config_dialog_act;
 
     // not used
     MainWindow( const MainWindow & );
@@ -118,6 +120,7 @@ private:
     void createStatusBar();
 
     void createFieldCanvas();
+    void createConfigDialog();
 
 protected:
 
@@ -135,6 +138,7 @@ private:
 
 private slots:
 
+    void about();
 
     // monitor menu action slots
     void kickOff();
@@ -143,15 +147,14 @@ private slots:
     void disconnectMonitor();
 
     // view menu actions slots
-//     void toggleMenuBar();
+    void toggleMenuBar( bool checked );
 //     void toggleToolBar();
-//     void toggleStatusBar();
-//     void toggleFieldCanvas();
+    void toggleStatusBar( bool checked );
 //     void toggleFullScreen();
 //     void showPlayerTypeDialog();
-//     void showDetailDialog();
     void changeStyle( bool checked );
-//     void showConfigDialog();
+    void showConfigDialog();
+    void setFocusPoint( const QPoint & point );
 
     // context menu action slots
     void dropBall( const QPoint & pos );
@@ -161,6 +164,8 @@ private slots:
                      const int unum );
     void redCard( const char side,
                   const int unum );
+    void yellowCard();
+    void redCard();
 
     //
     void receiveMonitorPacket();

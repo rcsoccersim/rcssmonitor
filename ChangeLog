@@ -1,3 +1,36 @@
+2009-11-10  Hidehisa Akiyama  <akky@users.sourceforge.jp>
+
+	* src/rcsslogplayer/gzfstream.cpp:
+	* src/rcsslogplayer/gzfstream.h:
+	* src/rcsslogplayer/handler.h:
+	* src/rcsslogplayer/parser.cpp:
+	* src/rcsslogplayer/parser.h:
+	* src/rcsslogplayer/rcsslogplayer.pro:
+	* src/rcsslogplayer/types.cpp:
+	* src/rcsslogplayer/types.h:
+	* src/rcsslogplayer/util.cpp:
+	* src/rcsslogplayer/util.h:
+	- added the rcg parser library to monitor source tree.
+
+	* src/config_dialog.cpp:
+	* src/config_dialog.h:
+	* src/Makefile.am:
+	* src/ball_painter.cpp:
+	* src/disp_holder.h:
+	* src/field_canvas.cpp:
+	* src/field_canvas.h:
+	* src/field_painter.cpp:
+	* src/field_painter.h:
+	* src/main_window.cpp:
+	* src/main_window.h:
+	* src/options.cpp:
+	* src/options.h:
+	* src/player_painter.cpp:
+	* src/player_painter.h:
+	* src/score_board_painter.cpp:
+	- implemented several view preference configuration.
+	- cleaned up.
+
 2009-11-09  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
 	* src/angle_deg.cpp:
