@@ -74,7 +74,7 @@ FieldPainter::readSettings()
     QSettings settings( Options::CONF_FILE,
                         QSettings::IniFormat );
 
-    settings.beginGroup( "Field" );
+    settings.beginGroup( "Color" );
 
     QVariant val;
 
@@ -97,7 +97,7 @@ FieldPainter::writeSettings()
     QSettings settings( Options::CONF_FILE,
                         QSettings::IniFormat );
 
-    settings.beginGroup( "Field" );
+    settings.beginGroup( "Color" );
 
     settings.setValue( "field_brush", M_field_brush.color().name() );
     settings.setValue( "line_pen", M_line_pen.color().name() );

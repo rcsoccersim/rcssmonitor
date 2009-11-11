@@ -103,18 +103,21 @@ TeamGraphicPainter::draw( QPainter & painter )
 
     if ( ! M_team_graphic_pixmap_left.isNull() )
     {
-        int left_x = 0;
-        painter.drawPixmap( left_x,
-                            0,
-                            M_team_graphic_pixmap_left );
+        int x = 0;
+        int y = 0;
+        //int x = ( 256 - M_team_graphic_pixmap_left.width() ) / 2;
+        //int y = ( 64 -  M_team_graphic_pixmap_left.height() ) / 2;
+        painter.drawPixmap( x, y, M_team_graphic_pixmap_left );
     }
 
     if ( ! M_team_graphic_pixmap_right.isNull() )
     {
-        int left_x = painter.window().width() - M_team_graphic_pixmap_right.width() - 1;
-        painter.drawPixmap( left_x,
-                            0,
-                            M_team_graphic_pixmap_right );
+        int x = painter.window().width() - M_team_graphic_pixmap_right.width() - 1;
+        int y = 0;
+        //int x = painter.window().width() - 256
+        //    + ( 256 - M_team_graphic_pixmap_right.width() ) / 2;
+        //int y = ( 64 -  M_team_graphic_pixmap_right.height() ) / 2;
+        painter.drawPixmap( x, y, M_team_graphic_pixmap_right );
     }
 }
 

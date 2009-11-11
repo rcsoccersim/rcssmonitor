@@ -149,7 +149,14 @@ Options::Options()
     , M_selected_number( 0 )
     , M_player_select_type( UNSELECT )
     , M_ball_vel_cycle( 0 )
+      //
+    , M_score_board_font( "Sans Serif", 16, QFont::Bold )
+    , M_player_font( "Sans Serif", 9, QFont::Bold )
+    , M_measure_font( "Sans Serif", 9 )
 {
+    //M_player_font.setStyleHint( QFont::System, QFont::PreferBitmap );
+    //M_player_font.setFixedPitch( true );
+
     readSettings();
 }
 
@@ -173,6 +180,10 @@ Options::readSettings()
                         QSettings::IniFormat );
 
     QVariant val;
+
+    //
+    // main window
+    //
 
     settings.beginGroup( "MainWindow" );
 
@@ -205,6 +216,10 @@ Options::readSettings()
 
     settings.endGroup();
 
+    //
+    // monitor
+    //
+
     settings.beginGroup( "Monitor" );
 
 //     val = settings.value( "connect" );
@@ -230,7 +245,11 @@ Options::readSettings()
 
     settings.endGroup();
 
-    settings.beginGroup( "Field" );
+    //
+    // show
+    //
+
+    settings.beginGroup( "View" );
 
     val = settings.value( "anti_aliasing" );
     if ( val.isValid() ) M_anti_aliasing = val.toBool();
@@ -294,14 +313,42 @@ Options::readSettings()
 
     settings.endGroup();
 
-    settings.beginGroup( "Ball" );
+    //
+    // size
+    //
+
+    settings.beginGroup( "Size" );
+
     val = settings.value( "ball_size", M_ball_size );
     if ( val.isValid() ) M_ball_size = val.toDouble();
-    settings.endGroup();
 
-    settings.beginGroup( "Player" );
     val = settings.value( "player_size", M_player_size );
     if ( val.isValid() ) M_player_size = val.toDouble();
+
+    settings.endGroup();
+
+    //
+    // score board
+    //
+
+    //settings.beginGroup( "ScoreBoard" );
+    //settings.endGroup();
+
+    //
+    // font
+    //
+
+    settings.beginGroup( "Font" );
+
+    val = settings.value( "score_board_font" );
+    if ( val.isValid() ) M_score_board_font.fromString( val.toString() );
+
+    val = settings.value( "player_font" );
+    if ( val.isValid() ) M_player_font.fromString( val.toString() );
+
+    val = settings.value( "measure_font" );
+    if ( val.isValid() ) M_measure_font.fromString( val.toString() );
+
     settings.endGroup();
 }
 
@@ -315,6 +362,9 @@ Options::writeSettings()
     QSettings settings( Options::CONF_FILE,
                         QSettings::IniFormat );
 
+    //
+    // main window
+    //
     settings.beginGroup( "MainWindow" );
 //     settings.setValue( "window_width", M_window_width );
 //     settings.setValue( "window_height", M_window_height );
@@ -329,6 +379,9 @@ Options::writeSettings()
 //     settings.setValue( "hide_status_bar", M_hide_status_bar );
     settings.endGroup();
 
+    //
+    // monitor
+    //
     settings.beginGroup( "Monitor" );
 //     settings.setValue( "connect", M_connect );
 //     settings.setValue( "server-host", QString::fromStdString( M_server_host ) );
@@ -339,7 +392,10 @@ Options::writeSettings()
     settings.setValue( "auto_quit_wait", M_auto_quit_wait );
     settings.endGroup();
 
-    settings.beginGroup( "Field" );
+    //
+    // field
+    //
+    settings.beginGroup( "View" );
     settings.setValue( "anti_aliasing", M_anti_aliasing );
     settings.setValue( "show_score_board", M_show_score_board );
     settings.setValue( "show_keepaway_area", M_show_keepaway_area );
@@ -360,17 +416,23 @@ Options::writeSettings()
     settings.setValue( "grid_step", M_grid_step );
     settings.setValue( "show_flag", M_show_flag );
     settings.setValue( "show_offside_line", M_show_offside_line );
-
     settings.endGroup();
 
-
-    settings.beginGroup( "Ball" );
+    //
+    // size
+    //
+    settings.beginGroup( "Size" );
     settings.setValue( "ball_size", M_ball_size );
+    settings.setValue( "player_size", M_player_size );
     settings.endGroup();
 
-
-    settings.beginGroup( "Player" );
-    settings.setValue( "player_size", M_player_size );
+    //
+    // font
+    //
+    settings.beginGroup( "Font" );
+    settings.setValue( "score_board_font", M_score_board_font.toString() );
+    settings.setValue( "player_font", M_player_font.toString() );
+    settings.setValue( "measure_font", M_measure_font.toString() );
     settings.endGroup();
 }
 

@@ -83,7 +83,6 @@ private:
     QPen M_measure_mark_pen;
     QPen M_measure_font_pen;
     QPen M_measure_font_pen2;
-    QFont M_measure_font;
 
     // not used
     FieldCanvas();

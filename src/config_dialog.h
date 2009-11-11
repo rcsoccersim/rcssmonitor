@@ -34,6 +34,9 @@
 #define RCSSLOGPLAYER_CONFIG_DIALOG_H
 
 #include <QDialog>
+#include <QPushButton>
+
+#include <boost/function.hpp>
 
 class QPushButton;
 class QCheckBox;
@@ -47,8 +50,53 @@ class QSlider;
 class QSpinBox;
 class QTabWidget;
 
+class ConfigDialog;
 class DispHolder;
 
+
+/*
+
+ */
+class FontButton
+    : public QPushButton {
+
+    Q_OBJECT
+
+public:
+
+    typedef boost::function< void ( const QFont & ) > Func;
+
+private:
+    QString M_name;
+    QFont M_new_font;
+    QFont M_old_font;
+    Func M_func;
+
+public:
+
+    FontButton( const QString & name,
+                const QFont & old_font,
+                Func func,
+                ConfigDialog * parent );
+
+    void setNewFont( const QFont & font );
+
+    void revert();
+    void updateText();
+
+private slots:
+
+    void fontDialog();
+
+signals:
+
+    void fontChanged();
+};
+
+
+/*
+
+ */
 class ConfigDialog
     : public QDialog {
 
@@ -145,7 +193,8 @@ private:
     QWidget * createFocusControls();
     QWidget * createPlayerSelectionControls();
 //     QWidget * createTraceControls();
-    QWidget * createInertiaMoveControls();
+//     QWidget * createInertiaMoveControls();
+    QLayout * createFontButtons();
 
 
 protected:

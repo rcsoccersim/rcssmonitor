@@ -1,3 +1,21 @@
+2009-11-11  Hidehisa Akiyama  <akky@users.sourceforge.jp>
+
+	* src/ball_painter.cpp:
+	* src/config_dialog.cpp:
+	* src/config_dialog.h:
+	* src/field_canvas.cpp:
+	* src/field_canvas.h:
+	* src/field_painter.cpp:
+	* src/options.cpp:
+	* src/options.h:
+	* src/player_painter.cpp:
+	* src/player_painter.h:
+	* src/score_board_painter.cpp:
+	* src/score_board_painter.h:
+	* src/team_graphic_painter.cpp:
+	- added a font setting panel.
+	- cleaned up parameter categories.
+
 2009-11-10  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
 	* src/rcsslogplayer/gzfstream.cpp:

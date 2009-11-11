@@ -85,7 +85,6 @@ PlayerPainter::Param::Param(  const rcss::rcg::PlayerT & player,
  */
 PlayerPainter::PlayerPainter( const DispHolder & disp_holder )
     : M_disp_holder( disp_holder )
-    , M_player_font( "Sans Serif", 10 )
     , M_player_pen( QColor( 0, 0, 0 ), 0, Qt::SolidLine )
     , M_selected_player_pen( QColor( 0, 0, 0 ), 2, Qt::SolidLine )
     , M_left_team_pen( QColor( 255, 215, 0 ), 0, Qt::SolidLine )
@@ -106,6 +105,8 @@ PlayerPainter::PlayerPainter( const DispHolder & disp_holder )
     , M_large_view_area_pen( QColor( 255, 255, 255 ), 0, Qt::SolidLine )
     , M_ball_collide_brush( QColor( 255, 0, 0 ), Qt::SolidPattern )
     , M_player_collide_brush( QColor( 105, 155, 235 ), Qt::SolidPattern )
+    , M_effort_decayed_pen( QColor( 255, 0, 0 ), 0, Qt::SolidLine )
+    , M_recovery_decayed_pen( QColor( 255, 231, 31 ), 0, Qt::SolidLine )
     , M_kick_pen( QColor( 255, 255, 255 ), 2, Qt::SolidLine )
     , M_kick_fault_brush( QColor( 255, 0, 0 ), Qt::SolidPattern )
     , M_kick_accel_pen( QColor( 0, 255, 0 ), 0, Qt::SolidLine )
@@ -117,12 +118,6 @@ PlayerPainter::PlayerPainter( const DispHolder & disp_holder )
     , M_foul_charged_brush( QColor( 0, 127, 0 ), Qt::SolidPattern )
     , M_pointto_pen( QColor( 255, 0, 191 ), 1, Qt::SolidLine )
 {
-    M_player_font.setPointSize( 9 );
-    M_player_font.setBold( true );
-    //M_player_font.setStyleHint( QFont::System, QFont::PreferBitmap );
-    M_player_font.setBold( true );
-    M_player_font.setFixedPitch( true );
-
     readSettings();
 }
 
@@ -145,12 +140,9 @@ PlayerPainter::readSettings()
     QSettings settings( Options::CONF_FILE,
                         QSettings::IniFormat );
 
-    settings.beginGroup( "Player" );
+    settings.beginGroup( "Color" );
 
     QVariant val;
-
-    val = settings.value( "player_font" );
-    if ( val.isValid() ) M_player_font.fromString( val.toString() );
 
     val = settings.value( "player_pen" );
     if ( val.isValid() ) M_player_pen.setColor( val.toString() );
@@ -203,6 +195,12 @@ PlayerPainter::readSettings()
     val = settings.value( "ball_collide_brush" );
     if ( val.isValid() ) M_ball_collide_brush.setColor( val.toString() );
 
+    val = settings.value( "effort_decayed_pen" );
+    if ( val.isValid() ) M_effort_decayed_pen.setColor( val.toString() );
+
+    val = settings.value( "recovery_decayed_pen" );
+    if ( val.isValid() ) M_recovery_decayed_pen.setColor( val.toString() );
+
     val = settings.value( "kick_pen" );
     if ( val.isValid() ) M_kick_pen.setColor( val.toString() );
 
@@ -243,9 +241,7 @@ PlayerPainter::writeSettings()
     QSettings settings( Options::CONF_FILE,
                         QSettings::IniFormat );
 
-    settings.beginGroup( "Player" );
-
-    settings.setValue( "player_font", M_player_font.toString() );
+    settings.beginGroup( "Color" );
 
     settings.setValue( "player_pen", M_player_pen.color().name() );
     settings.setValue( "left_team", M_left_team_pen.color().name() );
@@ -261,6 +257,8 @@ PlayerPainter::writeSettings()
     settings.setValue( "view_area_pen", M_view_area_pen.color().name() );
     settings.setValue( "large_view_area_pen", M_large_view_area_pen.color().name() );
     settings.setValue( "ball_collide_brush", M_ball_collide_brush.color().name() );
+    settings.setValue( "effort_decayed_pen", M_effort_decayed_pen.color().name() );
+    settings.setValue( "recovery_decayed_pen", M_recovery_decayed_pen.color().name() );
     settings.setValue( "kick_pen", M_kick_pen.color().name() );
     settings.setValue( "kick_fault_brush", M_kick_fault_brush.color().name() );
     settings.setValue( "catch_brush", M_catch_brush.color().name() );
@@ -486,6 +484,21 @@ PlayerPainter::drawBody( QPainter & painter,
                                  param.body_radius_ * 2  );
         }
 #endif
+
+        if ( std::fabs( param.player_.effort_ - param.player_type_.effort_max_ ) > 1.0e-5 )
+        {
+            int r = param.draw_radius_ + 2;
+            painter.setPen( M_effort_decayed_pen );
+            painter.setBrush( Qt::NoBrush );
+            painter.drawEllipse( param.x_ - r, param.y_ - r, r * 2, r * 2 );
+        }
+        else if ( std::fabs( param.player_.recovery_ - 1.0 ) > 1.0e-5 )
+        {
+            int r = param.draw_radius_ + 2;
+            painter.setPen( M_recovery_decayed_pen );
+            painter.setBrush( Qt::NoBrush );
+            painter.drawEllipse( param.x_ - r, param.y_ - r, r * 2, r * 2 );
+        }
     }
 
     // draw real body edge
@@ -700,7 +713,7 @@ PlayerPainter::drawCatchArea( QPainter & painter,
     painter.setPen( ( param.player_.side_ == 'l' )
                     ? M_right_goalie_pen
                     : M_left_goalie_pen );
-    painter.setFont( M_player_font );
+    painter.setFont( opt.playerFont() );
     painter.drawText( param.x_ + text_radius,
                       param.y_ + ( 2 + painter.fontMetrics().ascent() ) * 2,
                       QString( "Catch=%1" ).arg( catch_prob, 0, 'g', 3 ) );
@@ -764,7 +777,7 @@ PlayerPainter::drawTackleArea( QPainter & painter,
 
         int text_radius = std::min( 40, param.draw_radius_ );
 
-        painter.setFont( M_player_font );
+        painter.setFont( opt.playerFont() );
         painter.setPen( M_tackle_pen );
 
         if ( tackle_fail_prob < 1.0
@@ -956,7 +969,7 @@ PlayerPainter::drawKickAccelArea( QPainter & painter,
     }
 
     // draw kick info text
-    painter.setFont( M_player_font );
+    painter.setFont( opt.playerFont() );
     painter.setPen( M_kick_accel_pen );
 
     char buf[32];
@@ -1041,7 +1054,7 @@ PlayerPainter::drawText( QPainter & painter,
         strcat( main_buf, buf );
     }
 
-    painter.setFont( M_player_font );
+    painter.setFont( opt.playerFont() );
 
     const int text_radius = std::min( 40, param.draw_radius_ );
     int card_offset = 0;

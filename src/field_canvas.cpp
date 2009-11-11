@@ -66,8 +66,7 @@ FieldCanvas::FieldCanvas( DispHolder & disp_holder )
     M_measure_line_pen( QColor( 0, 255, 255 ), 0, Qt::SolidLine ),
     M_measure_mark_pen( QColor( 255, 0, 0 ), 0, Qt::SolidLine ),
     M_measure_font_pen( QColor( 255, 191, 191 ), 0, Qt::SolidLine ),
-    M_measure_font_pen2( QColor( 224, 224, 192 ), 0, Qt::SolidLine ),
-    M_measure_font( "Sans Serif", 9 )
+    M_measure_font_pen2( QColor( 224, 224, 192 ), 0, Qt::SolidLine )
 {
     M_focus_move_mouse = &M_mouse_state[0];
     M_measure_mouse = &M_mouse_state[1];
@@ -101,7 +100,7 @@ FieldCanvas::readSettings()
     QSettings settings( Options::CONF_FILE,
                         QSettings::IniFormat );
 
-    settings.beginGroup( "Field" );
+    settings.beginGroup( "Color" );
 
     QVariant val;
 
@@ -117,9 +116,6 @@ FieldCanvas::readSettings()
     val = settings.value( "measure_font_pen2" );
     if ( val.isValid() ) M_measure_font_pen2.setColor( val.toString() );
 
-    val = settings.value( "measure_font" );
-    if ( val.isValid() ) M_measure_font.fromString( val.toString() );
-
     settings.endGroup();
 }
 
@@ -133,13 +129,12 @@ FieldCanvas::writeSettings()
     QSettings settings( Options::CONF_FILE,
                         QSettings::IniFormat );
 
-    settings.beginGroup( "Field" );
+    settings.beginGroup( "Color" );
 
     settings.setValue( "measure_line_pen", M_measure_line_pen.color().name() );
     settings.setValue( "measure_mark_pen", M_measure_mark_pen.color().name() );
     settings.setValue( "measure_font_pen", M_measure_font_pen.color().name() );
     settings.setValue( "measure_font_pen2", M_measure_font_pen2.color().name() );
-    settings.setValue( "measure_font", M_measure_font.toString() );
 
     settings.endGroup();
 }
@@ -170,10 +165,10 @@ FieldCanvas::createPainters()
 {
     M_field_painter = boost::shared_ptr< FieldPainter >( new FieldPainter( M_disp_holder ) );
 
+    M_painters.push_back( boost::shared_ptr< PainterInterface >( new ScoreBoardPainter( M_disp_holder ) ) );
+    M_painters.push_back( boost::shared_ptr< PainterInterface >( new TeamGraphicPainter( M_disp_holder ) ) );
     M_painters.push_back( boost::shared_ptr< PainterInterface >( new PlayerPainter( M_disp_holder ) ) );
     M_painters.push_back( boost::shared_ptr< PainterInterface >( new BallPainter( M_disp_holder ) ) );
-    M_painters.push_back( boost::shared_ptr< PainterInterface >( new TeamGraphicPainter( M_disp_holder ) ) );
-    M_painters.push_back( boost::shared_ptr< PainterInterface >( new ScoreBoardPainter( M_disp_holder ) ) );
 }
 
 /*-------------------------------------------------------------------*/
@@ -488,7 +483,7 @@ FieldCanvas::drawMouseMeasure( QPainter & painter )
     }
 
     // draw distance & angle text
-    painter.setFont( M_measure_font );
+    painter.setFont( opt.measureFont() );
     painter.setPen( M_measure_font_pen );
 
     char buf[64];

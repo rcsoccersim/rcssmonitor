@@ -36,6 +36,7 @@
 #include <QString>
 #include <QPoint>
 #include <QPointF>
+#include <QFont>
 
 #include <rcsslogplayer/types.h>
 
@@ -178,6 +179,15 @@ private:
 
     // inertia movement
     int M_ball_vel_cycle; //!< specify the cycle to draw ball future point
+
+
+    //
+    // painter resources
+    //
+
+    QFont M_score_board_font;
+    QFont M_player_font;
+    QFont M_measure_font;
 
     //! private access for singleton
     Options();
@@ -633,6 +643,16 @@ public:
       {
           if ( 0 <= cycle && cycle <= 100 ) M_ball_vel_cycle = cycle;
       }
+
+
+    const QFont & scoreBoardFont() const { return M_score_board_font; }
+    void setScoreBoardFont( const QFont & font ) { M_score_board_font = font; }
+
+    const QFont & playerFont() const { return M_player_font; }
+    void setPlayerFont( const QFont & font ) { M_player_font = font; }
+
+    const QFont & measureFont() const { return M_measure_font; }
+    void setMeasureFont( const QFont & font ) { M_measure_font = font; }
 
 };
 

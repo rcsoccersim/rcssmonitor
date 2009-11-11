@@ -41,8 +41,113 @@
 #include "disp_holder.h"
 #include "options.h"
 
+
+#include <boost/function.hpp>
+#include <boost/functional.hpp>
+
+#include <functional>
 #include <iostream>
 #include <cassert>
+
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+FontButton::FontButton( const QString & name,
+                        const QFont & old_font,
+                        Func func,
+                        ConfigDialog * parent )
+    : QPushButton( parent )
+    , M_name( name )
+    , M_new_font( old_font )
+    , M_old_font( old_font )
+    , M_func( func )
+{
+    QFont button_font = old_font;
+    button_font.setPointSize( QApplication::font().pointSize() );
+    this->setFont( button_font );
+
+    updateText();
+
+    connect( this, SIGNAL( clicked() ),
+             this, SLOT( fontDialog() ) );
+    connect( this, SIGNAL( fontChanged() ),
+             parent, SIGNAL( configured() ) );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+void
+FontButton::setNewFont( const QFont & font )
+{
+    if ( M_new_font != font )
+    {
+        if ( ! M_func.empty() )
+        {
+            M_func( font );
+        }
+
+        M_new_font = font;
+
+        QFont button_font = font;
+        button_font.setPointSize( QApplication::font().pointSize() );
+        this->setFont( button_font );
+
+        updateText();
+
+        emit fontChanged();
+    }
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+void
+FontButton::fontDialog()
+{
+    bool ok = true;
+    QFont font = QFontDialog::getFont( &ok, M_new_font );
+    if ( ok )
+    {
+        setNewFont( font );
+    }
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+void
+FontButton::updateText()
+{
+    QString str = M_name;
+    str += tr( " (" );
+    str += M_new_font.family();
+    str += tr( "," );
+    str += QString::number( M_new_font.pointSize() );
+    str += tr( ")" );
+    this->setText( str );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+void
+FontButton::revert()
+{
+    setNewFont( M_old_font );
+}
+
+
+/*-------------------------------------------------------------------*/
+/*-------------------------------------------------------------------*/
+/*-------------------------------------------------------------------*/
+
 
 /*-------------------------------------------------------------------*/
 /*!
@@ -91,8 +196,6 @@ ConfigDialog::createWidgets()
                            0, Qt::AlignLeft );
         layout->addWidget( createPlayerSelectionControls(),
                            0, Qt::AlignLeft );
-        layout->addWidget( createGridStepControls(),
-                           0, Qt::AlignLeft );
 
         frame->setLayout( layout );
         M_tab_widget->addTab( frame, tr( "Show" ) );
@@ -113,12 +216,28 @@ ConfigDialog::createWidgets()
                            0, Qt::AlignLeft );
         layout->addWidget( createCanvasSizeControls(),
                            0, Qt::AlignLeft );
+        layout->addWidget( createGridStepControls(),
+                           0, Qt::AlignLeft );
         layout->addWidget( createMiscControls(),
                            0, Qt::AlignLeft );
 
         frame->setLayout( layout );
         M_tab_widget->addTab( frame, tr( "Canvas" ) );
     }
+    // font
+    {
+        QFrame * frame = new QFrame();
+        QVBoxLayout * layout = new QVBoxLayout();
+        layout->setSizeConstraint( QLayout::SetFixedSize );
+        layout->setMargin( 4 );
+        layout->setSpacing( 4 );
+
+        layout->addLayout( createFontButtons() );
+
+        frame->setLayout( layout );
+        M_tab_widget->addTab( frame, tr( "Font" ) );
+    }
+
     // object selection
 //     {
 //         QFrame * frame = new QFrame();
@@ -824,6 +943,45 @@ ConfigDialog::createInertiaMoveControls()
     return group_box;
 }
 #endif
+
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+QLayout *
+ConfigDialog::createFontButtons()
+{
+    QVBoxLayout * layout = new QVBoxLayout();
+    layout->setMargin( 4 );
+    layout->setSpacing( 2 );
+
+    Options * o = &Options::instance();
+
+    {
+        FontButton * btn = new FontButton( tr( "Score Board" ),
+                                           o->scoreBoardFont(),
+                                           boost::bind1st( std::mem_fun( &Options::setScoreBoardFont ), o ),
+                                           this );
+        layout->addWidget( btn, 1, Qt::AlignLeft );
+    }
+    {
+        FontButton * btn = new FontButton( tr( "Player" ),
+                                           o->playerFont(),
+                                           boost::bind1st( std::mem_fun( &Options::setPlayerFont ), o ),
+                                           this );
+        layout->addWidget( btn, 1, Qt::AlignLeft );
+    }
+    {
+        FontButton * btn = new FontButton( tr( "Measure" ),
+                                           o->measureFont(),
+                                           boost::bind1st( std::mem_fun( &Options::setMeasureFont ), o ),
+                                           this );
+        layout->addWidget( btn, 1, Qt::AlignLeft );
+    }
+
+    return layout;
+}
 
 /*-------------------------------------------------------------------*/
 /*!

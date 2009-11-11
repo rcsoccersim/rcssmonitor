@@ -73,7 +73,7 @@ private:
 
     const DispHolder & M_disp_holder;
 
-    QFont M_player_font;
+    //QFont M_player_font;
 
     QPen M_player_pen;
     QPen M_selected_player_pen;
@@ -94,6 +94,8 @@ private:
     QPen M_large_view_area_pen;
     QBrush M_ball_collide_brush;
     QBrush M_player_collide_brush;
+    QPen M_effort_decayed_pen;
+    QPen M_recovery_decayed_pen;
     QPen M_kick_pen;
     QBrush M_kick_fault_brush;
     QPen M_kick_accel_pen;
