@@ -47,10 +47,6 @@ private:
 
     const DispHolder & M_disp_holder;
 
-    QPen M_pen;
-    QBrush M_brush;
-    //QFont M_font;
-
     // not used
     ScoreBoardPainter();
     ScoreBoardPainter( const ScoreBoardPainter & );
@@ -62,12 +58,6 @@ public:
     ~ScoreBoardPainter();
 
     void draw( QPainter & painter );
-
-private:
-
-    void readSettings();
-    void writeSettings();
-
 
 };
 

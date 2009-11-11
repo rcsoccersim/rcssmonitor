@@ -49,15 +49,10 @@
 */
 ScoreBoardPainter::ScoreBoardPainter( const DispHolder & disp_holder )
     : M_disp_holder( disp_holder )
-    , M_pen( QColor( 255, 255, 255 ), 0, Qt::SolidLine )
-    , M_brush( QColor( 0, 0, 0 ), Qt::SolidPattern )
-      //, M_font( "Sans Serif", 16 )
 {
     //M_font.setBold( true );
     //M_font.setStyleHint( QFont::System, QFont::PreferBitmap );
     //M_font.setFixedPitch( true );
-
-    readSettings();
 }
 
 /*-------------------------------------------------------------------*/
@@ -66,48 +61,7 @@ ScoreBoardPainter::ScoreBoardPainter( const DispHolder & disp_holder )
 */
 ScoreBoardPainter::~ScoreBoardPainter()
 {
-    writeSettings();
-}
 
-/*-------------------------------------------------------------------*/
-/*!
-
- */
-void
-ScoreBoardPainter::readSettings()
-{
-    QSettings settings( Options::CONF_FILE,
-                        QSettings::IniFormat );
-
-    settings.beginGroup( "Color" );
-
-    QVariant val;
-
-    val = settings.value( "score_board_pen" );
-    if ( val.isValid() ) M_pen.setColor( val.toString() );
-
-    val = settings.value( "score_board_brush" );
-    if ( val.isValid() ) M_brush.setColor( val.toString() );
-
-    settings.endGroup();
-}
-
-/*-------------------------------------------------------------------*/
-/*!
-
- */
-void
-ScoreBoardPainter::writeSettings()
-{
-    QSettings settings( Options::CONF_FILE,
-                        QSettings::IniFormat );
-
-    settings.beginGroup( "Color" );
-
-    settings.setValue( "score_board_pen", M_pen.color().name() );
-    settings.setValue( "score_board_brush", M_brush.color().name() );
-
-    settings.endGroup();
 }
 
 /*-------------------------------------------------------------------*/
@@ -246,10 +200,10 @@ ScoreBoardPainter::draw( QPainter & painter )
     rect.setWidth( bounding_rect.width() );
     rect.setHeight( bounding_rect.height() );
 
-    painter.fillRect( rect, M_brush );
-    painter.setPen( M_pen );
-    painter.setBrush( Qt::NoBrush );
+    painter.fillRect( rect, opt.scoreBoardBrush() );
 
+    painter.setPen( opt.scoreBoardPen() );
+    painter.setBrush( Qt::NoBrush );
     painter.drawText( rect,
                       Qt::AlignVCenter,
                       main_buf );

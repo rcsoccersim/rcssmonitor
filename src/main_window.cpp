@@ -620,19 +620,6 @@ MainWindow::createConfigDialog()
                  M_config_dialog, SLOT( toggleShowStamina() ) );
     }
     {
-        // Ctrl + s
-        QAction * act = new QAction( tr( "Show Stamina Capacity" ), this );
-#ifdef Q_WS_MAC
-        act->setShortcut( Qt::META + Qt::Key_S );
-#else
-        act->setShortcut( Qt::CTRL + Qt::Key_S );
-#endif
-        act->setStatusTip( tr( "Show/Hide player's stamina capacity." ) );
-        this->addAction( act );
-        connect( act, SIGNAL( triggered() ),
-                 M_config_dialog, SLOT( toggleShowStaminaCapacity() ) );
-    }
-    {
         // v
         QAction * act = new QAction( tr( "Show View Area" ), this );
         act->setShortcut( Qt::Key_V );
@@ -669,12 +656,12 @@ MainWindow::createConfigDialog()
                  M_config_dialog, SLOT( toggleShowKickAccelArea() ) );
     }
     {
-        // Ctrl + p
-        QAction * act = new QAction( tr( "Show Pointto Point" ), this );
+        // Ctrl + a
+        QAction * act = new QAction( tr( "Show Pointto" ), this );
 #ifdef Q_WS_MAC
-        act->setShortcut( Qt::META + Qt::Key_P );
+        act->setShortcut( Qt::META + Qt::Key_A );
 #else
-        act->setShortcut( Qt::CTRL + Qt::Key_P );
+        act->setShortcut( Qt::CTRL + Qt::Key_A );
 #endif
         act->setStatusTip( tr( "Show/Hide player's pointing position." ) );
         this->addAction( act );
@@ -683,18 +670,18 @@ MainWindow::createConfigDialog()
     }
 
     // show/hide
-//     {
-//         // Ctrl + s
-//         QAction * act = new QAction( tr( "Show Score Board" ), this );
-//  #ifdef Q_WS_MAC
-//         act->setShortcut( Qt::META + Qt::Key_S );
-// #else
-//         act->setShortcut( Qt::CTRL + Qt::Key_S );
-// #endif
-//         this->addAction( act );
-//         connect( act, SIGNAL( triggered() ),
-//                  M_config_dialog, SLOT( toggleShowScoreBoard() ) );
-//     }
+    {
+        // Ctrl + s
+        QAction * act = new QAction( tr( "Show Score Board" ), this );
+ #ifdef Q_WS_MAC
+        act->setShortcut( Qt::META + Qt::Key_S );
+#else
+        act->setShortcut( Qt::CTRL + Qt::Key_S );
+#endif
+        this->addAction( act );
+        connect( act, SIGNAL( triggered() ),
+                 M_config_dialog, SLOT( toggleShowScoreBoard() ) );
+    }
     {
         // Ctrl + b
         QAction * act = new QAction( tr( "Show Ball" ), this );

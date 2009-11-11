@@ -1,6 +1,21 @@
 2009-11-11  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
 	* src/ball_painter.cpp:
+	* src/ball_painter.h:
+	* src/config_dialog.cpp:
+	* src/config_dialog.h:
+	* src/field_painter.cpp:
+	* src/field_painter.h:
+	* src/main_window.cpp:
+	* src/options.cpp:
+	* src/options.h:
+	* src/player_painter.cpp:
+	* src/player_painter.h:
+	* src/score_board_painter.cpp:
+	* src/score_board_painter.h:
+	- added a color setting panel.
+
+	* src/ball_painter.cpp:
 	* src/config_dialog.cpp:
 	* src/config_dialog.h:
 	* src/field_canvas.cpp:

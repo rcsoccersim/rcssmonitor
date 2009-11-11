@@ -73,40 +73,6 @@ private:
 
     const DispHolder & M_disp_holder;
 
-    //QFont M_player_font;
-
-    QPen M_player_pen;
-    QPen M_selected_player_pen;
-    QPen M_left_team_pen;
-    QBrush M_left_team_brush;
-    QPen M_left_goalie_pen;
-    QPen M_left_goalie_stretch_pen;
-    QBrush M_left_goalie_brush;
-    QPen M_right_team_pen;
-    QBrush M_right_team_brush;
-    QPen M_right_goalie_pen;
-    QPen M_right_goalie_stretch_pen;
-    QBrush M_right_goalie_brush;
-    QPen M_player_number_pen;
-    QPen M_player_number_inner_pen;
-    QPen M_neck_pen;
-    QPen M_view_area_pen;
-    QPen M_large_view_area_pen;
-    QBrush M_ball_collide_brush;
-    QBrush M_player_collide_brush;
-    QPen M_effort_decayed_pen;
-    QPen M_recovery_decayed_pen;
-    QPen M_kick_pen;
-    QBrush M_kick_fault_brush;
-    QPen M_kick_accel_pen;
-    QBrush M_catch_brush;
-    QBrush M_catch_fault_brush;
-    QPen M_tackle_pen;
-    QBrush M_tackle_brush;
-    QBrush M_tackle_fault_brush;
-    QBrush M_foul_charged_brush;
-    QPen M_pointto_pen;
-
     // not used
     PlayerPainter();
     PlayerPainter( const PlayerPainter & );
@@ -121,10 +87,6 @@ public:
     void draw( QPainter & dc );
 
 private:
-
-    void readSettings();
-    void writeSettings();
-
 
     void drawAll( QPainter & painter,
                   const rcss::rcg::PlayerT & player,

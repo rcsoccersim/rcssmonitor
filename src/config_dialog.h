@@ -34,9 +34,12 @@
 #define RCSSLOGPLAYER_CONFIG_DIALOG_H
 
 #include <QDialog>
+#include <QListWidgetItem>
 #include <QPushButton>
 
 #include <boost/function.hpp>
+
+#include <vector>
 
 class QPushButton;
 class QCheckBox;
@@ -44,6 +47,7 @@ class QCloseEvent;
 class QComboBox;
 class QLabel;
 class QLineEdit;
+class QListWidget;
 class QPushButton;
 class QRadioButton;
 class QSlider;
@@ -52,6 +56,32 @@ class QTabWidget;
 
 class ConfigDialog;
 class DispHolder;
+
+
+/*
+
+ */
+class ColorItem
+    : public QListWidgetItem {
+public:
+    typedef boost::function< void ( const QColor & ) > Func;
+
+private:
+    QColor M_new_color;
+    QColor M_old_color;
+    Func M_func;
+
+public:
+    ColorItem( const QString & name,
+               const QColor & old_color,
+               Func func,
+               QListWidget * parent = 0 );
+
+    const QColor & newColor() const { return M_new_color; }
+
+    bool setColor( const QColor & color );
+    bool revert();
+};
 
 
 /*
@@ -173,6 +203,9 @@ private:
     // inertia movement control
 //     QSpinBox * M_ball_vel_cycle;
 
+    // color list
+    QListWidget * M_color_list_box;
+
 public:
 
     ConfigDialog( QWidget * parent,
@@ -192,10 +225,9 @@ private:
     QWidget * createGridStepControls();
     QWidget * createFocusControls();
     QWidget * createPlayerSelectionControls();
-//     QWidget * createTraceControls();
-//     QWidget * createInertiaMoveControls();
+    QLayout * createColorList();
+    void createColorItems();
     QLayout * createFontButtons();
-
 
 protected:
 
@@ -263,6 +295,9 @@ private slots:
 //     void clickLinePointButton();
 
 //     void changeBallVelCycle( int value );
+
+    void selectColorEntry( QListWidgetItem * item );
+    void setDefaultColor();
 
 public slots:
 

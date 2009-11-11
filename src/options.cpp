@@ -83,6 +83,36 @@ const double Options::MAX_FIELD_SCALE = 400.0;
 const double Options::ZOOM_RATIO = 1.5;
 const int Options::DEFAULT_TIMER_INTERVAL = 100;
 
+const QColor Options::FIELD_COLOR( 31, 160, 31 );
+const QColor Options::LINE_COLOR( 255, 255, 255 );
+const QColor Options::SCORE_BOARD_PEN_COLOR( 255, 255, 255 );
+const QColor Options::SCORE_BOARD_BRUSH_COLOR( 0, 0, 0 );
+const QColor Options::BALL_COLOR( 255, 255, 255 );
+const QColor Options::BALL_VEL_COLOR( 255, 0, 0 );
+const QColor Options::PLAYER_PEN_COLOR( 0, 0, 0 );
+const QColor Options::LEFT_TEAM_COLOR( 255, 215, 0 );
+const QColor Options::LEFT_GOALIE_COLOR( 39, 231, 31 );
+const QColor Options::RIGHT_TEAM_COLOR( 0, 191, 255 );
+const QColor Options::RIGHT_GOALIE_COLOR( 255, 153, 255 );
+const QColor Options::PLAYER_NUMBER_COLOR( 255, 255, 255 );
+const QColor Options::PLAYER_NUMBER_INNER_COLOR( 0, 0, 0 );
+const QColor Options::NECK_COLOR( 255, 0, 0 );
+const QColor Options::VIEW_AREA_COLOR( 191, 239, 191 );
+const QColor Options::LARGE_VIEW_AREA_COLOR( 255, 255, 255 );
+const QColor Options::BALL_COLLIDE_COLOR( 255, 0, 0 );
+const QColor Options::PLAYER_COLLIDE_COLOR( 105, 155, 235 );
+const QColor Options::EFFORT_DECAYED_COLOR( 255, 0, 0 );
+const QColor Options::RECOVERY_DECAYED_COLOR( 255, 231, 31 );
+const QColor Options::KICK_COLOR( 255, 255, 255 );
+const QColor Options::KICK_FAULT_COLOR( 255, 0, 0 );
+const QColor Options::KICK_ACCEL_COLOR( 0, 255, 0 );
+const QColor Options::CATCH_COLOR( 10, 80, 10 );
+const QColor Options::CATCH_FAULT_COLOR( 10, 80, 150 );
+const QColor Options::TACKLE_COLOR( 255, 136, 127 );
+const QColor Options::TACKLE_FAULT_COLOR( 79, 159, 159 );
+const QColor Options::FOUL_CHARGED_COLOR( 0, 127, 0 );
+const QColor Options::POINTTO_COLOR( 255, 0, 191 );
+
 /*-------------------------------------------------------------------*/
 /*!
   singleton interface
@@ -149,6 +179,48 @@ Options::Options()
     , M_selected_number( 0 )
     , M_player_select_type( UNSELECT )
     , M_ball_vel_cycle( 0 )
+      //
+    , M_field_brush( FIELD_COLOR, Qt::SolidPattern )
+    , M_line_pen( LINE_COLOR, 0, Qt::SolidLine )
+      //
+    , M_score_board_pen( SCORE_BOARD_PEN_COLOR, 0, Qt::SolidLine )
+    , M_score_board_brush( SCORE_BOARD_BRUSH_COLOR, Qt::SolidPattern )
+      //
+    , M_ball_pen( BALL_COLOR, 0, Qt::SolidLine )
+    , M_ball_brush( BALL_COLOR, Qt::SolidPattern )
+    , M_ball_vel_pen( BALL_VEL_COLOR, 0, Qt::SolidLine )
+      //
+    , M_player_pen( PLAYER_PEN_COLOR, 0, Qt::SolidLine )
+    , M_selected_player_pen( PLAYER_PEN_COLOR, 2, Qt::SolidLine )
+    , M_left_team_pen( LEFT_TEAM_COLOR, 0, Qt::SolidLine )
+    , M_left_team_brush( LEFT_TEAM_COLOR, Qt::SolidPattern )
+    , M_left_goalie_pen( LEFT_GOALIE_COLOR, 0, Qt::SolidLine )
+    , M_left_goalie_stretch_pen( LEFT_GOALIE_COLOR, 0, Qt::DotLine )
+    , M_left_goalie_brush( LEFT_GOALIE_COLOR, Qt::SolidPattern )
+    , M_right_team_pen( RIGHT_TEAM_COLOR, 0, Qt::SolidLine )
+    , M_right_team_brush( RIGHT_TEAM_COLOR, Qt::SolidPattern )
+    , M_right_goalie_pen( RIGHT_GOALIE_COLOR, 0, Qt::SolidLine )
+    , M_right_goalie_stretch_pen( RIGHT_GOALIE_COLOR, 0, Qt::DotLine )
+    , M_right_goalie_brush( RIGHT_GOALIE_COLOR, Qt::SolidPattern )
+    , M_player_number_pen( PLAYER_NUMBER_COLOR, 0, Qt::SolidLine )
+    , M_player_number_inner_pen( PLAYER_NUMBER_INNER_COLOR, 0, Qt::SolidLine )
+    , M_neck_pen( NECK_COLOR, 0, Qt::SolidLine )
+    , M_view_area_pen( VIEW_AREA_COLOR, 0, Qt::SolidLine )
+    , M_large_view_area_pen( LARGE_VIEW_AREA_COLOR, 0, Qt::SolidLine )
+    , M_ball_collide_brush( BALL_COLLIDE_COLOR, Qt::SolidPattern )
+    , M_player_collide_brush( PLAYER_COLLIDE_COLOR, Qt::SolidPattern )
+    , M_effort_decayed_pen( EFFORT_DECAYED_COLOR, 0, Qt::SolidLine )
+    , M_recovery_decayed_pen( RECOVERY_DECAYED_COLOR, 0, Qt::SolidLine )
+    , M_kick_pen( KICK_COLOR, 2, Qt::SolidLine )
+    , M_kick_fault_brush( KICK_FAULT_COLOR, Qt::SolidPattern )
+    , M_kick_accel_pen( KICK_ACCEL_COLOR, 0, Qt::SolidLine )
+    , M_catch_brush( CATCH_COLOR, Qt::SolidPattern )
+    , M_catch_fault_brush( CATCH_FAULT_COLOR, Qt::SolidPattern )
+    , M_tackle_pen( TACKLE_COLOR, 2, Qt::SolidLine )
+    , M_tackle_brush( TACKLE_COLOR, Qt::SolidPattern )
+    , M_tackle_fault_brush( TACKLE_FAULT_COLOR, Qt::SolidPattern )
+    , M_foul_charged_brush( FOUL_CHARGED_COLOR, Qt::SolidPattern )
+    , M_pointto_pen( POINTTO_COLOR, 0, Qt::SolidLine )
       //
     , M_score_board_font( "Sans Serif", 16, QFont::Bold )
     , M_player_font( "Sans Serif", 9, QFont::Bold )
@@ -328,11 +400,125 @@ Options::readSettings()
     settings.endGroup();
 
     //
-    // score board
+    // color
     //
 
-    //settings.beginGroup( "ScoreBoard" );
-    //settings.endGroup();
+    settings.beginGroup( "Color" );
+
+    // field
+
+    val = settings.value( "field_brush" );
+    if ( val.isValid() ) M_field_brush.setColor( val.toString() );
+
+    val = settings.value( "line_pen" );
+    if ( val.isValid() ) M_line_pen.setColor( val.toString() );
+
+    // score board
+
+    val = settings.value( "score_board_pen" );
+    if ( val.isValid() ) M_score_board_pen.setColor( val.toString() );
+
+    val = settings.value( "score_board_brush" );
+    if ( val.isValid() ) M_score_board_brush.setColor( val.toString() );
+
+    // ball
+
+    val = settings.value( "ball_pen" );
+    if ( val.isValid() ) M_ball_pen.setColor( val.toString() );
+
+    val = settings.value( "ball_vel_pen" );
+    if ( val.isValid() ) M_ball_vel_pen.setColor( val.toString() );
+
+    val = settings.value( "ball_brush" );
+    if ( val.isValid() ) M_ball_brush.setColor( val.toString() );
+
+    // player
+
+    val = settings.value( "player_pen" );
+    if ( val.isValid() ) M_player_pen.setColor( val.toString() );
+
+    val = settings.value( "left_team" );
+    if ( val.isValid() )
+    {
+        M_left_team_pen.setColor( val.toString() );
+        M_left_team_brush.setColor( val.toString() );
+    }
+
+    val = settings.value( "left_goalie" );
+    if ( val.isValid() )
+    {
+        M_left_goalie_pen.setColor( val.toString() );
+        M_left_goalie_stretch_pen.setColor( val.toString() );
+        M_left_goalie_brush.setColor( val.toString() );
+    }
+
+    val = settings.value( "right_team" );
+    if ( val.isValid() )
+    {
+        M_right_team_pen.setColor( val.toString() );
+        M_right_team_brush.setColor( val.toString() );
+    }
+
+    val = settings.value( "right_goalie" );
+    if ( val.isValid() )
+    {
+        M_right_goalie_pen.setColor( val.toString() );
+        M_right_goalie_stretch_pen.setColor( val.toString() );
+        M_right_goalie_brush.setColor( val.toString() );
+    }
+
+    val = settings.value( "player_number_pen" );
+    if ( val.isValid() ) M_player_number_pen.setColor( val.toString() );
+
+    val = settings.value( "player_number_inner_pen" );
+    if ( val.isValid() ) M_player_number_inner_pen.setColor( val.toString() );
+
+    val = settings.value( "neck_pen" );
+    if ( val.isValid() ) M_neck_pen.setColor( val.toString() );
+
+    val = settings.value( "view_area_pen" );
+    if ( val.isValid() ) M_view_area_pen.setColor( val.toString() );
+
+    val = settings.value( "large_view_area_pen" );
+    if ( val.isValid() ) M_large_view_area_pen.setColor( val.toString() );
+
+    val = settings.value( "ball_collide_brush" );
+    if ( val.isValid() ) M_ball_collide_brush.setColor( val.toString() );
+
+    val = settings.value( "effort_decayed_pen" );
+    if ( val.isValid() ) M_effort_decayed_pen.setColor( val.toString() );
+
+    val = settings.value( "recovery_decayed_pen" );
+    if ( val.isValid() ) M_recovery_decayed_pen.setColor( val.toString() );
+
+    val = settings.value( "kick_pen" );
+    if ( val.isValid() ) M_kick_pen.setColor( val.toString() );
+
+    val = settings.value( "kick_fault_brush" );
+    if ( val.isValid() ) M_kick_fault_brush.setColor( val.toString() );
+
+    val = settings.value( "kick_accel_pen" );
+    if ( val.isValid() ) M_kick_accel_pen.setColor( val.toString() );
+
+    val = settings.value( "catch_brush" );
+    if ( val.isValid() ) M_catch_brush.setColor( val.toString() );
+
+    val = settings.value( "catch_fault_brush" );
+    if ( val.isValid() ) M_catch_fault_brush.setColor( val.toString() );
+
+    val = settings.value( "tackle_pen" );
+    if ( val.isValid() ) M_tackle_pen.setColor( val.toString() );
+
+    val = settings.value( "tackle_brush" );
+    if ( val.isValid() ) M_tackle_brush.setColor( val.toString() );
+
+    val = settings.value( "tackle_fault_brush" );
+    if ( val.isValid() ) M_tackle_fault_brush.setColor( val.toString() );
+
+    val = settings.value( "foul_charged_brush" );
+    if ( val.isValid() ) M_foul_charged_brush.setColor( val.toString() );
+
+    settings.endGroup();
 
     //
     // font
@@ -424,6 +610,43 @@ Options::writeSettings()
     settings.beginGroup( "Size" );
     settings.setValue( "ball_size", M_ball_size );
     settings.setValue( "player_size", M_player_size );
+    settings.endGroup();
+
+    //
+    // color
+    //
+    settings.beginGroup( "Color" );
+    settings.setValue( "field_brush", M_field_brush.color().name() );
+    settings.setValue( "line_pen", M_line_pen.color().name() );
+    //
+    settings.setValue( "score_board_pen", M_score_board_pen.color().name() );
+    settings.setValue( "score_board_brush", M_score_board_brush.color().name() );
+    //
+    settings.setValue( "ball_pen", M_ball_pen.color().name() );
+    settings.setValue( "ball_vel_pen", M_ball_vel_pen.color().name() );
+    settings.setValue( "ball_brush", M_ball_brush.color().name() );
+    //
+    settings.setValue( "player_pen", M_player_pen.color().name() );
+    settings.setValue( "left_team", M_left_team_pen.color().name() );
+    settings.setValue( "left_goalie", M_left_goalie_brush.color().name() );
+    settings.setValue( "right_team", M_right_team_pen.color().name() );
+    settings.setValue( "right_goalie", M_right_goalie_brush.color().name() );
+    settings.setValue( "player_number_pen", M_player_number_pen.color().name() );
+    settings.setValue( "player_number_inner_pen", M_player_number_inner_pen.color().name() );
+    settings.setValue( "neck_pen", M_neck_pen.color().name() );
+    settings.setValue( "view_area_pen", M_view_area_pen.color().name() );
+    settings.setValue( "large_view_area_pen", M_large_view_area_pen.color().name() );
+    settings.setValue( "ball_collide_brush", M_ball_collide_brush.color().name() );
+    settings.setValue( "effort_decayed_pen", M_effort_decayed_pen.color().name() );
+    settings.setValue( "recovery_decayed_pen", M_recovery_decayed_pen.color().name() );
+    settings.setValue( "kick_pen", M_kick_pen.color().name() );
+    settings.setValue( "kick_fault_brush", M_kick_fault_brush.color().name() );
+    settings.setValue( "catch_brush", M_catch_brush.color().name() );
+    settings.setValue( "catch_fault_brush", M_catch_fault_brush.color().name() );
+    settings.setValue( "tackle_pen", M_tackle_pen.color().name() );
+    settings.setValue( "tackle_brush", M_tackle_brush.color().name() );
+    settings.setValue( "tackle_fault_brush", M_tackle_fault_brush.color().name() );
+    settings.setValue( "foul_charged_brush", M_foul_charged_brush.color().name() );
     settings.endGroup();
 
     //
@@ -708,6 +931,56 @@ Options::parseCmdLine( int argc,
 //     }
 #endif
     return true;
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+void
+Options::setDefaultColor()
+{
+    M_field_brush.setColor( FIELD_COLOR );
+    M_line_pen.setColor( LINE_COLOR );
+      //
+    M_score_board_pen.setColor( SCORE_BOARD_PEN_COLOR );
+    M_score_board_brush.setColor( SCORE_BOARD_BRUSH_COLOR );
+      //
+    M_ball_pen.setColor( BALL_COLOR );
+    M_ball_brush.setColor( BALL_COLOR );
+    M_ball_vel_pen.setColor( BALL_VEL_COLOR );
+      //
+    M_player_pen.setColor( PLAYER_PEN_COLOR );
+    M_selected_player_pen.setColor( PLAYER_PEN_COLOR );
+    M_left_team_pen.setColor( LEFT_TEAM_COLOR );
+    M_left_team_brush.setColor( LEFT_TEAM_COLOR );
+    M_left_goalie_pen.setColor( LEFT_GOALIE_COLOR );
+    M_left_goalie_stretch_pen.setColor( LEFT_GOALIE_COLOR );
+    M_left_goalie_brush.setColor( LEFT_GOALIE_COLOR );
+    M_right_team_pen.setColor( RIGHT_TEAM_COLOR );
+    M_right_team_brush.setColor( RIGHT_TEAM_COLOR );
+    M_right_goalie_pen.setColor( RIGHT_GOALIE_COLOR );
+    M_right_goalie_stretch_pen.setColor( RIGHT_GOALIE_COLOR );
+    M_right_goalie_brush.setColor( RIGHT_GOALIE_COLOR );
+    M_player_number_pen.setColor( PLAYER_NUMBER_COLOR );
+    M_player_number_inner_pen.setColor( PLAYER_NUMBER_INNER_COLOR );
+    M_neck_pen.setColor( NECK_COLOR );
+    M_view_area_pen.setColor( VIEW_AREA_COLOR );
+    M_large_view_area_pen.setColor( LARGE_VIEW_AREA_COLOR );
+    M_ball_collide_brush.setColor( BALL_COLLIDE_COLOR );
+    M_player_collide_brush.setColor( PLAYER_COLLIDE_COLOR );
+    M_effort_decayed_pen.setColor( EFFORT_DECAYED_COLOR );
+    M_recovery_decayed_pen.setColor( RECOVERY_DECAYED_COLOR );
+    M_kick_pen.setColor( KICK_COLOR );
+    M_kick_fault_brush.setColor( KICK_FAULT_COLOR );
+    M_kick_accel_pen.setColor( KICK_ACCEL_COLOR );
+    M_catch_brush.setColor( CATCH_COLOR );
+    M_catch_fault_brush.setColor( CATCH_FAULT_COLOR );
+    M_tackle_pen.setColor( TACKLE_COLOR );
+    M_tackle_brush.setColor( TACKLE_COLOR );
+    M_tackle_fault_brush.setColor( TACKLE_FAULT_COLOR );
+    M_foul_charged_brush.setColor( FOUL_CHARGED_COLOR );
+    M_pointto_pen.setColor( POINTTO_COLOR );
 }
 
 /*-------------------------------------------------------------------*/

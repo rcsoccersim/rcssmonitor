@@ -45,9 +45,6 @@ private:
 
     DispHolder & M_disp_holder;
 
-    QBrush M_field_brush;
-    QPen M_line_pen;
-
     // not used
     FieldPainter();
     FieldPainter( const FieldPainter & );
@@ -60,9 +57,6 @@ public:
     void draw( QPainter & painter );
 
 private:
-
-    void readSettings();
-    void writeSettings();
 
     void drawBackGround( QPainter & painter ) const;
     void drawLines( QPainter & painter ) const;

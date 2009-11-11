@@ -48,11 +48,9 @@
 
  */
 FieldPainter::FieldPainter( DispHolder & disp_holder )
-    : M_disp_holder( disp_holder ),
-      M_field_brush( QColor( 31, 160, 31 ), Qt::SolidPattern ),
-      M_line_pen( QColor( 255, 255, 255 ),1, Qt::SolidLine )
+    : M_disp_holder( disp_holder )
 {
-    readSettings();
+
 }
 
 /*-------------------------------------------------------------------*/
@@ -61,48 +59,7 @@ FieldPainter::FieldPainter( DispHolder & disp_holder )
  */
 FieldPainter::~FieldPainter()
 {
-    writeSettings();
-}
 
-/*-------------------------------------------------------------------*/
-/*!
-
- */
-void
-FieldPainter::readSettings()
-{
-    QSettings settings( Options::CONF_FILE,
-                        QSettings::IniFormat );
-
-    settings.beginGroup( "Color" );
-
-    QVariant val;
-
-    val = settings.value( "field_brush" );
-    if ( val.isValid() ) M_field_brush.setColor( val.toString() );
-
-    val = settings.value( "line_pen" );
-    if ( val.isValid() ) M_line_pen.setColor( val.toString() );
-
-    settings.endGroup();
-}
-
-/*-------------------------------------------------------------------*/
-/*!
-
- */
-void
-FieldPainter::writeSettings()
-{
-    QSettings settings( Options::CONF_FILE,
-                        QSettings::IniFormat );
-
-    settings.beginGroup( "Color" );
-
-    settings.setValue( "field_brush", M_field_brush.color().name() );
-    settings.setValue( "line_pen", M_line_pen.color().name() );
-
-    settings.endGroup();
 }
 
 /*-------------------------------------------------------------------*/
@@ -146,7 +103,7 @@ FieldPainter::drawBackGround( QPainter & painter ) const
 {
     // fill the whole region
     painter.fillRect( painter.window(),
-                      M_field_brush );
+                      Options::instance().fieldBrush() );
 }
 
 /*-------------------------------------------------------------------*/
@@ -160,7 +117,7 @@ FieldPainter::drawLines( QPainter & painter ) const
     const rcss::rcg::ServerParamT & SP = M_disp_holder.serverParam();
 
     // set paint styles
-    painter.setPen( M_line_pen );
+    painter.setPen( opt.linePen() );
     painter.setBrush( Qt::NoBrush );
 
     // set screen coordinates of field
@@ -225,7 +182,7 @@ FieldPainter::drawPenaltyAreaLines( QPainter & painter ) const
     const Options & opt = Options::instance();
 
     // set gdi objects
-    painter.setPen( M_line_pen );
+    painter.setPen( opt.linePen() );
     painter.setBrush( Qt::NoBrush );
 
     // set screen coordinates of field
@@ -287,7 +244,7 @@ FieldPainter::drawGoalAreaLines( QPainter & painter ) const
     const Options & opt = Options::instance();
 
     // set gdi objects
-    painter.setPen( M_line_pen );
+    painter.setPen( opt.linePen() );
     painter.setBrush( Qt::NoBrush );
 
     // set screen coordinates of field
@@ -380,7 +337,7 @@ FieldPainter::drawFlags( QPainter & painter ) const
     const Options & opt = Options::instance();
 
     // set gdi objects
-    painter.setPen( M_line_pen );
+    painter.setPen( opt.linePen() );
     painter.setBrush( Qt::NoBrush );
 
     // set size or coordinates params
@@ -653,7 +610,7 @@ FieldPainter::drawGrid( QPainter & painter ) const
     //               << "  max_y = " << max_y
     //               << std::endl;
 
-    painter.setPen( M_line_pen );
+    painter.setPen( opt.linePen() );
     painter.setBrush( Qt::NoBrush );
 
     QString text;

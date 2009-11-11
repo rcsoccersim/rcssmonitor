@@ -85,40 +85,8 @@ PlayerPainter::Param::Param(  const rcss::rcg::PlayerT & player,
  */
 PlayerPainter::PlayerPainter( const DispHolder & disp_holder )
     : M_disp_holder( disp_holder )
-    , M_player_pen( QColor( 0, 0, 0 ), 0, Qt::SolidLine )
-    , M_selected_player_pen( QColor( 0, 0, 0 ), 2, Qt::SolidLine )
-    , M_left_team_pen( QColor( 255, 215, 0 ), 0, Qt::SolidLine )
-    , M_left_team_brush( QColor( 255, 215, 0 ), Qt::SolidPattern )
-    , M_left_goalie_pen( QColor( 39, 231, 31 ), 0, Qt::SolidLine )
-    , M_left_goalie_stretch_pen( QColor( 39, 231, 31 ), 0, Qt::DotLine )
-    , M_left_goalie_brush( QColor( 39, 231, 31 ), Qt::SolidPattern )
-    , M_right_team_pen( QColor( 0, 224, 224 ), 0, Qt::SolidLine )
-      //, M_right_team_brush( QColor( 0, 224, 224 ), Qt::SolidPattern )
-    , M_right_team_brush( QColor( 0, 191, 255 ), Qt::SolidPattern )
-    , M_right_goalie_pen( QColor( 255, 153, 255 ), 0, Qt::SolidLine )
-    , M_right_goalie_stretch_pen( QColor( 255, 153, 255 ), 0, Qt::DotLine )
-    , M_right_goalie_brush( QColor( 255, 153, 255 ), Qt::SolidPattern )
-    , M_player_number_pen( QColor( 255, 255, 255 ), 0, Qt::SolidLine )
-    , M_player_number_inner_pen( QColor( 0, 0, 0 ), 0, Qt::SolidLine )
-    , M_neck_pen( QColor( 255, 0, 0 ), 0, Qt::SolidLine )
-    , M_view_area_pen( QColor( 191, 239, 191 ), 0, Qt::SolidLine )
-    , M_large_view_area_pen( QColor( 255, 255, 255 ), 0, Qt::SolidLine )
-    , M_ball_collide_brush( QColor( 255, 0, 0 ), Qt::SolidPattern )
-    , M_player_collide_brush( QColor( 105, 155, 235 ), Qt::SolidPattern )
-    , M_effort_decayed_pen( QColor( 255, 0, 0 ), 0, Qt::SolidLine )
-    , M_recovery_decayed_pen( QColor( 255, 231, 31 ), 0, Qt::SolidLine )
-    , M_kick_pen( QColor( 255, 255, 255 ), 2, Qt::SolidLine )
-    , M_kick_fault_brush( QColor( 255, 0, 0 ), Qt::SolidPattern )
-    , M_kick_accel_pen( QColor( 0, 255, 0 ), 0, Qt::SolidLine )
-    , M_catch_brush( QColor( 10, 80, 10 ), Qt::SolidPattern )
-    , M_catch_fault_brush( QColor( 10, 80, 150 ), Qt::SolidPattern )
-    , M_tackle_pen( QColor( 255, 136, 127 ), 2, Qt::SolidLine )
-    , M_tackle_brush( QColor( 255, 136, 127 ), Qt::SolidPattern )
-    , M_tackle_fault_brush( QColor( 79, 159, 159 ), Qt::SolidPattern )
-    , M_foul_charged_brush( QColor( 0, 127, 0 ), Qt::SolidPattern )
-    , M_pointto_pen( QColor( 255, 0, 191 ), 1, Qt::SolidLine )
 {
-    readSettings();
+
 }
 
 /*-------------------------------------------------------------------*/
@@ -127,148 +95,7 @@ PlayerPainter::PlayerPainter( const DispHolder & disp_holder )
  */
 PlayerPainter::~PlayerPainter()
 {
-    writeSettings();
-}
 
-/*-------------------------------------------------------------------*/
-/*
-
- */
-void
-PlayerPainter::readSettings()
-{
-    QSettings settings( Options::CONF_FILE,
-                        QSettings::IniFormat );
-
-    settings.beginGroup( "Color" );
-
-    QVariant val;
-
-    val = settings.value( "player_pen" );
-    if ( val.isValid() ) M_player_pen.setColor( val.toString() );
-
-    val = settings.value( "left_team" );
-    if ( val.isValid() )
-    {
-        M_left_team_pen.setColor( val.toString() );
-        M_left_team_brush.setColor( val.toString() );
-    }
-
-    val = settings.value( "left_goalie" );
-    if ( val.isValid() )
-    {
-        M_left_goalie_pen.setColor( val.toString() );
-        M_left_goalie_stretch_pen.setColor( val.toString() );
-        M_left_goalie_brush.setColor( val.toString() );
-    }
-
-    val = settings.value( "right_team" );
-    if ( val.isValid() )
-    {
-        M_right_team_pen.setColor( val.toString() );
-        M_right_team_brush.setColor( val.toString() );
-    }
-
-    val = settings.value( "right_goalie" );
-    if ( val.isValid() )
-    {
-        M_right_goalie_pen.setColor( val.toString() );
-        M_right_goalie_stretch_pen.setColor( val.toString() );
-        M_right_goalie_brush.setColor( val.toString() );
-    }
-
-    val = settings.value( "player_number_pen" );
-    if ( val.isValid() ) M_player_number_pen.setColor( val.toString() );
-
-    val = settings.value( "player_number_inner_pen" );
-    if ( val.isValid() ) M_player_number_inner_pen.setColor( val.toString() );
-
-    val = settings.value( "neck_pen" );
-    if ( val.isValid() ) M_neck_pen.setColor( val.toString() );
-
-    val = settings.value( "view_area_pen" );
-    if ( val.isValid() ) M_view_area_pen.setColor( val.toString() );
-
-    val = settings.value( "large_view_area_pen" );
-    if ( val.isValid() ) M_large_view_area_pen.setColor( val.toString() );
-
-    val = settings.value( "ball_collide_brush" );
-    if ( val.isValid() ) M_ball_collide_brush.setColor( val.toString() );
-
-    val = settings.value( "effort_decayed_pen" );
-    if ( val.isValid() ) M_effort_decayed_pen.setColor( val.toString() );
-
-    val = settings.value( "recovery_decayed_pen" );
-    if ( val.isValid() ) M_recovery_decayed_pen.setColor( val.toString() );
-
-    val = settings.value( "kick_pen" );
-    if ( val.isValid() ) M_kick_pen.setColor( val.toString() );
-
-    val = settings.value( "kick_fault_brush" );
-    if ( val.isValid() ) M_kick_fault_brush.setColor( val.toString() );
-
-    val = settings.value( "kick_accel_pen" );
-    if ( val.isValid() ) M_kick_accel_pen.setColor( val.toString() );
-
-    val = settings.value( "catch_brush" );
-    if ( val.isValid() ) M_catch_brush.setColor( val.toString() );
-
-    val = settings.value( "catch_fault_brush" );
-    if ( val.isValid() ) M_catch_fault_brush.setColor( val.toString() );
-
-    val = settings.value( "tackle_pen" );
-    if ( val.isValid() ) M_tackle_pen.setColor( val.toString() );
-
-    val = settings.value( "tackle_brush" );
-    if ( val.isValid() ) M_tackle_brush.setColor( val.toString() );
-
-    val = settings.value( "tackle_fault_brush" );
-    if ( val.isValid() ) M_tackle_fault_brush.setColor( val.toString() );
-
-    val = settings.value( "foul_charged_brush" );
-    if ( val.isValid() ) M_foul_charged_brush.setColor( val.toString() );
-
-    settings.endGroup();
-}
-
-/*-------------------------------------------------------------------*/
-/*
-
- */
-void
-PlayerPainter::writeSettings()
-{
-    QSettings settings( Options::CONF_FILE,
-                        QSettings::IniFormat );
-
-    settings.beginGroup( "Color" );
-
-    settings.setValue( "player_pen", M_player_pen.color().name() );
-    settings.setValue( "left_team", M_left_team_pen.color().name() );
-    settings.setValue( "left_goalie", M_left_goalie_brush.color().name() );
-    settings.setValue( "right_team", M_right_team_pen.color().name() );
-    settings.setValue( "right_goalie", M_right_goalie_brush.color().name() );
-
-    settings.setValue( "player_number_pen", M_player_number_pen.color().name() );
-    settings.setValue( "player_number_inner_pen", M_player_number_inner_pen.color().name() );
-//     settings.setValue( "player_stamina_pen", M_player_stamina_pen.color().name() );
-
-    settings.setValue( "neck_pen", M_neck_pen.color().name() );
-    settings.setValue( "view_area_pen", M_view_area_pen.color().name() );
-    settings.setValue( "large_view_area_pen", M_large_view_area_pen.color().name() );
-    settings.setValue( "ball_collide_brush", M_ball_collide_brush.color().name() );
-    settings.setValue( "effort_decayed_pen", M_effort_decayed_pen.color().name() );
-    settings.setValue( "recovery_decayed_pen", M_recovery_decayed_pen.color().name() );
-    settings.setValue( "kick_pen", M_kick_pen.color().name() );
-    settings.setValue( "kick_fault_brush", M_kick_fault_brush.color().name() );
-    settings.setValue( "catch_brush", M_catch_brush.color().name() );
-    settings.setValue( "catch_fault_brush", M_catch_fault_brush.color().name() );
-    settings.setValue( "tackle_pen", M_tackle_pen.color().name() );
-    settings.setValue( "tackle_brush", M_tackle_brush.color().name() );
-    settings.setValue( "tackle_fault_brush", M_tackle_fault_brush.color().name() );
-    settings.setValue( "foul_charged_brush", M_foul_charged_brush.color().name() );
-
-    settings.endGroup();
 }
 
 /*-------------------------------------------------------------------*/
@@ -362,39 +189,41 @@ void
 PlayerPainter::drawBody( QPainter & painter,
                          const PlayerPainter::Param & param ) const
 {
+    const Options & opt = Options::instance();
+
     // decide base color
-    if ( Options::instance().selectedPlayer( param.player_.side(), param.player_.unum_ ) )
+    if ( opt.selectedPlayer( param.player_.side(), param.player_.unum_ ) )
     {
-        painter.setPen( M_selected_player_pen );
+        painter.setPen( opt.selectedPlayerPen() );
     }
     else
     {
-        painter.setPen( M_player_pen );
+        painter.setPen( opt.playerPen() );
     }
 
     switch ( param.player_.side_ ) {
     case 'l':
         if ( param.player_.isGoalie() )
         {
-            painter.setBrush( M_left_goalie_brush );
+            painter.setBrush( opt.leftGoalieBrush() );
         }
         else
         {
-            painter.setBrush( M_left_team_brush );
+            painter.setBrush( opt.leftTeamBrush() );
         }
         break;
     case 'r':
         if ( param.player_.isGoalie() )
         {
-            painter.setBrush( M_right_goalie_brush );
+            painter.setBrush( opt.rightGoalieBrush() );
         }
         else
         {
-            painter.setBrush( M_right_team_brush );
+            painter.setBrush( opt.rightTeamBrush() );
         }
         break;
     case 'n':
-        std::cerr << "drawBody neutral unum=" << param.player_.unum_ << std::endl;
+        //std::cerr << "drawBody neutral unum=" << param.player_.unum_ << std::endl;
         painter.setBrush( Qt::black );
         break;
     default:
@@ -410,41 +239,41 @@ PlayerPainter::drawBody( QPainter & painter,
     }
     if ( param.player_.isKicking() )
     {
-        painter.setPen( M_kick_pen );
+        painter.setPen( opt.kickPen() );
     }
     if ( param.player_.isKickingFault() )
     {
-        painter.setBrush( M_kick_fault_brush );
+        painter.setBrush( opt.kickFaultBrush() );
     }
     if ( param.player_.isCatching() )
     {
-        painter.setBrush( M_catch_brush );
+        painter.setBrush( opt.catchBrush() );
     }
     if ( param.player_.isCatchingFault() )
     {
-        painter.setBrush( M_catch_fault_brush );
+        painter.setBrush( opt.catchFaultBrush() );
     }
     if ( param.player_.isTackling() )
     {
-        painter.setPen( M_tackle_pen );
-        painter.setBrush( M_tackle_brush );
+        painter.setPen( opt.tacklePen() );
+        painter.setBrush( opt.tackleBrush() );
     }
     if ( param.player_.isTacklingFault() )
     {
-        painter.setPen( M_tackle_pen );
-        painter.setBrush( M_tackle_fault_brush );
+        painter.setPen( opt.tacklePen() );
+        painter.setBrush( opt.tackleFaultBrush() );
     }
     if ( param.player_.isFoulCharged() )
     {
-        painter.setBrush( M_foul_charged_brush );
+        painter.setBrush( opt.foulChargedBrush() );
     }
     if ( param.player_.isCollidedBall() )
     {
-        painter.setBrush( M_ball_collide_brush );
+        painter.setBrush( opt.ballCollideBrush() );
     }
     if ( param.player_.isCollidedPlayer() )
     {
-        painter.setBrush( M_player_collide_brush );
+        painter.setBrush( opt.playerCollideBrush() );
     }
 
     painter.drawEllipse( param.x_ - param.draw_radius_ ,
@@ -488,21 +317,21 @@ PlayerPainter::drawBody( QPainter & painter,
         if ( std::fabs( param.player_.effort_ - param.player_type_.effort_max_ ) > 1.0e-5 )
         {
             int r = param.draw_radius_ + 2;
-            painter.setPen( M_effort_decayed_pen );
+            painter.setPen( opt.effortDecayedPen() );
             painter.setBrush( Qt::NoBrush );
             painter.drawEllipse( param.x_ - r, param.y_ - r, r * 2, r * 2 );
         }
-        else if ( std::fabs( param.player_.recovery_ - 1.0 ) > 1.0e-5 )
+        else if ( std::fabs( param.player_.recovery_ - M_disp_holder.serverParam().recover_init_ ) > 1.0e-5 )
         {
             int r = param.draw_radius_ + 2;
-            painter.setPen( M_recovery_decayed_pen );
+            painter.setPen( opt.recoveryDecayedPen() );
             painter.setBrush( Qt::NoBrush );
             painter.drawEllipse( param.x_ - r, param.y_ - r, r * 2, r * 2 );
         }
     }
 
     // draw real body edge
-    painter.setPen( M_player_pen );
+    painter.setPen( opt.playerPen() );
     painter.setBrush( Qt::NoBrush );
     painter.drawEllipse( param.x_ - param.body_radius_,
                          param.y_ - param.body_radius_,
@@ -519,6 +348,8 @@ void
 PlayerPainter::drawDir( QPainter & painter,
                         const PlayerPainter::Param & param ) const
 {
+    const Options & opt = Options::instance();
+
     // body direction line
     double real_r
         = param.player_type_.player_size_
@@ -526,23 +357,23 @@ PlayerPainter::drawDir( QPainter & painter,
         + M_disp_holder.serverParam().ball_size_;
     double body = param.player_.body_ * DEG2RAD;
 
-    int bx = Options::instance().screenX( param.player_.x_ + real_r * std::cos( body ) );
-    int by = Options::instance().screenY( param.player_.y_ + real_r * std::sin( body ) );
+    int bx = opt.screenX( param.player_.x_ + real_r * std::cos( body ) );
+    int by = opt.screenY( param.player_.y_ + real_r * std::sin( body ) );
 
-    painter.setPen( M_player_pen );
+    painter.setPen( opt.playerPen() );
     painter.setBrush( Qt::NoBrush );
     painter.drawLine( param.x_, param.y_, bx, by );
 
     if ( param.player_.hasNeck()
-         && ! Options::instance().showViewArea() )
+         && ! opt.showViewArea() )
     {
         double head = param.player_.body_ + param.player_.neck_;
         head *= DEG2RAD;
 
-        int nx = Options::instance().screenX( param.player_.x_ + real_r * std::cos( head ) );
-        int ny = Options::instance().screenY( param.player_.y_ + real_r * std::sin( head ) );
+        int nx = opt.screenX( param.player_.x_ + real_r * std::cos( head ) );
+        int ny = opt.screenY( param.player_.y_ + real_r * std::sin( head ) );
 
-        painter.setPen( M_neck_pen );
+        painter.setPen( opt.neckPen() );
         painter.setBrush( Qt::NoBrush );
         painter.drawLine( param.x_, param.y_, nx, ny );
     }
@@ -573,7 +404,7 @@ PlayerPainter::drawViewArea( QPainter & painter,
         const int TEAM_FAR = opt.scale( 40.0 );
         const int TEAM_TOOFAR = opt.scale( 60.0 );
 
-        painter.setPen( M_large_view_area_pen );
+        painter.setPen( opt.largeViewAreaPen() );
         painter.setBrush( Qt::NoBrush );
 
         painter.drawArc( param.x_ - UNUM_FAR, // left x
@@ -625,7 +456,7 @@ PlayerPainter::drawViewArea( QPainter & painter,
     else
     {
         // draw small view area
-        painter.setPen( M_view_area_pen );
+        painter.setPen( opt.viewAreaPen() );
         painter.setBrush( Qt::NoBrush );
 
         painter.drawPie( param.x_ - visible_radius,
@@ -649,19 +480,19 @@ PlayerPainter::drawCatchArea( QPainter & painter,
     // goalie's catchable area
     //
     const Options & opt = Options::instance();
-    const rcss::rcg::ServerParamT & sparam = M_disp_holder.serverParam();
+    const rcss::rcg::ServerParamT & SP = M_disp_holder.serverParam();
 
     //
     // catchable area
     //
 
     const double catchable_area
-        = std::sqrt( std::pow( sparam.catchable_area_w_ * 0.5, 2.0 )
-                     + std::pow( sparam.catchable_area_l_, 2.0 ) );
+        = std::sqrt( std::pow( SP.catchable_area_w_ * 0.5, 2.0 )
+                     + std::pow( SP.catchable_area_l_, 2.0 ) );
     const int catchable = opt.scale( catchable_area );
     painter.setPen( ( param.player_.side_ == 'l' )
-                    ? M_left_goalie_pen
-                    : M_right_goalie_pen );
+                    ? opt.leftGoaliePen()
+                    : opt.rightGoaliePen() );
     painter.setBrush( Qt::NoBrush );
     painter.drawEllipse( param.x_ - catchable,
                          param.y_ - catchable,
@@ -669,17 +500,17 @@ PlayerPainter::drawCatchArea( QPainter & painter,
                          catchable * 2 );
 
     const double stretch_catchable_area_l
-        = sparam.catchable_area_l_
+        = SP.catchable_area_l_
         * param.player_type_.catchable_area_l_stretch_;
     const double stretch_area
-        = std::sqrt( std::pow( sparam.catchable_area_w_ * 0.5, 2.0 )
+        = std::sqrt( std::pow( SP.catchable_area_w_ * 0.5, 2.0 )
                      + std::pow( stretch_catchable_area_l, 2.0 ) );
     const int stretch = opt.scale( stretch_area );
     if ( stretch > catchable )
     {
         painter.setPen( ( param.player_.side_ == 'l' )
-                        ? M_left_goalie_stretch_pen
-                        : M_right_goalie_stretch_pen );
+                        ? opt.leftGoalieStretchPen()
+                        : opt.rightGoalieStretchPen() );
         painter.drawEllipse( param.x_ - stretch,
                              param.y_ - stretch,
                              stretch * 2,
@@ -692,7 +523,7 @@ PlayerPainter::drawCatchArea( QPainter & painter,
 
     const double ball_dist = std::sqrt( std::pow( param.player_.x_ - param.ball_.x_, 2 )
                                         + std::pow( param.player_.y_ - param.ball_.y_, 2 ) );
-    double catch_prob = sparam.catch_probability_;
+    double catch_prob = SP.catch_probability_;
     if ( ball_dist > stretch_area )
     {
         // catch_prob = 0.0;
@@ -703,16 +534,16 @@ PlayerPainter::drawCatchArea( QPainter & painter,
     {
         double x = ball_dist * ( stretch_catchable_area_l / stretch_area );
         catch_prob
-            = sparam.catch_probability_
-            - sparam.catch_probability_ * ( ( x - sparam.catchable_area_l_ )
-                                            / ( stretch_catchable_area_l - sparam.catchable_area_l_ ) );
+            = SP.catch_probability_
+            - SP.catch_probability_ * ( ( x - SP.catchable_area_l_ )
+                                        / ( stretch_catchable_area_l - SP.catchable_area_l_ ) );
     }
 
     int text_radius = std::min( 40, param.draw_radius_ );
 
     painter.setPen( ( param.player_.side_ == 'l' )
-                    ? M_right_goalie_pen
-                    : M_left_goalie_pen );
+                    ? opt.rightGoaliePen()
+                    : opt.leftGoaliePen() );
     painter.setFont( opt.playerFont() );
     painter.drawText( param.x_ + text_radius,
                       param.y_ + ( 2 + painter.fontMetrics().ascent() ) * 2,
@@ -732,7 +563,7 @@ PlayerPainter::drawTackleArea( QPainter & painter,
     //
 
     const Options & opt = Options::instance();
-    const rcss::rcg::ServerParamT & sparam = M_disp_holder.serverParam();
+    const rcss::rcg::ServerParamT & SP = M_disp_holder.serverParam();
 
     Vector2D ppos( param.player_.x_,
                    param.player_.y_ );
@@ -743,21 +574,21 @@ PlayerPainter::drawTackleArea( QPainter & painter,
     player_to_ball.rotate( - param.player_.body_ );
 
     double tackle_dist = ( player_to_ball.x > 0.0
-                           ? sparam.tackle_dist_
-                           : sparam.tackle_back_dist_ );
+                           ? SP.tackle_dist_
+                           : SP.tackle_back_dist_ );
     if ( tackle_dist < 1.0e-5 )
     {
         return;
     }
 
     double tackle_fail_prob = ( std::pow( player_to_ball.absX() / tackle_dist,
-                                          sparam.tackle_exponent_ )
-                                + std::pow( player_to_ball.absY() / sparam.tackle_width_,
-                                            sparam.tackle_exponent_ ) );
+                                          SP.tackle_exponent_ )
+                                + std::pow( player_to_ball.absY() / SP.tackle_width_,
+                                            SP.tackle_exponent_ ) );
     double foul_fail_prob = ( std::pow( player_to_ball.absX() / tackle_dist,
-                                        sparam.foul_exponent_ )
-                              + std::pow( player_to_ball.absY() / sparam.tackle_width_,
-                                          sparam.foul_exponent_ ) );
+                                        SP.foul_exponent_ )
+                              + std::pow( player_to_ball.absY() / SP.tackle_width_,
+                                          SP.foul_exponent_ ) );
 
     if ( tackle_fail_prob < 1.0
          || foul_fail_prob < 1.0 )
@@ -766,19 +597,19 @@ PlayerPainter::drawTackleArea( QPainter & painter,
         painter.translate( param.x_, param.y_ );
         painter.rotate( param.player_.body_ );
 
-        painter.setPen( M_tackle_pen );
+        painter.setPen( opt.tacklePen() );
         painter.setBrush( Qt::NoBrush );
 
-        painter.drawRect( opt.scale( - sparam.tackle_back_dist_ ),
-                          opt.scale( - sparam.tackle_width_ ),
-                          opt.scale( sparam.tackle_dist_ + sparam.tackle_back_dist_ ),
-                          opt.scale( sparam.tackle_width_ * 2.0 ) );
+        painter.drawRect( opt.scale( - SP.tackle_back_dist_ ),
+                          opt.scale( - SP.tackle_width_ ),
+                          opt.scale( SP.tackle_dist_ + SP.tackle_back_dist_ ),
+                          opt.scale( SP.tackle_width_ * 2.0 ) );
         painter.restore();
 
         int text_radius = std::min( 40, param.draw_radius_ );
 
         painter.setFont( opt.playerFont() );
-        painter.setPen( M_tackle_pen );
+        painter.setPen( opt.tacklePen() );
 
         if ( tackle_fail_prob < 1.0
              && foul_fail_prob < 1.0 )
@@ -824,7 +655,7 @@ PlayerPainter::drawKickAccelArea( QPainter & painter,
     }
 
     const Options & opt = Options::instance();
-    const rcss::rcg::ServerParamT & sparam = M_disp_holder.serverParam();
+    const rcss::rcg::ServerParamT & SP = M_disp_holder.serverParam();
 
     Vector2D ppos( param.player_.x_,
                    param.player_.y_ );
@@ -838,23 +669,23 @@ PlayerPainter::drawKickAccelArea( QPainter & painter,
 
     if ( ball_dist > ( param.player_type_.player_size_
                        + param.player_type_.kickable_margin_
-                       + sparam.ball_size_ ) )
+                       + SP.ball_size_ ) )
     {
         return;
     }
 
     double max_kick_accel
-        = sparam.max_power_
-        //* sparam.kick_power_rate_
+        = SP.max_power_
+        //* SP.kick_power_rate_
         * param.player_type_.kick_power_rate_
         * ( 1.0 - 0.25 * player_to_ball.th().abs() / 180.0
             - 0.25
-            * ( ball_dist - param.player_type_.player_size_ - sparam.ball_size_ )
+            * ( ball_dist - param.player_type_.player_size_ - SP.ball_size_ )
             / param.player_type_.kickable_margin_ );
 
-    if ( max_kick_accel > sparam.ball_accel_max_ )
+    if ( max_kick_accel > SP.ball_accel_max_ )
     {
-        max_kick_accel = sparam.ball_accel_max_;
+        max_kick_accel = SP.ball_accel_max_;
     }
 
     Vector2D bnext( bpos.x + param.ball_.vx_,
@@ -864,16 +695,16 @@ PlayerPainter::drawKickAccelArea( QPainter & painter,
                         opt.screenY( bpos.y ) );
     QPoint bnext_screen( opt.screenX( bnext.x ),
                          opt.screenY( bnext.y ) );
-    int max_speed_screen = opt.scale( sparam.ball_speed_max_ );
+    int max_speed_screen = opt.scale( SP.ball_speed_max_ );
     int max_kick_accel_screen = opt.scale( max_kick_accel );
 
-    painter.setPen( M_kick_accel_pen );
+    painter.setPen( opt.kickAccelPen() );
     painter.setBrush( Qt::NoBrush );
 
     // draw no noise ball move line
     painter.drawLine( bpos_screen, bnext_screen );
 
-    Circle2D max_speed_circle( bpos, sparam.ball_speed_max_ );
+    Circle2D max_speed_circle( bpos, SP.ball_speed_max_ );
     Circle2D max_accel_circle( bnext, max_kick_accel );
     Vector2D intersection_1, intersection_2;
 
@@ -970,7 +801,7 @@ PlayerPainter::drawKickAccelArea( QPainter & painter,
 
     // draw kick info text
     painter.setFont( opt.playerFont() );
-    painter.setPen( M_kick_accel_pen );
+    painter.setPen( opt.kickAccelPen() );
 
     char buf[32];
     snprintf( buf, 32, "MaxAccel=%.3f", max_kick_accel );
@@ -987,13 +818,14 @@ void
 PlayerPainter::drawPointto( QPainter & painter,
                             const PlayerPainter::Param & param ) const
 {
-    int ix = Options::instance().screenX( param.player_.point_x_ );
-    int iy = Options::instance().screenY( param.player_.point_y_ );
+    const Options & opt = Options::instance();
 
-    painter.setPen( M_pointto_pen );
+    int ix = opt.screenX( param.player_.point_x_ );
+    int iy = opt.screenY( param.player_.point_y_ );
+
+    painter.setPen( opt.pointtoPen() );
     painter.setBrush( Qt::NoBrush );
-    painter.drawLine( param.x_, param.y_,
-                      ix, iy );
+    painter.drawLine( param.x_, param.y_, ix, iy );
     painter.drawLine( ix - 2, iy - 2, ix + 2, iy + 2 );
     painter.drawLine( ix - 2, iy + 2, ix + 2, iy - 2 );
 }
@@ -1094,11 +926,11 @@ PlayerPainter::drawText( QPainter & painter,
 
         if ( text_radius < param.draw_radius_ - 10 )
         {
-            painter.setPen( M_player_number_inner_pen );
+            painter.setPen( opt.playerNumberInnerPen() );
         }
         else
         {
-            painter.setPen( M_player_number_pen );
+            painter.setPen( opt.playerNumberPen() );
         }
 
         painter.setBrush( Qt::NoBrush );
@@ -1183,11 +1015,11 @@ PlayerPainter::drawOffsideLine( QPainter & painter,
 
     painter.setBrush( Qt::NoBrush );
 
-    painter.setPen( M_left_team_pen );
+    painter.setPen( opt.leftTeamPen() );
     painter.drawLine( offside_line_l, top_y,
                       offside_line_l, bottom_y );
 
-    painter.setPen( M_right_team_pen );
+    painter.setPen( opt.rightTeamPen() );
     painter.drawLine( offside_line_r, top_y,
                       offside_line_r, bottom_y );
 }

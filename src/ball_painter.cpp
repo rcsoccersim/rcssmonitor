@@ -52,11 +52,8 @@
 */
 BallPainter::BallPainter( const DispHolder & disp_holder )
     : M_disp_holder( disp_holder )
-    , M_ball_pen( QColor( 255, 255, 255 ), 0, Qt::SolidLine )
-    , M_ball_vel_pen( QColor( 255, 0, 0 ), 0, Qt::SolidLine )
-    , M_ball_brush( QColor( 255, 255, 255 ), Qt::SolidPattern )
 {
-    readSettings();
+
 }
 
 /*-------------------------------------------------------------------*/
@@ -65,52 +62,7 @@ BallPainter::BallPainter( const DispHolder & disp_holder )
 */
 BallPainter::~BallPainter()
 {
-    writeSettings();
-}
 
-/*-------------------------------------------------------------------*/
-/*!
-
-*/
-void
-BallPainter::readSettings()
-{
-    QSettings settings( Options::CONF_FILE,
-                        QSettings::IniFormat );
-
-    settings.beginGroup( "Color" );
-
-    QVariant val;
-
-    val = settings.value( "ball_pen" );
-    if ( val.isValid() ) M_ball_pen.setColor( val.toString() );
-
-    val = settings.value( "ball_vel_pen" );
-    if ( val.isValid() ) M_ball_vel_pen.setColor( val.toString() );
-
-    val = settings.value( "ball_brush" );
-    if ( val.isValid() ) M_ball_brush.setColor( val.toString() );
-
-    settings.endGroup();
-}
-
-/*-------------------------------------------------------------------*/
-/*!
-
-*/
-void
-BallPainter::writeSettings()
-{
-    QSettings settings( Options::CONF_FILE,
-                        QSettings::IniFormat );
-
-    settings.beginGroup( "Color" );
-
-    settings.setValue( "ball_pen", M_ball_pen.color().name() );
-    settings.setValue( "ball_vel_pen", M_ball_vel_pen.color().name() );
-    settings.setValue( "ball_brush", M_ball_brush.color().name() );
-
-    settings.endGroup();
 }
 
 /*-------------------------------------------------------------------*/
@@ -150,14 +102,14 @@ BallPainter::draw( QPainter & painter )
 
     // draw ball body
     painter.setPen( Qt::NoPen );
-    painter.setBrush( M_ball_brush );
+    painter.setBrush( opt.ballBrush() );
     painter.drawEllipse( ix - ball_radius,
                          iy - ball_radius,
                          ball_radius * 2,
                          ball_radius * 2 );
 
     // draw kickable margin
-    painter.setPen( M_ball_pen );
+    painter.setPen( opt.ballPen() );
     painter.setBrush( Qt::NoBrush );
     painter.drawEllipse( ix - kickable_radius,
                          iy - kickable_radius,
@@ -226,7 +178,7 @@ BallPainter::drawVelocity( QPainter & painter ) const
     path.moveTo( first_point );
     path.lineTo( last_point );
 
-    painter.setPen( M_ball_vel_pen );
+    painter.setPen( opt.ballVelPen() );
     painter.setBrush( Qt::NoBrush );
 
     painter.drawPath( path );

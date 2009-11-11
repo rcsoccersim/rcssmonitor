@@ -42,10 +42,6 @@ class BallPainter
 private:
     const DispHolder & M_disp_holder;
 
-    QPen M_ball_pen;
-    QPen M_ball_vel_pen;
-    QBrush M_ball_brush;
-
     // not used
     BallPainter();
     BallPainter( const BallPainter & );
@@ -58,10 +54,6 @@ public:
     void draw( QPainter & painter );
 
 private:
-
-
-    void readSettings();
-    void writeSettings();
 
     void drawVelocity( QPainter & painter ) const;
 

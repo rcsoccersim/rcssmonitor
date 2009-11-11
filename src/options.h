@@ -33,9 +33,12 @@
 #ifndef RCSSMONITOR_OPTIONS_H
 #define RCSSMONITOR_OPTIONS_H
 
+#include <QColor>
 #include <QString>
 #include <QPoint>
 #include <QPointF>
+#include <QPen>
+#include <QBrush>
 #include <QFont>
 
 #include <rcsslogplayer/types.h>
@@ -93,6 +96,36 @@ public:
     static const double ZOOM_RATIO;
     //! default logplayer timer step (ms).
     static const int DEFAULT_TIMER_INTERVAL;
+
+    static const QColor FIELD_COLOR;
+    static const QColor LINE_COLOR;
+    static const QColor SCORE_BOARD_PEN_COLOR;
+    static const QColor SCORE_BOARD_BRUSH_COLOR;
+    static const QColor BALL_COLOR;
+    static const QColor BALL_VEL_COLOR;
+    static const QColor PLAYER_PEN_COLOR;
+    static const QColor LEFT_TEAM_COLOR;
+    static const QColor LEFT_GOALIE_COLOR;
+    static const QColor RIGHT_TEAM_COLOR;
+    static const QColor RIGHT_GOALIE_COLOR;
+    static const QColor PLAYER_NUMBER_COLOR;
+    static const QColor PLAYER_NUMBER_INNER_COLOR;
+    static const QColor NECK_COLOR;
+    static const QColor VIEW_AREA_COLOR;
+    static const QColor LARGE_VIEW_AREA_COLOR;
+    static const QColor BALL_COLLIDE_COLOR;
+    static const QColor PLAYER_COLLIDE_COLOR;
+    static const QColor EFFORT_DECAYED_COLOR;
+    static const QColor RECOVERY_DECAYED_COLOR;
+    static const QColor KICK_COLOR;
+    static const QColor KICK_FAULT_COLOR;
+    static const QColor KICK_ACCEL_COLOR;
+    static const QColor CATCH_COLOR;
+    static const QColor CATCH_FAULT_COLOR;
+    static const QColor TACKLE_COLOR;
+    static const QColor TACKLE_FAULT_COLOR;
+    static const QColor FOUL_CHARGED_COLOR;
+    static const QColor POINTTO_COLOR;
 
 private:
 
@@ -185,6 +218,51 @@ private:
     // painter resources
     //
 
+    // pen, brush
+    QBrush M_field_brush;
+    QPen M_line_pen;
+
+    QPen M_score_board_pen;
+    QBrush M_score_board_brush;
+
+    QPen M_ball_pen;
+    QBrush M_ball_brush;
+    QPen M_ball_vel_pen;
+
+    QPen M_player_pen;
+    QPen M_selected_player_pen;
+    QPen M_left_team_pen;
+    QBrush M_left_team_brush;
+    QPen M_left_goalie_pen;
+    QPen M_left_goalie_stretch_pen;
+    QBrush M_left_goalie_brush;
+    QPen M_right_team_pen;
+    QBrush M_right_team_brush;
+    QPen M_right_goalie_pen;
+    QPen M_right_goalie_stretch_pen;
+    QBrush M_right_goalie_brush;
+    QPen M_player_number_pen;
+    QPen M_player_number_inner_pen;
+    QPen M_neck_pen;
+    QPen M_view_area_pen;
+    QPen M_large_view_area_pen;
+    QBrush M_ball_collide_brush;
+    QBrush M_player_collide_brush;
+    QPen M_effort_decayed_pen;
+    QPen M_recovery_decayed_pen;
+    QPen M_kick_pen;
+    QBrush M_kick_fault_brush;
+    QPen M_kick_accel_pen;
+    QBrush M_catch_brush;
+    QBrush M_catch_fault_brush;
+    QPen M_tackle_pen;
+    QBrush M_tackle_brush;
+    QBrush M_tackle_fault_brush;
+    QBrush M_foul_charged_brush;
+    QPen M_pointto_pen;
+
+
+    // font
     QFont M_score_board_font;
     QFont M_player_font;
     QFont M_measure_font;
@@ -212,6 +290,8 @@ public:
     bool parseCmdLine( int argc,
                        char ** argv );
 
+
+    void setDefaultColor();
 
     //
     // monitor options
@@ -644,6 +724,112 @@ public:
           if ( 0 <= cycle && cycle <= 100 ) M_ball_vel_cycle = cycle;
       }
 
+
+    const QBrush & fieldBrush() const { return M_field_brush; }
+    void setFieldColor( const QColor & col ) { M_field_brush.setColor( col ); }
+
+    const QPen & linePen() const { return M_line_pen; }
+    void setLineColor( const QColor & col ) { M_line_pen.setColor( col ); }
+
+    const QPen & scoreBoardPen() const { return M_score_board_pen; }
+    void setScoreBoardPenColor( const QColor & col ) { return M_score_board_pen.setColor( col ); }
+    const QBrush & scoreBoardBrush() const { return M_score_board_brush; }
+    void setScoreBoardBrushColor( const QColor & col ) { return M_score_board_brush.setColor( col ); }
+
+    const QPen & ballPen() const { return M_ball_pen; }
+    const QBrush & ballBrush() const { return M_ball_brush; }
+    void setBallColor( const QColor & col )
+      {
+          M_ball_pen.setColor( col );
+          M_ball_brush.setColor( col );
+      }
+    const QPen & ballVelPen() const { return M_ball_vel_pen; }
+    void setBallVelColor( const QColor & col ) { M_ball_vel_pen.setColor( col ); }
+
+
+    const QPen & playerPen() const { return M_player_pen; }
+    const QPen & selectedPlayerPen() const { return M_selected_player_pen; }
+    void setPlayerPenColor( const QColor & col )
+      {
+          M_player_pen.setColor( col );
+          M_selected_player_pen.setColor( col );
+      }
+    const QPen & leftTeamPen() const { return M_left_team_pen; }
+    const QBrush & leftTeamBrush() const { return M_left_team_brush; }
+    void setLeftTeamColor( const QColor & col )
+      {
+          M_left_team_pen.setColor( col );
+          M_left_team_brush.setColor( col );
+      }
+    const QPen & leftGoaliePen() const { return M_left_goalie_pen; }
+    const QPen & leftGoalieStretchPen() const { return  M_left_goalie_stretch_pen; }
+    const QBrush & leftGoalieBrush() const { return M_left_goalie_brush; }
+    void setLeftGoalieColor( const QColor & col )
+      {
+          M_left_goalie_pen.setColor( col );
+          M_left_goalie_stretch_pen.setColor( col );
+          M_left_goalie_brush.setColor( col );
+      }
+    const QPen & rightTeamPen() const { return M_right_team_pen; }
+    const QBrush & rightTeamBrush() const { return M_right_team_brush; }
+    void setRightTeamColor( const QColor & col )
+      {
+          M_right_team_pen.setColor( col );
+          M_right_team_brush.setColor( col );
+      }
+    const QPen & rightGoaliePen() const { return M_right_goalie_pen; }
+    const QPen & rightGoalieStretchPen() const { return M_right_goalie_stretch_pen; }
+    const QBrush & rightGoalieBrush() const { return  M_right_goalie_brush; }
+    void setRightGoalieColor( const QColor & col )
+      {
+          M_right_goalie_pen.setColor( col );
+          M_right_goalie_stretch_pen.setColor( col );
+          M_right_goalie_brush.setColor( col );
+      }
+    const QPen & playerNumberPen() const { return M_player_number_pen; }
+    void setPlayerNumberColor( const QColor & col ) { M_player_number_pen.setColor( col ); }
+    const QPen & playerNumberInnerPen() const { return M_player_number_inner_pen; }
+    void setPlayerNumberInnerColor( const QColor & col ) { M_player_number_inner_pen.setColor( col ); }
+    const QPen & neckPen() const { return M_neck_pen; }
+    void setNeckColor( const QColor & col ){ M_neck_pen.setColor( col ); }
+    const QPen & viewAreaPen() const { return M_view_area_pen; }
+    void setViewAreaColor( const QColor & col ) { M_view_area_pen.setColor( col ); }
+    const QPen & largeViewAreaPen() const { return M_large_view_area_pen; }
+    void setLargeViewAreaColor( const QColor & col ) { M_large_view_area_pen.setColor( col ); }
+    const QBrush & ballCollideBrush() const { return M_ball_collide_brush; }
+    void setBallCollideColor( const QColor & col ) { M_ball_collide_brush.setColor( col ); }
+    const QBrush & playerCollideBrush() const { return M_player_collide_brush; }
+    void setPlayerCollideColor( const QColor & col ) { M_player_collide_brush.setColor( col ); }
+    const QPen & effortDecayedPen() const { return M_effort_decayed_pen; }
+    void setEffortDecayedColor( const QColor & col ) { M_effort_decayed_pen.setColor( col ); }
+    const QPen & recoveryDecayedPen() const { return M_recovery_decayed_pen; }
+    void setRecoveryDecayedColor( const QColor & col ) { M_recovery_decayed_pen.setColor( col ); }
+    const QPen & kickPen() const { return M_kick_pen; }
+    void setKickColor( const QColor & col ) { M_kick_pen.setColor( col ); }
+    const QBrush & kickFaultBrush() const { return M_kick_fault_brush; }
+    void setKickFaultColor( const QColor & col ) { M_kick_fault_brush.setColor( col ); }
+    const QPen & kickAccelPen() const { return M_kick_accel_pen; }
+    void setKickAccelColor( const QColor & col ) { M_kick_accel_pen.setColor( col ); }
+    const QBrush & catchBrush() const { return M_catch_brush; }
+    void setCatchColor( const QColor & col ) { M_catch_brush.setColor( col ); }
+    const QBrush & catchFaultBrush() const { return M_catch_fault_brush; }
+    void setCatchFaultColor( const QColor & col ) { M_catch_fault_brush.setColor( col ); }
+    const QPen & tacklePen() const { return M_tackle_pen; }
+    const QBrush & tackleBrush() const { return M_tackle_brush; }
+    void setTackleColor( const QColor & col )
+      {
+          M_tackle_pen.setColor( col );
+          M_tackle_brush.setColor( col );
+      }
+    const QBrush & tackleFaultBrush() const { return M_tackle_fault_brush; }
+    void setTackleFaultColor( const QColor & col ) { M_tackle_fault_brush.setColor( col ); }
+    const QBrush & foulChargedBrush() const { return M_foul_charged_brush; }
+    void setFoulChargedColor( const QColor & col ) { M_foul_charged_brush.setColor( col ); }
+    const QPen & pointtoPen() const { return M_pointto_pen; }
+    void setPointtoColor( const QColor & col ) { M_pointto_pen.setColor( col ); }
+
+
+    //
 
     const QFont & scoreBoardFont() const { return M_score_board_font; }
     void setScoreBoardFont( const QFont & font ) { M_score_board_font = font; }
