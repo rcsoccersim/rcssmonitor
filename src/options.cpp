@@ -36,6 +36,7 @@
 
 #include <QSettings>
 #include <QDir>
+#include <QFontMetrics>
 
 #include "options.h"
 
@@ -170,7 +171,7 @@ Options::Options()
     , M_show_pointto( true )
     , M_show_card( true )
     , M_show_offside_line( false )
-//     , M_show_draw_info( true )
+    , M_show_draw_info( true )
     , M_ball_size( 0.35 )
     , M_player_size( 0.0 )
     , M_grid_step( 0.0 )
@@ -343,8 +344,8 @@ Options::readSettings()
     val = settings.value( "show_team_graphic" );
     if ( val.isValid() ) M_show_team_graphic = val.toBool();
 
-//     val = settings.value( "show_draw_info" );
-//     if ( val.isValid() ) M_show_draw_info = val.toBool();
+    val = settings.value( "show_draw_info" );
+    if ( val.isValid() ) M_show_draw_info = val.toBool();
 
     val = settings.value( "show_ball" );
     if ( val.isValid() ) M_show_ball = val.toBool();
@@ -607,7 +608,7 @@ Options::writeSettings()
     settings.setValue( "show_score_board", M_show_score_board );
     settings.setValue( "show_keepaway_area", M_show_keepaway_area );
     settings.setValue( "show_team_graphic", M_show_team_graphic );
-//     settings.setValue( "show_draw_info", M_show_draw_info );
+    settings.setValue( "show_draw_info", M_show_draw_info );
     settings.setValue( "show_ball", M_show_ball );
     settings.setValue( "show_player", M_show_player );
     settings.setValue( "show_player_number", M_show_player_number );
@@ -759,9 +760,9 @@ Options::parseCmdLine( int argc,
         ( "show-team-graphic",
           po::value< bool >( &M_show_team_graphic )->default_value( true, "on" ),
           "show team graphic." )
-//         ( "show-draw-info",
-//           po::value< bool >( &M_show_draw_info )->default_value( true, "on" ),
-//           "show draw information." )
+        ( "show-draw-info",
+          po::value< bool >( &M_show_draw_info )->default_value( true, "on" ),
+          "show draw information." )
         ( "show-ball",
           po::value< bool >( &M_show_ball )->default_value( true, "on" ),
           "show ball." )
@@ -1083,11 +1084,19 @@ void
 Options::updateFieldSize( const int canvas_width,
                           const int canvas_height )
 {
+    static bool s_team_graphic = true;
+    static bool s_score_board = true;
+
     if ( M_canvas_width != canvas_width
-         || M_canvas_height != canvas_height )
+         || M_canvas_height != canvas_height
+         || s_team_graphic != showTeamGraphic()
+         || s_score_board != showScoreBoard() )
     {
         M_canvas_width = canvas_width;
         M_canvas_height = canvas_height;
+
+        s_team_graphic = showTeamGraphic();
+        s_score_board = showScoreBoard();
 
         // adjust field scale to window size.
         if ( ! zoomed() )
@@ -1097,14 +1106,25 @@ Options::updateFieldSize( const int canvas_width,
                                      + 1.0 );
             double total_pitch_w = ( PITCH_WIDTH
                                      + PITCH_MARGIN * 2.0
-                                     + 1.0 );
+                                     //+ 1.0
+                                     );
 
             M_field_scale = static_cast< double >( canvas_width ) / total_pitch_l;
 
-            // automatically adjust a field scale
-            if ( total_pitch_w * fieldScale() > canvas_height )
+            int field_height = canvas_height;
+            if ( showTeamGraphic() )
             {
-                M_field_scale = static_cast< double >( canvas_height ) / total_pitch_w;
+                field_height -= 32; //48; //64;
+            }
+            if ( showScoreBoard() )
+            {
+                field_height -= QFontMetrics( scoreBoardFont() ).ascent();
+            }
+
+            // automatically adjust a field scale
+            if ( total_pitch_w * fieldScale() > field_height )
+            {
+                M_field_scale = static_cast< double >( field_height ) / total_pitch_w;
             }
 
             // check the scale threshold
@@ -1117,8 +1137,24 @@ Options::updateFieldSize( const int canvas_width,
         }
     }
 
-    M_field_center.setX( canvas_width/2 - scale( focusPoint().x() ) );
-    M_field_center.setY( canvas_height/2 - scale( focusPoint().y() ) );
+    {
+        int field_height = canvas_height;
+        int team_graphic_height = 0;
+        if ( showTeamGraphic() )
+        {
+            team_graphic_height = 32; //48; //64;
+            field_height -= team_graphic_height;
+        }
+        if ( showScoreBoard() )
+        {
+            field_height -= QFontMetrics( scoreBoardFont() ).ascent();
+        }
+
+        M_field_center.setX( canvas_width/2 - scale( focusPoint().x() ) );
+        M_field_center.setY( team_graphic_height
+                             + field_height/2
+                             - scale( focusPoint().y() ) );
+    }
 }
 
 /*-------------------------------------------------------------------*/

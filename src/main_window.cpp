@@ -334,6 +334,22 @@ MainWindow::createActionsView()
              this, SLOT( toggleStatusBar( bool ) ) );
     this->addAction( M_toggle_status_bar_act );
 
+    // full screen
+    M_full_screen_act = new QAction( tr( "&Full Screen" ), this );
+    M_full_screen_act->setShortcut( tr( "F11" ) );
+    //M_full_screen_act->setShortcut( tr( "Alt+Enter" ) );
+    //M_full_screen_act->setShortcut( Qt::ALT + Qt::Key_Return );
+    //M_full_screen_act->setShortcut( Qt::ALT + Qt::Key_Enter );
+    M_full_screen_act->setStatusTip( tr( "Toggle full screen." ) );
+    connect( M_full_screen_act, SIGNAL( triggered() ),
+             this, SLOT( toggleFullScreen() ) );
+    this->addAction( M_full_screen_act );
+    //(void) new QShortcut( Qt::ALT + Qt::Key_Enter, this, SLOT( toggleFullScreen() ) );
+    (void) new QShortcut( Qt::ALT + Qt::Key_Return,
+                          this, SLOT( toggleFullScreen() ) );
+    (void) new QShortcut( Qt::ALT + Qt::Key_Enter,
+                          this, SLOT( toggleFullScreen() ) );
+
     // qt style menu group
     M_style_act_group = new QActionGroup( this );
     Q_FOREACH ( QString style_name, QStyleFactory::keys() )
@@ -455,6 +471,10 @@ MainWindow::createMenuView()
 
     menu->addAction( M_toggle_menu_bar_act );
     menu->addAction( M_toggle_status_bar_act );
+
+    menu->addSeparator();
+
+    menu->addAction( M_full_screen_act );
 
     menu->addSeparator();
 
@@ -1152,6 +1172,23 @@ MainWindow::changeStyle( bool checked )
     Q_ASSERT( style );
 
     QApplication::setStyle( style );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+void
+MainWindow::toggleFullScreen()
+{
+    if ( this->isFullScreen() )
+    {
+        this->showNormal();
+    }
+    else
+    {
+        this->showFullScreen();
+    }
 }
 
 /*-------------------------------------------------------------------*/

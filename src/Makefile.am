@@ -11,6 +11,7 @@ rcssmonitor_SOURCES = \
 	circle_2d.cpp \
 	config_dialog.cpp \
 	disp_holder.cpp \
+	draw_info_painter.cpp \
 	field_canvas.cpp \
 	field_painter.cpp \
 	line_2d.cpp \
@@ -42,6 +43,7 @@ noinst_HEADERS = \
 	circle_2d.h \
 	config_dialog.h \
 	disp_holder.h \
+	draw_info_painter.h \
 	field_canvas.h \
 	field_painter.h \
 	line_2d.h \

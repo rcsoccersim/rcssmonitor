@@ -284,6 +284,7 @@ DispHolder::doHandleShowInfo( const rcss::rcg::ShowInfoT & show )
         M_disp_cont.push_back( disp );
         if ( (int)M_disp_cont.size() > Options::instance().maxDispBuffer() )
         {
+            doHandleDrawClear( M_disp_cont.front()->show_.time_ );
             M_disp_cont.pop_front();
         }
     }

@@ -716,14 +716,21 @@ ConfigDialog::createShowControls()
                  this, SLOT( clickShowOffsideLine( bool ) ) );
         layout->addWidget( M_show_offside_line_cb );
         //
-//         M_show_draw_info_cb = new QCheckBox( tr( "Draw Info" ) );
-//         M_show_draw_info_cb->setChecked( Options::instance().showDrawInfo() );
-//         connect( M_show_draw_info_cb, SIGNAL( clicked( bool ) ),
-//                  this, SLOT( clickShowDrawInfo( bool ) ) );
-//         layout->addWidget( M_show_draw_info_cb );
+        M_show_draw_info_cb = new QCheckBox( tr( "Draw Info" ) );
+        M_show_draw_info_cb->setChecked( Options::instance().showDrawInfo() );
+        connect( M_show_draw_info_cb, SIGNAL( clicked( bool ) ),
+                 this, SLOT( clickShowDrawInfo( bool ) ) );
+        layout->addWidget( M_show_draw_info_cb );
 
         top_layout->addLayout( layout );
     }
+//     {
+//         QHBoxLayout * layout = new QHBoxLayout();
+//         layout->setMargin( 0 );
+//         layout->setSpacing( 0 );
+
+//         top_layout->addLayout( layout );
+//     }
 
     group_box->setLayout( top_layout );
     return group_box;
@@ -1246,7 +1253,7 @@ ConfigDialog::updateAll()
     M_show_score_board_cb->setChecked( opt.showScoreBoard() );
     M_show_keepaway_area_cb->setChecked( opt.showKeepawayArea() );
     M_show_team_graphic_cb->setChecked( opt.showTeamGraphic() );
-//     M_show_draw_info_cb->setChecked( opt.showDrawInfo() );
+    M_show_draw_info_cb->setChecked( opt.showDrawInfo() );
 
     M_show_ball_cb->setChecked( opt.showBall() );
     M_show_player_cb->setChecked( opt.showPlayer() );
@@ -1958,28 +1965,28 @@ ConfigDialog::toggleShowOffsideLine()
 /*!
 
 */
-// void
-// ConfigDialog::clickShowDrawInfo( bool checked )
-// {
-//     if ( Options::instance().showDrawInfo() != checked )
-//     {
-//         Options::instance().toggleShowDrawInfo();
-//         emit configured();
-//     }
-// }
+void
+ConfigDialog::clickShowDrawInfo( bool checked )
+{
+    if ( Options::instance().showDrawInfo() != checked )
+    {
+        Options::instance().toggleShowDrawInfo();
+        emit configured();
+    }
+}
 
 /*-------------------------------------------------------------------*/
 /*!
 
 */
-// void
-// ConfigDialog::toggleShowDrawInfo()
-// {
-//     Options::instance().toggleShowDrawInfo();
-//     M_show_draw_info_cb->setChecked( Options::instance().showDrawInfo() );
+void
+ConfigDialog::toggleShowDrawInfo()
+{
+    Options::instance().toggleShowDrawInfo();
+    M_show_draw_info_cb->setChecked( Options::instance().showDrawInfo() );
 
-//     emit configured();
-// }
+    emit configured();
+}
 
 /*-------------------------------------------------------------------*/
 /*!

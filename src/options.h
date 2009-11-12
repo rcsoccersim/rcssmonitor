@@ -193,7 +193,7 @@ private:
     bool M_show_card;
 
     bool M_show_offside_line;
-//     bool M_show_draw_info;
+    bool M_show_draw_info;
 
     double M_ball_size; //!< fixed ball radius
     double M_player_size; //!< fixed player radius
@@ -569,14 +569,14 @@ public:
           M_show_offside_line = ! M_show_offside_line;
       }
 
-//     bool showDrawInfo() const
-//       {
-//           return M_show_draw_info;
-//       }
-//     void toggleShowDrawInfo()
-//       {
-//           M_show_draw_info = ! M_show_draw_info;
-//       }
+    bool showDrawInfo() const
+      {
+          return M_show_draw_info;
+      }
+    void toggleShowDrawInfo()
+      {
+          M_show_draw_info = ! M_show_draw_info;
+      }
 
     const
     double & ballSize() const

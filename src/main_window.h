@@ -83,7 +83,7 @@ private:
     QAction * M_toggle_menu_bar_act;
 //     QAction * M_toggle_tool_bar_act;
     QAction * M_toggle_status_bar_act;
-//     QAction * M_full_screen_act;
+    QAction * M_full_screen_act;
     QAction * M_show_player_type_dialog_act;
     QActionGroup * M_style_act_group;
     QAction * M_show_config_dialog_act;
@@ -152,7 +152,7 @@ private slots:
     void toggleMenuBar( bool checked );
 //     void toggleToolBar();
     void toggleStatusBar( bool checked );
-//     void toggleFullScreen();
+    void toggleFullScreen();
     void showPlayerTypeDialog();
     void changeStyle( bool checked );
     void showConfigDialog();

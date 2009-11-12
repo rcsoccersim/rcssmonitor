@@ -1,5 +1,17 @@
 2009-11-12  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
+	* src/Makefile.am:
+	* src/config_dialog.cpp:
+	* src/config_dialog.h:
+	* src/disp_holder.cpp:
+	* src/field_canvas.cpp:
+	* src/main_window.cpp:
+	* src/main_window.h:
+	* src/options.cpp:
+	* src/options.h:
+	- supported DrawInfoT (tentative).
+	- added the menu to toggle full screen.
+
 	* src/draw_info_painter.cpp:
 	* src/draw_info_painter.h:
 	* src/angle_deg.h:
