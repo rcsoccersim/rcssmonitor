@@ -44,6 +44,7 @@ class QLabel;
 class ConfigDialog;
 class FieldCanvas;
 class MonitorClient;
+class PlayerTypeDialog;
 
 class MainWindow
     : public QMainWindow {
@@ -56,6 +57,7 @@ private:
 
     DispHolder M_disp_holder;
 
+    PlayerTypeDialog * M_player_type_dialog;
     ConfigDialog * M_config_dialog;
     FieldCanvas * M_field_canvas;
     MonitorClient * M_monitor_client;
@@ -75,14 +77,14 @@ private:
     QAction * M_kick_off_act;
     QAction * M_yellow_card_act;
     QAction * M_red_card_act;
+    QActionGroup * M_playmode_change_act_group;
 
     // view actions
     QAction * M_toggle_menu_bar_act;
 //     QAction * M_toggle_tool_bar_act;
     QAction * M_toggle_status_bar_act;
 //     QAction * M_full_screen_act;
-//     QAction * M_show_player_type_dialog_act;
-//     QAction * M_show_detail_dialog_act;
+    QAction * M_show_player_type_dialog_act;
     QActionGroup * M_style_act_group;
     QAction * M_show_config_dialog_act;
 
@@ -151,7 +153,7 @@ private slots:
 //     void toggleToolBar();
     void toggleStatusBar( bool checked );
 //     void toggleFullScreen();
-//     void showPlayerTypeDialog();
+    void showPlayerTypeDialog();
     void changeStyle( bool checked );
     void showConfigDialog();
     void setFocusPoint( const QPoint & point );
@@ -166,6 +168,8 @@ private slots:
                   const int unum );
     void yellowCard();
     void redCard();
+    void changePlayMode( const int mode,
+                         const QPoint & point );
 
     //
     void receiveMonitorPacket();

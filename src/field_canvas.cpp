@@ -62,11 +62,7 @@ FieldCanvas::FieldCanvas( DispHolder & disp_holder )
     QWidget( /* parent, flags */ ),
 #endif
     M_disp_holder( disp_holder ),
-    M_monitor_menu( static_cast< QMenu * >( 0 ) ),
-    M_measure_line_pen( QColor( 0, 255, 255 ), 0, Qt::SolidLine ),
-    M_measure_mark_pen( QColor( 255, 0, 0 ), 0, Qt::SolidLine ),
-    M_measure_font_pen( QColor( 255, 191, 191 ), 0, Qt::SolidLine ),
-    M_measure_font_pen2( QColor( 224, 224, 192 ), 0, Qt::SolidLine )
+    M_monitor_menu( static_cast< QMenu * >( 0 ) )
 {
     M_focus_move_mouse = &M_mouse_state[0];
     M_measure_mouse = &M_mouse_state[1];
@@ -75,9 +71,6 @@ FieldCanvas::FieldCanvas( DispHolder & disp_holder )
     this->setMouseTracking( true ); // need for the MouseMoveEvent
     this->setFocusPolicy( Qt::WheelFocus );
 
-    readSettings();
-
-    createPopupMenu();
     createPainters();
 }
 
@@ -87,63 +80,14 @@ FieldCanvas::FieldCanvas( DispHolder & disp_holder )
 */
 FieldCanvas::~FieldCanvas()
 {
-    writeSettings();
+
 }
 
 /*-------------------------------------------------------------------*/
 /*!
 
 */
-void
-FieldCanvas::readSettings()
-{
-    QSettings settings( Options::CONF_FILE,
-                        QSettings::IniFormat );
-
-    settings.beginGroup( "Color" );
-
-    QVariant val;
-
-    val = settings.value( "measure_line_pen" );
-    if ( val.isValid() ) M_measure_line_pen.setColor( val.toString() );
-
-    val = settings.value( "measure_mark_pen" );
-    if ( val.isValid() ) M_measure_mark_pen.setColor( val.toString() );
-
-    val = settings.value( "measure_font_pen" );
-    if ( val.isValid() ) M_measure_font_pen.setColor( val.toString() );
-
-    val = settings.value( "measure_font_pen2" );
-    if ( val.isValid() ) M_measure_font_pen2.setColor( val.toString() );
-
-    settings.endGroup();
-}
-
-/*-------------------------------------------------------------------*/
-/*!
-
-*/
-void
-FieldCanvas::writeSettings()
-{
-    QSettings settings( Options::CONF_FILE,
-                        QSettings::IniFormat );
-
-    settings.beginGroup( "Color" );
-
-    settings.setValue( "measure_line_pen", M_measure_line_pen.color().name() );
-    settings.setValue( "measure_mark_pen", M_measure_mark_pen.color().name() );
-    settings.setValue( "measure_font_pen", M_measure_font_pen.color().name() );
-    settings.setValue( "measure_font_pen2", M_measure_font_pen2.color().name() );
-
-    settings.endGroup();
-}
-
-/*-------------------------------------------------------------------*/
-/*!
-
-*/
-void
+QMenu *
 FieldCanvas::createPopupMenu()
 {
     // create & set context menus
@@ -154,6 +98,8 @@ FieldCanvas::createPopupMenu()
                                this, SLOT( freeKickLeft() ) );
     M_monitor_menu->addAction( tr( "Free Kick Right" ),
                                this, SLOT( freeKickRight() ) );
+
+    return M_monitor_menu;
 }
 
 /*-------------------------------------------------------------------*/
@@ -316,7 +262,10 @@ FieldCanvas::contextMenuEvent( QContextMenuEvent * event )
     if ( event->reason() == QContextMenuEvent::Mouse )
     {
         M_mouse_state[2].released();
-        M_monitor_menu->exec( event->globalPos() );
+        if ( M_monitor_menu )
+        {
+            M_monitor_menu->exec( event->globalPos() );
+        }
     }
 }
 
@@ -462,12 +411,12 @@ FieldCanvas::drawMouseMeasure( QPainter & painter )
     }
 
     // draw straight line
-    painter.setPen( M_measure_line_pen );
+    painter.setPen( opt.measureLinePen() );
     painter.setBrush( Qt::NoBrush );
     painter.drawLine( start_point, end_point );
 
     // draw mark
-    painter.setPen( M_measure_mark_pen );
+    painter.setPen( opt.measureMarkPen() );
     painter.drawEllipse( start_point.x() - 2,
                          start_point.y() - 2,
                          4,
@@ -484,7 +433,7 @@ FieldCanvas::drawMouseMeasure( QPainter & painter )
 
     // draw distance & angle text
     painter.setFont( opt.measureFont() );
-    painter.setPen( M_measure_font_pen );
+    painter.setPen( opt.measureFontPen() );
 
     char buf[64];
 
@@ -516,7 +465,7 @@ FieldCanvas::drawMouseMeasure( QPainter & painter )
                       QString::fromAscii( buf ) );
 
     // draw relative coordinate value
-    painter.setPen( M_measure_font_pen2 );
+    painter.setPen( opt.measureFontPen2() );
 
     QPointF rel( end_real - start_real );
     double r = std::sqrt( std::pow( rel.x(), 2.0 ) + std::pow( rel.y(), 2.0 ) );
@@ -543,7 +492,7 @@ FieldCanvas::drawMouseMeasure( QPainter & painter )
 void
 FieldCanvas::dropBall()
 {
-    emit dropBall( M_mouse_state[2].pressedPoint() );
+    emit dropBall( M_menu_mouse->pressedPoint() );
 }
 
 /*-------------------------------------------------------------------*/
@@ -553,7 +502,7 @@ FieldCanvas::dropBall()
 void
 FieldCanvas::freeKickLeft()
 {
-    emit freeKickLeft( M_mouse_state[2].pressedPoint() );
+    emit freeKickLeft( M_menu_mouse->pressedPoint() );
 }
 
 /*-------------------------------------------------------------------*/
@@ -563,5 +512,15 @@ FieldCanvas::freeKickLeft()
 void
 FieldCanvas::freeKickRight()
 {
-    emit freeKickRight( M_mouse_state[2].pressedPoint() );
+    emit freeKickRight( M_menu_mouse->pressedPoint() );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+void
+FieldCanvas::changePlayMode( int mode )
+{
+    emit playModeChanged( mode, M_menu_mouse->pressedPoint() );
 }

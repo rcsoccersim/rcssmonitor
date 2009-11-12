@@ -250,6 +250,8 @@ ConfigDialog::createWidgets()
                            0, Qt::AlignLeft );
         layout->addWidget( createPlayerSelectionControls(),
                            0, Qt::AlignLeft );
+        layout->addWidget( createBallInfoControls(),
+                           0, Qt::AlignLeft );
 
         frame->setLayout( layout );
         M_tab_widget->addTab( frame, tr( "Show" ) );
@@ -595,6 +597,35 @@ ConfigDialog::createPlayerInfoControls()
 
         top_layout->addLayout( layout );
     }
+
+    group_box->setLayout( top_layout );
+    return group_box;
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+QWidget *
+ConfigDialog::createBallInfoControls()
+{
+    QGroupBox * group_box = new QGroupBox( tr( "Ball Info" ) );
+
+    QHBoxLayout * top_layout = new QHBoxLayout();
+    top_layout->setMargin( 1 );
+    top_layout->setSpacing( 0 );
+
+    top_layout->addWidget( new QLabel( tr( "Velocity Cycles:" ) ) );
+
+    top_layout->addSpacing( 2 );
+
+    M_ball_vel_cycle = new QSpinBox();
+    //M_ball_vel_cycle->setMinimumSize( 60, 24 );
+    M_ball_vel_cycle->setValue( 0 );
+    M_ball_vel_cycle->setRange( 0, 50 );
+    connect( M_ball_vel_cycle, SIGNAL( valueChanged( int ) ),
+             this, SLOT( changeBallVelCycle( int ) ) );
+    top_layout->addWidget( M_ball_vel_cycle );
 
     group_box->setLayout( top_layout );
     return group_box;
@@ -984,34 +1015,6 @@ ConfigDialog::createTraceControls()
     return group_box;;
 }
 
-/*-------------------------------------------------------------------*/
-/*!
-
-*/
-QWidget *
-ConfigDialog::createInertiaMoveControls()
-{
-    QGroupBox * group_box = new QGroupBox( tr( "Ball Velocity" ) );
-
-    QHBoxLayout * top_layout = new QHBoxLayout();
-    top_layout->setMargin( 1 );
-    top_layout->setSpacing( 0 );
-
-    top_layout->addWidget( new QLabel( tr( "Cycle:" ) ) );
-
-    top_layout->addSpacing( 2 );
-
-    M_ball_vel_cycle = new QSpinBox();
-    //M_ball_vel_cycle->setMinimumSize( 60, 24 );
-    M_ball_vel_cycle->setValue( 0 );
-    M_ball_vel_cycle->setRange( 0, 50 );
-    connect( M_ball_vel_cycle, SIGNAL( valueChanged( int ) ),
-             this, SLOT( changeBallVelCycle( int ) ) );
-    top_layout->addWidget( M_ball_vel_cycle );
-
-    group_box->setLayout( top_layout );
-    return group_box;
-}
 #endif
 
 /*-------------------------------------------------------------------*/
@@ -1035,11 +1038,15 @@ ConfigDialog::createColorList()
 
     layout->addWidget( M_color_list_box );
 
+    QHBoxLayout * hbox = new QHBoxLayout();
+
     QPushButton * default_button = new QPushButton( tr( "Default" ) );
     default_button->setAutoDefault( false );
     connect( default_button, SIGNAL( clicked() ),
              this, SLOT( setDefaultColor() ) );
-    layout->addWidget( default_button, 0, Qt::AlignLeft );
+    hbox->addWidget( default_button, 0, Qt::AlignLeft );
+
+    layout->addLayout( hbox );
 
     return layout;
 }
@@ -1088,12 +1095,12 @@ ConfigDialog::createColorItems()
     M_color_list_box->addItem( new ColorItem( tr( "Right Goalie" ),
                                               o->rightGoaliePen().color(),
                                               boost::bind1st( std::mem_fun( &Options::setRightGoalieColor ), o ) ) );
-    M_color_list_box->addItem( new ColorItem( tr( "Player Information" ),
+    M_color_list_box->addItem( new ColorItem( tr( "Player Number" ),
                                               o->playerNumberPen().color(),
                                               boost::bind1st( std::mem_fun( &Options::setPlayerNumberColor ), o ) ) );
-    M_color_list_box->addItem( new ColorItem( tr( "Player Information (Interior)" ),
-                                              o->playerNumberInnerPen().color(),
-                                              boost::bind1st( std::mem_fun( &Options::setPlayerNumberInnerColor ), o ) ) );
+//     M_color_list_box->addItem( new ColorItem( tr( "Player Number (Interior)" ),
+//                                               o->playerNumberInnerPen().color(),
+//                                               boost::bind1st( std::mem_fun( &Options::setPlayerNumberInnerColor ), o ) ) );
     M_color_list_box->addItem( new ColorItem( tr( "Neck" ),
                                               o->neckPen().color(),
                                               boost::bind1st( std::mem_fun( &Options::setNeckColor ), o ) ) );
@@ -2531,6 +2538,7 @@ ConfigDialog::clickLinePointButton()
 
     emit configured();
 }
+#endif
 
 /*-------------------------------------------------------------------*/
 /*!
@@ -2543,7 +2551,6 @@ ConfigDialog::changeBallVelCycle( int value )
 
     emit configured();
 }
-#endif
 
 /*-------------------------------------------------------------------*/
 /*!

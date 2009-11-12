@@ -1,3 +1,19 @@
+2009-11-12  Hidehisa Akiyama  <akky@users.sourceforge.jp>
+
+	* src/player_type_dialog.cpp:
+	* src/player_type_dialog.h:
+	* src/Makefile.am:
+	* src/config_dialog.cpp:
+	* src/config_dialog.h:
+	* src/field_canvas.cpp:
+	* src/field_canvas.h:
+	* src/main_window.cpp:
+	* src/main_window.h:
+	* src/options.cpp:
+	* src/options.h:
+	- added PlayerTypeDialog.
+	- implemented playmode change menu.
+
 2009-11-11  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
 	* src/ball_painter.cpp:

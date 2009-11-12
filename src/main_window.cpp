@@ -41,6 +41,7 @@
 #include "config_dialog.h"
 #include "field_canvas.h"
 #include "monitor_client.h"
+#include "player_type_dialog.h"
 #include "options.h"
 
 #include <string>
@@ -61,6 +62,7 @@
 MainWindow::MainWindow()
     : QMainWindow( /* parent, flags */ ),
       M_window_style( "plastique" ),
+      M_player_type_dialog( static_cast< PlayerTypeDialog * >( 0 ) ),
       M_config_dialog( static_cast< ConfigDialog * >( 0 ) ),
       M_field_canvas( static_cast< FieldCanvas * >( 0 ) ),
       M_monitor_client( static_cast< MonitorClient * >( 0 ) )
@@ -277,16 +279,29 @@ MainWindow::createActionsReferee()
 
     // yellow card
     M_yellow_card_act = new QAction( tr( "Yellow Card" ), this );
+    {
+        QPixmap icon( 16, 16 );
+        icon.fill( Qt::yellow );
+        M_yellow_card_act->setIcon( QIcon( icon ) );
+    }
     M_yellow_card_act->setStatusTip( tr( "Call yellow card." ) );
     connect( M_yellow_card_act, SIGNAL( triggered() ),
              this, SLOT( yellowCard() ) );
     this->addAction( M_yellow_card_act );
     // red card
     M_red_card_act = new QAction( tr( "Red Card" ), this );
+    {
+        QPixmap icon( 16, 16 );
+        icon.fill( Qt::red );
+        M_red_card_act->setIcon( QIcon( icon ) );
+    }
     M_red_card_act->setStatusTip( tr( "Call red card." ) );
     connect( M_red_card_act, SIGNAL( triggered() ),
              this, SLOT( yellowCard() ) );
     this->addAction( M_red_card_act );
+
+    // playmode change
+    M_playmode_change_act_group = new QActionGroup( this );
 }
 
 /*-------------------------------------------------------------------*/
@@ -334,6 +349,18 @@ MainWindow::createActionsView()
         connect( subaction, SIGNAL( triggered( bool ) ),
                  this, SLOT( changeStyle( bool ) ) );
     }
+
+    // show/hide player type dialog
+    M_show_player_type_dialog_act = new QAction( tr( "Player Type List" ), this );
+#ifdef Q_WS_MAC
+    M_show_player_type_dialog_act->setShortcut( tr( "Meta+H" ) );
+#else
+    M_show_player_type_dialog_act->setShortcut( tr( "Ctrl+H" ) );
+#endif
+    M_show_player_type_dialog_act->setStatusTip( tr( "Show player type list dialog." ) );
+    connect( M_show_player_type_dialog_act, SIGNAL( triggered() ),
+             this, SLOT( showPlayerTypeDialog() ) );
+    this->addAction( M_show_player_type_dialog_act );
 
     // show/hide config dialog
     M_show_config_dialog_act = new QAction( tr( "Config" ), this );
@@ -431,6 +458,10 @@ MainWindow::createMenuView()
 
     menu->addSeparator();
 
+    menu->addAction( M_show_player_type_dialog_act );
+
+    menu->addSeparator();
+
     {
         QMenu * submenu = menu->addMenu( tr( "Window &Style" ) );
         Q_FOREACH ( QAction * action, M_style_act_group->actions() )
@@ -438,9 +469,6 @@ MainWindow::createMenuView()
             submenu->addAction( action );
         }
     }
-
-    menu->addSeparator();
-
     menu->addAction( M_show_config_dialog_act );
 }
 
@@ -499,8 +527,14 @@ void
 MainWindow::createFieldCanvas()
 {
     M_field_canvas = new FieldCanvas( M_disp_holder );
-    this->setCentralWidget( M_field_canvas );
 
+    QMenu * menu = M_field_canvas->createPopupMenu();
+    menu->addSeparator();
+    menu->addAction( M_yellow_card_act );
+    menu->addAction( M_red_card_act );
+
+
+    this->setCentralWidget( M_field_canvas );
     M_field_canvas->setFocus();
 
     connect( this, SIGNAL( viewUpdated() ),
@@ -515,6 +549,50 @@ MainWindow::createFieldCanvas()
              this, SLOT( freeKickLeft( const QPoint & ) ) );
     connect( M_field_canvas, SIGNAL( freeKickRight( const QPoint & ) ),
              this, SLOT( freeKickRight( const QPoint & ) ) );
+
+    connect( M_field_canvas, SIGNAL( playModeChanged( int, const QPoint & ) ),
+             this, SLOT( changePlayMode( int, const QPoint & ) ) );
+
+    {
+        const char * playmode_strings[] = PLAYMODE_STRINGS;
+
+        QSignalMapper * mapper = new QSignalMapper( this );
+        connect( mapper, SIGNAL( mapped( int ) ),
+                 M_field_canvas, SLOT( changePlayMode( int ) ) );
+        for ( int mode = 0; mode < rcss::rcg::PM_MAX; ++mode )
+        {
+            if ( mode == rcss::rcg::PM_BeforeKickOff
+                 || mode == rcss::rcg::PM_PlayOn
+                 || mode == rcss::rcg::PM_KickIn_Left
+                 || mode == rcss::rcg::PM_KickIn_Right
+                 || mode == rcss::rcg::PM_CornerKick_Left
+                 || mode == rcss::rcg::PM_CornerKick_Right
+                 || mode == rcss::rcg::PM_GoalKick_Left
+                 || mode == rcss::rcg::PM_GoalKick_Right
+                 || mode == rcss::rcg::PM_Foul_Charge_Left
+                 || mode == rcss::rcg::PM_Foul_Charge_Right
+                 //|| mode == rcss::rcg::PM_Foul_Push_Left
+                 //|| mode == rcss::rcg::PM_Foul_Push_Right
+                 || mode == rcss::rcg::PM_Back_Pass_Left
+                 || mode == rcss::rcg::PM_Back_Pass_Right
+                 || mode == rcss::rcg::PM_GoalKick_Right
+                 || mode == rcss::rcg::PM_IndFreeKick_Left
+                 || mode == rcss::rcg::PM_IndFreeKick_Right )
+            {
+                QAction * act = new QAction( M_playmode_change_act_group );
+                act->setText( QString::fromAscii( playmode_strings[mode] ) );
+                connect( act, SIGNAL( triggered() ), mapper, SLOT( map() ) );
+                mapper->setMapping( act, mode );
+            }
+        }
+
+        menu->addSeparator();
+        QMenu * submenu = menu->addMenu( tr( "Change Playmode" ) );
+        Q_FOREACH ( QAction * act, M_playmode_change_act_group->actions() )
+        {
+            submenu->addAction( act );
+        }
+    }
 
 }
 
@@ -878,10 +956,10 @@ MainWindow::connectMonitorTo( const char * hostname )
     // reset all data
     M_disp_holder.clear();
 
-//     if ( M_player_type_dialog )
-//     {
-//         M_player_type_dialog->hide();
-//     }
+    if ( M_player_type_dialog )
+    {
+        M_player_type_dialog->hide();
+    }
 
     if ( M_config_dialog )
     {
@@ -1079,6 +1157,24 @@ MainWindow::changeStyle( bool checked )
 /*-------------------------------------------------------------------*/
 /*!
 
+*/
+void
+MainWindow::showPlayerTypeDialog()
+{
+    if ( M_player_type_dialog )
+    {
+        M_player_type_dialog->setVisible( ! M_player_type_dialog->isVisible() );
+    }
+    else
+    {
+        M_player_type_dialog = new PlayerTypeDialog( M_disp_holder, this );
+        M_player_type_dialog->show();
+    }
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
  */
 void
 MainWindow::showConfigDialog()
@@ -1226,6 +1322,14 @@ MainWindow::redCard( const char side,
 void
 MainWindow::yellowCard()
 {
+//     int selected_unum = Options::instance().selectedNumber();
+//     if ( selected_unum != 0 )
+//     {
+//         yellowCard( ( selected_unum > 0 ? 'l' : 'r' ),
+//                     qAbs( selected_unum ) );
+//         return;
+//     }
+
     QStringList players;
     players << tr( "" );
     for ( int i = 1; i <= 11; ++i )
@@ -1272,6 +1376,14 @@ MainWindow::yellowCard()
 void
 MainWindow::redCard()
 {
+//     int selected_unum = Options::instance().selectedNumber();
+//     if ( selected_unum != 0 )
+//     {
+//         redCard( ( selected_unum > 0 ? 'l' : 'r' ),
+//                  qAbs( selected_unum ) );
+//         return;
+//     }
+
     QStringList players;
     players << tr( "" );
     for ( int i = 1; i <= 11; ++i )
@@ -1309,6 +1421,163 @@ MainWindow::redCard()
                ? 'r'
                : '?' ),
              unum );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+void
+MainWindow::changePlayMode( int mode,
+                            const QPoint & point )
+{
+    if ( ! M_monitor_client
+         || ! M_monitor_client->isConnected() )
+    {
+        return;
+    }
+
+    const rcss::rcg::ServerParamT & SP = M_disp_holder.serverParam();
+
+    if ( ! SP.coach_mode_
+         && ! SP.coach_with_referee_mode_ )
+    {
+        QMessageBox::warning( this,
+                              tr( "PlayMode Change" ),
+                              tr( "Server is running without coach mode." ) );
+        return;
+    }
+
+    rcss::rcg::PlayMode pmode = static_cast< rcss::rcg::PlayMode >( mode );
+
+    double x = Options::instance().fieldX( point.x() );
+    double y = Options::instance().fieldY( point.y() );
+
+    x = std::min( x, + Options::PITCH_LENGTH*0.5 );
+    x = std::max( x, - Options::PITCH_LENGTH*0.5 );
+    y = std::min( y, + Options::PITCH_WIDTH*0.5 );
+    y = std::max( y, - Options::PITCH_WIDTH*0.5 );
+
+    switch ( pmode ) {
+    case rcss::rcg::PM_BeforeKickOff:
+        M_monitor_client->sendTrainerMoveBall( 0.0, 0.0, 0.0, 0.0 );
+        M_monitor_client->sendChangeMode( pmode );
+        break;
+    case rcss::rcg::PM_PlayOn:
+        M_monitor_client->sendTrainerMoveBall( x, y, 0.0, 0.0 );
+        M_monitor_client->sendChangeMode( pmode );
+        break;
+    case rcss::rcg::PM_KickIn_Left:
+    case rcss::rcg::PM_KickIn_Right:
+        y = ( y > 0.0
+              ? + Options::PITCH_WIDTH*0.5
+              : - Options::PITCH_WIDTH*0.5 );
+
+        M_monitor_client->sendTrainerMoveBall( x, y, 0.0, 0.0 );
+        M_monitor_client->sendChangeMode( pmode );
+        break;
+    case rcss::rcg::PM_CornerKick_Left:
+        x = + Options::PITCH_LENGTH*0.5 - Options::CORNER_ARC_R;
+        y = ( y > 0.0
+              ? ( + Options::PITCH_WIDTH*0.5 - Options::CORNER_ARC_R )
+              : ( - Options::PITCH_WIDTH*0.5 + Options::CORNER_ARC_R ) );
+
+        M_monitor_client->sendTrainerMoveBall( x, y, 0.0, 0.0 );
+        M_monitor_client->sendChangeMode( pmode );
+        break;
+    case rcss::rcg::PM_CornerKick_Right:
+        x = - Options::PITCH_LENGTH*0.5 + Options::CORNER_ARC_R;
+        y = ( y > 0.0
+              ? ( + Options::PITCH_WIDTH*0.5 - Options::CORNER_ARC_R )
+              : ( - Options::PITCH_WIDTH*0.5 + Options::CORNER_ARC_R ) );
+
+        M_monitor_client->sendTrainerMoveBall( x, y, 0.0, 0.0 );
+        M_monitor_client->sendChangeMode( pmode );
+        break;
+    case rcss::rcg::PM_GoalKick_Left:
+        x = - Options::PITCH_LENGTH*0.5 + Options::GOAL_AREA_LENGTH;
+        y = ( y > 0.0
+              ? + Options::GOAL_AREA_WIDTH*0.5
+              : - Options::GOAL_AREA_WIDTH*0.5 );
+
+        M_monitor_client->sendTrainerMoveBall( x, y, 0.0, 0.0 );
+        M_monitor_client->sendChangeMode( pmode );
+        break;
+    case rcss::rcg::PM_GoalKick_Right:
+        x = + Options::PITCH_LENGTH*0.5 - Options::GOAL_AREA_LENGTH;
+        y = ( y > 0.0
+              ? + Options::GOAL_AREA_WIDTH*0.5
+              : - Options::GOAL_AREA_WIDTH*0.5 );
+
+        M_monitor_client->sendTrainerMoveBall( x, y, 0.0, 0.0 );
+        M_monitor_client->sendChangeMode( pmode );
+        break;
+    case rcss::rcg::PM_Foul_Charge_Left:
+        M_monitor_client->sendTrainerMoveBall( x, y, 0.0, 0.0 );
+        M_monitor_client->sendChangeMode( pmode );
+        break;
+    case rcss::rcg::PM_Foul_Charge_Right:
+        M_monitor_client->sendTrainerMoveBall( x, y, 0.0, 0.0 );
+        M_monitor_client->sendChangeMode( pmode );
+        break;
+    case rcss::rcg::PM_Foul_Push_Left:
+        M_monitor_client->sendTrainerMoveBall( x, y, 0.0, 0.0 );
+        M_monitor_client->sendChangeMode( pmode );
+        break;
+    case rcss::rcg::PM_Foul_Push_Right:
+        M_monitor_client->sendTrainerMoveBall( x, y, 0.0, 0.0 );
+        M_monitor_client->sendChangeMode( pmode );
+        break;
+    case rcss::rcg::PM_Back_Pass_Right:
+        if ( x < ( + Options::PITCH_LENGTH*0.5 - Options::PENALTY_AREA_LENGTH ) )
+        {
+            x = + Options::PITCH_LENGTH*0.5 - Options::PENALTY_AREA_LENGTH;
+        }
+
+        if ( std::fabs( y ) > Options::PENALTY_AREA_WIDTH*0.5 )
+        {
+            y = ( y > 0.0
+                  ? + Options::PENALTY_AREA_WIDTH*0.5
+                  : - Options::PENALTY_AREA_WIDTH*0.5 );
+        }
+    case rcss::rcg::PM_IndFreeKick_Left:
+        if ( x >= ( + Options::PITCH_LENGTH*0.5 - Options::GOAL_AREA_LENGTH )
+             && std::fabs( y ) <= Options::GOAL_AREA_WIDTH*0.5 )
+        {
+            x = + Options::PITCH_LENGTH*0.5 - Options::GOAL_AREA_LENGTH;
+        }
+
+        M_monitor_client->sendTrainerMoveBall( x, y, 0.0, 0.0 );
+        M_monitor_client->sendChangeMode( pmode );
+        break;
+    case rcss::rcg::PM_Back_Pass_Left:
+        if ( x > ( - Options::PITCH_LENGTH*0.5 + Options::PENALTY_AREA_LENGTH ) )
+        {
+            x = - Options::PITCH_LENGTH*0.5 + Options::PENALTY_AREA_LENGTH;
+        }
+
+        if ( std::fabs( y ) > Options::PENALTY_AREA_WIDTH*0.5 )
+        {
+            y = ( y > 0.0
+                  ? + Options::PENALTY_AREA_WIDTH*0.5
+                  : - Options::PENALTY_AREA_WIDTH*0.5 );
+        }
+    case rcss::rcg::PM_IndFreeKick_Right:
+        if ( x <= ( - Options::PITCH_LENGTH*0.5 + Options::GOAL_AREA_LENGTH )
+             && std::fabs( y ) <= Options::GOAL_AREA_WIDTH*0.5 )
+        {
+            x = - Options::PITCH_LENGTH*0.5 + Options::GOAL_AREA_LENGTH;
+        }
+
+        M_monitor_client->sendTrainerMoveBall( x, y, 0.0, 0.0 );
+        M_monitor_client->sendChangeMode( pmode );
+        break;
+    default:
+        QMessageBox::warning( this,
+                              tr( "PlayMode Change" ),
+                              tr( "Unsupported playmode " ) );
+        break;
+    }
 }
 
 /*-------------------------------------------------------------------*/

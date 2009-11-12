@@ -99,6 +99,10 @@ public:
 
     static const QColor FIELD_COLOR;
     static const QColor LINE_COLOR;
+    static const QColor MEASURE_LINE_COLOR;
+    static const QColor MEASURE_MARK_COLOR;
+    static const QColor MEASURE_FONT_COLOR;
+    static const QColor MEASURE_FONT_COLOR2;
     static const QColor SCORE_BOARD_PEN_COLOR;
     static const QColor SCORE_BOARD_BRUSH_COLOR;
     static const QColor BALL_COLOR;
@@ -221,6 +225,11 @@ private:
     // pen, brush
     QBrush M_field_brush;
     QPen M_line_pen;
+
+    QPen M_measure_line_pen;
+    QPen M_measure_mark_pen;
+    QPen M_measure_font_pen;
+    QPen M_measure_font_pen2;
 
     QPen M_score_board_pen;
     QBrush M_score_board_brush;
@@ -730,6 +739,15 @@ public:
 
     const QPen & linePen() const { return M_line_pen; }
     void setLineColor( const QColor & col ) { M_line_pen.setColor( col ); }
+
+    const QPen & measureLinePen() const { return M_measure_line_pen; }
+    void setMeasureLineColor( const QColor & col ) { M_measure_line_pen.setColor( col ); }
+    const QPen & measureMarkPen() const { return M_measure_mark_pen; }
+    void setMeasureMarkColor( const QColor & col ) { M_measure_mark_pen.setColor( col ); }
+    const QPen & measureFontPen() const { return M_measure_font_pen; }
+    void setMeasureFontColor( const QColor & col ) { M_measure_font_pen.setColor( col ); }
+    const QPen & measureFontPen2() const { return M_measure_font_pen2; }
+    void setMeasureFontColor2( const QColor & col ) { M_measure_font_pen2.setColor( col ); }
 
     const QPen & scoreBoardPen() const { return M_score_board_pen; }
     void setScoreBoardPenColor( const QColor & col ) { return M_score_board_pen.setColor( col ); }

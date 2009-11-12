@@ -79,11 +79,6 @@ private:
     const MouseState * M_measure_mouse;
     const MouseState * M_menu_mouse;
 
-    QPen M_measure_line_pen;
-    QPen M_measure_mark_pen;
-    QPen M_measure_font_pen;
-    QPen M_measure_font_pen2;
-
     // not used
     FieldCanvas();
     FieldCanvas( const FieldCanvas & );
@@ -95,12 +90,10 @@ public:
     FieldCanvas( DispHolder & disp_holder );
     ~FieldCanvas();
 
+    QMenu * createPopupMenu();
+
 private:
 
-    void readSettings();
-    void writeSettings();
-
-    void createPopupMenu();
     void createPainters();
 
     void updateFocus();
@@ -127,15 +120,18 @@ public slots:
     void dropBall();
     void freeKickLeft();
     void freeKickRight();
+    void changePlayMode( int mode );
 
 signals:
 
     void dropBall( const QPoint & pos );
     void freeKickLeft( const QPoint & pos );
     void freeKickRight( const QPoint & pos );
+    void playModeChanged( int mode,
+                          const QPoint & pos );
 
-    void playerMoved( const QPoint & point );
-    void playerSelected( int number );
+//     void playerMoved( const QPoint & point );
+//     void playerSelected( int number );
 
     void focusChanged( const QPoint & point );
     void mouseMoved( const QPoint & point );

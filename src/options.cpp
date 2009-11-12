@@ -85,6 +85,10 @@ const int Options::DEFAULT_TIMER_INTERVAL = 100;
 
 const QColor Options::FIELD_COLOR( 31, 160, 31 );
 const QColor Options::LINE_COLOR( 255, 255, 255 );
+const QColor Options::MEASURE_LINE_COLOR( 0, 255, 255 );
+const QColor Options::MEASURE_MARK_COLOR( 255, 0, 0 );
+const QColor Options::MEASURE_FONT_COLOR( 255, 191, 191 );
+const QColor Options::MEASURE_FONT_COLOR2( 224, 224, 192 );
 const QColor Options::SCORE_BOARD_PEN_COLOR( 255, 255, 255 );
 const QColor Options::SCORE_BOARD_BRUSH_COLOR( 0, 0, 0 );
 const QColor Options::BALL_COLOR( 255, 255, 255 );
@@ -182,6 +186,10 @@ Options::Options()
       //
     , M_field_brush( FIELD_COLOR, Qt::SolidPattern )
     , M_line_pen( LINE_COLOR, 0, Qt::SolidLine )
+    , M_measure_line_pen( MEASURE_LINE_COLOR, 0, Qt::SolidLine )
+    , M_measure_mark_pen( MEASURE_MARK_COLOR, 0, Qt::SolidLine )
+    , M_measure_font_pen( MEASURE_FONT_COLOR, 0, Qt::SolidLine )
+    , M_measure_font_pen2( MEASURE_FONT_COLOR2, 0, Qt::SolidLine )
       //
     , M_score_board_pen( SCORE_BOARD_PEN_COLOR, 0, Qt::SolidLine )
     , M_score_board_brush( SCORE_BOARD_BRUSH_COLOR, Qt::SolidPattern )
@@ -413,6 +421,19 @@ Options::readSettings()
     val = settings.value( "line_pen" );
     if ( val.isValid() ) M_line_pen.setColor( val.toString() );
 
+
+    val = settings.value( "measure_line_pen" );
+    if ( val.isValid() ) M_measure_line_pen.setColor( val.toString() );
+
+    val = settings.value( "measure_mark_pen" );
+    if ( val.isValid() ) M_measure_mark_pen.setColor( val.toString() );
+
+    val = settings.value( "measure_font_pen" );
+    if ( val.isValid() ) M_measure_font_pen.setColor( val.toString() );
+
+    val = settings.value( "measure_font_pen2" );
+    if ( val.isValid() ) M_measure_font_pen2.setColor( val.toString() );
+
     // score board
 
     val = settings.value( "score_board_pen" );
@@ -618,6 +639,10 @@ Options::writeSettings()
     settings.beginGroup( "Color" );
     settings.setValue( "field_brush", M_field_brush.color().name() );
     settings.setValue( "line_pen", M_line_pen.color().name() );
+    settings.setValue( "measure_line_pen", M_measure_line_pen.color().name() );
+    settings.setValue( "measure_mark_pen", M_measure_mark_pen.color().name() );
+    settings.setValue( "measure_font_pen", M_measure_font_pen.color().name() );
+    settings.setValue( "measure_font_pen2", M_measure_font_pen2.color().name() );
     //
     settings.setValue( "score_board_pen", M_score_board_pen.color().name() );
     settings.setValue( "score_board_brush", M_score_board_brush.color().name() );

@@ -201,7 +201,7 @@ private:
 //     QLineEdit * M_player_trace_end;
 
     // inertia movement control
-//     QSpinBox * M_ball_vel_cycle;
+    QSpinBox * M_ball_vel_cycle;
 
     // color list
     QListWidget * M_color_list_box;
@@ -219,6 +219,7 @@ private:
     QWidget * createObjectSizeControls();
     QWidget * createCanvasSizeControls();
     QWidget * createPlayerInfoControls();
+    QWidget * createBallInfoControls();
     QWidget * createShowControls();
     QWidget * createFieldStyleControls();
     QWidget * createMiscControls();
@@ -294,7 +295,7 @@ private slots:
 
 //     void clickLinePointButton();
 
-//     void changeBallVelCycle( int value );
+    void changeBallVelCycle( int value );
 
     void selectColorEntry( QListWidgetItem * item );
     void setDefaultColor();
