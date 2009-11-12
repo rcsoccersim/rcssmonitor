@@ -98,6 +98,16 @@ ColorItem::setColor( const QColor & color )
 /*!
 
 */
+void
+ColorItem::updateColor()
+{
+    M_old_color = M_new_color;
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
 bool
 ColorItem::revert()
 {
@@ -294,13 +304,6 @@ ConfigDialog::createWidgets()
     // font
     {
         QFrame * frame = new QFrame();
-        //QVBoxLayout * layout = new QVBoxLayout();
-        //layout->setSizeConstraint( QLayout::SetFixedSize );
-        //layout->setMargin( 4 );
-        //layout->setSpacing( 4 );
-
-        //layout->addLayout( createFontButtons() );
-
         QLayout * layout = createFontButtons();
         layout->setSizeConstraint( QLayout::SetFixedSize );
         layout->setMargin( 4 );
@@ -327,6 +330,7 @@ ConfigDialog::createWidgets()
 //         M_tab_widget->addTab( frame, tr( "Object Selection" ) );
 //     }
 
+    top_layout->setSizeConstraint( QLayout::SetFixedSize );
     top_layout->addWidget( M_tab_widget );
     this->setLayout( top_layout );
 }
@@ -1059,6 +1063,8 @@ ConfigDialog::createColorList()
 
     layout->addWidget( M_color_list_box );
 
+    //
+
     QHBoxLayout * hbox = new QHBoxLayout();
 
     QPushButton * default_button = new QPushButton( tr( "Default" ) );
@@ -1066,6 +1072,15 @@ ConfigDialog::createColorList()
     connect( default_button, SIGNAL( clicked() ),
              this, SLOT( setDefaultColor() ) );
     hbox->addWidget( default_button, 0, Qt::AlignLeft );
+    //
+    hbox->addStretch( 0 );
+    //
+    QPushButton * cancel_button = new QPushButton( tr( "Cancel" ) );
+    cancel_button->setAutoDefault( false );
+    connect( cancel_button, SIGNAL( clicked() ),
+             this, SLOT( cancelColor() ) );
+    hbox->addWidget( cancel_button, 0, Qt::AlignLeft );
+
 
     layout->addLayout( hbox );
 
@@ -1300,6 +1315,17 @@ ConfigDialog::updateAll()
 //     M_player_trace_end->setText( QString::number( opt.playerTraceEnd() ) );
 
 //     M_ball_vel_cycle->setValue( opt.ballVelCycle() );
+
+    for ( int i = 0; i < M_color_list_box->count(); ++i )
+    {
+        ColorItem * color_item = dynamic_cast< ColorItem * >( M_color_list_box->item( i ) );
+        if ( ! color_item )
+        {
+            continue;
+        }
+
+        color_item->updateColor();
+    }
 }
 
 /*-------------------------------------------------------------------*/
@@ -2609,6 +2635,27 @@ ConfigDialog::setDefaultColor()
 
     M_color_list_box->clear();
     createColorItems();
+
+    emit configured();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+void
+ConfigDialog::cancelColor()
+{
+    for ( int i = 0; i < M_color_list_box->count(); ++i )
+    {
+        ColorItem * color_item = dynamic_cast< ColorItem * >( M_color_list_box->item( i ) );
+        if ( ! color_item )
+        {
+            continue;
+        }
+
+        color_item->revert();
+    }
 
     emit configured();
 }

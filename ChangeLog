@@ -1,5 +1,9 @@
 2009-11-12  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
+	* src/config_dialog.cpp:
+	* src/config_dialog.h:
+	- added color cancel button.
+
 	* src/Makefile.am:
 	* src/config_dialog.cpp:
 	* src/config_dialog.h:

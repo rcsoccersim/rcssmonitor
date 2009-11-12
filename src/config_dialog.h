@@ -80,6 +80,7 @@ public:
     const QColor & newColor() const { return M_new_color; }
 
     bool setColor( const QColor & color );
+    void updateColor();
     bool revert();
 };
 
@@ -299,6 +300,7 @@ private slots:
 
     void selectColorEntry( QListWidgetItem * item );
     void setDefaultColor();
+    void cancelColor();
 
 public slots:
 
