@@ -45,6 +45,7 @@
 #include "player_painter.h"
 #include "score_board_painter.h"
 #include "team_graphic_painter.h"
+//#include "draw_info_painter.h"
 
 #include "options.h"
 
@@ -115,6 +116,7 @@ FieldCanvas::createPainters()
     M_painters.push_back( boost::shared_ptr< PainterInterface >( new TeamGraphicPainter( M_disp_holder ) ) );
     M_painters.push_back( boost::shared_ptr< PainterInterface >( new PlayerPainter( M_disp_holder ) ) );
     M_painters.push_back( boost::shared_ptr< PainterInterface >( new BallPainter( M_disp_holder ) ) );
+//     M_painters.push_back( boost::shared_ptr< PainterInterface >( new DrawInfoPainter( M_disp_holder ) ) );
 }
 
 /*-------------------------------------------------------------------*/

@@ -30,8 +30,8 @@
 
 /////////////////////////////////////////////////////////////////////
 
-#ifndef RCSSLOGPLAYER_TEAM_GRAPHIC_H
-#define RCSSLOGPLAYER_TEAM_GRAPHIC_H
+#ifndef RCSSMONITOR_TEAM_GRAPHIC_H
+#define RCSSMONITOR_TEAM_GRAPHIC_H
 
 #include <boost/shared_ptr.hpp>
 

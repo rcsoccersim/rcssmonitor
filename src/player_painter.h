@@ -30,8 +30,8 @@
 
 /////////////////////////////////////////////////////////////////////
 
-#ifndef RCSSLOGPLAYER_PLAYER_PAINTER_H
-#define RCSSLOGPLAYER_PLAYER_PAINTER_H
+#ifndef RCSSMONITOR_PLAYER_PAINTER_H
+#define RCSSMONITOR_PLAYER_PAINTER_H
 
 #include <QPen>
 #include <QBrush>
@@ -56,7 +56,7 @@ private:
         int body_radius_; //!< pixel body radius
         int kick_radius_; //!< pixel kick area radius
         int draw_radius_; //!< pixel main draw radius.
-        bool have_full_effort_; //!< flag to check effort value
+        //bool have_full_effort_; //!< flag to check effort value
         const rcss::rcg::PlayerT & player_;
         const rcss::rcg::BallT & ball_;
         const rcss::rcg::PlayerTypeT & player_type_;

@@ -152,8 +152,8 @@ Options::Options()
     , M_canvas_width( -1 )
     , M_canvas_height( -1 )
     , M_hide_menu_bar( false )
-    , M_hide_tool_bar( false )
-    , M_hide_status_bar( false )
+      //, M_hide_tool_bar( false )
+    , M_hide_status_bar( true )
       // view options
     , M_anti_aliasing( true )
     , M_show_score_board( true )
@@ -170,7 +170,7 @@ Options::Options()
     , M_show_pointto( true )
     , M_show_card( true )
     , M_show_offside_line( false )
-    , M_show_draw_info( true )
+//     , M_show_draw_info( true )
     , M_ball_size( 0.35 )
     , M_player_size( 0.0 )
     , M_grid_step( 0.0 )
@@ -288,8 +288,8 @@ Options::readSettings()
     val = settings.value( "hide_menu_bar" );
     if ( val.isValid() ) M_hide_menu_bar = val.toBool();
 
-    val = settings.value( "hide_tool_bar" );
-    if ( val.isValid() ) M_hide_tool_bar = val.toBool();
+//     val = settings.value( "hide_tool_bar" );
+//     if ( val.isValid() ) M_hide_tool_bar = val.toBool();
 
     val = settings.value( "hide_status_bar" );
     if ( val.isValid() ) M_hide_status_bar = val.toBool();
@@ -343,8 +343,8 @@ Options::readSettings()
     val = settings.value( "show_team_graphic" );
     if ( val.isValid() ) M_show_team_graphic = val.toBool();
 
-    val = settings.value( "show_draw_info" );
-    if ( val.isValid() ) M_show_draw_info = val.toBool();
+//     val = settings.value( "show_draw_info" );
+//     if ( val.isValid() ) M_show_draw_info = val.toBool();
 
     val = settings.value( "show_ball" );
     if ( val.isValid() ) M_show_ball = val.toBool();
@@ -607,7 +607,7 @@ Options::writeSettings()
     settings.setValue( "show_score_board", M_show_score_board );
     settings.setValue( "show_keepaway_area", M_show_keepaway_area );
     settings.setValue( "show_team_graphic", M_show_team_graphic );
-    settings.setValue( "show_draw_info", M_show_draw_info );
+//     settings.setValue( "show_draw_info", M_show_draw_info );
     settings.setValue( "show_ball", M_show_ball );
     settings.setValue( "show_player", M_show_player );
     settings.setValue( "show_player_number", M_show_player_number );
@@ -759,9 +759,9 @@ Options::parseCmdLine( int argc,
         ( "show-team-graphic",
           po::value< bool >( &M_show_team_graphic )->default_value( true, "on" ),
           "show team graphic." )
-        ( "show-draw-info",
-          po::value< bool >( &M_show_draw_info )->default_value( true, "on" ),
-          "show team graphic." )
+//         ( "show-draw-info",
+//           po::value< bool >( &M_show_draw_info )->default_value( true, "on" ),
+//           "show draw information." )
         ( "show-ball",
           po::value< bool >( &M_show_ball )->default_value( true, "on" ),
           "show ball." )

@@ -30,8 +30,8 @@
 
 /////////////////////////////////////////////////////////////////////
 
-#ifndef RCSSLOGPLAYER_MOUSE_STATE_H
-#define RCSSLOGPLAYER_MOUSE_STATE_H
+#ifndef RCSSMONITOR_MOUSE_STATE_H
+#define RCSSMONITOR_MOUSE_STATE_H
 
 #include <QPoint>
 

@@ -29,8 +29,8 @@
 
 /////////////////////////////////////////////////////////////////////
 
-#ifndef RCSSLOGPLAYER_CIRCLE2D_H
-#define RCSSLOGPLAYER_CIRCLE2D_H
+#ifndef RCSSMONITOR_CIRCLE2D_H
+#define RCSSMONITOR_CIRCLE2D_H
 
 #include "vector_2d.h"
 

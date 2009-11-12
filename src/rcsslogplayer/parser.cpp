@@ -1149,7 +1149,7 @@ Parser::parseDrawLine( const int n_line,
     M_time = time;
 
     // parse object
-
+    std::cerr << "parseDraw " << line << std::endl;
     if ( ! std::strncmp( buf, "(point ", 7 ) )
     {
         float x, y;

@@ -30,8 +30,8 @@
 
 /////////////////////////////////////////////////////////////////////
 
-#ifndef RCSSLOGPLAYER_TEAM_GRAPHIC_PAINTER_H
-#define RCSSLOGPLAYER_TEAM_GRAPHIC_PAINTER_H
+#ifndef RCSSMONITOR_TEAM_GRAPHIC_PAINTER_H
+#define RCSSMONITOR_TEAM_GRAPHIC_PAINTER_H
 
 #include "painter_interface.h"
 

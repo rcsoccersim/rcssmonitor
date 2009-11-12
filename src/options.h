@@ -164,7 +164,7 @@ private:
     int M_canvas_height;
 
     bool M_hide_menu_bar;
-    bool M_hide_tool_bar;
+//     bool M_hide_tool_bar;
     bool M_hide_status_bar;
 
     //
@@ -193,7 +193,7 @@ private:
     bool M_show_card;
 
     bool M_show_offside_line;
-    bool M_show_draw_info;
+//     bool M_show_draw_info;
 
     double M_ball_size; //!< fixed ball radius
     double M_player_size; //!< fixed player radius
@@ -393,10 +393,10 @@ public:
           return M_hide_menu_bar;
       }
 
-    bool hideToolBar() const
-      {
-          return M_hide_tool_bar;
-      }
+//     bool hideToolBar() const
+//       {
+//           return M_hide_tool_bar;
+//       }
 
     bool hideStatusBar() const
       {
@@ -569,14 +569,14 @@ public:
           M_show_offside_line = ! M_show_offside_line;
       }
 
-    bool showDrawInfo() const
-      {
-          return M_show_draw_info;
-      }
-    void toggleShowDrawInfo()
-      {
-          M_show_draw_info = ! M_show_draw_info;
-      }
+//     bool showDrawInfo() const
+//       {
+//           return M_show_draw_info;
+//       }
+//     void toggleShowDrawInfo()
+//       {
+//           M_show_draw_info = ! M_show_draw_info;
+//       }
 
     const
     double & ballSize() const

@@ -30,8 +30,8 @@
 
 /////////////////////////////////////////////////////////////////////
 
-#ifndef RCSSLOGPLAYER_CONFIG_DIALOG_H
-#define RCSSLOGPLAYER_CONFIG_DIALOG_H
+#ifndef RCSSMONITOR_CONFIG_DIALOG_H
+#define RCSSMONITOR_CONFIG_DIALOG_H
 
 #include <QDialog>
 #include <QListWidgetItem>
@@ -174,7 +174,7 @@ private:
     QCheckBox * M_card_cb;
 
     QCheckBox * M_show_offside_line_cb;
-    QCheckBox * M_show_draw_info_cb;
+//     QCheckBox * M_show_draw_info_cb;
 
     QSlider * M_grid_step_slider;
     QLineEdit * M_grid_step_text;
@@ -262,7 +262,7 @@ private slots:
     void clickShowScoreBoard( bool checked );
     void clickShowKeepawayArea( bool checked );
     void clickShowTeamGraphic( bool checked );
-    void clickShowDrawInfo( bool checked );
+//     void clickShowDrawInfo( bool checked );
 
     void clickShowBall( bool checked );
     void clickShowPlayer( bool checked );
@@ -334,7 +334,7 @@ public slots:
     void toggleShowCard();
 
     void toggleShowOffsideLine();
-    void toggleShowDrawInfo();
+//     void toggleShowDrawInfo();
 
     void editBallSize( const QString & text );
     void editPlayerSize( const QString & text );

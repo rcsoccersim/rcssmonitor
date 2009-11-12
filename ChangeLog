@@ -1,5 +1,29 @@
 2009-11-12  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
+	* src/draw_info_painter.cpp:
+	* src/draw_info_painter.h:
+	* src/angle_deg.h:
+	* src/ball_painter.h:
+	* src/circle_2d.h:
+	* src/config_dialog.cpp:
+	* src/config_dialog.h:
+	* src/disp_holder.cpp:
+	* src/disp_holder.h:
+	* src/field_canvas.cpp:
+	* src/mouse_state.h:
+	* src/options.cpp:
+	* src/options.h:
+	* src/player_painter.cpp:
+	* src/player_painter.h:
+	* src/player_type_dialog.h:
+	* src/rcsslogplayer/parser.cpp:
+	* src/score_board_painter.h:
+	* src/team_graphic.h:
+	* src/team_graphic_painter.h:
+	* src/vector_2d.h:
+	- fixed include guard.
+	- added DrawInfoPainter, but not actually used yet.
+
 	* src/player_type_dialog.cpp:
 	* src/player_type_dialog.h:
 	* src/Makefile.am:

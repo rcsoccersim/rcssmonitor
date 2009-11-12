@@ -29,8 +29,8 @@
 
 /////////////////////////////////////////////////////////////////////
 
-#ifndef RCSSLOGPLAYER_VECTOR2D_H
-#define RCSSLOGPLAYER_VECTOR2D_H
+#ifndef RCSSMONITOR_VECTOR2D_H
+#define RCSSMONITOR_VECTOR2D_H
 
 #include "angle_deg.h"
 

@@ -66,7 +66,7 @@ PlayerPainter::Param::Param(  const rcss::rcg::PlayerT & player,
     , y_( Options::instance().screenY( player.y_ ) )
     , body_radius_( Options::instance().scale( ptype.player_size_ ) )
     , kick_radius_( Options::instance().scale( ptype.player_size_ + ptype.kickable_margin_ + sparam.ball_size_ ) )
-    , have_full_effort_( std::fabs( player.effort_ - ptype.effort_max_ ) < 0.0001 )
+      //, have_full_effort_( std::fabs( player.effort_ - ptype.effort_max_ ) < 1.0e-3 )
     , player_( player )
     , ball_( ball )
     , player_type_( ptype )
@@ -314,14 +314,14 @@ PlayerPainter::drawBody( QPainter & painter,
         }
 #endif
 
-        if ( std::fabs( param.player_.effort_ - param.player_type_.effort_max_ ) > 1.0e-5 )
+        if ( std::fabs( param.player_.effort_ - param.player_type_.effort_max_ ) > 1.0e-4 )
         {
             int r = param.draw_radius_ + 2;
             painter.setPen( opt.effortDecayedPen() );
             painter.setBrush( Qt::NoBrush );
             painter.drawEllipse( param.x_ - r, param.y_ - r, r * 2, r * 2 );
         }
-        else if ( std::fabs( param.player_.recovery_ - M_disp_holder.serverParam().recover_init_ ) > 1.0e-5 )
+        else if ( std::fabs( param.player_.recovery_ - M_disp_holder.serverParam().recover_init_ ) > 1.0e-4 )
         {
             int r = param.draw_radius_ + 2;
             painter.setPen( opt.recoveryDecayedPen() );

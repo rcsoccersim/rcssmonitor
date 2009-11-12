@@ -29,8 +29,8 @@
 
 /////////////////////////////////////////////////////////////////////
 
-#ifndef RCSSLOGPLAYER_ANGLEDEG_H
-#define RCSSLOGPLAYER_ANGLEDEG_H
+#ifndef RCSSMONITOR_ANGLEDEG_H
+#define RCSSMONITOR_ANGLEDEG_H
 
 #include <iostream>
 #include <cmath>

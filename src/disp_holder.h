@@ -30,8 +30,8 @@
 
 /////////////////////////////////////////////////////////////////////
 
-#ifndef RCSSLOGPLAYER_DISP_HOLDER_H
-#define RCSSLOGPLAYER_DISP_HOLDER_H
+#ifndef RCSSMONITOR_DISP_HOLDER_H
+#define RCSSMONITOR_DISP_HOLDER_H
 
 #include "team_graphic.h"
 
@@ -40,10 +40,15 @@
 
 #include <boost/shared_ptr.hpp>
 
+#include <vector>
 #include <list>
+#include <map>
 
 typedef boost::shared_ptr< rcss::rcg::DispInfoT > DispPtr;
 typedef boost::shared_ptr< const rcss::rcg::DispInfoT > DispConstPtr;
+typedef std::multimap< int, rcss::rcg::PointInfoT > PointCont;
+typedef std::multimap< int, rcss::rcg::CircleInfoT > CircleCont;
+typedef std::multimap< int, rcss::rcg::LineInfoT > LineCont;
 
 class DispHolder
     : public rcss::rcg::Handler {
@@ -66,6 +71,10 @@ private:
     std::vector< std::pair< int, rcss::rcg::PlayMode > > M_penalty_scores_left;
     std::vector< std::pair< int, rcss::rcg::PlayMode > > M_penalty_scores_right;
 
+    PointCont M_point_cont;
+    CircleCont M_circle_cont;
+    LineCont M_line_cont;
+
 
     DispPtr M_disp; //! last handled display data
     std::list< DispPtr > M_disp_cont;
@@ -86,6 +95,11 @@ public:
     const std::map< int, rcss::rcg::PlayerTypeT > & playerTypes() const { return M_player_types; }
     const rcss::rcg::PlayerTypeT & playerType( const int id ) const;
 
+    rcss::rcg::PlayMode playmode() const { return M_playmode; }
+
+    const TeamGraphic & teamGraphicLeft() const { return M_team_graphic_left; }
+    const TeamGraphic & teamGraphicRight() const { return M_team_graphic_right; }
+
     const std::vector< std::pair< int, rcss::rcg::PlayMode > > & penaltyScoresLeft() const
       {
           return M_penalty_scores_left;
@@ -95,10 +109,9 @@ public:
           return M_penalty_scores_right;
       }
 
-    const TeamGraphic & teamGraphicLeft() const { return M_team_graphic_left; }
-    const TeamGraphic & teamGraphicRight() const { return M_team_graphic_right; }
-
-    rcss::rcg::PlayMode playmode() const { return M_playmode; }
+    const PointCont & pointCont() const { return M_point_cont; }
+    const CircleCont & circleCont() const { return M_circle_cont; }
+    const LineCont & lineCont() const { return M_line_cont; }
 
     DispConstPtr currentDisp() const;
 

@@ -1,15 +1,15 @@
 // -*-c++-*-
 
 /*!
-  \file ball_painer.h
-  \brief ball painter class Header File.
+  \file draw_info_painter.h
+  \brief draw info painter class Header File.
 */
 
 /*
  *Copyright:
 
- Copyright (C)  The RoboCup Soccer Server Maintenance Group.
- Hidehisa AKIYAMA
+ Copyright (C) The RoboCup Soccer Server Maintenance Group.
+ Hidehisa Akiyama
 
  This code is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -30,32 +30,36 @@
 
 /////////////////////////////////////////////////////////////////////
 
-#ifndef RCSSMONITOR_BALL_PAINTER_H
-#define RCSSMONITOR_BALL_PAINTER_H
+#ifndef RCSSMONITOR_DRAW_INFO_PAINTER_H
+#define RCSSMONITOR_DRAW_INFO_PAINTER_H
 
 #include "painter_interface.h"
 
+#include <QPen>
+#include <QBrush>
+#include <QFont>
+
 class DispHolder;
 
-class BallPainter
+class DrawInfoPainter
     : public PainterInterface {
 private:
+
     const DispHolder & M_disp_holder;
 
+    QPen M_pen;
+
     // not used
-    BallPainter();
-    BallPainter( const BallPainter & );
-    const BallPainter & operator=( const BallPainter & );
+    DrawInfoPainter();
+    DrawInfoPainter( const DrawInfoPainter & );
+    const DrawInfoPainter & operator=( const DrawInfoPainter & );
 public:
 
-    BallPainter( const DispHolder & disp_holder );
-    ~BallPainter();
+    explicit
+    DrawInfoPainter( const DispHolder & disp_holder );
+    ~DrawInfoPainter();
 
     void draw( QPainter & painter );
-
-private:
-
-    void drawVelocity( QPainter & painter ) const;
 
 };
 

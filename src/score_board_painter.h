@@ -30,8 +30,8 @@
 
 /////////////////////////////////////////////////////////////////////
 
-#ifndef RCSSLOGPLAYER_SCORE_BOARD_PAINTER_H
-#define RCSSLOGPLAYER_SCORE_BOARD_PAINTER_H
+#ifndef RCSSMONITOR_SCORE_BOARD_PAINTER_H
+#define RCSSMONITOR_SCORE_BOARD_PAINTER_H
 
 #include "painter_interface.h"
 

@@ -30,8 +30,8 @@
 
 /////////////////////////////////////////////////////////////////////
 
-#ifndef RCSSLOGPLAYER_PLAYER_TYPE_DIALOG_H
-#define RCSSLOGPLAYER_PLAYER_TYPE_DIALOG_H
+#ifndef RCSSMONITOR_PLAYER_TYPE_DIALOG_H
+#define RCSSMONITOR_PLAYER_TYPE_DIALOG_H
 
 #include <QDialog>
 

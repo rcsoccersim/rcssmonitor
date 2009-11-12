@@ -94,6 +94,10 @@ DispHolder::clear()
     M_penalty_scores_left.clear();
     M_penalty_scores_right.clear();
 
+    M_point_cont.clear();
+    M_circle_cont.clear();
+    M_line_cont.clear();
+
     M_disp.reset();
     M_disp_cont.clear();
 }
@@ -274,10 +278,14 @@ DispHolder::doHandleShowInfo( const rcss::rcg::ShowInfoT & show )
 
     M_disp = disp;
 
-    M_disp_cont.push_back( disp );
-    if ( (int)M_disp_cont.size() > Options::instance().maxDispBuffer() )
+    if ( M_disp_cont.empty()
+         || M_disp_cont.back()->show_.time_ <= show.time_ )
     {
-        M_disp_cont.pop_front();
+        M_disp_cont.push_back( disp );
+        if ( (int)M_disp_cont.size() > Options::instance().maxDispBuffer() )
+        {
+            M_disp_cont.pop_front();
+        }
     }
 }
 
@@ -348,9 +356,27 @@ DispHolder::doHandleTeamInfo( const int,
 
  */
 void
-DispHolder::doHandleDrawClear( const int )
+DispHolder::doHandleDrawClear( const int time )
 {
+    M_point_cont.erase( time );
+    M_circle_cont.erase( time );
+    M_line_cont.erase( time );
 
+//     {
+//         PointCont::iterator first = M_point_cont.lower_bound( 0 );
+//         PointCont::iterator last = M_point_cont.upper_bound( time );
+//         M_point_cont.erase( first, last );
+//     }
+//     {
+//         CircleCont::iterator first = M_circle_cont.lower_bound( 0 );
+//         CircleCont::iterator last = M_circle_cont.upper_bound( time );
+//         M_circle_cont.erase( first, last );
+//     }
+//     {
+//         LineCont::iterator first = M_line_cont.lower_bound( 0 );
+//         LineCont::iterator last = M_line_cont.upper_bound( time );
+//         M_line_cont.erase( first, last );
+//     }
 }
 
 /*-------------------------------------------------------------------*/
@@ -358,10 +384,10 @@ DispHolder::doHandleDrawClear( const int )
 
  */
 void
-DispHolder::doHandleDrawPointInfo( const int,
-                                   const rcss::rcg::PointInfoT & )
+DispHolder::doHandleDrawPointInfo( const int time,
+                                   const rcss::rcg::PointInfoT & point )
 {
-
+    M_point_cont.insert( PointCont::value_type( time, point ) );
 }
 
 /*-------------------------------------------------------------------*/
@@ -369,10 +395,11 @@ DispHolder::doHandleDrawPointInfo( const int,
 
  */
  void
- DispHolder::doHandleDrawCircleInfo( const int,
-                                     const rcss::rcg::CircleInfoT & )
+ DispHolder::doHandleDrawCircleInfo( const int time,
+                                     const rcss::rcg::CircleInfoT & circle )
  {
-
+     std::cerr << "doHandleDrawCircleInfo " << time << std::endl;
+     M_circle_cont.insert( CircleCont::value_type( time, circle ) );
  }
 
 /*-------------------------------------------------------------------*/
@@ -380,10 +407,10 @@ DispHolder::doHandleDrawPointInfo( const int,
 
  */
 void
-DispHolder::doHandleDrawLineInfo( const int,
-                                  const rcss::rcg::LineInfoT & )
+DispHolder::doHandleDrawLineInfo( const int time,
+                                  const rcss::rcg::LineInfoT & line )
 {
-
+    M_line_cont.insert( LineCont::value_type( time, line ) );
 }
 
 /*-------------------------------------------------------------------*/
