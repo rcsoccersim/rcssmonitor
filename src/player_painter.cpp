@@ -499,24 +499,37 @@ PlayerPainter::drawCatchArea( QPainter & painter,
                          catchable * 2,
                          catchable * 2 );
 
-    const double stretch_catchable_area_l
+    const double max_catchable_area_l
         = SP.catchable_area_l_
         * param.player_type_.catchable_area_l_stretch_;
-    const double stretch_area
+    const double max_area
         = std::sqrt( std::pow( SP.catchable_area_w_ * 0.5, 2.0 )
-                     + std::pow( stretch_catchable_area_l, 2.0 ) );
-    const int stretch = opt.scale( stretch_area );
-    if ( stretch > catchable )
+                     + std::pow( max_catchable_area_l, 2.0 ) );
+    const int max_r = opt.scale( max_area );
+    if ( max_r > catchable )
     {
         painter.setPen( ( param.player_.side_ == 'l' )
                         ? opt.leftGoalieStretchPen()
                         : opt.rightGoalieStretchPen() );
-        painter.drawEllipse( param.x_ - stretch,
-                             param.y_ - stretch,
-                             stretch * 2,
-                             stretch * 2 );
+        painter.drawEllipse( param.x_ - max_r,
+                             param.y_ - max_r,
+                             max_r * 2,
+                             max_r * 2 );
+
+        const double min_catchable_area_l
+            = SP.catchable_area_l_
+            * ( 1.0 - ( param.player_type_.catchable_area_l_stretch_ - 1.0 ) );
+        const double min_area
+            = std::sqrt( std::pow( SP.catchable_area_w_ * 0.5, 2.0 )
+                         + std::pow( min_catchable_area_l, 2.0 ) );
+        const int min_r = opt.scale( min_area );
+        painter.drawEllipse( param.x_ - min_r,
+                             param.y_ - min_r,
+                             min_r * 2,
+                             min_r * 2 );
     }
 
+#if 0
     //
     // catch probability
     //
@@ -548,6 +561,7 @@ PlayerPainter::drawCatchArea( QPainter & painter,
     painter.drawText( param.x_ + text_radius,
                       param.y_ + ( 2 + painter.fontMetrics().ascent() ) * 2,
                       QString( "Catch=%1" ).arg( catch_prob, 0, 'g', 3 ) );
+#endif
 }
 
 /*-------------------------------------------------------------------*/

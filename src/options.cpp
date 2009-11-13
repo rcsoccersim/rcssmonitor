@@ -204,12 +204,12 @@ Options::Options()
     , M_left_team_pen( LEFT_TEAM_COLOR, 0, Qt::SolidLine )
     , M_left_team_brush( LEFT_TEAM_COLOR, Qt::SolidPattern )
     , M_left_goalie_pen( LEFT_GOALIE_COLOR, 0, Qt::SolidLine )
-    , M_left_goalie_stretch_pen( LEFT_GOALIE_COLOR, 0, Qt::DotLine )
+    , M_left_goalie_stretch_pen( LEFT_GOALIE_COLOR.darker( 200 ), 0, Qt::DotLine )
     , M_left_goalie_brush( LEFT_GOALIE_COLOR, Qt::SolidPattern )
     , M_right_team_pen( RIGHT_TEAM_COLOR, 0, Qt::SolidLine )
     , M_right_team_brush( RIGHT_TEAM_COLOR, Qt::SolidPattern )
     , M_right_goalie_pen( RIGHT_GOALIE_COLOR, 0, Qt::SolidLine )
-    , M_right_goalie_stretch_pen( RIGHT_GOALIE_COLOR, 0, Qt::DotLine )
+    , M_right_goalie_stretch_pen( RIGHT_GOALIE_COLOR.darker( 200 ), 0, Qt::DotLine )
     , M_right_goalie_brush( RIGHT_GOALIE_COLOR, Qt::SolidPattern )
     , M_player_number_pen( PLAYER_NUMBER_COLOR, 0, Qt::SolidLine )
     , M_player_number_inner_pen( PLAYER_NUMBER_INNER_COLOR, 0, Qt::SolidLine )
@@ -470,8 +470,13 @@ Options::readSettings()
     if ( val.isValid() )
     {
         M_left_goalie_pen.setColor( val.toString() );
-        M_left_goalie_stretch_pen.setColor( val.toString() );
         M_left_goalie_brush.setColor( val.toString() );
+    }
+
+    val = settings.value( "left_goalie_unreliable_catch" );
+    if ( val.isValid() )
+    {
+        M_left_goalie_stretch_pen.setColor( val.toString() );
     }
 
     val = settings.value( "right_team" );
@@ -485,8 +490,13 @@ Options::readSettings()
     if ( val.isValid() )
     {
         M_right_goalie_pen.setColor( val.toString() );
-        M_right_goalie_stretch_pen.setColor( val.toString() );
         M_right_goalie_brush.setColor( val.toString() );
+    }
+
+    val = settings.value( "right_goalie_unreliable_catch" );
+    if ( val.isValid() )
+    {
+        M_right_goalie_stretch_pen.setColor( val.toString() );
     }
 
     val = settings.value( "player_number_pen" );
@@ -655,8 +665,10 @@ Options::writeSettings()
     settings.setValue( "player_pen", M_player_pen.color().name() );
     settings.setValue( "left_team", M_left_team_pen.color().name() );
     settings.setValue( "left_goalie", M_left_goalie_brush.color().name() );
+    settings.setValue( "left_goalie_unreliable_catch", M_left_goalie_stretch_pen.color().name() );
     settings.setValue( "right_team", M_right_team_pen.color().name() );
     settings.setValue( "right_goalie", M_right_goalie_brush.color().name() );
+    settings.setValue( "right_goalie_unreliable_catch", M_right_goalie_stretch_pen.color().name() );
     settings.setValue( "player_number_pen", M_player_number_pen.color().name() );
     settings.setValue( "player_number_inner_pen", M_player_number_inner_pen.color().name() );
     settings.setValue( "neck_pen", M_neck_pen.color().name() );
@@ -981,12 +993,12 @@ Options::setDefaultColor()
     M_left_team_pen.setColor( LEFT_TEAM_COLOR );
     M_left_team_brush.setColor( LEFT_TEAM_COLOR );
     M_left_goalie_pen.setColor( LEFT_GOALIE_COLOR );
-    M_left_goalie_stretch_pen.setColor( LEFT_GOALIE_COLOR );
+    M_left_goalie_stretch_pen.setColor( LEFT_GOALIE_COLOR.darker( 200 ) );
     M_left_goalie_brush.setColor( LEFT_GOALIE_COLOR );
     M_right_team_pen.setColor( RIGHT_TEAM_COLOR );
     M_right_team_brush.setColor( RIGHT_TEAM_COLOR );
     M_right_goalie_pen.setColor( RIGHT_GOALIE_COLOR );
-    M_right_goalie_stretch_pen.setColor( RIGHT_GOALIE_COLOR );
+    M_right_goalie_stretch_pen.setColor( RIGHT_GOALIE_COLOR.darker( 200 ) );
     M_right_goalie_brush.setColor( RIGHT_GOALIE_COLOR );
     M_player_number_pen.setColor( PLAYER_NUMBER_COLOR );
     M_player_number_inner_pen.setColor( PLAYER_NUMBER_INNER_COLOR );

@@ -168,7 +168,7 @@ PlayerTypeDialog::createModel()
     M_model->setHeaderData( i, Qt::Horizontal, tr( "KickMargin" ) ); ++i;
     M_model->setHeaderData( i, Qt::Horizontal, tr( "KickRate" ) ); ++i;
     M_model->setHeaderData( i, Qt::Horizontal, tr( "KickRand" ) ); ++i;
-    M_model->setHeaderData( i, Qt::Horizontal, tr( "Catch" ) ); ++i;
+    M_model->setHeaderData( i, Qt::Horizontal, tr( "UnrelCatch" ) ); ++i;
     M_model->setHeaderData( i, Qt::Horizontal, tr( "StamInc" ) ); ++i;
     M_model->setHeaderData( i, Qt::Horizontal, tr( "ExtStam" ) ); ++i;
     M_model->setHeaderData( i, Qt::Horizontal, tr( "Eft Max-Min" ) ); ++i;
@@ -218,7 +218,7 @@ PlayerTypeDialog::adjustSize()
     // kick rand
     M_item_view->setColumnWidth( i, metrics.width( "  0.0000" ) + 4 ); ++i;
     // catchable area
-    M_item_view->setColumnWidth( i, metrics.width( "  0.0000" ) + 4 ); ++i;
+    M_item_view->setColumnWidth( i, metrics.width( "  0.000 - 0.000" ) + 4 ); ++i;
     // stamina inc max
     M_item_view->setColumnWidth( i, metrics.width( "  00.00" ) + 4 ); ++i;
     // extra stamina
@@ -267,7 +267,7 @@ PlayerTypeDialog::updateData()
 #endif
     }
 
-    const rcss::rcg::ServerParamT & sparam = M_disp_holder.serverParam();
+    const rcss::rcg::ServerParamT & SP = M_disp_holder.serverParam();
 
     QString text;
     for ( int row = 0; row < ROW_SIZE; ++row )
@@ -294,7 +294,7 @@ PlayerTypeDialog::updateData()
         M_model->setData( M_model->index( row, i ), text ); ++i;
 
         // speed real/max
-        double accel_max = sparam.max_power_ * param.dash_power_rate_ * param.effort_max_;
+        double accel_max = SP.max_power_ * param.dash_power_rate_ * param.effort_max_;
         double real_speed_max = accel_max / ( 1.0 - param.player_decay_ );
         if ( real_speed_max > param.player_speed_max_ )
         {
@@ -326,8 +326,8 @@ PlayerTypeDialog::updateData()
         M_model->setData( M_model->index( row, i ), text ); ++i;
 
         // kickable area
-        //text.sprintf( "%.3f", param.player_size_ + param.kickable_margin_ + sparam.ball_size_ );
-        text = QString::number( param.player_size_ + param.kickable_margin_ + sparam.ball_size_ );
+        //text.sprintf( "%.3f", param.player_size_ + param.kickable_margin_ + SP.ball_size_ );
+        text = QString::number( param.player_size_ + param.kickable_margin_ + SP.ball_size_ );
         M_model->setData( M_model->index( row, i ), text ); ++i;
 
         // kickable margin
@@ -346,11 +346,11 @@ PlayerTypeDialog::updateData()
         M_model->setData( M_model->index( row, i ), text ); ++i;
 
         // catch area radius
-        double r = std::sqrt( std::pow( sparam.catchable_area_w_ * 0.5, 2.0 )
-                              + std::pow( sparam.catchable_area_l_ * param.catchable_area_l_stretch_, 2.0 ) );
-        //text.sprintf( "%.4f", param.catchable_area_l_stretch_ );
-        //text.sprintf( "%.4f", r );
-        text = QString::number( r );
+        double min_r = std::sqrt( std::pow( SP.catchable_area_w_ * 0.5, 2.0 )
+                                  + std::pow( SP.catchable_area_l_ * ( 1.0 - ( param.catchable_area_l_stretch_ - 1.0 ) ), 2.0 ) );
+        double max_r = std::sqrt( std::pow( SP.catchable_area_w_ * 0.5, 2.0 )
+                                  + std::pow( SP.catchable_area_l_ * param.catchable_area_l_stretch_, 2.0 ) );
+        text.sprintf( "%.3f - %.3f", min_r, max_r );
         M_model->setData( M_model->index( row, i ), text ); ++i;
 
         // stamina inc max
