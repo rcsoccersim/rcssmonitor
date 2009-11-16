@@ -18,6 +18,7 @@ macx {
 
 win32 {
 #  LIBS += ../../zlib123-dll/zlib1.dll -lwsock32
+  LIBS += c:/MinGW/boost-lib/libboost_program_options-mgw34-mt.lib
   LIBS += -lwsock32
 }
 unix {

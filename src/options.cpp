@@ -901,7 +901,7 @@ Options::parseCmdLine( int argc,
     if ( help )
     {
         std::cout << "Usage: " << PACKAGE_NAME
-                  << " [options ... ] [<GameLogFile>]\n";
+                  << " [options ... ]\n";
         std::cout << visibles << std::endl;
         return false;
     }

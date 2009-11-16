@@ -1,5 +1,10 @@
 2009-11-16  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
+	* src/options.cpp:
+	* src/src.pro:
+	- fixed help message.
+	- fixed link option for Windows.
+
 	* NEWS:
 	* README:
 	- wrote short descriptions about new rcssmonitor.
