@@ -504,7 +504,8 @@ LogPlayer::adjustTimer()
 
     int interval = opt.timerInterval();
 
-    if ( current_cache < cache_size )
+    if ( current_cache < cache_size
+         && M_disp_holder.playmode() != rcss::rcg::PM_TimeOver )
     {
         if ( current_cache <= 1 )
         {
@@ -516,6 +517,8 @@ LogPlayer::adjustTimer()
             interval = static_cast< int >( rint( opt.timerInterval() / rate ) );
             interval = std::min( opt.timerInterval() * 10, interval );
         }
+
+        interval = std::min( 5000, interval );
     }
     else
     {

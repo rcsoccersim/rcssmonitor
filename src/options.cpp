@@ -752,18 +752,18 @@ Options::parseCmdLine( int argc,
         ( "cache-size",
           po::value< int >( &M_cache_size )->default_value( 100, "100" ),
           "set cache size for buffering mode." )
-        ( "max-disp-buffer",
-          po::value< int >( &M_max_disp_buffer )->default_value( 65535, "65535" ),
-          "set max size of display data buffer." )
+//         ( "max-disp-buffer",
+//           po::value< int >( &M_max_disp_buffer )->default_value( 65535, "65535" ),
+//           "set max size of display data buffer." )
+        ( "timer-interval",
+          po::value< int >( &M_timer_interval )->default_value( DEFAULT_TIMER_INTERVAL ),
+          "set a timer interval [ms] for buffering mode." )
         ( "auto-quit-mode",
           po::value< bool >( &M_auto_quit_mode )->default_value( false, "off" ),
           "enable automatic quit mode." )
         ( "auto-quit-wait",
           po::value< int >( &M_auto_quit_wait )->default_value( 5, "5" ),
           "set a wait period for the automatic quit mode." )
-        ( "timer-interval",
-          po::value< int >( &M_timer_interval )->default_value( DEFAULT_TIMER_INTERVAL ),
-          "set a playing timer interval." )
         // window options
         ( "geometry",
           po::value< std::string >( &geometry )->default_value( "" ),
@@ -775,13 +775,13 @@ Options::parseCmdLine( int argc,
           po::bool_switch( &M_full_screen )->default_value( M_full_screen ),
           "start with a full screen window." )
         ( "show-menu-bar",
-          po::value< bool >( &M_show_menu_bar )->default_value( M_show_menu_bar ),
+          po::value< bool >( &M_show_menu_bar )->default_value( true, "on" ),
           "show menu bar." )
 //         ( "show-tool-bar",
 //           po::value< bool >( &M_show_tool_bar )->default_value( M_show_tool_bar ),
 //           "start without a tool bar." )
         ( "show-status-bar",
-          po::value< bool >( &M_show_status_bar )->default_value( M_show_status_bar ),
+          po::value< bool >( &M_show_status_bar )->default_value( false, "off" ),
           "show status bar." )
         // view options
         ( "anti-aliasing",
@@ -837,13 +837,13 @@ Options::parseCmdLine( int argc,
           "show player\'s yellow/red cards." )
         ( "ball-size",
           po::value< double >( &M_ball_size )->default_value( 0.35, "0.35" ),
-          "set a ball radius in enlarge mode." )
+          "set a ball radius." )
         ( "player-size",
           po::value< double >( &M_player_size )->default_value( 0.0, "0.0" ),
-          "set a fixed player radius in enlarge mode." )
+          "set a fixed player radius." )
         ( "show-grid-coord",
           po::value< bool >( &M_show_grid_coord )->default_value( false, "off" ),
-          "show grid line coordinate value." )
+          "show coordinates value of grid lines." )
         ( "grid-step",
           po::value< double >( &M_grid_step )->default_value( 0.0, "0.0" ),
           "set a grid step size." )
@@ -906,26 +906,28 @@ Options::parseCmdLine( int argc,
         return false;
     }
 
-//     if ( M_timer_interval < 0 )
-//     {
-//         std::cerr << "Illegal timer interval " << M_timer_interval
-//                   << ". set default value." << std::endl;
-//         M_timer_interval = DEFAULT_TIMER_INTERVAL;
-//     }
+    if ( M_timer_interval < 0 )
+    {
+        std::cerr << "Illegal timer interval " << M_timer_interval
+                  << ". use default value("
+                  << DEFAULT_TIMER_INTERVAL << ')'
+                  << std::endl;
+        M_timer_interval = DEFAULT_TIMER_INTERVAL;
+    }
 
-//     if ( M_timer_interval < 5 )
-//     {
-//         std::cerr << "Too small timer interval " << M_timer_interval
-//                   << ".  replaced by 5." << std::endl;
-//         M_timer_interval = 5;
-//     }
+    if ( M_timer_interval < 5 )
+    {
+        std::cerr << "Too small timer interval " << M_timer_interval
+                  << ".  replaced by 5." << std::endl;
+        M_timer_interval = 5;
+    }
 
-//     if ( M_timer_interval > 5000 )
-//     {
-//         std::cerr << "Too huge timer interval " << M_timer_interval
-//                   << ".  replaced by 5000." << std::endl;
-//         M_timer_interval = 5000;
-//     }
+    if ( M_timer_interval > 5000 )
+    {
+        std::cerr << "Too huge timer interval " << M_timer_interval
+                  << ".  replaced by 5000." << std::endl;
+        M_timer_interval = 5000;
+    }
 
     if ( ! geometry.empty() )
     {

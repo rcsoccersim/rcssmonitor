@@ -144,6 +144,7 @@ private:
 private slots:
 
     void about();
+    void printShortcutKeys();
 
     // monitor menu action slots
     void kickOff();
@@ -179,6 +180,7 @@ private slots:
     void receiveMonitorPacket();
     void resizeCanvas( const QSize & size );
     void updatePositionLabel( const QPoint & point );
+    void updateBufferingLabel();
 
 signals:
 

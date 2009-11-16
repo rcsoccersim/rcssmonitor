@@ -86,6 +86,8 @@ MainWindow::MainWindow()
              this, SLOT( setFocusPoint( const QPoint & ) ) );
     connect( M_log_player, SIGNAL( updated() ),
              this, SIGNAL( viewUpdated() ) );
+    connect( M_log_player, SIGNAL( updated() ),
+             this, SLOT( updateBufferingLabel() ) );
 
     this->resize( Options::instance().windowWidth() > 0
                   ? Options::instance().windowWidth()
@@ -554,6 +556,12 @@ MainWindow::createMenuHelp()
         QAction * act = menu->addAction( tr( "About" ), this, SLOT( about() ) );
         act->setStatusTip( tr( "Show the about dialog." ) );
     }
+    {
+        QAction * act = menu->addAction( tr( "Shortcut Keys" ), this, SLOT( printShortcutKeys() ) );
+        act->setStatusTip( tr( "Print available shortcut keys." ) );
+    }
+
+    menu->addSeparator();
 
     menu->addAction( tr( "About Qt" ), qApp, SLOT( aboutQt() ) );
 }
@@ -948,7 +956,7 @@ MainWindow::createConfigDialog()
     }
     // p
     {
-        QAction * act = new QAction( tr( "Focus Player" ), this );
+        QAction * act = new QAction( tr( "Focus selected player" ), this );
         act->setShortcut( Qt::Key_P );
         act->setStatusTip( tr( "Toggle automatic player focus mode." ) );
         this->addAction( act );
@@ -957,7 +965,7 @@ MainWindow::createConfigDialog()
     }
     // a
     {
-        QAction * act = new QAction( tr( "Select auto all" ), this );
+        QAction * act = new QAction( tr( "Select the ball nearest player automatically" ), this );
         act->setShortcut( Qt::Key_A );
         act->setStatusTip( tr( "Toggle automatic player selection from all players." ) );
         this->addAction( act );
@@ -966,7 +974,7 @@ MainWindow::createConfigDialog()
     }
     // l
     {
-        QAction * act = new QAction( tr( "Select auto left" ), this );
+        QAction * act = new QAction( tr( "Select the ball nearest left player automatically" ), this );
         act->setShortcut( Qt::Key_L );
         act->setStatusTip( tr( "Toggle automatic player selection from left team." ) );
         this->addAction( act );
@@ -975,7 +983,7 @@ MainWindow::createConfigDialog()
     }
     // r
     {
-        QAction * act = new QAction( tr( "Select auto right" ), this );
+        QAction * act = new QAction( tr( "Select the ball nearest right player automatically" ), this );
         act->setShortcut( Qt::Key_R );
         act->setStatusTip( tr( "Toggle automatic player selection from right team." ) );
         this->addAction( act );
@@ -984,7 +992,7 @@ MainWindow::createConfigDialog()
     }
     // u
     {
-        QAction * act = new QAction( tr( "Unselect" ), this );
+        QAction * act = new QAction( tr( "Unselect player" ), this );
         act->setShortcut( Qt::Key_U );
         act->setStatusTip( tr( "Unselect the player." ) );
         this->addAction( act );
@@ -1117,13 +1125,75 @@ MainWindow::about()
 
  */
 void
+MainWindow::printShortcutKeys()
+{
+    QDialog dialog( this );
+    QVBoxLayout * layout = new QVBoxLayout();
+
+    QTableWidget * table_widget = new QTableWidget( &dialog );
+    table_widget->insertColumn( 0 );
+    table_widget->insertColumn( 1 );
+
+    QStringList header;
+    header.push_back( tr( "key" ) );
+    header.push_back( tr( "action" ) );
+    table_widget->setHorizontalHeaderLabels( header );
+
+    table_widget->horizontalHeader()->setStretchLastSection( true );
+    table_widget->horizontalHeader()->setResizeMode( QHeaderView::ResizeToContents );
+    table_widget->verticalHeader()->hide();
+
+    int row = 0;
+
+    Q_FOREACH( QAction * act, this->actions() )
+    {
+        if ( ! act->shortcut().isEmpty() )
+        {
+            table_widget->insertRow( row );
+            table_widget->setItem ( row, 0, new QTableWidgetItem( act->shortcut().toString() ) );
+            table_widget->setItem ( row, 1, new QTableWidgetItem( QString( act->statusTip() ).remove( QChar( '&' ) ) ) );
+            ++row;
+        }
+    }
+
+    table_widget->setSortingEnabled( true );
+//     std::cout <<  "table row_count = " << table_widget->rowCount()
+//               <<  "table col_count = " << table_widget->columnCount()
+//               << std::endl;
+
+    layout->addWidget( table_widget );
+    dialog.setLayout( layout );
+    if ( row > 0 )
+    {
+        dialog.exec();
+    }
+
+#if 0
+    Q_FOREACH( QAction * act, this->actions() )
+    {
+        if ( ! act->shortcut().isEmpty() )
+        {
+            std::cout << act->shortcut().toString().toStdString() << ", "
+                      << QString( act->text() ).remove( QChar( '&' ) ).toStdString()
+                      << '\n';
+        }
+    }
+    std::cout << std::flush;
+#endif
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+void
 MainWindow::kickOff()
 {
     if ( M_monitor_client
          && M_monitor_client->isConnected() )
     {
         M_monitor_client->sendKickOff();
-        this->statusBar()->showMessage( tr( "send KickOff" ), 5000 );
+        this->statusBar()->showMessage( tr( "KickOff" ), 3000 );
     }
 }
 
@@ -1724,15 +1794,7 @@ MainWindow::receiveMonitorPacket()
     {
         M_log_player->adjustTimer();
 
-        size_t cur = M_disp_holder.currentIndex() == DispHolder::INVALID_INDEX
-            ? 0
-            : M_disp_holder.currentIndex();
-        //M_buffering_label->setText( tr( "Buffering %1/%2" )
-        //                            .arg( cur )
-        //                            .arg( M_disp_holder.dispCont().size() ) );
-        int caching = M_disp_holder.dispCont().size() - cur;
-        M_buffering_label->setText( tr( "Buffering %1" )
-                                    .arg( caching ) );
+        updateBufferingLabel();
     }
     else
     {
@@ -1825,5 +1887,31 @@ MainWindow::updatePositionLabel( const QPoint & point )
                   x, y );
 
         M_position_label->setText( QString::fromAscii( buf ) );
+    }
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+void
+MainWindow::updateBufferingLabel()
+{
+    static int s_last_value = -1;
+
+    if ( this->statusBar()->isVisible() )
+    {
+        size_t cur = M_disp_holder.currentIndex() == DispHolder::INVALID_INDEX
+                ? 0
+                : M_disp_holder.currentIndex();
+        //M_buffering_label->setText( tr( "Buffering %1/%2" )
+        //                            .arg( cur )
+        //                            .arg( M_disp_holder.dispCont().size() ) );
+        int caching = M_disp_holder.dispCont().size() - cur;
+        if ( s_last_value != caching )
+        {
+            M_buffering_label->setText( tr( "Buffering %1" ).arg( caching ) );
+            s_last_value = caching;
+        }
     }
 }

@@ -1,5 +1,16 @@
 2009-11-16  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
+	* NEWS:
+	* README:
+	- wrote short descriptions about new rcssmonitor.
+
+	* src/log_player.cpp:
+	* src/main_window.cpp:
+	* src/main_window.h:
+	* src/options.cpp:
+	- added a help dialog for short cut keys.
+	- added status bar messages.
+
 	* src/log_player.cpp:
 	* src/log_player.h:
 	* rcssmonitor.pro:
