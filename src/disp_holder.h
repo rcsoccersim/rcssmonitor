@@ -41,17 +41,20 @@
 #include <boost/shared_ptr.hpp>
 
 #include <vector>
-#include <list>
 #include <map>
 
 typedef boost::shared_ptr< rcss::rcg::DispInfoT > DispPtr;
 typedef boost::shared_ptr< const rcss::rcg::DispInfoT > DispConstPtr;
+typedef std::vector< DispConstPtr > DispCont;
 typedef std::multimap< int, rcss::rcg::PointInfoT > PointCont;
 typedef std::multimap< int, rcss::rcg::CircleInfoT > CircleCont;
 typedef std::multimap< int, rcss::rcg::LineInfoT > LineCont;
 
 class DispHolder
     : public rcss::rcg::Handler {
+public:
+    static const size_t INVALID_INDEX;
+
 private:
 
     int M_rcg_version;
@@ -64,9 +67,6 @@ private:
     TeamGraphic M_team_graphic_left;
     TeamGraphic M_team_graphic_right;
 
-    rcss::rcg::PlayMode M_playmode; //!< last handled playmode
-    rcss::rcg::TeamT M_teams[2]; //!< last handled team info
-
     // the record of penalty score/miss, first: time, second: playmode
     std::vector< std::pair< int, rcss::rcg::PlayMode > > M_penalty_scores_left;
     std::vector< std::pair< int, rcss::rcg::PlayMode > > M_penalty_scores_right;
@@ -75,9 +75,13 @@ private:
     CircleCont M_circle_cont;
     LineCont M_line_cont;
 
+    rcss::rcg::PlayMode M_playmode; //!< last handled playmode
+    rcss::rcg::TeamT M_teams[2]; //!< last handled team info
 
     DispPtr M_disp; //! last handled display data
-    std::list< DispPtr > M_disp_cont;
+    DispCont M_disp_cont;
+
+    size_t M_current_index;
 
     // not used
     DispHolder( const DispHolder & );
@@ -113,7 +117,9 @@ public:
     const CircleCont & circleCont() const { return M_circle_cont; }
     const LineCont & lineCont() const { return M_line_cont; }
 
+    size_t currentIndex() const { return M_current_index; }
     DispConstPtr currentDisp() const;
+    const DispCont & dispCont() const { return M_disp_cont; }
 
     bool addDispInfoV1( const rcss::rcg::dispinfo_t & disp );
     bool addDispInfoV2( const rcss::rcg::dispinfo_t2 & disp );
@@ -173,6 +179,17 @@ protected:
 
 private:
     void analyzeTeamGraphic( const std::string & msg );
+
+public:
+
+    bool setIndexFirst();
+    bool setIndexLast();
+    bool setIndexStepBack();
+    bool setIndexStepForward();
+    bool setIndex( const size_t idx );
+    bool setCycle( const int cycle );
+    size_t getIndex( const int cycle ) const;
+
 
 };
 

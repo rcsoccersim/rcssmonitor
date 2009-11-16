@@ -1,3 +1,19 @@
+2009-11-16  Hidehisa Akiyama  <akky@users.sourceforge.jp>
+
+	* src/log_player.cpp:
+	* src/log_player.h:
+	* rcssmonitor.pro:
+	* src/Makefile.am:
+	* src/disp_holder.cpp:
+	* src/disp_holder.h:
+	* src/main_window.cpp:
+	* src/main_window.h:
+	* src/options.cpp:
+	* src/options.h:
+	* src/src.pro:
+	- implemented buffering mode.
+	- fixed qmake project file.
+
 2009-11-13  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
 	* src/options.cpp:

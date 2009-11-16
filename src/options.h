@@ -144,11 +144,14 @@ private:
     //
     // monitor options
     //
+    bool M_buffering_mode;
+    int M_cache_size;
     int M_max_disp_buffer;
     //std::string M_game_log_file; //!< game log file path to be opened
     //std::string M_output_file;
     bool M_auto_quit_mode;
     int M_auto_quit_wait;
+    int M_timer_interval; //!< logplayer timer interval
 
     //
     // window options
@@ -163,9 +166,9 @@ private:
     int M_canvas_width;
     int M_canvas_height;
 
-    bool M_hide_menu_bar;
-//     bool M_hide_tool_bar;
-    bool M_hide_status_bar;
+    bool M_show_menu_bar;
+//     bool M_show_tool_bar;
+    bool M_show_status_bar;
 
     //
     // view options
@@ -306,359 +309,142 @@ public:
     // monitor options
     //
 
-    bool connect() const
-      {
-          return M_connect;
-      }
+    bool connect() const { return M_connect; }
 
-    const
-    std::string & serverHost() const
-      {
-          return M_server_host;
-      }
-    void setServerHost( const std::string & host )
-      {
-          M_server_host = host;
-      }
+    const std::string & serverHost() const { return M_server_host; }
+    void setServerHost( const std::string & host ) { M_server_host = host; }
 
-    int serverPort() const
-      {
-          return M_server_port;
-      }
+    int serverPort() const { return M_server_port; }
+    int clientVersion() const { return M_client_version; }
 
-    int clientVersion() const
-      {
-          return M_client_version;
-      }
-
-    int maxDispBuffer() const
-      {
-          return M_max_disp_buffer;
-      }
-
-    //const std::string & gameLogFile() const { return M_game_log_file; }
-    //void setGameLogFile( const std::string & path ) { M_game_log_file = path; }
-
-    //const std::string & outputFile() const { return M_output_file; }
+    bool bufferingMode() const { return M_buffering_mode; }
+    int cacheSize() const { return M_cache_size; }
+    int maxDispBuffer() const { return M_max_disp_buffer; }
 
     bool autoQuitMode() const { return M_auto_quit_mode; }
     int autoQuitWait() const { return M_auto_quit_wait; }
+
+    int timerInterval() const { return M_timer_interval; }
 
     //
     // window option
     //
 
-    int windowX() const
-      {
-          return M_window_x;
-      }
+    int windowX() const { return M_window_x; }
+    int windowY() const { return M_window_y; }
+    int windowWidth() const { return M_window_width; }
+    int windowHeight() const { return M_window_height; }
 
-    int windowY() const
-      {
-          return M_window_y;
-      }
+    bool maximize() const { return M_maximize; }
+    bool fullScreen() const { return M_full_screen; }
 
-    int windowWidth() const
-      {
-          return M_window_width;
-      }
+    int canvasWidth() const { return M_canvas_width; }
+    int canvasHeight() const { return M_canvas_height; }
 
-    int windowHeight() const
-      {
-          return M_window_height;
-      }
-
-    bool maximize() const
-      {
-          return M_maximize;
-      }
-
-    bool fullScreen() const
-      {
-          return M_full_screen;
-      }
-
-    int canvasWidth() const
-      {
-          return M_canvas_width;
-      }
-
-    int canvasHeight() const
-      {
-          return M_canvas_height;
-      }
-
-    bool hideMenuBar() const
-      {
-          return M_hide_menu_bar;
-      }
-
-//     bool hideToolBar() const
-//       {
-//           return M_hide_tool_bar;
-//       }
-
-    bool hideStatusBar() const
-      {
-          return M_hide_status_bar;
-      }
+    bool showMenuBar() const { return M_show_menu_bar; }
+//     bool showToolBar() const { return M_show_tool_bar; }
+    bool showStatusBar() const { return M_show_status_bar; }
 
     //
     // view options
     //
 
-    bool antiAliasing() const
-      {
-          return M_anti_aliasing;
-      }
-    void toggleAntiAliasing()
-      {
-          M_anti_aliasing = ! M_anti_aliasing;
-      }
+    bool antiAliasing() const { return M_anti_aliasing; }
+    void toggleAntiAliasing() { M_anti_aliasing = ! M_anti_aliasing; }
 
-    bool showScoreBoard() const
-      {
-          return M_show_score_board;
-      }
-    void toggleShowScoreBoard()
-      {
-          M_show_score_board = ! M_show_score_board;
-      }
+    bool showScoreBoard() const { return M_show_score_board; }
+    void toggleShowScoreBoard() { M_show_score_board = ! M_show_score_board; }
 
-    bool showKeepawayArea() const
-      {
-          return M_show_keepaway_area;
-      }
-    void toggleShowKeepawayArea()
-      {
-          M_show_keepaway_area = ! M_show_keepaway_area;
-      }
+    bool showKeepawayArea() const { return M_show_keepaway_area; }
+    void toggleShowKeepawayArea() { M_show_keepaway_area = ! M_show_keepaway_area; }
 
-    bool showTeamGraphic() const
-      {
-          return M_show_team_graphic;
-      }
-    void toggleShowTeamGraphic()
-      {
-          M_show_team_graphic = ! M_show_team_graphic;
-      }
+    bool showTeamGraphic() const { return M_show_team_graphic; }
+    void toggleShowTeamGraphic() { M_show_team_graphic = ! M_show_team_graphic; }
 
-    bool showFlag() const
-      {
-          return M_show_flag;
-      }
-    void toggleShowFlag()
-      {
-          M_show_flag = ! M_show_flag;
-      }
+    bool showFlag() const { return M_show_flag; }
+    void toggleShowFlag() { M_show_flag = ! M_show_flag; }
 
-    bool showBall() const
-      {
-          return M_show_ball;
-      }
-    void toggleShowBall()
-      {
-          M_show_ball = ! M_show_ball;
-      }
+    bool showBall() const { return M_show_ball; }
+    void toggleShowBall() { M_show_ball = ! M_show_ball; }
 
-    bool showPlayer() const
-      {
-          return M_show_player;
-      }
-    void toggleShowPlayer()
-      {
-          M_show_player = ! M_show_player;
-      }
+    bool showPlayer() const { return M_show_player; }
+    void toggleShowPlayer() { M_show_player = ! M_show_player; }
 
-    bool showPlayerNumber() const
-      {
-          return M_show_player_number;
-      }
-    void toggleShowPlayerNumber()
-      {
-          M_show_player_number = ! M_show_player_number;
-      }
+    bool showPlayerNumber() const { return M_show_player_number; }
+    void toggleShowPlayerNumber() { M_show_player_number = ! M_show_player_number; }
 
-    bool showPlayerType() const
-      {
-          return M_show_player_type;
-      }
-    void toggleShowPlayerType()
-      {
-          M_show_player_type = ! M_show_player_type;
-      }
+    bool showPlayerType() const { return M_show_player_type; }
+    void toggleShowPlayerType() { M_show_player_type = ! M_show_player_type; }
 
-    bool showViewArea() const
-      {
-          return M_show_view_area;
-      }
-    void toggleShowViewArea()
-      {
-          M_show_view_area = ! M_show_view_area;
-      }
+    bool showViewArea() const { return M_show_view_area; }
+    void toggleShowViewArea() { M_show_view_area = ! M_show_view_area; }
 
-    bool showCatchArea() const
-      {
-          return M_show_catch_area;
-      }
-    void toggleShowCatchArea()
-      {
-          M_show_catch_area = ! M_show_catch_area;
-      }
+    bool showCatchArea() const { return M_show_catch_area; }
+    void toggleShowCatchArea() { M_show_catch_area = ! M_show_catch_area; }
 
-    bool showTackleArea() const
-      {
-          return M_show_tackle_area;
-      }
-    void toggleShowTackleArea()
-      {
-          M_show_tackle_area = ! M_show_tackle_area;
-      }
+    bool showTackleArea() const { return M_show_tackle_area; }
+    void toggleShowTackleArea() { M_show_tackle_area = ! M_show_tackle_area; }
 
-    bool showKickAccelArea() const
-      {
-          return M_show_kick_accel_area;
-      }
-    void toggleShowKickAccelArea()
-      {
-          M_show_kick_accel_area = ! M_show_kick_accel_area;
-      }
+    bool showKickAccelArea() const { return M_show_kick_accel_area; }
+    void toggleShowKickAccelArea() { M_show_kick_accel_area = ! M_show_kick_accel_area; }
 
-    bool showStamina() const
-      {
-          return M_show_stamina;
-      }
-    void toggleShowStamina()
-      {
-          M_show_stamina = ! M_show_stamina;
-      }
+    bool showStamina() const { return M_show_stamina; }
+    void toggleShowStamina() { M_show_stamina = ! M_show_stamina; }
 
-    bool showStaminaCapacity() const
-      {
-          return M_show_stamina_capacity;
-      }
-    void toggleShowStaminaCapacity()
-      {
-          M_show_stamina_capacity = ! M_show_stamina_capacity;
-      }
+    bool showStaminaCapacity() const { return M_show_stamina_capacity; }
+    void toggleShowStaminaCapacity() { M_show_stamina_capacity = ! M_show_stamina_capacity; }
 
-    bool showPointto() const
-      {
-          return M_show_pointto;
-      }
-    void toggleShowPointto()
-      {
-          M_show_pointto = ! M_show_pointto;
-      }
+    bool showPointto() const { return M_show_pointto; }
+    void toggleShowPointto() { M_show_pointto = ! M_show_pointto; }
 
-    bool showCard() const
-      {
-          return M_show_card;
-      }
-    void toggleShowCard()
-      {
-          M_show_card = ! M_show_card;
-      }
+    bool showCard() const { return M_show_card; }
+    void toggleShowCard() { M_show_card = ! M_show_card; }
 
-    bool showOffsideLine() const
-      {
-          return M_show_offside_line;
-      }
-    void toggleShowOffsideLine()
-      {
-          M_show_offside_line = ! M_show_offside_line;
-      }
+    bool showOffsideLine() const { return M_show_offside_line; }
+    void toggleShowOffsideLine() { M_show_offside_line = ! M_show_offside_line; }
 
-    bool showDrawInfo() const
-      {
-          return M_show_draw_info;
-      }
-    void toggleShowDrawInfo()
-      {
-          M_show_draw_info = ! M_show_draw_info;
-      }
+    bool showDrawInfo() const { return M_show_draw_info; }
+    void toggleShowDrawInfo() { M_show_draw_info = ! M_show_draw_info; }
 
-    const
-    double & ballSize() const
-      {
-          return M_ball_size;
-      }
+    const double & ballSize() const { return M_ball_size; }
     void setBallSize( const double & value )
       {
-          if ( value <= 0.001 ) return;
+        if ( value <= 0.001 ) return;
           M_ball_size = value;
       }
 
-    const
-    double & playerSize() const
-      {
-          return M_player_size;
-      }
+    const double & playerSize() const { return M_player_size; }
     void setPlayerSize( const double & value )
       {
           if ( value < 0.0 ) return;
           M_player_size = value;
       }
 
-    const
-    double & gridStep() const
-      {
-          return M_grid_step;
-      }
-    void setGridStep( const double & value )
-      {
-          M_grid_step = value;
-      }
+    const double & gridStep() const { return M_grid_step; }
+    void setGridStep( const double & value ) { M_grid_step = value; }
 
-    bool showGridCoord() const
-      {
-          return M_show_grid_coord;
-      }
-    void toggleShowGridCoord()
-      {
-          M_show_grid_coord = ! M_show_grid_coord;
-      }
+    bool showGridCoord() const { return M_show_grid_coord; }
+    void toggleShowGridCoord() { M_show_grid_coord = ! M_show_grid_coord; }
 
     // field scale
 
     void updateFieldSize( const int canvas_width,
                           const int canvas_height );
 
-    const
-    double & fieldScale() const
-      {
-          return M_field_scale;
-      }
+    const double & fieldScale() const { return M_field_scale; }
     void setFieldScale( const double & value );
 
-    bool zoomed() const
-      {
-          return M_zoomed;
-      }
+    bool zoomed() const { return M_zoomed; }
     void zoomIn();
     void zoomOut();
     void fitToScreen();
 
-    const
-    QPoint & fieldCenter() const
-      {
-          return M_field_center;
-      }
+    const QPoint & fieldCenter() const { return M_field_center;}
 
-    FocusType focusType() const
-      {
-          return M_focus_type;
-      }
-    void setFocusType( const Options::FocusType type )
-      {
-          M_focus_type = type;
-      }
+    FocusType focusType() const { return M_focus_type; }
+    void setFocusType( const Options::FocusType type ) { M_focus_type = type; }
 
-    const
-    QPointF & focusPoint() const
-      {
-          return M_focus_point;
-      }
+    const QPointF & focusPoint() const { return M_focus_point; }
     void setFocusPoint( const int screen_x,
                         const int screen_y );
     void setFocusPointReal( const double & x,
@@ -694,10 +480,7 @@ public:
       }
 
 
-    int selectedNumber() const
-      {
-          return M_selected_number;
-      }
+    int selectedNumber() const { return M_selected_number; }
     void setSelectedNumber( const rcss::rcg::Side side,
                             const int unum )
       {
@@ -710,10 +493,7 @@ public:
                    == ( side == rcss::rcg::LEFT ? unum : -unum ) );
       }
 
-    PlayerSelectType playerSelectType() const
-      {
-          return M_player_select_type;
-      }
+    PlayerSelectType playerSelectType() const { return M_player_select_type; }
     bool playerAutoSelect() const
       {
           return ( M_player_select_type != SELECT_FIX
@@ -724,10 +504,7 @@ public:
 
     // ball move
 
-    int ballVelCycle() const
-      {
-          return M_ball_vel_cycle;
-      }
+    int ballVelCycle() const { return M_ball_vel_cycle; }
     void setBallVelCycle( const int cycle )
       {
           if ( 0 <= cycle && cycle <= 100 ) M_ball_vel_cycle = cycle;

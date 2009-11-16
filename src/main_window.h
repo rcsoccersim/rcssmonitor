@@ -43,6 +43,7 @@ class QLabel;
 
 class ConfigDialog;
 class FieldCanvas;
+class LogPlayer;
 class MonitorClient;
 class PlayerTypeDialog;
 
@@ -61,8 +62,10 @@ private:
     ConfigDialog * M_config_dialog;
     FieldCanvas * M_field_canvas;
     MonitorClient * M_monitor_client;
+    LogPlayer * M_log_player;
 
     QLabel * M_position_label;
+    QLabel * M_buffering_label;
 
     // file actions
     QAction * M_exit_act;
@@ -168,6 +171,7 @@ private slots:
                   const int unum );
     void yellowCard();
     void redCard();
+    void changePlayMode( const int mode );
     void changePlayMode( const int mode,
                          const QPoint & point );
 

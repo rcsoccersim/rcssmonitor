@@ -48,18 +48,33 @@
 #include <windows.h>
 #endif
 
+#include <algorithm>
+#include <iterator>
 #include <iostream>
 #include <cstdio>
 #include <cstring>
+
+const size_t DispHolder::INVALID_INDEX = size_t( -1 );
+
+namespace {
+struct TimeCmp {
+    bool operator()( const DispConstPtr & lhs,
+                     const rcss::rcg::UInt32 rhs )
+      {
+          return lhs->show_.time_ < rhs;
+      }
+};
+}
 
 /*-------------------------------------------------------------------*/
 /*!
 
  */
 DispHolder::DispHolder()
-    : M_rcg_version( 0 )
+    : M_rcg_version( 0 ),
+      M_current_index( INVALID_INDEX )
 {
-
+    M_disp_cont.reserve( 65535 );
 }
 
 /*-------------------------------------------------------------------*/
@@ -87,10 +102,6 @@ DispHolder::clear()
     M_team_graphic_left.clear();
     M_team_graphic_right.clear();
 
-    M_playmode = rcss::rcg::PM_Null;
-    M_teams[0].clear();
-    M_teams[1].clear();
-
     M_penalty_scores_left.clear();
     M_penalty_scores_right.clear();
 
@@ -98,8 +109,14 @@ DispHolder::clear()
     M_circle_cont.clear();
     M_line_cont.clear();
 
+    M_playmode = rcss::rcg::PM_Null;
+    M_teams[0].clear();
+    M_teams[1].clear();
+
     M_disp.reset();
     M_disp_cont.clear();
+
+    M_current_index = INVALID_INDEX;
 }
 
 /*-------------------------------------------------------------------*/
@@ -128,6 +145,12 @@ DispHolder::playerType( const int id ) const
 DispConstPtr
 DispHolder::currentDisp() const
 {
+    if ( M_current_index != INVALID_INDEX
+         && M_current_index < M_disp_cont.size() )
+    {
+        return M_disp_cont[M_current_index];
+    }
+
     return M_disp;
 }
 
@@ -278,15 +301,9 @@ DispHolder::doHandleShowInfo( const rcss::rcg::ShowInfoT & show )
 
     M_disp = disp;
 
-    if ( M_disp_cont.empty()
-         || M_disp_cont.back()->show_.time_ <= show.time_ )
+    if ( (int)M_disp_cont.size() <= Options::instance().maxDispBuffer() )
     {
         M_disp_cont.push_back( disp );
-        if ( (int)M_disp_cont.size() > Options::instance().maxDispBuffer() )
-        {
-            doHandleDrawClear( M_disp_cont.front()->show_.time_ );
-            M_disp_cont.pop_front();
-        }
     }
 }
 
@@ -454,7 +471,6 @@ DispHolder::doHandleEOF()
 
 }
 
-
 /*-------------------------------------------------------------------*/
 /*!
 
@@ -496,4 +512,152 @@ DispHolder::analyzeTeamGraphic( const std::string & msg )
         }
         return;
     }
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+bool
+DispHolder::setIndexFirst()
+{
+    if ( M_disp_cont.empty() )
+    {
+        M_current_index = INVALID_INDEX;
+        return false;
+    }
+
+    M_current_index = 0;
+    return true;
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+bool
+DispHolder::setIndexLast()
+{
+    if ( M_disp_cont.empty() )
+    {
+        M_current_index = INVALID_INDEX;
+        return false;
+    }
+
+    M_current_index = M_disp_cont.size() - 1;
+    return true;
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+bool
+DispHolder::setIndexStepBack()
+{
+    if ( M_disp_cont.empty() )
+    {
+        M_current_index = INVALID_INDEX;
+        return false;
+    }
+
+    if ( M_current_index == INVALID_INDEX )
+    {
+        M_current_index = 0;
+        return true;
+    }
+
+    if ( 0 < M_current_index )
+    {
+        --M_current_index;
+        return true;
+    }
+
+    return false;
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+bool
+DispHolder::setIndexStepForward()
+{
+    if ( M_disp_cont.empty() )
+    {
+        M_current_index = INVALID_INDEX;
+        return false;
+    }
+
+    if ( M_current_index == INVALID_INDEX )
+    {
+        M_current_index = 0;
+        return true;
+    }
+
+    if ( M_current_index < M_disp_cont.size() - 1 )
+    {
+        ++M_current_index;
+        return true;
+    }
+
+    return false;
+}
+
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+bool
+DispHolder::setIndex( const size_t idx )
+{
+    if ( M_current_index == idx
+         || idx == INVALID_INDEX
+         || M_disp_cont.size() <= idx )
+    {
+        return false;
+    }
+
+    M_current_index = idx;
+    return true;
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+bool
+DispHolder::setCycle( const int cycle )
+{
+    std::size_t idx = getIndex( cycle );
+
+    if ( idx == M_current_index
+         || idx == INVALID_INDEX )
+    {
+        return false;
+    }
+
+    M_current_index = idx;
+    return true;
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+size_t
+DispHolder::getIndex( const int cycle ) const
+{
+    DispCont::const_iterator it
+        = std::lower_bound( M_disp_cont.begin(),
+                            M_disp_cont.end(),
+                            rcss::rcg::UInt32( cycle ),
+                            TimeCmp() );
+    if ( it == M_disp_cont.end() )
+    {
+        return INVALID_INDEX;
+    }
+
+    return std::distance( M_disp_cont.begin(), it );
 }

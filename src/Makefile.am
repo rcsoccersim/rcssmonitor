@@ -15,6 +15,7 @@ rcssmonitor_SOURCES = \
 	field_canvas.cpp \
 	field_painter.cpp \
 	line_2d.cpp \
+	log_player.cpp \
 	main_window.cpp \
 	monitor_client.cpp \
 	options.cpp \
@@ -29,6 +30,7 @@ rcssmonitor_SOURCES = \
 nodist_rcssmonitor_SOURCES = \
 	moc_config_dialog.cpp \
 	moc_field_canvas.cpp \
+	moc_log_player.cpp \
 	moc_main_window.cpp \
 	moc_monitor_client.cpp \
 	moc_player_type_dialog.cpp
@@ -47,6 +49,7 @@ noinst_HEADERS = \
 	field_canvas.h \
 	field_painter.h \
 	line_2d.h \
+	log_player.h \
 	main_window.h \
 	monitor_client.h \
 	mouse_state.h \

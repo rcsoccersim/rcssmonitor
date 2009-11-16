@@ -17,7 +17,8 @@ macx {
 }
 
 win32 {
-  LIBS += ../../zlib123-dll/zlib1.dll -lwsock32
+#  LIBS += ../../zlib123-dll/zlib1.dll -lwsock32
+  LIBS += -lwsock32
 }
 unix {
   LIBS += -L/opt/local/lib
@@ -44,7 +45,7 @@ macx {
 }
 DEFINES += PACKAGE="\\\"rcssmonitor\\\""
 DEFINES += PACKAGE_NAME="\\\"rcssmonitor\\\""
-DEFINES += VERSION="\\\"x.x.x\\\""
+DEFINES += VERSION="\\\"14.0.0\\\""
 
 CONFIG += qt warn_on release
 win32 {
@@ -59,12 +60,55 @@ win32 {
 
 # Input
 HEADERS += \
+	rcsslogplayer/handler.h \
+	rcsslogplayer/parser.h \
+	rcsslogplayer/types.h \
+	rcsslogplayer/util.h \
+	angle_deg.h \
+	ball_painter.h \
+	circle_2d.h \
+	config_dialog.h \
+	disp_holder.h \
+	draw_info_painter.h \
+	field_canvas.h \
+	field_painter.h \
+	line_2d.h \
+	log_player.h \
 	main_window.h \
-	options.h
+	monitor_client.h \
+	mouse_state.h \
+	options.h \
+	painter_interface.h \
+	player_painter.h \
+	player_type_dialog.h \
+	score_board_painter.h \
+	team_graphic.h \
+	team_graphic_painter.h \
+	vector_2d.h
 
 SOURCES += \
+	rcsslogplayer/parser.cpp \
+	rcsslogplayer/types.cpp \
+	rcsslogplayer/util.cpp \
+	angle_deg.cpp \
+	ball_painter.cpp \
+	circle_2d.cpp \
+	config_dialog.cpp \
+	disp_holder.cpp \
+	draw_info_painter.cpp \
+	field_canvas.cpp \
+	field_painter.cpp \
+	line_2d.cpp \
+	log_player.cpp \
 	main_window.cpp \
+	monitor_client.cpp \
 	options.cpp \
+	player_painter.cpp \
+	player_type_dialog.cpp \
+	score_board_painter.cpp \
+	team_graphic.cpp \
+	team_graphic_painter.cpp \
+	vector_2d.cpp \
 	main.cpp
 
 nodist_rcsslogplayer_SOURCES = \

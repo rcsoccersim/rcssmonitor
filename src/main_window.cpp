@@ -40,6 +40,7 @@
 
 #include "config_dialog.h"
 #include "field_canvas.h"
+#include "log_player.h"
 #include "monitor_client.h"
 #include "player_type_dialog.h"
 #include "options.h"
@@ -65,10 +66,11 @@ MainWindow::MainWindow()
       M_player_type_dialog( static_cast< PlayerTypeDialog * >( 0 ) ),
       M_config_dialog( static_cast< ConfigDialog * >( 0 ) ),
       M_field_canvas( static_cast< FieldCanvas * >( 0 ) ),
-      M_monitor_client( static_cast< MonitorClient * >( 0 ) )
+      M_monitor_client( static_cast< MonitorClient * >( 0 ) ),
+      M_log_player( new LogPlayer( M_disp_holder, this ) )
 {
     this->setWindowIcon( QIcon( QPixmap( rcss_xpm ) ) );
-    this->setWindowTitle( tr( PACKAGE_STRING ) );
+    this->setWindowTitle( tr( PACKAGE_NAME" "VERSION ) );
     this->setMinimumSize( 280, 220 );
 
     readSettings();
@@ -82,6 +84,21 @@ MainWindow::MainWindow()
 
     connect( M_field_canvas, SIGNAL( focusChanged( const QPoint & ) ),
              this, SLOT( setFocusPoint( const QPoint & ) ) );
+    connect( M_log_player, SIGNAL( updated() ),
+             this, SIGNAL( viewUpdated() ) );
+
+    this->resize( Options::instance().windowWidth() > 0
+                  ? Options::instance().windowWidth()
+                  : 640,
+                  Options::instance().windowHeight() > 0
+                  ? Options::instance().windowHeight()
+                  : 480 );
+    this->move( Options::instance().windowX() >= 0
+                ? Options::instance().windowX()
+                : this->x(),
+                Options::instance().windowY() >= 0
+                ? Options::instance().windowY()
+                : this->y() );
 }
 
 /*-------------------------------------------------------------------*/
@@ -100,11 +117,6 @@ MainWindow::~MainWindow()
 void
 MainWindow::init()
 {
-    if ( Options::instance().connect() )
-    {
-        connectMonitor();
-    }
-
     if ( Options::instance().fullScreen() )
     {
         this->showFullScreen();
@@ -112,16 +124,6 @@ MainWindow::init()
     else if ( Options::instance().maximize() )
     {
         this->showMaximized();
-    }
-    else if ( Options::instance().canvasWidth() > 0
-              && Options::instance().canvasHeight() > 0 )
-    {
-        resizeCanvas( QSize( Options::instance().canvasWidth(),
-                             Options::instance().canvasHeight() ) );
-    }
-    else
-    {
-        this->resize( 640, 480 );
     }
 
     if ( QApplication::setStyle( M_window_style ) )
@@ -137,8 +139,18 @@ MainWindow::init()
         }
     }
 
-    toggleMenuBar( ! Options::instance().hideMenuBar() );
-    toggleStatusBar( ! Options::instance().hideStatusBar() );
+    if ( ! Options::instance().bufferingMode() )
+    {
+        M_buffering_label->hide();
+    }
+
+    toggleMenuBar( Options::instance().showMenuBar() );
+    toggleStatusBar( Options::instance().showStatusBar() );
+
+    if ( Options::instance().connect() )
+    {
+        connectMonitor();
+    }
 }
 
 /*-------------------------------------------------------------------*/
@@ -319,7 +331,7 @@ MainWindow::createActionsView()
     M_toggle_menu_bar_act->setShortcut( Qt::CTRL + Qt::Key_M );
 #endif
     M_toggle_menu_bar_act->setCheckable( true );
-    M_toggle_menu_bar_act->setChecked( ! Options::instance().hideMenuBar() );
+    M_toggle_menu_bar_act->setChecked( Options::instance().showMenuBar() );
     M_toggle_menu_bar_act->setStatusTip( tr( "Show/Hide menu bar." ) );
     connect( M_toggle_menu_bar_act, SIGNAL( toggled( bool ) ),
              this, SLOT( toggleMenuBar( bool ) ) );
@@ -328,7 +340,7 @@ MainWindow::createActionsView()
     // status bar
     M_toggle_status_bar_act = new QAction( tr( "Status Bar" ), this );
     M_toggle_status_bar_act->setCheckable( true );
-    M_toggle_status_bar_act->setChecked( ! Options::instance().hideStatusBar() );
+    M_toggle_status_bar_act->setChecked( Options::instance().showStatusBar() );
     M_toggle_status_bar_act->setStatusTip( tr( "Show/Hide status bar." ) );
     connect( M_toggle_status_bar_act, SIGNAL( toggled( bool ) ),
              this, SLOT( toggleStatusBar( bool ) ) );
@@ -379,13 +391,13 @@ MainWindow::createActionsView()
     this->addAction( M_show_player_type_dialog_act );
 
     // show/hide config dialog
-    M_show_config_dialog_act = new QAction( tr( "Config" ), this );
+    M_show_config_dialog_act = new QAction( tr( "Preference" ), this );
 #ifdef Q_WS_MAC
     M_show_config_dialog_act->setShortcut( tr( "Meta+V" ) );
 #else
     M_show_config_dialog_act->setShortcut( tr( "Ctrl+V" ) );
 #endif
-    M_show_config_dialog_act->setStatusTip( tr( "Show config dialog." ) );
+    M_show_config_dialog_act->setStatusTip( tr( "Show view config dialog." ) );
     connect( M_show_config_dialog_act, SIGNAL( triggered() ),
              this, SLOT( showConfigDialog() ) );
     this->addAction( M_show_config_dialog_act );
@@ -440,6 +452,8 @@ MainWindow::createMenuMonitor()
 
     menu->addSeparator();
 
+//     menu->addAction( M_set_live_mode_act );
+
     menu->addAction( M_exit_act );
 }
 
@@ -453,11 +467,48 @@ MainWindow::createMenuReferee()
     QMenu * menu = menuBar()->addMenu( tr( "&Referee" ) );
 
     menu->addAction( M_kick_off_act );
+
+    menu->addSeparator();
+
     menu->addAction( M_yellow_card_act );
     menu->addAction( M_red_card_act );
 
+    menu->addSeparator();
 
-//     menu->addAction( M_set_live_mode_act );
+    {
+        QMenu * submenu = menu->addMenu( tr( "Change Playmode" ) );
+
+        const char * playmode_strings[] = PLAYMODE_STRINGS;
+
+        QSignalMapper * mapper = new QSignalMapper( this );
+        connect( mapper, SIGNAL( mapped( int ) ),
+                 this, SLOT( changePlayMode( int ) ) );
+        for ( int mode = 0; mode < rcss::rcg::PM_MAX; ++mode )
+        {
+            if ( mode == rcss::rcg::PM_BeforeKickOff
+                 || mode == rcss::rcg::PM_PlayOn
+                 || mode == rcss::rcg::PM_KickIn_Left
+                 || mode == rcss::rcg::PM_KickIn_Right
+                 || mode == rcss::rcg::PM_CornerKick_Left
+                 || mode == rcss::rcg::PM_CornerKick_Right
+                 || mode == rcss::rcg::PM_GoalKick_Left
+                 || mode == rcss::rcg::PM_GoalKick_Right
+                 || mode == rcss::rcg::PM_Foul_Charge_Left
+                 || mode == rcss::rcg::PM_Foul_Charge_Right
+                 //|| mode == rcss::rcg::PM_Foul_Push_Left
+                 //|| mode == rcss::rcg::PM_Foul_Push_Right
+                 || mode == rcss::rcg::PM_Back_Pass_Left
+                 || mode == rcss::rcg::PM_Back_Pass_Right
+                 || mode == rcss::rcg::PM_GoalKick_Right
+                 || mode == rcss::rcg::PM_IndFreeKick_Left
+                 || mode == rcss::rcg::PM_IndFreeKick_Right )
+            {
+                QAction * act = submenu->addAction( QString::fromAscii( playmode_strings[mode] ) );
+                connect( act, SIGNAL( triggered() ), mapper, SLOT( map() ) );
+                mapper->setMapping( act, mode );
+            }
+        }
+    }
 }
 
 /*-------------------------------------------------------------------*/
@@ -474,13 +525,11 @@ MainWindow::createMenuView()
 
     menu->addSeparator();
 
-    menu->addAction( M_full_screen_act );
-
-    menu->addSeparator();
-
     menu->addAction( M_show_player_type_dialog_act );
 
     menu->addSeparator();
+
+    menu->addAction( M_full_screen_act );
 
     {
         QMenu * submenu = menu->addMenu( tr( "Window &Style" ) );
@@ -528,9 +577,21 @@ MainWindow::createStatusBar()
 {
     this->statusBar()->showMessage( tr( "Ready" ) );
 
+    int min_width = 0;
+
+    M_buffering_label = new QLabel( tr( "Buffering   0" ) );
+    min_width
+        = M_buffering_label->fontMetrics().width(  tr( "Buffering 000" ) )
+        + 16;
+    M_buffering_label->setMinimumWidth( min_width );
+    M_buffering_label->setAlignment( Qt::AlignLeft );
+    this->statusBar()->addPermanentWidget( M_buffering_label );
+
+    //
+
     M_position_label = new QLabel( tr( "(0.0, 0.0)" ) );
 
-    int min_width
+    min_width
         = M_position_label->fontMetrics().width(  tr( "(-60.0, -30.0)" ) )
         + 16;
     M_position_label->setMinimumWidth( min_width );
@@ -548,10 +609,10 @@ MainWindow::createFieldCanvas()
 {
     M_field_canvas = new FieldCanvas( M_disp_holder );
 
-    QMenu * menu = M_field_canvas->createPopupMenu();
-    menu->addSeparator();
-    menu->addAction( M_yellow_card_act );
-    menu->addAction( M_red_card_act );
+    QMenu * popup_menu = M_field_canvas->createPopupMenu();
+    popup_menu->addSeparator();
+    popup_menu->addAction( M_yellow_card_act );
+    popup_menu->addAction( M_red_card_act );
 
 
     this->setCentralWidget( M_field_canvas );
@@ -606,8 +667,8 @@ MainWindow::createFieldCanvas()
             }
         }
 
-        menu->addSeparator();
-        QMenu * submenu = menu->addMenu( tr( "Change Playmode" ) );
+        popup_menu->addSeparator();
+        QMenu * submenu = popup_menu->addMenu( tr( "Change Playmode" ) );
         Q_FOREACH ( QAction * act, M_playmode_change_act_group->actions() )
         {
             submenu->addAction( act );
@@ -958,6 +1019,8 @@ MainWindow::connectMonitorTo( const char * hostname )
     }
 
     std::cerr << "Connect to [" << hostname << "] ..." << std::endl;
+    this->statusBar()->showMessage( tr( "Connect to %1 ..." ).arg( QString::fromAscii( hostname ) ),
+                                    5000 );
 
     M_monitor_client = new MonitorClient( this,
                                           M_disp_holder,
@@ -968,6 +1031,7 @@ MainWindow::connectMonitorTo( const char * hostname )
     if ( ! M_monitor_client->isConnected() )
     {
         std::cerr << "Conenction failed." << std::endl;
+        this->statusBar()->showMessage( tr( "Connection failed." ), 5000 );
         delete M_monitor_client;
         M_monitor_client = static_cast< MonitorClient * >( 0 );
         return;
@@ -1059,6 +1123,7 @@ MainWindow::kickOff()
          && M_monitor_client->isConnected() )
     {
         M_monitor_client->sendKickOff();
+        this->statusBar()->showMessage( tr( "send KickOff" ), 5000 );
     }
 }
 
@@ -1261,6 +1326,8 @@ MainWindow::dropBall( const QPoint & point )
         std::cerr << "drop ball to ("
                   << x << ", " << y << ")"
                   << std::endl;
+        this->statusBar()->showMessage( tr( "Drop ball at (%1, %2)" ).arg( x ).arg( y ),
+                                        1000 );
         M_monitor_client->sendDropBall( x, y );
     }
 }
@@ -1281,6 +1348,8 @@ MainWindow::freeKickLeft( const QPoint & point )
         std::cerr << "free kick left at ("
                   << x << ", " << y << ")"
                   << std::endl;
+        this->statusBar()->showMessage( tr( "Free kick left at (%1, %2)" ).arg( x ).arg( y ),
+                                        1000 );
         M_monitor_client->sendFreeKickLeft( x, y );
     }
 }
@@ -1301,6 +1370,8 @@ MainWindow::freeKickRight( const QPoint & point )
         std::cerr << "free kick right at ("
                   << x << ", " << y << ")"
                   << std::endl;
+        this->statusBar()->showMessage( tr( "Free kick right at (%1, %2)" ).arg( x ).arg( y ),
+                                        1000 );
         M_monitor_client->sendFreeKickRight( x, y );
     }
 }
@@ -1319,6 +1390,8 @@ MainWindow::yellowCard( const char side,
         std::cerr << "yellow_card : "
                   << side << ' ' << unum
                   << std::endl;
+        this->statusBar()->showMessage( tr( "Yellow card (%1 %2)" ).arg( side ).arg( unum ),
+                                        5000 );
 
         rcss::rcg::Side s = ( side == 'l'
                               ? rcss::rcg::LEFT
@@ -1343,6 +1416,9 @@ MainWindow::redCard( const char side,
         std::cerr << "red_card : "
                   << side << ' ' << unum
                   << std::endl;
+        this->statusBar()->showMessage( tr( "Red card (%1 %2)" ).arg( side ).arg( unum ),
+                                        5000 );
+
         rcss::rcg::Side s = ( side == 'l'
                               ? rcss::rcg::LEFT
                               : side == 'r'
@@ -1458,6 +1534,26 @@ MainWindow::redCard()
                ? 'r'
                : '?' ),
              unum );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+void
+MainWindow::changePlayMode( int mode )
+{
+    DispConstPtr disp = M_disp_holder.currentDisp();
+    if ( ! disp )
+    {
+        return;
+    }
+
+    QPoint point;
+    point.setX( Options::instance().screenX( disp->show_.ball_.x_ ) );
+    point.setY( Options::instance().screenY( disp->show_.ball_.y_ ) );
+
+    changePlayMode( mode, point );
 }
 
 /*-------------------------------------------------------------------*/
@@ -1624,19 +1720,36 @@ MainWindow::changePlayMode( int mode,
 void
 MainWindow::receiveMonitorPacket()
 {
-    if ( M_disp_holder.playmode() == rcss::rcg::PM_TimeOver )
+    if ( Options::instance().bufferingMode() )
     {
-        if ( Options::instance().autoQuitMode() )
+        M_log_player->adjustTimer();
+
+        size_t cur = M_disp_holder.currentIndex() == DispHolder::INVALID_INDEX
+            ? 0
+            : M_disp_holder.currentIndex();
+        //M_buffering_label->setText( tr( "Buffering %1/%2" )
+        //                            .arg( cur )
+        //                            .arg( M_disp_holder.dispCont().size() ) );
+        int caching = M_disp_holder.dispCont().size() - cur;
+        M_buffering_label->setText( tr( "Buffering %1" )
+                                    .arg( caching ) );
+    }
+    else
+    {
+        M_log_player->showLive();
+
+        if ( M_disp_holder.playmode() == rcss::rcg::PM_TimeOver )
         {
-            int wait_msec = ( Options::instance().autoQuitWait() > 0
-                              ? Options::instance().autoQuitWait() * 1000
-                              : 100 );
-            QTimer::singleShot( wait_msec,
-                                qApp, SLOT( quit() ) );
+            if ( Options::instance().autoQuitMode() )
+            {
+                int wait_msec = ( Options::instance().autoQuitWait() > 0
+                                  ? Options::instance().autoQuitWait() * 1000
+                                  : 100 );
+                QTimer::singleShot( wait_msec,
+                                    qApp, SLOT( quit() ) );
+            }
         }
     }
-
-    emit viewUpdated();
 }
 
 /*-------------------------------------------------------------------*/
@@ -1665,6 +1778,11 @@ MainWindow::resizeCanvas( const QSize & size )
                       << size.width() << " "
                       << " minimum=" << this->minimumWidth()
                       << std::endl;
+            QMessageBox::warning( this,
+                                  tr( "Canvas Resize" ),
+                                  tr( "Too small canvas width: %1. minimum=%2" )
+                                  .arg( size.width() )
+                                  .arg( this->minimumWidth() ) );
             return;
         }
 
@@ -1674,6 +1792,11 @@ MainWindow::resizeCanvas( const QSize & size )
                       << size.height() << " "
                       << " minimum=" << this->minimumHeight()
                       << std::endl;
+            QMessageBox::warning( this,
+                                  tr( "Canvas Resize" ),
+                                  tr( "Too small canvas height: %1. minimum=%2" )
+                                  .arg( size.height() )
+                                  .arg( this->minimumHeight() ) );
             return;
         }
 

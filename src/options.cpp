@@ -138,11 +138,14 @@ Options::Options()
     , M_server_host( "127.0.0.1" )
     , M_server_port( 6000 )
     , M_client_version( 4 )
-    , M_max_disp_buffer( 100 )
+    , M_buffering_mode( false )
+    , M_cache_size( 100 )
+    , M_max_disp_buffer( 65535 )
       //, M_game_log_file( "" )
       //, M_output_file( "" )
     , M_auto_quit_mode( false )
     , M_auto_quit_wait( 5 )
+    , M_timer_interval( DEFAULT_TIMER_INTERVAL )
       // window options
     , M_window_x( -1 )
     , M_window_y( -1 )
@@ -152,9 +155,9 @@ Options::Options()
     , M_full_screen( false )
     , M_canvas_width( -1 )
     , M_canvas_height( -1 )
-    , M_hide_menu_bar( false )
-      //, M_hide_tool_bar( false )
-    , M_hide_status_bar( true )
+    , M_show_menu_bar( true )
+      //, M_show_tool_bar( false )
+    , M_show_status_bar( false )
       // view options
     , M_anti_aliasing( true )
     , M_show_score_board( true )
@@ -286,14 +289,14 @@ Options::readSettings()
     val = settings.value( "full_screen" );
     if ( val.isValid() ) M_full_screen = val.toBool();
 
-    val = settings.value( "hide_menu_bar" );
-    if ( val.isValid() ) M_hide_menu_bar = val.toBool();
+    val = settings.value( "show_menu_bar" );
+    if ( val.isValid() ) M_show_menu_bar = val.toBool();
 
-//     val = settings.value( "hide_tool_bar" );
-//     if ( val.isValid() ) M_hide_tool_bar = val.toBool();
+//     val = settings.value( "show_tool_bar" );
+//     if ( val.isValid() ) M_show_tool_bar = val.toBool();
 
-    val = settings.value( "hide_status_bar" );
-    if ( val.isValid() ) M_hide_status_bar = val.toBool();
+    val = settings.value( "show_status_bar" );
+    if ( val.isValid() ) M_show_status_bar = val.toBool();
 
     settings.endGroup();
 
@@ -303,17 +306,23 @@ Options::readSettings()
 
     settings.beginGroup( "Monitor" );
 
-//     val = settings.value( "connect" );
-//     if ( val.isValid() ) M_connect  = val.toBool();
+    val = settings.value( "connect" );
+    if ( val.isValid() ) M_connect  = val.toBool();
 
-//     val = settings.value( "server-host" );
-//     if ( val.isValid() ) M_server_host = val.toString().toStdString();
+    val = settings.value( "server-host" );
+    if ( val.isValid() ) M_server_host = val.toString().toStdString();
 
-//     val = settings.value( "server-port" );
-//     if ( val.isValid() ) M_server_port = val.toInt();
+    val = settings.value( "server-port" );
+    if ( val.isValid() ) M_server_port = val.toInt();
 
-//     val = settings.value( "client-version" );
-//     if ( val.isValid() ) M_client_version = val.toInt();
+    val = settings.value( "client-version" );
+    if ( val.isValid() ) M_client_version = val.toInt();
+
+    val = settings.value( "buffering_mode" );
+    if ( val.isValid() ) M_buffering_mode = val.toBool();
+
+    val = settings.value( "cache_size" );
+    if ( val.isValid() ) M_cache_size = val.toInt();
 
     val = settings.value( "max_disp_buffer" );
     if ( val.isValid() ) M_max_disp_buffer = val.toInt();
@@ -323,6 +332,9 @@ Options::readSettings()
 
     val = settings.value( "auto_quit_wait" );
     if ( val.isValid() ) M_auto_quit_wait = val.toInt();
+
+    val = settings.value( "timer_interval" );
+    if ( val.isValid() ) M_timer_interval = val.toInt();
 
     settings.endGroup();
 
@@ -592,22 +604,25 @@ Options::writeSettings()
 //     settings.setValue( "canvas_height", M_canvas_height );
 //     settings.setValue( "maximize", M_maximize );
 //     settings.setValue( "full_screen", M_full_screen );
-//     settings.setValue( "hide_menu_bar", M_hide_menu_bar );
-//     settings.setValue( "hide_tool_bar", M_hide_tool_bar );
-//     settings.setValue( "hide_status_bar", M_hide_status_bar );
+//     settings.setValue( "show_menu_bar", M_show_menu_bar );
+//     settings.setValue( "show_tool_bar", M_show_tool_bar );
+//     settings.setValue( "show_status_bar", M_show_status_bar );
     settings.endGroup();
 
     //
     // monitor
     //
     settings.beginGroup( "Monitor" );
-//     settings.setValue( "connect", M_connect );
-//     settings.setValue( "server-host", QString::fromStdString( M_server_host ) );
-//     settings.setValue( "server-port", M_server_port );
-//     settings.setValue( "client-version", M_client_version );
+    settings.setValue( "connect", M_connect );
+    settings.setValue( "server-host", QString::fromStdString( M_server_host ) );
+    settings.setValue( "server-port", M_server_port );
+    settings.setValue( "client-version", M_client_version );
+    settings.setValue( "buffering_mode", M_buffering_mode );
+    settings.setValue( "cache_size", M_cache_size );
     settings.setValue( "max_disp_buffer", M_max_disp_buffer );
     settings.setValue( "auto_quit_mode", M_auto_quit_mode );
     settings.setValue( "auto_quit_wait", M_auto_quit_wait );
+    settings.setValue( "timer_interval", M_timer_interval );
     settings.endGroup();
 
     //
@@ -731,15 +746,24 @@ Options::parseCmdLine( int argc,
         ( "client-version",
           po::value< int >( &M_client_version )->default_value( 4, "4" ),
           "set a monitor client protocol version." )
-        ( "max_disp_buffer",
-          po::value< int >( &M_max_disp_buffer )->default_value( 100, "100" ),
-          "set max size of display information buffer." )
+        ( "buffering-mode",
+          po::value< bool >( &M_buffering_mode )->default_value( false, "off" ),
+          "enable buffering mode." )
+        ( "cache-size",
+          po::value< int >( &M_cache_size )->default_value( 100, "100" ),
+          "set cache size for buffering mode." )
+        ( "max-disp-buffer",
+          po::value< int >( &M_max_disp_buffer )->default_value( 65535, "65535" ),
+          "set max size of display data buffer." )
         ( "auto-quit-mode",
           po::value< bool >( &M_auto_quit_mode )->default_value( false, "off" ),
           "enable automatic quit mode." )
         ( "auto-quit-wait",
           po::value< int >( &M_auto_quit_wait )->default_value( 5, "5" ),
           "set a wait period for the automatic quit mode." )
+        ( "timer-interval",
+          po::value< int >( &M_timer_interval )->default_value( DEFAULT_TIMER_INTERVAL ),
+          "set a playing timer interval." )
         // window options
         ( "geometry",
           po::value< std::string >( &geometry )->default_value( "" ),
@@ -750,15 +774,15 @@ Options::parseCmdLine( int argc,
         ( "full-screen",
           po::bool_switch( &M_full_screen )->default_value( M_full_screen ),
           "start with a full screen window." )
-        ( "hide-menu-bar",
-          po::bool_switch( &M_hide_menu_bar )->default_value( M_hide_menu_bar ),
-          "start without a menu bar." )
-//         ( "hide-tool-bar",
-//           po::bool_switch( &M_hide_tool_bar )->default_value( M_hide_tool_bar ),
+        ( "show-menu-bar",
+          po::value< bool >( &M_show_menu_bar )->default_value( M_show_menu_bar ),
+          "show menu bar." )
+//         ( "show-tool-bar",
+//           po::value< bool >( &M_show_tool_bar )->default_value( M_show_tool_bar ),
 //           "start without a tool bar." )
-        ( "hide-status-bar",
-          po::bool_switch( &M_hide_status_bar )->default_value( M_hide_status_bar ),
-          "start without a status bar." )
+        ( "show-status-bar",
+          po::value< bool >( &M_show_status_bar )->default_value( M_show_status_bar ),
+          "show status bar." )
         // view options
         ( "anti-aliasing",
           po::value< bool >( &M_anti_aliasing )->default_value( true, "on" ),
