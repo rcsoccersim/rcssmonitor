@@ -67,10 +67,11 @@ public:
 
     bool isLiveMode() const;
 
-    void adjustTimer();
+    void startTimer();
 
 private:
 
+    void adjustTimer();
     void stepBackImpl();
     void stepForwardImpl();
 

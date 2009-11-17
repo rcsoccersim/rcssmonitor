@@ -301,9 +301,12 @@ DispHolder::doHandleShowInfo( const rcss::rcg::ShowInfoT & show )
 
     M_disp = disp;
 
-    if ( (int)M_disp_cont.size() <= Options::instance().maxDispBuffer() )
+    if ( Options::instance().bufferingMode() )
     {
-        M_disp_cont.push_back( disp );
+        if ( (int)M_disp_cont.size() <= Options::instance().maxDispBuffer() )
+        {
+            M_disp_cont.push_back( disp );
+        }
     }
 }
 

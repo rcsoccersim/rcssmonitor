@@ -1,3 +1,15 @@
+2009-11-17  Hidehisa Akiyama  <akky@users.sourceforge.jp>
+
+	* README:
+	* src/disp_holder.cpp:
+	* src/log_player.cpp:
+	* src/log_player.h:
+	* src/main_window.cpp:
+	* src/src.pro:
+	- fixed link target in Windows environment.
+	- fixed defects in buffering mode.
+	- disabled disp buffer in non-buffering mode.
+
 2009-11-16  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
 	* src/options.cpp:

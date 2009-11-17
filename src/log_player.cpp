@@ -54,7 +54,7 @@ LogPlayer::LogPlayer( DispHolder & disp_holder,
       M_timer( new QTimer( this ) ),
       M_forward( true ),
       M_live_mode( false ),
-      M_timer_interval( Options::DEFAULT_TIMER_INTERVAL )
+      M_timer_interval( 100 )
 {
     connect( M_timer, SIGNAL( timeout() ),
              this, SLOT( handleTimer() ) );
@@ -87,11 +87,13 @@ LogPlayer::handleTimer()
         stepBackImpl();
     }
 
-    if ( M_timer->isActive()
-         && M_timer_interval != M_timer->interval() )
-    {
-        M_timer->start( M_timer_interval );
-    }
+//     if ( M_timer->isActive()
+//          && M_timer_interval != M_timer->interval() )
+//     {
+//         M_timer->start( M_timer_interval );
+//     }
+
+    adjustTimer();
 }
 
 /*-------------------------------------------------------------------*/
@@ -453,10 +455,17 @@ LogPlayer::goToCycle( int cycle )
 void
 LogPlayer::showLive()
 {
-    if ( M_disp_holder.setIndexLast() )
+    if ( Options::instance().bufferingMode() )
     {
-        M_timer->stop();
+        if ( M_disp_holder.setIndexLast() )
+        {
+            M_timer->stop();
 
+            emit updated();
+        }
+    }
+    else
+    {
         emit updated();
     }
 }
@@ -473,6 +482,22 @@ LogPlayer::setLiveMode()
     M_timer->stop();
 
     //emit updated();
+}
+
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+void
+LogPlayer::startTimer()
+{
+    if ( ! M_disp_holder.dispCont().empty()
+         && ! M_timer->isActive() )
+    {
+        M_timer_interval = Options::instance().timerInterval();
+        M_timer->start( M_timer_interval );
+    }
 }
 
 /*-------------------------------------------------------------------*/
@@ -509,32 +534,26 @@ LogPlayer::adjustTimer()
     {
         if ( current_cache <= 1 )
         {
-            interval = opt.timerInterval() * 10;
+            interval = opt.timerInterval() * 3/2;
         }
         else
         {
             double rate = static_cast< double >( current_cache ) / static_cast< double >( cache_size );
             interval = static_cast< int >( rint( opt.timerInterval() / rate ) );
-            interval = std::min( opt.timerInterval() * 10, interval );
+            interval = std::min( opt.timerInterval() * 3/2, interval );
         }
 
         interval = std::min( 5000, interval );
     }
-    else
-    {
-        M_timer_interval = opt.timerInterval();
-    }
 
-    if ( M_timer_interval != interval )
-    {
-        M_timer_interval = interval;
-//         std::cout << "disp_size=" << buffer_size
-//                   << " current_cache=" << current_cache
-//                   << " interval=" << interval
-//                   << std::endl;
-    }
+    M_timer_interval = interval;
+//     std::cout << "disp_size=" << buffer_size
+//               << " current_cache=" << current_cache
+//               << " interval=" << interval
+//               << std::endl;
 
-    if ( ! M_timer->isActive() )
+    if ( M_timer->interval() != M_timer_interval
+         || ! M_timer->isActive() )
     {
         M_timer->start( M_timer_interval );
     }

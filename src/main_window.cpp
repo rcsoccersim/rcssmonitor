@@ -1792,9 +1792,9 @@ MainWindow::receiveMonitorPacket()
 {
     if ( Options::instance().bufferingMode() )
     {
-        M_log_player->adjustTimer();
+        M_log_player->startTimer();
 
-        updateBufferingLabel();
+        //updateBufferingLabel();
     }
     else
     {
@@ -1908,6 +1908,7 @@ MainWindow::updateBufferingLabel()
         //                            .arg( cur )
         //                            .arg( M_disp_holder.dispCont().size() ) );
         int caching = M_disp_holder.dispCont().size() - cur;
+        caching -= 1;
         if ( s_last_value != caching )
         {
             M_buffering_label->setText( tr( "Buffering %1" ).arg( caching ) );

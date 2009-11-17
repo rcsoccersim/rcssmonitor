@@ -18,7 +18,8 @@ macx {
 
 win32 {
 #  LIBS += ../../zlib123-dll/zlib1.dll -lwsock32
-  LIBS += c:/MinGW/boost-lib/libboost_program_options-mgw34-mt.lib
+#  LIBS += c:/MinGW/boost-lib/libboost_program_options-mgw34-mt.lib
+  LIBS += c:/MinGW/boost-lib/boost_program_options-mgw34-mt-1_40.dll
   LIBS += -lwsock32
 }
 unix {
@@ -35,6 +36,7 @@ DEFINES += USE_GL_WIDGET
 DEFINES += HAVE_LIBZ
 win32 {
   DEFINES += HAVE_WINDOWS_H
+  DEFINES += HAVE_BOOST_PROGRAM_OPTIONS
 }
 unix {
   DEFINES += HAVE_NETINET_IN_H

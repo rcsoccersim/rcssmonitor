@@ -79,6 +79,10 @@ from the directory containing the executable or
 
 `rcssmonitor'
 
+If you invoke rcssmonitor with '--help' option, available options are
+displayed in your console.
+
+
 ==============
 Making Contact
 ==============
