@@ -9,41 +9,35 @@
     performance is drastically decreased, please try
     `./configure --disable-gl' to disable QtOpenGL.
 
-  * New features:
-    - Buffering mode.
-      Now, rcssmonitor can buffer packets from rcssserver and display
-      them later. This feature will be useful under slow networks.
-      But, please note that rcssmonitor is still connected to
-      rcssserver with UDP/IP connection. So, the buffering mode may
-      not work successfully under unstable networks. If TCP/IP is
-      supported in future version simulator, this problem will be
-      solved.
+  * Supported Windows environment.
 
-     To enable buffering mode, you need to invoce rcssmonitor with
-     the following option:
+  * Supported new features in rcssserver version 14:
+    - yellow/red card status.
+    - new catch model.
+    - foul success probability.
+    - new heterogeneous parameters.
 
-       $ rcssmonitor --buffering-mode on
+  * Supported buffering mode. Now, rcssmonitor can buffer packets from
+    rcssserver and display them later. This feature will be useful
+    under slow networks. But, note that rcssmonitor is still connected
+    to rcssserver with UDP/IP connection. So, the buffering mode may
+    not work successfully under unstable networks. This problem will
+    be solved if TCP/IP is supported in the future version simulator.
 
-     If you want to change the cached data size(default value: 100),
-     you need to add '--cache-size' option to the command line:
+   To enable buffering mode, you need to invoce rcssmonitor with the
+   following option:
 
-       $ rcssmonitor --buffering-mode on --cache-size 200
+     $ rcssmonitor --buffering-mode on
 
-    - Supported yellow/red card status.
+   If you want to change the cache size(default value: 10), you need
+   to add '--buffer-size' option to the command line:
 
-    - Supported new catch model.
+     $ rcssmonitor --buffering-mode on --buffer-size 100
 
-    - Supported foul success probability.
-
-    - Supported new heterogeneous parameters.
-
-    - Interfaces for human referee to change playmode.
-
-    - Interfaces for human referee to give yellow/red cards to
-      players.
-
-    - Supported Windows environment.
+  * Added new interfaces for human referee:
+    - playmode control.
+    - yellow/red cards.
 
   * Almost all settings are written in ~/.rcssmonitor.conf (in Windows
     environment, this file is located under the working folder) with INI
-    format. You can modify the settgin by editing this file.
+    format. You can modify settings by editing this file.

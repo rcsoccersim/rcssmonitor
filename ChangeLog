@@ -1,5 +1,9 @@
 2009-11-17  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
+	* configure.ac:
+	* NEWS:
+	- Official release 14.0.0.
+
 	* src/log_player.cpp:
 	* src/log_player.h:
 	* src/main_window.cpp:
