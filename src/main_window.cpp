@@ -1047,6 +1047,7 @@ MainWindow::connectMonitorTo( const char * hostname )
 
     // reset all data
     M_disp_holder.clear();
+    M_log_player->clear();
 
     if ( M_player_type_dialog )
     {

@@ -145,7 +145,7 @@ private:
     // monitor options
     //
     bool M_buffering_mode;
-    int M_cache_size;
+    int M_buffer_size;
     int M_max_disp_buffer;
     //std::string M_game_log_file; //!< game log file path to be opened
     //std::string M_output_file;
@@ -318,7 +318,7 @@ public:
     int clientVersion() const { return M_client_version; }
 
     bool bufferingMode() const { return M_buffering_mode; }
-    int cacheSize() const { return M_cache_size; }
+    int bufferSize() const { return M_buffer_size; }
     int maxDispBuffer() const { return M_max_disp_buffer; }
 
     bool autoQuitMode() const { return M_auto_quit_mode; }

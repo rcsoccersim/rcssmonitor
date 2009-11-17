@@ -139,7 +139,7 @@ Options::Options()
     , M_server_port( 6000 )
     , M_client_version( 4 )
     , M_buffering_mode( false )
-    , M_cache_size( 100 )
+    , M_buffer_size( 10 )
     , M_max_disp_buffer( 65535 )
       //, M_game_log_file( "" )
       //, M_output_file( "" )
@@ -321,8 +321,8 @@ Options::readSettings()
     val = settings.value( "buffering_mode" );
     if ( val.isValid() ) M_buffering_mode = val.toBool();
 
-    val = settings.value( "cache_size" );
-    if ( val.isValid() ) M_cache_size = val.toInt();
+    val = settings.value( "buffer_size" );
+    if ( val.isValid() ) M_buffer_size = val.toInt();
 
     val = settings.value( "max_disp_buffer" );
     if ( val.isValid() ) M_max_disp_buffer = val.toInt();
@@ -618,7 +618,7 @@ Options::writeSettings()
     settings.setValue( "server-port", M_server_port );
     settings.setValue( "client-version", M_client_version );
     settings.setValue( "buffering_mode", M_buffering_mode );
-    settings.setValue( "cache_size", M_cache_size );
+    settings.setValue( "buffer_size", M_buffer_size );
     settings.setValue( "max_disp_buffer", M_max_disp_buffer );
     settings.setValue( "auto_quit_mode", M_auto_quit_mode );
     settings.setValue( "auto_quit_wait", M_auto_quit_wait );
@@ -749,15 +749,15 @@ Options::parseCmdLine( int argc,
         ( "buffering-mode",
           po::value< bool >( &M_buffering_mode )->default_value( false, "off" ),
           "enable buffering mode." )
-        ( "cache-size",
-          po::value< int >( &M_cache_size )->default_value( 100, "100" ),
+        ( "buffer-size",
+          po::value< int >( &M_buffer_size )->default_value( M_buffer_size ),
           "set cache size for buffering mode." )
 //         ( "max-disp-buffer",
 //           po::value< int >( &M_max_disp_buffer )->default_value( 65535, "65535" ),
 //           "set max size of display data buffer." )
         ( "timer-interval",
           po::value< int >( &M_timer_interval )->default_value( DEFAULT_TIMER_INTERVAL ),
-          "set a timer interval [ms] for buffering mode." )
+          "set the desired timer interval [ms] for buffering mode." )
         ( "auto-quit-mode",
           po::value< bool >( &M_auto_quit_mode )->default_value( false, "off" ),
           "enable automatic quit mode." )
@@ -904,6 +904,14 @@ Options::parseCmdLine( int argc,
                   << " [options ... ]\n";
         std::cout << visibles << std::endl;
         return false;
+    }
+
+    if ( M_buffer_size <= 1 )
+    {
+        std::cerr << "Illegal buffering size " << M_buffer_size
+                  << ". The value have to be more than 1."
+                  << std::endl;
+        M_buffer_size = 1;
     }
 
     if ( M_timer_interval < 0 )

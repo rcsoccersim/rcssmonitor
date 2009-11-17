@@ -52,8 +52,8 @@ private:
 
     bool M_forward;
     bool M_live_mode;
-
-    int M_timer_interval;
+    bool M_first_cache;
+    bool M_need_caching;
 
     // not used
     LogPlayer();
@@ -64,6 +64,8 @@ public:
     LogPlayer( DispHolder & disp_holder,
                QObject * parent );
     ~LogPlayer();
+
+    void clear();
 
     bool isLiveMode() const;
 

@@ -1,5 +1,13 @@
 2009-11-17  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
+	* src/log_player.cpp:
+	* src/log_player.h:
+	* src/main_window.cpp:
+	* src/options.cpp:
+	* src/options.h:
+	- renamed '--cache-size' with '--buffer-size'
+	- improved timer interval for buffering mode.
+
 	* README:
 	* src/disp_holder.cpp:
 	* src/log_player.cpp:
