@@ -1795,7 +1795,10 @@ MainWindow::receiveMonitorPacket()
     {
         M_log_player->startTimer();
 
-        //updateBufferingLabel();
+        if ( M_log_player->isFullRecoverMode() )
+        {
+            updateBufferingLabel();
+        }
     }
     else
     {

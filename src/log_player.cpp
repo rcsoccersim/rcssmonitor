@@ -54,7 +54,7 @@ LogPlayer::LogPlayer( DispHolder & disp_holder,
       M_timer( new QTimer( this ) ),
       M_forward( true ),
       M_live_mode( false ),
-      M_first_cache( false ),
+      M_full_recover_mode( true ),
       M_need_caching( false )
 {
     connect( M_timer, SIGNAL( timeout() ),
@@ -86,7 +86,7 @@ LogPlayer::clear()
 
     M_forward = true;
     M_live_mode = false;
-    M_first_cache = false;
+    M_full_recover_mode = true;
     M_need_caching = false;
     M_timer->setInterval( Options::instance().timerInterval() );
 }
@@ -98,26 +98,20 @@ LogPlayer::clear()
 void
 LogPlayer::handleTimer()
 {
-    if ( M_forward )
+    if ( ! M_full_recover_mode
+         || M_disp_holder.currentIndex() == DispHolder::INVALID_INDEX )
     {
-        stepForwardImpl();
-    }
-    else
-    {
-        stepBackImpl();
+        if ( M_forward )
+        {
+            stepForwardImpl();
+        }
+        else
+        {
+            stepBackImpl();
+        }
     }
 
     adjustTimer();
-}
-
-/*-------------------------------------------------------------------*/
-/*!
-
-*/
-bool
-LogPlayer::isLiveMode() const
-{
-    return M_live_mode;
 }
 
 /*-------------------------------------------------------------------*/
@@ -526,29 +520,46 @@ LogPlayer::adjustTimer()
         return;
     }
 
-    if ( current == DispHolder::INVALID_INDEX )
-    {
-        current = 0;
-    }
-
     const rcss::rcg::ServerParamT & SP = M_disp_holder.serverParam();
-    const int cache_size = std::max( 1, opt.bufferSize() );
-    const int current_cache = buffer_size - current - 1;
-
-    if ( ! M_first_cache )
-    {
-        if ( current_cache >= cache_size )
-        {
-            M_first_cache = true;
-        }
-    }
 
     int interval = std::min( opt.timerInterval(),
                              SP.simulator_step_ );
 
-    if ( ! M_first_cache )
+    if ( current == DispHolder::INVALID_INDEX )
     {
-        interval = opt.timerInterval() * 5;
+        current = 0;
+        M_full_recover_mode = true;
+
+        if ( M_timer->interval() != interval
+             || ! M_timer->isActive() )
+        {
+            M_timer->start( interval );
+        }
+
+        return;
+    }
+
+    const int cache_size = std::max( 1, opt.bufferSize() );
+    const int current_cache = buffer_size - current - 1;
+
+    if ( M_disp_holder.playmode() == rcss::rcg::PM_TimeOver )
+    {
+        M_full_recover_mode = false;
+    }
+    else if ( current_cache <= 1 )
+    {
+        M_full_recover_mode = true;
+    }
+    else if ( current_cache >= cache_size )
+    {
+        M_full_recover_mode = false;
+    }
+
+    if ( M_full_recover_mode )
+    {
+        //interval = opt.timerInterval() * 5;
+        interval = std::max( opt.timerInterval(),
+                             SP.simulator_step_ );
     }
     else if ( current_cache >= cache_size )
     {
