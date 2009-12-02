@@ -1222,6 +1222,8 @@ ConfigDialog::createFontButtons()
         layout->addWidget( btn, 0, Qt::AlignLeft );
     }
 
+    layout->addStretch();
+
     return layout;
 }
 

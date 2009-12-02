@@ -315,7 +315,7 @@ MainWindow::createActionsReferee()
     }
     M_red_card_act->setStatusTip( tr( "Call red card." ) );
     connect( M_red_card_act, SIGNAL( triggered() ),
-             this, SLOT( yellowCard() ) );
+             this, SLOT( redCard() ) );
     this->addAction( M_red_card_act );
 
     // playmode change

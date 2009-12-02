@@ -1,5 +1,11 @@
 2009-12-02  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
+	* src/config_dialog.cpp:
+	- fixed button layout.
+
+	* src/main_window.cpp:
+	- fixed an illegal handler for red card action.
+
 	* m4/ax_boost_program_options.m4:
 	- updated m4 macro for boost::program_options.
 
