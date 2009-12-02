@@ -52,7 +52,6 @@ private:
 
     bool M_forward;
     bool M_live_mode;
-    bool M_full_recover_mode;
     bool M_need_caching;
 
     // not used
@@ -68,7 +67,6 @@ public:
     void clear();
 
     bool isLiveMode() const { return M_live_mode; }
-    bool isFullRecoverMode() const { return M_full_recover_mode; }
 
     void startTimer();
 
@@ -115,6 +113,7 @@ public slots:
 signals:
 
     void updated();
+    void recoverTimerHandled();
 
 };
 

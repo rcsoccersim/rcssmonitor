@@ -114,6 +114,7 @@ private:
 
     void draw( QPainter & painter );
     void drawMouseMeasure( QPainter & painter );
+    void drawRecoveringState( QPainter & painter );
 
 public slots:
 

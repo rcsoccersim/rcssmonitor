@@ -220,6 +220,10 @@ private:
     // inertia movement
     int M_ball_vel_cycle; //!< specify the cycle to draw ball future point
 
+    //
+    // monitor state
+    //
+    bool M_buffer_recover_mode;
 
     //
     // painter resources
@@ -510,6 +514,15 @@ public:
           if ( 0 <= cycle && cycle <= 100 ) M_ball_vel_cycle = cycle;
       }
 
+    //
+    //
+    //
+    bool bufferRecoverMode() const { return M_buffer_recover_mode; }
+    void setBufferRecoverMode( const bool on ) { M_buffer_recover_mode = on; }
+
+    //
+    //
+    //
 
     const QBrush & fieldBrush() const { return M_field_brush; }
     void setFieldColor( const QColor & col ) { M_field_brush.setColor( col ); }

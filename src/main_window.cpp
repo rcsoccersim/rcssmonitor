@@ -88,6 +88,10 @@ MainWindow::MainWindow()
              this, SIGNAL( viewUpdated() ) );
     connect( M_log_player, SIGNAL( updated() ),
              this, SLOT( updateBufferingLabel() ) );
+    connect( M_log_player, SIGNAL( recoverTimerHandled() ),
+             this, SLOT( updateBufferingLabel() ) );
+    connect( M_log_player, SIGNAL( recoverTimerHandled() ),
+             this, SLOT( showRecoveringState() ) );
 
     this->resize( Options::instance().windowWidth() > 0
                   ? Options::instance().windowWidth()
@@ -1795,10 +1799,10 @@ MainWindow::receiveMonitorPacket()
     {
         M_log_player->startTimer();
 
-        if ( M_log_player->isFullRecoverMode() )
-        {
-            updateBufferingLabel();
-        }
+//         if ( M_log_player->isFullRecoverMode() )
+//         {
+//             updateBufferingLabel();
+//         }
     }
     else
     {
@@ -1903,7 +1907,8 @@ MainWindow::updateBufferingLabel()
 {
     static int s_last_value = -1;
 
-    if ( this->statusBar()->isVisible() )
+    if ( this->statusBar()->isVisible()
+         && M_buffering_label->isVisible() )
     {
         size_t cur = M_disp_holder.currentIndex() == DispHolder::INVALID_INDEX
                 ? 0
@@ -1919,4 +1924,17 @@ MainWindow::updateBufferingLabel()
             s_last_value = caching;
         }
     }
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+void
+MainWindow::showRecoveringState()
+{
+    M_field_canvas->update( M_field_canvas->width() / 2,
+                            M_field_canvas->height() / 2,
+                            64, 64 );
+    //M_field_canvas->update();
 }

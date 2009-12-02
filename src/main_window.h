@@ -182,6 +182,8 @@ private slots:
     void updatePositionLabel( const QPoint & point );
     void updateBufferingLabel();
 
+    void showRecoveringState();
+
 signals:
 
     void viewUpdated();

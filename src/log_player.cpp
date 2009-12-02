@@ -54,9 +54,10 @@ LogPlayer::LogPlayer( DispHolder & disp_holder,
       M_timer( new QTimer( this ) ),
       M_forward( true ),
       M_live_mode( false ),
-      M_full_recover_mode( true ),
       M_need_caching( false )
 {
+    Options::instance().setBufferRecoverMode( true );
+
     connect( M_timer, SIGNAL( timeout() ),
              this, SLOT( handleTimer() ) );
 
@@ -86,7 +87,7 @@ LogPlayer::clear()
 
     M_forward = true;
     M_live_mode = false;
-    M_full_recover_mode = true;
+    Options::instance().setBufferRecoverMode( true );
     M_need_caching = false;
     M_timer->setInterval( Options::instance().timerInterval() );
 }
@@ -98,7 +99,10 @@ LogPlayer::clear()
 void
 LogPlayer::handleTimer()
 {
-    if ( ! M_full_recover_mode
+    const Options & opt = Options::instance();
+
+    if ( ! opt.bufferingMode()
+         || ! opt.bufferRecoverMode()
          || M_disp_holder.currentIndex() == DispHolder::INVALID_INDEX )
     {
         if ( M_forward )
@@ -112,6 +116,12 @@ LogPlayer::handleTimer()
     }
 
     adjustTimer();
+
+    if ( opt.bufferingMode()
+         && opt.bufferRecoverMode() )
+    {
+        emit recoverTimerHandled();
+    }
 }
 
 /*-------------------------------------------------------------------*/
@@ -528,7 +538,7 @@ LogPlayer::adjustTimer()
     if ( current == DispHolder::INVALID_INDEX )
     {
         current = 0;
-        M_full_recover_mode = true;
+        Options::instance().setBufferRecoverMode( true );
 
         if ( M_timer->interval() != interval
              || ! M_timer->isActive() )
@@ -544,21 +554,21 @@ LogPlayer::adjustTimer()
 
     if ( M_disp_holder.playmode() == rcss::rcg::PM_TimeOver )
     {
-        M_full_recover_mode = false;
+        Options::instance().setBufferRecoverMode( false );
     }
     else if ( current_cache <= 1 )
     {
-        M_full_recover_mode = true;
+        Options::instance().setBufferRecoverMode( true );
     }
     else if ( current_cache >= cache_size )
     {
-        M_full_recover_mode = false;
+        Options::instance().setBufferRecoverMode( false );
     }
 
-    if ( M_full_recover_mode )
+    if ( opt.bufferRecoverMode() )
     {
         //interval = opt.timerInterval() * 5;
-        interval = std::max( opt.timerInterval(),
+        interval = std::min( opt.timerInterval(),
                              SP.simulator_step_ );
     }
     else if ( current_cache >= cache_size )

@@ -188,6 +188,8 @@ Options::Options()
     , M_player_select_type( UNSELECT )
     , M_ball_vel_cycle( 0 )
       //
+    , M_buffer_recover_mode( true )
+      //
     , M_field_brush( FIELD_COLOR, Qt::SolidPattern )
     , M_line_pen( LINE_COLOR, 0, Qt::SolidLine )
     , M_measure_line_pen( MEASURE_LINE_COLOR, 0, Qt::SolidLine )
