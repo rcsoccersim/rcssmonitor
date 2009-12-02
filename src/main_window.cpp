@@ -1026,9 +1026,12 @@ MainWindow::connectMonitorTo( const char * hostname )
 {
     if ( std::strlen( hostname ) == 0 )
     {
-        std::cerr << "Empty host name! Connection failed!" << std::endl;
+        std::cerr << "Empty host name. Connection failed." << std::endl;
+        this->statusBar()->showMessage( tr( "Empty host name." ), 5000 );
         return;
     }
+
+    disconnectMonitor();
 
     std::cerr << "Connect to [" << hostname << "] ..." << std::endl;
     this->statusBar()->showMessage( tr( "Connect to %1 ..." ).arg( QString::fromAscii( hostname ) ),
@@ -1063,16 +1066,17 @@ MainWindow::connectMonitorTo( const char * hostname )
         M_config_dialog->fitToScreen();
     }
 
-    //Options::instance().setMonitorClientMode( true );
     Options::instance().setServerHost( hostname );
+    Options::instance().setMonitorClientMode( true );
+    Options::instance().setBufferRecoverMode( true );
 
 //     M_save_image_act->setEnabled( false );
 //     M_open_output_act->setEnabled( true );
 
 //     M_set_live_mode_act->setEnabled( true );
-//     M_connect_monitor_act->setEnabled( false );
-//     M_connect_monitor_to_act->setEnabled( false );
-//     M_disconnect_monitor_act->setEnabled( true );
+    M_connect_monitor_act->setEnabled( false );
+    M_connect_monitor_to_act->setEnabled( false );
+    M_disconnect_monitor_act->setEnabled( true );
 
     connect( M_monitor_client, SIGNAL( received() ),
              this, SLOT( receiveMonitorPacket() ) );
@@ -1267,7 +1271,8 @@ MainWindow::disconnectMonitor()
         M_monitor_client = static_cast< MonitorClient * >( 0 );
     }
 
-    //Options::instance().setMonitorClientMode( false );
+    Options::instance().setMonitorClientMode( false );
+    Options::instance().setBufferRecoverMode( false );
 
 //     M_set_live_mode_act->setEnabled( false );
     M_connect_monitor_act->setEnabled( true );
@@ -1798,11 +1803,6 @@ MainWindow::receiveMonitorPacket()
     if ( Options::instance().bufferingMode() )
     {
         M_log_player->startTimer();
-
-//         if ( M_log_player->isFullRecoverMode() )
-//         {
-//             updateBufferingLabel();
-//         }
     }
     else
     {
@@ -1910,18 +1910,18 @@ MainWindow::updateBufferingLabel()
     if ( this->statusBar()->isVisible()
          && M_buffering_label->isVisible() )
     {
-        size_t cur = M_disp_holder.currentIndex() == DispHolder::INVALID_INDEX
-                ? 0
-                : M_disp_holder.currentIndex();
+        int current_index = M_disp_holder.currentIndex() == DispHolder::INVALID_INDEX
+            ? 0
+            : M_disp_holder.currentIndex();
         //M_buffering_label->setText( tr( "Buffering %1/%2" )
         //                            .arg( cur )
         //                            .arg( M_disp_holder.dispCont().size() ) );
-        int caching = M_disp_holder.dispCont().size() - cur;
-        caching -= 1;
-        if ( s_last_value != caching )
+        int current_cache = M_disp_holder.dispCont().size() - current_index;
+        current_cache = std::max( 0, current_cache - 1 );
+        if ( s_last_value != current_cache )
         {
-            M_buffering_label->setText( tr( "Buffering %1" ).arg( caching ) );
-            s_last_value = caching;
+            M_buffering_label->setText( tr( "Buffering %1" ).arg( current_cache ) );
+            s_last_value = current_cache;
         }
     }
 }
@@ -1936,5 +1936,4 @@ MainWindow::showRecoveringState()
     M_field_canvas->update( M_field_canvas->width() / 2,
                             M_field_canvas->height() / 2,
                             64, 64 );
-    //M_field_canvas->update();
 }

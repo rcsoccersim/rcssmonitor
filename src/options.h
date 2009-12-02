@@ -223,6 +223,7 @@ private:
     //
     // monitor state
     //
+    bool M_monitor_client_mode;
     bool M_buffer_recover_mode;
 
     //
@@ -517,6 +518,9 @@ public:
     //
     //
     //
+    bool monitorClientMode() const { return M_monitor_client_mode; }
+    void setMonitorClientMode( const bool on ) { M_monitor_client_mode = on; }
+
     bool bufferRecoverMode() const { return M_buffer_recover_mode; }
     void setBufferRecoverMode( const bool on ) { M_buffer_recover_mode = on; }
 

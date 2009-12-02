@@ -54,14 +54,14 @@ LogPlayer::LogPlayer( DispHolder & disp_holder,
       M_timer( new QTimer( this ) ),
       M_forward( true ),
       M_live_mode( false ),
-      M_need_caching( false )
+      M_need_recovering( false )
 {
-    Options::instance().setBufferRecoverMode( true );
-
     connect( M_timer, SIGNAL( timeout() ),
              this, SLOT( handleTimer() ) );
 
     M_timer->setInterval( Options::instance().timerInterval() );
+
+    Options::instance().setBufferRecoverMode( true );
 }
 
 /*-------------------------------------------------------------------*/
@@ -87,9 +87,10 @@ LogPlayer::clear()
 
     M_forward = true;
     M_live_mode = false;
-    Options::instance().setBufferRecoverMode( true );
-    M_need_caching = false;
+    M_need_recovering = false;
     M_timer->setInterval( Options::instance().timerInterval() );
+
+    Options::instance().setBufferRecoverMode( true );
 }
 
 /*-------------------------------------------------------------------*/
@@ -155,9 +156,13 @@ LogPlayer::stepForwardImpl()
     else
     {
         M_timer->stop();
+    }
 
-        if ( M_disp_holder.playmode() == rcss::rcg::PM_TimeOver
-             && Options::instance().autoQuitMode() )
+    if ( Options::instance().autoQuitMode() )
+    {
+        DispConstPtr disp = M_disp_holder.currentDisp();
+        if ( disp
+             && disp->pmode_ == rcss::rcg::PM_TimeOver )
         {
             int wait_msec = ( Options::instance().autoQuitWait() > 0
                               ? Options::instance().autoQuitWait() * 1000
@@ -467,18 +472,34 @@ LogPlayer::goToCycle( int cycle )
 void
 LogPlayer::showLive()
 {
+    if ( M_timer->isActive() )
+    {
+        M_timer->stop();
+    }
+
     if ( Options::instance().bufferingMode() )
     {
         if ( M_disp_holder.setIndexLast() )
         {
-            M_timer->stop();
-
             emit updated();
         }
     }
     else
     {
+        M_disp_holder.setIndexLast();
         emit updated();
+    }
+
+    if ( M_disp_holder.playmode() == rcss::rcg::PM_TimeOver )
+    {
+        if ( Options::instance().autoQuitMode() )
+        {
+            int wait_msec = ( Options::instance().autoQuitWait() > 0
+                              ? Options::instance().autoQuitWait() * 1000
+                              : 100 );
+            QTimer::singleShot( wait_msec,
+                                qApp, SLOT( quit() ) );
+        }
     }
 }
 
@@ -523,21 +544,23 @@ LogPlayer::adjustTimer()
     M_live_mode = false;
 
     const int buffer_size = M_disp_holder.dispCont().size();
-    size_t current = M_disp_holder.currentIndex();
 
     if ( buffer_size == 0 )
     {
+        if ( M_timer->isActive() )
+        {
+            M_timer->stop();
+        }
         return;
     }
 
     const rcss::rcg::ServerParamT & SP = M_disp_holder.serverParam();
 
-    int interval = std::min( opt.timerInterval(),
-                             SP.simulator_step_ );
+    int interval = std::min( opt.timerInterval(), SP.simulator_step_ );
 
+    size_t current = M_disp_holder.currentIndex();
     if ( current == DispHolder::INVALID_INDEX )
     {
-        current = 0;
         Options::instance().setBufferRecoverMode( true );
 
         if ( M_timer->interval() != interval
@@ -549,10 +572,17 @@ LogPlayer::adjustTimer()
         return;
     }
 
-    const int cache_size = std::max( 1, opt.bufferSize() );
+    const int max_cache_size = std::max( 1, opt.bufferSize() );
     const int current_cache = buffer_size - current - 1;
 
-    if ( M_disp_holder.playmode() == rcss::rcg::PM_TimeOver )
+//     std::cerr << "index=" << current
+//               << " buffer_size=" << buffer_size
+//               << " max_cache_size=" << max_cache_size
+//               << " current_cache=" << current_cache
+//               << std::endl;
+
+    if ( ! opt.monitorClientMode()
+         || M_disp_holder.playmode() == rcss::rcg::PM_TimeOver )
     {
         Options::instance().setBufferRecoverMode( false );
     }
@@ -560,73 +590,38 @@ LogPlayer::adjustTimer()
     {
         Options::instance().setBufferRecoverMode( true );
     }
-    else if ( current_cache >= cache_size )
+    else if ( current_cache >= max_cache_size )
     {
         Options::instance().setBufferRecoverMode( false );
     }
 
-    if ( opt.bufferRecoverMode() )
+    if ( ! opt.monitorClientMode()
+         || M_disp_holder.playmode() == rcss::rcg::PM_TimeOver )
     {
-        //interval = opt.timerInterval() * 5;
-        interval = std::min( opt.timerInterval(),
-                             SP.simulator_step_ );
+        // default interval
     }
-    else if ( current_cache >= cache_size )
+    else if ( opt.bufferRecoverMode() )
     {
-        M_need_caching = false;
+        interval = std::max( opt.timerInterval(), SP.simulator_step_ );
     }
-    else if ( M_need_caching )
+    else if ( current_cache >= max_cache_size )
     {
-        interval = std::max( opt.timerInterval() * 11 / 10,
-                             SP.simulator_step_ * 11 / 10 );
+        M_need_recovering = false;
     }
-    else if ( current_cache <= cache_size / 2
+    else if ( M_need_recovering )
+    {
+        interval = std::max( opt.timerInterval(), SP.simulator_step_ ) * 11 / 10;
+    }
+    else if ( current_cache <= max_cache_size / 2
               && M_disp_holder.playmode() != rcss::rcg::PM_TimeOver )
     {
-        M_need_caching = true;
-        interval = std::max( opt.timerInterval() * 11 / 10,
-                             SP.simulator_step_ * 11 / 10 );
+        M_need_recovering = true;
+        interval = std::max( opt.timerInterval(), SP.simulator_step_ ) * 11 / 10;
     }
-    else if ( current_cache > cache_size / 2 )
+    else if ( current_cache > max_cache_size / 2 )
     {
-        interval = std::max( opt.timerInterval(),
-                             SP.simulator_step_ );
+        interval = std::max( opt.timerInterval(), SP.simulator_step_ );
     }
-#if 0
-    else if ( cache_size > 1
-              && current_cache < cache_size
-              && M_disp_holder.playmode() != rcss::rcg::PM_TimeOver )
-    {
-        if ( M_timer->interval() <= opt.timerInterval()
-             && current_cache > cache_size * 0.8 )
-        {
-            // keep default interval
-        }
-        else
-        {
-            const int max_timer_interval = opt.timerInterval() * 3 / 2;
-
-            if ( current_cache <= 1 )
-            {
-                interval = max_timer_interval;
-            }
-            else
-            {
-                double rate
-                    = 1.0
-                    - rint( static_cast< double >( current_cache ) / static_cast< double >( cache_size )
-                            / 0.2 ) * 0.2;
-                int interval_offset = max_timer_interval - opt.timerInterval();
-                interval += static_cast< int >( rint( interval_offset * rate ) );
-                interval = std::min( max_timer_interval, interval );
-                std::cerr << "interval_offset=" << interval_offset
-                          << " rate = " << rate
-                          << " value=" << static_cast< int >( rint( interval_offset * rate ) )
-                          << std::endl;
-            }
-        }
-    }
-#endif
 
 #if 0
     if ( M_timer->interval() != interval )

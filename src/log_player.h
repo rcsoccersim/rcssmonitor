@@ -52,7 +52,7 @@ private:
 
     bool M_forward;
     bool M_live_mode;
-    bool M_need_caching;
+    bool M_need_recovering;
 
     // not used
     LogPlayer();

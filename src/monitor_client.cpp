@@ -144,7 +144,6 @@ MonitorClient::disconnect()
         sendDispBye();
         M_socket->close();
     }
-
 }
 
 /*-------------------------------------------------------------------*/

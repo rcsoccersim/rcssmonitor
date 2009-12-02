@@ -1205,21 +1205,21 @@ ConfigDialog::createFontButtons()
                                            o->scoreBoardFont(),
                                            boost::bind1st( std::mem_fun( &Options::setScoreBoardFont ), o ),
                                            this );
-        layout->addWidget( btn, 1, Qt::AlignLeft );
+        layout->addWidget( btn, 0, Qt::AlignLeft );
     }
     {
         FontButton * btn = new FontButton( tr( "Player" ),
                                            o->playerFont(),
                                            boost::bind1st( std::mem_fun( &Options::setPlayerFont ), o ),
                                            this );
-        layout->addWidget( btn, 1, Qt::AlignLeft );
+        layout->addWidget( btn, 0, Qt::AlignLeft );
     }
     {
         FontButton * btn = new FontButton( tr( "Measure" ),
                                            o->measureFont(),
                                            boost::bind1st( std::mem_fun( &Options::setMeasureFont ), o ),
                                            this );
-        layout->addWidget( btn, 1, Qt::AlignLeft );
+        layout->addWidget( btn, 0, Qt::AlignLeft );
     }
 
     return layout;

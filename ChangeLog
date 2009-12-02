@@ -1,5 +1,17 @@
 2009-12-02  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
+	* m4/ax_boost_program_options.m4:
+	- updated m4 macro for boost::program_options.
+
+	* src/config_dialog.cpp:
+	* src/log_player.cpp:
+	* src/log_player.h:
+	* src/main_window.cpp:
+	* src/monitor_client.cpp:
+	* src/options.h:
+	- fixed defects of monitor client object.
+	- fixed defects of buffer recovering mode.
+
 	* src/field_canvas.cpp:
 	* src/field_canvas.h:
 	* src/log_player.cpp:
