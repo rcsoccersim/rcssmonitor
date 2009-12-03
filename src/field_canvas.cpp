@@ -535,9 +535,9 @@ FieldCanvas::drawRecoveringState( QPainter & painter )
 
     painter.setPen( Qt::NoPen );
 
-    const int x_size = std::max( 2, Options::WAITING_ANIMATION_SIZE/3 );
+    const int x_size = std::max( 2, Options::WAITING_ANIMATION_SIZE/4 );
     const int y_size = std::max( 2, x_size/4 );
-    const int x = std::max( 2, Options::WAITING_ANIMATION_SIZE/2 - x_size/2 );
+    const int x = std::max( 2, Options::WAITING_ANIMATION_SIZE/2 - x_size );
 
     for ( int i = 0; i < divs; ++i )
     {

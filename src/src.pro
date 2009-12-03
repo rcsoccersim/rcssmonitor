@@ -48,7 +48,7 @@ macx {
 }
 DEFINES += PACKAGE="\\\"rcssmonitor\\\""
 DEFINES += PACKAGE_NAME="\\\"rcssmonitor\\\""
-DEFINES += VERSION="\\\"14.0.0\\\""
+DEFINES += VERSION="\\\"14.0.1\\\""
 
 CONFIG += qt warn_on release
 win32 {

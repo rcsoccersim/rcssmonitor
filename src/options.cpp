@@ -45,6 +45,7 @@
 #endif
 
 #include <iostream>
+#include <sstream>
 #include <cmath>
 #include <cstdio>
 
@@ -84,7 +85,8 @@ const double Options::MAX_FIELD_SCALE = 400.0;
 const double Options::ZOOM_RATIO = 1.5;
 const int Options::DEFAULT_TIMER_INTERVAL = 100;
 
-const int Options::WAITING_ANIMATION_SIZE = 64;
+//const int Options::WAITING_ANIMATION_SIZE = 64;
+const int Options::WAITING_ANIMATION_SIZE = 96;
 
 const QColor Options::FIELD_COLOR( 31, 160, 31 );
 const QColor Options::LINE_COLOR( 255, 255, 255 );
@@ -119,6 +121,29 @@ const QColor Options::TACKLE_COLOR( 255, 136, 127 );
 const QColor Options::TACKLE_FAULT_COLOR( 79, 159, 159 );
 const QColor Options::FOUL_CHARGED_COLOR( 0, 127, 0 );
 const QColor Options::POINTTO_COLOR( 255, 0, 191 );
+
+
+namespace {
+
+inline
+std::string
+to_onoff( const bool val )
+{
+    return val ? std::string( "on" ) : std::string( "off" );
+}
+
+inline
+std::string
+to_string( const double & val,
+           const double prec = 0.001 )
+{
+    std::ostringstream os;
+    os << rint( val / prec ) * prec;
+    return os.str();
+    //return boost::lexical_cast< std::string >( rint( val / prec ) * prec );
+}
+
+}
 
 /*-------------------------------------------------------------------*/
 /*!
@@ -173,7 +198,7 @@ Options::Options()
     , M_show_view_area( false )
     , M_show_tackle_area( false )
     , M_show_stamina( false )
-    , M_show_pointto( true )
+    , M_show_pointto( false )
     , M_show_card( true )
     , M_show_offside_line( false )
     , M_show_draw_info( true )
@@ -600,17 +625,17 @@ Options::writeSettings()
     // main window
     //
     settings.beginGroup( "MainWindow" );
-//     settings.setValue( "window_width", M_window_width );
-//     settings.setValue( "window_height", M_window_height );
-//     settings.setValue( "window_x", M_window_x );
-//     settings.setValue( "window_y", M_window_y );
+    settings.setValue( "window_width", M_window_width );
+    settings.setValue( "window_height", M_window_height );
+    settings.setValue( "window_x", M_window_x );
+    settings.setValue( "window_y", M_window_y );
 //     settings.setValue( "canvas_width", M_canvas_width );
 //     settings.setValue( "canvas_height", M_canvas_height );
-//     settings.setValue( "maximize", M_maximize );
-//     settings.setValue( "full_screen", M_full_screen );
-//     settings.setValue( "show_menu_bar", M_show_menu_bar );
+    settings.setValue( "maximize", M_maximize );
+    settings.setValue( "full_screen", M_full_screen );
+    settings.setValue( "show_menu_bar", M_show_menu_bar );
 //     settings.setValue( "show_tool_bar", M_show_tool_bar );
-//     settings.setValue( "show_status_bar", M_show_status_bar );
+    settings.setValue( "show_status_bar", M_show_status_bar );
     settings.endGroup();
 
     //
@@ -742,16 +767,16 @@ Options::parseCmdLine( int argc,
           po::bool_switch( &M_connect )->default_value( M_connect ),
           "connect to the soccer server." )
         ( "server-host",
-          po::value< std::string >( &M_server_host )->default_value( "127.0.0.1", "127.0.0.1" ),
+          po::value< std::string >( &M_server_host )->default_value( M_server_host ),
           "set host name or ip address where the soccer server is running." )
         ( "server-port",
-          po::value< int >( &M_server_port )->default_value( 6000, "6000" ),
+          po::value< int >( &M_server_port )->default_value( M_server_port ),
           "set port number to connect as the monitor client." )
         ( "client-version",
-          po::value< int >( &M_client_version )->default_value( 4, "4" ),
+          po::value< int >( &M_client_version )->default_value( M_client_version ),
           "set a monitor client protocol version." )
         ( "buffering-mode",
-          po::value< bool >( &M_buffering_mode )->default_value( false, "off" ),
+          po::value< bool >( &M_buffering_mode )->default_value( M_buffering_mode, to_onoff( M_buffering_mode ) ),
           "enable buffering mode." )
         ( "buffer-size",
           po::value< int >( &M_buffer_size )->default_value( M_buffer_size ),
@@ -760,13 +785,13 @@ Options::parseCmdLine( int argc,
 //           po::value< int >( &M_max_disp_buffer )->default_value( 65535, "65535" ),
 //           "set max size of display data buffer." )
         ( "timer-interval",
-          po::value< int >( &M_timer_interval )->default_value( DEFAULT_TIMER_INTERVAL ),
+          po::value< int >( &M_timer_interval )->default_value( M_timer_interval ),
           "set the desired timer interval [ms] for buffering mode." )
         ( "auto-quit-mode",
-          po::value< bool >( &M_auto_quit_mode )->default_value( false, "off" ),
+          po::value< bool >( &M_auto_quit_mode )->default_value( M_auto_quit_mode, to_onoff( M_auto_quit_mode ) ),
           "enable automatic quit mode." )
         ( "auto-quit-wait",
-          po::value< int >( &M_auto_quit_wait )->default_value( 5, "5" ),
+          po::value< int >( &M_auto_quit_wait )->default_value( M_auto_quit_wait ),
           "set a wait period for the automatic quit mode." )
         // window options
         ( "geometry",
@@ -779,83 +804,83 @@ Options::parseCmdLine( int argc,
           po::bool_switch( &M_full_screen )->default_value( M_full_screen ),
           "start with a full screen window." )
         ( "show-menu-bar",
-          po::value< bool >( &M_show_menu_bar )->default_value( true, "on" ),
+          po::value< bool >( &M_show_menu_bar )->default_value( M_show_menu_bar, to_onoff( M_show_menu_bar ) ),
           "show menu bar." )
 //         ( "show-tool-bar",
 //           po::value< bool >( &M_show_tool_bar )->default_value( M_show_tool_bar ),
 //           "start without a tool bar." )
         ( "show-status-bar",
-          po::value< bool >( &M_show_status_bar )->default_value( false, "off" ),
+          po::value< bool >( &M_show_status_bar )->default_value( M_show_status_bar, to_onoff( M_show_status_bar ) ),
           "show status bar." )
         // view options
         ( "anti-aliasing",
-          po::value< bool >( &M_anti_aliasing )->default_value( true, "on" ),
+          po::value< bool >( &M_anti_aliasing )->default_value( M_anti_aliasing, to_onoff( M_anti_aliasing ) ),
           "show anti-aliased objects." )
         ( "show-score-board",
-          po::value< bool >( &M_show_score_board )->default_value( true, "on" ),
+          po::value< bool >( &M_show_score_board )->default_value( M_show_score_board, to_onoff( M_show_score_board ) ),
           "show score board." )
         ( "show-keepaway-area",
-          po::value< bool >( &M_show_keepaway_area )->default_value( false, "off" ),
+          po::value< bool >( &M_show_keepaway_area )->default_value( M_show_keepaway_area, to_onoff( M_show_keepaway_area ) ),
           "show keepaway area." )
         ( "show-team-graphic",
-          po::value< bool >( &M_show_team_graphic )->default_value( true, "on" ),
+          po::value< bool >( &M_show_team_graphic )->default_value( M_show_team_graphic, to_onoff( M_show_team_graphic ) ),
           "show team graphic." )
         ( "show-draw-info",
-          po::value< bool >( &M_show_draw_info )->default_value( true, "on" ),
+          po::value< bool >( &M_show_draw_info )->default_value( M_show_draw_info, to_onoff( M_show_draw_info ) ),
           "show draw information." )
         ( "show-ball",
-          po::value< bool >( &M_show_ball )->default_value( true, "on" ),
+          po::value< bool >( &M_show_ball )->default_value( M_show_ball, to_onoff( M_show_ball ) ),
           "show ball." )
         ( "show-player",
-          po::value< bool >( &M_show_player )->default_value( true, "on" ),
+          po::value< bool >( &M_show_player )->default_value( M_show_player, to_onoff( M_show_player ) ),
           "show players." )
         ( "show-player-number",
-          po::value< bool >( &M_show_player_number )->default_value( true, "on" ),
+          po::value< bool >( &M_show_player_number )->default_value( M_show_player_number, to_onoff( M_show_player_number ) ),
           "show player\'s uniform number." )
         ( "show-player-type",
-          po::value< bool >( &M_show_player_type )->default_value( false, "off" ),
+          po::value< bool >( &M_show_player_type )->default_value( M_show_player_type, to_onoff( M_show_player_type ) ),
           "show player\'s heterogeneous type ID." )
         ( "show-view-area",
-          po::value< bool >( &M_show_view_area )->default_value( false, "off" ),
+          po::value< bool >( &M_show_view_area )->default_value( M_show_view_area, to_onoff( M_show_view_area ) ),
           "show player\'s view area." )
         ( "show-catch-area",
-          po::value< bool >( &M_show_catch_area )->default_value( false, "off" ),
+          po::value< bool >( &M_show_catch_area )->default_value( M_show_catch_area, to_onoff( M_show_catch_area ) ),
           "show player\'s catch area." )
         ( "show-tackle-area",
-          po::value< bool >( &M_show_tackle_area )->default_value( false, "off" ),
+          po::value< bool >( &M_show_tackle_area )->default_value( M_show_tackle_area, to_onoff( M_show_tackle_area ) ),
           "show player\'s tackle area." )
         ( "show-kick-accel-area",
-          po::value< bool >( &M_show_kick_accel_area )->default_value( false, "off" ),
+          po::value< bool >( &M_show_kick_accel_area )->default_value( M_show_kick_accel_area, to_onoff( M_show_kick_accel_area ) ),
           "show player\'s kick acceleration area." )
         ( "show-stamina",
-          po::value< bool >( &M_show_stamina )->default_value( false, "off" ),
+          po::value< bool >( &M_show_stamina )->default_value( M_show_stamina, to_onoff( M_show_stamina ) ),
           "show player\'s stamina." )
         ( "show-stamina-capacity",
-          po::value< bool >( &M_show_stamina_capacity )->default_value( false, "off" ),
+          po::value< bool >( &M_show_stamina_capacity )->default_value( M_show_stamina_capacity, to_onoff( M_show_stamina_capacity ) ),
           "show player\'s stamina capacity." )
         ( "show-pointto",
-          po::value< bool >( &M_show_pointto )->default_value( false, "off" ),
+          po::value< bool >( &M_show_pointto )->default_value( M_show_pointto, to_onoff( M_show_pointto ) ),
           "show player\'s pointto status." )
         ( "show-card",
-          po::value< bool >( &M_show_card )->default_value( true, "on" ),
+          po::value< bool >( &M_show_card )->default_value( M_show_card, to_onoff( M_show_card ) ),
           "show player\'s yellow/red cards." )
         ( "ball-size",
-          po::value< double >( &M_ball_size )->default_value( 0.35, "0.35" ),
+          po::value< double >( &M_ball_size )->default_value( M_ball_size, to_string( M_ball_size ) ),
           "set a ball radius." )
         ( "player-size",
-          po::value< double >( &M_player_size )->default_value( 0.0, "0.0" ),
+          po::value< double >( &M_player_size )->default_value( M_player_size, to_string( M_player_size ) ),
           "set a fixed player radius." )
         ( "show-grid-coord",
-          po::value< bool >( &M_show_grid_coord )->default_value( false, "off" ),
+          po::value< bool >( &M_show_grid_coord )->default_value( M_show_grid_coord, to_onoff( M_show_grid_coord ) ),
           "show coordinates value of grid lines." )
         ( "grid-step",
-          po::value< double >( &M_grid_step )->default_value( 0.0, "0.0" ),
+          po::value< double >( &M_grid_step )->default_value( M_grid_step, to_string( M_grid_step ) ),
           "set a grid step size." )
         ( "show-flag",
-          po::value< bool >( &M_show_flag )->default_value( false, "off" ),
+          po::value< bool >( &M_show_flag )->default_value( M_show_flag, to_onoff( M_show_flag) ),
           "show landmark flags." )
         ( "show-offside-line",
-          po::value< bool >( &M_show_offside_line )->default_value( false, "off" ),
+          po::value< bool >( &M_show_offside_line )->default_value( M_show_offside_line, to_onoff( M_show_offside_line ) ),
           "show offside lines." )
         ;
 

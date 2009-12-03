@@ -1921,8 +1921,8 @@ MainWindow::updateBufferingLabel()
 void
 MainWindow::showRecoveringState()
 {
-    M_field_canvas->update( M_field_canvas->width() / 2,
-                            M_field_canvas->height() / 2,
+    M_field_canvas->update( M_field_canvas->width()/2 - Options::WAITING_ANIMATION_SIZE/2,
+                            M_field_canvas->height()/2 - Options::WAITING_ANIMATION_SIZE/2,
                             Options::WAITING_ANIMATION_SIZE,
                             Options::WAITING_ANIMATION_SIZE );
 }
