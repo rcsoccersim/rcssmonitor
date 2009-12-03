@@ -534,14 +534,19 @@ FieldCanvas::drawRecoveringState( QPainter & painter )
     painter.rotate( angle_step * s_current_index );
 
     painter.setPen( Qt::NoPen );
+
+    const int x_size = std::max( 2, Options::WAITING_ANIMATION_SIZE/3 );
+    const int y_size = std::max( 2, x_size/4 );
+    const int x = std::max( 2, Options::WAITING_ANIMATION_SIZE/2 - x_size/2 );
+
     for ( int i = 0; i < divs; ++i )
     {
-        int c = std::max( 127, 255 - ( i * 32 ) );
-
+        int c = std::max( 95, 255 - ( i * 32 ) );
+        //int c = std::min( 191, i * 32 );
         painter.setBrush( QColor( c, c, c ) );
-
-        painter.drawRoundedRect( 20, 0, 24, 6, 4.0, 4.0 );
-
+        painter.drawRoundedRect( x, 0,
+                                 x_size, y_size,
+                                 4.0, 4.0 );
         painter.rotate( -angle_step );
     }
 

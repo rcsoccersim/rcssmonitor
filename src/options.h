@@ -97,6 +97,8 @@ public:
     //! default logplayer timer step (ms).
     static const int DEFAULT_TIMER_INTERVAL;
 
+    static const int WAITING_ANIMATION_SIZE;
+
     static const QColor FIELD_COLOR;
     static const QColor LINE_COLOR;
     static const QColor MEASURE_LINE_COLOR;

@@ -84,6 +84,8 @@ const double Options::MAX_FIELD_SCALE = 400.0;
 const double Options::ZOOM_RATIO = 1.5;
 const int Options::DEFAULT_TIMER_INTERVAL = 100;
 
+const int Options::WAITING_ANIMATION_SIZE = 64;
+
 const QColor Options::FIELD_COLOR( 31, 160, 31 );
 const QColor Options::LINE_COLOR( 255, 255, 255 );
 const QColor Options::MEASURE_LINE_COLOR( 0, 255, 255 );
