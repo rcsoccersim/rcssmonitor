@@ -1136,45 +1136,53 @@ MainWindow::about()
 void
 MainWindow::printShortcutKeys()
 {
-    QDialog dialog( this );
-    QVBoxLayout * layout = new QVBoxLayout();
+    static QDialog * dialog = static_cast< QDialog * >( 0 );
 
-    QTableWidget * table_widget = new QTableWidget( &dialog );
-    table_widget->insertColumn( 0 );
-    table_widget->insertColumn( 1 );
-
-    QStringList header;
-    header.push_back( tr( "key" ) );
-    header.push_back( tr( "action" ) );
-    table_widget->setHorizontalHeaderLabels( header );
-
-    table_widget->horizontalHeader()->setStretchLastSection( true );
-    table_widget->horizontalHeader()->setResizeMode( QHeaderView::ResizeToContents );
-    table_widget->verticalHeader()->hide();
-
-    int row = 0;
-
-    Q_FOREACH( QAction * act, this->actions() )
+    if ( ! dialog )
     {
-        if ( ! act->shortcut().isEmpty() )
+        dialog = new QDialog( this );
+        dialog->setWindowTitle( tr( "Shortcut Keys" ) );
+
+        QVBoxLayout * layout = new QVBoxLayout();
+
+        QTableWidget * table_widget = new QTableWidget( dialog );
+        table_widget->insertColumn( 0 );
+        table_widget->insertColumn( 1 );
+
+        QStringList header;
+        header.push_back( tr( "key" ) );
+        header.push_back( tr( "action" ) );
+        table_widget->setHorizontalHeaderLabels( header );
+
+        table_widget->horizontalHeader()->setStretchLastSection( true );
+        table_widget->horizontalHeader()->setResizeMode( QHeaderView::ResizeToContents );
+        table_widget->verticalHeader()->hide();
+
+        int row = 0;
+
+        Q_FOREACH( QAction * act, this->actions() )
         {
-            table_widget->insertRow( row );
-            table_widget->setItem ( row, 0, new QTableWidgetItem( act->shortcut().toString() ) );
-            table_widget->setItem ( row, 1, new QTableWidgetItem( QString( act->statusTip() ).remove( QChar( '&' ) ) ) );
-            ++row;
+            if ( ! act->shortcut().isEmpty() )
+            {
+                table_widget->insertRow( row );
+                table_widget->setItem ( row, 0, new QTableWidgetItem( act->shortcut().toString() ) );
+                table_widget->setItem ( row, 1, new QTableWidgetItem( QString( act->statusTip() ).remove( QChar( '&' ) ) ) );
+                ++row;
+            }
         }
+
+        table_widget->setSortingEnabled( true );
+        //     std::cout <<  "table row_count = " << table_widget->rowCount()
+        //               <<  "table col_count = " << table_widget->columnCount()
+        //               << std::endl;
+
+        layout->addWidget( table_widget );
+        dialog->setLayout( layout );
     }
 
-    table_widget->setSortingEnabled( true );
-//     std::cout <<  "table row_count = " << table_widget->rowCount()
-//               <<  "table col_count = " << table_widget->columnCount()
-//               << std::endl;
-
-    layout->addWidget( table_widget );
-    dialog.setLayout( layout );
-    if ( row > 0 )
+    if ( dialog )
     {
-        dialog.exec();
+        dialog->show();
     }
 
 #if 0

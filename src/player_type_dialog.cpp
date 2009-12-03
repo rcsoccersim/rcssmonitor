@@ -128,7 +128,7 @@ PlayerTypeDialog::createTable()
     M_item_view->horizontalHeader()->setResizeMode( QHeaderView::ResizeToContents );
 
     QFont font = M_item_view->font();
-    font.setPointSize( 8 );
+    font.setPointSize( 9 );
     M_item_view->setFont( font );
 
 

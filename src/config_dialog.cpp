@@ -263,6 +263,8 @@ ConfigDialog::createWidgets()
         layout->addWidget( createBallInfoControls(),
                            0, Qt::AlignLeft );
 
+        layout->addStretch();
+
         frame->setLayout( layout );
         M_tab_widget->addTab( frame, tr( "Show" ) );
     }
@@ -286,6 +288,8 @@ ConfigDialog::createWidgets()
                            0, Qt::AlignLeft );
         layout->addWidget( createMiscControls(),
                            0, Qt::AlignLeft );
+
+        layout->addStretch();
 
         frame->setLayout( layout );
         M_tab_widget->addTab( frame, tr( "Canvas" ) );

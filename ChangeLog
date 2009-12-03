@@ -1,5 +1,12 @@
 2009-12-03  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
+	* src/config_dialog.cpp:
+	* src/main_window.cpp:
+	* src/player_type_dialog.cpp:
+	- fixed a defect of shortcut key dialog on OSX.
+	- fixd font size on OSX.
+	- fixd layout on OSX.
+
 	* NEWS:
 	* configure.ac:
 	* rcssmonitor.pro:
