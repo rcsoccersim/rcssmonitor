@@ -1807,18 +1807,6 @@ MainWindow::receiveMonitorPacket()
     else
     {
         M_log_player->showLive();
-
-        if ( M_disp_holder.playmode() == rcss::rcg::PM_TimeOver )
-        {
-            if ( Options::instance().autoQuitMode() )
-            {
-                int wait_msec = ( Options::instance().autoQuitWait() > 0
-                                  ? Options::instance().autoQuitWait() * 1000
-                                  : 100 );
-                QTimer::singleShot( wait_msec,
-                                    qApp, SLOT( quit() ) );
-            }
-        }
     }
 }
 
