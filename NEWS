@@ -8,6 +8,8 @@
 
   * Fixed defects of default option value.
 
+  * Fixed a bug of the red card action.
+
 [14.0.0]
   * Reimplemented rcssmonitor using Qt4. Please note that Qt 4.3.0
     or later is required to build the new monitor. The new monitor
