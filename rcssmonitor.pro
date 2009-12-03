@@ -3,5 +3,5 @@ TEMPLATE = subdirs
 SUBDIRS = src
 
 # Input
-DISPFILES += \
+DISTFILES += \
              icons/rcss.xpm

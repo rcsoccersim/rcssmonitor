@@ -1,12 +1,17 @@
 2009-12-03  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
+	* NEWS:
+	* configure.ac:
+	* rcssmonitor.pro:
+	- updated a point version number. Official release 14.0.1.
+
 	* src/field_canvas.cpp:
 	* src/main_window.cpp:
 	* src/options.cpp:
 	* src/src.pro:
 	- fixed a defect of repainting region.
 	- fixed the size of recovering animation.
-	- fixed defects of default option value.
+	- fixed defects of default option value.ls
 
 	* src/field_canvas.cpp:
 	* src/main_window.cpp:
