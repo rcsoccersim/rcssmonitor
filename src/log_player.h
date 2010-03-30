@@ -114,6 +114,7 @@ signals:
 
     void updated();
     void recoverTimerHandled();
+    void quitRequested();
 
 };
 

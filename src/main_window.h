@@ -146,11 +146,14 @@ private slots:
     void about();
     void printShortcutKeys();
 
+    void setQuitTimer();
+
     // monitor menu action slots
     void kickOff();
     void connectMonitor(); // connect to the host given by command lien or localhost
     void connectMonitorTo(); // open host input dialog
     void disconnectMonitor();
+    void reconnectMonitor();
 
     // view menu actions slots
     void toggleMenuBar( bool checked );

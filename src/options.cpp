@@ -36,6 +36,7 @@
 
 #include <QSettings>
 #include <QDir>
+#include <QFile>
 #include <QFontMetrics>
 
 #include "options.h"
@@ -161,116 +162,125 @@ Options::instance()
 
  */
 Options::Options()
-    : M_connect( true )
-    , M_server_host( "127.0.0.1" )
-    , M_server_port( 6000 )
-    , M_client_version( 4 )
-    , M_buffering_mode( false )
-    , M_buffer_size( 10 )
-    , M_max_disp_buffer( 65535 )
-      //, M_game_log_file( "" )
-      //, M_output_file( "" )
-    , M_auto_quit_mode( false )
-    , M_auto_quit_wait( 5 )
-    , M_timer_interval( DEFAULT_TIMER_INTERVAL )
-      // window options
-    , M_window_x( -1 )
-    , M_window_y( -1 )
-    , M_window_width( -1 )
-    , M_window_height( -1 )
-    , M_maximize( false )
-    , M_full_screen( false )
-    , M_canvas_width( -1 )
-    , M_canvas_height( -1 )
-    , M_show_menu_bar( true )
-      //, M_show_tool_bar( false )
-    , M_show_status_bar( false )
-      // view options
-    , M_anti_aliasing( true )
-    , M_show_score_board( true )
-    , M_show_keepaway_area( false )
-    , M_show_team_graphic( true )
-    , M_show_flag( false )
-    , M_show_ball( true )
-    , M_show_player( true )
-    , M_show_player_number( true )
-    , M_show_player_type( false )
-    , M_show_view_area( false )
-    , M_show_tackle_area( false )
-    , M_show_stamina( false )
-    , M_show_pointto( false )
-    , M_show_card( true )
-    , M_show_offside_line( false )
-    , M_show_draw_info( true )
-    , M_ball_size( 0.35 )
-    , M_player_size( 0.0 )
-    , M_grid_step( 0.0 )
-    , M_show_grid_coord( false )
-    , M_field_scale( 1.0 )
-    , M_zoomed( false )
-    , M_field_center( 0, 0 )
-    , M_focus_type( FOCUS_POINT )
-    , M_focus_point( 0.0, 0.0 )
-    , M_selected_number( 0 )
-    , M_player_select_type( UNSELECT )
-    , M_ball_vel_cycle( 0 )
+    :
+    // monitor client options
+    M_connect( true ),
+    M_server_host( "127.0.0.1" ),
+    M_server_port( 6000 ),
+    M_client_version( 4 ),
+    M_buffering_mode( false ),
+    M_buffer_size( 10 ),
+    M_max_disp_buffer( 65535 ),
+    M_auto_quit_mode( false ),
+    M_auto_quit_wait( 5 ),
+    M_auto_reconnect_mode( false ),
+    M_auto_reconnect_wait( 5 ),
+    M_timer_interval( DEFAULT_TIMER_INTERVAL ),
+    // window options
+    M_window_x( -1 ),
+    M_window_y( -1 ),
+    M_window_width( -1 ),
+    M_window_height( -1 ),
+    M_maximize( false ),
+    M_full_screen( false ),
+    M_canvas_width( -1 ),
+    M_canvas_height( -1 ),
+    M_show_menu_bar( true ),
+    // M_show_tool_bar( false )
+    M_show_status_bar( false ),
+    // view options
+    M_anti_aliasing( true ),
+    M_show_score_board( true ),
+    M_show_keepaway_area( false ),
+    M_show_team_graphic( true ),
+    M_show_flag( false ),
+    M_show_ball( true ),
+    M_show_player( true ),
+    M_show_player_number( true ),
+    M_show_player_type( false ),
+    M_show_view_area( false ),
+    M_show_tackle_area( false ),
+    M_show_stamina( false ),
+    M_show_pointto( false ),
+    M_show_card( true ),
+    M_show_offside_line( false ),
+    M_show_draw_info( true ),
+    M_ball_size( 0.35 ),
+    M_player_size( 0.0 ),
+    M_grid_step( 0.0 ),
+    M_show_grid_coord( false ),
+    M_field_scale( 1.0 ),
+    M_zoomed( false ),
+    M_field_center( 0, 0 ),
+    M_focus_type( FOCUS_POINT ),
+    M_focus_point( 0.0, 0.0 ),
+    M_selected_number( 0 ),
+    M_player_select_type( UNSELECT ),
+    M_ball_vel_cycle( 0 ),
       //
-    , M_buffer_recover_mode( true )
+    M_buffer_recover_mode( true ),
       //
-    , M_field_brush( FIELD_COLOR, Qt::SolidPattern )
-    , M_line_pen( LINE_COLOR, 0, Qt::SolidLine )
-    , M_measure_line_pen( MEASURE_LINE_COLOR, 0, Qt::SolidLine )
-    , M_measure_mark_pen( MEASURE_MARK_COLOR, 0, Qt::SolidLine )
-    , M_measure_font_pen( MEASURE_FONT_COLOR, 0, Qt::SolidLine )
-    , M_measure_font_pen2( MEASURE_FONT_COLOR2, 0, Qt::SolidLine )
+    M_field_brush( FIELD_COLOR, Qt::SolidPattern ),
+    M_line_pen( LINE_COLOR, 0, Qt::SolidLine ),
+    M_measure_line_pen( MEASURE_LINE_COLOR, 0, Qt::SolidLine ),
+    M_measure_mark_pen( MEASURE_MARK_COLOR, 0, Qt::SolidLine ),
+    M_measure_font_pen( MEASURE_FONT_COLOR, 0, Qt::SolidLine ),
+    M_measure_font_pen2( MEASURE_FONT_COLOR2, 0, Qt::SolidLine ),
       //
-    , M_score_board_pen( SCORE_BOARD_PEN_COLOR, 0, Qt::SolidLine )
-    , M_score_board_brush( SCORE_BOARD_BRUSH_COLOR, Qt::SolidPattern )
+    M_score_board_pen( SCORE_BOARD_PEN_COLOR, 0, Qt::SolidLine ),
+    M_score_board_brush( SCORE_BOARD_BRUSH_COLOR, Qt::SolidPattern ),
       //
-    , M_ball_pen( BALL_COLOR, 0, Qt::SolidLine )
-    , M_ball_brush( BALL_COLOR, Qt::SolidPattern )
-    , M_ball_vel_pen( BALL_VEL_COLOR, 0, Qt::SolidLine )
+    M_ball_pen( BALL_COLOR, 0, Qt::SolidLine ),
+    M_ball_brush( BALL_COLOR, Qt::SolidPattern ),
+    M_ball_vel_pen( BALL_VEL_COLOR, 0, Qt::SolidLine ),
       //
-    , M_player_pen( PLAYER_PEN_COLOR, 0, Qt::SolidLine )
-    , M_selected_player_pen( PLAYER_PEN_COLOR, 2, Qt::SolidLine )
-    , M_left_team_pen( LEFT_TEAM_COLOR, 0, Qt::SolidLine )
-    , M_left_team_brush( LEFT_TEAM_COLOR, Qt::SolidPattern )
-    , M_left_goalie_pen( LEFT_GOALIE_COLOR, 0, Qt::SolidLine )
-    , M_left_goalie_stretch_pen( LEFT_GOALIE_COLOR.darker( 200 ), 0, Qt::DotLine )
-    , M_left_goalie_brush( LEFT_GOALIE_COLOR, Qt::SolidPattern )
-    , M_right_team_pen( RIGHT_TEAM_COLOR, 0, Qt::SolidLine )
-    , M_right_team_brush( RIGHT_TEAM_COLOR, Qt::SolidPattern )
-    , M_right_goalie_pen( RIGHT_GOALIE_COLOR, 0, Qt::SolidLine )
-    , M_right_goalie_stretch_pen( RIGHT_GOALIE_COLOR.darker( 200 ), 0, Qt::DotLine )
-    , M_right_goalie_brush( RIGHT_GOALIE_COLOR, Qt::SolidPattern )
-    , M_player_number_pen( PLAYER_NUMBER_COLOR, 0, Qt::SolidLine )
-    , M_player_number_inner_pen( PLAYER_NUMBER_INNER_COLOR, 0, Qt::SolidLine )
-    , M_neck_pen( NECK_COLOR, 0, Qt::SolidLine )
-    , M_view_area_pen( VIEW_AREA_COLOR, 0, Qt::SolidLine )
-    , M_large_view_area_pen( LARGE_VIEW_AREA_COLOR, 0, Qt::SolidLine )
-    , M_ball_collide_brush( BALL_COLLIDE_COLOR, Qt::SolidPattern )
-    , M_player_collide_brush( PLAYER_COLLIDE_COLOR, Qt::SolidPattern )
-    , M_effort_decayed_pen( EFFORT_DECAYED_COLOR, 0, Qt::SolidLine )
-    , M_recovery_decayed_pen( RECOVERY_DECAYED_COLOR, 0, Qt::SolidLine )
-    , M_kick_pen( KICK_COLOR, 2, Qt::SolidLine )
-    , M_kick_fault_brush( KICK_FAULT_COLOR, Qt::SolidPattern )
-    , M_kick_accel_pen( KICK_ACCEL_COLOR, 0, Qt::SolidLine )
-    , M_catch_brush( CATCH_COLOR, Qt::SolidPattern )
-    , M_catch_fault_brush( CATCH_FAULT_COLOR, Qt::SolidPattern )
-    , M_tackle_pen( TACKLE_COLOR, 2, Qt::SolidLine )
-    , M_tackle_brush( TACKLE_COLOR, Qt::SolidPattern )
-    , M_tackle_fault_brush( TACKLE_FAULT_COLOR, Qt::SolidPattern )
-    , M_foul_charged_brush( FOUL_CHARGED_COLOR, Qt::SolidPattern )
-    , M_pointto_pen( POINTTO_COLOR, 0, Qt::SolidLine )
+    M_player_pen( PLAYER_PEN_COLOR, 0, Qt::SolidLine ),
+    M_selected_player_pen( PLAYER_PEN_COLOR, 2, Qt::SolidLine ),
+    M_left_team_pen( LEFT_TEAM_COLOR, 0, Qt::SolidLine ),
+    M_left_team_brush( LEFT_TEAM_COLOR, Qt::SolidPattern ),
+    M_left_goalie_pen( LEFT_GOALIE_COLOR, 0, Qt::SolidLine ),
+    M_left_goalie_stretch_pen( LEFT_GOALIE_COLOR.darker( 200 ), 0, Qt::DotLine ),
+    M_left_goalie_brush( LEFT_GOALIE_COLOR, Qt::SolidPattern ),
+    M_right_team_pen( RIGHT_TEAM_COLOR, 0, Qt::SolidLine ),
+    M_right_team_brush( RIGHT_TEAM_COLOR, Qt::SolidPattern ),
+    M_right_goalie_pen( RIGHT_GOALIE_COLOR, 0, Qt::SolidLine ),
+    M_right_goalie_stretch_pen( RIGHT_GOALIE_COLOR.darker( 200 ), 0, Qt::DotLine ),
+    M_right_goalie_brush( RIGHT_GOALIE_COLOR, Qt::SolidPattern ),
+    M_player_number_pen( PLAYER_NUMBER_COLOR, 0, Qt::SolidLine ),
+    M_player_number_inner_pen( PLAYER_NUMBER_INNER_COLOR, 0, Qt::SolidLine ),
+    M_neck_pen( NECK_COLOR, 0, Qt::SolidLine ),
+    M_view_area_pen( VIEW_AREA_COLOR, 0, Qt::SolidLine ),
+    M_large_view_area_pen( LARGE_VIEW_AREA_COLOR, 0, Qt::SolidLine ),
+    M_ball_collide_brush( BALL_COLLIDE_COLOR, Qt::SolidPattern ),
+    M_player_collide_brush( PLAYER_COLLIDE_COLOR, Qt::SolidPattern ),
+    M_effort_decayed_pen( EFFORT_DECAYED_COLOR, 0, Qt::SolidLine ),
+    M_recovery_decayed_pen( RECOVERY_DECAYED_COLOR, 0, Qt::SolidLine ),
+    M_kick_pen( KICK_COLOR, 2, Qt::SolidLine ),
+    M_kick_fault_brush( KICK_FAULT_COLOR, Qt::SolidPattern ),
+    M_kick_accel_pen( KICK_ACCEL_COLOR, 0, Qt::SolidLine ),
+    M_catch_brush( CATCH_COLOR, Qt::SolidPattern ),
+    M_catch_fault_brush( CATCH_FAULT_COLOR, Qt::SolidPattern ),
+    M_tackle_pen( TACKLE_COLOR, 2, Qt::SolidLine ),
+    M_tackle_brush( TACKLE_COLOR, Qt::SolidPattern ),
+    M_tackle_fault_brush( TACKLE_FAULT_COLOR, Qt::SolidPattern ),
+    M_foul_charged_brush( FOUL_CHARGED_COLOR, Qt::SolidPattern ),
+    M_pointto_pen( POINTTO_COLOR, 0, Qt::SolidLine ),
       //
-    , M_score_board_font( "Sans Serif", 16, QFont::Bold )
-    , M_player_font( "Sans Serif", 9, QFont::Bold )
-    , M_measure_font( "Sans Serif", 9 )
+    M_score_board_font( "Sans Serif", 16, QFont::Bold ),
+    M_player_font( "Sans Serif", 9, QFont::Bold ),
+    M_measure_font( "Sans Serif", 9 )
 {
     //M_player_font.setStyleHint( QFont::System, QFont::PreferBitmap );
     //M_player_font.setFixedPitch( true );
 
-    readSettings();
+    if ( ! QFile::exists( Options::CONF_FILE ) )
+    {
+        writeSettings( true );
+    }
+    else
+    {
+        readSettings();
+    }
 }
 
 /*-------------------------------------------------------------------*/
@@ -279,7 +289,7 @@ Options::Options()
  */
 Options::~Options()
 {
-    writeSettings();
+    writeSettings( false );
 }
 
 /*-------------------------------------------------------------------*/
@@ -338,13 +348,13 @@ Options::readSettings()
     val = settings.value( "connect" );
     if ( val.isValid() ) M_connect  = val.toBool();
 
-    val = settings.value( "server-host" );
+    val = settings.value( "server_host" );
     if ( val.isValid() ) M_server_host = val.toString().toStdString();
 
-    val = settings.value( "server-port" );
+    val = settings.value( "server_port" );
     if ( val.isValid() ) M_server_port = val.toInt();
 
-    val = settings.value( "client-version" );
+    val = settings.value( "client_version" );
     if ( val.isValid() ) M_client_version = val.toInt();
 
     val = settings.value( "buffering_mode" );
@@ -361,6 +371,12 @@ Options::readSettings()
 
     val = settings.value( "auto_quit_wait" );
     if ( val.isValid() ) M_auto_quit_wait = val.toInt();
+
+    val = settings.value( "auto_reconnect_mode" );
+    if ( val.isValid() ) M_auto_reconnect_mode = val.toBool();
+
+    val = settings.value( "auto_reconnect_wait" );
+    if ( val.isValid() ) M_auto_reconnect_wait = val.toInt();
 
     val = settings.value( "timer_interval" );
     if ( val.isValid() ) M_timer_interval = val.toInt();
@@ -616,43 +632,47 @@ Options::readSettings()
 
  */
 void
-Options::writeSettings()
+Options::writeSettings( bool all )
 {
     QSettings settings( Options::CONF_FILE,
                         QSettings::IniFormat );
 
-    //
-    // main window
-    //
-    settings.beginGroup( "MainWindow" );
-    settings.setValue( "window_width", M_window_width );
-    settings.setValue( "window_height", M_window_height );
-    settings.setValue( "window_x", M_window_x );
-    settings.setValue( "window_y", M_window_y );
-//     settings.setValue( "canvas_width", M_canvas_width );
-//     settings.setValue( "canvas_height", M_canvas_height );
-    settings.setValue( "maximize", M_maximize );
-    settings.setValue( "full_screen", M_full_screen );
-    settings.setValue( "show_menu_bar", M_show_menu_bar );
-//     settings.setValue( "show_tool_bar", M_show_tool_bar );
-    settings.setValue( "show_status_bar", M_show_status_bar );
-    settings.endGroup();
+    if ( all )
+    {
+        //
+        // main window
+        //
+        settings.beginGroup( "MainWindow" );
+        settings.setValue( "window_width", M_window_width );
+        settings.setValue( "window_height", M_window_height );
+        settings.setValue( "window_x", M_window_x );
+        settings.setValue( "window_y", M_window_y );
+        //     settings.setValue( "canvas_width", M_canvas_width );
+        //     settings.setValue( "canvas_height", M_canvas_height );
+        settings.setValue( "maximize", M_maximize );
+        settings.setValue( "full_screen", M_full_screen );
+        settings.setValue( "show_menu_bar", M_show_menu_bar );
+        //     settings.setValue( "show_tool_bar", M_show_tool_bar );
+        settings.setValue( "show_status_bar", M_show_status_bar );
+        settings.endGroup();
 
-    //
-    // monitor
-    //
-    settings.beginGroup( "Monitor" );
-    settings.setValue( "connect", M_connect );
-    settings.setValue( "server-host", QString::fromStdString( M_server_host ) );
-    settings.setValue( "server-port", M_server_port );
-    settings.setValue( "client-version", M_client_version );
-    settings.setValue( "buffering_mode", M_buffering_mode );
-    settings.setValue( "buffer_size", M_buffer_size );
-    settings.setValue( "max_disp_buffer", M_max_disp_buffer );
-    settings.setValue( "auto_quit_mode", M_auto_quit_mode );
-    settings.setValue( "auto_quit_wait", M_auto_quit_wait );
-    settings.setValue( "timer_interval", M_timer_interval );
-    settings.endGroup();
+        //
+        // monitor
+        //
+        settings.beginGroup( "Monitor" );
+        settings.setValue( "connect", M_connect );
+        settings.setValue( "server_host", QString::fromStdString( M_server_host ) );
+        settings.setValue( "server_port", M_server_port );
+        settings.setValue( "client_version", M_client_version );
+        settings.setValue( "buffering_mode", M_buffering_mode );
+        settings.setValue( "buffer_size", M_buffer_size );
+        settings.setValue( "max_disp_buffer", M_max_disp_buffer );
+        settings.setValue( "auto_quit_mode", M_auto_quit_mode );
+        settings.setValue( "auto_quit_wait", M_auto_quit_wait );
+        settings.setValue( "auto_reconnect_wait", M_auto_reconnect_wait );
+        settings.setValue( "timer_interval", M_timer_interval );
+        settings.endGroup();
+    }
 
     //
     // field
@@ -792,7 +812,13 @@ Options::parseCmdLine( int argc,
           "enable automatic quit mode." )
         ( "auto-quit-wait",
           po::value< int >( &M_auto_quit_wait )->default_value( M_auto_quit_wait ),
-          "set a wait period for the automatic quit mode." )
+          "set an wait period for the automatic quit mode." )
+        ( "auto-reconnect-mode",
+          po::value< bool >( &M_auto_reconnect_mode )->default_value( M_auto_reconnect_mode, to_onoff( M_auto_reconnect_mode ) ),
+          "enable automatic reconnect mode." )
+        ( "auto-reconnect-wait",
+          po::value< int >( &M_auto_reconnect_wait )->default_value( M_auto_reconnect_wait ),
+          "set an wait period for the automatic reconnect mode." )
         // window options
         ( "geometry",
           po::value< std::string >( &geometry )->default_value( "" ),

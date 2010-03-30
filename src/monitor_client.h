@@ -168,11 +168,11 @@ private slots:
     void handleReceive();
     void handleTimer();
 
-
 signals:
 
     void received();
-    void timeout();
+    void disconnectRequested();
+    void reconnectRequested();
 
 };
 

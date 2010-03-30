@@ -94,6 +94,7 @@ public:
     static const double MAX_FIELD_SCALE;
     //! zoom rate factor
     static const double ZOOM_RATIO;
+
     //! default logplayer timer step (ms).
     static const int DEFAULT_TIMER_INTERVAL;
 
@@ -153,6 +154,8 @@ private:
     //std::string M_output_file;
     bool M_auto_quit_mode;
     int M_auto_quit_wait;
+    bool M_auto_reconnect_mode;
+    int M_auto_reconnect_wait;
     int M_timer_interval; //!< logplayer timer interval
 
     //
@@ -295,7 +298,7 @@ private:
     Options & operator=( const Options & );
 
     void readSettings();
-    void writeSettings();
+    void writeSettings( bool all );
 
 public:
     ~Options();
@@ -330,6 +333,9 @@ public:
 
     bool autoQuitMode() const { return M_auto_quit_mode; }
     int autoQuitWait() const { return M_auto_quit_wait; }
+
+    bool autoReconnectMode() const { return M_auto_reconnect_mode; }
+    int autoReconnectWait() const { return M_auto_reconnect_wait; }
 
     int timerInterval() const { return M_timer_interval; }
 

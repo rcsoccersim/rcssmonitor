@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.61)
-AC_INIT([rcssmonitor],[14.0.1],[sserver-admin@users.sf.net])
+AC_INIT([rcssmonitor],[14.1.0],[sserver-admin@users.sf.net])
 
 #LT_PREREQ(2.2.4)
 
@@ -54,7 +54,7 @@ AC_TYPE_UINT32_T
 ##################################################
 
 AC_FUNC_ERROR_AT_LINE
-AC_CHECK_FUNCS([memset rint strtol])
+AC_CHECK_FUNCS([memset rint strtol pow sqrt])
 
 # ----------------------------------------------------------
 # check boost

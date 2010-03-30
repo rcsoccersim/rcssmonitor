@@ -1,3 +1,23 @@
+2010-03-30  Hidehisa Akiyama  <akky@users.sourceforge.jp>
+
+	* NEWS:
+	* configure.ac:
+	* src/src.pro:
+	- updated a minor version number. Official release 14.1.0.
+
+	* src/log_player.cpp:
+	* src/log_player.h:
+	* src/main_window.cpp:
+	* src/main_window.h:
+	* src/monitor_client.cpp:
+	* src/monitor_client.h:
+	* src/options.cpp:
+	* src/options.h:
+	- implemented automatic reconnection.
+	- added new options, "--auto-reconnect-mode" and "--auto-reconnect-wait".
+	- changed the policy of configuration file generation.
+	- renamed some parameters in rcssmonitor.conf.
+
 2010-01-29  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
 	* src/main.cpp:

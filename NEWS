@@ -1,3 +1,20 @@
+[14.1.0]
+  * Added new command line options, "--auto-reconnect-mode" and
+    "--auto-reconnect-wait". When auto-reconnect-mode is on, rcssmonitor
+    will try to reconnect to rcssserver if rcssserver does not send
+		information for auto-reconnect-wait(default:5) seconds. Note that
+    auto-reconnect-mode overwrites auto-quit-mode. If
+    auto-reconnect-mode is on, auto-quit-mode is always disabled.
+
+  * Some parameters are renamed in '~/.rcssmonitor.conf'. It is highly
+    recommended to delete the existing configuration file and
+    regenerate new one.
+
+  * Changed the policy of configuration file. Now, 'MainWindow' and
+    'Monitor' sections in '~/.rcssmonitor.conf' are not updated by
+    rcssmonitor. Users have to edit these values manually or set by
+    command line options every time.
+
 [14.0.1]
   * Changed the buffer recovering policy. Now, rcssmonitor tries to
     recover the buffer until filling up the default buffer size

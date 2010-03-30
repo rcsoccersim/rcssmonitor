@@ -39,6 +39,7 @@
 #include "monitor_client.h"
 
 #include "disp_holder.h"
+#include "options.h"
 
 #include <sstream>
 #include <iostream>
@@ -281,9 +282,36 @@ MonitorClient::handleTimer()
 
     //std::cerr << "handleTimer waited = " << M_waited_msec << std::endl;
 
-    if ( M_waited_msec >= 5 * 1000 )
+    if ( Options::instance().bufferingMode() )
     {
-        emit timeout();
+        //std::cerr << "disp current index=" << M_disp_holder.currentIndex() << '\n'
+        //          << "     container size=" << M_disp_holder.dispCont().size() << std::endl;
+        DispConstPtr disp = M_disp_holder.currentDisp();
+        if ( M_disp_holder.dispCont().empty()
+             || ( disp && disp->pmode_ == rcss::rcg::PM_TimeOver )
+             || M_disp_holder.currentIndex() >= M_disp_holder.dispCont().size() - 2 )
+        {
+
+        }
+        else
+        {
+            //std::cerr << "now, playing buffered data" << std::endl;
+            M_waited_msec -= POLL_INTERVAL_MS;
+        }
+    }
+
+    if ( Options::instance().autoReconnectMode() )
+    {
+        if ( M_waited_msec >= Options::instance().autoReconnectWait() * 1000 )
+        {
+            //std::cerr << "MonitorClient::handleTimer() waited=" << M_waited_msec << "[ms]"
+            //          << " emit reconnectRequested()" << std::endl;
+            emit reconnectRequested();
+        }
+    }
+    else if ( M_waited_msec >= 5 * 1000 )
+    {
+        emit disconnectRequested();
     }
 }
 
@@ -326,7 +354,7 @@ MonitorClient::sendDispInit()
 
     if ( M_timer )
     {
-        M_timer->start( 1000 );
+        M_timer->start( POLL_INTERVAL_MS );
     }
 }
 

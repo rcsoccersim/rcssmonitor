@@ -92,6 +92,8 @@ MainWindow::MainWindow()
              this, SLOT( updateBufferingLabel() ) );
     connect( M_log_player, SIGNAL( recoverTimerHandled() ),
              this, SLOT( showRecoveringState() ) );
+    connect( M_log_player, SIGNAL( quitRequested() ),
+             this, SLOT( setQuitTimer() ) );
 
     this->resize( Options::instance().windowWidth() > 0
                   ? Options::instance().windowWidth()
@@ -1080,8 +1082,10 @@ MainWindow::connectMonitorTo( const char * hostname )
 
     connect( M_monitor_client, SIGNAL( received() ),
              this, SLOT( receiveMonitorPacket() ) );
-//     connect( M_monitor_client, SIGNAL( timeout() ),
-//              this, SLOT( disconnectMonitor() ) );
+    connect( M_monitor_client, SIGNAL( disconnectRequested() ),
+             this, SLOT( disconnectMonitor() ) );
+    connect( M_monitor_client, SIGNAL( reconnectRequested() ),
+             this, SLOT( reconnectMonitor() ) );
 
 //     M_log_player->setLiveMode();
 
@@ -1204,6 +1208,20 @@ MainWindow::printShortcutKeys()
 
  */
 void
+MainWindow::setQuitTimer()
+{
+    int wait_msec = ( Options::instance().autoQuitWait() > 0
+                      ? Options::instance().autoQuitWait() * 1000
+                      : 100 );
+    QTimer::singleShot( wait_msec,
+                        qApp, SLOT( quit() ) );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+void
 MainWindow::kickOff()
 {
     if ( M_monitor_client
@@ -1264,19 +1282,29 @@ MainWindow::connectMonitorTo()
 void
 MainWindow::disconnectMonitor()
 {
-    //std::cerr << "MainWindow::disconnectMonitor()" << std::endl;
     if ( M_monitor_client )
     {
         M_monitor_client->disconnect();
 
         disconnect( M_monitor_client, SIGNAL( received() ),
                     this, SLOT( receiveMonitorPacket() ) );
-
-        disconnect( M_monitor_client, SIGNAL( timeout() ),
+        disconnect( M_monitor_client, SIGNAL( disconnectRequested() ),
                     this, SLOT( disconnectMonitor() ) );
+        disconnect( M_monitor_client, SIGNAL( reconnectRequested() ),
+                    this, SLOT( reconnectMonitor() ) );
 
         delete M_monitor_client;
         M_monitor_client = static_cast< MonitorClient * >( 0 );
+
+        //
+        // quit application if auto_quit_mode is on
+        //
+        if ( ! Options::instance().autoReconnectMode()
+             && ! Options::instance().bufferingMode()
+             && Options::instance().autoQuitMode() )
+        {
+            setQuitTimer();
+        }
     }
 
     Options::instance().setMonitorClientMode( false );
@@ -1286,6 +1314,27 @@ MainWindow::disconnectMonitor()
     M_connect_monitor_act->setEnabled( true );
     M_connect_monitor_to_act->setEnabled( true );
     M_disconnect_monitor_act->setEnabled( false );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+void
+MainWindow::reconnectMonitor()
+{
+    //std::cerr << "MainWindow::reconnectMonitor()" << std::endl;
+    if ( M_monitor_client )
+    {
+        disconnectMonitor();
+        std::cerr << "Trying to reconnect ..." << std::endl;
+        QTimer::singleShot( 1 * 1000,
+                            this, SLOT( connectMonitor() ) );
+    }
+    else
+    {
+        connectMonitor();
+    }
 }
 
 /*-------------------------------------------------------------------*/

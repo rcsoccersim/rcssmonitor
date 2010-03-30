@@ -158,17 +158,17 @@ LogPlayer::stepForwardImpl()
         M_timer->stop();
     }
 
-    if ( Options::instance().autoQuitMode() )
+    if ( Options::instance().autoReconnectMode() )
+    {
+
+    }
+    else if ( Options::instance().autoQuitMode() )
     {
         DispConstPtr disp = M_disp_holder.currentDisp();
         if ( disp
              && disp->pmode_ == rcss::rcg::PM_TimeOver )
         {
-            int wait_msec = ( Options::instance().autoQuitWait() > 0
-                              ? Options::instance().autoQuitWait() * 1000
-                              : 100 );
-            QTimer::singleShot( wait_msec,
-                                qApp, SLOT( quit() ) );
+            emit quitRequested();
         }
     }
 }
@@ -492,13 +492,13 @@ LogPlayer::showLive()
 
     if ( M_disp_holder.playmode() == rcss::rcg::PM_TimeOver )
     {
-        if ( Options::instance().autoQuitMode() )
+        if ( Options::instance().autoReconnectMode() )
         {
-            int wait_msec = ( Options::instance().autoQuitWait() > 0
-                              ? Options::instance().autoQuitWait() * 1000
-                              : 100 );
-            QTimer::singleShot( wait_msec,
-                                qApp, SLOT( quit() ) );
+
+        }
+        else if ( Options::instance().autoQuitMode() )
+        {
+            emit quitRequested();
         }
     }
 }
