@@ -7,26 +7,26 @@ DEPENDPATH += .
 
 INCLUDEPATH += . ..
 win32 {
-  INCLUDEPATH +=  ../../boost
+  INCLUDEPATH +=  c:/Qt/boost-include
 }
 unix {
   INCLUDEPATH += /opt/local/include
 }
-macx {
+macx-g++ {
   INCLUDEPATH += /opt/local/include
 }
 
 win32 {
 #  LIBS += ../../zlib123-dll/zlib1.dll -lwsock32
 #  LIBS += c:/MinGW/boost-lib/libboost_program_options-mgw34-mt.lib
-  LIBS += c:/MinGW/boost-lib/boost_program_options-mgw34-mt-1_40.dll
+  LIBS += c:/Qt/boost-lib/boost_program_options-mgw44-mt-1_42.dll
   LIBS += -lwsock32
 }
 unix {
   LIBS += -L/opt/local/lib
   LIBS += -lboost_program_options-mt -lz
 }
-macx {
+macx-g++ {
   LIBS += -L/opt/local/lib
   LIBS += -lboost_program_options-mt -lz
 }
@@ -42,7 +42,7 @@ unix {
   DEFINES += HAVE_NETINET_IN_H
   DEFINES += HAVE_BOOST_PROGRAM_OPTIONS
 }
-macx {
+macx-g++ {
   DEFINES += HAVE_NETINET_IN_H
   DEFINES += HAVE_BOOST_PROGRAM_OPTIONS
 }
@@ -120,6 +120,6 @@ nodist_rcsslogplayer_SOURCES = \
 win32 {
 RC_FILE = rcssmonitor.rc
 }
-macx {
+macx-g++ {
 ICON = ../icons/rcss.icns
 }

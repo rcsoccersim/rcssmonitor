@@ -1,3 +1,12 @@
+2010-04-23  Hidehisa Akiyama  <akky@users.sourceforge.jp>
+
+	* m4/ax_boost_base.m4:
+	* m4/ax_boost_program_options.m4:
+	- updated autoconf macros.
+
+	* src/src.pro:
+	- fixed build problems on OSX.
+
 2010-03-30  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
 	* NEWS:
