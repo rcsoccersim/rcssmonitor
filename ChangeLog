@@ -1,3 +1,11 @@
+2010-08-23  Hidehisa Akiyama  <akky@users.sourceforge.jp>
+
+	* INSTALL:
+	- updated by autotools.
+
+	* configure.ac:
+	- disabled glwidget by default.
+
 2010-04-23  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
 	* m4/ax_boost_base.m4:

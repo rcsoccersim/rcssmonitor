@@ -70,8 +70,8 @@ QT4MODULES="QtCore QtGui QtNetwork"
 
 AC_ARG_ENABLE(gl,
               AC_HELP_STRING([--enable-gl],
-                             [enable GLWidget for Qt4 (default yes)]))
-if test "x$enable_gl" != "xno"; then
+                             [enable GLWidget for Qt4 (default no)]))
+if test "x$enable_gl" == "xyes"; then
   AC_MSG_NOTICE(enabled QOpenGL)
   CFLAGS="-DUSE_GLWIDGET $CFLAGS"
   CXXFLAGS="-DUSE_GLWIDGET $CXXFLAGS"
