@@ -1,5 +1,6 @@
 TEMPLATE = app
-QT += network opengl
+# QT += network opengl
+QT += network
 TARGET = rcssmonitor
 DESTDIR = ../bin
 
@@ -31,7 +32,7 @@ macx {
   LIBS += -lboost_program_options-mt -lz
 }
 
-DEFINES += USE_GL_WIDGET
+# DEFINES += USE_GL_WIDGET
 
 DEFINES += HAVE_LIBZ
 win32 {
@@ -48,7 +49,7 @@ macx {
 }
 DEFINES += PACKAGE="\\\"rcssmonitor\\\""
 DEFINES += PACKAGE_NAME="\\\"rcssmonitor\\\""
-DEFINES += VERSION="\\\"14.1.0\\\""
+DEFINES += VERSION="\\\"14.1.1\\\""
 
 CONFIG += qt warn_on release
 win32 {
