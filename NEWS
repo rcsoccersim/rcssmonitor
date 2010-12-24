@@ -1,3 +1,6 @@
+[14.1.1]
+  * Disabled QtOpenGL by default.
+
 [14.1.0]
   * Added new command line options, "--auto-reconnect-mode" and
     "--auto-reconnect-wait". When auto-reconnect-mode is on, rcssmonitor
