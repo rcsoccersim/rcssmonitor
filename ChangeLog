@@ -1,5 +1,12 @@
 2011-05-15  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
+	* NEWS:
+	* configure.ac:
+	- updated a major version number. Official release 15.0.0.
+
+	* src/main.cpp:
+	- updated a copyright message.
+
 	* src/rcsslogplayer/parser.cpp:
 	* src/rcsslogplayer/types.cpp:
 	* src/rcsslogplayer/types.h:

@@ -1,3 +1,6 @@
+[15.0.0]
+  * Supported new parameters of rcssserver-15.0.0.
+
 [14.1.1]
   * Disabled QtOpenGL by default.
 

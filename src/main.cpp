@@ -47,7 +47,7 @@ main( int argc,
       char ** argv )
 {
     std::cout << PACKAGE"-"VERSION << "\n\n"
-              << "Copyright (C) 2009 - 2010 RoboCup Soccer Simulator Maintenance Group.\n"
+              << "Copyright (C) 2009 - 2011 RoboCup Soccer Simulator Maintenance Group.\n"
               << std::endl;
 
     QApplication app( argc, argv );
