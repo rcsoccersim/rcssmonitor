@@ -1,3 +1,10 @@
+2011-05-15  Hidehisa Akiyama  <akky@users.sourceforge.jp>
+
+	* src/rcsslogplayer/parser.cpp:
+	* src/rcsslogplayer/types.cpp:
+	* src/rcsslogplayer/types.h:
+	- supported a new parameter of rcssserver-15.
+
 2010-12-24  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
 	* NEWS:

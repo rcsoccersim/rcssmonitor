@@ -1308,6 +1308,8 @@ struct ServerParamT {
     double foul_exponent_;
     int foul_cycles_;
     bool golden_goal_;
+    // v15
+    double red_card_probability_;
 
     ServerParamT();
 

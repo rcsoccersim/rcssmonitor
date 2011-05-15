@@ -1149,7 +1149,7 @@ Parser::parseDrawLine( const int n_line,
     M_time = time;
 
     // parse object
-    std::cerr << "parseDraw " << line << std::endl;
+
     if ( ! std::strncmp( buf, "(point ", 7 ) )
     {
         float x, y;
@@ -1663,12 +1663,8 @@ Parser::parseServerParamLine( const int n_line,
     double_map.insert( DoubleMap::value_type( "foul_exponent", &param.foul_exponent_ ) );
     int_map.insert( IntMap::value_type( "foul_cycles", &param.foul_cycles_ ) );
     bool_map.insert( BoolMap::value_type( "golden_goal", &param.golden_goal_ ) );
-
-    // test
-    double min_catch_probability;
-    double reliable_catch_area_l;
-    double_map.insert( DoubleMap::value_type( "min_catch_probability", &min_catch_probability ) );
-    double_map.insert( DoubleMap::value_type( "reliable_catch_area_l", &reliable_catch_area_l ) );
+    // 15.0
+    double_map.insert( DoubleMap::value_type( "red_card_probability", &param.red_card_probability_ ) );
 
     //
     // parse
