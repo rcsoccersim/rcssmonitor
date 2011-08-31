@@ -35,17 +35,20 @@
 #endif
 
 #include <QApplication>
-#include <QThread>
+#include <QLocale>
 
 #include "main_window.h"
 #include "options.h"
 
 #include <iostream>
+#include <locale>
 
 int
 main( int argc,
       char ** argv )
 {
+    std::locale::global( std::locale::classic() );
+
     std::cout << PACKAGE"-"VERSION << "\n\n"
               << "Copyright (C) 2009 - 2011 RoboCup Soccer Simulator Maintenance Group.\n"
               << std::endl;
