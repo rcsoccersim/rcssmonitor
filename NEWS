@@ -1,3 +1,6 @@
+[15.1.0]
+  * Fixed a defect of boost detection by updating autoconf macros.
+
 [15.0.0]
   * Supported new parameters of rcssserver-15.0.0.
 

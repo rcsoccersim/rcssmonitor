@@ -1,5 +1,12 @@
 2012-05-23  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
+	* NEWS:
+	* configure.ac:
+	- updated a minor version number. Official release 15.1.0.
+
+	* src/main.cpp:
+	- updated the copyright message.
+
 	* INSTALL:
 	* m4/ax_boost_program_options.m4:
 	- updated autoconf macro

@@ -50,7 +50,7 @@ main( int argc,
     std::locale::global( std::locale::classic() );
 
     std::cout << PACKAGE"-"VERSION << "\n\n"
-              << "Copyright (C) 2009 - 2011 RoboCup Soccer Simulator Maintenance Group.\n"
+              << "Copyright (C) 2009 - 2012 RoboCup Soccer Simulator Maintenance Group.\n"
               << std::endl;
 
     QApplication app( argc, argv );
