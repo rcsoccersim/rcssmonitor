@@ -789,9 +789,9 @@ Parser::parseShowLine( const int n_line,
     if ( *(buf + 1) == 'p' )
     {
         int pm = 0;
-        if ( ! std::sscanf( buf,
-                            "(pm %d) %n ",
-                            &pm, &n_read ) == 1 )
+        if ( std::sscanf( buf,
+                          "(pm %d) %n ",
+                          &pm, &n_read ) != 1 )
         {
             std::cerr << n_line << ": error: "
                       << "Illegal playmode info \"" << line << "\""

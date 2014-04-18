@@ -47,13 +47,13 @@ int
 main( int argc,
       char ** argv )
 {
-    std::locale::global( std::locale::classic() );
-
     std::cout << PACKAGE"-"VERSION << "\n\n"
-              << "Copyright (C) 2009 - 2012 RoboCup Soccer Simulator Maintenance Group.\n"
+              << "Copyright (C) 2009 - 2014 RoboCup Soccer Simulator Maintenance Group.\n"
               << std::endl;
 
     QApplication app( argc, argv );
+
+    std::locale::global( std::locale::classic() );
 
     if ( ! Options::instance().parseCmdLine( argc, argv ) )
     {

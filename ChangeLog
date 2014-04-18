@@ -1,3 +1,11 @@
+2014-04-18  Hidehisa Akiyama  <akky@users.sourceforge.jp>
+
+	* src/main.cpp:
+	- fixed a problem of locale setting.
+
+	* src/rcsslogplayer/parser.cpp:
+	- fixed a compiler warning.
+
 2012-05-23  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
 	* NEWS:
