@@ -1,3 +1,17 @@
+2016-09-18  Hidehisa Akiyama  <akky@users.sourceforge.jp>
+
+	* NEWS:
+	* configure.ac:
+	- updated a point version number. Official release 15.2.0.
+
+	* m4/ax_boost_base.m4:
+	* m4/ax_boost_program_options.m4:
+	* m4/ax_boost_system.m4:
+	- update m4 macro files.
+
+	* src/Makefile.am:
+	- add subdir-objects option.
+
 2014-04-21  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
 	* NEWS:

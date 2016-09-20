@@ -1,5 +1,7 @@
 ## Process this file with automake to produce Makefile.in
 
+AUTOMAKE_OPTIONS = subdir-objects
+
 bin_PROGRAMS = rcssmonitor
 
 rcssmonitor_SOURCES = \

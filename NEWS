@@ -1,3 +1,6 @@
+[15.2.0]
+  * Update m4 macro files for boost.
+
 [15.1.1]
   * Fixed a locale bug. Thanks go to Sándor Nagy for reporting the
     detail and providing the patch.
