@@ -1,3 +1,8 @@
+2016-10-26  Hidehisa Akiyama  <akiyama@HP-EliteBook-820-G3>
+
+	* m4/qt.m4:
+	- fix a defect on Ubuntu 16.04.
+
 2016-09-18  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
 	* NEWS:
