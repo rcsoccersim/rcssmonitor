@@ -1,3 +1,6 @@
+[15.2.1]
+  * Fix a defect of Qt detection on Ubuntu 16.04.
+
 [15.2.0]
   * Update m4 macro files for boost.
 

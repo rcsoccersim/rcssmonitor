@@ -1,4 +1,10 @@
-2016-10-26  Hidehisa Akiyama  <akiyama@HP-EliteBook-820-G3>
+2017-04-19  Hidehisa Akiyama  <akky@users.sourceforge.jp>
+
+	* NEWS:
+	* configure.ac:
+	- updated a point version number. Official release 15.2.1.
+
+2016-10-26  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
 	* m4/qt.m4:
 	- fix a defect on Ubuntu 16.04.
