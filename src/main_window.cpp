@@ -70,7 +70,7 @@ MainWindow::MainWindow()
       M_log_player( new LogPlayer( M_disp_holder, this ) )
 {
     this->setWindowIcon( QIcon( QPixmap( rcss_xpm ) ) );
-    this->setWindowTitle( tr( PACKAGE_NAME" "VERSION ) );
+    this->setWindowTitle( tr( PACKAGE_NAME ) + tr( " " ) + tr( VERSION ) );
     this->setMinimumSize( 280, 220 );
 
     readSettings();
@@ -1105,7 +1105,7 @@ MainWindow::connectMonitorTo( const char * hostname )
 void
 MainWindow::about()
 {
-    QString msg( tr( PACKAGE_NAME"-"VERSION"\n\n" ) );
+    QString msg( tr( PACKAGE_NAME ) + tr( "-" ) + tr( VERSION ) + tr( "\n\n" ) );
     msg += tr( "The RoboCup Soccer Simulator Monitor (rcssmonitor) is used to view\n"
                "the simulation as it takes place by connecting to the rcssserver or\n"
                "to view the playback of a simulation by connecting to the rcsslogplayer.\n"
@@ -1117,7 +1117,7 @@ MainWindow::about()
                "  <sserver-admin@lists.sourceforgenet>" );
 
     QMessageBox::about( this,
-                        tr( "About "PACKAGE_NAME ),
+                        tr( "About " ) + tr( PACKAGE_NAME ),
                         msg );
 
     // from Qt 4.1 documents
@@ -1810,6 +1810,7 @@ MainWindow::changePlayMode( int mode,
                   ? + Options::PENALTY_AREA_WIDTH*0.5
                   : - Options::PENALTY_AREA_WIDTH*0.5 );
         }
+        break;
     case rcss::rcg::PM_IndFreeKick_Left:
         if ( x >= ( + Options::PITCH_LENGTH*0.5 - Options::GOAL_AREA_LENGTH )
              && std::fabs( y ) <= Options::GOAL_AREA_WIDTH*0.5 )
@@ -1832,6 +1833,7 @@ MainWindow::changePlayMode( int mode,
                   ? + Options::PENALTY_AREA_WIDTH*0.5
                   : - Options::PENALTY_AREA_WIDTH*0.5 );
         }
+        break;
     case rcss::rcg::PM_IndFreeKick_Right:
         if ( x <= ( - Options::PITCH_LENGTH*0.5 + Options::GOAL_AREA_LENGTH )
              && std::fabs( y ) <= Options::GOAL_AREA_WIDTH*0.5 )
