@@ -1310,6 +1310,9 @@ struct ServerParamT {
     bool golden_goal_;
     // v15
     double red_card_probability_;
+    // 16.0
+    std::string fixed_teamname_l_;
+    std::string fixed_teamname_r_;
 
     ServerParamT();
 
