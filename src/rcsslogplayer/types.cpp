@@ -419,7 +419,9 @@ ServerParamT::ServerParamT()
       foul_exponent_( 10.0 ),
       foul_cycles_( 5 ),
       golden_goal_( true ),
-      red_card_probability_( 0.0 )
+      red_card_probability_( 0.0 ),
+      fixed_teamname_l_( "" ),
+      fixed_teamname_r_( "" )
 {
 
 }
@@ -635,6 +637,9 @@ ServerParamT::print( std::ostream & os ) const
     print_param( os, "golden_goal", golden_goal_ );
     // 15.0
     print_param( os, "red_card_probability", quantize( red_card_probability_, 0.00001 ) );
+    // 16.0
+    print_param( os, "fixed_teamname_l", fixed_teamname_l_ );
+    print_param( os, "fixed_teamname_r", fixed_teamname_r_ );
 
     os << ')';
 

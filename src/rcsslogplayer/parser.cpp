@@ -1665,6 +1665,9 @@ Parser::parseServerParamLine( const int n_line,
     bool_map.insert( BoolMap::value_type( "golden_goal", &param.golden_goal_ ) );
     // 15.0
     double_map.insert( DoubleMap::value_type( "red_card_probability", &param.red_card_probability_ ) );
+    // 16.0
+    string_map.insert( StringMap::value_type( "fixed_teamname_l", &param.fixed_teamname_l_ ) );
+    string_map.insert( StringMap::value_type( "fixed_teamname_r", &param.fixed_teamname_r_ ) );
 
     //
     // parse
