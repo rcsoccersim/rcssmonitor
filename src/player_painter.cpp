@@ -34,7 +34,13 @@
 #include <config.h>
 #endif
 
+#include <QtGlobal>
+
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
+#include <QtWidgets>
+#else
 #include <QtGui>
+#endif
 
 #include "player_painter.h"
 
@@ -821,7 +827,7 @@ PlayerPainter::drawKickAccelArea( QPainter & painter,
     snprintf( buf, 32, "MaxAccel=%.3f", max_kick_accel );
     painter.drawText( bnext_screen.x() + 10,
                       bnext_screen.y() + painter.fontMetrics().ascent(),
-                      QString::fromAscii( buf ) );
+                      QString::fromLatin1( buf ) );
 }
 
 /*-------------------------------------------------------------------*/
@@ -950,7 +956,7 @@ PlayerPainter::drawText( QPainter & painter,
         painter.setBrush( Qt::NoBrush );
         painter.drawText( param.x_ + text_radius + card_offset,
                           param.y_,
-                          QString::fromAscii( main_buf ) );
+                          QString::fromLatin1( main_buf ) );
         painter.setBackgroundMode( Qt::TransparentMode );
     }
 }

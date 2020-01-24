@@ -34,7 +34,13 @@
 #include <config.h>
 #endif
 
+#include <QtGlobal>
+
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
+#include <QtWidgets>
+#else
 #include <QtGui>
+#endif
 
 #include "main_window.h"
 
@@ -97,10 +103,10 @@ MainWindow::MainWindow()
 
     this->resize( Options::instance().windowWidth() > 0
                   ? Options::instance().windowWidth()
-                  : 640,
+                  : 1280 /*640*/ ,
                   Options::instance().windowHeight() > 0
                   ? Options::instance().windowHeight()
-                  : 480 );
+                  : 960 /*480*/ );
     this->move( Options::instance().windowX() >= 0
                 ? Options::instance().windowX()
                 : this->x(),
@@ -511,7 +517,7 @@ MainWindow::createMenuReferee()
                  || mode == rcss::rcg::PM_IndFreeKick_Left
                  || mode == rcss::rcg::PM_IndFreeKick_Right )
             {
-                QAction * act = submenu->addAction( QString::fromAscii( playmode_strings[mode] ) );
+                QAction * act = submenu->addAction( QString::fromLatin1( playmode_strings[mode] ) );
                 connect( act, SIGNAL( triggered() ), mapper, SLOT( map() ) );
                 mapper->setMapping( act, mode );
             }
@@ -675,7 +681,7 @@ MainWindow::createFieldCanvas()
                  || mode == rcss::rcg::PM_IndFreeKick_Right )
             {
                 QAction * act = new QAction( M_playmode_change_act_group );
-                act->setText( QString::fromAscii( playmode_strings[mode] ) );
+                act->setText( QString::fromLatin1( playmode_strings[mode] ) );
                 connect( act, SIGNAL( triggered() ), mapper, SLOT( map() ) );
                 mapper->setMapping( act, mode );
             }
@@ -1036,7 +1042,7 @@ MainWindow::connectMonitorTo( const char * hostname )
     disconnectMonitor();
 
     std::cerr << "Connect to [" << hostname << "] ..." << std::endl;
-    this->statusBar()->showMessage( tr( "Connect to %1 ..." ).arg( QString::fromAscii( hostname ) ),
+    this->statusBar()->showMessage( tr( "Connect to %1 ..." ).arg( QString::fromLatin1( hostname ) ),
                                     5000 );
 
     M_monitor_client = new MonitorClient( this,
@@ -1159,7 +1165,11 @@ MainWindow::printShortcutKeys()
         table_widget->setHorizontalHeaderLabels( header );
 
         table_widget->horizontalHeader()->setStretchLastSection( true );
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
+        table_widget->horizontalHeader()->setSectionResizeMode( QHeaderView::ResizeToContents );
+#else
         table_widget->horizontalHeader()->setResizeMode( QHeaderView::ResizeToContents );
+#endif
         table_widget->verticalHeader()->hide();
 
         int row = 0;
@@ -1606,7 +1616,7 @@ MainWindow::yellowCard()
 
     char side_str[8];
     int unum = 0;
-    if ( std::sscanf( str.toAscii().data(), " %s %d ", side_str, &unum ) != 2 )
+    if ( std::sscanf( str.toLatin1().data(), " %s %d ", side_str, &unum ) != 2 )
     {
         return;
     }
@@ -1660,7 +1670,7 @@ MainWindow::redCard()
 
     char side_str[8];
     int unum = 0;
-    if ( std::sscanf( str.toAscii().data(), " %s %d ", side_str, &unum ) != 2 )
+    if ( std::sscanf( str.toLatin1().data(), " %s %d ", side_str, &unum ) != 2 )
     {
         return;
     }
@@ -1941,7 +1951,7 @@ MainWindow::updatePositionLabel( const QPoint & point )
                   "(%.2f, %.2f)",
                   x, y );
 
-        M_position_label->setText( QString::fromAscii( buf ) );
+        M_position_label->setText( QString::fromLatin1( buf ) );
     }
 }
 
