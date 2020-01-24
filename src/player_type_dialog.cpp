@@ -34,7 +34,13 @@
 #include <config.h>
 #endif
 
+#include <QtGlobal>
+
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
+#include <QtWidgets>
+#else
 #include <QtGui>
+#endif
 
 #include "player_type_dialog.h"
 
@@ -65,10 +71,8 @@ protected:
       {
           const QAbstractItemModel * src = sourceModel();
 
-          double lhs = 0.0;
-          double rhs = 0.0;
-          std::sscanf( src->data( left ).toString().toAscii(), " %lf ", &lhs );
-          std::sscanf( src->data( right ).toString().toAscii(), " %lf ", &rhs );
+          double lhs = src->data( left ).toString().toDouble();
+          double rhs = src->data( right ).toString().toDouble();
 
           return lhs < rhs;
       }
@@ -125,7 +129,11 @@ PlayerTypeDialog::createTable()
     M_item_view->setHorizontalScrollBarPolicy( Qt::ScrollBarAlwaysOff );
     M_item_view->setVerticalScrollBarPolicy( Qt::ScrollBarAlwaysOff );
 
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
+    M_item_view->horizontalHeader()->setSectionResizeMode( QHeaderView::ResizeToContents );
+#else
     M_item_view->horizontalHeader()->setResizeMode( QHeaderView::ResizeToContents );
+#endif
 
     QFont font = M_item_view->font();
     font.setPointSize( 9 );

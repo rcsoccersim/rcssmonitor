@@ -1,3 +1,29 @@
+2020-01-24  Hidehisa Akiyama  <akky@users.sourceforge.jp>
+
+	* configure.ac:
+	* m4/qt.m4:
+	* src/Makefile.am:
+	* src/ball_painter.cpp:
+	* src/config_dialog.cpp:
+	* src/draw_info_painter.cpp:
+	* src/field_canvas.cpp:
+	* src/field_painter.cpp:
+	* src/main_window.cpp:
+	* src/monitor_client.cpp:
+	* src/player_painter.cpp:
+	* src/player_type_dialog.cpp:
+	* src/score_board_painter.cpp:
+	* src/team_graphic_painter.cpp:
+	- support Qt5.
+
+2020-01-17  Hidehisa Akiyama  <akky@users.sourceforge.jp>
+
+	* src/rcsslogplayer/parser.cpp:
+	* src/rcsslogplayer/types.cpp:
+	* src/rcsslogplayer/types.h:
+	* src/score_board_painter.cpp:
+	- support the fixed_teamname feature.
+
 2017-04-19  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
 	* NEWS:
