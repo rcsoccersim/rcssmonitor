@@ -515,7 +515,9 @@ MainWindow::createMenuReferee()
                  || mode == rcss::rcg::PM_Back_Pass_Right
                  || mode == rcss::rcg::PM_GoalKick_Right
                  || mode == rcss::rcg::PM_IndFreeKick_Left
-                 || mode == rcss::rcg::PM_IndFreeKick_Right )
+                 || mode == rcss::rcg::PM_IndFreeKick_Right
+                 || mode == rcss::rcg::PM_Illegal_Defense_Left
+                 || mode == rcss::rcg::PM_Illegal_Defense_Right )
             {
                 QAction * act = submenu->addAction( QString::fromLatin1( playmode_strings[mode] ) );
                 connect( act, SIGNAL( triggered() ), mapper, SLOT( map() ) );
@@ -678,7 +680,9 @@ MainWindow::createFieldCanvas()
                  || mode == rcss::rcg::PM_Back_Pass_Right
                  || mode == rcss::rcg::PM_GoalKick_Right
                  || mode == rcss::rcg::PM_IndFreeKick_Left
-                 || mode == rcss::rcg::PM_IndFreeKick_Right )
+                 || mode == rcss::rcg::PM_IndFreeKick_Right
+                 || mode == rcss::rcg::PM_Illegal_Defense_Left
+                 || mode == rcss::rcg::PM_Illegal_Defense_Right )
             {
                 QAction * act = new QAction( M_playmode_change_act_group );
                 act->setText( QString::fromLatin1( playmode_strings[mode] ) );
@@ -1852,6 +1856,14 @@ MainWindow::changePlayMode( int mode,
         }
 
         M_monitor_client->sendTrainerMoveBall( x, y, 0.0, 0.0 );
+        M_monitor_client->sendChangeMode( pmode );
+        break;
+    case rcss::rcg::PM_Illegal_Defense_Left:
+        M_monitor_client->sendTrainerMoveBall( -41.5, 0.0, 0.0, 0.0 );
+        M_monitor_client->sendChangeMode( pmode );
+        break;
+    case rcss::rcg::PM_Illegal_Defense_Right:
+        M_monitor_client->sendTrainerMoveBall( +41.5, 0.0, 0.0, 0.0 );
         M_monitor_client->sendChangeMode( pmode );
         break;
     default:

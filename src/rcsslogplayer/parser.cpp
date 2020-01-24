@@ -1666,6 +1666,10 @@ Parser::parseServerParamLine( const int n_line,
     // 15.0
     double_map.insert( DoubleMap::value_type( "red_card_probability", &param.red_card_probability_ ) );
     // 16.0
+    int_map.insert( IntMap::value_type( "illegal_defense_duration", &param.illegal_defense_duration_ ) );
+    int_map.insert( IntMap::value_type( "illegal_defense_number", &param.illegal_defense_number_ ) );
+    double_map.insert( DoubleMap::value_type( "illegal_defense_dist_x", &param.illegal_defense_dist_x_ ) );
+    double_map.insert( DoubleMap::value_type( "illegal_defense_width", &param.illegal_defense_width_ ) );
     string_map.insert( StringMap::value_type( "fixed_teamname_l", &param.fixed_teamname_l_ ) );
     string_map.insert( StringMap::value_type( "fixed_teamname_r", &param.fixed_teamname_r_ ) );
 
