@@ -57,34 +57,68 @@ AC_FUNC_ERROR_AT_LINE
 AC_CHECK_FUNCS([memset rint strtol pow sqrt])
 
 # ----------------------------------------------------------
+# check Qt
+
+AC_ARG_ENABLE(qt5,
+              AC_HELP_STRING([--enable-qt5],
+                             [use Qt5 tool kit (default no)]))
+AC_ARG_ENABLE(gl,
+              AC_HELP_STRING([--enable-gl],
+                             [enable GLWidget for Qt (default no)]))
+
+if test "x$enable_qt5" == "xyes"; then
+  AC_MSG_NOTICE(enabled Qt5)
+
+  QTMODULES="Qt5Core Qt5Gui Qt5Widgets Qt5Network"
+
+  if test "x$enable_gl" == "xyes"; then
+    AC_MSG_NOTICE(enabled GL5Widget)
+    CFLAGS="-DUSE_GLWIDGET $CFLAGS"
+    CXXFLAGS="-DUSE_GLWIDGET $CXXFLAGS"
+    QTMODULES="$QTMODULES Qt5OpenGL"
+  fi
+
+  AX_QT([5.0.0],[$QTMODULES])
+
+else
+  AC_MSG_NOTICE(enabled Qt4)
+
+  QTMODULES="QtCore QtGui QtNetwork"
+
+  if test "x$enable_gl" == "xyes"; then
+    AC_MSG_NOTICE(enabled GLWidget)
+    CFLAGS="-DUSE_GLWIDGET $CFLAGS"
+    CXXFLAGS="-DUSE_GLWIDGET $CXXFLAGS"
+    QTMODULES="$QTMODULES QtOpenGL"
+  fi
+
+  AX_QT([4.3.0],[$QTMODULES])
+fi
+
+if test x$have_qt != xyes ; then
+  AC_MSG_ERROR([$QTMODULES could not be found.])
+  AM_CONDITIONAL(BUILD_QT, [test "1" = "0"])
+else
+  CFLAGS="-fPIC $CFLAGS"
+  CXXFLAGS="-fPIC $CXXFLAGS"
+  AM_CONDITIONAL(BUILD_QT, [test "1" = "1"])
+fi
+
+# ----------------------------------------------------------
+# check C++
+
+AX_CXX_COMPILE_STDCXX_14(noext)
+
+# ----------------------------------------------------------
 # check boost
 
-AX_BOOST_BASE([1.32.0])
+AX_BOOST_BASE([1.38.0])
 AX_BOOST_SYSTEM
 AX_BOOST_PROGRAM_OPTIONS
 CPPFLAGS="$CPPFLAGS $BOOST_CPPFLAGS"
 LDFLAGS="$LDFLAGS $BOOST_LDFLAGS"
 
 # ----------------------------------------------------------
-# check Qt4
-QT4MODULES="QtCore QtGui QtNetwork"
-
-AC_ARG_ENABLE(gl,
-              AC_HELP_STRING([--enable-gl],
-                             [enable GLWidget for Qt4 (default no)]))
-if test "x$enable_gl" == "xyes"; then
-  AC_MSG_NOTICE(enabled QOpenGL)
-  CFLAGS="-DUSE_GLWIDGET $CFLAGS"
-  CXXFLAGS="-DUSE_GLWIDGET $CXXFLAGS"
-  QT4MODULES="$QT4MODULES QtOpenGL"
-fi
-
-AX_QT4([4.3.0],[$QT4MODULES])
-
-if test x$have_qt4 != xyes ; then
-  AC_MSG_ERROR([$QT4MODULES could not be found.])
-fi
-
 AC_CONFIG_FILES([Makefile
                  src/Makefile])
 AC_OUTPUT

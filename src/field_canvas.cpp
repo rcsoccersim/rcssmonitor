@@ -34,7 +34,13 @@
 #include <config.h>
 #endif
 
+#include <QtGlobal>
+
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
+#include <QtWidgets>
+#else
 #include <QtGui>
+#endif
 
 #include "field_canvas.h"
 
@@ -248,7 +254,11 @@ FieldCanvas::mouseMoveEvent( QMouseEvent * event )
             new_rect.setRight( M_measure_mouse->draggedPoint().x() + 256 );
         }
         // draw mouse measure
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
+        this->update( s_last_rect.united( new_rect ) );
+#else
         this->update( s_last_rect.unite( new_rect ) );
+#endif
         s_last_rect = new_rect;
     }
 
@@ -450,7 +460,7 @@ FieldCanvas::drawMouseMeasure( QPainter & painter )
               start_real.x(),
               start_real.y() );
     painter.drawText( start_point,
-                      QString::fromAscii( buf ) );
+                      QString::fromLatin1( buf ) );
 
     if ( std::abs( start_point.x() - end_point.x() ) < 1
          && std::abs( start_point.y() - end_point.y() ) < 1 )
@@ -467,7 +477,7 @@ FieldCanvas::drawMouseMeasure( QPainter & painter )
               end_real.y() );
     painter.drawText( end_point.x(),
                       end_point.y(),
-                      QString::fromAscii( buf ) );
+                      QString::fromLatin1( buf ) );
 
     // draw relative coordinate value
     painter.setPen( opt.measureFontPen2() );
@@ -487,7 +497,7 @@ FieldCanvas::drawMouseMeasure( QPainter & painter )
                        : - painter.fontMetrics().height() );
     painter.drawText( end_point.x(),
                       end_point.y() + dist_add_y,
-                      QString::fromAscii( buf ) );
+                      QString::fromLatin1( buf ) );
 }
 
 /*-------------------------------------------------------------------*/

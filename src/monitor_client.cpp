@@ -81,7 +81,7 @@ MonitorClient::MonitorClient( QObject * parent,
         M_version = 4;
     }
 
-    QHostInfo host = QHostInfo::fromName( QString::fromAscii( hostname ) );
+    QHostInfo host = QHostInfo::fromName( QString::fromLatin1( hostname ) );
 
     if ( host.error() != QHostInfo::NoError )
     {
