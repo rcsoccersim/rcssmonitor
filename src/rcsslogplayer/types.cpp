@@ -420,6 +420,10 @@ ServerParamT::ServerParamT()
       foul_cycles_( 5 ),
       golden_goal_( true ),
       red_card_probability_( 0.0 ),
+      illegal_defense_duration_( 20 ),
+      illegal_defense_number_( 0 ),
+      illegal_defense_dist_x_( 16.5 ),
+      illegal_defense_width_( 40.32 ),
       fixed_teamname_l_( "" ),
       fixed_teamname_r_( "" )
 {
@@ -638,6 +642,10 @@ ServerParamT::print( std::ostream & os ) const
     // 15.0
     print_param( os, "red_card_probability", quantize( red_card_probability_, 0.00001 ) );
     // 16.0
+    print_param( os, "illegal_defense_duration", illegal_defense_duration_ );
+    print_param( os, "illegal_defense_number", illegal_defense_number_ );
+    print_param( os, "illegal_defense_dist_x", illegal_defense_dist_x_ );
+    print_param( os, "illegal_defense_width", illegal_defense_width_ );
     print_param( os, "fixed_teamname_l", fixed_teamname_l_ );
     print_param( os, "fixed_teamname_r", fixed_teamname_r_ );
 
