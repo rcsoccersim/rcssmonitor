@@ -7,7 +7,7 @@ AC_INIT([rcssmonitor],[15.2.1],[sserver-admin@users.sf.net])
 #LT_PREREQ(2.2.4)
 
 #AM_INIT_AUTOMAKE([gnu 1.7.2 check-news dist-bzip2 dist-zip])
-AM_INIT_AUTOMAKE([gnu 1.7.2 check-news])
+AM_INIT_AUTOMAKE([gnu 1.7.2 check-news foreign])
 AC_CONFIG_SRCDIR([config.h.in])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIR([m4])
