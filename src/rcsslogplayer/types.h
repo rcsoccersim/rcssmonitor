@@ -72,6 +72,7 @@ enum PlayerState {
     FOUL_CHARGED =    0x00020000, // player is frozen by intentional tackle foul
     YELLOW_CARD =     0x00040000,
     RED_CARD =        0x00080000,
+    ILLEGAL_DEFENSE = 0x00100000,
 };
 
 /*!
@@ -903,6 +904,10 @@ struct PlayerT {
           return state_ & RED_CARD;
       }
 
+    bool isIllegalDefenseState() const
+      {
+          return state_ & ILLEGAL_DEFENSE;
+      }
 };
 
 /*!

@@ -543,6 +543,13 @@ ConfigDialog::createPlayerInfoControls()
                  this, SLOT( clickShowCard( bool ) ) );
         layout->addWidget( M_card_cb );
 
+        //
+        M_illegal_defense_cb = new QCheckBox( tr( "Illegal Defense" ) );
+        M_illegal_defense_cb->setChecked( Options::instance().showIllegalDefenseState() );
+        connect( M_illegal_defense_cb, SIGNAL( clicked( bool ) ),
+                 this, SLOT( clickShowIllegalDefense( bool ) ) );
+        layout->addWidget( M_illegal_defense_cb );
+
         top_layout->addLayout( layout );
     }
     {
@@ -1276,6 +1283,7 @@ ConfigDialog::updateAll()
     M_kick_accel_area_cb->setChecked( opt.showKickAccelArea() );
     M_pointto_cb->setChecked( opt.showPointto() );
     M_card_cb->setChecked( opt.showCard() );
+    M_illegal_defense_cb->setChecked( opt.showIllegalDefenseState() );
 
     M_show_score_board_cb->setChecked( opt.showScoreBoard() );
     M_show_keepaway_area_cb->setChecked( opt.showKeepawayArea() );
@@ -1967,6 +1975,33 @@ ConfigDialog::toggleShowCard()
 {
     Options::instance().toggleShowCard();
     M_card_cb->setChecked( Options::instance().showCard() );
+
+    emit configured();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+void
+ConfigDialog::clickShowIllegalDefense( bool checked )
+{
+    if ( Options::instance().showIllegalDefenseState() != checked )
+    {
+        Options::instance().toggleShowIllegalDefenseState();
+        emit configured();
+    }
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+void
+ConfigDialog::toggleShowIllegalDefense()
+{
+    Options::instance().toggleShowIllegalDefenseState();
+    M_illegal_defense_cb->setChecked( Options::instance().showIllegalDefenseState() );
 
     emit configured();
 }
