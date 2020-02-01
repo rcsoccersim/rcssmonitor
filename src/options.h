@@ -192,6 +192,7 @@ private:
     bool M_show_player_number;
     bool M_show_player_type;
     bool M_show_view_area;
+    bool M_show_illegal_defense_state;
     bool M_show_catch_area;
     bool M_show_tackle_area;
     bool M_show_kick_accel_area;
@@ -391,6 +392,9 @@ public:
 
     bool showViewArea() const { return M_show_view_area; }
     void toggleShowViewArea() { M_show_view_area = ! M_show_view_area; }
+
+    bool showIllegalDefenseState() const { return M_show_illegal_defense_state; }
+    void toggleShowIllegalDefenseState() { M_show_illegal_defense_state = ! M_show_illegal_defense_state; }
 
     bool showCatchArea() const { return M_show_catch_area; }
     void toggleShowCatchArea() { M_show_catch_area = ! M_show_catch_area; }

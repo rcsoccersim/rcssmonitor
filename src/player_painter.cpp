@@ -944,7 +944,12 @@ PlayerPainter::drawText( QPainter & painter,
         //                ? M_left_team_pen
         //                : M_right_team_pen );
 
-        if ( text_radius < param.draw_radius_ - 10 )
+        if ( param.player_.isIllegalDefenseState()
+             && opt.showIllegalDefenseState() )
+        {
+            painter.setPen( Qt::red );
+        }
+        else if ( text_radius < param.draw_radius_ - 10 )
         {
             painter.setPen( opt.playerNumberInnerPen() );
         }
@@ -954,6 +959,7 @@ PlayerPainter::drawText( QPainter & painter,
         }
 
         painter.setBrush( Qt::NoBrush );
+
         painter.drawText( param.x_ + text_radius + card_offset,
                           param.y_,
                           QString::fromLatin1( main_buf ) );

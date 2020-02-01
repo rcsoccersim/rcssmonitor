@@ -199,6 +199,8 @@ Options::Options()
     M_show_player_number( true ),
     M_show_player_type( false ),
     M_show_view_area( false ),
+    M_show_illegal_defense_state( false ),
+    M_show_catch_area( false ),
     M_show_tackle_area( false ),
     M_show_stamina( false ),
     M_show_pointto( false ),
@@ -418,6 +420,9 @@ Options::readSettings()
 
     val = settings.value( "show_view_area" );
     if ( val.isValid() ) M_show_view_area = val.toBool();
+
+    val = settings.value( "show_illegal_defense_state" );
+    if ( val.isValid() ) M_show_illegal_defense_state = val.toBool();
 
     val = settings.value( "show_catch_area" );
     if ( val.isValid() ) M_show_catch_area = val.toBool();
@@ -688,6 +693,7 @@ Options::writeSettings( bool all )
     settings.setValue( "show_player_number", M_show_player_number );
     settings.setValue( "show_player_type", M_show_player_type );
     settings.setValue( "show_view_area", M_show_view_area );
+    settings.setValue( "show_illegal_defense_state", M_show_illegal_defense_state );
     settings.setValue( "show_catch_area", M_show_catch_area );
     settings.setValue( "show_tackle_area", M_show_tackle_area );
     settings.setValue( "show_kick_accel_area", M_show_kick_accel_area );
@@ -869,6 +875,9 @@ Options::parseCmdLine( int argc,
         ( "show-view-area",
           po::value< bool >( &M_show_view_area )->default_value( M_show_view_area, to_onoff( M_show_view_area ) ),
           "show player\'s view area." )
+        ( "show-illegal-defense_state",
+          po::value< bool >( &M_show_illegal_defense_state )->default_value( M_show_illegal_defense_state, to_onoff( M_show_illegal_defense_state ) ),
+          "show player\'s illegal defense state." )
         ( "show-catch-area",
           po::value< bool >( &M_show_catch_area )->default_value( M_show_catch_area, to_onoff( M_show_catch_area ) ),
           "show player\'s catch area." )
