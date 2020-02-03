@@ -243,6 +243,12 @@ PlayerPainter::drawBody( QPainter & painter,
     {
         painter.setBrush( Qt::black );
     }
+
+    if ( param.player_.isIllegalDefenseState()
+         && opt.showIllegalDefenseState() )
+    {
+        painter.setPen( opt.illegalDefensePen() );
+    }
     if ( param.player_.isKicking() )
     {
         painter.setPen( opt.kickPen() );
@@ -337,15 +343,7 @@ PlayerPainter::drawBody( QPainter & painter,
     }
 
     // draw real body edge
-    if ( param.player_.isIllegalDefenseState()
-         && opt.showIllegalDefenseState() )
-    {
-        painter.setPen( opt.illegalDefensePen() );
-    }
-    else
-    {
-        painter.setPen( opt.playerPen() );
-    }
+    painter.setPen( opt.playerPen() );
     painter.setBrush( Qt::NoBrush );
     painter.drawEllipse( param.x_ - param.body_radius_,
                          param.y_ - param.body_radius_,
