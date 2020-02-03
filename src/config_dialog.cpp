@@ -1202,6 +1202,9 @@ ConfigDialog::createColorItems()
     M_color_list_box->addItem( new ColorItem( tr( "Pointto" ),
                                               o->pointtoPen().color(),
                                               boost::bind1st( std::mem_fun( &Options::setPointtoColor ), o ) ) );
+    M_color_list_box->addItem( new ColorItem( tr( "Illegal Defense" ),
+                                              o->pointtoPen().color(),
+                                              boost::bind1st( std::mem_fun( &Options::setIllegalDefenseColor ), o ) ) );
 }
 
 /*-------------------------------------------------------------------*/

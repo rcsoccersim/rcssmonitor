@@ -122,6 +122,7 @@ const QColor Options::TACKLE_COLOR( 255, 136, 127 );
 const QColor Options::TACKLE_FAULT_COLOR( 79, 159, 159 );
 const QColor Options::FOUL_CHARGED_COLOR( 0, 127, 0 );
 const QColor Options::POINTTO_COLOR( 255, 0, 191 );
+const QColor Options::ILLEGAL_DEFENSE_COLOR( 255, 0, 0 );
 
 
 namespace {
@@ -267,6 +268,7 @@ Options::Options()
     M_tackle_fault_brush( TACKLE_FAULT_COLOR, Qt::SolidPattern ),
     M_foul_charged_brush( FOUL_CHARGED_COLOR, Qt::SolidPattern ),
     M_pointto_pen( POINTTO_COLOR, 0, Qt::SolidLine ),
+    M_illegal_defense_pen( ILLEGAL_DEFENSE_COLOR, 2, Qt::SolidLine ),
       //
     M_score_board_font( "Sans Serif", 16, QFont::Bold ),
     M_player_font( "Sans Serif", 9, QFont::Bold ),
@@ -612,6 +614,12 @@ Options::readSettings()
     val = settings.value( "foul_charged_brush" );
     if ( val.isValid() ) M_foul_charged_brush.setColor( val.toString() );
 
+    val = settings.value( "pointto_pen" );
+    if ( val.isValid() ) M_pointto_pen.setColor( val.toString() );
+
+    val = settings.value( "illegal_defense_pen" );
+    if ( val.isValid() ) M_illegal_defense_pen.setColor( val.toString() );
+
     settings.endGroup();
 
     //
@@ -755,6 +763,8 @@ Options::writeSettings( bool all )
     settings.setValue( "tackle_brush", M_tackle_brush.color().name() );
     settings.setValue( "tackle_fault_brush", M_tackle_fault_brush.color().name() );
     settings.setValue( "foul_charged_brush", M_foul_charged_brush.color().name() );
+    settings.setValue( "pointto_pen", M_pointto_pen.color().name() );
+    settings.setValue( "illegal_defense_pen", M_illegal_defense_pen.color().name() );
     settings.endGroup();
 
     //
@@ -1117,6 +1127,7 @@ Options::setDefaultColor()
     M_tackle_fault_brush.setColor( TACKLE_FAULT_COLOR );
     M_foul_charged_brush.setColor( FOUL_CHARGED_COLOR );
     M_pointto_pen.setColor( POINTTO_COLOR );
+    M_illegal_defense_pen.setColor( ILLEGAL_DEFENSE_COLOR );
 }
 
 /*-------------------------------------------------------------------*/
