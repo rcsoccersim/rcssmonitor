@@ -337,7 +337,15 @@ PlayerPainter::drawBody( QPainter & painter,
     }
 
     // draw real body edge
-    painter.setPen( opt.playerPen() );
+    if ( param.player_.isIllegalDefenseState()
+         && opt.showIllegalDefenseState() )
+    {
+        painter.setPen( opt.illegalDefensePen() );
+    }
+    else
+    {
+        painter.setPen( opt.playerPen() );
+    }
     painter.setBrush( Qt::NoBrush );
     painter.drawEllipse( param.x_ - param.body_radius_,
                          param.y_ - param.body_radius_,
@@ -947,7 +955,7 @@ PlayerPainter::drawText( QPainter & painter,
         if ( param.player_.isIllegalDefenseState()
              && opt.showIllegalDefenseState() )
         {
-            painter.setPen( Qt::red );
+            painter.setPen( opt.illegalDefensePen() );
         }
         else if ( text_radius < param.draw_radius_ - 10 )
         {

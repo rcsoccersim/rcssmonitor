@@ -133,6 +133,7 @@ public:
     static const QColor TACKLE_FAULT_COLOR;
     static const QColor FOUL_CHARGED_COLOR;
     static const QColor POINTTO_COLOR;
+    static const QColor ILLEGAL_DEFENSE_COLOR;
 
 private:
 
@@ -283,6 +284,7 @@ private:
     QBrush M_tackle_fault_brush;
     QBrush M_foul_charged_brush;
     QPen M_pointto_pen;
+    QPen M_illegal_defense_pen;
 
 
     // font
@@ -651,7 +653,8 @@ public:
     void setFoulChargedColor( const QColor & col ) { M_foul_charged_brush.setColor( col ); }
     const QPen & pointtoPen() const { return M_pointto_pen; }
     void setPointtoColor( const QColor & col ) { M_pointto_pen.setColor( col ); }
-
+    const QPen & illegalDefensePen() const { return M_illegal_defense_pen; }
+    void setIllegalDefenseColor( const QColor & col ) { M_illegal_defense_pen.setColor( col ); }
 
     //
 
