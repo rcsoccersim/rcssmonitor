@@ -52,7 +52,6 @@ private:
 
     bool M_forward;
     bool M_live_mode;
-    bool M_need_recovering;
 
     // not used
     LogPlayer();
@@ -95,8 +94,8 @@ public slots:
     void accelerateBack();
     void accelerateForward();
 
-//     void goToPrevScore();
-//     void goToNextScore();
+    void goToPrevScore();
+    void goToNextScore();
 
     void goToFirst();
     void goToLast();

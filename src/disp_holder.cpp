@@ -55,6 +55,7 @@
 #include <cstring>
 
 const size_t DispHolder::INVALID_INDEX = size_t( -1 );
+const size_t DispHolder::MAX_SIZE = 65535;
 
 namespace {
 struct TimeCmp {
@@ -74,7 +75,7 @@ DispHolder::DispHolder()
     : M_rcg_version( 0 ),
       M_current_index( INVALID_INDEX )
 {
-    M_disp_cont.reserve( 65535 );
+    M_disp_cont.reserve( MAX_SIZE );
 }
 
 /*-------------------------------------------------------------------*/
@@ -102,9 +103,6 @@ DispHolder::clear()
     M_team_graphic_left.clear();
     M_team_graphic_right.clear();
 
-    M_penalty_scores_left.clear();
-    M_penalty_scores_right.clear();
-
     M_point_cont.clear();
     M_circle_cont.clear();
     M_line_cont.clear();
@@ -112,6 +110,10 @@ DispHolder::clear()
     M_playmode = rcss::rcg::PM_Null;
     M_teams[0].clear();
     M_teams[1].clear();
+
+    M_score_changed_index.clear();
+    M_penalty_scores_left.clear();
+    M_penalty_scores_right.clear();
 
     M_disp.reset();
     M_disp_cont.clear();
@@ -301,12 +303,9 @@ DispHolder::doHandleShowInfo( const rcss::rcg::ShowInfoT & show )
 
     M_disp = disp;
 
-    if ( Options::instance().bufferingMode() )
+    if ( M_disp_cont.size() <= MAX_SIZE )
     {
-        if ( (int)M_disp_cont.size() <= Options::instance().maxDispBuffer() )
-        {
-            M_disp_cont.push_back( disp );
-        }
+        M_disp_cont.push_back( disp );
     }
 }
 
@@ -576,6 +575,12 @@ DispHolder::setIndexStepBack()
         return true;
     }
 
+    if ( Options::instance().autoLoopMode() )
+    {
+        M_current_index = M_disp_cont.size() - 1;
+        return true;
+    }
+
     return false;
 }
 
@@ -601,6 +606,12 @@ DispHolder::setIndexStepForward()
     if ( M_current_index < M_disp_cont.size() - 1 )
     {
         ++M_current_index;
+        return true;
+    }
+
+    if ( Options::instance().autoLoopMode() )
+    {
+        M_current_index = 0;
         return true;
     }
 

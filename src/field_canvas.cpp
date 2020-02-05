@@ -510,7 +510,6 @@ FieldCanvas::drawRecoveringState( QPainter & painter )
     const Options & opt = Options::instance();
 
     if ( ! opt.bufferingMode()
-         || ! opt.bufferRecoverMode()
          || M_disp_holder.currentIndex() == DispHolder::INVALID_INDEX )
     {
         return;

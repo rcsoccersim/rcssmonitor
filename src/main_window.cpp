@@ -1079,8 +1079,6 @@ MainWindow::connectMonitorTo( const char * hostname )
     }
 
     Options::instance().setServerHost( hostname );
-    Options::instance().setMonitorClientMode( true );
-    Options::instance().setBufferRecoverMode( true );
 
 //     M_save_image_act->setEnabled( false );
 //     M_open_output_act->setEnabled( true );
@@ -1320,9 +1318,6 @@ MainWindow::disconnectMonitor()
             setQuitTimer();
         }
     }
-
-    Options::instance().setMonitorClientMode( false );
-    Options::instance().setBufferRecoverMode( false );
 
 //     M_set_live_mode_act->setEnabled( false );
     M_connect_monitor_act->setEnabled( true );

@@ -100,6 +100,7 @@ public:
 
     static const int WAITING_ANIMATION_SIZE;
 
+    // default color settings
     static const QColor FIELD_COLOR;
     static const QColor LINE_COLOR;
     static const QColor MEASURE_LINE_COLOR;
@@ -145,18 +146,18 @@ private:
     int M_server_port;
     int M_client_version;
 
-    //
-    // monitor options
-    //
     bool M_buffering_mode;
-    int M_buffer_size;
-    int M_max_disp_buffer;
-    //std::string M_game_log_file; //!< game log file path to be opened
-    //std::string M_output_file;
+
+    //
+    // monitor/logplayer options
+    //
     bool M_auto_quit_mode;
     int M_auto_quit_wait;
     bool M_auto_reconnect_mode;
     int M_auto_reconnect_wait;
+
+    std::string M_game_log_file; //!< the file path of game log file to be opened
+    bool M_auto_loop_mode;
     int M_timer_interval; //!< logplayer timer interval
 
     //
@@ -226,12 +227,6 @@ private:
 
     // inertia movement
     int M_ball_vel_cycle; //!< specify the cycle to draw ball future point
-
-    //
-    // monitor state
-    //
-    bool M_monitor_client_mode;
-    bool M_buffer_recover_mode;
 
     //
     // painter resources
@@ -331,14 +326,16 @@ public:
     int clientVersion() const { return M_client_version; }
 
     bool bufferingMode() const { return M_buffering_mode; }
-    int bufferSize() const { return M_buffer_size; }
-    int maxDispBuffer() const { return M_max_disp_buffer; }
 
     bool autoQuitMode() const { return M_auto_quit_mode; }
     int autoQuitWait() const { return M_auto_quit_wait; }
 
     bool autoReconnectMode() const { return M_auto_reconnect_mode; }
     int autoReconnectWait() const { return M_auto_reconnect_wait; }
+
+    bool autoLoopMode() const { return M_auto_loop_mode; }
+
+    const std::string & gameLogFile() const { return M_game_log_file; }
 
     int timerInterval() const { return M_timer_interval; }
 
@@ -528,15 +525,6 @@ public:
       {
           if ( 0 <= cycle && cycle <= 100 ) M_ball_vel_cycle = cycle;
       }
-
-    //
-    //
-    //
-    bool monitorClientMode() const { return M_monitor_client_mode; }
-    void setMonitorClientMode( const bool on ) { M_monitor_client_mode = on; }
-
-    bool bufferRecoverMode() const { return M_buffer_recover_mode; }
-    void setBufferRecoverMode( const bool on ) { M_buffer_recover_mode = on; }
 
     //
     //

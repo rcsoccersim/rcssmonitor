@@ -53,15 +53,12 @@ LogPlayer::LogPlayer( DispHolder & disp_holder,
       M_disp_holder( disp_holder ),
       M_timer( new QTimer( this ) ),
       M_forward( true ),
-      M_live_mode( false ),
-      M_need_recovering( false )
+      M_live_mode( false )
 {
     connect( M_timer, SIGNAL( timeout() ),
              this, SLOT( handleTimer() ) );
 
     M_timer->setInterval( Options::instance().timerInterval() );
-
-    Options::instance().setBufferRecoverMode( true );
 }
 
 /*-------------------------------------------------------------------*/
@@ -87,10 +84,8 @@ LogPlayer::clear()
 
     M_forward = true;
     M_live_mode = false;
-    M_need_recovering = false;
-    M_timer->setInterval( Options::instance().timerInterval() );
 
-    Options::instance().setBufferRecoverMode( true );
+    M_timer->setInterval( Options::instance().timerInterval() );
 }
 
 /*-------------------------------------------------------------------*/
@@ -100,28 +95,13 @@ LogPlayer::clear()
 void
 LogPlayer::handleTimer()
 {
-    const Options & opt = Options::instance();
-
-    if ( ! opt.bufferingMode()
-         || ! opt.bufferRecoverMode()
-         || M_disp_holder.currentIndex() == DispHolder::INVALID_INDEX )
+    if ( M_forward )
     {
-        if ( M_forward )
-        {
-            stepForwardImpl();
-        }
-        else
-        {
-            stepBackImpl();
-        }
+        stepForwardImpl();
     }
-
-    adjustTimer();
-
-    if ( opt.bufferingMode()
-         && opt.bufferRecoverMode() )
+    else
     {
-        emit recoverTimerHandled();
+        stepBackImpl();
     }
 }
 
@@ -321,55 +301,54 @@ LogPlayer::accelerateForward()
 /*!
 
 */
-// void
-// LogPlayer::goToPrevScore()
-// {
-//     M_live_mode = false;
+void
+LogPlayer::goToPrevScore()
+{
+    M_live_mode = false;
 
-//     const DispHolder & holder = M_main_data.dispHolder();
+    const std::size_t cur_idx = M_disp_holder.currentIndex();
 
-//     const std::size_t cur_idx = M_main_data.index();
-//     std::vector< std::size_t >::const_reverse_iterator rend = holder.scoreChangedIndex().rend();
-//     for ( std::vector< std::size_t >::const_reverse_iterator it = holder.scoreChangedIndex().rbegin();
-//           it != rend;
-//           ++it )
-//     {
-//         if ( *it < cur_idx )
-//         {
-//             std::size_t new_idx = *it;
-//             new_idx -= ( new_idx < 50 ? new_idx : 50 );
-//             goToIndex( new_idx );
-//             return;
-//         }
-//     }
-// }
+
+    for ( std::vector< std::size_t >::const_reverse_iterator it = M_disp_holder.scoreChangedIndex().rbegin(), rend = M_disp_holder.scoreChangedIndex().rend();
+          it != rend;
+          ++it )
+    {
+        if ( *it < cur_idx )
+        {
+            std::size_t new_idx = ( *it < 50
+                                    ? 0
+                                    : *it - 50 );
+            goToIndex( new_idx );
+            return;
+        }
+    }
+}
 
 /*-------------------------------------------------------------------*/
 /*!
 
 */
-// void
-// LogPlayer::goToNextScore()
-// {
-//     M_live_mode = false;
+void
+LogPlayer::goToNextScore()
+{
+    M_live_mode = false;
 
-//     const DispHolder & holder = M_main_data.dispHolder();
+    const std::size_t cur_idx = M_disp_holder.currentIndex();
 
-//     const std::size_t cur_idx = M_main_data.index();
-//     std::vector< std::size_t >::const_iterator end = holder.scoreChangedIndex().end();
-//     for ( std::vector< std::size_t >::const_iterator it = holder.scoreChangedIndex().begin();
-//           it != end;
-//           ++it )
-//     {
-//         if ( 50 < *it && cur_idx < *it - 50 )
-//         {
-//             std::size_t new_idx = *it;
-//             new_idx -= ( new_idx < 50 ? 0 : 50 );
-//             goToIndex( new_idx );
-//             return;
-//         }
-//     }
-// }
+    for ( std::vector< std::size_t >::const_iterator it = M_disp_holder.scoreChangedIndex().begin(), end = M_disp_holder.scoreChangedIndex().end();
+          it != end;
+          ++it )
+    {
+        if ( cur_idx < *it - 50 )
+        {
+            std::size_t new_idx = ( *it < 50
+                                    ? 0
+                                    : *it - 50 );
+            goToIndex( new_idx );
+            return;
+        }
+    }
+}
 
 /*-------------------------------------------------------------------*/
 /*!
@@ -472,21 +451,10 @@ LogPlayer::goToCycle( int cycle )
 void
 LogPlayer::showLive()
 {
-    if ( M_timer->isActive() )
+    if ( M_disp_holder.setIndexLast() )
     {
         M_timer->stop();
-    }
 
-    if ( Options::instance().bufferingMode() )
-    {
-        if ( M_disp_holder.setIndexLast() )
-        {
-            emit updated();
-        }
-    }
-    else
-    {
-        M_disp_holder.setIndexLast();
         emit updated();
     }
 
@@ -532,6 +500,7 @@ LogPlayer::startTimer()
     }
 }
 
+#if 0
 /*-------------------------------------------------------------------*/
 /*!
 
@@ -561,7 +530,7 @@ LogPlayer::adjustTimer()
     size_t current = M_disp_holder.currentIndex();
     if ( current == DispHolder::INVALID_INDEX )
     {
-        Options::instance().setBufferRecoverMode( true );
+        //Options::instance().setBufferRecoverMode( true );
 
         if ( M_timer->interval() != interval
              || ! M_timer->isActive() )
@@ -641,3 +610,5 @@ LogPlayer::adjustTimer()
         M_timer->start( interval );
     }
 }
+
+#endif
