@@ -169,7 +169,6 @@ Options::Options()
     M_server_host( "127.0.0.1" ),
     M_server_port( 6000 ),
     M_client_version( 4 ),
-    M_buffering_mode( false ),
     M_auto_quit_mode( false ),
     M_auto_quit_wait( 5 ),
     M_auto_reconnect_mode( false ),
@@ -186,7 +185,7 @@ Options::Options()
     M_canvas_width( -1 ),
     M_canvas_height( -1 ),
     M_show_menu_bar( true ),
-    // M_show_tool_bar( false )
+    M_show_tool_bar( false ),
     M_show_status_bar( false ),
     // view options
     M_anti_aliasing( true ),
@@ -332,8 +331,8 @@ Options::readSettings()
     val = settings.value( "show_menu_bar" );
     if ( val.isValid() ) M_show_menu_bar = val.toBool();
 
-//     val = settings.value( "show_tool_bar" );
-//     if ( val.isValid() ) M_show_tool_bar = val.toBool();
+    val = settings.value( "show_tool_bar" );
+    if ( val.isValid() ) M_show_tool_bar = val.toBool();
 
     val = settings.value( "show_status_bar" );
     if ( val.isValid() ) M_show_status_bar = val.toBool();
@@ -357,9 +356,6 @@ Options::readSettings()
 
     val = settings.value( "client_version" );
     if ( val.isValid() ) M_client_version = val.toInt();
-
-    val = settings.value( "buffering_mode" );
-    if ( val.isValid() ) M_buffering_mode = val.toBool();
 
     val = settings.value( "auto_quit_mode" );
     if ( val.isValid() ) M_auto_quit_mode = val.toBool();
@@ -659,7 +655,7 @@ Options::writeSettings( bool all )
         settings.setValue( "maximize", M_maximize );
         settings.setValue( "full_screen", M_full_screen );
         settings.setValue( "show_menu_bar", M_show_menu_bar );
-        //     settings.setValue( "show_tool_bar", M_show_tool_bar );
+        settings.setValue( "show_tool_bar", M_show_tool_bar );
         settings.setValue( "show_status_bar", M_show_status_bar );
         settings.endGroup();
 
@@ -671,7 +667,6 @@ Options::writeSettings( bool all )
         settings.setValue( "server_host", QString::fromStdString( M_server_host ) );
         settings.setValue( "server_port", M_server_port );
         settings.setValue( "client_version", M_client_version );
-        settings.setValue( "buffering_mode", M_buffering_mode );
         settings.setValue( "auto_quit_mode", M_auto_quit_mode );
         settings.setValue( "auto_quit_wait", M_auto_quit_wait );
         settings.setValue( "auto_reconnect_mode", M_auto_reconnect_mode );
@@ -805,12 +800,9 @@ Options::parseCmdLine( int argc,
         ( "client-version",
           po::value< int >( &M_client_version )->default_value( M_client_version ),
           "set a monitor client protocol version." )
-        ( "buffering-mode",
-          po::value< bool >( &M_buffering_mode )->default_value( M_buffering_mode, to_onoff( M_buffering_mode ) ),
-          "enable buffering mode." )
         ( "timer-interval",
           po::value< int >( &M_timer_interval )->default_value( M_timer_interval ),
-          "set the desired timer interval [ms] for buffering mode." )
+          "set the default timer interval [ms] for replaying a game log file." )
         ( "auto-quit-mode",
           po::value< bool >( &M_auto_quit_mode )->default_value( M_auto_quit_mode, to_onoff( M_auto_quit_mode ) ),
           "enable automatic quit mode." )
@@ -839,9 +831,9 @@ Options::parseCmdLine( int argc,
         ( "show-menu-bar",
           po::value< bool >( &M_show_menu_bar )->default_value( M_show_menu_bar, to_onoff( M_show_menu_bar ) ),
           "show menu bar." )
-//         ( "show-tool-bar",
-//           po::value< bool >( &M_show_tool_bar )->default_value( M_show_tool_bar ),
-//           "start without a tool bar." )
+        ( "show-tool-bar",
+          po::value< bool >( &M_show_tool_bar )->default_value( M_show_tool_bar ),
+          "start without a tool bar." )
         ( "show-status-bar",
           po::value< bool >( &M_show_status_bar )->default_value( M_show_status_bar, to_onoff( M_show_status_bar ) ),
           "show status bar." )

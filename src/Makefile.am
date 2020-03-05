@@ -5,6 +5,7 @@ AUTOMAKE_OPTIONS = subdir-objects
 bin_PROGRAMS = rcssmonitor
 
 rcssmonitor_SOURCES = \
+	rcsslogplayer/gzfstream.cpp \
 	rcsslogplayer/parser.cpp \
 	rcsslogplayer/types.cpp \
 	rcsslogplayer/util.cpp \
@@ -18,6 +19,7 @@ rcssmonitor_SOURCES = \
 	field_painter.cpp \
 	line_2d.cpp \
 	log_player.cpp \
+	log_player_slider.cpp \
 	main_window.cpp \
 	monitor_client.cpp \
 	options.cpp \
@@ -33,11 +35,13 @@ nodist_rcssmonitor_SOURCES = \
 	moc_config_dialog.cpp \
 	moc_field_canvas.cpp \
 	moc_log_player.cpp \
+	moc_log_player_slider.cpp \
 	moc_main_window.cpp \
 	moc_monitor_client.cpp \
 	moc_player_type_dialog.cpp
 
 noinst_HEADERS = \
+	rcsslogplayer/gzfstream.h \
 	rcsslogplayer/handler.h \
 	rcsslogplayer/parser.h \
 	rcsslogplayer/types.h \
@@ -52,6 +56,7 @@ noinst_HEADERS = \
 	field_painter.h \
 	line_2d.h \
 	log_player.h \
+	log_player_slider.h \
 	main_window.h \
 	monitor_client.h \
 	mouse_state.h \

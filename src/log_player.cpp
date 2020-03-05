@@ -52,7 +52,6 @@ LogPlayer::LogPlayer( DispHolder & disp_holder,
     : QObject( parent ),
       M_disp_holder( disp_holder ),
       M_timer( new QTimer( this ) ),
-      M_forward( true ),
       M_live_mode( false )
 {
     connect( M_timer, SIGNAL( timeout() ),
@@ -82,7 +81,6 @@ LogPlayer::clear()
         M_timer->stop();
     }
 
-    M_forward = true;
     M_live_mode = false;
 
     M_timer->setInterval( Options::instance().timerInterval() );
@@ -95,14 +93,7 @@ LogPlayer::clear()
 void
 LogPlayer::handleTimer()
 {
-    if ( M_forward )
-    {
-        stepForwardImpl();
-    }
-    else
-    {
-        stepBackImpl();
-    }
+    stepForwardImpl();
 }
 
 /*-------------------------------------------------------------------*/
@@ -110,11 +101,12 @@ LogPlayer::handleTimer()
 
 */
 void
-LogPlayer::stepBackImpl()
+LogPlayer::stepBackwardImpl()
 {
     if ( M_disp_holder.setIndexStepBack() )
     {
-        emit updated();
+        emit indexUpdated( M_disp_holder.currentIndex(), M_disp_holder.dispCont().size() );
+        //emit updated();
     }
     else
     {
@@ -131,7 +123,8 @@ LogPlayer::stepForwardImpl()
 {
     if ( M_disp_holder.setIndexStepForward() )
     {
-        emit updated();
+        emit indexUpdated( M_disp_holder.currentIndex(), M_disp_holder.dispCont().size() );
+        //emit updated();
     }
     else
     {
@@ -158,13 +151,12 @@ LogPlayer::stepForwardImpl()
 
 */
 void
-LogPlayer::stepBack()
+LogPlayer::stepBackward()
 {
     M_live_mode = false;
-    M_forward = false;
     M_timer->stop();
 
-    stepBackImpl();
+    stepBackwardImpl();
 }
 
 /*-------------------------------------------------------------------*/
@@ -175,7 +167,6 @@ void
 LogPlayer::stepForward()
 {
     M_live_mode = false;
-    M_forward = true;
     M_timer->stop();
 
     stepForwardImpl();
@@ -186,21 +177,20 @@ LogPlayer::stepForward()
 
 */
 void
-LogPlayer::playOrStop()
+LogPlayer::playOrStop( bool play )
 {
     M_live_mode = false;
 
-    if ( M_timer->isActive() )
-    {
-        M_timer->stop();
-    }
-    else if ( M_forward )
+    if ( play )
     {
         playForward();
     }
     else
     {
-        playBack();
+        if ( M_timer->isActive() )
+        {
+            M_timer->stop();
+        }
     }
 }
 
@@ -220,10 +210,9 @@ LogPlayer::stop()
 
 */
 void
-LogPlayer::playBack()
+LogPlayer::playBackward()
 {
     M_live_mode = false;
-    M_forward = false;
 
     if ( ! M_timer->isActive()
          || M_timer->interval() != Options::instance().timerInterval() )
@@ -240,7 +229,6 @@ void
 LogPlayer::playForward()
 {
     M_live_mode = false;
-    M_forward = true;
 
     if ( ! M_timer->isActive()
          || M_timer->interval() != Options::instance().timerInterval() )
@@ -254,55 +242,7 @@ LogPlayer::playForward()
 
 */
 void
-LogPlayer::accelerateBack()
-{
-    int interval = 0;
-    if ( M_forward
-         || ! M_timer->isActive() )
-    {
-        interval = Options::instance().timerInterval() / 2;
-    }
-    else
-    {
-        interval = M_timer->interval() / 2;
-        if ( interval < 10 ) interval = 10;
-    }
-
-    M_live_mode = false;
-    M_forward = false;
-    M_timer->start( interval );
-}
-
-/*-------------------------------------------------------------------*/
-/*!
-
-*/
-void
-LogPlayer::accelerateForward()
-{
-    int interval = 0;
-    if ( ! M_forward
-        || ! M_timer->isActive() )
-    {
-        interval = Options::instance().timerInterval() / 2;
-    }
-    else
-    {
-        interval = M_timer->interval() / 2;
-        if ( interval < 10 ) interval = 10;
-    }
-
-    M_live_mode = false;
-    M_forward = true;
-    M_timer->start( interval );
-}
-
-/*-------------------------------------------------------------------*/
-/*!
-
-*/
-void
-LogPlayer::goToPrevScore()
+LogPlayer::goToPreviousScore()
 {
     M_live_mode = false;
 
@@ -362,7 +302,8 @@ LogPlayer::goToFirst()
         M_live_mode = false;
         M_timer->stop();
 
-        emit updated();
+        emit indexUpdated( M_disp_holder.currentIndex(), M_disp_holder.dispCont().size() );
+        //emit updated();
     }
 }
 
@@ -378,7 +319,8 @@ LogPlayer::goToLast()
         M_live_mode = false;
         M_timer->stop();
 
-        emit updated();
+        emit indexUpdated( M_disp_holder.currentIndex(), M_disp_holder.dispCont().size() );
+        //emit updated();
     }
 }
 
@@ -391,8 +333,7 @@ LogPlayer::decelerate()
 {
     if ( M_timer->isActive() )
     {
-        int interval = M_timer->interval() * 2;
-        if ( 5000 < interval ) interval = 5000;
+        const int interval = std::min( 5000, M_timer->interval() * 2 );
         M_timer->start( interval );
     }
 }
@@ -406,8 +347,7 @@ LogPlayer::accelerate()
 {
     if ( M_timer->isActive() )
     {
-        int interval = M_timer->interval() / 2;
-        if ( interval < 5 ) interval = 5;
+        const int interval = std::max( 5, M_timer->interval() / 2 );
         M_timer->start( interval );
     }
 }
@@ -424,7 +364,8 @@ LogPlayer::goToIndex( int index )
         M_live_mode = false;
         //M_timer->stop();
 
-        emit updated();
+        emit indexUpdated( M_disp_holder.currentIndex(), M_disp_holder.dispCont().size() );
+        //emit updated();
     }
 }
 
@@ -440,7 +381,8 @@ LogPlayer::goToCycle( int cycle )
         M_live_mode = false;
         //M_timer->stop();
 
-        emit updated();
+        emit indexUpdated( M_disp_holder.currentIndex(), M_disp_holder.dispCont().size() );
+        //emit updated();
     }
 }
 
@@ -455,7 +397,8 @@ LogPlayer::showLive()
     {
         M_timer->stop();
 
-        emit updated();
+        emit indexUpdated( M_disp_holder.currentIndex(), M_disp_holder.dispCont().size() );
+        //emit updated();
     }
 
     if ( M_disp_holder.playmode() == rcss::rcg::PM_TimeOver )
@@ -499,116 +442,3 @@ LogPlayer::startTimer()
         M_timer->start( Options::instance().timerInterval() );
     }
 }
-
-#if 0
-/*-------------------------------------------------------------------*/
-/*!
-
-*/
-void
-LogPlayer::adjustTimer()
-{
-    const Options & opt = Options::instance();
-
-    M_live_mode = false;
-
-    const int buffer_size = M_disp_holder.dispCont().size();
-
-    if ( buffer_size == 0 )
-    {
-        if ( M_timer->isActive() )
-        {
-            M_timer->stop();
-        }
-        return;
-    }
-
-    const rcss::rcg::ServerParamT & SP = M_disp_holder.serverParam();
-
-    int interval = std::min( opt.timerInterval(), SP.simulator_step_ );
-
-    size_t current = M_disp_holder.currentIndex();
-    if ( current == DispHolder::INVALID_INDEX )
-    {
-        //Options::instance().setBufferRecoverMode( true );
-
-        if ( M_timer->interval() != interval
-             || ! M_timer->isActive() )
-        {
-            M_timer->start( interval );
-        }
-
-        return;
-    }
-
-    const int max_cache_size = std::max( 1, opt.bufferSize() );
-    const int current_cache = buffer_size - current - 1;
-
-//     std::cerr << "index=" << current
-//               << " buffer_size=" << buffer_size
-//               << " max_cache_size=" << max_cache_size
-//               << " current_cache=" << current_cache
-//               << std::endl;
-
-    if ( ! opt.monitorClientMode()
-         || M_disp_holder.playmode() == rcss::rcg::PM_TimeOver )
-    {
-        Options::instance().setBufferRecoverMode( false );
-    }
-    else if ( current_cache <= 1 )
-    {
-        Options::instance().setBufferRecoverMode( true );
-    }
-    else if ( current_cache >= max_cache_size )
-    {
-        Options::instance().setBufferRecoverMode( false );
-    }
-
-    if ( ! opt.monitorClientMode()
-         || M_disp_holder.playmode() == rcss::rcg::PM_TimeOver )
-    {
-        // default interval
-    }
-    else if ( opt.bufferRecoverMode() )
-    {
-        interval = std::max( opt.timerInterval(), SP.simulator_step_ );
-    }
-    else if ( current_cache >= max_cache_size )
-    {
-        M_need_recovering = false;
-    }
-    else if ( M_need_recovering )
-    {
-        interval = std::max( opt.timerInterval(), SP.simulator_step_ ) * 11 / 10;
-    }
-    else if ( current_cache <= max_cache_size / 2
-              && M_disp_holder.playmode() != rcss::rcg::PM_TimeOver )
-    {
-        M_need_recovering = true;
-        interval = std::max( opt.timerInterval(), SP.simulator_step_ ) * 11 / 10;
-    }
-    else if ( current_cache > max_cache_size / 2 )
-    {
-        interval = std::max( opt.timerInterval(), SP.simulator_step_ );
-    }
-
-#if 0
-    if ( M_timer->interval() != interval )
-    {
-        std::cerr << "change interval " << interval << std::endl;
-    }
-#endif
-
-//     std::cout << "disp_size=" << buffer_size
-//               << " current_cache=" << current_cache
-//               << " interval=" << interval
-//               << std::endl;
-
-    if ( M_timer->interval() != interval
-         || ! M_timer->isActive() )
-    {
-        M_timer->start( interval );
-    }
-}
-
-#endif

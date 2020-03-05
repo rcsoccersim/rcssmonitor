@@ -146,8 +146,6 @@ private:
     int M_server_port;
     int M_client_version;
 
-    bool M_buffering_mode;
-
     //
     // monitor/logplayer options
     //
@@ -174,7 +172,7 @@ private:
     int M_canvas_height;
 
     bool M_show_menu_bar;
-//     bool M_show_tool_bar;
+    bool M_show_tool_bar;
     bool M_show_status_bar;
 
     //
@@ -325,8 +323,6 @@ public:
     int serverPort() const { return M_server_port; }
     int clientVersion() const { return M_client_version; }
 
-    bool bufferingMode() const { return M_buffering_mode; }
-
     bool autoQuitMode() const { return M_auto_quit_mode; }
     int autoQuitWait() const { return M_auto_quit_wait; }
 
@@ -355,7 +351,7 @@ public:
     int canvasHeight() const { return M_canvas_height; }
 
     bool showMenuBar() const { return M_show_menu_bar; }
-//     bool showToolBar() const { return M_show_tool_bar; }
+    bool showToolBar() const { return M_show_tool_bar; }
     bool showStatusBar() const { return M_show_status_bar; }
 
     //

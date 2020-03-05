@@ -302,11 +302,23 @@ DispHolder::doHandleShowInfo( const rcss::rcg::ShowInfoT & show )
     disp->show_ = show;
 
     M_disp = disp;
-
+#if 0
+    if ( ! M_disp_cont.empty() )
+    {
+        if ( ( M_playmode == rcss::rcg::PM_BeforeKickOff
+               && M_disp_cont.back()->pmode_ == rcss::rcg::PM_BeforeKickOff )
+             || ( M_playmode == rcss::rcg::PM_TimeOver
+                  && M_disp_cont.back()->pmode_ == rcss::rcg::PM_TimeOver ) )
+        {
+            M_disp_cont.pop_back();
+        }
+    }
+#endif
     if ( M_disp_cont.size() <= MAX_SIZE )
     {
         M_disp_cont.push_back( disp );
     }
+
 }
 
 /*-------------------------------------------------------------------*/
@@ -367,6 +379,12 @@ DispHolder::doHandleTeamInfo( const int,
                               const rcss::rcg::TeamT & team_l,
                               const rcss::rcg::TeamT & team_r )
 {
+    if ( M_teams[0].score_ != team_l.score_
+         || M_teams[1].score_ != team_r.score_ )
+    {
+        M_score_changed_index.push_back( M_disp_cont.size() - 1 );
+    }
+
     M_teams[0] = team_l;
     M_teams[1] = team_r;
 }
