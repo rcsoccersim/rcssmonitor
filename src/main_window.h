@@ -44,6 +44,7 @@ class QLabel;
 class ConfigDialog;
 class FieldCanvas;
 class LogPlayer;
+class LogPlayerSlider;
 class MonitorClient;
 class PlayerTypeDialog;
 
@@ -58,20 +59,22 @@ private:
 
     DispHolder M_disp_holder;
 
+    QToolBar * M_log_player_tool_bar;
+
     PlayerTypeDialog * M_player_type_dialog;
     ConfigDialog * M_config_dialog;
     FieldCanvas * M_field_canvas;
     MonitorClient * M_monitor_client;
     LogPlayer * M_log_player;
+    //LogPlayerSlider * M_log_player_slider;
 
     QLabel * M_position_label;
-    QLabel * M_buffering_label;
 
     // file actions
+    QAction * M_open_act;
     QAction * M_exit_act;
 
     // monitor actions
-//     QAction * M_set_live_mode_act;
     QAction * M_connect_monitor_act;
     QAction * M_connect_monitor_to_act;
     QAction * M_disconnect_monitor_act;
@@ -82,9 +85,21 @@ private:
     QAction * M_red_card_act;
     QActionGroup * M_playmode_change_act_group;
 
+    // logplayer actions
+    QAction * M_live_mode_act;
+    QAction * M_log_player_play_or_stop_act;
+    QAction * M_log_player_step_backward_act;
+    QAction * M_log_player_step_forward_act;
+    QAction * M_log_player_decelerate_act;
+    QAction * M_log_player_accelerate_act;
+    QAction * M_log_player_previous_score_act;
+    QAction * M_log_player_next_score_act;
+    QAction * M_log_player_go_to_first_act;
+    QAction * M_log_player_go_to_last_act;
+
     // view actions
     QAction * M_toggle_menu_bar_act;
-//     QAction * M_toggle_tool_bar_act;
+    QAction * M_toggle_tool_bar_act;
     QAction * M_toggle_status_bar_act;
     QAction * M_full_screen_act;
     QAction * M_show_player_type_dialog_act;
@@ -111,6 +126,7 @@ private:
     void createActionsFile();
     void createActionsMonitor();
     void createActionsReferee();
+    void createActionsLogPlayer();
     void createActionsView();
     void createActionsHelp();
 
@@ -132,12 +148,15 @@ protected:
     // overrided methods
     void closeEvent( QCloseEvent * event );
 //     void resizeEvent( QResizeEvent * event );
-//     void wheelEvent( QWheelEvent * event );
+    void wheelEvent( QWheelEvent * event );
 
 //     void dragEnterEvent( QDragEnterEvent * event );
 //     void dropEvent( QDropEvent * event );
 
 private:
+
+    void openGameLogFile( const QString & filepath );
+    bool openGameLogFileImpl( const QString & filepath );
 
     void connectMonitorTo( const char * hostname );
 
@@ -148,6 +167,9 @@ private slots:
 
     void setQuitTimer();
 
+    // file menu action slots
+    void openGameLogFile();
+
     // monitor menu action slots
     void kickOff();
     void connectMonitor(); // connect to the host given by command lien or localhost
@@ -157,7 +179,7 @@ private slots:
 
     // view menu actions slots
     void toggleMenuBar( bool checked );
-//     void toggleToolBar();
+    void toggleToolBar( bool checked );
     void toggleStatusBar( bool checked );
     void toggleFullScreen();
     void showPlayerTypeDialog();
@@ -183,9 +205,10 @@ private slots:
     void receiveMonitorPacket();
     void resizeCanvas( const QSize & size );
     void updatePositionLabel( const QPoint & point );
-    void updateBufferingLabel();
 
-    void showRecoveringState();
+    //
+    void setLiveMode();
+    void togglePlayOrStopIcon( bool checked );
 
 signals:
 

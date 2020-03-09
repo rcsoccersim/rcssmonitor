@@ -297,8 +297,6 @@ FieldCanvas::paintEvent( QPaintEvent * )
     {
         drawMouseMeasure( painter );
     }
-
-    drawRecoveringState( painter );
 }
 
 /*-------------------------------------------------------------------*/
@@ -498,71 +496,6 @@ FieldCanvas::drawMouseMeasure( QPainter & painter )
     painter.drawText( end_point.x(),
                       end_point.y() + dist_add_y,
                       QString::fromLatin1( buf ) );
-}
-
-/*-------------------------------------------------------------------*/
-/*!
-
-*/
-void
-FieldCanvas::drawRecoveringState( QPainter & painter )
-{
-    const Options & opt = Options::instance();
-
-    if ( ! opt.bufferingMode()
-         || ! opt.bufferRecoverMode()
-         || M_disp_holder.currentIndex() == DispHolder::INVALID_INDEX )
-    {
-        return;
-    }
-
-    static const int divs = 16;
-    static const double angle_step = 360.0 / divs;
-
-    static int s_current_index = 0;
-
-    painter.save();
-
-    painter.translate( QPoint( this->width() / 2,
-                               this->height() / 2 ) );
-#if 0
-    size_t cur = M_disp_holder.currentIndex() == DispHolder::INVALID_INDEX
-        ? 0
-        : M_disp_holder.currentIndex();
-    int caching = M_disp_holder.dispCont().size() - cur - 1;
-
-    painter.setPen( Qt::white );
-    painter.setBrush( Qt::gray );
-    QFont font = opt.scoreBoardFont();
-    font.setPointSize( 18 );
-    font.setBold( true );
-    painter.setFont( font );
-    painter.drawText( QRect( -10, -10, 20, 20 ),
-                      Qt::AlignCenter | Qt::TextSingleLine,
-                      QString::number( caching ) );
-#endif
-    painter.rotate( angle_step * s_current_index );
-
-    painter.setPen( Qt::NoPen );
-
-    const int x_size = std::max( 2, Options::WAITING_ANIMATION_SIZE/4 );
-    const int y_size = std::max( 2, x_size/4 );
-    const int x = std::max( 2, Options::WAITING_ANIMATION_SIZE/2 - x_size );
-
-    for ( int i = 0; i < divs; ++i )
-    {
-        int c = std::max( 95, 255 - ( i * 32 ) );
-        //int c = std::min( 191, i * 32 );
-        painter.setBrush( QColor( c, c, c ) );
-        painter.drawRoundedRect( x, 0,
-                                 x_size, y_size,
-                                 4.0, 4.0 );
-        painter.rotate( -angle_step );
-    }
-
-    painter.restore();
-
-    s_current_index = ( s_current_index + 1 ) % divs;
 }
 
 /*-------------------------------------------------------------------*/

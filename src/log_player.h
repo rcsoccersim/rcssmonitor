@@ -50,9 +50,7 @@ private:
 
     QTimer * M_timer;
 
-    bool M_forward;
     bool M_live_mode;
-    bool M_need_recovering;
 
     // not used
     LogPlayer();
@@ -72,8 +70,7 @@ public:
 
 private:
 
-    void adjustTimer();
-    void stepBackImpl();
+    void stepBackwardImpl();
     void stepForwardImpl();
 
 
@@ -83,26 +80,23 @@ private slots:
 
 public slots:
 
-    void stepBack();
+    void stepBackward();
     void stepForward();
 
-    void playOrStop();
+    void playOrStop( bool play );
     void stop();
 
-    void playBack();
+    void playBackward();
     void playForward();
-
-    void accelerateBack();
-    void accelerateForward();
-
-//     void goToPrevScore();
-//     void goToNextScore();
-
-    void goToFirst();
-    void goToLast();
 
     void decelerate();
     void accelerate();
+
+    void goToPreviousScore();
+    void goToNextScore();
+
+    void goToFirst();
+    void goToLast();
 
     void goToIndex( int index );
     void goToCycle( int cycle );
@@ -112,8 +106,10 @@ public slots:
 
 signals:
 
-    void updated();
-    void recoverTimerHandled();
+    void signalPlayOrStop( bool play );
+    // void updated();
+    void indexUpdated( size_t current,
+                       size_t maximum );
     void quitRequested();
 
 };
