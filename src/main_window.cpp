@@ -122,10 +122,10 @@ MainWindow::MainWindow()
 
     this->resize( Options::instance().windowWidth() > 0
                   ? Options::instance().windowWidth()
-                  : 1280 /*640*/ ,
+                  : 640,
                   Options::instance().windowHeight() > 0
                   ? Options::instance().windowHeight()
-                  : 960 /*480*/ );
+                  : 480 );
     this->move( Options::instance().windowX() >= 0
                 ? Options::instance().windowX()
                 : this->x(),
