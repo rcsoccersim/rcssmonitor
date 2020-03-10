@@ -1,7 +1,7 @@
 
 # SYNOPSIS
 #
-#   AX_QT [--with-qt4-moc=PATH] [--with-qt5-moc=PATH]
+#   AX_QT [--with-qt-moc=PATH]
 #
 # DESCRIPTION
 #
@@ -24,8 +24,8 @@ AC_DEFUN([AX_QT],
   AC_REQUIRE([AC_PATH_X])
   AC_REQUIRE([AC_PATH_XTRA])
 
-  QT_REQUIRED_VERSION=ifelse([$1], ,4.1.0,$1)
-  QT_REQUIRED_MODULES=ifelse([$2], ,QtCore,"$2")
+  QT_REQUIRED_VERSION=ifelse([$1], ,5.0.0,$1)
+  QT_REQUIRED_MODULES=ifelse([$2], ,Qt5Core,"$2")
 
   QT_MAJOR_VERSION=`echo $QT_REQUIRED_VERSION | cut -d . -f 1`
 
@@ -75,28 +75,33 @@ AC_DEFUN([AX_QT],
 
   AC_ARG_WITH([qt-moc],
     [  --with-qt-moc=PATH     Qt's moc utilitiy to be used (optional)])
+
   if test x$with_qt_moc != x && test -x "$with_qt_moc" ; then
     QT_MOC="$with_qt_moc"
-  fi
+  else
+    AC_CHECK_PROG(QT_MOC, [moc], [moc])
+#	mocmajorversion=`$QT_MOC -v 2>&1 | sed -r 's/^.*([0-9]+)\.[0-9]+\.[0-9]+.*$/\1/'`
+    echo $mocmajorversion 2>&1 | sed -r 's/^.*([0-9]+)\.[0-9]+\.[0-9]+.*$/\1/'
+	mocversion=`$QT_MOC -v 2>&1`
+    mocversiongrep=`echo $mocversion | grep -E "Qt $QT_MAJOR_VERSION|moc $QT_MAJOR_VERSION"`
+#	echo "mocversion $mocversion"
+#	echo "mocversiongrep $mocversiongrep"
 
-#   AC_CHECK_PROG(QT_MOC, [moc], [moc])
-
-  if test x$QT_MOC = x ; then
-    moc_bin=moc
-	if test $QT_MAJOR_VERSION -eq 4 ; then
-	  moc_bin=moc-qt4
-	fi
-
-    for qt_path_tmp in /opt/local /usr/local /usr ; do
-      if test -x "${qt_path_tmp}/bin/${moc_bin}" ; then
-        QT_MOC="${qt_path_tmp}/bin/${moc_bin}"
-        break;
+    if test x"$mocversiongrep" != x"$mocversion"; then
+      AC_CHECK_TOOL(QTCHOOSER, [qtchooser])
+	  QT_TOOLDIR=`qtchooser -qt=$QT_MAJOR_VERSION -print-env | grep QTTOOLDIR | cut -d '=' -f 2 | cut -d \" -f 2`
+      QT_MOC="$QT_TOOLDIR/moc"
+	  mocversion=`$QT_MOC -v 2>&1`
+      mocversiongrep=`echo $mocversion | grep -E "Qt $QT_MAJOR_VERSION|moc $QT_MAJOR_VERSION"`
+	  if test x"$mocversiongrep" != x"$mocversion" ; then
+        QT_MOC=""
       fi
-    done
+    fi
   fi
+
   if test x$QT_MOC = x ; then
     have_qt=no
-    AC_MSG_ERROR([You must specify the path to Qt's moc command.])
+    AC_MSG_ERROR([You need to specify the path to Qt's moc command.])
   fi
 
   AC_MSG_NOTICE([set QT_MOC... $QT_MOC])
