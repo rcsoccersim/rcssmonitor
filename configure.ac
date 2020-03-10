@@ -59,14 +59,14 @@ AC_CHECK_FUNCS([memset rint strtol pow sqrt])
 # ----------------------------------------------------------
 # check Qt
 
-AC_ARG_ENABLE(qt5,
-              AC_HELP_STRING([--enable-qt5],
-                             [use Qt5 tool kit (default no)]))
+AC_ARG_ENABLE(qt4,
+              AC_HELP_STRING([--enable-qt4],
+                             [use Qt4 tool kit (default no)]))
 AC_ARG_ENABLE(gl,
               AC_HELP_STRING([--enable-gl],
                              [enable GLWidget for Qt (default no)]))
 
-if test "x$enable_qt5" == "xyes"; then
+if test "x$enable_qt4" != "xyes"; then
   AC_MSG_NOTICE(enabled Qt5)
 
   QTMODULES="Qt5Core Qt5Gui Qt5Widgets Qt5Network"
