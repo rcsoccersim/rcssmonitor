@@ -1,7 +1,7 @@
 
 # SYNOPSIS
 #
-#   AX_QT [--with-qt4-moc=PATH] [--with-qt5-moc=PATH]
+#   AX_QT [--with-qt-moc=PATH]
 #
 # DESCRIPTION
 #
@@ -24,8 +24,8 @@ AC_DEFUN([AX_QT],
   AC_REQUIRE([AC_PATH_X])
   AC_REQUIRE([AC_PATH_XTRA])
 
-  QT_REQUIRED_VERSION=ifelse([$1], ,4.1.0,$1)
-  QT_REQUIRED_MODULES=ifelse([$2], ,QtCore,"$2")
+  QT_REQUIRED_VERSION=ifelse([$1], ,5.0.0,$1)
+  QT_REQUIRED_MODULES=ifelse([$2], ,Qt5Core,"$2")
 
   QT_MAJOR_VERSION=`echo $QT_REQUIRED_VERSION | cut -d . -f 1`
 
