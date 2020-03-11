@@ -61,6 +61,7 @@
 
 #include <string>
 #include <iostream>
+#include <fstream>
 #include <cstring>
 
 #include <cstdio>
@@ -178,6 +179,7 @@ MainWindow::init()
 
     if ( ! Options::instance().gameLogFile().empty() )
     {
+        std::cerr << "(init) open game log " << Options::instance().gameLogFile() << std::endl;
         openGameLogFile( QString::fromStdString( Options::instance().gameLogFile() ) );
     }
     else if ( Options::instance().connect() )
