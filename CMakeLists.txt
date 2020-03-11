@@ -77,10 +77,11 @@ target_include_directories(rcssmonitor PUBLIC
   "${PROJECT_BINARY_DIR}"
   "${Boost_INCLUDE_DIRS}"
   "${ZLIB_INCLUDE_DIRS}"
+  "${PROJECT_SOURCE_DIR}"
   "${PROJECT_SOURCE_DIR}/src"
   )
 
-if(Qt5Core_FOUND)
+if(Qt5_FOUND)
   target_link_libraries(rcssmonitor
 	Qt5::Core Qt5::Gui Qt5::Widgets Qt5::Network
 	Boost::program_options Boost::system
