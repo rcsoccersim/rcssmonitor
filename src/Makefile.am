@@ -88,8 +88,6 @@ AM_CFLAGS = -W -Wall
 AM_CXXFLAGS = -W -Wall
 AM_LDFLAGS =
 
-EXTRA_DIST = \
-	rcssmonitor.rc \
-	src.pro
+EXTRA_DIST =
 
 CLEANFILES = $(nodist_rcssmonitor_SOURCES) *~
