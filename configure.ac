@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.61)
-AC_INIT([rcssmonitor],[15.2.1],[sserver-admin@users.sf.net])
+AC_INIT([rcssmonitor],[16.0.0],[https://github.com/rcsoccersim/rcssmonitor])
 
 #LT_PREREQ(2.2.4)
 
