@@ -43,6 +43,10 @@
 #include <windows.h>
 #endif
 
+#if !defined(HAVE_NETINET_IN_H) && !defined(HAVE_WINDOWS_H)
+#include <QtEndian>
+#endif
+
 #include <rcsslogplayer/types.h>
 
 #include <cmath>
@@ -56,6 +60,70 @@ const float RAD2DEGF = 180.0f / 3.14159265358979323846f;
 namespace rcss {
 namespace rcg {
 
+namespace {
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+inline
+Int16
+my_ntohs( const Int16 val )
+{
+#if defined(HAVE_NETINET_IN_H) || defined(HAVE_WINDOS_H)
+    return static_cast< Int16 >( ntohs( val ) );
+#else
+    return qFromBigEndian( val );
+#endif
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+inline
+Int16
+my_htons( const Int16 val )
+{
+#if defined(HAVE_NETINET_IN_H) || defined(HAVE_WINDOS_H)
+    return static_cast< Int16 >( htons( val ) );
+#else
+    return qToBigEndian( val );
+#endif
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+inline
+Int32
+my_ntohl( const Int32 val )
+{
+#if defined(HAVE_NETINET_IN_H) || defined(HAVE_WINDOS_H)
+    return static_cast< Int32 >( ntohl( val ) );
+#else
+    return qFromBigEndian( val );
+#endif
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+inline
+Int32
+my_htonl( const Int32 val )
+{
+#if defined(HAVE_NETINET_IN_H) || defined(HAVE_WINDOS_H)
+    return static_cast< Int32 >( htonl( val ) );
+#else
+    return qToBigEndian( val );
+#endif
+}
+
+}
+
 /*-------------------------------------------------------------------*/
 /*!
 
@@ -63,7 +131,7 @@ namespace rcg {
 int
 nstohi( const Int16 val )
 {
-    return static_cast< int >( static_cast< Int16 >( ntohs( val ) ) );
+    return static_cast< int >( my_ntohs( val ) );
 }
 
 /*-------------------------------------------------------------------*/
@@ -73,7 +141,7 @@ nstohi( const Int16 val )
 Int16
 hitons( const int val )
 {
-    return htons( static_cast< Int16 >( val ) );
+    return my_htons( static_cast< Int16 >( val ) );
 }
 
 /*-------------------------------------------------------------------*/
@@ -83,7 +151,7 @@ hitons( const int val )
 bool
 nstohb( const Int16 val )
 {
-    return static_cast< bool >( static_cast< Int16 >( ntohs( val ) ) );
+    return static_cast< bool >( my_ntohs( val ) );
 }
 
 /*-------------------------------------------------------------------*/
@@ -93,7 +161,7 @@ nstohb( const Int16 val )
 Int16
 hbtons( const bool val )
 {
-    return htons( val ? 1 : 0 );
+    return my_htons( val ? 1 : 0 );
 }
 
 /*-------------------------------------------------------------------*/
@@ -103,8 +171,7 @@ hbtons( const bool val )
 double
 nstohd( const Int16 val )
 {
-    return ( static_cast< double >( static_cast< Int16 >( ntohs( val ) ) )
-             / SHOWINFO_SCALE );
+    return static_cast< double >( my_ntohs( val ) ) / SHOWINFO_SCALE;
 }
 
 /*-------------------------------------------------------------------*/
@@ -114,8 +181,7 @@ nstohd( const Int16 val )
 float
 nstohf( const Int16 val )
 {
-    return ( static_cast< float >( static_cast< Int16 >( ntohs( val ) ) )
-             / SHOWINFO_SCALEF );
+    return static_cast< float >( my_ntohs( val ) ) / SHOWINFO_SCALEF;
 }
 
 /*-------------------------------------------------------------------*/
@@ -123,9 +189,9 @@ nstohf( const Int16 val )
 
  */
 Int16
-hdtons( const double & val )
+hdtons( const double val )
 {
-    return htons( static_cast< Int16 >( rint( val * SHOWINFO_SCALE ) ) );
+    return my_htons( static_cast< Int16 >( rint( val * SHOWINFO_SCALE ) ) );
 }
 
 /*-------------------------------------------------------------------*/
@@ -133,9 +199,9 @@ hdtons( const double & val )
 
  */
 Int16
-hftons( const float & val )
+hftons( const float val )
 {
-    return htons( static_cast< Int16 >( rintf( val * SHOWINFO_SCALEF ) ) );
+    return my_htons( static_cast< Int16 >( rintf( val * SHOWINFO_SCALEF ) ) );
 }
 
 /*-------------------------------------------------------------------*/
@@ -143,10 +209,9 @@ hftons( const float & val )
 
  */
 double
-nltohd( const Int32 & val )
+nltohd( const Int32 val )
 {
-    return ( static_cast< double >( static_cast< Int32 >( ntohl( val ) ) )
-             / SHOWINFO_SCALE2 );
+    return static_cast< double >( my_ntohl( val ) ) / SHOWINFO_SCALE2;
 }
 
 /*-------------------------------------------------------------------*/
@@ -154,10 +219,9 @@ nltohd( const Int32 & val )
 
  */
 float
-nltohf( const Int32 & val )
+nltohf( const Int32 val )
 {
-    return ( static_cast< float >( static_cast< Int32 >( ntohl( val ) ) )
-             / SHOWINFO_SCALE2F );
+    return static_cast< float >( my_ntohl( val ) ) / SHOWINFO_SCALE2F;
 }
 
 /*-------------------------------------------------------------------*/
@@ -165,9 +229,9 @@ nltohf( const Int32 & val )
 
  */
 Int32
-hdtonl( const double & val )
+hdtonl( const double val )
 {
-    return htonl( static_cast< Int32 >( rint( val * SHOWINFO_SCALE2 ) ) );
+    return my_htonl( static_cast< Int32 >( rint( val * SHOWINFO_SCALE2 ) ) );
 }
 
 /*-------------------------------------------------------------------*/
@@ -175,9 +239,9 @@ hdtonl( const double & val )
 
  */
 Int32
-hftonl( const float & val )
+hftonl( const float val )
 {
-    return htonl( static_cast< Int32 >( rintf( val * SHOWINFO_SCALE2F ) ) );
+    return my_htonl( static_cast< Int32 >( rintf( val * SHOWINFO_SCALE2F ) ) );
 }
 
 /*-------------------------------------------------------------------*/
@@ -224,7 +288,7 @@ void
 convert( const BallT & from,
          pos_t & to )
 {
-    to.side = htons( NEUTRAL );
+    to.side = my_htons( static_cast< Int16 >( NEUTRAL ) );
     to.x = hftons( from.x_ );
     to.y = hftons( from.y_ );
 }
@@ -268,14 +332,14 @@ void
 convert( const pos_t & from,
          PlayerT & to )
 {
-    Side side = static_cast< Side >( static_cast< Int16 >( ntohs( from.side ) ) );
+    Side side = static_cast< Side >( my_ntohs( from.side ) );
 
-    to.state_ = static_cast< Int32 >( ntohs( from.enable ) );
+    to.state_ = static_cast< Int32 >( my_ntohs( from.enable ) );
     to.side_ = ( side == LEFT ? 'l'
                  : side == RIGHT ? 'r'
                  : 'n' );
-    to.unum_ = ntohs( from.unum );
-    to.body_ = static_cast< float >( ntohs( from.angle ) );
+    to.unum_ = my_ntohs( from.unum );
+    to.body_ = static_cast< float >( my_ntohs( from.angle ) );
     to.x_ = nstohf( from.x );
     to.y_ = nstohf( from.y );
 }
@@ -288,14 +352,14 @@ void
 convert( const PlayerT & from,
          pos_t & to )
 {
-    to.enable = htons( static_cast< Int16 >( from.state_ ) );
+    to.enable = my_htons( static_cast< Int16 >( from.state_ ) );
 
-    to.side = ( from.side_ == 'l' ? htons( static_cast< Int16 >( LEFT ) )
-                : from.side_ == 'r' ? htons( static_cast< Int16 >( RIGHT ) )
-                : htons( NEUTRAL ) );
+    to.side = ( from.side_ == 'l' ? my_htons( static_cast< Int16 >( LEFT ) )
+                : from.side_ == 'r' ? my_htons( static_cast< Int16 >( RIGHT ) )
+                : my_htons( static_cast< Int16 >( NEUTRAL ) ) );
 
-    to.unum = ntohs( from.unum_ );
-    to.angle = htons( static_cast< Int16 >( rintf( from.body_ ) ) );
+    to.unum = my_htons( from.unum_ );
+    to.angle = my_htons( static_cast< Int16 >( rintf( from.body_ ) ) );
 
     to.x = hftons( from.x_ );
     to.y = hftons( from.y_ );
@@ -309,8 +373,8 @@ void
 convert( const player_t & from,
          PlayerT & to )
 {
-    to.state_ = static_cast< Int32 >( ntohs( from.mode ) );
-    to.type_ = ntohs( from.type );
+    to.state_ = static_cast< Int32 >( my_ntohs( from.mode ) );
+    to.type_ = my_ntohs( from.type );
     to.x_ = nltohf( from.x );
     to.y_ = nltohf( from.y );
     to.vx_ = nltohf( from.deltax );
@@ -318,18 +382,18 @@ convert( const player_t & from,
     to.body_ = nltohf( from.body_angle ) * RAD2DEGF;
     to.neck_ = nltohf( from.head_angle ) * RAD2DEGF;
     to.view_width_ = nltohf( from.view_width ) * RAD2DEGF;
-    to.view_quality_ = ntohs( from.view_quality ) ? 'h' : 'l';
+    to.view_quality_ = my_ntohs( from.view_quality ) ? 'h' : 'l';
     to.stamina_ = nltohf( from.stamina );
     to.effort_ = nltohf( from.effort );
     to.recovery_ = nltohf( from.recovery );
-    to.kick_count_ = ntohs( from.kick_count );
-    to.dash_count_ = ntohs( from.dash_count );
-    to.turn_count_ = ntohs( from.turn_count );
-    to.say_count_ = ntohs( from.say_count );
-    to.turn_neck_count_ = ntohs( from.turn_neck_count );
-    to.catch_count_ = ntohs( from.catch_count );
-    to.move_count_ = ntohs( from.move_count );
-    to.change_view_count_ = ntohs( from.change_view_count );
+    to.kick_count_ = my_ntohs( from.kick_count );
+    to.dash_count_ = my_ntohs( from.dash_count );
+    to.turn_count_ = my_ntohs( from.turn_count );
+    to.say_count_ = my_ntohs( from.say_count );
+    to.turn_neck_count_ = my_ntohs( from.turn_neck_count );
+    to.catch_count_ = my_ntohs( from.catch_count );
+    to.move_count_ = my_ntohs( from.move_count );
+    to.change_view_count_ = my_ntohs( from.change_view_count );
 }
 
 /*-------------------------------------------------------------------*/
@@ -340,8 +404,8 @@ void
 convert( const PlayerT & from,
          player_t & to )
 {
-    to.mode = ntohs( static_cast< Int16 >( from.state_ ) );
-    to.type = ntohs( from.type_ );
+    to.mode = my_ntohs( static_cast< Int16 >( from.state_ ) );
+    to.type = my_ntohs( from.type_ );
     to.x = hftonl( from.x_ );
     to.y = hftonl( from.y_ );
     if ( from.hasVelocity() )
@@ -388,7 +452,7 @@ convert( const team_t & from,
     std::strncpy( buf, from.name, sizeof( from.name ) );
 
     to.name_ = buf;
-    to.score_ = ntohs( from.score );
+    to.score_ = my_ntohs( from.score );
 }
 
 /*-------------------------------------------------------------------*/
@@ -403,7 +467,7 @@ convert( const TeamT & from,
     std::strncpy( to.name,
                   from.name_.c_str(),
                   std::min( sizeof( to.name ), from.name_.length() ) );
-    to.score = htons( from.score_ );
+    to.score = my_htons( from.score_ );
 }
 
 /*-------------------------------------------------------------------*/
@@ -424,7 +488,7 @@ convert( const showinfo_t & from,
     }
 
     // time
-    to.time_ = static_cast< UInt32 >( ntohs( from.time ) );
+    to.time_ = static_cast< UInt32 >( my_ntohs( from.time ) );
 }
 
 /*-------------------------------------------------------------------*/
@@ -459,7 +523,7 @@ convert( const char playmode,
     }
 
     // time
-    to.time = htons( static_cast< Int16 >( from.time_ ) );
+    to.time = my_htons( static_cast< Int16 >( from.time_ ) );
 }
 
 /*-------------------------------------------------------------------*/
@@ -494,7 +558,7 @@ convert( const char playmode,
     }
 
     // time
-    to.time = htons( static_cast< Int16 >( from.time_ ) );
+    to.time = my_htons( static_cast< Int16 >( from.time_ ) );
 }
 
 /*-------------------------------------------------------------------*/
@@ -517,7 +581,7 @@ convert( const showinfo_t2 & from,
     }
 
     // time
-    to.time_ = static_cast< UInt32 >( ntohs( from.time ) );
+    to.time_ = static_cast< UInt32 >( my_ntohs( from.time ) );
 }
 
 /*-------------------------------------------------------------------*/
@@ -540,7 +604,7 @@ convert( const short_showinfo_t2 & from,
     }
 
     // time
-    to.time_ = static_cast< UInt32 >( ntohs( from.time ) );
+    to.time_ = static_cast< UInt32 >( my_ntohs( from.time ) );
 }
 
 /*-------------------------------------------------------------------*/
@@ -566,7 +630,7 @@ convert( const ShowInfoT & from,
     }
 
     // time
-    to.time = htons( static_cast< Int16 >( from.time_ ) );
+    to.time = my_htons( static_cast< Int16 >( from.time_ ) );
 }
 
 /*-------------------------------------------------------------------*/
@@ -646,13 +710,13 @@ convert( const player_params_t & from,
     to.effort_max_delta_factor_ = nltohd( from.effort_max_delta_factor );
     to.effort_min_delta_factor_ = nltohd( from.effort_min_delta_factor );
 
-    to.random_seed_ = static_cast< int >( static_cast< Int32 >( ntohl( from.random_seed ) ) );
+    to.random_seed_ = static_cast< int >( my_ntohl( from.random_seed ) );
 
     to.new_dash_power_rate_delta_min_ = nltohd( from.new_dash_power_rate_delta_min );
     to.new_dash_power_rate_delta_max_ = nltohd( from.new_dash_power_rate_delta_max );
     to.new_stamina_inc_max_delta_factor_ = nltohd( from.new_stamina_inc_max_delta_factor );
 
-    to.allow_mult_default_type_ = static_cast< bool >( ntohs( from.allow_mult_default_type ) );
+    to.allow_mult_default_type_ = static_cast< bool >( my_ntohs( from.allow_mult_default_type ) );
 }
 
 /*-------------------------------------------------------------------*/
@@ -687,8 +751,7 @@ convert( const PlayerParamT & from,
     to.extra_stamina_delta_max = hdtonl( from.extra_stamina_delta_max_ );
     to.effort_max_delta_factor = hdtonl( from.effort_max_delta_factor_ );
     to.effort_min_delta_factor = hdtonl( from.effort_min_delta_factor_ );
-
-    to.random_seed = htonl( static_cast< Int32 >( from.random_seed_ ) );
+    to.random_seed = my_htonl( static_cast< Int32 >( from.random_seed_ ) );
 
     to.new_dash_power_rate_delta_min = hdtonl( from.new_dash_power_rate_delta_min_ );
     to.new_dash_power_rate_delta_max = hdtonl( from.new_dash_power_rate_delta_max_ );
@@ -1002,13 +1065,13 @@ convert( const ServerParamT & from,
     to.quantize_step = hdtonl( from.quantize_step_ );
     to.landmark_quantize_step = hdtonl( from.landmark_quantize_step_ );
 
-    to.dir_quantize_step = htonl( 0 );
-    to.dist_quantize_step_l = htonl( 0 );
-    to.dist_quantize_step_r = htonl( 0 );
-    to.landmark_dist_quantize_step_l = htonl( 0 );
-    to.landmark_dist_quantize_step_r = htonl( 0 );
-    to.dir_quantize_step_l = htonl( 0 );
-    to.dir_quantize_step_r = htonl( 0 );
+    to.dir_quantize_step = my_htonl( 0 );
+    to.dist_quantize_step_l = my_htonl( 0 );
+    to.dist_quantize_step_r = my_htonl( 0 );
+    to.landmark_dist_quantize_step_l = my_htonl( 0 );
+    to.landmark_dist_quantize_step_r = my_htonl( 0 );
+    to.dir_quantize_step_l = my_htonl( 0 );
+    to.dir_quantize_step_r = my_htonl( 0 );
 
     to.coach_mode = hbtons( from.coach_mode_ );
     to.coach_with_referee_mode = hbtons( from.coach_with_referee_mode_ );

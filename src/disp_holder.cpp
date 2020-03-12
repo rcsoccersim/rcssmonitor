@@ -48,6 +48,10 @@
 #include <windows.h>
 #endif
 
+#if !defined(HAVE_NETINET_IN_H) && !defined(HAVE_WINDOWS_H)
+#include <QtEndian>
+#endif
+
 #include <algorithm>
 #include <iterator>
 #include <iostream>
@@ -65,6 +69,18 @@ struct TimeCmp {
           return lhs->show_.time_ < rhs;
       }
 };
+
+inline
+rcss::rcg::Int16
+my_ntohs( const rcss::rcg::Int16 val )
+{
+#if defined(HAVE_NETINET_IN_H) || defined(HAVE_WINDOS_H)
+    return static_cast< rcss::rcg::Int16 >( ntohs( val ) );
+#else
+    return qFromBigEndian( val );
+#endif
+}
+
 }
 
 /*-------------------------------------------------------------------*/
@@ -163,7 +179,7 @@ DispHolder::currentDisp() const
 bool
 DispHolder::addDispInfoV1( const rcss::rcg::dispinfo_t & disp )
 {
-    switch ( ntohs( disp.mode ) ) {
+    switch ( my_ntohs( disp.mode ) ) {
     case rcss::rcg::NO_INFO:
         break;
     case rcss::rcg::SHOW_MODE:
@@ -179,7 +195,7 @@ DispHolder::addDispInfoV1( const rcss::rcg::dispinfo_t & disp )
         break;
     case rcss::rcg::MSG_MODE:
         doHandleMsgInfo( 0,
-                         ntohs( disp.body.msg.board ),
+                         my_ntohs( disp.body.msg.board ),
                          disp.body.msg.message );
         break;
     case rcss::rcg::DRAW_MODE:
@@ -199,7 +215,7 @@ DispHolder::addDispInfoV1( const rcss::rcg::dispinfo_t & disp )
 bool
 DispHolder::addDispInfoV2( const rcss::rcg::dispinfo_t2 & disp )
 {
-    switch ( ntohs( disp.mode ) ) {
+    switch ( my_ntohs( disp.mode ) ) {
     case rcss::rcg::NO_INFO:
         break;
     case rcss::rcg::SHOW_MODE:
@@ -216,7 +232,7 @@ DispHolder::addDispInfoV2( const rcss::rcg::dispinfo_t2 & disp )
 
     case rcss::rcg::MSG_MODE:
         doHandleMsgInfo( 0,
-                         ntohs( disp.body.msg.board ),
+                         my_ntohs( disp.body.msg.board ),
                          disp.body.msg.message );
         break;
     case rcss::rcg::PARAM_MODE:
