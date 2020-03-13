@@ -99,7 +99,7 @@ nstohf( const Int16 val );
   \return network byte order short value
 */
 Int16
-hdtons( const double & val );
+hdtons( const double val );
 
 /*-------------------------------------------------------------------*/
 /*!
@@ -108,7 +108,7 @@ hdtons( const double & val );
   \return network byte order short value
 */
 Int16
-hftons( const float & val );
+hftons( const float val );
 
 /*-------------------------------------------------------------------*/
 /*!
@@ -118,7 +118,7 @@ hftons( const float & val );
   \return floating point number filtered by SHOWINFO_SCALE2.
 */
 double
-nltohd( const Int32 & val );
+nltohd( const Int32 val );
 
 /*-------------------------------------------------------------------*/
 /*!
@@ -128,7 +128,7 @@ nltohd( const Int32 & val );
   \return floating point number filtered by SHOWINFO_SCALE2.
 */
 float
-nltohf( const Int32 & val );
+nltohf( const Int32 val );
 
 /*-------------------------------------------------------------------*/
 /*!
@@ -138,7 +138,7 @@ nltohf( const Int32 & val );
   \return network byte order value.
 */
 Int32
-hdtonl( const double & val );
+hdtonl( const double val );
 
 /*-------------------------------------------------------------------*/
 /*!
@@ -148,7 +148,7 @@ hdtonl( const double & val );
   \return network byte order value.
 */
 Int32
-hftonl( const float & val );
+hftonl( const float val );
 
 /*-------------------------------------------------------------------*/
 /*!
@@ -168,7 +168,7 @@ nstonl( const Int16 val );
   \return network byte order short value
 */
 Int16
-nltons( const Int32 & val );
+nltons( const Int32 val );
 
 
 /*-------------------------------------------------------------------*/
