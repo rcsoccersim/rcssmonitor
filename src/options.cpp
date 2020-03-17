@@ -57,7 +57,7 @@
 #define VERSION "x.x.x"
 #endif
 
-#ifdef Q_WS_WIN
+#if defined(Q_WS_WIN) || defined(Q_OS_WIN)
 const QString Options::CONF_FILE = QDir::currentPath() + QDir::separator() + QString( "rcssmonitor.ini" );
 #else
 const QString Options::CONF_FILE = QDir::homePath() + QDir::separator() + QString( ".rcssmonitor.conf" );
@@ -122,6 +122,7 @@ const QColor Options::TACKLE_COLOR( 255, 136, 127 );
 const QColor Options::TACKLE_FAULT_COLOR( 79, 159, 159 );
 const QColor Options::FOUL_CHARGED_COLOR( 0, 127, 0 );
 const QColor Options::POINTTO_COLOR( 255, 0, 191 );
+const QColor Options::ILLEGAL_DEFENSE_COLOR( 255, 0, 0 );
 
 
 namespace {
@@ -168,13 +169,11 @@ Options::Options()
     M_server_host( "127.0.0.1" ),
     M_server_port( 6000 ),
     M_client_version( 4 ),
-    M_buffering_mode( false ),
-    M_buffer_size( 10 ),
-    M_max_disp_buffer( 65535 ),
     M_auto_quit_mode( false ),
     M_auto_quit_wait( 5 ),
     M_auto_reconnect_mode( false ),
     M_auto_reconnect_wait( 5 ),
+    M_auto_loop_mode( false ),
     M_timer_interval( DEFAULT_TIMER_INTERVAL ),
     // window options
     M_window_x( -1 ),
@@ -186,7 +185,7 @@ Options::Options()
     M_canvas_width( -1 ),
     M_canvas_height( -1 ),
     M_show_menu_bar( true ),
-    // M_show_tool_bar( false )
+    M_show_tool_bar( false ),
     M_show_status_bar( false ),
     // view options
     M_anti_aliasing( true ),
@@ -199,6 +198,8 @@ Options::Options()
     M_show_player_number( true ),
     M_show_player_type( false ),
     M_show_view_area( false ),
+    M_show_illegal_defense_state( false ),
+    M_show_catch_area( false ),
     M_show_tackle_area( false ),
     M_show_stamina( false ),
     M_show_pointto( false ),
@@ -217,8 +218,6 @@ Options::Options()
     M_selected_number( 0 ),
     M_player_select_type( UNSELECT ),
     M_ball_vel_cycle( 0 ),
-      //
-    M_buffer_recover_mode( true ),
       //
     M_field_brush( FIELD_COLOR, Qt::SolidPattern ),
     M_line_pen( LINE_COLOR, 0, Qt::SolidLine ),
@@ -265,6 +264,7 @@ Options::Options()
     M_tackle_fault_brush( TACKLE_FAULT_COLOR, Qt::SolidPattern ),
     M_foul_charged_brush( FOUL_CHARGED_COLOR, Qt::SolidPattern ),
     M_pointto_pen( POINTTO_COLOR, 0, Qt::SolidLine ),
+    M_illegal_defense_pen( ILLEGAL_DEFENSE_COLOR, 2, Qt::SolidLine ),
       //
     M_score_board_font( "Sans Serif", 16, QFont::Bold ),
     M_player_font( "Sans Serif", 9, QFont::Bold ),
@@ -331,8 +331,8 @@ Options::readSettings()
     val = settings.value( "show_menu_bar" );
     if ( val.isValid() ) M_show_menu_bar = val.toBool();
 
-//     val = settings.value( "show_tool_bar" );
-//     if ( val.isValid() ) M_show_tool_bar = val.toBool();
+    val = settings.value( "show_tool_bar" );
+    if ( val.isValid() ) M_show_tool_bar = val.toBool();
 
     val = settings.value( "show_status_bar" );
     if ( val.isValid() ) M_show_status_bar = val.toBool();
@@ -357,15 +357,6 @@ Options::readSettings()
     val = settings.value( "client_version" );
     if ( val.isValid() ) M_client_version = val.toInt();
 
-    val = settings.value( "buffering_mode" );
-    if ( val.isValid() ) M_buffering_mode = val.toBool();
-
-    val = settings.value( "buffer_size" );
-    if ( val.isValid() ) M_buffer_size = val.toInt();
-
-    val = settings.value( "max_disp_buffer" );
-    if ( val.isValid() ) M_max_disp_buffer = val.toInt();
-
     val = settings.value( "auto_quit_mode" );
     if ( val.isValid() ) M_auto_quit_mode = val.toBool();
 
@@ -377,6 +368,9 @@ Options::readSettings()
 
     val = settings.value( "auto_reconnect_wait" );
     if ( val.isValid() ) M_auto_reconnect_wait = val.toInt();
+
+    val = settings.value( "auto_loop_mode" );
+    if ( val.isValid() ) M_auto_loop_mode = val.toBool();
 
     val = settings.value( "timer_interval" );
     if ( val.isValid() ) M_timer_interval = val.toInt();
@@ -418,6 +412,9 @@ Options::readSettings()
 
     val = settings.value( "show_view_area" );
     if ( val.isValid() ) M_show_view_area = val.toBool();
+
+    val = settings.value( "show_illegal_defense_state" );
+    if ( val.isValid() ) M_show_illegal_defense_state = val.toBool();
 
     val = settings.value( "show_catch_area" );
     if ( val.isValid() ) M_show_catch_area = val.toBool();
@@ -607,6 +604,12 @@ Options::readSettings()
     val = settings.value( "foul_charged_brush" );
     if ( val.isValid() ) M_foul_charged_brush.setColor( val.toString() );
 
+    val = settings.value( "pointto_pen" );
+    if ( val.isValid() ) M_pointto_pen.setColor( val.toString() );
+
+    val = settings.value( "illegal_defense_pen" );
+    if ( val.isValid() ) M_illegal_defense_pen.setColor( val.toString() );
+
     settings.endGroup();
 
     //
@@ -652,7 +655,7 @@ Options::writeSettings( bool all )
         settings.setValue( "maximize", M_maximize );
         settings.setValue( "full_screen", M_full_screen );
         settings.setValue( "show_menu_bar", M_show_menu_bar );
-        //     settings.setValue( "show_tool_bar", M_show_tool_bar );
+        settings.setValue( "show_tool_bar", M_show_tool_bar );
         settings.setValue( "show_status_bar", M_show_status_bar );
         settings.endGroup();
 
@@ -664,12 +667,11 @@ Options::writeSettings( bool all )
         settings.setValue( "server_host", QString::fromStdString( M_server_host ) );
         settings.setValue( "server_port", M_server_port );
         settings.setValue( "client_version", M_client_version );
-        settings.setValue( "buffering_mode", M_buffering_mode );
-        settings.setValue( "buffer_size", M_buffer_size );
-        settings.setValue( "max_disp_buffer", M_max_disp_buffer );
         settings.setValue( "auto_quit_mode", M_auto_quit_mode );
         settings.setValue( "auto_quit_wait", M_auto_quit_wait );
+        settings.setValue( "auto_reconnect_mode", M_auto_reconnect_mode );
         settings.setValue( "auto_reconnect_wait", M_auto_reconnect_wait );
+        settings.setValue( "auto_loop_mode", M_auto_loop_mode );
         settings.setValue( "timer_interval", M_timer_interval );
         settings.endGroup();
     }
@@ -688,6 +690,7 @@ Options::writeSettings( bool all )
     settings.setValue( "show_player_number", M_show_player_number );
     settings.setValue( "show_player_type", M_show_player_type );
     settings.setValue( "show_view_area", M_show_view_area );
+    settings.setValue( "show_illegal_defense_state", M_show_illegal_defense_state );
     settings.setValue( "show_catch_area", M_show_catch_area );
     settings.setValue( "show_tackle_area", M_show_tackle_area );
     settings.setValue( "show_kick_accel_area", M_show_kick_accel_area );
@@ -749,6 +752,8 @@ Options::writeSettings( bool all )
     settings.setValue( "tackle_brush", M_tackle_brush.color().name() );
     settings.setValue( "tackle_fault_brush", M_tackle_fault_brush.color().name() );
     settings.setValue( "foul_charged_brush", M_foul_charged_brush.color().name() );
+    settings.setValue( "pointto_pen", M_pointto_pen.color().name() );
+    settings.setValue( "illegal_defense_pen", M_illegal_defense_pen.color().name() );
     settings.endGroup();
 
     //
@@ -795,18 +800,9 @@ Options::parseCmdLine( int argc,
         ( "client-version",
           po::value< int >( &M_client_version )->default_value( M_client_version ),
           "set a monitor client protocol version." )
-        ( "buffering-mode",
-          po::value< bool >( &M_buffering_mode )->default_value( M_buffering_mode, to_onoff( M_buffering_mode ) ),
-          "enable buffering mode." )
-        ( "buffer-size",
-          po::value< int >( &M_buffer_size )->default_value( M_buffer_size ),
-          "set cache size for buffering mode." )
-//         ( "max-disp-buffer",
-//           po::value< int >( &M_max_disp_buffer )->default_value( 65535, "65535" ),
-//           "set max size of display data buffer." )
         ( "timer-interval",
           po::value< int >( &M_timer_interval )->default_value( M_timer_interval ),
-          "set the desired timer interval [ms] for buffering mode." )
+          "set the default timer interval [ms] for replaying a game log file." )
         ( "auto-quit-mode",
           po::value< bool >( &M_auto_quit_mode )->default_value( M_auto_quit_mode, to_onoff( M_auto_quit_mode ) ),
           "enable automatic quit mode." )
@@ -819,6 +815,9 @@ Options::parseCmdLine( int argc,
         ( "auto-reconnect-wait",
           po::value< int >( &M_auto_reconnect_wait )->default_value( M_auto_reconnect_wait ),
           "set an wait period for the automatic reconnect mode." )
+         ( "auto-loop-mode",
+          po::value< bool >( &M_auto_loop_mode )->default_value( false, "off" ),
+          "enable automatic loop mode for log replay." )
         // window options
         ( "geometry",
           po::value< std::string >( &geometry )->default_value( "" ),
@@ -832,9 +831,9 @@ Options::parseCmdLine( int argc,
         ( "show-menu-bar",
           po::value< bool >( &M_show_menu_bar )->default_value( M_show_menu_bar, to_onoff( M_show_menu_bar ) ),
           "show menu bar." )
-//         ( "show-tool-bar",
-//           po::value< bool >( &M_show_tool_bar )->default_value( M_show_tool_bar ),
-//           "start without a tool bar." )
+        ( "show-tool-bar",
+          po::value< bool >( &M_show_tool_bar )->default_value( M_show_tool_bar ),
+          "start without a tool bar." )
         ( "show-status-bar",
           po::value< bool >( &M_show_status_bar )->default_value( M_show_status_bar, to_onoff( M_show_status_bar ) ),
           "show status bar." )
@@ -869,6 +868,9 @@ Options::parseCmdLine( int argc,
         ( "show-view-area",
           po::value< bool >( &M_show_view_area )->default_value( M_show_view_area, to_onoff( M_show_view_area ) ),
           "show player\'s view area." )
+        ( "show-illegal-defense_state",
+          po::value< bool >( &M_show_illegal_defense_state )->default_value( M_show_illegal_defense_state, to_onoff( M_show_illegal_defense_state ) ),
+          "show player\'s illegal defense state." )
         ( "show-catch-area",
           po::value< bool >( &M_show_catch_area )->default_value( M_show_catch_area, to_onoff( M_show_catch_area ) ),
           "show player\'s catch area." )
@@ -911,11 +913,11 @@ Options::parseCmdLine( int argc,
         ;
 
     po::options_description invisibles( "Invisibles" );
-//     invisibles.add_options()
-//         ( "game-log-file",
-//           po::value< std::string >( &M_game_log_file )->default_value( "" ),
-//           "set the path to Game Log file(.rcg) to be opened.")
-//         ;
+    invisibles.add_options()
+        ( "game-log-file",
+          po::value< std::string >( &M_game_log_file )->default_value( "" ),
+          "set the path to the Game Log file(.rcg) to be opened.")
+        ;
 
     po::positional_options_description pdesc;
     pdesc.add( "game-log-file", 1 );
@@ -956,24 +958,15 @@ Options::parseCmdLine( int argc,
     if ( help )
     {
         std::cout << "Usage: " << PACKAGE_NAME
-                  << " [options ... ]\n";
+                  << " [options ... ] [<GameLogFile>]\n";
         std::cout << visibles << std::endl;
         return false;
-    }
-
-    if ( M_buffer_size <= 1 )
-    {
-        std::cerr << "Illegal buffering size " << M_buffer_size
-                  << ". The value have to be more than 1."
-                  << std::endl;
-        M_buffer_size = 1;
     }
 
     if ( M_timer_interval < 0 )
     {
         std::cerr << "Illegal timer interval " << M_timer_interval
-                  << ". use default value("
-                  << DEFAULT_TIMER_INTERVAL << ')'
+                  << ". use default value(" << DEFAULT_TIMER_INTERVAL << ')'
                   << std::endl;
         M_timer_interval = DEFAULT_TIMER_INTERVAL;
     }
@@ -1108,6 +1101,7 @@ Options::setDefaultColor()
     M_tackle_fault_brush.setColor( TACKLE_FAULT_COLOR );
     M_foul_charged_brush.setColor( FOUL_CHARGED_COLOR );
     M_pointto_pen.setColor( POINTTO_COLOR );
+    M_illegal_defense_pen.setColor( ILLEGAL_DEFENSE_COLOR );
 }
 
 /*-------------------------------------------------------------------*/

@@ -54,6 +54,10 @@
 #include <windows.h>
 #endif
 
+//#if !defined(HAVE_NETINET_IN_H) && !defined(HAVE_WINDOWS_H)
+#include <QtEndian>
+//#endif
+
 #include <boost/lexical_cast.hpp>
 
 
@@ -244,6 +248,25 @@ parse_param_line( const int n_line,
 namespace rcss {
 namespace rcg {
 
+namespace {
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+inline
+Int16
+my_ntohs( const Int16 val )
+{
+#if defined(HAVE_NETINET_IN_H) || defined(HAVE_WINDOS_H)
+    return static_cast< Int16 >( ntohs( val ) );
+#else
+    return qFromBigEndian( val );
+#endif
+}
+
+}
+
 Parser::Parser( Handler & handler )
     : M_handler( handler )
     , M_safe_mode( false )
@@ -350,7 +373,7 @@ Parser::parseDispInfo( std::istream & is )
         return strmErr( is );
     }
 
-    Int16 mode = ntohs( disp.mode );
+    Int16 mode = my_ntohs( disp.mode );
 
     switch ( mode ) {
     case NO_INFO:
@@ -371,7 +394,7 @@ Parser::parseDispInfo( std::istream & is )
         return true;
     case MSG_MODE:
         M_handler.handleMsgInfo( M_time,
-                                 ntohs( disp.body.msg.board ),
+                                 my_ntohs( disp.body.msg.board ),
                                  disp.body.msg.message );
         return true;
     case DRAW_MODE:
@@ -399,7 +422,7 @@ Parser::parseMode( std::istream & is )
         return strmErr( is );
     }
 
-    switch ( ntohs( mode ) ) {
+    switch ( my_ntohs( mode ) ) {
     case NO_INFO:
         return true;
     case SHOW_MODE:
@@ -421,7 +444,7 @@ Parser::parseMode( std::istream & is )
     case PT_MODE:
         return parsePlayerType( is );
     default:
-        std::cerr << is.tellg() <<": Unknown mode " << ntohs( mode )
+        std::cerr << is.tellg() <<": Unknown mode " << my_ntohs( mode )
                   << std::endl;
         break;
     }
@@ -496,7 +519,7 @@ Parser::parseMsgInfo( std::istream & is )
         return strmErr( is );
     }
 
-    len = ntohs( len );
+    len = my_ntohs( len );
     char * msg = new char[len];
     is.read( msg, len );
 
@@ -517,7 +540,7 @@ Parser::parseMsgInfo( std::istream & is )
     std::string str( msg );
     delete [] msg;
 
-    M_handler.handleMsgInfo( M_time, ntohs( board ), str );
+    M_handler.handleMsgInfo( M_time, my_ntohs( board ), str );
     return true;
 }
 
@@ -541,7 +564,7 @@ bool
 Parser::parseDrawInfo( const std::streampos pos,
                        const drawinfo_t & draw )
 {
-    switch ( ntohs( draw.mode ) ) {
+    switch ( my_ntohs( draw.mode ) ) {
     case DrawClear:
         M_handler.handleDrawClear( M_time );
         return true;
@@ -567,7 +590,7 @@ Parser::parseDrawInfo( const std::streampos pos,
                                                  draw.object.linfo.color ) );
         return true;
     default:
-        std::cerr << pos <<": Unknown draw mode " << ntohs( draw.mode )
+        std::cerr << pos <<": Unknown draw mode " << my_ntohs( draw.mode )
                   << std::endl;
         return false;
     }
@@ -1665,6 +1688,13 @@ Parser::parseServerParamLine( const int n_line,
     bool_map.insert( BoolMap::value_type( "golden_goal", &param.golden_goal_ ) );
     // 15.0
     double_map.insert( DoubleMap::value_type( "red_card_probability", &param.red_card_probability_ ) );
+    // 16.0
+    int_map.insert( IntMap::value_type( "illegal_defense_duration", &param.illegal_defense_duration_ ) );
+    int_map.insert( IntMap::value_type( "illegal_defense_number", &param.illegal_defense_number_ ) );
+    double_map.insert( DoubleMap::value_type( "illegal_defense_dist_x", &param.illegal_defense_dist_x_ ) );
+    double_map.insert( DoubleMap::value_type( "illegal_defense_width", &param.illegal_defense_width_ ) );
+    string_map.insert( StringMap::value_type( "fixed_teamname_l", &param.fixed_teamname_l_ ) );
+    string_map.insert( StringMap::value_type( "fixed_teamname_r", &param.fixed_teamname_r_ ) );
 
     //
     // parse

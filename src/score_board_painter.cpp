@@ -34,7 +34,13 @@
 #include <config.h>
 #endif
 
+#include <QtGlobal>
+
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
+#include <QtWidgets>
+#else
 #include <QtGui>
+#endif
 
 #include "score_board_painter.h"
 
@@ -97,6 +103,19 @@ ScoreBoardPainter::draw( QPainter & painter )
     const std::vector< std::pair< int, rcss::rcg::PlayMode > > & pen_scores_l = M_disp_holder.penaltyScoresLeft();
     const std::vector< std::pair< int, rcss::rcg::PlayMode > > & pen_scores_r = M_disp_holder.penaltyScoresRight();
 
+    const std::string name_l = ( team_l.name_.empty() || team_l.name_ == "null"
+                                 ? ""
+                                 : team_l.name_ );
+    const std::string name_r = ( team_r.name_.empty() || team_r.name_ == "null"
+                                 ? ""
+                                 : team_r.name_ );
+    const std::string all_name_l = ( M_disp_holder.serverParam().fixed_teamname_l_.empty()
+                                     ? name_l
+                                     : M_disp_holder.serverParam().fixed_teamname_l_ + "(" + name_l + ")" );
+    const std::string all_name_r = ( M_disp_holder.serverParam().fixed_teamname_r_.empty()
+                                     ? name_r
+                                     : M_disp_holder.serverParam().fixed_teamname_r_ + "(" + name_r + ")" );
+
     bool show_pen_score = true;
 
     if ( pen_scores_l.empty()
@@ -124,14 +143,10 @@ ScoreBoardPainter::draw( QPainter & painter )
     if ( ! show_pen_score )
     {
         main_buf.sprintf( " %10s %d:%d %-10s %19s %6d    ",
-                          ( team_l.name_.empty() || team_l.name_ == "null" )
-                          ? ""
-                          : team_l.name_.c_str(),
+                          all_name_l.c_str(),
                           team_l.score_,
                           team_r.score_,
-                          ( team_r.name_.empty() || team_r.name_ == "null" )
-                          ? ""
-                          : team_r.name_.c_str(),
+                          all_name_r.c_str(),
                           s_playmode_strings[pmode].c_str(),
                           current_time );
     }
@@ -177,15 +192,11 @@ ScoreBoardPainter::draw( QPainter & painter )
         }
 
         main_buf.sprintf( " %10s %d:%d |%-5s:%-5s| %-10s %19s %6d",
-                          ( team_l.name_.empty() || team_l.name_ == "null" )
-                          ? ""
-                          : team_l.name_.c_str(),
+                          all_name_l.c_str(),
                           team_l.score_, team_r.score_,
                           left_penalty.c_str(),
                           right_penalty.c_str(),
-                          ( team_r.name_.empty() || team_r.name_ == "null" )
-                          ? ""
-                          : team_r.name_.c_str(),
+                          all_name_r.c_str(),
                           s_playmode_strings[pmode].c_str(),
                           current_time );
     }

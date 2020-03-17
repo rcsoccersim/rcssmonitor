@@ -34,23 +34,52 @@
 #include <config.h>
 #endif
 
+#include <QtGlobal>
+
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
+#include <QtWidgets>
+#else
 #include <QtGui>
+#endif
 
 #include "main_window.h"
 
 #include "config_dialog.h"
 #include "field_canvas.h"
 #include "log_player.h"
+#include "log_player_slider.h"
 #include "monitor_client.h"
 #include "player_type_dialog.h"
 #include "options.h"
 
+
+#ifdef HAVE_LIBZ
+#include <rcsslogplayer/gzfstream.h>
+#endif
+#include <rcsslogplayer/util.h>
+#include <rcsslogplayer/parser.h>
+
 #include <string>
 #include <iostream>
+#include <fstream>
 #include <cstring>
+
 #include <cstdio>
 
 #include "icons/rcss.xpm"
+
+#include "icons/live.xpm"
+#include "icons/play.xpm"
+//#include "icons/rev.xpm"
+#include "icons/stop.xpm"
+#include "icons/plus.xpm"
+#include "icons/minus.xpm"
+#include "icons/decelerate.xpm"
+#include "icons/accelerate.xpm"
+//#include "icons/rew.xpm"
+#include "icons/next_score.xpm"
+#include "icons/prev_score.xpm"
+//#include "icons/rec.xpm"
 
 // #ifndef PACKAGE_STRING
 // #define PACKAGE_STRING "rcssmonitor x.x.x"
@@ -80,18 +109,15 @@ MainWindow::MainWindow()
     createToolBars();
     createStatusBar();
     createFieldCanvas();
+
     createConfigDialog();
 
     connect( M_field_canvas, SIGNAL( focusChanged( const QPoint & ) ),
              this, SLOT( setFocusPoint( const QPoint & ) ) );
-    connect( M_log_player, SIGNAL( updated() ),
+    // connect( M_log_player, SIGNAL( updated() ),
+    //          this, SIGNAL( viewUpdated() ) );
+    connect( M_log_player, SIGNAL( indexUpdated( size_t, size_t ) ),
              this, SIGNAL( viewUpdated() ) );
-    connect( M_log_player, SIGNAL( updated() ),
-             this, SLOT( updateBufferingLabel() ) );
-    connect( M_log_player, SIGNAL( recoverTimerHandled() ),
-             this, SLOT( updateBufferingLabel() ) );
-    connect( M_log_player, SIGNAL( recoverTimerHandled() ),
-             this, SLOT( showRecoveringState() ) );
     connect( M_log_player, SIGNAL( quitRequested() ),
              this, SLOT( setQuitTimer() ) );
 
@@ -147,15 +173,16 @@ MainWindow::init()
         }
     }
 
-    if ( ! Options::instance().bufferingMode() )
-    {
-        M_buffering_label->hide();
-    }
-
     toggleMenuBar( Options::instance().showMenuBar() );
     toggleStatusBar( Options::instance().showStatusBar() );
 
-    if ( Options::instance().connect() )
+
+    if ( ! Options::instance().gameLogFile().empty() )
+    {
+        std::cerr << "(init) open game log " << Options::instance().gameLogFile() << std::endl;
+        openGameLogFile( QString::fromStdString( Options::instance().gameLogFile() ) );
+    }
+    else if ( Options::instance().connect() )
     {
         connectMonitor();
     }
@@ -218,9 +245,9 @@ MainWindow::createActions()
     createActionsFile();
     createActionsMonitor();
     createActionsReferee();
+    createActionsLogPlayer();
     createActionsView();
     createActionsHelp();
-
 }
 
 /*-------------------------------------------------------------------*/
@@ -230,6 +257,17 @@ MainWindow::createActions()
 void
 MainWindow::createActionsFile()
 {
+    M_open_act = new QAction( tr( "Open Game Log") , this );
+#ifdef Q_WS_MAC
+    M_open_act->setShortcut( Qt::META + Qt::Key_O );
+#else
+    M_open_act->setShortcut( Qt::CTRL + Qt::Key_O );
+#endif
+    M_open_act->setStatusTip( tr( "Open a game log file." ) );
+    connect( M_open_act, SIGNAL( triggered() ),
+             this, SLOT( openGameLogFile() ) );
+    this->addAction( M_open_act );
+
     //
     M_exit_act = new QAction( tr( "&Quit" ), this );
 #ifdef Q_WS_MAC
@@ -276,6 +314,159 @@ MainWindow::createActionsMonitor()
     connect( M_disconnect_monitor_act, SIGNAL( triggered() ),
              this, SLOT( disconnectMonitor() ) );
     this->addAction( M_disconnect_monitor_act );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+void
+MainWindow::createActionsLogPlayer()
+{
+    {
+        QAction * act = new QAction( QIcon( QPixmap( live_xpm ) ),
+                                     tr( "Live Mode" ), this );
+#ifdef Q_WS_MAC
+        act->setShortcut( Qt::META + Qt::Key_L );
+#else
+        act->setShortcut( Qt::CTRL + Qt::Key_L );
+#endif
+        act->setStatusTip( tr( "Set monitor to live mode.(" )
+                           + act->shortcut().toString() + tr( ")" ) );
+        act->setToolTip( act->statusTip() );
+        connect( act, SIGNAL( triggered() ),
+                 this, SLOT( setLiveMode() ) );
+        this->addAction( act );
+
+        M_live_mode_act = act;
+        M_live_mode_act->setEnabled( false );
+    }
+    {
+        QAction * act = new QAction( QIcon( QPixmap( play_xpm ) ),
+                                     tr( "Play/Stop" ), this );
+        act->setShortcut( Qt::Key_Space );
+        act->setStatusTip( tr( "Play/Stop the log player. (" )
+                           + act->shortcut().toString() + tr( ")" ) );
+        act->setToolTip( act->statusTip() );
+        act->setCheckable( true );
+        connect( act, SIGNAL( triggered( bool ) ),
+                 M_log_player, SLOT( playOrStop( bool ) ) );
+        connect( act, SIGNAL( toggled( bool ) ),
+                 this, SLOT( togglePlayOrStopIcon( bool ) ) );
+        this->addAction( act );
+
+        M_log_player_play_or_stop_act = act;
+    }
+    {
+        QAction * act = new QAction( QIcon( QPixmap( minus_xpm ) ),
+                                     tr( "Step Backward" ), this );
+        act->setShortcut( Qt::Key_Left );
+        act->setStatusTip( tr( "One step backward the log player.(" )
+                           + act->shortcut().toString() + tr( ")" ) );
+        act->setToolTip( act->statusTip() );
+        connect( act, SIGNAL( triggered() ),
+                 M_log_player, SLOT( stepBackward() ) );
+        connect( act, SIGNAL( triggered( bool ) ),
+                 M_log_player_play_or_stop_act, SLOT( setChecked( bool ) ) );
+        this->addAction( act );
+
+        M_log_player_step_backward_act = act;
+    }
+    {
+        QAction * act = new QAction( QIcon( QPixmap( plus_xpm ) ),
+                                     tr( "Step Forward" ), this );
+        act->setShortcut( Qt::Key_Right );
+        act->setStatusTip( tr( "One step forward the log player.(" )
+                           + act->shortcut().toString() + tr( ")" ) );
+        act->setToolTip( act->statusTip() );
+        connect( act, SIGNAL( triggered() ),
+                 M_log_player, SLOT( stepForward() ) );
+        connect( act, SIGNAL( triggered( bool ) ),
+                 M_log_player_play_or_stop_act, SLOT( setChecked( bool ) ) );
+        this->addAction( act );
+
+        M_log_player_step_forward_act = act;
+    }
+    {
+       QAction * act = new QAction( QIcon( QPixmap( decelerate_xpm ) ),
+                                     tr( "Decelerate" ), this );
+#ifdef Q_WS_MAC
+        act->setShortcut( Qt::META + Qt::Key_Down );
+#else
+        act->setShortcut( Qt::CTRL + Qt::Key_Down );
+#endif
+        act->setStatusTip( tr( "Decelerate the replaying speed.(" )
+                           + act->shortcut().toString() + tr( ")" ) );
+        act->setToolTip( act->statusTip() );
+        connect( act, SIGNAL( triggered() ),
+                 M_log_player, SLOT( decelerate() ) );
+        this->addAction( act );
+
+        M_log_player_decelerate_act = act;
+    }
+    {
+        QAction * act = new QAction( QIcon( QPixmap( accelerate_xpm ) ),
+                                     tr( "Accelerate" ), this );
+#ifdef Q_WS_MAC
+        act->setShortcut( Qt::META + Qt::Key_Up );
+#else
+        act->setShortcut( Qt::CTRL + Qt::Key_Up );
+#endif
+        act->setStatusTip( tr( "Accelerate the replaying speed.(" )
+                           + act->shortcut().toString() + tr( ")" ) );
+        act->setToolTip( act->statusTip() );
+        connect( act, SIGNAL( triggered() ),
+                 M_log_player, SLOT( accelerate() ) );
+        this->addAction( act );
+
+        M_log_player_accelerate_act = act;
+    }
+    {
+        QAction * act = new QAction( QIcon( QPixmap( prev_score_xpm ) ),
+                                     tr( "Previous score" ), this );
+        act->setShortcut( tr( "Ctrl+G" ) );
+        act->setStatusTip( tr( "Go to the previous goal scene.(" )
+                           + act->shortcut().toString() + tr(")" ) );
+        act->setToolTip( act->statusTip() );
+        connect( act, SIGNAL( triggered() ),
+                 M_log_player, SLOT( goToPreviousScore() ) );
+        this->addAction( act );
+
+        M_log_player_previous_score_act = act;
+    }
+    {
+        QAction * act = new QAction( QIcon( QPixmap( next_score_xpm ) ),
+                                     tr( "Next score" ), this );
+        act->setShortcut( Qt::Key_G );
+        act->setStatusTip( tr( "Go to the next goal scene.(" )
+                           + act->shortcut().toString() + tr( ")" ) );
+        act->setToolTip( act->statusTip() );
+        connect( act, SIGNAL( triggered() ),
+                 M_log_player, SLOT( goToNextScore() ) );
+        this->addAction( act );
+
+        M_log_player_next_score_act = act;
+    }
+    {
+        QAction * act = new QAction( tr( "Go First" ), this );
+        act->setShortcut( Qt::Key_Home );
+        act->setVisible( false );
+        connect( act, SIGNAL( triggered() ),
+                 M_log_player, SLOT( goToFirst() ) );
+        this->addAction( act );
+
+        M_log_player_go_to_first_act = act;
+    }
+    {
+        QAction * act = new QAction( tr( "Go Last" ), this );
+        act->setShortcut( Qt::Key_End );
+        act->setVisible( false );
+        connect( act, SIGNAL( triggered() ),
+                 M_log_player, SLOT( goToLast() ) );
+        this->addAction( act );
+
+        M_log_player_go_to_last_act = act;
+    }
 }
 
 /*-------------------------------------------------------------------*/
@@ -344,6 +535,15 @@ MainWindow::createActionsView()
     connect( M_toggle_menu_bar_act, SIGNAL( toggled( bool ) ),
              this, SLOT( toggleMenuBar( bool ) ) );
     this->addAction( M_toggle_menu_bar_act );
+
+    // tool bar
+    M_toggle_tool_bar_act = new QAction( tr( "Tool Bar" ) , this );
+    M_toggle_tool_bar_act->setCheckable( true );
+    M_toggle_tool_bar_act->setChecked( Options::instance().showToolBar() );
+    M_toggle_tool_bar_act->setStatusTip( tr( "Show/Hide tool bar." ) );
+    connect( M_toggle_tool_bar_act, SIGNAL( toggled( bool ) ),
+             this, SLOT( toggleToolBar( bool ) ) );
+    this->addAction( M_toggle_tool_bar_act );
 
     // status bar
     M_toggle_status_bar_act = new QAction( tr( "Status Bar" ), this );
@@ -442,7 +642,13 @@ MainWindow::createMenus()
 void
 MainWindow::createMenuFile()
 {
-    //QMenu * menu = menuBar()->addMenu( tr( "&File" ) );
+    QMenu * menu = menuBar()->addMenu( tr( "&File" ) );
+
+    menu->addAction( M_open_act );
+
+    menu->addSeparator();
+
+    menu->addAction( M_exit_act );
 }
 
 /*-------------------------------------------------------------------*/
@@ -460,9 +666,7 @@ MainWindow::createMenuMonitor()
 
     menu->addSeparator();
 
-//     menu->addAction( M_set_live_mode_act );
-
-    menu->addAction( M_exit_act );
+    menu->addAction( M_live_mode_act );
 }
 
 /*-------------------------------------------------------------------*/
@@ -509,9 +713,11 @@ MainWindow::createMenuReferee()
                  || mode == rcss::rcg::PM_Back_Pass_Right
                  || mode == rcss::rcg::PM_GoalKick_Right
                  || mode == rcss::rcg::PM_IndFreeKick_Left
-                 || mode == rcss::rcg::PM_IndFreeKick_Right )
+                 || mode == rcss::rcg::PM_IndFreeKick_Right
+                 || mode == rcss::rcg::PM_Illegal_Defense_Left
+                 || mode == rcss::rcg::PM_Illegal_Defense_Right )
             {
-                QAction * act = submenu->addAction( QString::fromAscii( playmode_strings[mode] ) );
+                QAction * act = submenu->addAction( QString::fromLatin1( playmode_strings[mode] ) );
                 connect( act, SIGNAL( triggered() ), mapper, SLOT( map() ) );
                 mapper->setMapping( act, mode );
             }
@@ -529,6 +735,7 @@ MainWindow::createMenuView()
     QMenu * menu = menuBar()->addMenu( tr( "&View" ) );
 
     menu->addAction( M_toggle_menu_bar_act );
+    menu->addAction( M_toggle_tool_bar_act );
     menu->addAction( M_toggle_status_bar_act );
 
     menu->addSeparator();
@@ -579,7 +786,85 @@ MainWindow::createMenuHelp()
 void
 MainWindow::createToolBars()
 {
+    M_log_player_tool_bar = this->addToolBar( tr( "LogPlayer" ) );
+    M_log_player_tool_bar->setAllowedAreas( Qt::TopToolBarArea | Qt::BottomToolBarArea );
 
+    //
+    // create log player control panel
+    //
+
+    QFrame * control_panel = new QFrame();
+    QHBoxLayout * button_layout = new QHBoxLayout();
+    button_layout->setContentsMargins( 4, 4, 12, 4 );
+    button_layout->setSpacing( 4 );
+
+    {
+        QToolButton * button = new QToolButton();
+        button->setIconSize( QSize( 24, 24 ) );
+        button->setDefaultAction( M_live_mode_act );
+        button_layout->addWidget( button );
+    }
+    {
+        QToolButton * button = new QToolButton();
+        button->setIconSize( QSize( 24, 24 ) );
+        button->setDefaultAction( M_log_player_play_or_stop_act );
+        button_layout->addWidget( button );
+    }
+    {
+        QToolButton * button = new QToolButton();
+        button->setIconSize( QSize( 16, 16 ) );
+        button->setDefaultAction( M_log_player_step_backward_act );
+        button_layout->addWidget( button );
+    }
+    {
+        QToolButton * button = new QToolButton();
+        button->setIconSize( QSize( 16, 16 ) );
+        button->setDefaultAction( M_log_player_step_forward_act );
+        button_layout->addWidget( button );
+    }
+    {
+        QToolButton * button = new QToolButton();
+        button->setIconSize( QSize( 16, 16 ) );
+        button->setDefaultAction( M_log_player_decelerate_act );
+        button_layout->addWidget( button );
+    }
+    {
+        QToolButton * button = new QToolButton();
+        button->setIconSize( QSize( 16, 16 ) );
+        button->setDefaultAction( M_log_player_accelerate_act );
+        button_layout->addWidget( button );
+    }
+    {
+        QToolButton * button = new QToolButton();
+        button->setIconSize( QSize( 16, 16 ) );
+        button->setDefaultAction( M_log_player_previous_score_act );
+        button_layout->addWidget( button );
+    }
+    {
+        QToolButton * button = new QToolButton();
+        button->setIconSize( QSize( 16, 16 ) );
+        button->setDefaultAction( M_log_player_next_score_act );
+        button_layout->addWidget( button );
+    }
+
+    control_panel->setLayout( button_layout );
+    M_log_player_tool_bar->addWidget( control_panel );
+
+
+    //
+    //
+    //
+
+    LogPlayerSlider * log_player_slider = new LogPlayerSlider();
+    M_log_player_tool_bar->addWidget( log_player_slider );
+
+    connect( log_player_slider, SIGNAL( valueChanged( int ) ),
+             M_log_player, SLOT( goToIndex( int ) ) );
+    connect( M_log_player, SIGNAL( indexUpdated( size_t, size_t ) ),
+             log_player_slider, SLOT( updateIndex( size_t, size_t ) ) );
+
+
+    M_log_player_tool_bar->setVisible( Options::instance().showToolBar() );
 }
 
 /*-------------------------------------------------------------------*/
@@ -592,14 +877,6 @@ MainWindow::createStatusBar()
     this->statusBar()->showMessage( tr( "Ready" ) );
 
     int min_width = 0;
-
-    M_buffering_label = new QLabel( tr( "Buffering   0" ) );
-    min_width
-        = M_buffering_label->fontMetrics().width(  tr( "Buffering 000" ) )
-        + 16;
-    M_buffering_label->setMinimumWidth( min_width );
-    M_buffering_label->setAlignment( Qt::AlignLeft );
-    this->statusBar()->addPermanentWidget( M_buffering_label );
 
     //
 
@@ -672,10 +949,12 @@ MainWindow::createFieldCanvas()
                  || mode == rcss::rcg::PM_Back_Pass_Right
                  || mode == rcss::rcg::PM_GoalKick_Right
                  || mode == rcss::rcg::PM_IndFreeKick_Left
-                 || mode == rcss::rcg::PM_IndFreeKick_Right )
+                 || mode == rcss::rcg::PM_IndFreeKick_Right
+                 || mode == rcss::rcg::PM_Illegal_Defense_Left
+                 || mode == rcss::rcg::PM_Illegal_Defense_Right )
             {
                 QAction * act = new QAction( M_playmode_change_act_group );
-                act->setText( QString::fromAscii( playmode_strings[mode] ) );
+                act->setText( QString::fromLatin1( playmode_strings[mode] ) );
                 connect( act, SIGNAL( triggered() ), mapper, SLOT( map() ) );
                 mapper->setMapping( act, mode );
             }
@@ -1024,6 +1303,207 @@ MainWindow::closeEvent( QCloseEvent * event )
 
  */
 void
+MainWindow::wheelEvent( QWheelEvent * event )
+{
+    if ( event->delta() < 0 )
+    {
+        M_log_player_step_forward_act->trigger();
+    }
+    else
+    {
+        M_log_player_step_backward_act->trigger();
+    }
+
+    event->accept();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+void
+MainWindow::openGameLogFile( const QString & filepath )
+{
+    if ( ! QFile::exists( filepath ) )
+    {
+        qDebug().nospace() << "File: " << filepath << " does not exist.";
+        return;
+    }
+
+    M_log_player->stop();
+    disconnectMonitor();
+
+    if ( ! openGameLogFileImpl( filepath ) )
+    {
+        QString err_msg = tr( "Failed to read [" );
+        err_msg += filepath;
+        err_msg += tr( "]" );
+        if ( Options::instance().autoQuitMode() )
+        {
+            err_msg += tr( "\nQuit the application...");
+        }
+
+        QMessageBox::critical( this,
+                               tr( "Error" ),
+                               err_msg,
+                               QMessageBox::Ok, QMessageBox::NoButton );
+        this->setWindowTitle( tr( PACKAGE_NAME ) );
+        this->statusBar()->showMessage( tr( "Ready" ) );
+
+        if ( Options::instance().autoQuitMode() )
+        {
+            QTimer::singleShot( 100, qApp, SLOT( quit() ) );
+        }
+
+        return;
+    }
+
+    if ( M_disp_holder.dispCont().empty() )
+    {
+        QString err_msg = tr( "Empty log file [" );
+        err_msg += filepath;
+        err_msg += tr( "]" );
+        if ( Options::instance().autoQuitMode() )
+        {
+            err_msg += tr( "\nQuit the application...");
+        }
+
+        QMessageBox::critical( this,
+                               tr( "Error" ),
+                               err_msg,
+                               QMessageBox::Ok, QMessageBox::NoButton );
+        this->setWindowTitle( tr( PACKAGE_NAME ) );
+        this->statusBar()->showMessage( tr( "Ready" ) );
+
+        if ( Options::instance().autoQuitMode() )
+        {
+            QTimer::singleShot( 100, qApp, SLOT( quit() ) );
+        }
+
+        return;
+    }
+
+    if ( M_player_type_dialog
+         && M_player_type_dialog->isVisible() )
+    {
+        M_player_type_dialog->updateData();
+    }
+
+    if ( M_config_dialog )
+    {
+        M_config_dialog->fitToScreen();
+    }
+
+    // set window title
+    QFileInfo fileinfo( filepath );
+    QString name = fileinfo.fileName();
+    if ( name.length() > 128 )
+    {
+        name.replace( 125, name.length() - 125, tr( "..." ) );
+    }
+    this->setWindowTitle( name + tr( " - " ) + tr( PACKAGE_NAME ) );
+    this->statusBar()->showMessage( name );
+
+    //M_log_player_slider->updateIndex( 0, M_disp_holder.dispCont().size() );
+    M_log_player->goToFirst();
+
+    M_toggle_tool_bar_act->setChecked( true );
+
+    if ( Options::instance().autoQuitMode() )
+    {
+        M_log_player->playForward();
+    }
+
+    emit viewUpdated();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+bool
+MainWindow::openGameLogFileImpl( const QString & filepath )
+{
+#ifdef HAVE_LIBZ
+    rcss::gzifstream fin( filepath.toLatin1() );
+#else
+    std::ifstream fin( filepath.toLatin1() );
+#endif
+
+    if ( ! fin )
+    {
+        std::cerr << "failed to open the rcg file. [" << filepath.toStdString() << "]"
+                  << std::endl;
+        return false;
+    }
+
+    M_disp_holder.clear();
+
+    // show progress dialog
+    QProgressDialog progress_dialog( this );
+    progress_dialog.setWindowTitle( QObject::tr( "parsing a game log file..." ) );
+    progress_dialog.setRange( 0, 6000 );
+    progress_dialog.setValue( 0 );
+    progress_dialog.setLabelText( QObject::tr( "Time: 0" ) );
+    progress_dialog.setCancelButton( 0 ); // no cancel button
+    progress_dialog.setMinimumDuration( 0 ); // no duration
+
+    QTime timer;
+    timer.start();
+
+
+    rcss::rcg::Parser parser( M_disp_holder );
+    int count = 0;
+    while ( parser.parse( fin ) )
+    {
+        ++count;
+        if ( count % 32 == 1 )
+        {
+            if ( ! M_disp_holder.dispCont().empty() )
+            {
+                int time = M_disp_holder.dispCont().back()->show_.time_;
+                if ( time > progress_dialog.maximum() )
+                {
+                    progress_dialog.setMaximum( progress_dialog.maximum() + 6000 );
+                }
+                progress_dialog.setValue( time );
+                progress_dialog.setLabelText( QString( "Time: %1" ).arg( time ) );
+            }
+        }
+
+        if ( count % 512 == 1 )
+        {
+            qApp->processEvents();
+            std::fprintf( stdout, "parsing... %d\r", count );
+            std::fflush( stdout );
+        }
+    }
+
+    std::cerr << "parsing elapsed " << timer.elapsed() << " [ms]" << std::endl;
+
+    if ( ! fin.eof() )
+    {
+        std::cerr << "failed to parse the rcg file [" << filepath.toStdString() << "]."
+                  << std::endl;
+        fin.close();
+        return false;
+    }
+
+    fin.close();
+
+    std::cerr << "opened rcg file [" << filepath.toStdString()
+              << "]. data size = "
+              << M_disp_holder.dispCont().size()
+              << std::endl;
+
+    return true;
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+void
 MainWindow::connectMonitorTo( const char * hostname )
 {
     if ( std::strlen( hostname ) == 0 )
@@ -1036,7 +1516,7 @@ MainWindow::connectMonitorTo( const char * hostname )
     disconnectMonitor();
 
     std::cerr << "Connect to [" << hostname << "] ..." << std::endl;
-    this->statusBar()->showMessage( tr( "Connect to %1 ..." ).arg( QString::fromAscii( hostname ) ),
+    this->statusBar()->showMessage( tr( "Connect to %1 ..." ).arg( QString::fromLatin1( hostname ) ),
                                     5000 );
 
     M_monitor_client = new MonitorClient( this,
@@ -1069,13 +1549,11 @@ MainWindow::connectMonitorTo( const char * hostname )
     }
 
     Options::instance().setServerHost( hostname );
-    Options::instance().setMonitorClientMode( true );
-    Options::instance().setBufferRecoverMode( true );
 
 //     M_save_image_act->setEnabled( false );
 //     M_open_output_act->setEnabled( true );
 
-//     M_set_live_mode_act->setEnabled( true );
+    M_live_mode_act->setEnabled( true );
     M_connect_monitor_act->setEnabled( false );
     M_connect_monitor_to_act->setEnabled( false );
     M_disconnect_monitor_act->setEnabled( true );
@@ -1087,9 +1565,13 @@ MainWindow::connectMonitorTo( const char * hostname )
     connect( M_monitor_client, SIGNAL( reconnectRequested() ),
              this, SLOT( reconnectMonitor() ) );
 
-//     M_log_player->setLiveMode();
-
+    M_log_player->setLiveMode();
     M_monitor_client->sendDispInit();
+
+    if ( ! Options::instance().showToolBar() )
+    {
+        M_log_player_tool_bar->hide();
+    }
 
     if ( QApplication::overrideCursor() )
     {
@@ -1108,13 +1590,12 @@ MainWindow::about()
     QString msg( tr( PACKAGE_NAME ) + tr( "-" ) + tr( VERSION ) + tr( "\n\n" ) );
     msg += tr( "The RoboCup Soccer Simulator Monitor (rcssmonitor) is used to view\n"
                "the simulation as it takes place by connecting to the rcssserver or\n"
-               "to view the playback of a simulation by connecting to the rcsslogplayer.\n"
+               "to view the playback of a simulation by loading a game log file.\n"
                "\n"
                "The RoboCup Soccer Simulator Official Web Page:\n"
-               "  http://sserver.sourceforge.net/\n"
+               "  http://rcsoccersim.github.io/\n"
                "Author:\n"
-               "  The RoboCup Soccer Simulator Maintenance Committee.\n"
-               "  <sserver-admin@lists.sourceforgenet>" );
+               "  The RoboCup Soccer Simulator Maintenance Committee." );
 
     QMessageBox::about( this,
                         tr( "About " ) + tr( PACKAGE_NAME ),
@@ -1159,7 +1640,11 @@ MainWindow::printShortcutKeys()
         table_widget->setHorizontalHeaderLabels( header );
 
         table_widget->horizontalHeader()->setStretchLastSection( true );
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
+        table_widget->horizontalHeader()->setSectionResizeMode( QHeaderView::ResizeToContents );
+#else
         table_widget->horizontalHeader()->setResizeMode( QHeaderView::ResizeToContents );
+#endif
         table_widget->verticalHeader()->hide();
 
         int row = 0;
@@ -1215,6 +1700,55 @@ MainWindow::setQuitTimer()
                       : 100 );
     QTimer::singleShot( wait_msec,
                         qApp, SLOT( quit() ) );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+void
+MainWindow::openGameLogFile()
+{
+    static QString s_last_path;
+
+#ifdef HAVE_LIBZ
+    QString filter( tr( "Game Log files (*.rcg *.rcg.gz);;"
+                        "All files (*)" ) );
+#else
+    QString filter( tr( "Game Log files (*.rcg);;"
+                        "All files (*)" ) );
+#endif
+    if ( s_last_path.isEmpty() )
+    {
+        if ( ! Options::instance().gameLogFile().empty() )
+        {
+            s_last_path = QString::fromStdString( Options::instance().gameLogFile() );
+        }
+        else
+        {
+            s_last_path = QDir::homePath();
+        }
+    }
+
+    std::cerr << "the last path [" << s_last_path.toStdString() << ']' << std::endl;
+
+    QString file_path = QFileDialog::getOpenFileName( this,
+                                                      tr( "Choose a game log file to open" ),
+                                                      s_last_path,
+                                                      filter );
+
+    if ( file_path.isEmpty() )
+    {
+        return;
+    }
+
+    std::cerr << "open file = [" << file_path.toStdString() << ']' << std::endl;
+
+    s_last_path = QFileInfo( file_path ).absolutePath();
+
+    std::cerr << "update the last path [" << s_last_path.toStdString() << ']' << std::endl;
+
+    openGameLogFile( file_path );
 }
 
 /*-------------------------------------------------------------------*/
@@ -1300,17 +1834,13 @@ MainWindow::disconnectMonitor()
         // quit application if auto_quit_mode is on
         //
         if ( ! Options::instance().autoReconnectMode()
-             && ! Options::instance().bufferingMode()
              && Options::instance().autoQuitMode() )
         {
             setQuitTimer();
         }
     }
 
-    Options::instance().setMonitorClientMode( false );
-    Options::instance().setBufferRecoverMode( false );
-
-//     M_set_live_mode_act->setEnabled( false );
+    M_live_mode_act->setEnabled( false );
     M_connect_monitor_act->setEnabled( true );
     M_connect_monitor_to_act->setEnabled( true );
     M_disconnect_monitor_act->setEnabled( false );
@@ -1345,6 +1875,17 @@ void
 MainWindow::toggleMenuBar( bool checked )
 {
     this->menuBar()->setVisible( checked );
+}
+
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+void
+MainWindow::toggleToolBar( bool checked )
+{
+    M_log_player_tool_bar->setVisible( checked );
 }
 
 /*-------------------------------------------------------------------*/
@@ -1606,7 +2147,7 @@ MainWindow::yellowCard()
 
     char side_str[8];
     int unum = 0;
-    if ( std::sscanf( str.toAscii().data(), " %s %d ", side_str, &unum ) != 2 )
+    if ( std::sscanf( str.toLatin1().data(), " %s %d ", side_str, &unum ) != 2 )
     {
         return;
     }
@@ -1660,7 +2201,7 @@ MainWindow::redCard()
 
     char side_str[8];
     int unum = 0;
-    if ( std::sscanf( str.toAscii().data(), " %s %d ", side_str, &unum ) != 2 )
+    if ( std::sscanf( str.toLatin1().data(), " %s %d ", side_str, &unum ) != 2 )
     {
         return;
     }
@@ -1844,6 +2385,14 @@ MainWindow::changePlayMode( int mode,
         M_monitor_client->sendTrainerMoveBall( x, y, 0.0, 0.0 );
         M_monitor_client->sendChangeMode( pmode );
         break;
+    case rcss::rcg::PM_Illegal_Defense_Left:
+        M_monitor_client->sendTrainerMoveBall( -41.5, 0.0, 0.0, 0.0 );
+        M_monitor_client->sendChangeMode( pmode );
+        break;
+    case rcss::rcg::PM_Illegal_Defense_Right:
+        M_monitor_client->sendTrainerMoveBall( +41.5, 0.0, 0.0, 0.0 );
+        M_monitor_client->sendChangeMode( pmode );
+        break;
     default:
         QMessageBox::warning( this,
                               tr( "PlayMode Change" ),
@@ -1859,13 +2408,13 @@ MainWindow::changePlayMode( int mode,
 void
 MainWindow::receiveMonitorPacket()
 {
-    if ( Options::instance().bufferingMode() )
+    if ( M_log_player->isLiveMode() )
     {
-        M_log_player->startTimer();
+        M_log_player->showLive();
     }
     else
     {
-        M_log_player->showLive();
+        //M_log_player_slider->updateIndex( M_disp_holder.currentIndex(), maximum );
     }
 }
 
@@ -1941,7 +2490,7 @@ MainWindow::updatePositionLabel( const QPoint & point )
                   "(%.2f, %.2f)",
                   x, y );
 
-        M_position_label->setText( QString::fromAscii( buf ) );
+        M_position_label->setText( QString::fromLatin1( buf ) );
     }
 }
 
@@ -1950,27 +2499,11 @@ MainWindow::updatePositionLabel( const QPoint & point )
 
  */
 void
-MainWindow::updateBufferingLabel()
+MainWindow::setLiveMode()
 {
-    static int s_last_value = -1;
+    M_log_player->setLiveMode();
 
-    if ( this->statusBar()->isVisible()
-         && M_buffering_label->isVisible() )
-    {
-        int current_index = M_disp_holder.currentIndex() == DispHolder::INVALID_INDEX
-            ? 0
-            : M_disp_holder.currentIndex();
-        //M_buffering_label->setText( tr( "Buffering %1/%2" )
-        //                            .arg( cur )
-        //                            .arg( M_disp_holder.dispCont().size() ) );
-        int current_cache = M_disp_holder.dispCont().size() - current_index;
-        current_cache = std::max( 0, current_cache - 1 );
-        if ( s_last_value != current_cache )
-        {
-            M_buffering_label->setText( tr( "Buffering %1" ).arg( current_cache ) );
-            s_last_value = current_cache;
-        }
-    }
+    M_log_player_play_or_stop_act->setChecked( false );
 }
 
 /*-------------------------------------------------------------------*/
@@ -1978,10 +2511,9 @@ MainWindow::updateBufferingLabel()
 
  */
 void
-MainWindow::showRecoveringState()
+MainWindow::togglePlayOrStopIcon( bool checked )
 {
-    M_field_canvas->update( M_field_canvas->width()/2 - Options::WAITING_ANIMATION_SIZE/2,
-                            M_field_canvas->height()/2 - Options::WAITING_ANIMATION_SIZE/2,
-                            Options::WAITING_ANIMATION_SIZE,
-                            Options::WAITING_ANIMATION_SIZE );
+    M_log_player_play_or_stop_act->setIcon( checked
+                                            ? QIcon( QPixmap( stop_xpm ) )
+                                            : QIcon( QPixmap( play_xpm ) ) );
 }

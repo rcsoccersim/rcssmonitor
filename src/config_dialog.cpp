@@ -34,7 +34,13 @@
 #include <config.h>
 #endif
 
+#include <QtGlobal>
+
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
+#include <QtWidgets>
+#else
 #include <QtGui>
+#endif
 
 #include "config_dialog.h"
 
@@ -536,6 +542,13 @@ ConfigDialog::createPlayerInfoControls()
         connect( M_card_cb, SIGNAL( clicked( bool ) ),
                  this, SLOT( clickShowCard( bool ) ) );
         layout->addWidget( M_card_cb );
+
+        //
+        M_illegal_defense_cb = new QCheckBox( tr( "Illegal Defense" ) );
+        M_illegal_defense_cb->setChecked( Options::instance().showIllegalDefenseState() );
+        connect( M_illegal_defense_cb, SIGNAL( clicked( bool ) ),
+                 this, SLOT( clickShowIllegalDefense( bool ) ) );
+        layout->addWidget( M_illegal_defense_cb );
 
         top_layout->addLayout( layout );
     }
@@ -1189,6 +1202,9 @@ ConfigDialog::createColorItems()
     M_color_list_box->addItem( new ColorItem( tr( "Pointto" ),
                                               o->pointtoPen().color(),
                                               boost::bind1st( std::mem_fun( &Options::setPointtoColor ), o ) ) );
+    M_color_list_box->addItem( new ColorItem( tr( "Illegal Defense" ),
+                                              o->pointtoPen().color(),
+                                              boost::bind1st( std::mem_fun( &Options::setIllegalDefenseColor ), o ) ) );
 }
 
 /*-------------------------------------------------------------------*/
@@ -1270,6 +1286,7 @@ ConfigDialog::updateAll()
     M_kick_accel_area_cb->setChecked( opt.showKickAccelArea() );
     M_pointto_cb->setChecked( opt.showPointto() );
     M_card_cb->setChecked( opt.showCard() );
+    M_illegal_defense_cb->setChecked( opt.showIllegalDefenseState() );
 
     M_show_score_board_cb->setChecked( opt.showScoreBoard() );
     M_show_keepaway_area_cb->setChecked( opt.showKeepawayArea() );
@@ -1349,7 +1366,7 @@ ConfigDialog::updateFieldScale()
 
     char buf[16];
     snprintf( buf, 16, "%.2f", Options::instance().fieldScale() );
-    M_scale_text->setText( QString::fromAscii( buf ) );
+    M_scale_text->setText( QString::fromLatin1( buf ) );
 }
 
 /*-------------------------------------------------------------------*/
@@ -1961,6 +1978,33 @@ ConfigDialog::toggleShowCard()
 {
     Options::instance().toggleShowCard();
     M_card_cb->setChecked( Options::instance().showCard() );
+
+    emit configured();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+void
+ConfigDialog::clickShowIllegalDefense( bool checked )
+{
+    if ( Options::instance().showIllegalDefenseState() != checked )
+    {
+        Options::instance().toggleShowIllegalDefenseState();
+        emit configured();
+    }
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+void
+ConfigDialog::toggleShowIllegalDefense()
+{
+    Options::instance().toggleShowIllegalDefenseState();
+    M_illegal_defense_cb->setChecked( Options::instance().showIllegalDefenseState() );
 
     emit configured();
 }

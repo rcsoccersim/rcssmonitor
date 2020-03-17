@@ -81,7 +81,7 @@ MonitorClient::MonitorClient( QObject * parent,
         M_version = 4;
     }
 
-    QHostInfo host = QHostInfo::fromName( QString::fromAscii( hostname ) );
+    QHostInfo host = QHostInfo::fromName( QString::fromLatin1( hostname ) );
 
     if ( host.error() != QHostInfo::NoError )
     {
@@ -281,24 +281,6 @@ MonitorClient::handleTimer()
     M_waited_msec += POLL_INTERVAL_MS;
 
     //std::cerr << "handleTimer waited = " << M_waited_msec << std::endl;
-
-    if ( Options::instance().bufferingMode() )
-    {
-        //std::cerr << "disp current index=" << M_disp_holder.currentIndex() << '\n'
-        //          << "     container size=" << M_disp_holder.dispCont().size() << std::endl;
-        DispConstPtr disp = M_disp_holder.currentDisp();
-        if ( M_disp_holder.dispCont().empty()
-             || ( disp && disp->pmode_ == rcss::rcg::PM_TimeOver )
-             || M_disp_holder.currentIndex() >= M_disp_holder.dispCont().size() - 2 )
-        {
-
-        }
-        else
-        {
-            //std::cerr << "now, playing buffered data" << std::endl;
-            M_waited_msec -= POLL_INTERVAL_MS;
-        }
-    }
 
     if ( Options::instance().autoReconnectMode() )
     {

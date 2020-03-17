@@ -54,6 +54,7 @@ class DispHolder
     : public rcss::rcg::Handler {
 public:
     static const size_t INVALID_INDEX;
+    static const size_t MAX_SIZE;
 
 private:
 
@@ -67,10 +68,6 @@ private:
     TeamGraphic M_team_graphic_left;
     TeamGraphic M_team_graphic_right;
 
-    // the record of penalty score/miss, first: time, second: playmode
-    std::vector< std::pair< int, rcss::rcg::PlayMode > > M_penalty_scores_left;
-    std::vector< std::pair< int, rcss::rcg::PlayMode > > M_penalty_scores_right;
-
     PointCont M_point_cont;
     CircleCont M_circle_cont;
     LineCont M_line_cont;
@@ -78,8 +75,15 @@ private:
     rcss::rcg::PlayMode M_playmode; //!< last handled playmode
     rcss::rcg::TeamT M_teams[2]; //!< last handled team info
 
-    DispPtr M_disp; //! last handled display data
-    DispCont M_disp_cont;
+    //! the list of score changed data index
+    std::vector< std::size_t > M_score_changed_index;
+
+    //! the record of penalty score/miss, first: time, second: playmode
+    std::vector< std::pair< int, rcss::rcg::PlayMode > > M_penalty_scores_left;
+    std::vector< std::pair< int, rcss::rcg::PlayMode > > M_penalty_scores_right;
+
+    DispPtr M_disp; //!< the last handled display data
+    DispCont M_disp_cont; //!< the container of all display data
 
     size_t M_current_index;
 
@@ -103,6 +107,11 @@ public:
 
     const TeamGraphic & teamGraphicLeft() const { return M_team_graphic_left; }
     const TeamGraphic & teamGraphicRight() const { return M_team_graphic_right; }
+
+    const std::vector< std::size_t > & scoreChangedIndex() const
+      {
+          return M_score_changed_index;
+      }
 
     const std::vector< std::pair< int, rcss::rcg::PlayMode > > & penaltyScoresLeft() const
       {

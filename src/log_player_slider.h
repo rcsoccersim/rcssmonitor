@@ -1,8 +1,8 @@
 // -*-c++-*-
 
 /*!
-  \file main.cpp
-  \brief main function source file
+  \file log_slider_tool_bar.h
+  \brief log player slider tool bar class Header File.
 */
 
 /*
@@ -13,7 +13,7 @@
 
  This code is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
- the Free Software Foundation; either version 3, or (at your option)
+ the Free Software Foundation; either version 2, or (at your option)
  any later version.
 
  This code is distributed in the hope that it will be useful,
@@ -30,39 +30,34 @@
 
 /////////////////////////////////////////////////////////////////////
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
+#ifndef RCSSMONITOR_LOG_PLAYER_SLIDER_H
+#define RCSSMONITOR_LOG_PLAYER_SLIDER_H
+
+#include <QSlider>
+
+class LogPlayerSlider
+    : public QSlider {
+
+    Q_OBJECT
+
+public:
+
+    LogPlayerSlider( QWidget * parent = 0 );
+
+protected:
+
+    void mousePressEvent( QMouseEvent * event );
+
+public slots:
+
+    void changeOrientation( Qt::Orientation orientation );
+    void updateIndex( size_t current,
+                      size_t maximum );
+
+signals:
+
+    void cycleChanged( int cycle );
+
+};
+
 #endif
-
-#include <QApplication>
-#include <QLocale>
-
-#include "main_window.h"
-#include "options.h"
-
-#include <iostream>
-#include <locale>
-
-int
-main( int argc,
-      char ** argv )
-{
-    std::cout << PACKAGE_NAME << "-" << VERSION << "\n\n"
-              << "Copyright (C) 2009 - 2020 RoboCup Soccer Simulator Maintenance Group.\n"
-              << std::endl;
-
-    QApplication app( argc, argv );
-
-    std::locale::global( std::locale::classic() );
-
-    if ( ! Options::instance().parseCmdLine( argc, argv ) )
-    {
-        return 1;
-    }
-
-    MainWindow win;
-    win.show();
-    win.init();
-
-    return app.exec();
-}

@@ -1,122 +1,42 @@
+
 # SYNOPSIS
 #
-#   AX_QT3 [--with-qt3-moc=PATH]
+#   AX_QT [--with-qt-moc=PATH]
 #
 # DESCRIPTION
 #
 #   The following shell variable is set to either "yes" or "no":
 #
-#     have_qt3
+#     have_qt
 #
 #   Additionally, the following variables are exported:
 #
-#     QT3_CFLAGS
-#     QT3_CXXFLAGS
-#     QT3_LDFLAGS
-#     QT3_LDADD
-#     QT3_MOC
-
-# SYNOPSIS
-#
-#   AX_QT4 [--with-qt4-moc=PATH]
-#
-# DESCRIPTION
-#
-#   The following shell variable is set to either "yes" or "no":
-#
-#     have_qt4
-#
-#   Additionally, the following variables are exported:
-#
-#     QT4_CFLAGS
-#     QT4_CXXFLAGS
-#     QT4_LDFLAGS
-#     QT4_LDADD
-#     QT4_MOC
+#     QT_CFLAGS
+#     QT_CXXFLAGS
+#     QT_LDFLAGS
+#     QT_LDADD
+#     QT_MOC
 #
 
-AC_DEFUN([AX_QT3],
+AC_DEFUN([AX_QT],
 [
   AC_REQUIRE([AC_PROG_CXX])
+  AC_REQUIRE([AC_PATH_X])
+  AC_REQUIRE([AC_PATH_XTRA])
 
-  AC_MSG_CHECKING(for Qt3)
+  QT_REQUIRED_VERSION=ifelse([$1], ,5.0.0,$1)
+  QT_REQUIRED_MODULES=ifelse([$2], ,Qt5Core,"$2")
 
-  QT3_REQUIRED_VERSION=ifelse([$1], ,3.3.0,$1)
-  have_qt3="no"
+  QT_MAJOR_VERSION=`echo $QT_REQUIRED_VERSION | cut -d . -f 1`
 
-  AC_PATH_PROG(PKG_CONFIG, pkg-config, no)
-  if test "x$PKG_CONFIG" = "xno"; then
-    AC_MSG_ERROR(You have to install pkg-config to compile $PACKAGENAME-$VERSION.)
-  fi
-
-  PKG_CHECK_MODULES(Qt3,
-                    qt-mt >= $QT3_REQUIRED_VERSION,
-                    have_qt3="yes",
-                    have_qt3="no")
-  if test "$have_qt3" = "no"; then
-    PKG_CHECK_MODULES(Qt3,
-                      qt >= $QT3_REQUIRED_VERSION,
-                      have_qt3="yes",
-                      have_qt3="no")
-  fi
-
-  if test "$have_qt3" = "no"; then
-    AC_MSG_ERROR([The Qt library >= [$QT3_REQUIRED_VERSION] could not be found.])
-  fi
-
-  QT3_CFLAGS=$($PKG_CONFIG --cflags qt-mt)
-  QT3_CXXFLAGS="$QT3_CFLAGS"
-  QT3_CPPFLAGS=""
-  QT3_LDFLAGS=$($PKG_CONFIG --libs-only-L qt-mt)
-  QT3_LDADD="$($PKG_CONFIG --libs-only-other qt-mt)$($PKG_CONFIG --libs-only-l qt-mt)"
-  AC_MSG_NOTICE([set QT3_CXXFLAGS... $QT3_CXXFLAGS])
-  AC_MSG_NOTICE([set QT3_LDFLAGS... $QT3_LDFLAGS])
-  AC_MSG_NOTICE([set QT3_LDADD... $QT3_LDADD])
-  AC_SUBST(QT3_CFLAGS)
-  AC_SUBST(QT3_CXXFLAGS)
-  AC_SUBST(QT3_CPPFLAGS)
-  AC_SUBST(QT3_LDFLAGS)
-  AC_SUBST(QT3_LDADD)
-
-  # check the path to moc
-  QT3_MOC=""
-
-  AC_ARG_WITH([qt3-moc],
-    [  --with-qt3-moc=PATH     Qt3's moc utilitiy to be used (optional)])
-  if test x$with_qt3_moc != x && test -x "$with_qt3_moc" ; then
-    QT3_MOC="$with_qt3_moc"
-  fi
-  if test x$QT3_MOC = x ; then
-    for qt3_path_tmp in /usr/qt/3 /usr/lib/qt3 /usr/share/qt3 /usr/lib/qt-3.3 /opt/local/lib/qt3 /opt/local /usr/local /usr ; do
-      if test -x "${qt3_path_tmp}/bin/moc" ; then
-        QT3_MOC="${qt3_path_tmp}/bin/moc"
-        break;
-      fi
-    done
-  fi
-  if test x$QT3_MOC = x ; then
-    have_qt3=no
-    AC_MSG_ERROR([You must specify the path to Qt3's moc command.])
-  fi
-
-  AC_MSG_NOTICE([set QT3_MOC... $QT3_MOC])
-  AC_SUBST(QT3_MOC)
-])
+  AC_MSG_NOTICE([set QT_REQUIRED_VERSION... $QT_REQUIRED_VERSION])
+  AC_MSG_NOTICE([set QT_MAJOR_VERSION... $QT_MAJOR_VERSION])
+  AC_MSG_NOTICE([set QT_REQUIRED_MODULES... $QT_REQUIRED_MODULES])
 
 
 
-AC_DEFUN([AX_QT4],
-[
-  AC_REQUIRE([AC_PROG_CXX])
-
-  QT4_REQUIRED_VERSION=ifelse([$1], ,4.1.0,$1)
-  QT4_REQUIRED_MODULES=ifelse([$2], ,QtCore,"$2")
-
-  AC_MSG_NOTICE([set QT4_REQUIRED_VERSION... $QT4_REQUIRED_VERSION])
-  AC_MSG_NOTICE([set QT4_REQUIRED_MODULES... $QT4_REQUIRED_MODULES])
-
-#  if "x$QT4_REQUIRED_MODULES" = "x" ; then
-#     AC_MSG_ERROR([No Qt4 modules])
+#  if "x$QT_REQUIRED_MODULES" = "x" ; then
+#     AC_MSG_ERROR([No Qt modules])
 #  fi
 
   AC_PATH_PROG(PKG_CONFIG, pkg-config, no)
@@ -124,59 +44,66 @@ AC_DEFUN([AX_QT4],
     AC_MSG_ERROR(You have to install pkg-config to compile $PACKAGENAME-$VERSION.)
   fi
 
-  for mod in $QT4_REQUIRED_MODULES ; do
-    AC_MSG_NOTICE(check $mod >= $QT4_REQUIRED_VERSION)
-    PKG_CHECK_MODULES(Qt4,
-                      $mod >= $QT4_REQUIRED_VERSION,
-                      have_qt4="yes",
-                      have_qt4="no")
-    if test "$have_qt4" = "no"; then
+  for mod in $QT_REQUIRED_MODULES ; do
+    AC_MSG_NOTICE(check $mod >= $QT_REQUIRED_VERSION)
+    PKG_CHECK_MODULES(QT,
+                      $mod >= $QT_REQUIRED_VERSION,
+                      have_qt="yes",
+                      have_qt="no")
+    if test "$have_qt" = "no"; then
       AC_MSG_ERROR(
-        [The $mod library >= [$QT4_REQUIRED_VERSION] could not be found.])
+        [The $mod library >= [$QT_REQUIRED_VERSION] could not be found.])
     fi
   done
 
-  QT4_CFLAGS=$($PKG_CONFIG --cflags $QT4_REQUIRED_MODULES)
-  QT4_CXXFLAGS="$QT4_CFLAGS"
-  QT4_CPPFLAGS=""
-  QT4_LDFLAGS=$($PKG_CONFIG --static --libs-only-L $QT4_REQUIRED_MODULES)
-  QT4_LDADD="$($PKG_CONFIG --static --libs-only-other $QT4_REQUIRED_MODULES) $($PKG_CONFIG --static --libs-only-l $QT4_REQUIRED_MODULES)"
-  AC_MSG_NOTICE([set QT4_CXXFLAGS... $QT4_CXXFLAGS])
-  AC_MSG_NOTICE([set QT4_LDFLAGS... $QT4_LDFLAGS])
-  AC_MSG_NOTICE([set QT4_LDADD... $QT4_LDADD])
-  AC_SUBST(QT4_CFLAGS)
-  AC_SUBST(QT4_CXXFLAGS)
-  AC_SUBST(QT4_CPPFLAGS)
-  AC_SUBST(QT4_LDFLAGS)
-  AC_SUBST(QT4_LDADD)
+  QT_CFLAGS=$($PKG_CONFIG --cflags $QT_REQUIRED_MODULES)
+  QT_CXXFLAGS="$QT_CFLAGS"
+  QT_CPPFLAGS=""
+  QT_LDFLAGS=$($PKG_CONFIG --static --libs-only-L $QT_REQUIRED_MODULES)
+  QT_LDADD="$($PKG_CONFIG --static --libs-only-other $QT_REQUIRED_MODULES) $($PKG_CONFIG --static --libs-only-l $QT_REQUIRED_MODULES)"
+  AC_MSG_NOTICE([set QT_CXXFLAGS... $QT_CXXFLAGS])
+  AC_MSG_NOTICE([set QT_LDFLAGS... $QT_LDFLAGS])
+  AC_MSG_NOTICE([set QT_LDADD... $QT_LDADD])
+  AC_SUBST(QT_CFLAGS)
+  AC_SUBST(QT_CXXFLAGS)
+  AC_SUBST(QT_CPPFLAGS)
+  AC_SUBST(QT_LDFLAGS)
+  AC_SUBST(QT_LDADD)
 
   # check the path to moc
-  QT4_MOC=""
+  QT_MOC=""
 
-  AC_ARG_WITH([qt4-moc],
-    [  --with-qt4-moc=PATH     Qt4's moc utilitiy to be used (optional)])
-  if test x$with_qt4_moc != x && test -x "$with_qt4_moc" ; then
-    QT4_MOC="$with_qt4_moc"
-  fi
-##    AC_CHECK_PROG(QT4_MOC, [moc], [moc])
-  if test x$QT4_MOC = x ; then
-      if test -x "/usr/local/bin/moc-qt4" ; then
-        QT4_MOC="/usr/local/bin/moc-qt4"
+  AC_ARG_WITH([qt-moc],
+    [  --with-qt-moc=PATH     Qt's moc utilitiy to be used (optional)])
+
+  if test x$with_qt_moc != x && test -x "$with_qt_moc" ; then
+    QT_MOC="$with_qt_moc"
+  else
+    AC_CHECK_PROG(QT_MOC, [moc], [moc])
+#	mocmajorversion=`$QT_MOC -v 2>&1 | sed -r 's/^.*([0-9]+)\.[0-9]+\.[0-9]+.*$/\1/'`
+    echo $mocmajorversion 2>&1 | sed -r 's/^.*([0-9]+)\.[0-9]+\.[0-9]+.*$/\1/'
+	mocversion=`$QT_MOC -v 2>&1`
+    mocversiongrep=`echo $mocversion | grep -E "Qt $QT_MAJOR_VERSION|moc $QT_MAJOR_VERSION"`
+#	echo "mocversion $mocversion"
+#	echo "mocversiongrep $mocversiongrep"
+
+    if test x"$mocversiongrep" != x"$mocversion"; then
+      AC_CHECK_TOOL(QTCHOOSER, [qtchooser])
+	  QT_TOOLDIR=`qtchooser -qt=$QT_MAJOR_VERSION -print-env | grep QTTOOLDIR | cut -d '=' -f 2 | cut -d \" -f 2`
+      QT_MOC="$QT_TOOLDIR/moc"
+	  mocversion=`$QT_MOC -v 2>&1`
+      mocversiongrep=`echo $mocversion | grep -E "Qt $QT_MAJOR_VERSION|moc $QT_MAJOR_VERSION"`
+	  if test x"$mocversiongrep" != x"$mocversion" ; then
+        QT_MOC=""
       fi
-  fi
-  if test x$QT4_MOC = x ; then
-    for qt4_path_tmp in /usr/qt/4 /usr/lib/qt4 /usr/share/qt4 /opt/local/libexec/qt4-mac /opt/local /usr/local /usr ; do
-      if test -x "${qt4_path_tmp}/bin/moc" ; then
-        QT4_MOC="${qt4_path_tmp}/bin/moc"
-        break;
-      fi
-    done
-  fi
-  if test x$QT4_MOC = x ; then
-    have_qt4=no
-    AC_MSG_ERROR([You must specify the path to Qt4's moc command.])
+    fi
   fi
 
-  AC_MSG_NOTICE([set QT4_MOC... $QT4_MOC])
-  AC_SUBST(QT4_MOC)
+  if test x$QT_MOC = x ; then
+    have_qt=no
+    AC_MSG_ERROR([You need to specify the path to Qt's moc command.])
+  fi
+
+  AC_MSG_NOTICE([set QT_MOC... $QT_MOC])
+  AC_SUBST(QT_MOC)
 ])

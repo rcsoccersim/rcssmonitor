@@ -72,6 +72,7 @@ enum PlayerState {
     FOUL_CHARGED =    0x00020000, // player is frozen by intentional tackle foul
     YELLOW_CARD =     0x00040000,
     RED_CARD =        0x00080000,
+    ILLEGAL_DEFENSE = 0x00100000,
 };
 
 /*!
@@ -134,7 +135,9 @@ enum Side {
             "penalty_miss_l",                   \
             "penalty_miss_r",                   \
             "penalty_score_l",                  \
-            "penalty_score_r"                   \
+            "penalty_score_r",                  \
+            "illegal_defense_l",                \
+            "illegal_defense_r"                 \
             }
 
 /*!
@@ -193,6 +196,8 @@ enum PlayMode {
     PM_PenaltyMiss_Right,
     PM_PenaltyScore_Left,
     PM_PenaltyScore_Right,
+    PM_Illegal_Defense_Left,
+    PM_Illegal_Defense_Right,
     PM_MAX
 };
 
@@ -899,6 +904,10 @@ struct PlayerT {
           return state_ & RED_CARD;
       }
 
+    bool isIllegalDefenseState() const
+      {
+          return state_ & ILLEGAL_DEFENSE;
+      }
 };
 
 /*!
@@ -1310,6 +1319,13 @@ struct ServerParamT {
     bool golden_goal_;
     // v15
     double red_card_probability_;
+    // v16.0
+    int illegal_defense_duration_;
+    int illegal_defense_number_;
+    double illegal_defense_dist_x_;
+    double illegal_defense_width_;
+    std::string fixed_teamname_l_;
+    std::string fixed_teamname_r_;
 
     ServerParamT();
 

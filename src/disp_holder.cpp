@@ -48,6 +48,10 @@
 #include <windows.h>
 #endif
 
+#if !defined(HAVE_NETINET_IN_H) && !defined(HAVE_WINDOWS_H)
+#include <QtEndian>
+#endif
+
 #include <algorithm>
 #include <iterator>
 #include <iostream>
@@ -55,6 +59,7 @@
 #include <cstring>
 
 const size_t DispHolder::INVALID_INDEX = size_t( -1 );
+const size_t DispHolder::MAX_SIZE = 65535;
 
 namespace {
 struct TimeCmp {
@@ -64,6 +69,18 @@ struct TimeCmp {
           return lhs->show_.time_ < rhs;
       }
 };
+
+inline
+rcss::rcg::Int16
+my_ntohs( const rcss::rcg::Int16 val )
+{
+#if defined(HAVE_NETINET_IN_H) || defined(HAVE_WINDOS_H)
+    return static_cast< rcss::rcg::Int16 >( ntohs( val ) );
+#else
+    return qFromBigEndian( val );
+#endif
+}
+
 }
 
 /*-------------------------------------------------------------------*/
@@ -74,7 +91,7 @@ DispHolder::DispHolder()
     : M_rcg_version( 0 ),
       M_current_index( INVALID_INDEX )
 {
-    M_disp_cont.reserve( 65535 );
+    M_disp_cont.reserve( MAX_SIZE );
 }
 
 /*-------------------------------------------------------------------*/
@@ -102,9 +119,6 @@ DispHolder::clear()
     M_team_graphic_left.clear();
     M_team_graphic_right.clear();
 
-    M_penalty_scores_left.clear();
-    M_penalty_scores_right.clear();
-
     M_point_cont.clear();
     M_circle_cont.clear();
     M_line_cont.clear();
@@ -112,6 +126,10 @@ DispHolder::clear()
     M_playmode = rcss::rcg::PM_Null;
     M_teams[0].clear();
     M_teams[1].clear();
+
+    M_score_changed_index.clear();
+    M_penalty_scores_left.clear();
+    M_penalty_scores_right.clear();
 
     M_disp.reset();
     M_disp_cont.clear();
@@ -161,7 +179,7 @@ DispHolder::currentDisp() const
 bool
 DispHolder::addDispInfoV1( const rcss::rcg::dispinfo_t & disp )
 {
-    switch ( ntohs( disp.mode ) ) {
+    switch ( my_ntohs( disp.mode ) ) {
     case rcss::rcg::NO_INFO:
         break;
     case rcss::rcg::SHOW_MODE:
@@ -177,7 +195,7 @@ DispHolder::addDispInfoV1( const rcss::rcg::dispinfo_t & disp )
         break;
     case rcss::rcg::MSG_MODE:
         doHandleMsgInfo( 0,
-                         ntohs( disp.body.msg.board ),
+                         my_ntohs( disp.body.msg.board ),
                          disp.body.msg.message );
         break;
     case rcss::rcg::DRAW_MODE:
@@ -197,7 +215,7 @@ DispHolder::addDispInfoV1( const rcss::rcg::dispinfo_t & disp )
 bool
 DispHolder::addDispInfoV2( const rcss::rcg::dispinfo_t2 & disp )
 {
-    switch ( ntohs( disp.mode ) ) {
+    switch ( my_ntohs( disp.mode ) ) {
     case rcss::rcg::NO_INFO:
         break;
     case rcss::rcg::SHOW_MODE:
@@ -214,7 +232,7 @@ DispHolder::addDispInfoV2( const rcss::rcg::dispinfo_t2 & disp )
 
     case rcss::rcg::MSG_MODE:
         doHandleMsgInfo( 0,
-                         ntohs( disp.body.msg.board ),
+                         my_ntohs( disp.body.msg.board ),
                          disp.body.msg.message );
         break;
     case rcss::rcg::PARAM_MODE:
@@ -300,14 +318,23 @@ DispHolder::doHandleShowInfo( const rcss::rcg::ShowInfoT & show )
     disp->show_ = show;
 
     M_disp = disp;
-
-    if ( Options::instance().bufferingMode() )
+#if 0
+    if ( ! M_disp_cont.empty() )
     {
-        if ( (int)M_disp_cont.size() <= Options::instance().maxDispBuffer() )
+        if ( ( M_playmode == rcss::rcg::PM_BeforeKickOff
+               && M_disp_cont.back()->pmode_ == rcss::rcg::PM_BeforeKickOff )
+             || ( M_playmode == rcss::rcg::PM_TimeOver
+                  && M_disp_cont.back()->pmode_ == rcss::rcg::PM_TimeOver ) )
         {
-            M_disp_cont.push_back( disp );
+            M_disp_cont.pop_back();
         }
     }
+#endif
+    if ( M_disp_cont.size() <= MAX_SIZE )
+    {
+        M_disp_cont.push_back( disp );
+    }
+
 }
 
 /*-------------------------------------------------------------------*/
@@ -368,6 +395,12 @@ DispHolder::doHandleTeamInfo( const int,
                               const rcss::rcg::TeamT & team_l,
                               const rcss::rcg::TeamT & team_r )
 {
+    if ( M_teams[0].score_ != team_l.score_
+         || M_teams[1].score_ != team_r.score_ )
+    {
+        M_score_changed_index.push_back( M_disp_cont.size() - 1 );
+    }
+
     M_teams[0] = team_l;
     M_teams[1] = team_r;
 }
@@ -576,6 +609,12 @@ DispHolder::setIndexStepBack()
         return true;
     }
 
+    if ( Options::instance().autoLoopMode() )
+    {
+        M_current_index = M_disp_cont.size() - 1;
+        return true;
+    }
+
     return false;
 }
 
@@ -601,6 +640,12 @@ DispHolder::setIndexStepForward()
     if ( M_current_index < M_disp_cont.size() - 1 )
     {
         ++M_current_index;
+        return true;
+    }
+
+    if ( Options::instance().autoLoopMode() )
+    {
+        M_current_index = 0;
         return true;
     }
 

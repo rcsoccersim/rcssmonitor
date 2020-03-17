@@ -1,3 +1,23 @@
+[16.0.0]
+  * Support new server specifications, illegal defense and fixed
+    teamname. The monitor visualize the state of illegal defense
+    detection by emphasizing detected players. Both fixed team name
+    and real team name are displayed on the score board.
+
+  * Integrate a log player feature. Now, rcssmonitor can be used
+    instead of rcsslogplayer. The user can open a game log file(.rcg)
+    from GUI menu or the command line option.
+
+  * Add a time shift replay feature. Now, rcssmonitor can replay the
+    simulation during the game without disconnecting from rcssserver.
+
+  * Remove the buffering mode feature.
+
+  * Change the default tool kit to Qt5. Qt4 is still available, but
+    depricated.
+
+  * Support CMake.
+
 [15.2.1]
   * Fix a defect of Qt detection on Ubuntu 16.04.
 
