@@ -1,3 +1,9 @@
+2020-03-11  Hidehisa Akiyama  <hidehisaakiyama@users.noreply.github.com>
+
+	* NEWS:
+	* configure.ac:
+	- updated a major version number. Official release 16.0.0.
+
 2020-01-24  Hidehisa Akiyama  <akky@users.sourceforge.jp>
 
 	* configure.ac:
