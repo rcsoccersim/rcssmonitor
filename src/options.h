@@ -54,6 +54,7 @@ class Options {
 public:
 
     static const QString CONF_FILE;
+    static const QString COLOR_FILE;
 
     enum PlayerSelectType {
         SELECT_FIX,
@@ -652,5 +653,36 @@ public:
     void setMeasureFont( const QFont & font ) { M_measure_font = font; }
 
 };
+
+class Color{
+public:
+    int M_r;
+    int M_g;
+    int M_b;
+
+    Color(int r = 0, int g = 0, int b = 0){
+        M_r = r;
+        M_g = g;
+        M_b = b;
+    }
+
+    Color(const QBrush& qb){
+        M_r = qb.color().red();
+        M_g = qb.color().green();
+        M_b = qb.color().blue();
+    }
+
+    static std::map<std::string, std::vector<Color>> M_team_colors;
+    static double max_diff;
+    static std::map<std::string, std::vector<Color>>& team_colors(){
+        return Color::M_team_colors;
+    }
+
+    QColor to_qcolor() const;
+    static bool initial_teams_color();
+    double dist(const Color& c) const;
+};
+
+std::ostream& operator<<(std::ostream& os, const Color& color);
 
 #endif

@@ -734,6 +734,9 @@ Parser::parseLine( std::istream & is )
     return true;
 }
 
+bool Parser::change_team = false;
+std::string Parser::last_teamname_l = "";
+std::string Parser::last_teamname_r = "";
 
 bool
 Parser::parseLine( const int n_line,
@@ -855,6 +858,17 @@ Parser::parseShowLine( const int n_line,
 
         TeamT team_l( name_l, score_l, pen_score_l, pen_miss_l );
         TeamT team_r( name_r, score_r, pen_score_r, pen_miss_r );
+
+        if (Parser::last_teamname_l.compare(name_l) != 0){
+            Parser::last_teamname_l = name_l;
+            Parser::last_teamname_r = name_r;
+            Parser::change_team = true;
+        }
+        if (Parser::last_teamname_r.compare(name_r) != 0){
+            Parser::last_teamname_l = name_l;
+            Parser::last_teamname_r = name_r;
+            Parser::change_team = true;
+        }
 
         M_handler.handleTeamInfo( time, team_l, team_r );
     }
@@ -1319,7 +1333,6 @@ Parser::parsePlayModeLine( const int n_line,
     return true;
 }
 
-
 bool
 Parser::parseTeamLine( const int n_line,
                        const std::string & line )
@@ -1695,6 +1708,7 @@ Parser::parseServerParamLine( const int n_line,
     double_map.insert( DoubleMap::value_type( "illegal_defense_width", &param.illegal_defense_width_ ) );
     string_map.insert( StringMap::value_type( "fixed_teamname_l", &param.fixed_teamname_l_ ) );
     string_map.insert( StringMap::value_type( "fixed_teamname_r", &param.fixed_teamname_r_ ) );
+
 
     //
     // parse

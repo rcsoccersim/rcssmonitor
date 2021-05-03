@@ -73,7 +73,6 @@ private:
     LineCont M_line_cont;
 
     rcss::rcg::PlayMode M_playmode; //!< last handled playmode
-    rcss::rcg::TeamT M_teams[2]; //!< last handled team info
 
     //! the list of score changed data index
     std::vector< std::size_t > M_score_changed_index;
@@ -92,6 +91,8 @@ private:
     DispHolder operator=( const DispHolder & );
 
 public:
+
+    rcss::rcg::TeamT M_teams[2]; //!< last handled team info
 
     DispHolder();
     ~DispHolder();

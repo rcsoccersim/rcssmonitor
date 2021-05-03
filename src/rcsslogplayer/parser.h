@@ -124,6 +124,9 @@ private:
 
     bool parseLine( std::istream & is );
 public:
+    static bool change_team;
+    static std::string last_teamname_l;
+    static std::string last_teamname_r;
     // can be used by monitor client
     bool parseLine( const int n_line,
                     const std::string & line );

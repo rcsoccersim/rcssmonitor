@@ -89,6 +89,18 @@ rcssmonitor
 
 If you invoke `rcssmonitor` with `--help` option, available options are displayed in your console.
 
+## how to change team colors
+the colors data should be in ~/ directory with .rcssmonitor-team-color.csv name
+the format of data should be like this:
+```
+# file: ~/.rcssmonitor-team-color.csv
+
+my-team-name1 r1 g1 b1 r2 g2 b2 r3 g3 b3 ...
+my-team-name2 r1 g1 b1 r2 g2 b2 r3 g3 b3 ...
+...
+...
+```
+
 ## ✉ ️Contributing
 
 For bug reports, feature requests and latest updates, please goto

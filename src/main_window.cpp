@@ -2408,6 +2408,73 @@ MainWindow::changePlayMode( int mode,
 void
 MainWindow::receiveMonitorPacket()
 {
+    if (rcss::rcg::Parser::change_team) {
+        std::cout << "Initializing team colors" << std::endl;
+
+        if (Color::team_colors().empty()) {
+            std::cout << "no color file exist or the file is empty. (check file: ~/.rcssmonitor-team-color.csv"
+                      << std::endl;
+
+            Options::instance().setLeftTeamColor(Options::instance().LEFT_TEAM_COLOR);
+            Options::instance().setRightTeamColor(Options::instance().RIGHT_TEAM_COLOR);
+        } else {
+            std::string team_name1 = M_disp_holder.M_teams[0].name_;
+            std::string team_name2 = M_disp_holder.M_teams[1].name_;
+
+            std::vector<Color> colors1;
+            std::vector<Color> colors2;
+
+            if (Color::team_colors().find(team_name1) != Color::team_colors().end())
+                colors1 = Color::team_colors()[team_name1];
+            else
+                colors1 = std::vector<Color>{Color(Options::instance().LEFT_TEAM_COLOR),
+                                             Color(Options::instance().RIGHT_TEAM_COLOR)};
+
+            if (Color::team_colors().find(team_name2) != Color::team_colors().end())
+                colors2 = Color::team_colors()[team_name2];
+            else
+                colors2 = std::vector<Color>{Color(Options::instance().LEFT_TEAM_COLOR),
+                                             Color(Options::instance().RIGHT_TEAM_COLOR)};
+
+
+            const Color field_color(Options::instance().fieldBrush());
+            bool find_colors = false;
+
+            for (const Color &color1: colors1) {
+                if (color1.dist(field_color) < Color::max_diff)
+                    continue;
+
+                for (const Color &color2: colors2) {
+                    if (color2.dist(field_color) < Color::max_diff)
+                        continue;
+
+                    if (color1.dist(color2) < Color::max_diff)
+                        continue;
+
+                    std::cout << "Colors found!" << std::endl
+                              << "left team: " << color1 << "|"
+                              << "right team: " << color2
+                              << std::endl;
+
+                    Options::instance().setLeftTeamColor(color1.to_qcolor());
+                    Options::instance().setRightTeamColor(color2.to_qcolor());
+                    find_colors = true;
+                    break;
+                }
+                if (find_colors)
+                    break;
+            }
+
+            if (!find_colors) {
+                std::cout << "Colors not found! going to default mode" << std::endl;
+
+                Options::instance().setLeftTeamColor(Options::instance().LEFT_TEAM_COLOR);
+                Options::instance().setRightTeamColor(Options::instance().RIGHT_TEAM_COLOR);
+            }
+        }
+        rcss::rcg::Parser::change_team = false;
+    }
+
     if ( M_log_player->isLiveMode() )
     {
         M_log_player->showLive();

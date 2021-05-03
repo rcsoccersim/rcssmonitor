@@ -61,6 +61,7 @@
 const QString Options::CONF_FILE = QDir::currentPath() + QDir::separator() + QString( "rcssmonitor.ini" );
 #else
 const QString Options::CONF_FILE = QDir::homePath() + QDir::separator() + QString( ".rcssmonitor.conf" );
+const QString Options::COLOR_FILE = QDir::homePath() + QDir::separator() + QString( ".rcssmonitor-team-color.csv" );
 #endif
 
 const double Options::PITCH_LENGTH = 105.0;
@@ -124,6 +125,8 @@ const QColor Options::FOUL_CHARGED_COLOR( 0, 127, 0 );
 const QColor Options::POINTTO_COLOR( 255, 0, 191 );
 const QColor Options::ILLEGAL_DEFENSE_COLOR( 255, 0, 0 );
 
+std::map<std::string, std::vector<Color>> Color::M_team_colors;
+double Color::max_diff = 70;
 
 namespace {
 
@@ -774,6 +777,8 @@ bool
 Options::parseCmdLine( int argc,
                        char ** argv )
 {
+    Color::initial_teams_color();
+
 #ifdef HAVE_BOOST_PROGRAM_OPTIONS
     namespace po = boost::program_options;
 
@@ -1294,4 +1299,51 @@ Options::setPlayerSelectType( const Options::PlayerSelectType type )
     {
         M_player_select_type = type;
     }
+}
+
+#include <fstream>
+
+bool
+Color::initial_teams_color(){
+    std::ifstream fin(Options::COLOR_FILE.toStdString());
+    std::string line;
+    while (std::getline(fin, line)) {
+        std::string teamname;
+        int r, g, b;
+
+        std::stringstream ss(line);
+        ss >> teamname;
+
+        if (teamname.size() < 1)
+            break;
+
+        if (Color::team_colors().find(teamname) == Color::team_colors().end())
+            Color::team_colors()[teamname] = std::vector<Color>();
+
+        while (!ss.eof()){
+            ss >> r >> g >> b;
+            Color::team_colors()[teamname].push_back(Color(r,g,b));
+        }
+        Color::team_colors()[teamname].push_back(Color(Options::instance().LEFT_TEAM_COLOR));
+        Color::team_colors()[teamname].push_back(Color(Options::instance().RIGHT_TEAM_COLOR));
+    }
+    return true;
+}
+
+double
+Color::dist(const Color &c) const {
+    double dist2 = 0;
+    dist2 += std::pow(this->M_r - c.M_r, 2);
+    dist2 += std::pow(this->M_g - c.M_g, 2);
+    dist2 += std::pow(this->M_b - c.M_b, 2);
+    return std::pow(dist2, 0.5);
+}
+
+QColor
+Color::to_qcolor() const {
+    return QColor(M_r, M_g, M_b);
+}
+std::ostream& operator<<(std::ostream& os, const Color& color) {
+    os << "rgb("<< color.M_r << ", " << color.M_g << ", " << color.M_b << ")";
+    return os;
 }
