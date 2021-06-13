@@ -210,6 +210,8 @@ private:
     double M_grid_step;
     bool M_show_grid_coord;
 
+    double M_team_graphic_scale;
+
     // zoom
     double M_field_scale;
     bool M_zoomed;
@@ -437,6 +439,14 @@ public:
 
     bool showGridCoord() const { return M_show_grid_coord; }
     void toggleShowGridCoord() { M_show_grid_coord = ! M_show_grid_coord; }
+
+    double teamGraphicScale() const { return M_team_graphic_scale; }
+    void setTeamGraphicScale( const double value )
+      {
+          M_team_graphic_scale = value;
+          if ( value < 0.1 ) M_team_graphic_scale = 0.1;
+          if ( value > 16.0 ) M_team_graphic_scale = 16.0;
+      }
 
     // field scale
 

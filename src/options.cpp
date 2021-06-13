@@ -210,6 +210,8 @@ Options::Options()
     M_player_size( 0.0 ),
     M_grid_step( 0.0 ),
     M_show_grid_coord( false ),
+    M_team_graphic_scale( 1.0 ),
+    // zoom
     M_field_scale( 1.0 ),
     M_zoomed( false ),
     M_field_center( 0, 0 ),
@@ -460,6 +462,9 @@ Options::readSettings()
     val = settings.value( "player_size", M_player_size );
     if ( val.isValid() ) M_player_size = val.toDouble();
 
+    val = settings.value( "team_graphic_scale", M_team_graphic_scale );
+    if ( val.isValid() ) M_team_graphic_scale = val.toDouble();
+
     settings.endGroup();
 
     //
@@ -709,6 +714,7 @@ Options::writeSettings( bool all )
     settings.beginGroup( "Size" );
     settings.setValue( "ball_size", M_ball_size );
     settings.setValue( "player_size", M_player_size );
+    settings.setValue( "team_graphic_scale", M_team_graphic_scale );
     settings.endGroup();
 
     //

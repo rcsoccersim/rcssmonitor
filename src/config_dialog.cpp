@@ -475,34 +475,55 @@ QWidget *
 ConfigDialog::createCanvasSizeControls()
 {
     QGroupBox * group_box = new QGroupBox( tr( "Canvas Size" ) );
+    QVBoxLayout * top_layout = new QVBoxLayout();
 
-    QHBoxLayout * layout = new QHBoxLayout();
-    layout->setMargin( 1 );
-    layout->setSpacing( 0 );
+    {
+        QHBoxLayout * layout = new QHBoxLayout();
+        layout->setMargin( 1 );
+        layout->setSpacing( 0 );
 
-    layout->addWidget( new QLabel( tr( " Width:" ) ) );
+        layout->addWidget( new QLabel( tr( " Width:" ) ) );
 
-    M_canvas_width_text = new QLineEdit( tr( "640" ) );
-    M_canvas_width_text->setValidator( new QIntValidator( 100, 3000, M_canvas_width_text ) );
-    M_canvas_width_text->setMaximumSize( 48, 24 );
-    layout->addWidget( M_canvas_width_text );
+        M_canvas_width_text = new QLineEdit( tr( "640" ) );
+        M_canvas_width_text->setValidator( new QIntValidator( 100, 3000, M_canvas_width_text ) );
+        M_canvas_width_text->setMaximumSize( 48, 24 );
+        layout->addWidget( M_canvas_width_text );
 
-    layout->addWidget( new QLabel( tr( " Height:" ) ) );
+        layout->addWidget( new QLabel( tr( " Height:" ) ) );
 
-    M_canvas_height_text = new QLineEdit( tr( "480" ) );
-    M_canvas_height_text->setValidator( new QIntValidator( 100, 3000, M_canvas_height_text ) );
-    M_canvas_height_text->setMaximumSize( 48, 24 );
-    layout->addWidget( M_canvas_height_text );
+        M_canvas_height_text = new QLineEdit( tr( "480" ) );
+        M_canvas_height_text->setValidator( new QIntValidator( 100, 3000, M_canvas_height_text ) );
+        M_canvas_height_text->setMaximumSize( 48, 24 );
+        layout->addWidget( M_canvas_height_text );
 
-    layout->addSpacing( 12 );
+        layout->addSpacing( 12 );
 
-    QPushButton * apply_canvas_size_btn = new QPushButton( tr( "apply" ) );
-    apply_canvas_size_btn->setMaximumSize( 60, this->fontMetrics().height() + 12 );
-    connect( apply_canvas_size_btn, SIGNAL( clicked() ),
-             this, SLOT( applyCanvasSize() ) );
-    layout->addWidget( apply_canvas_size_btn );
+        QPushButton * apply_canvas_size_btn = new QPushButton( tr( "apply" ) );
+        apply_canvas_size_btn->setMaximumSize( 60, this->fontMetrics().height() + 12 );
+        connect( apply_canvas_size_btn, SIGNAL( clicked() ),
+                 this, SLOT( applyCanvasSize() ) );
+        layout->addWidget( apply_canvas_size_btn );
 
-    group_box->setLayout( layout );
+        top_layout->addLayout( layout );
+    }
+    {
+        QHBoxLayout * layout = new QHBoxLayout();
+        layout->setMargin( 1 );
+        layout->setSpacing( 0 );
+
+        layout->addWidget( new QLabel( tr( " Team Graphic Scale:" ) ) );
+
+        M_team_graphic_scale = new QDoubleSpinBox();
+        M_team_graphic_scale->setRange( 0.01, 16.0 );
+        M_team_graphic_scale->setSingleStep( 0.01 );
+        M_team_graphic_scale->setMaximumSize( 128, 24 );
+        connect( M_team_graphic_scale, SIGNAL( valueChanged( double ) ),
+                 this, SLOT( slotTeamGraphicScaleChanged( double ) ) );
+        layout->addWidget( M_team_graphic_scale );
+
+        top_layout->addLayout( layout );
+    }
+    group_box->setLayout( top_layout );
     return group_box;
 }
 
@@ -1275,6 +1296,8 @@ ConfigDialog::updateAll()
     M_canvas_width_text->setText( QString::number( opt.canvasWidth() ) );
     M_canvas_height_text->setText( QString::number( opt.canvasHeight() ) );
 
+    M_team_graphic_scale->setValue( opt.teamGraphicScale() );
+
     M_anti_aliasing_cb->setChecked( opt.antiAliasing() );
 
     M_player_number_cb->setChecked( opt.showPlayerNumber() );
@@ -1504,6 +1527,21 @@ ConfigDialog::applyCanvasSize()
          && height > 0 )
     {
         emit canvasResized( QSize( width, height ) );
+    }
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+void
+ConfigDialog::slotTeamGraphicScaleChanged( double value )
+{
+    if ( std::fabs( value - Options::instance().teamGraphicScale() ) > 0.01 )
+    {
+        Options::instance().setTeamGraphicScale( value );
+
+        emit configured();
     }
 }
 
