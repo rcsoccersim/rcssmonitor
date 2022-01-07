@@ -421,7 +421,7 @@ convert( const PlayerT & from,
     if ( from.hasView() )
     {
         to.view_width = hftonl( from.view_width_ * DEG2RADF );
-        to.view_quality = htons( from.highQuality() ? 1 : 0 );
+        to.view_quality = my_htons( from.highQuality() ? 1 : 0 );
     }
     if ( from.hasStamina() )
     {
@@ -429,14 +429,14 @@ convert( const PlayerT & from,
         to.effort = hftonl( from.effort_ );
         to.recovery = hftonl( from.recovery_ );
     }
-    to.kick_count = htons( from.kick_count_ );
-    to.dash_count = htons( from.dash_count_ );
-    to.turn_count = htons( from.turn_count_ );
-    to.say_count = htons( from.say_count_ );
-    to.turn_neck_count = htons( from.turn_neck_count_ );
-    to.catch_count = htons( from.catch_count_ );
-    to.move_count = htons( from.move_count_ );
-    to.change_view_count = htons( from.change_view_count_ );
+    to.kick_count = my_htons( from.kick_count_ );
+    to.dash_count = my_htons( from.dash_count_ );
+    to.turn_count = my_htons( from.turn_count_ );
+    to.say_count = my_htons( from.say_count_ );
+    to.turn_neck_count = my_htons( from.turn_neck_count_ );
+    to.catch_count = my_htons( from.catch_count_ );
+    to.move_count = my_htons( from.move_count_ );
+    to.change_view_count = my_htons( from.change_view_count_ );
 }
 
 /*-------------------------------------------------------------------*/
