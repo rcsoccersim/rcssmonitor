@@ -107,7 +107,7 @@ TeamGraphicPainter::draw( QPainter & painter )
         }
     }
 
-    const double scale = Options::instance().teamGraphicScale();
+    const double scale = std::max( 0.001, Options::instance().teamGraphicScale() );
 
     if ( ! M_team_graphic_pixmap_left.isNull() )
     {

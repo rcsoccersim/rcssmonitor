@@ -916,6 +916,9 @@ Options::parseCmdLine( int argc,
         ( "show-offside-line",
           po::value< bool >( &M_show_offside_line )->default_value( M_show_offside_line, to_onoff( M_show_offside_line ) ),
           "show offside lines." )
+        ( "team-graphic-scale",
+          po::value< double >( &M_team_graphic_scale )->default_value( M_team_graphic_scale, to_string( M_team_graphic_scale ) ),
+          "set a team graphic scale value." )
         ;
 
     po::options_description invisibles( "Invisibles" );
