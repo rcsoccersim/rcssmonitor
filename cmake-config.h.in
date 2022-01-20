@@ -1,0 +1,12 @@
+
+#define PACKAGE_NAME "rcssmonitor"
+
+#define VERSION "@rcssmonitor_VERSION@"
+
+#cmakedefine HAVE_LIBZ
+
+#cmakedefine HAVE_WINDOWS_H
+
+#cmakedefine HAVE_NETINET_IN_H
+
+#cmakedefine HAVE_BOOST_PROGRAM_OPTIONS
