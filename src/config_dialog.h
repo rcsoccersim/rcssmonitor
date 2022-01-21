@@ -45,6 +45,7 @@ class QPushButton;
 class QCheckBox;
 class QCloseEvent;
 class QComboBox;
+class QDoubleSpinBox;
 class QLabel;
 class QLineEdit;
 class QListWidget;
@@ -151,6 +152,8 @@ private:
     QLineEdit * M_canvas_width_text;
     QLineEdit * M_canvas_height_text;
 
+    QDoubleSpinBox * M_team_graphic_scale;
+
     // misc options
     QCheckBox * M_anti_aliasing_cb;
 
@@ -249,6 +252,8 @@ private slots:
     // emit configured()
     void slideFieldScale( int value );
     void editFieldScale( const QString & );
+
+    void slotTeamGraphicScaleChanged( double value );
 
     void clickShowPlayerNumber( bool checked );
     void clickShowPlayerType( bool checked );

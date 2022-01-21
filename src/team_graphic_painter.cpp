@@ -107,23 +107,33 @@ TeamGraphicPainter::draw( QPainter & painter )
         }
     }
 
+    const double scale = std::max( 0.001, Options::instance().teamGraphicScale() );
+
     if ( ! M_team_graphic_pixmap_left.isNull() )
     {
-        int x = 0;
-        int y = 0;
-        //int x = ( 256 - M_team_graphic_pixmap_left.width() ) / 2;
-        //int y = ( 64 -  M_team_graphic_pixmap_left.height() ) / 2;
-        painter.drawPixmap( x, y, M_team_graphic_pixmap_left );
+        QRectF source_rect = M_team_graphic_pixmap_left.rect();
+        QRectF dest_rect( 0.0, 0.0, source_rect.width() * scale, source_rect.height() * scale );
+        painter.drawPixmap( dest_rect, M_team_graphic_pixmap_left, source_rect );
+        // int x = 0;
+        // int y = 0;
+        // //int x = ( 256 - M_team_graphic_pixmap_left.width() ) / 2;
+        // //int y = ( 64 -  M_team_graphic_pixmap_left.height() ) / 2;
+        // painter.drawPixmap( x, y, M_team_graphic_pixmap_left );
     }
 
     if ( ! M_team_graphic_pixmap_right.isNull() )
     {
-        int x = painter.window().width() - M_team_graphic_pixmap_right.width() - 1;
-        int y = 0;
-        //int x = painter.window().width() - 256
-        //    + ( 256 - M_team_graphic_pixmap_right.width() ) / 2;
-        //int y = ( 64 -  M_team_graphic_pixmap_right.height() ) / 2;
-        painter.drawPixmap( x, y, M_team_graphic_pixmap_right );
+        double left_x = opt.canvasWidth() - M_team_graphic_pixmap_right.width() * scale;
+        QRectF source_rect = M_team_graphic_pixmap_right.rect();
+        QRectF dest_rect( left_x, 0.0, source_rect.width() * scale, source_rect.height() * scale );
+        painter.drawPixmap( dest_rect, M_team_graphic_pixmap_right, source_rect );
+
+        // int x = painter.window().width() - M_team_graphic_pixmap_right.width() - 1;
+        // int y = 0;
+        // //int x = painter.window().width() - 256
+        // //    + ( 256 - M_team_graphic_pixmap_right.width() ) / 2;
+        // //int y = ( 64 -  M_team_graphic_pixmap_right.height() ) / 2;
+        // painter.drawPixmap( x, y, M_team_graphic_pixmap_right );
     }
 }
 

@@ -1,3 +1,7 @@
+[16.1.0]
+  * Add a team graphic scaling option. Now, users can change the drawing
+    scale of team graphic images.
+
 [16.0.0]
   * Support new server specifications, illegal defense and fixed
     teamname. The monitor visualize the state of illegal defense
