@@ -1,3 +1,10 @@
+2022-01-21  Hidehisa Akiyama  <hidehisaakiyama@users.noreply.github.com>
+
+	* CMakeLists.txt:
+	* NEWS:
+	* configurea.ac:
+	- updated a minor version number. Official release 16.1.0.
+
 2020-03-11  Hidehisa Akiyama  <hidehisaakiyama@users.noreply.github.com>
 
 	* NEWS:
