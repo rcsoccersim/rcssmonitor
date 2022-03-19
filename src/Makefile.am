@@ -71,7 +71,7 @@ noinst_HEADERS = \
 
 
 rcssmonitor_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/src $(QT_CPPFLAGS)
-rcssmonitor_CXXFLAGS = -W -Wall $(QT_CXXFLAGS)
+rcssmonitor_CXXFLAGS =  $(QT_CXXFLAGS) -W -Wall -Wno-deprecated-copy
 rcssmonitor_LDFLAGS = $(QT_LDFLAGS)
 rcssmonitor_LDADD = $(BOOST_PROGRAM_OPTIONS_LIB) $(QT_LDADD)
 

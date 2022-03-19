@@ -38,13 +38,12 @@
 #include <rcsslogplayer/types.h>
 #include <rcsslogplayer/handler.h>
 
-#include <boost/shared_ptr.hpp>
-
+#include <memory>
 #include <vector>
 #include <map>
 
-typedef boost::shared_ptr< rcss::rcg::DispInfoT > DispPtr;
-typedef boost::shared_ptr< const rcss::rcg::DispInfoT > DispConstPtr;
+typedef std::shared_ptr< rcss::rcg::DispInfoT > DispPtr;
+typedef std::shared_ptr< const rcss::rcg::DispInfoT > DispConstPtr;
 typedef std::vector< DispConstPtr > DispCont;
 typedef std::multimap< int, rcss::rcg::PointInfoT > PointCont;
 typedef std::multimap< int, rcss::rcg::CircleInfoT > CircleCont;

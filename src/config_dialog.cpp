@@ -47,10 +47,6 @@
 #include "disp_holder.h"
 #include "options.h"
 
-
-#include <boost/function.hpp>
-#include <boost/functional.hpp>
-
 #include <functional>
 #include <iostream>
 #include <cassert>
@@ -62,12 +58,12 @@
 */
 ColorItem::ColorItem( const QString & name,
                       const QColor & old_color,
-                      Func func,
+                      Setter setter,
                       QListWidget * parent )
     : QListWidgetItem( name, parent ),
       M_new_color( old_color ),
       M_old_color( old_color ),
-      M_func( func )
+      M_setter( setter )
 {
     QPixmap pixmap( 16, 16 );
     pixmap.fill( old_color );
@@ -85,9 +81,9 @@ ColorItem::setColor( const QColor & color )
     {
         M_new_color = color;
 
-        if ( ! M_func.empty() )
+        if ( M_setter )
         {
-            M_func( color );
+            M_setter( color );
         }
 
         QPixmap pixmap( 16, 16 );
@@ -126,13 +122,13 @@ ColorItem::revert()
 */
 FontButton::FontButton( const QString & name,
                         const QFont & old_font,
-                        Func func,
+                        Setter setter,
                         ConfigDialog * parent )
     : QPushButton( parent )
     , M_name( name )
     , M_new_font( old_font )
     , M_old_font( old_font )
-    , M_func( func )
+    , M_setter( setter )
 {
     QFont button_font = old_font;
     button_font.setPointSize( QApplication::font().pointSize() );
@@ -155,9 +151,9 @@ FontButton::setNewFont( const QFont & font )
 {
     if ( M_new_font != font )
     {
-        if ( ! M_func.empty() )
+        if ( M_setter )
         {
-            M_func( font );
+            M_setter( font );
         }
 
         M_new_font = font;
@@ -1132,100 +1128,102 @@ ConfigDialog::createColorList()
 void
 ConfigDialog::createColorItems()
 {
+    using std::placeholders::_1;
+
     Options * o = &Options::instance();
 
     M_color_list_box->addItem( new ColorItem( tr( "Field" ),
                                               o->fieldBrush().color(),
-                                              boost::bind1st( std::mem_fun( &Options::setFieldColor ), o ) ) );
+                                              std::bind( &Options::setFieldColor, o, _1 ) ) );
     M_color_list_box->addItem( new ColorItem( tr( "Line" ),
                                               o->linePen().color(),
-                                              boost::bind1st( std::mem_fun( &Options::setLineColor ), o ) ) );
+                                              std::bind( &Options::setLineColor, o, _1 ) ) );
     M_color_list_box->addItem( new ColorItem( tr( "Score Board Font" ),
                                               o->scoreBoardPen().color(),
-                                              boost::bind1st( std::mem_fun( &Options::setScoreBoardPenColor ), o ) ) );
+                                              std::bind( &Options::setScoreBoardPenColor, o, _1 ) ) );
     M_color_list_box->addItem( new ColorItem( tr( "Score Board Background" ),
                                               o->scoreBoardBrush().color(),
-                                              boost::bind1st( std::mem_fun( &Options::setScoreBoardBrushColor ), o ) ) );
+                                              std::bind( &Options::setScoreBoardBrushColor, o, _1 ) ) );
 
     M_color_list_box->addItem( new ColorItem( tr( "Ball" ),
                                               o->ballPen().color(),
-                                              boost::bind1st( std::mem_fun( &Options::setBallColor ), o ) ) );
+                                              std::bind( &Options::setBallColor, o, _1 ) ) );
     M_color_list_box->addItem( new ColorItem( tr( "Ball Velocity" ),
                                               o->ballVelPen().color(),
-                                              boost::bind1st( std::mem_fun( &Options::setBallVelColor ), o ) ) );
+                                              std::bind( &Options::setBallVelColor, o, _1 ) ) );
 
     M_color_list_box->addItem( new ColorItem( tr( "Player Pen" ),
                                               o->playerPen().color(),
-                                              boost::bind1st( std::mem_fun( &Options::setPlayerPenColor ), o ) ) );
+                                              std::bind( &Options::setPlayerPenColor, o, _1 ) ) );
     M_color_list_box->addItem( new ColorItem( tr( "Left Team" ),
                                               o->leftTeamPen().color(),
-                                              boost::bind1st( std::mem_fun( &Options::setLeftTeamColor ), o ) ) );
+                                              std::bind( &Options::setLeftTeamColor, o, _1 ) ) );
     M_color_list_box->addItem( new ColorItem( tr( "Left Goalie" ),
                                               o->leftGoaliePen().color(),
-                                              boost::bind1st( std::mem_fun( &Options::setLeftGoalieColor ), o ) ) );
+                                              std::bind( &Options::setLeftGoalieColor, o, _1 ) ) );
     M_color_list_box->addItem( new ColorItem( tr( "Right Team" ),
                                               o->rightTeamPen().color(),
-                                              boost::bind1st( std::mem_fun( &Options::setRightTeamColor ), o ) ) );
+                                              std::bind( &Options::setRightTeamColor, o, _1 ) ) );
     M_color_list_box->addItem( new ColorItem( tr( "Right Goalie" ),
                                               o->rightGoaliePen().color(),
-                                              boost::bind1st( std::mem_fun( &Options::setRightGoalieColor ), o ) ) );
+                                              std::bind( &Options::setRightGoalieColor, o, _1 ) ) );
     M_color_list_box->addItem( new ColorItem( tr( "Player Number" ),
                                               o->playerNumberPen().color(),
-                                              boost::bind1st( std::mem_fun( &Options::setPlayerNumberColor ), o ) ) );
+                                              std::bind( &Options::setPlayerNumberColor, o, _1 ) ) );
 //     M_color_list_box->addItem( new ColorItem( tr( "Player Number (Interior)" ),
 //                                               o->playerNumberInnerPen().color(),
-//                                               boost::bind1st( std::mem_fun( &Options::setPlayerNumberInnerColor ), o ) ) );
+//                                               std::bind( &Options::setPlayerNumberInnerColor, o, _1 ) ) );
     M_color_list_box->addItem( new ColorItem( tr( "Neck" ),
                                               o->neckPen().color(),
-                                              boost::bind1st( std::mem_fun( &Options::setNeckColor ), o ) ) );
+                                              std::bind( &Options::setNeckColor, o, _1 ) ) );
     M_color_list_box->addItem( new ColorItem( tr( "View Area" ),
                                               o->viewAreaPen().color(),
-                                              boost::bind1st( std::mem_fun( &Options::setViewAreaColor ), o ) ) );
+                                              std::bind( &Options::setViewAreaColor, o, _1 ) ) );
     M_color_list_box->addItem( new ColorItem( tr( "Large View Area" ),
                                               o->largeViewAreaPen().color(),
-                                              boost::bind1st( std::mem_fun( &Options::setLargeViewAreaColor ), o ) ) );
+                                              std::bind( &Options::setLargeViewAreaColor, o, _1 ) ) );
     M_color_list_box->addItem( new ColorItem( tr( "Ball Collision" ),
                                               o->ballCollideBrush().color(),
-                                              boost::bind1st( std::mem_fun( &Options::setBallCollideColor ), o ) ) );
+                                              std::bind( &Options::setBallCollideColor, o, _1 ) ) );
     M_color_list_box->addItem( new ColorItem( tr( "Player Collision" ),
                                               o->playerCollideBrush().color(),
-                                              boost::bind1st( std::mem_fun( &Options::setPlayerCollideColor ), o ) ) );
+                                              std::bind( &Options::setPlayerCollideColor, o, _1 ) ) );
     M_color_list_box->addItem( new ColorItem( tr( "Effort Decayed" ),
                                               o->effortDecayedPen().color(),
-                                              boost::bind1st( std::mem_fun( &Options::setEffortDecayedColor ), o ) ) );
+                                              std::bind( &Options::setEffortDecayedColor, o, _1 ) ) );
     M_color_list_box->addItem( new ColorItem( tr( "Recovery Decayed" ),
                                               o->recoveryDecayedPen().color(),
-                                              boost::bind1st( std::mem_fun( &Options::setRecoveryDecayedColor ), o ) ) );
+                                              std::bind( &Options::setRecoveryDecayedColor, o, _1 ) ) );
     M_color_list_box->addItem( new ColorItem( tr( "Kick" ),
                                               o->kickPen().color(),
-                                              boost::bind1st( std::mem_fun( &Options::setKickColor ), o ) ) );
+                                              std::bind( &Options::setKickColor, o, _1 ) ) );
     M_color_list_box->addItem( new ColorItem( tr( "Kick Fault" ),
                                               o->kickFaultBrush().color(),
-                                              boost::bind1st( std::mem_fun( &Options::setKickFaultColor ), o ) ) );
+                                              std::bind( &Options::setKickFaultColor, o, _1 ) ) );
     M_color_list_box->addItem( new ColorItem( tr( "Kick Acceleration" ),
                                               o->kickAccelPen().color(),
-                                              boost::bind1st( std::mem_fun( &Options::setKickAccelColor ), o ) ) );
+                                              std::bind( &Options::setKickAccelColor, o, _1 ) ) );
     M_color_list_box->addItem( new ColorItem( tr( "Catch" ),
                                               o->catchBrush().color(),
-                                              boost::bind1st( std::mem_fun( &Options::setCatchColor ), o ) ) );
+                                              std::bind( &Options::setCatchColor, o, _1 ) ) );
     M_color_list_box->addItem( new ColorItem( tr( "Catch Fault" ),
                                               o->catchFaultBrush().color(),
-                                              boost::bind1st( std::mem_fun( &Options::setCatchFaultColor ), o ) ) );
+                                              std::bind( &Options::setCatchFaultColor, o, _1 ) ) );
     M_color_list_box->addItem( new ColorItem( tr( "Tackle" ),
                                               o->tacklePen().color(),
-                                              boost::bind1st( std::mem_fun( &Options::setTackleColor ), o ) ) );
+                                              std::bind( &Options::setTackleColor, o, _1 ) ) );
     M_color_list_box->addItem( new ColorItem( tr( "Tackle Fault" ),
                                               o->tackleFaultBrush().color(),
-                                              boost::bind1st( std::mem_fun( &Options::setTackleFaultColor ), o ) ) );
+                                              std::bind( &Options::setTackleFaultColor, o, _1 ) ) );
     M_color_list_box->addItem( new ColorItem( tr( "Foul Charged" ),
                                               o->foulChargedBrush().color(),
-                                              boost::bind1st( std::mem_fun( &Options::setFoulChargedColor ), o ) ) );
+                                              std::bind( &Options::setFoulChargedColor, o, _1 ) ) );
     M_color_list_box->addItem( new ColorItem( tr( "Pointto" ),
                                               o->pointtoPen().color(),
-                                              boost::bind1st( std::mem_fun( &Options::setPointtoColor ), o ) ) );
+                                              std::bind( &Options::setPointtoColor, o, _1 ) ) );
     M_color_list_box->addItem( new ColorItem( tr( "Illegal Defense" ),
                                               o->pointtoPen().color(),
-                                              boost::bind1st( std::mem_fun( &Options::setIllegalDefenseColor ), o ) ) );
+                                              std::bind( &Options::setIllegalDefenseColor, o, _1 ) ) );
 }
 
 /*-------------------------------------------------------------------*/
@@ -1235,6 +1233,8 @@ ConfigDialog::createColorItems()
 QLayout *
 ConfigDialog::createFontButtons()
 {
+    using std::placeholders::_1;
+
     QVBoxLayout * layout = new QVBoxLayout();
     layout->setMargin( 4 );
     layout->setSpacing( 2 );
@@ -1244,21 +1244,21 @@ ConfigDialog::createFontButtons()
     {
         FontButton * btn = new FontButton( tr( "Score Board" ),
                                            o->scoreBoardFont(),
-                                           boost::bind1st( std::mem_fun( &Options::setScoreBoardFont ), o ),
+                                           std::bind( &Options::setScoreBoardFont, o, _1 ),
                                            this );
         layout->addWidget( btn, 0, Qt::AlignLeft );
     }
     {
         FontButton * btn = new FontButton( tr( "Player" ),
                                            o->playerFont(),
-                                           boost::bind1st( std::mem_fun( &Options::setPlayerFont ), o ),
+                                           std::bind( &Options::setPlayerFont, o, _1 ),
                                            this );
         layout->addWidget( btn, 0, Qt::AlignLeft );
     }
     {
         FontButton * btn = new FontButton( tr( "Measure" ),
                                            o->measureFont(),
-                                           boost::bind1st( std::mem_fun( &Options::setMeasureFont ), o ),
+                                           std::bind( &Options::setMeasureFont, o, _1 ),
                                            this );
         layout->addWidget( btn, 0, Qt::AlignLeft );
     }

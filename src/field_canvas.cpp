@@ -117,13 +117,13 @@ FieldCanvas::createPopupMenu()
 void
 FieldCanvas::createPainters()
 {
-    M_field_painter = boost::shared_ptr< FieldPainter >( new FieldPainter( M_disp_holder ) );
+    M_field_painter = std::shared_ptr< FieldPainter >( new FieldPainter( M_disp_holder ) );
 
-    M_painters.push_back( boost::shared_ptr< PainterInterface >( new ScoreBoardPainter( M_disp_holder ) ) );
-    M_painters.push_back( boost::shared_ptr< PainterInterface >( new TeamGraphicPainter( M_disp_holder ) ) );
-    M_painters.push_back( boost::shared_ptr< PainterInterface >( new PlayerPainter( M_disp_holder ) ) );
-    M_painters.push_back( boost::shared_ptr< PainterInterface >( new BallPainter( M_disp_holder ) ) );
-    M_painters.push_back( boost::shared_ptr< PainterInterface >( new DrawInfoPainter( M_disp_holder ) ) );
+    M_painters.push_back( std::shared_ptr< PainterInterface >( new ScoreBoardPainter( M_disp_holder ) ) );
+    M_painters.push_back( std::shared_ptr< PainterInterface >( new TeamGraphicPainter( M_disp_holder ) ) );
+    M_painters.push_back( std::shared_ptr< PainterInterface >( new PlayerPainter( M_disp_holder ) ) );
+    M_painters.push_back( std::shared_ptr< PainterInterface >( new BallPainter( M_disp_holder ) ) );
+    M_painters.push_back( std::shared_ptr< PainterInterface >( new DrawInfoPainter( M_disp_holder ) ) );
 }
 
 /*-------------------------------------------------------------------*/
@@ -398,7 +398,7 @@ FieldCanvas::draw( QPainter & painter )
         return;
     }
 
-    for ( std::vector< boost::shared_ptr< PainterInterface > >::iterator it = M_painters.begin();
+    for ( std::vector< std::shared_ptr< PainterInterface > >::iterator it = M_painters.begin();
           it != M_painters.end();
           ++it )
     {

@@ -33,18 +33,17 @@
 #ifndef RCSSLOGPLAYER_TYPES_H
 #define RCSSLOGPLAYER_TYPES_H
 
-#include <boost/cstdint.hpp>
-
 #include <iosfwd>
 #include <string>
+#include <cstdint>
 
 namespace rcss {
 namespace rcg {
 
-typedef boost::int16_t Int16;
-typedef boost::uint16_t UInt16;
-typedef boost::int32_t Int32;
-typedef boost::int32_t UInt32;
+typedef std::int16_t Int16;
+typedef std::uint16_t UInt16;
+typedef std::int32_t Int32;
+typedef std::int32_t UInt32;
 
 /*!
   \enum PlayerState

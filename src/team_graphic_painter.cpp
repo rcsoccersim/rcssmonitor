@@ -189,22 +189,18 @@ TeamGraphicPainter::copyTeamGraphicXpmTile( QPixmap & dst_pixmap,
 
     // colors
     std::size_t idx = 1;
-    for ( std::vector< boost::shared_ptr< std::string > >::const_iterator col = tile.colors().begin();
-          col != tile.colors().end();
-          ++col )
+    for ( const std::shared_ptr< std::string > & col : tile.colors() )
     {
-        xpm[idx] = new char[ (*col)->length() + 1 ];
-        std::strcpy( xpm[idx], (*col)->c_str() );
+        xpm[idx] = new char[ col->length() + 1 ];
+        std::strcpy( xpm[idx], col->c_str() );
         ++idx;
     }
 
     // pixels
-    for ( std::vector< std::string >::const_iterator line = tile.pixelLines().begin();
-          line != tile.pixelLines().end();
-          ++line )
+    for ( const std::string & line : tile.pixelLines() )
     {
         xpm[idx] = new char[ tile.width() + 1 ];
-        std::strcpy( xpm[idx], line->c_str() );
+        std::strcpy( xpm[idx], line.c_str() );
         ++idx;
     }
 
