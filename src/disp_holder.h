@@ -38,13 +38,12 @@
 #include <rcsslogplayer/types.h>
 #include <rcsslogplayer/handler.h>
 
-#include <boost/shared_ptr.hpp>
-
+#include <memory>
 #include <vector>
 #include <map>
 
-typedef boost::shared_ptr< rcss::rcg::DispInfoT > DispPtr;
-typedef boost::shared_ptr< const rcss::rcg::DispInfoT > DispConstPtr;
+typedef std::shared_ptr< rcss::rcg::DispInfoT > DispPtr;
+typedef std::shared_ptr< const rcss::rcg::DispInfoT > DispConstPtr;
 typedef std::vector< DispConstPtr > DispCont;
 typedef std::multimap< int, rcss::rcg::PointInfoT > PointCont;
 typedef std::multimap< int, rcss::rcg::CircleInfoT > CircleCont;
@@ -88,8 +87,8 @@ private:
     size_t M_current_index;
 
     // not used
-    DispHolder( const DispHolder & );
-    DispHolder operator=( const DispHolder & );
+    DispHolder( const DispHolder & ) = delete;
+    DispHolder operator=( const DispHolder & ) = delete;
 
 public:
 
@@ -136,54 +135,54 @@ public:
 
 protected:
     virtual
-    void doHandleLogVersion( int ver );
+    void doHandleLogVersion( int ver ) override;
 
     virtual
-    int doGetLogVersion() const;
+    int doGetLogVersion() const override;
 
     virtual
-    void doHandleShowInfo( const rcss::rcg::ShowInfoT & );
+    void doHandleShowInfo( const rcss::rcg::ShowInfoT & ) override;
 
     virtual
     void doHandleMsgInfo( const int,
                           const int,
-                          const std::string & );
+                          const std::string & ) override;
 
     virtual
     void doHandlePlayMode( const int,
-                           const rcss::rcg::PlayMode );
+                           const rcss::rcg::PlayMode ) override;
 
     virtual
     void doHandleTeamInfo( const int,
                            const rcss::rcg::TeamT &,
-                           const rcss::rcg::TeamT & );
+                           const rcss::rcg::TeamT & ) override;
 
     virtual
-    void doHandleDrawClear( const int );
+    void doHandleDrawClear( const int ) override;
 
     virtual
     void doHandleDrawPointInfo( const int,
-                                const rcss::rcg::PointInfoT & );
+                                const rcss::rcg::PointInfoT & ) override;
 
     virtual
     void doHandleDrawCircleInfo( const int,
-                                 const rcss::rcg::CircleInfoT & );
+                                 const rcss::rcg::CircleInfoT & ) override;
 
     virtual
     void doHandleDrawLineInfo( const int,
-                               const rcss::rcg::LineInfoT & );
+                               const rcss::rcg::LineInfoT & ) override;
 
     virtual
-    void doHandleServerParam( const rcss::rcg::ServerParamT & );
+    void doHandleServerParam( const rcss::rcg::ServerParamT & ) override;
 
     virtual
-    void doHandlePlayerParam( const rcss::rcg::PlayerParamT & );
+    void doHandlePlayerParam( const rcss::rcg::PlayerParamT & ) override;
 
     virtual
-    void doHandlePlayerType( const rcss::rcg::PlayerTypeT & );
+    void doHandlePlayerType( const rcss::rcg::PlayerTypeT & ) override;
 
     virtual
-    void doHandleEOF();
+    void doHandleEOF() override;
 
 
 private:

@@ -25,10 +25,10 @@ endif()
 check_include_file_cxx("netinet/in.h" HAVE_NETINET_IN_H)
 
 # check boost
-find_package(Boost 1.38.0 COMPONENTS program_options system REQUIRED)
-if(Boost_PROGRAM_OPTIONS_FOUND)
-  set(HAVE_BOOST_PROGRAM_OPTIONS TRUE)
-endif()
+#find_package(Boost 1.38.0 COMPONENTS program_options system REQUIRED)
+#if(Boost_PROGRAM_OPTIONS_FOUND)
+#  set(HAVE_BOOST_PROGRAM_OPTIONS TRUE)
+#endif()
 
 # check Qt
 find_package(Qt5 COMPONENTS Core Gui Widgets Network REQUIRED)

@@ -112,11 +112,11 @@ AX_CXX_COMPILE_STDCXX_14(noext)
 # ----------------------------------------------------------
 # check boost
 
-AX_BOOST_BASE([1.38.0])
-AX_BOOST_SYSTEM
-AX_BOOST_PROGRAM_OPTIONS
-CPPFLAGS="$CPPFLAGS $BOOST_CPPFLAGS"
-LDFLAGS="$LDFLAGS $BOOST_LDFLAGS"
+#AX_BOOST_BASE([1.38.0])
+#AX_BOOST_SYSTEM
+#AX_BOOST_PROGRAM_OPTIONS
+#CPPFLAGS="$CPPFLAGS $BOOST_CPPFLAGS"
+#LDFLAGS="$LDFLAGS $BOOST_LDFLAGS"
 
 # ----------------------------------------------------------
 AC_CONFIG_FILES([Makefile

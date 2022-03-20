@@ -33,7 +33,7 @@ target_include_directories(rcssmonitor
   ${Qt5Gui_INCLUDE_DIRS}
   ${Qt5Widgets_INCLUDE_DIRS}
   ${Qt5Network_INCLUDE_DIRS}
-  ${Boost_INCLUDE_DIRS}
+#  ${Boost_INCLUDE_DIRS}
   ${ZLIB_INCLUDE_DIRS}
   PRIVATE
   ${PROJECT_BINARY_DIR}
@@ -43,7 +43,7 @@ target_include_directories(rcssmonitor
 
 target_link_libraries(rcssmonitor
   Qt5::Core Qt5::Gui Qt5::Widgets Qt5::Network
-  Boost::program_options Boost::system
+#  Boost::program_options Boost::system
   ZLIB::ZLIB
   )
 

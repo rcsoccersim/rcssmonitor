@@ -43,18 +43,18 @@ class FieldPainter
     : public PainterInterface {
 private:
 
-    DispHolder & M_disp_holder;
+    const DispHolder & M_disp_holder;
 
     // not used
-    FieldPainter();
-    FieldPainter( const FieldPainter & );
-    const FieldPainter & operator=( const FieldPainter & );
+    FieldPainter() = delete;
+    FieldPainter( const FieldPainter & ) = delete;
+    const FieldPainter & operator=( const FieldPainter & ) = delete;
 public:
 
     FieldPainter( DispHolder & disp_holder );
     ~FieldPainter();
 
-    void draw( QPainter & painter );
+    void draw( QPainter & painter ) override;
 
 private:
 
