@@ -27,7 +27,10 @@ AC_PROG_CXX
 AC_CHECK_LIB([m], [cos],
              [LIBS="-lm $LIBS"],
              [AC_MSG_ERROR([*** -lm not found! ***])])
-AC_CHECK_LIB([z], [deflate])
+#AC_CHECK_LIB([z], [deflate])
+AX_CHECK_ZLIB([],
+              [AC_MSG_NOTICE(Zlib not found.)])
+
 
 ##################################################
 # Checks for header files.
@@ -59,49 +62,9 @@ AC_CHECK_FUNCS([memset rint strtol pow sqrt])
 # ----------------------------------------------------------
 # check Qt
 
-AC_ARG_ENABLE(qt4,
-              AC_HELP_STRING([--enable-qt4],
-                             [use Qt4 tool kit (default no)]))
-AC_ARG_ENABLE(gl,
-              AC_HELP_STRING([--enable-gl],
-                             [enable GLWidget for Qt (default no)]))
-
-if test "x$enable_qt4" != "xyes"; then
-  AC_MSG_NOTICE(enabled Qt5)
-
-  QTMODULES="Qt5Core Qt5Gui Qt5Widgets Qt5Network"
-
-  if test "x$enable_gl" == "xyes"; then
-    AC_MSG_NOTICE(enabled GL5Widget)
-    CFLAGS="-DUSE_GLWIDGET $CFLAGS"
-    CXXFLAGS="-DUSE_GLWIDGET $CXXFLAGS"
-    QTMODULES="$QTMODULES Qt5OpenGL"
-  fi
-
-  AX_QT([5.0.0],[$QTMODULES])
-
-else
-  AC_MSG_NOTICE(enabled Qt4)
-
-  QTMODULES="QtCore QtGui QtNetwork"
-
-  if test "x$enable_gl" == "xyes"; then
-    AC_MSG_NOTICE(enabled GLWidget)
-    CFLAGS="-DUSE_GLWIDGET $CFLAGS"
-    CXXFLAGS="-DUSE_GLWIDGET $CXXFLAGS"
-    QTMODULES="$QTMODULES QtOpenGL"
-  fi
-
-  AX_QT([4.3.0],[$QTMODULES])
-fi
-
-if test x$have_qt != xyes ; then
-  AC_MSG_ERROR([$QTMODULES could not be found.])
-  AM_CONDITIONAL(BUILD_QT, [test "1" = "0"])
-else
-  CFLAGS="-fPIC $CFLAGS"
-  CXXFLAGS="-fPIC $CXXFLAGS"
-  AM_CONDITIONAL(BUILD_QT, [test "1" = "1"])
+AX_HAVE_QT
+if test "x$have_qt" != "xyes"; then
+  AC_MSG_ERROR([Qt not found.])
 fi
 
 # ----------------------------------------------------------
