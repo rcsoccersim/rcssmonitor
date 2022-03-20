@@ -63,9 +63,9 @@ private:
 
 
     //! not used
-    MonitorClient();
-    MonitorClient( const MonitorClient & );
-    MonitorClient & operator=( const MonitorClient & );
+    MonitorClient() = delete;
+    MonitorClient( const MonitorClient & ) = delete;
+    MonitorClient & operator=( const MonitorClient & ) = delete;
 public:
     //! constructor
     MonitorClient( QObject * parent,

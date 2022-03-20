@@ -55,13 +55,13 @@ private:
     QPixmap M_team_graphic_pixmap_right;
 
     // not used
-    TeamGraphicPainter();
+    TeamGraphicPainter() = delete;
 public:
 
     explicit
     TeamGraphicPainter( const DispHolder & disp_holder );
 
-    void draw( QPainter & painter );
+    void draw( QPainter & painter ) override;
 
 private:
 

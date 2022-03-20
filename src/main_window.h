@@ -107,8 +107,8 @@ private:
     QAction * M_show_config_dialog_act;
 
     // not used
-    MainWindow( const MainWindow & );
-    const MainWindow & operator=( const MainWindow & );
+    MainWindow( const MainWindow & ) = delete;
+    const MainWindow & operator=( const MainWindow & ) = delete;
 
 public:
 

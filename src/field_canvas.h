@@ -80,9 +80,9 @@ private:
     const MouseState * M_menu_mouse;
 
     // not used
-    FieldCanvas();
-    FieldCanvas( const FieldCanvas & );
-    const FieldCanvas & operator=( const FieldCanvas & );
+    FieldCanvas() = delete;
+    FieldCanvas( const FieldCanvas & ) = delete;
+    const FieldCanvas & operator=( const FieldCanvas & ) = delete;
 
 public:
 

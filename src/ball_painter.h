@@ -43,15 +43,15 @@ private:
     const DispHolder & M_disp_holder;
 
     // not used
-    BallPainter();
-    BallPainter( const BallPainter & );
-    const BallPainter & operator=( const BallPainter & );
+    BallPainter() = delete;
+    BallPainter( const BallPainter & ) = delete;
+    const BallPainter & operator=( const BallPainter & ) = delete;
 public:
 
     BallPainter( const DispHolder & disp_holder );
     ~BallPainter();
 
-    void draw( QPainter & painter );
+    void draw( QPainter & painter ) override;
 
 private:
 

@@ -50,16 +50,16 @@ private:
     QPen M_pen;
 
     // not used
-    DrawInfoPainter();
-    DrawInfoPainter( const DrawInfoPainter & );
-    const DrawInfoPainter & operator=( const DrawInfoPainter & );
+    DrawInfoPainter() = delete;
+    DrawInfoPainter( const DrawInfoPainter & ) = delete;
+    const DrawInfoPainter & operator=( const DrawInfoPainter & ) = delete;
 public:
 
     explicit
     DrawInfoPainter( const DispHolder & disp_holder );
     ~DrawInfoPainter();
 
-    void draw( QPainter & painter );
+    void draw( QPainter & painter ) override;
 
 };
 

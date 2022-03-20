@@ -48,16 +48,16 @@ private:
     const DispHolder & M_disp_holder;
 
     // not used
-    ScoreBoardPainter();
-    ScoreBoardPainter( const ScoreBoardPainter & );
-    const ScoreBoardPainter & operator=( const ScoreBoardPainter & );
+    ScoreBoardPainter() = delete;
+    ScoreBoardPainter( const ScoreBoardPainter & ) = delete;
+    const ScoreBoardPainter & operator=( const ScoreBoardPainter & ) = delete;
 public:
 
     explicit
     ScoreBoardPainter( const DispHolder & disp_holder );
     ~ScoreBoardPainter();
 
-    void draw( QPainter & painter );
+    void draw( QPainter & painter ) override;
 
 };
 

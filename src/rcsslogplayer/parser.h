@@ -59,9 +59,9 @@ private:
     int M_time; //!< current time
 
     // not used
-    Parser();
-    Parser( const Parser & );
-    Parser & operator=( const Parser & );
+    Parser() = delete;
+    Parser( const Parser & ) = delete;
+    Parser & operator=( const Parser & ) = delete;
 
 public:
     /*!

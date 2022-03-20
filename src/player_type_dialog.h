@@ -57,9 +57,9 @@ private:
     QTableView * M_item_view;
 
     // not used
-    PlayerTypeDialog();
-    PlayerTypeDialog( const PlayerTypeDialog & );
-    const PlayerTypeDialog & operator=( const PlayerTypeDialog & );
+    PlayerTypeDialog() = delete;
+    PlayerTypeDialog( const PlayerTypeDialog & ) = delete;
+    const PlayerTypeDialog & operator=( const PlayerTypeDialog & ) = delete;
 
 public:
     //! constructor
