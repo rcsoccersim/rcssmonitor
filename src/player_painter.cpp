@@ -245,7 +245,7 @@ PlayerPainter::drawBody( QPainter & painter,
     }
 
     if ( param.player_.isIllegalDefenseState()
-         && opt.showIllegalDefenseState() )
+         && opt.showIllegalDefense() )
     {
         painter.setPen( opt.illegalDefensePen() );
     }
@@ -951,7 +951,7 @@ PlayerPainter::drawText( QPainter & painter,
         //                : M_right_team_pen );
 
         if ( param.player_.isIllegalDefenseState()
-             && opt.showIllegalDefenseState() )
+             && opt.showIllegalDefense() )
         {
             painter.setPen( opt.illegalDefensePen() );
         }

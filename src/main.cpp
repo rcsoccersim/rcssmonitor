@@ -52,6 +52,8 @@ main( int argc,
               << std::endl;
 
     QApplication app( argc, argv );
+    QApplication::setApplicationName( PACKAGE_NAME );
+    QApplication::setApplicationVersion( VERSION );
 
     std::locale::global( std::locale::classic() );
 

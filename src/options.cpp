@@ -34,15 +34,21 @@
 #include <config.h>
 #endif
 
+#include "options.h"
+
 #include <QSettings>
 #include <QDir>
 #include <QFile>
 #include <QFontMetrics>
 
-#include "options.h"
+#define USE_Q_COMMAND_LINE_PARSER
 
-#ifdef HAVE_BOOST_PROGRAM_OPTIONS
-#include <boost/program_options.hpp>
+#ifdef USE_Q_COMMAND_LINE_PARSER
+#  include <QCommandLineParser>
+#else
+#  ifdef HAVE_BOOST_PROGRAM_OPTIONS
+#  include <boost/program_options.hpp>
+#  endif
 #endif
 
 #include <iostream>
@@ -124,8 +130,44 @@ const QColor Options::FOUL_CHARGED_COLOR( 0, 127, 0 );
 const QColor Options::POINTTO_COLOR( 255, 0, 191 );
 const QColor Options::ILLEGAL_DEFENSE_COLOR( 255, 0, 0 );
 
-
 namespace {
+
+#ifdef USE_Q_COMMAND_LINE_PARSER
+
+inline
+QString
+to_onoff( const bool val )
+{
+    return val ? QString( "on" ) : QString( "off" );
+}
+
+inline
+QString
+to_string( const double val,
+           const double prec = 0.001 )
+{
+    std::ostringstream os;
+    os << rint( val / prec ) * prec;
+    return QString::fromStdString( os.str() );
+}
+
+inline
+bool
+to_bool( const QString & str,
+         const bool default_value )
+{
+    return ( str == "on"
+             || str == "true"
+             || str == "1" )
+        ? true
+        : ( str == "off"
+             || str == "false"
+             || str == "0" )
+        ? false
+        : default_value;
+}
+
+#else
 
 inline
 std::string
@@ -142,8 +184,8 @@ to_string( const double & val,
     std::ostringstream os;
     os << rint( val / prec ) * prec;
     return os.str();
-    //return boost::lexical_cast< std::string >( rint( val / prec ) * prec );
 }
+#endif
 
 }
 
@@ -198,7 +240,7 @@ Options::Options()
     M_show_player_number( true ),
     M_show_player_type( false ),
     M_show_view_area( false ),
-    M_show_illegal_defense_state( false ),
+    M_show_illegal_defense( false ),
     M_show_catch_area( false ),
     M_show_tackle_area( false ),
     M_show_stamina( false ),
@@ -415,8 +457,8 @@ Options::readSettings()
     val = settings.value( "show_view_area" );
     if ( val.isValid() ) M_show_view_area = val.toBool();
 
-    val = settings.value( "show_illegal_defense_state" );
-    if ( val.isValid() ) M_show_illegal_defense_state = val.toBool();
+    val = settings.value( "show_illegal_defense" );
+    if ( val.isValid() ) M_show_illegal_defense = val.toBool();
 
     val = settings.value( "show_catch_area" );
     if ( val.isValid() ) M_show_catch_area = val.toBool();
@@ -695,7 +737,7 @@ Options::writeSettings( bool all )
     settings.setValue( "show_player_number", M_show_player_number );
     settings.setValue( "show_player_type", M_show_player_type );
     settings.setValue( "show_view_area", M_show_view_area );
-    settings.setValue( "show_illegal_defense_state", M_show_illegal_defense_state );
+    settings.setValue( "show_illegal_defense", M_show_illegal_defense );
     settings.setValue( "show_catch_area", M_show_catch_area );
     settings.setValue( "show_tackle_area", M_show_tackle_area );
     settings.setValue( "show_kick_accel_area", M_show_kick_accel_area );
@@ -780,7 +822,273 @@ bool
 Options::parseCmdLine( int argc,
                        char ** argv )
 {
-#ifdef HAVE_BOOST_PROGRAM_OPTIONS
+#ifdef USE_Q_COMMAND_LINE_PARSER
+    (void)argc;
+    (void)argv;
+
+    QCommandLineParser parser;
+
+    parser.setApplicationDescription( "The RoboCup Soccer Simulator Monitor" );
+    parser.addHelpOption();
+    parser.addVersionOption();
+    parser.addPositionalArgument( "FILE", "The path to the Game Log file(.rcg[.gz]) to be opened.", "[FILE]" );
+
+    // monitor options
+    QCommandLineOption opt_connect( { "c", "connect" }, "Connect to the soccer server when the monitor starts." );
+    parser.addOption( opt_connect );
+    QCommandLineOption opt_server_host( "server-host",
+                                        "Set the host name or IP address where the soccer server is running. (Default=" + QString::fromStdString( M_server_host ) + ")",
+                                        "str",
+                                        QString::fromStdString( M_server_host ) );
+    parser.addOption( opt_server_host );
+    QCommandLineOption opt_server_port( "server-port",
+                                        "Set the port number to connect as the monitor client. (Default=" + QString::number( M_server_port ) + ")",
+                                        "int",
+                                        QString::number( M_server_port ) );
+    parser.addOption( opt_server_port );
+    QCommandLineOption opt_client_version( "client-version",
+                                           "Set the version of the monitor client protocol. (Default=" + QString::number( M_client_version ) + ")",
+                                           "int",
+                                           QString::number( M_client_version ) );
+    parser.addOption( opt_client_version );
+    QCommandLineOption opt_timer_interval( "timer-interval",
+                                           "Set the default timer interval [ms] for replaying a game log file. (Default=" + QString::number( M_timer_interval ) + ")",
+                                           "int",
+                                           QString::number( M_timer_interval ) );
+    parser.addOption( opt_timer_interval );
+    QCommandLineOption opt_auto_quit_mode( "auto-quit-mode",
+                                           "Enable the automatic quit mode. (Default=" + to_onoff( M_auto_quit_mode ) + ")",
+                                           "bool",
+                                           to_onoff( M_auto_quit_mode ) );
+    parser.addOption( opt_auto_quit_mode );
+    QCommandLineOption opt_auto_quit_wait( "auto-quit-wait",
+                                           "Set the wait seconds for the automatic quit mode. (Default=" + QString::number( M_auto_quit_wait ) + ")",
+                                           "int",
+                                           QString::number( M_auto_quit_wait ) );
+    parser.addOption( opt_auto_quit_wait );
+    QCommandLineOption opt_auto_reconnect_mode( "auto-reconnect-mode",
+                                                "Enable the automatic reconnect mode. (Default=" + to_onoff( M_auto_reconnect_mode ) + ")",
+                                                "bool",
+                                                to_onoff( M_auto_reconnect_mode ) );
+    parser.addOption( opt_auto_reconnect_mode );
+    QCommandLineOption opt_auto_reconnect_wait( "auto-reconnect-wait",
+                                                "Set the wait seconds for the automatic reconnect mode. (Default=" + QString::number( M_auto_reconnect_wait ) + ")",
+                                                "int",
+                                                QString::number( M_auto_reconnect_wait ) );
+    parser.addOption( opt_auto_reconnect_wait );
+    QCommandLineOption opt_auto_loop_mode( "auto-loop-mode",
+                                           "Enable the automatic loop mode for the log replaying. (Default=" + to_onoff( M_auto_loop_mode ) + ")",
+                                           "bool",
+                                           to_onoff( M_auto_loop_mode ) );
+    parser.addOption( opt_auto_loop_mode );
+    // window options
+    QCommandLineOption opt_geometry( "geometry",
+                                     "Set the initial window geometry ([WxH][+X+Y]). e.g. --geometry 1024x768+1+1",
+                                     "str" );
+    parser.addOption( opt_geometry );
+    QCommandLineOption opt_maximize( "maximize",
+                                     "Start with a maximized window." );
+    parser.addOption( opt_maximize );
+    QCommandLineOption opt_full_screen( "full-screen",
+                                        "Start with a full screen window." );
+    parser.addOption( opt_full_screen );
+    QCommandLineOption opt_show_menu_bar( "show-menu-bar",
+                                          "Show a menu bar. (Default=" + to_onoff( M_show_menu_bar ) + ")",
+                                          "bool",
+                                          to_onoff( M_show_menu_bar ) );
+    parser.addOption( opt_show_menu_bar );
+    QCommandLineOption opt_show_tool_bar( "show-tool-bar",
+                                          "Start without a tool bar. (Default=" + to_onoff( M_show_tool_bar ) + ")",
+                                          "bool",
+                                          to_onoff( M_show_tool_bar ) );
+    parser.addOption( opt_show_tool_bar );
+    QCommandLineOption opt_show_status_bar( "show-status-bar",
+                                            "Show a status bar. (Default=" + to_onoff( M_show_status_bar ) + ")",
+                                            "bool",
+                                            to_onoff( M_show_status_bar ) );
+    parser.addOption( opt_show_status_bar );
+    // view options
+    QCommandLineOption opt_anti_aliasing( "anti-aliasing",
+                                          "Paint objects with the anti-aliase mode. (Default=" + to_onoff( M_anti_aliasing ) + ")",
+                                          "bool",
+                                          to_onoff( M_anti_aliasing ) );
+    parser.addOption( opt_anti_aliasing );
+    QCommandLineOption opt_show_score_board( "show-score-board",
+                                             "Display a score board. (Default=" + to_onoff( M_show_score_board ) + ")" ,
+                                             "bool",
+                                             to_onoff( M_show_score_board ) );
+    parser.addOption( opt_show_score_board );
+    QCommandLineOption opt_show_keepaway_area( "show-keepaway-area",
+                                               "Show a keepaway area. (Default=" + to_onoff( M_show_keepaway_area ) + ")",
+                                               "bool",
+                                               to_onoff( M_show_keepaway_area ) );
+    parser.addOption( opt_show_keepaway_area );
+    QCommandLineOption opt_show_team_graphic( "show-team-graphic",
+                                              "Show team graphic images. (Default=" + to_onoff( M_show_team_graphic ) + ")",
+                                              "bool",
+                                              to_onoff( M_show_team_graphic ) );
+    parser.addOption( opt_show_team_graphic );
+    QCommandLineOption opt_show_draw_info( "show-draw-info",
+                                           "Show draw information. (Default=" + to_onoff( M_show_draw_info ) + ")",
+                                           "bool",
+                                           to_onoff( M_show_draw_info ) );
+    parser.addOption( opt_show_draw_info );
+    QCommandLineOption opt_show_ball( "show-ball",
+                                      "Show the ball. (Default=" + to_onoff( M_show_ball ) + ")",
+                                      "bool",
+                                      to_onoff( M_show_ball ) );
+    parser.addOption( opt_show_ball );
+    QCommandLineOption opt_show_player( "show-player",
+                                        "Show players. (Default=" + to_onoff( M_show_player ) + ")",
+                                        "bool",
+                                        to_onoff( M_show_player ) );
+    parser.addOption( opt_show_player );
+    QCommandLineOption opt_show_player_number( "show-player-number",
+                                               "Show uniform numbers. (Default=" + to_onoff( M_show_player_number ) + ")",
+                                               "bool",
+                                               to_onoff( M_show_player_number ) );
+    parser.addOption( opt_show_player_number );
+    QCommandLineOption opt_show_player_type( "show-player-type",
+                                             "Show heterogeneous type IDs. (Default=" + to_onoff( M_show_player_type ) + ")",
+                                             "bool",
+                                             to_onoff( M_show_player_type ) );
+    parser.addOption( opt_show_player_type );
+    QCommandLineOption opt_show_view_area( "show-view-area",
+                                           "Show player's view areas. (Default=" + to_onoff( M_show_view_area ) + ")",
+                                           "bool",
+                                           to_onoff( M_show_view_area ) );
+    parser.addOption( opt_show_view_area );
+    QCommandLineOption opt_show_illegal_defense( "show-illegal-defense",
+                                                 "show player's illegal defense state. (Default=" + to_onoff( M_show_illegal_defense ) + ")",
+                                                 "bool",
+                                                 to_onoff( M_show_illegal_defense ) );
+    parser.addOption( opt_show_illegal_defense );
+    QCommandLineOption opt_show_catch_area( "show-catch-area",
+                                            "Show goalie's catch area. (Default=" + to_onoff( M_show_catch_area ) + ")",
+                                            "bool",
+                                            to_onoff( M_show_catch_area ) );
+    parser.addOption( opt_show_catch_area );
+    QCommandLineOption opt_show_tackle_area( "show-tackle-area",
+                                             "Show player's tackle area. (Default=" + to_onoff( M_show_tackle_area ) + ")",
+                                             "bool",
+                                             to_onoff( M_show_tackle_area ) );
+    parser.addOption( opt_show_tackle_area );
+    QCommandLineOption opt_show_kick_accel_area( "show-kick-accel-area",
+                                                 "Show player's kick acceleration area. (Default=" + to_onoff( M_show_kick_accel_area ) + ")",
+                                                 "bool",
+                                                 to_onoff( M_show_kick_accel_area ) );
+    parser.addOption( opt_show_kick_accel_area );
+    QCommandLineOption opt_show_stamina( "show-stamina",
+                                         "Show player's stamina values. (Default=" + to_onoff( M_show_stamina ) + ")",
+                                         "bool",
+                                         to_onoff( M_show_stamina ) );
+    parser.addOption( opt_show_stamina );
+    QCommandLineOption opt_show_stamina_capacity( "show-stamina-capacity",
+                                                  "Show player's stamina capacity values. (Default=" + to_onoff( M_show_stamina_capacity ) + ")",
+                                                  "bool",
+                                                  to_onoff( M_show_stamina_capacity ) );
+    parser.addOption( opt_show_stamina_capacity );
+    QCommandLineOption opt_show_pointto( "show-pointto",
+                                         "Show player's pointto status. (Default=" + to_onoff( M_show_pointto ) + ")",
+                                         "bool",
+                                         to_onoff( M_show_pointto ) );
+    parser.addOption( opt_show_pointto );
+    QCommandLineOption opt_show_card( "show-card",
+                                      "show player's yellow/red card status. (Default=" + to_onoff( M_show_card ) + ")",
+                                      "bool",
+                                      to_onoff( M_show_card ) );
+    parser.addOption( opt_show_card );
+    QCommandLineOption opt_ball_size( "ball-size",
+                                      "Set the ball radius. (Default=" + to_string( M_ball_size ) + ")",
+                                      "double",
+                                      to_string( M_ball_size ) );
+    parser.addOption( opt_ball_size );
+    QCommandLineOption opt_player_size( "player-size",
+                                        "Set the fixed player radius. (Default=" + to_string( M_player_size ) + ")",
+                                        "double",
+                                        to_string( M_player_size ) );
+    parser.addOption( opt_player_size );
+    QCommandLineOption opt_show_grid_coord( "show-grid-coord",
+                                            "Show coordinates values of grid lines. (Default=" + to_onoff( M_show_grid_coord ) + ")",
+                                            "bool",
+                                            to_onoff( M_show_grid_coord ) );
+    parser.addOption( opt_show_grid_coord );
+    QCommandLineOption opt_grid_step( "grid-step",
+                                      "Set a grid step size. (Default=" + to_string( M_grid_step ) + ")",
+                                      "double",
+                                      to_string( M_grid_step ) );
+    parser.addOption( opt_grid_step );
+    QCommandLineOption opt_show_flag( "show-flag",
+                                      "Show landmark flags. (Default=" + to_onoff( M_show_flag ) + ")",
+                                      "bool",
+                                      to_onoff( M_show_flag ) );
+    parser.addOption( opt_show_flag );
+    QCommandLineOption opt_show_offside_line( "show-offside-line",
+                                              "Show offside lines. (Default=" + to_onoff( M_show_offside_line ) + ")",
+                                              "bool",
+                                              to_onoff( M_show_offside_line ) );
+    parser.addOption( opt_show_offside_line );
+    QCommandLineOption opt_team_graphic_scale( "team-graphic-scale",
+                                               "Set a team graphic scale value. (Default=" + to_string( M_team_graphic_scale ) + ")",
+                                               "double",
+                                               to_string( M_team_graphic_scale ) );
+    parser.addOption( opt_team_graphic_scale );
+
+    parser.process( *qApp );
+
+
+    const QStringList positional = parser.positionalArguments();
+    if ( ! positional.empty() ) M_game_log_file = positional.at( 0 ).toStdString();
+
+    // monitor client options
+    if ( parser.isSet( opt_connect ) ) M_connect = true;
+    if ( parser.isSet( opt_server_host ) ) M_server_host = parser.value( opt_server_host ).toStdString();
+    if ( parser.isSet( opt_server_port ) ) M_server_port = parser.value( opt_server_port ).toInt();
+    if ( parser.isSet( opt_client_version ) ) M_client_version = parser.value( opt_client_version ).toInt();
+    if ( parser.isSet( opt_timer_interval ) ) M_timer_interval = parser.value( opt_timer_interval ).toInt();
+    if ( parser.isSet( opt_auto_quit_mode ) ) M_auto_quit_mode = to_bool( parser.value( opt_auto_quit_mode ), M_auto_quit_mode );
+    if ( parser.isSet( opt_auto_quit_wait ) ) M_auto_quit_wait = parser.value( opt_auto_quit_wait ).toInt();
+    if ( parser.isSet( opt_auto_reconnect_mode ) ) M_auto_reconnect_mode = to_bool( parser.value( opt_auto_reconnect_mode ), M_auto_reconnect_mode );
+    if ( parser.isSet( opt_auto_reconnect_wait ) ) M_auto_reconnect_wait = parser.value( opt_auto_reconnect_wait ).toInt();
+    if ( parser.isSet( opt_auto_loop_mode ) ) M_auto_loop_mode = to_bool( parser.value( opt_auto_loop_mode ), M_auto_loop_mode );
+    // window options
+    if ( parser.isSet( opt_geometry ) ) setGeometry( parser.value( opt_geometry ).toStdString() );
+    if ( parser.isSet( opt_maximize ) ) M_maximize = true;
+    if ( parser.isSet( opt_full_screen ) ) M_full_screen = true;
+    if ( parser.isSet( opt_show_menu_bar ) ) M_show_menu_bar = to_bool( parser.value( opt_show_menu_bar ), M_show_menu_bar );
+    if ( parser.isSet( opt_show_tool_bar ) ) M_show_tool_bar = to_bool( parser.value( opt_show_tool_bar ), M_show_tool_bar );
+    if ( parser.isSet( opt_show_status_bar ) ) M_show_status_bar = to_bool( parser.value( opt_show_status_bar ), M_show_status_bar );
+    // view options
+    if ( parser.isSet( opt_anti_aliasing ) ) M_anti_aliasing = to_bool( parser.value( opt_anti_aliasing ), M_anti_aliasing );
+    if ( parser.isSet( opt_show_score_board ) ) M_show_score_board = to_bool( parser.value( opt_show_score_board ), M_show_score_board );
+    if ( parser.isSet( opt_show_keepaway_area ) ) M_show_keepaway_area = to_bool( parser.value( opt_show_keepaway_area ), M_show_keepaway_area );
+    if ( parser.isSet( opt_show_team_graphic ) ) M_show_team_graphic = to_bool( parser.value( opt_show_team_graphic ), M_show_team_graphic );
+    if ( parser.isSet( opt_show_draw_info ) ) M_show_draw_info = to_bool( parser.value( opt_show_draw_info ), M_show_draw_info );
+    if ( parser.isSet( opt_show_ball ) ) M_show_ball = to_bool( parser.value( opt_show_ball ), M_show_ball );
+    if ( parser.isSet( opt_show_player ) ) M_show_player = to_bool( parser.value( opt_show_player ), M_show_player );
+    if ( parser.isSet( opt_show_player_number ) ) M_show_player_number = to_bool( parser.value( opt_show_player_number ), M_show_player_number );
+    if ( parser.isSet( opt_show_player_type ) ) M_show_player_type = to_bool( parser.value( opt_show_player_type ), M_show_player_type );
+    if ( parser.isSet( opt_show_view_area ) ) M_show_view_area = to_bool( parser.value( opt_show_view_area ), M_show_view_area );
+    if ( parser.isSet( opt_show_illegal_defense ) ) M_show_illegal_defense = to_bool( parser.value( opt_show_illegal_defense ), M_show_illegal_defense );
+    if ( parser.isSet( opt_show_catch_area ) ) M_show_catch_area = to_bool( parser.value( opt_show_catch_area ), M_show_catch_area );
+    if ( parser.isSet( opt_show_tackle_area ) ) M_show_tackle_area = to_bool( parser.value( opt_show_tackle_area ), M_show_tackle_area );
+    if ( parser.isSet( opt_show_kick_accel_area ) ) M_show_kick_accel_area = to_bool( parser.value( opt_show_kick_accel_area ), M_show_kick_accel_area );
+    if ( parser.isSet( opt_show_stamina ) ) M_show_stamina = to_bool( parser.value( opt_show_stamina ), M_show_stamina );
+    if ( parser.isSet( opt_show_stamina_capacity ) ) M_show_stamina_capacity = to_bool( parser.value( opt_show_stamina_capacity ), M_show_stamina_capacity );
+    if ( parser.isSet( opt_show_pointto ) ) M_show_pointto = to_bool( parser.value( opt_show_pointto ), M_show_pointto );
+    if ( parser.isSet( opt_show_card ) ) M_show_card = to_bool( parser.value( opt_show_card ), M_show_card );
+    if ( parser.isSet( opt_ball_size ) ) M_ball_size = parser.value( opt_ball_size ).toDouble();
+    if ( parser.isSet( opt_player_size ) ) M_player_size = parser.value( opt_player_size ).toDouble();
+    if ( parser.isSet( opt_show_grid_coord ) ) M_show_grid_coord = to_bool( parser.value( opt_show_grid_coord ), M_show_grid_coord );
+    if ( parser.isSet( opt_grid_step ) ) M_grid_step = parser.value( opt_grid_step ).toDouble();
+    if ( parser.isSet( opt_show_flag ) ) M_show_flag = to_bool( parser.value( opt_show_flag ), M_show_flag );
+    if ( parser.isSet( opt_show_offside_line ) ) M_show_offside_line = to_bool( parser.value( opt_show_offside_line ), M_show_offside_line );
+    if ( parser.isSet( opt_team_graphic_scale ) ) M_team_graphic_scale = parser.value( opt_team_graphic_scale ).toDouble();
+
+    checkConsistensy();
+
+#elif defined(HAVE_BOOST_PROGRAM_OPTIONS)
+
     namespace po = boost::program_options;
 
     std::string geometry;
@@ -874,8 +1182,8 @@ Options::parseCmdLine( int argc,
         ( "show-view-area",
           po::value< bool >( &M_show_view_area )->default_value( M_show_view_area, to_onoff( M_show_view_area ) ),
           "show player\'s view area." )
-        ( "show-illegal-defense_state",
-          po::value< bool >( &M_show_illegal_defense_state )->default_value( M_show_illegal_defense_state, to_onoff( M_show_illegal_defense_state ) ),
+        ( "show-illegal-defense",
+          po::value< bool >( &M_show_illegal_defense )->default_value( M_show_illegal_defense, to_onoff( M_show_illegal_defense ) ),
           "show player\'s illegal defense state." )
         ( "show-catch-area",
           po::value< bool >( &M_show_catch_area )->default_value( M_show_catch_area, to_onoff( M_show_catch_area ) ),
@@ -972,6 +1280,83 @@ Options::parseCmdLine( int argc,
         return false;
     }
 
+    setGeometry( geometry );
+    checkConsistensy();
+
+//     if ( ! canvas_size.empty() )
+//     {
+//         int w = -1, h = -1;
+//         if ( std::sscanf( canvas_size.c_str(),
+//                           " %d x %d ",
+//                           &w, &h ) == 2
+//              && w > 1
+//              && h > 1 )
+//         {
+//             M_canvas_width = w;
+//             M_canvas_height = h;
+//         }
+//         else
+//         {
+//             std::cerr << "Illegal canvas size format [" << canvas_size
+//                       << "]" << std::endl;
+//         }
+//     }
+#endif
+    return true;
+}
+
+/*-------------------------------------------------------------------*/
+void
+Options::setGeometry( const std::string & val )
+{
+    if ( val.empty() ) return;
+
+    int w = -1, h = -1;
+    int x = -1, y = -1;
+
+    int num = std::sscanf( val.c_str(),
+                           " %d x %d %d %d " ,
+                           &w, &h, &x, &y );
+    //std::cerr << "geometry = " << val
+    //          << "  param_num=" << num
+    //          << " width=" << w << " height=" << h
+    //          << " x=" << x << " y=" << y
+    //          << std::endl;
+    if ( num == 4 || num == 2 )
+    {
+        if ( w <= 0 || h <= 0 )
+        {
+            std::cerr << "Illegal window size [" << val << "]" << std::endl;
+        }
+        else
+        {
+            M_window_width = w;
+            M_window_height = h;
+            M_window_x = x;
+            M_window_y = y;
+        }
+    }
+    else if ( std::sscanf( val.c_str(),
+                           " %d %d " ,
+                           &x, &y ) == 2 )
+    {
+        //std::cerr << "only pos = "
+        //          << " x=" << x
+        //          << " y=" << y
+        //          << std::endl;
+        M_window_x = x;
+        M_window_y = y;
+    }
+    else
+    {
+        std::cerr << "Illegal geometry format [" << val << "]" << std::endl;
+    }
+}
+
+/*-------------------------------------------------------------------*/
+void
+Options::checkConsistensy()
+{
     if ( M_timer_interval < 0 )
     {
         std::cerr << "Illegal timer interval " << M_timer_interval
@@ -994,72 +1379,25 @@ Options::parseCmdLine( int argc,
         M_timer_interval = 5000;
     }
 
-    if ( ! geometry.empty() )
+    if ( M_ball_size < 0.0 )
     {
-        int w = -1, h = -1;
-        int x = -1, y = -1;
-
-        int num = std::sscanf( geometry.c_str(),
-                               " %d x %d %d %d " ,
-                               &w, &h, &x, &y );
-        //std::cerr << "geometry = " << geometry
-        //          << "  param_num=" << num
-        //          << " width=" << w << " height=" << h
-        //          << " x=" << x << " y=" << y
-        //          << std::endl;
-        if ( num == 4 || num == 2 )
-        {
-            if ( w <= 0 || h <= 0 )
-            {
-                std::cerr << "Illegal window size [" << geometry
-                          << "]" << std::endl;
-            }
-            else
-            {
-                M_window_width = w;
-                M_window_height = h;
-                M_window_x = x;
-                M_window_y = y;
-            }
-        }
-        else if ( std::sscanf( geometry.c_str(),
-                               " %d %d " ,
-                               &x, &y ) == 2 )
-        {
-            //std::cerr << "only pos = "
-            //          << " x=" << x
-            //          << " y=" << y
-            //          << std::endl;
-            M_window_x = x;
-            M_window_y = y;
-        }
-        else
-        {
-            std::cerr << "Illegal geometry format [" << geometry
-                      << "]" << std::endl;
-        }
+        M_ball_size = 0.0;
     }
 
-//     if ( ! canvas_size.empty() )
-//     {
-//         int w = -1, h = -1;
-//         if ( std::sscanf( canvas_size.c_str(),
-//                           " %d x %d ",
-//                           &w, &h ) == 2
-//              && w > 1
-//              && h > 1 )
-//         {
-//             M_canvas_width = w;
-//             M_canvas_height = h;
-//         }
-//         else
-//         {
-//             std::cerr << "Illegal canvas size format [" << canvas_size
-//                       << "]" << std::endl;
-//         }
-//     }
-#endif
-    return true;
+    if ( M_player_size < 0.0 )
+    {
+        M_player_size = 0.0;
+    }
+
+    if ( M_grid_step < 0.0 )
+    {
+        M_grid_step = 0.0;
+    }
+
+    if ( M_team_graphic_scale < 0.0 )
+    {
+        M_team_graphic_scale = 0.0;
+    }
 }
 
 /*-------------------------------------------------------------------*/
