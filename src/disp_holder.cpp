@@ -62,13 +62,13 @@ const size_t DispHolder::INVALID_INDEX = size_t( -1 );
 const size_t DispHolder::MAX_SIZE = 65535;
 
 namespace {
-struct TimeCmp {
-    bool operator()( const DispConstPtr & lhs,
-                     const rcss::rcg::UInt32 rhs )
-      {
-          return lhs->show_.time_ < rhs;
-      }
-};
+// struct TimeCmp {
+//     bool operator()( const DispConstPtr & lhs,
+//                      const rcss::rcg::UInt32 rhs )
+//       {
+//           return lhs->show_.time_ < rhs;
+//       }
+// };
 
 inline
 rcss::rcg::Int16
@@ -697,11 +697,15 @@ DispHolder::setCycle( const int cycle )
 size_t
 DispHolder::getIndex( const int cycle ) const
 {
-    DispCont::const_iterator it
-        = std::lower_bound( M_disp_cont.begin(),
-                            M_disp_cont.end(),
-                            rcss::rcg::UInt32( cycle ),
-                            TimeCmp() );
+    DispCont::const_iterator it = std::lower_bound( M_disp_cont.begin(),
+                                                    M_disp_cont.end(),
+                                                    rcss::rcg::UInt32( cycle ),
+                                                    //TimeCmp() );
+                                                    []( const DispConstPtr & lhs,
+                                                        const rcss::rcg::UInt32 rhs )
+                                                    {
+                                                        return lhs->show_.time_ < rhs;
+                                                    } );
     if ( it == M_disp_cont.end() )
     {
         return INVALID_INDEX;
