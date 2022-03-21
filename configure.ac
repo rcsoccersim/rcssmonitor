@@ -13,6 +13,14 @@ AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIR([m4])
 
 ##################################################
+# libtool settings
+##################################################
+
+LT_INIT([shared disable-static])
+LT_LANG([C++])
+AC_SUBST(LIBTOOL_DEPS)
+
+##################################################
 # Checks for programs.
 ##################################################
 
@@ -36,7 +44,7 @@ AX_CHECK_ZLIB([],
 # Checks for header files.
 ##################################################
 
-AC_CHECK_HEADERS([netinet/in.h])
+AC_CHECK_HEADERS([arpa/inet.h])
 
 ##################################################
 # Checks for typedefs, structures, and compiler characteristics.
@@ -83,5 +91,7 @@ AX_CXX_COMPILE_STDCXX_14(noext)
 
 # ----------------------------------------------------------
 AC_CONFIG_FILES([Makefile
+                 rcss/Makefile
+				 rcss/rcg/Makefile
                  src/Makefile])
 AC_OUTPUT

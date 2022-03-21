@@ -1,6 +1,6 @@
 ACLOCAL_AMFLAGS=-I m4
 
-SUBDIRS = src .
+SUBDIRS = rcss src .
 
 EXTRA_DIST = \
 	rcssmonitor.pro \

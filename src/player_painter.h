@@ -39,7 +39,7 @@
 
 #include "painter_interface.h"
 
-#include <rcsslogplayer/types.h>
+#include <rcss/rcg/types.h>
 
 class QPainter;
 class QPixmap;

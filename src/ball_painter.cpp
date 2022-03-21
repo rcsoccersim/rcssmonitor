@@ -48,7 +48,7 @@
 #include "options.h"
 #include "vector_2d.h"
 
-#include <rcsslogplayer/types.h>
+#include <rcss/rcg/types.h>
 
 #include <vector>
 

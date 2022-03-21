@@ -36,7 +36,7 @@
 #include <QObject>
 #include <QHostAddress>
 
-#include <rcsslogplayer/types.h>
+#include <rcss/rcg/types.h>
 
 class QHostInfo;
 class QTimer;

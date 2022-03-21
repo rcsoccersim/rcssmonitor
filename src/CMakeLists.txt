@@ -1,9 +1,6 @@
 
 add_executable(rcssmonitor
-  rcsslogplayer/gzfstream.cpp
-  rcsslogplayer/parser.cpp
-  rcsslogplayer/types.cpp
-  rcsslogplayer/util.cpp
+  gzfstream.cpp
   angle_deg.cpp
   ball_painter.cpp
   circle_2d.cpp
@@ -42,6 +39,8 @@ target_include_directories(rcssmonitor
   )
 
 target_link_libraries(rcssmonitor
+  PRIVATE
+  rcssrcg
   Qt5::Core Qt5::Gui Qt5::Widgets Qt5::Network
 #  Boost::program_options Boost::system
   ZLIB::ZLIB
@@ -50,7 +49,12 @@ target_link_libraries(rcssmonitor
 target_compile_definitions(rcssmonitor
   PUBLIC
   HAVE_CONFIG_H
-)
+  )
+
+set_target_properties(rcssmonitor
+  PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}
+  )
 
 install(TARGETS rcssmonitor
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}

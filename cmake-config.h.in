@@ -7,6 +7,4 @@
 
 #cmakedefine HAVE_WINDOWS_H
 
-#cmakedefine HAVE_NETINET_IN_H
-
-#cmakedefine HAVE_BOOST_PROGRAM_OPTIONS
+#cmakedefine HAVE_ARPA_INET_H

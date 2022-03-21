@@ -38,11 +38,12 @@
 
 #include "options.h"
 
-#include <rcsslogplayer/util.h>
-#include <rcsslogplayer/parser.h>
+#include <rcss/rcg/util.h>
+#include <rcss/rcg/parser_v1.h>
+#include <rcss/rcg/parser_v4.h>
 
-#ifdef HAVE_NETINET_IN_H
-#include <netinet/in.h>
+#ifdef HAVE_ARPA_INET_H
+#include <arpa/inet.h>
 #endif
 #ifdef HAVE_WINDOWS_H
 #include <windows.h>
@@ -88,8 +89,7 @@ my_ntohs( const rcss::rcg::Int16 val )
 
  */
 DispHolder::DispHolder()
-    : M_rcg_version( 0 ),
-      M_current_index( INVALID_INDEX )
+    : M_current_index( INVALID_INDEX )
 {
     M_disp_cont.reserve( MAX_SIZE );
 }
@@ -110,8 +110,6 @@ DispHolder::~DispHolder()
 void
 DispHolder::clear()
 {
-    M_rcg_version = 0;
-
     M_server_param = rcss::rcg::ServerParamT();
     M_player_param = rcss::rcg::PlayerParamT();
     M_player_types.clear();
@@ -179,33 +177,40 @@ DispHolder::currentDisp() const
 bool
 DispHolder::addDispInfoV1( const rcss::rcg::dispinfo_t & disp )
 {
-    switch ( my_ntohs( disp.mode ) ) {
-    case rcss::rcg::NO_INFO:
-        break;
-    case rcss::rcg::SHOW_MODE:
-        {
-            rcss::rcg::ShowInfoT new_show;
-            M_playmode = static_cast< rcss::rcg::PlayMode >( disp.body.show.pmode );
-            rcss::rcg::convert( disp.body.show.team[0], M_teams[0] );
-            rcss::rcg::convert( disp.body.show.team[1], M_teams[1] );
-            rcss::rcg::convert( disp.body.show, new_show );
+    rcss::rcg::ParserV1 parser;
+    return parser.handleDisp( disp, *this );
 
-            doHandleShowInfo( new_show );
-        }
-        break;
-    case rcss::rcg::MSG_MODE:
-        doHandleMsgInfo( 0,
-                         my_ntohs( disp.body.msg.board ),
-                         disp.body.msg.message );
-        break;
-    case rcss::rcg::DRAW_MODE:
-        // TODO
-        break;
-    default:
-        return false;
-    }
+    // switch ( my_ntohs( disp.mode ) ) {
+    // case rcss::rcg::NO_INFO:
+    //     break;
 
-    return true;
+    // case rcss::rcg::SHOW_MODE:
+    //     {
+    //         rcss::rcg::ShowInfoT new_show;
+    //         M_playmode = static_cast< rcss::rcg::PlayMode >( disp.body.show.pmode );
+    //         rcss::rcg::convert( disp.body.show.team[0], M_teams[0] );
+    //         rcss::rcg::convert( disp.body.show.team[1], M_teams[1] );
+    //         rcss::rcg::convert( disp.body.show, new_show );
+
+    //         handleShow( new_show );
+    //     }
+    //     break;
+
+    // case rcss::rcg::MSG_MODE:
+    //     handleMsg( 0, // time
+    //                my_ntohs( disp.body.msg.board ),
+    //                disp.body.msg.message );
+    //     break;
+
+    // case rcss::rcg::DRAW_MODE:
+    //     // TODO
+    //     break;
+
+    // default:
+    //     return false;
+    // }
+
+    // return true;
 }
 
 /*-------------------------------------------------------------------*/
@@ -215,9 +220,12 @@ DispHolder::addDispInfoV1( const rcss::rcg::dispinfo_t & disp )
 bool
 DispHolder::addDispInfoV2( const rcss::rcg::dispinfo_t2 & disp )
 {
+    const int time = ( M_disp ? M_disp->show_.time_ : 0 );
+
     switch ( my_ntohs( disp.mode ) ) {
     case rcss::rcg::NO_INFO:
         break;
+
     case rcss::rcg::SHOW_MODE:
         {
             rcss::rcg::ShowInfoT new_show;
@@ -226,44 +234,48 @@ DispHolder::addDispInfoV2( const rcss::rcg::dispinfo_t2 & disp )
             rcss::rcg::convert( disp.body.show.team[1], M_teams[1] );
             rcss::rcg::convert( disp.body.show, new_show );
 
-            doHandleShowInfo( new_show );
+            handleShow( new_show );
         }
         break;
 
     case rcss::rcg::MSG_MODE:
-        doHandleMsgInfo( 0,
-                         my_ntohs( disp.body.msg.board ),
-                         disp.body.msg.message );
+        handleMsg( time,
+                   my_ntohs( disp.body.msg.board ),
+                   disp.body.msg.message );
         break;
     case rcss::rcg::PARAM_MODE:
         {
             rcss::rcg::ServerParamT new_params;
             rcss::rcg::convert( disp.body.sparams, new_params );
 
-            doHandleServerParam( new_params );
+            handleServerParam( new_params );
         }
         break;
+
     case rcss::rcg::PPARAM_MODE:
         {
             rcss::rcg::PlayerParamT new_params;
             rcss::rcg::convert( disp.body.pparams, new_params );
 
-            doHandlePlayerParam( new_params );
+            handlePlayerParam( new_params );
         }
         break;
+
     case rcss::rcg::PT_MODE:
         {
             rcss::rcg::PlayerTypeT new_type;
             convert( disp.body.ptinfo, new_type );
 
-            doHandlePlayerType( new_type );
+            handlePlayerType( new_type );
         }
         break;
+
     case rcss::rcg::DRAW_MODE:
     case rcss::rcg::BLANK_MODE:
     case rcss::rcg::PM_MODE:
     case rcss::rcg::TEAM_MODE:
         break;
+
     default:
         return false;
     }
@@ -278,37 +290,16 @@ DispHolder::addDispInfoV2( const rcss::rcg::dispinfo_t2 & disp )
 bool
 DispHolder::addDispInfoV3( const char * msg )
 {
-    rcss::rcg::Parser parser( *this );
-
-    return parser.parseLine( -1, msg );
+    rcss::rcg::ParserV4 parser;
+    return parser.parseLine( -1, msg, *this );
 }
 
 /*-------------------------------------------------------------------*/
 /*!
 
  */
-void
-DispHolder::doHandleLogVersion( int ver )
-{
-    M_rcg_version = ver;
-}
-
-/*-------------------------------------------------------------------*/
-/*!
-
- */
-int
-DispHolder::doGetLogVersion() const
-{
-    return M_rcg_version;
-}
-
-/*-------------------------------------------------------------------*/
-/*!
-
- */
-void
-DispHolder::doHandleShowInfo( const rcss::rcg::ShowInfoT & show )
+bool
+DispHolder::handleShow( const rcss::rcg::ShowInfoT & show )
 {
     DispPtr disp( new rcss::rcg::DispInfoT );
 
@@ -317,7 +308,6 @@ DispHolder::doHandleShowInfo( const rcss::rcg::ShowInfoT & show )
     disp->team_[1] = M_teams[1];
     disp->show_ = show;
 
-    M_disp = disp;
 #if 0
     if ( ! M_disp_cont.empty() )
     {
@@ -330,44 +320,50 @@ DispHolder::doHandleShowInfo( const rcss::rcg::ShowInfoT & show )
         }
     }
 #endif
+
     if ( M_disp_cont.size() <= MAX_SIZE )
     {
         M_disp_cont.push_back( disp );
     }
 
+    M_disp = disp;
+
+    return true;
 }
 
 /*-------------------------------------------------------------------*/
 /*!
 
  */
-void
-DispHolder::doHandleMsgInfo( const int,
-                             const int,
-                             const std::string & msg )
+bool
+DispHolder::handleMsg( const int /* time */,
+                       const int /* board */,
+                       const std::string & msg )
 {
     if ( ! msg.compare( 0, std::strlen( "(team_graphic_" ), "(team_graphic_" ) )
     {
         analyzeTeamGraphic( msg );
-        return;
+        return true;
     }
 
     if ( ! msg.compare( 0, std::strlen( "(change_player_type" ), "(change_player_type" ) )
     {
-        return;
+        return true;
     }
 
     //     std::cerr << "handle message: time=" << time << " board=" << board
     //               << " [" << msg << "]" << std::endl;
+
+    return true;
 }
 
 /*-------------------------------------------------------------------*/
 /*!
 
  */
-void
-DispHolder::doHandlePlayMode( const int time,
-                              const rcss::rcg::PlayMode pmode )
+bool
+DispHolder::handlePlayMode( const int time,
+                            const rcss::rcg::PlayMode pmode )
 {
     if ( M_playmode != pmode )
     {
@@ -384,16 +380,17 @@ DispHolder::doHandlePlayMode( const int time,
     }
 
     M_playmode = pmode;
+    return true;
 }
 
 /*-------------------------------------------------------------------*/
 /*!
 
  */
-void
-DispHolder::doHandleTeamInfo( const int,
-                              const rcss::rcg::TeamT & team_l,
-                              const rcss::rcg::TeamT & team_r )
+bool
+DispHolder::handleTeam( const int /* time */,
+                        const rcss::rcg::TeamT & team_l,
+                        const rcss::rcg::TeamT & team_r )
 {
     if ( M_teams[0].score_ != team_l.score_
          || M_teams[1].score_ != team_r.score_ )
@@ -403,14 +400,15 @@ DispHolder::doHandleTeamInfo( const int,
 
     M_teams[0] = team_l;
     M_teams[1] = team_r;
+    return true;
 }
 
 /*-------------------------------------------------------------------*/
 /*!
 
  */
-void
-DispHolder::doHandleDrawClear( const int time )
+bool
+DispHolder::handleDrawClear( const int time )
 {
     M_point_cont.erase( time );
     M_circle_cont.erase( time );
@@ -431,80 +429,83 @@ DispHolder::doHandleDrawClear( const int time )
 //         LineCont::iterator last = M_line_cont.upper_bound( time );
 //         M_line_cont.erase( first, last );
 //     }
+    return true;
 }
 
 /*-------------------------------------------------------------------*/
-/*!
-
- */
-void
-DispHolder::doHandleDrawPointInfo( const int time,
-                                   const rcss::rcg::PointInfoT & point )
+bool
+DispHolder::handleDrawPoint( const int time,
+                             const rcss::rcg::PointT & point )
 {
-    M_point_cont.insert( PointCont::value_type( time, point ) );
+    M_point_cont[time].push_back( point );
+    return true;
 }
 
 /*-------------------------------------------------------------------*/
 /*!
 
  */
- void
- DispHolder::doHandleDrawCircleInfo( const int time,
-                                     const rcss::rcg::CircleInfoT & circle )
- {
-     std::cerr << "doHandleDrawCircleInfo " << time << std::endl;
-     M_circle_cont.insert( CircleCont::value_type( time, circle ) );
- }
-
-/*-------------------------------------------------------------------*/
-/*!
-
- */
-void
-DispHolder::doHandleDrawLineInfo( const int time,
-                                  const rcss::rcg::LineInfoT & line )
+bool
+DispHolder::handleDrawCircle( const int time,
+                              const rcss::rcg::CircleT & circle )
 {
-    M_line_cont.insert( LineCont::value_type( time, line ) );
+    M_circle_cont[time].push_back( circle );
+    return true;
 }
 
 /*-------------------------------------------------------------------*/
 /*!
 
  */
-void
-DispHolder::doHandleServerParam( const rcss::rcg::ServerParamT & param )
+bool
+DispHolder::handleDrawLine( const int time,
+                            const rcss::rcg::LineT & line )
+{
+    M_line_cont[time].push_back( line );
+    return true;
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+bool
+DispHolder::handleServerParam( const rcss::rcg::ServerParamT & param )
 {
     M_server_param = param;
+    return true;
 }
 
 /*-------------------------------------------------------------------*/
 /*!
 
  */
-void
-DispHolder::doHandlePlayerParam( const rcss::rcg::PlayerParamT & param )
+bool
+DispHolder::handlePlayerParam( const rcss::rcg::PlayerParamT & param )
 {
     M_player_param = param;
+    return true;
 }
 
 /*-------------------------------------------------------------------*/
 /*!
 
  */
-void
-DispHolder::doHandlePlayerType( const rcss::rcg::PlayerTypeT & param )
+bool
+DispHolder::handlePlayerType( const rcss::rcg::PlayerTypeT & param )
 {
     M_player_types.insert( std::pair< int, rcss::rcg::PlayerTypeT >( param.id_, param ) );
+    return true;
 }
 
 /*-------------------------------------------------------------------*/
 /*!
 
  */
-void
-DispHolder::doHandleEOF()
+bool
+DispHolder::handleEOF()
 {
-
+    return true;
 }
 
 /*-------------------------------------------------------------------*/

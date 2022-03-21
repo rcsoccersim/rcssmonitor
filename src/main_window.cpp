@@ -54,10 +54,10 @@
 
 
 #ifdef HAVE_LIBZ
-#include <rcsslogplayer/gzfstream.h>
+#include "gzfstream.h"
 #endif
-#include <rcsslogplayer/util.h>
-#include <rcsslogplayer/parser.h>
+#include <rcss/rcg/util.h>
+#include <rcss/rcg/parser.h>
 
 #include <string>
 #include <iostream>
@@ -1425,7 +1425,7 @@ bool
 MainWindow::openGameLogFileImpl( const QString & filepath )
 {
 #ifdef HAVE_LIBZ
-    rcss::gzifstream fin( filepath.toLatin1() );
+    gzifstream fin( filepath.toLatin1() );
 #else
     std::ifstream fin( filepath.toLatin1() );
 #endif
@@ -1439,51 +1439,54 @@ MainWindow::openGameLogFileImpl( const QString & filepath )
 
     M_disp_holder.clear();
 
-    // show progress dialog
-    QProgressDialog progress_dialog( this );
-    progress_dialog.setWindowTitle( QObject::tr( "parsing a game log file..." ) );
-    progress_dialog.setRange( 0, 6000 );
-    progress_dialog.setValue( 0 );
-    progress_dialog.setLabelText( QObject::tr( "Time: 0" ) );
-    progress_dialog.setCancelButton( 0 ); // no cancel button
-    progress_dialog.setMinimumDuration( 0 ); // no duration
+    // // show progress dialog
+    // QProgressDialog progress_dialog( this );
+    // progress_dialog.setWindowTitle( QObject::tr( "parsing a game log file..." ) );
+    // progress_dialog.setRange( 0, 6000 );
+    // progress_dialog.setValue( 0 );
+    // progress_dialog.setLabelText( QObject::tr( "Time: 0" ) );
+    // progress_dialog.setCancelButton( 0 ); // no cancel button
+    // progress_dialog.setMinimumDuration( 0 ); // no duration
 
     QTime timer;
     timer.start();
 
-
-    rcss::rcg::Parser parser( M_disp_holder );
-    int count = 0;
-    while ( parser.parse( fin ) )
+    rcss::rcg::Parser::Ptr parser = rcss::rcg::Parser::create( fin );
+    if ( ! parser->parse( fin, M_disp_holder ) )
     {
-        ++count;
-        if ( count % 32 == 1 )
-        {
-            if ( ! M_disp_holder.dispCont().empty() )
-            {
-                int time = M_disp_holder.dispCont().back()->show_.time_;
-                if ( time > progress_dialog.maximum() )
-                {
-                    progress_dialog.setMaximum( progress_dialog.maximum() + 6000 );
-                }
-                progress_dialog.setValue( time );
-                progress_dialog.setLabelText( QString( "Time: %1" ).arg( time ) );
-            }
-        }
-
-        if ( count % 512 == 1 )
-        {
-            qApp->processEvents();
-            std::fprintf( stdout, "parsing... %d\r", count );
-            std::fflush( stdout );
-        }
+        return false;
     }
+    // int count = 0;
+    // while ( parser->parse( fin, M_disp_holder ) )
+    // {
+    //     ++count;
+    //     if ( count % 32 == 1 )
+    //     {
+    //         if ( ! M_disp_holder.dispCont().empty() )
+    //         {
+    //             int time = M_disp_holder.dispCont().back()->show_.time_;
+    //             if ( time > progress_dialog.maximum() )
+    //             {
+    //                 progress_dialog.setMaximum( progress_dialog.maximum() + 6000 );
+    //             }
+    //             progress_dialog.setValue( time );
+    //             progress_dialog.setLabelText( QString( "Time: %1" ).arg( time ) );
+    //         }
+    //     }
+
+    //     if ( count % 512 == 1 )
+    //     {
+    //         qApp->processEvents();
+    //         std::fprintf( stdout, "parsing... %d\r", count );
+    //         std::fflush( stdout );
+    //     }
+    // }
 
     std::cerr << "parsing elapsed " << timer.elapsed() << " [ms]" << std::endl;
 
     if ( ! fin.eof() )
     {
-        std::cerr << "failed to parse the rcg file [" << filepath.toStdString() << "]."
+        std::cerr << "Failed to parse the rcg file [" << filepath.toStdString() << "]."
                   << std::endl;
         fin.close();
         return false;
