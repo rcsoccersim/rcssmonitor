@@ -22,7 +22,7 @@ include(CheckIncludeFileCXX)
 if(WIN32)
   check_include_file("windows.h" HAVE_WINDOWS_H)
 endif()
-check_include_file_cxx("netinet/in.h" HAVE_NETINET_IN_H)
+check_include_file_cxx("arpa/inet.h" HAVE_ARPA_INET_H)
 
 # check boost
 #find_package(Boost 1.38.0 COMPONENTS program_options system REQUIRED)
@@ -52,4 +52,5 @@ configure_file(
   )
 
 #
+add_subdirectory(rcss)
 add_subdirectory(src)

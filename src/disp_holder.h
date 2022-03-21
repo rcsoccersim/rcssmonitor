@@ -35,19 +35,19 @@
 
 #include "team_graphic.h"
 
-#include <rcsslogplayer/types.h>
-#include <rcsslogplayer/handler.h>
+#include <rcss/rcg/types.h>
+#include <rcss/rcg/handler.h>
 
 #include <memory>
 #include <vector>
-#include <map>
+#include <unordered_map>
 
 typedef std::shared_ptr< rcss::rcg::DispInfoT > DispPtr;
 typedef std::shared_ptr< const rcss::rcg::DispInfoT > DispConstPtr;
 typedef std::vector< DispConstPtr > DispCont;
-typedef std::multimap< int, rcss::rcg::PointInfoT > PointCont;
-typedef std::multimap< int, rcss::rcg::CircleInfoT > CircleCont;
-typedef std::multimap< int, rcss::rcg::LineInfoT > LineCont;
+typedef std::unordered_map< int, std::vector< rcss::rcg::PointT > > PointCont;
+typedef std::unordered_map< int, std::vector< rcss::rcg::CircleT > > CircleCont;
+typedef std::unordered_map< int, std::vector< rcss::rcg::LineT > > LineCont;
 
 class DispHolder
     : public rcss::rcg::Handler {
@@ -56,8 +56,6 @@ public:
     static const size_t MAX_SIZE;
 
 private:
-
-    int M_rcg_version;
 
     rcss::rcg::ServerParamT M_server_param;
     rcss::rcg::PlayerParamT M_player_param;
@@ -134,55 +132,49 @@ public:
     bool addDispInfoV3( const char * msg );
 
 protected:
-    virtual
-    void doHandleLogVersion( int ver ) override;
 
     virtual
-    int doGetLogVersion() const override;
+    bool handleEOF() override;
 
     virtual
-    void doHandleShowInfo( const rcss::rcg::ShowInfoT & ) override;
+    bool handleShow( const rcss::rcg::ShowInfoT & show ) override;
 
     virtual
-    void doHandleMsgInfo( const int,
-                          const int,
-                          const std::string & ) override;
+    bool handlePlayMode( const int time,
+                         const rcss::rcg::PlayMode pmode ) override;
 
     virtual
-    void doHandlePlayMode( const int,
-                           const rcss::rcg::PlayMode ) override;
+    bool handleTeam( const int time,
+                     const rcss::rcg::TeamT & team_l,
+                     const rcss::rcg::TeamT & team_r ) override;
+    virtual
+    bool handleMsg( const int time,
+                    const int board,
+                    const std::string & msg ) override;
 
     virtual
-    void doHandleTeamInfo( const int,
-                           const rcss::rcg::TeamT &,
-                           const rcss::rcg::TeamT & ) override;
+    bool handleDrawClear( const int time ) override;
 
     virtual
-    void doHandleDrawClear( const int ) override;
+    bool handleDrawPoint( const int time,
+                          const rcss::rcg::PointT & point ) override;
 
     virtual
-    void doHandleDrawPointInfo( const int,
-                                const rcss::rcg::PointInfoT & ) override;
+    bool handleDrawCircle( const int time,
+                           const rcss::rcg::CircleT & circle ) override;
 
     virtual
-    void doHandleDrawCircleInfo( const int,
-                                 const rcss::rcg::CircleInfoT & ) override;
+    bool handleDrawLine( const int time,
+                         const rcss::rcg::LineT & line ) override;
 
     virtual
-    void doHandleDrawLineInfo( const int,
-                               const rcss::rcg::LineInfoT & ) override;
+    bool handleServerParam( const rcss::rcg::ServerParamT & sparam ) override;
 
     virtual
-    void doHandleServerParam( const rcss::rcg::ServerParamT & ) override;
+    bool handlePlayerParam( const rcss::rcg::PlayerParamT & pparam ) override;
 
     virtual
-    void doHandlePlayerParam( const rcss::rcg::PlayerParamT & ) override;
-
-    virtual
-    void doHandlePlayerType( const rcss::rcg::PlayerTypeT & ) override;
-
-    virtual
-    void doHandleEOF() override;
+    bool handlePlayerType( const rcss::rcg::PlayerTypeT & ptype ) override;
 
 
 private:

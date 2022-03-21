@@ -46,7 +46,7 @@
 
 #include "disp_holder.h"
 
-#include <rcsslogplayer/types.h>
+#include <rcss/rcg/types.h>
 
 #include <iostream>
 #include <cstdio>

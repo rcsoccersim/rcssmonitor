@@ -41,7 +41,7 @@
 #include <QBrush>
 #include <QFont>
 
-#include <rcsslogplayer/types.h>
+#include <rcss/rcg/types.h>
 
 #include <string>
 #include <cmath>
