@@ -1335,6 +1335,12 @@ struct LineT {
 };
 
 
+typedef std::unordered_map< std::string, int * > IntMap;
+typedef std::unordered_map< std::string, double * > DoubleMap;
+typedef std::unordered_map< std::string, bool * > BoolMap;
+typedef std::unordered_map< std::string, std::string * > StringMap;
+
+
 /*!
   \struct PlayerParamT
   \brief heterogenious player trade-off parameters
@@ -1387,6 +1393,8 @@ struct PlayerParamT {
      */
     std::ostream & toSExp( std::ostream & os ) const;
 
+    bool createFromSExp( const std::string & msg );
+
     bool setValue( const std::string & name,
                    const std::string & value );
     bool setInt( const std::string & name,
@@ -1396,9 +1404,6 @@ struct PlayerParamT {
     bool setBool( const std::string & name,
                   const bool value );
 private:
-    typedef std::unordered_map< std::string, int * > IntMap;
-    typedef std::unordered_map< std::string, double * > DoubleMap;
-    typedef std::unordered_map< std::string, bool * > BoolMap;
 
     IntMap int_map_;
     DoubleMap double_map_;
@@ -1626,6 +1631,8 @@ struct ServerParamT {
      */
     std::ostream & toSExp( std::ostream & os ) const;
 
+    bool createFromSExp( const std::string & msg );
+
     bool setValue( const std::string & name,
                    const std::string & value );
     bool setInt( const std::string & name,
@@ -1637,10 +1644,6 @@ struct ServerParamT {
     bool setString( const std::string & name,
                     const std::string & value );
 private:
-    typedef std::unordered_map< std::string, int * > IntMap;
-    typedef std::unordered_map< std::string, double * > DoubleMap;
-    typedef std::unordered_map< std::string, bool * > BoolMap;
-    typedef std::unordered_map< std::string, std::string * > StringMap;
 
     IntMap int_map_;
     DoubleMap double_map_;
@@ -1677,6 +1680,7 @@ struct PlayerTypeT {
      */
     std::ostream & toSExp( std::ostream & os ) const;
 
+    bool createFromSExp( const std::string & msg );
 
     bool setValue( const std::string & name,
                    const std::string & value );
@@ -1684,6 +1688,10 @@ struct PlayerTypeT {
                  const int value );
     bool setDouble( const std::string & name,
                     const double value );
+
+private:
+    IntMap int_map_;
+    DoubleMap double_map_;
 
 };
 

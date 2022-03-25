@@ -122,8 +122,139 @@ clean_string( std::string str )
     return str;
 }
 
-/*-------------------------------------------------------------------*/
 
+/*-------------------------------------------------------------------*/
+template< typename ParamHolder >
+bool
+parse_param( const std::string & msg,
+             ParamHolder & holder )
+             // IntMap & int_map,
+             // DoubleMap & double_map,
+             // BoolMap & bool_map,
+             // StringMap & string_map )
+{
+    int n_read = 0;
+
+    char message_name[32];
+    if ( std::sscanf( msg.c_str(), " ( %31s %n ", message_name, &n_read ) != 1 )
+    {
+        std::cerr << ":error: failed to parse the message type." << std::endl;
+        return false;
+    }
+
+    for ( std::string::size_type pos = msg.find_first_of( '(', n_read );
+          pos != std::string::npos;
+          pos = msg.find_first_of( '(', pos ) )
+    {
+        std::string::size_type end_pos = msg.find_first_of( ' ', pos );
+        if ( end_pos == std::string::npos )
+        {
+            std::cerr << "(rcss::rcg::parse_param) Could not find the seprator space." << std::endl;
+            return false;
+        }
+        pos += 1;
+
+        const std::string name_str( msg, pos, end_pos - pos );
+
+        pos = end_pos; // pos indcates the position of the white space after the param name
+
+        // search end paren or double quatation
+        end_pos = msg.find_first_of( ")\"", end_pos ); //"
+        if ( end_pos == std::string::npos )
+        {
+            std::cerr << "(rcss::rcg::parse_param) Could not find the parameter value for [" << name_str << ']'
+                      << std::endl;
+            return false;
+        }
+
+        // found quated value
+        if ( msg[end_pos] == '\"' )
+        {
+            pos = end_pos;
+            end_pos = msg.find_first_of( '\"', end_pos + 1 ); //"
+            if ( end_pos == std::string::npos )
+            {
+                std::cerr << "(rcss::rcg::parse_param) Could not parse the quated value for [" << name_str << ']'
+                          << std::endl;
+                return false;
+            }
+            end_pos += 1; // skip double quatation
+        }
+        else
+        {
+            pos += 1; // skip the white space after the param name
+        }
+
+        // pos indicates the first position of the value string
+        // end_pos indicates the position of the end of paren
+
+        std::string value_str( msg, pos, end_pos - pos );
+        pos = end_pos;
+
+        // pos indicates the position of the end of paren
+
+        holder.setValue( name_str, value_str );
+#if 0
+        //
+        // check parameter maps
+        //
+        try
+        {
+            IntMap::iterator int_it = int_map.find( name_str );
+            if ( int_it != int_map.end() )
+            {
+                *(int_it->second) = std::stoi( value_str );
+                continue;
+            }
+
+            DoubleMap::iterator double_it = double_map.find( name_str );
+            if ( double_it != double_map.end() )
+            {
+                *(double_it->second) = std::stod( value_str );
+                continue;
+            }
+
+            BoolMap::iterator bool_it = bool_map.find( name_str );
+            if ( bool_it != bool_map.end() )
+            {
+                if ( value_str == "0" || value_str == "false" || value_str == "off" )
+                {
+                    *(bool_it->second) = false;
+                }
+                else if ( value_str == "1" || value_str == "true" || value_str == "on" )
+                {
+                    *(bool_it->second) = true;
+                }
+                else
+                {
+                    std::cerr << n_line << ": Unknown bool value. name=" << name_str << " value=" << value_str
+                              << std::endl;
+                }
+                continue;
+            }
+
+            StringMap::iterator string_it = string_map.find( name_str );
+            if ( string_it != string_map.end() )
+            {
+                *(string_it->second) = clean_string( value_str );
+                continue;
+            }
+
+            std::cerr << n_line << ": Unsupported parameter in " << message_name
+                      << " name=" << name_str << " value=" << value_str
+                      << std::endl;
+        }
+        catch ( std::exception & e )
+        {
+            std::cerr << e.what() << '\n'
+                      << n_line << ":  name=" << name_str << " value=" << value_str
+                      << std::endl;
+        }
+#endif
+    }
+
+    return true;
+}
 
 }
 
@@ -147,7 +278,23 @@ PlayerTypeT::PlayerTypeT()
       foul_detect_probability_( 0.5 ),
       catchable_area_l_stretch_( 1.0 )
 {
+    int_map_.insert( IntMap::value_type( "id", &id_ ) );
 
+    double_map_.insert( DoubleMap::value_type( "player_speed_max", &player_speed_max_ ) );
+    double_map_.insert( DoubleMap::value_type( "stamina_inc_max", &stamina_inc_max_ ) );
+    double_map_.insert( DoubleMap::value_type( "player_decay", &player_decay_ ) );
+    double_map_.insert( DoubleMap::value_type( "inertia_moment", &inertia_moment_ ) );
+    double_map_.insert( DoubleMap::value_type( "dash_power_rate", &dash_power_rate_ ) );
+    double_map_.insert( DoubleMap::value_type( "player_size", &player_size_ ) );
+    double_map_.insert( DoubleMap::value_type( "kickable_margin", &kickable_margin_ ) );
+    double_map_.insert( DoubleMap::value_type( "kick_rand", &kick_rand_ ) );
+    double_map_.insert( DoubleMap::value_type( "extra_stamina", &extra_stamina_ ) );
+    double_map_.insert( DoubleMap::value_type( "effort_max", &effort_max_ ) );
+    double_map_.insert( DoubleMap::value_type( "effort_min", &effort_min_ ) );
+    // 14.0.0
+    double_map_.insert( DoubleMap::value_type( "kick_power_rate", &kick_power_rate_ ) );
+    double_map_.insert( DoubleMap::value_type( "foul_detect_probability", &foul_detect_probability_ ) );
+    double_map_.insert( DoubleMap::value_type( "catchable_area_l_stretch", &catchable_area_l_stretch_ ) );
 }
 
 
@@ -177,10 +324,46 @@ PlayerTypeT::toSExp( std::ostream & os ) const
 }
 
 bool
+PlayerTypeT::createFromSExp( const std::string & msg )
+{
+    BoolMap bool_map;
+    StringMap string_map;
+
+    //if ( ! parse_param( msg, int_map_, double_map_, bool_map, string_map ) )
+    if ( ! parse_param( msg, *this ) )
+    {
+        // nothing to do
+    }
+
+    return true;
+}
+
+bool
 PlayerTypeT::setValue( const std::string & name,
                        const std::string & value )
 {
-    setDouble( name, std::stod( value ) );
+    try
+    {
+        IntMap::iterator int_it = int_map_.find( name );
+        if ( int_it != int_map_.end() )
+        {
+            *(int_it->second) = std::stoi( value );
+            return true;
+        }
+
+        DoubleMap::iterator double_it = double_map_.find( name );
+        if ( double_it != double_map_.end() )
+        {
+            *(double_it->second) = std::stod( value );
+            return true;
+        }
+    }
+    catch ( std::exception & e )
+    {
+        std::cerr << e.what() << std::endl;
+    }
+
+    std::cerr << "(playerTypeT::setValue) Unsupported parameter. name=" << name << " value=" << value << std::endl;
     return true;
 }
 
@@ -189,7 +372,21 @@ bool
 PlayerTypeT::setInt( const std::string & name,
                      const int value )
 {
-    setDouble( name, value );
+    IntMap::iterator int_it = int_map_.find( name );
+    if ( int_it != int_map_.end() )
+    {
+        *(int_it->second) = value;
+        return true;
+    }
+
+    DoubleMap::iterator double_it = double_map_.find( name );
+    if ( double_it != double_map_.end() )
+    {
+        *(double_it->second) = value;
+        return true;
+    }
+
+    std::cerr << "(playerTypeT::setInt) Unsupported parameter. name=" << name << " value=" << value << std::endl;
     return true;
 }
 
@@ -197,71 +394,14 @@ bool
 PlayerTypeT::setDouble( const std::string & name,
                         const double value )
 {
-    if ( name == "id" )
+    DoubleMap::iterator double_it = double_map_.find( name );
+    if ( double_it != double_map_.end() )
     {
-        id_ = static_cast< int >( value );
-    }
-    else if ( name == "player_speed_max" )
-    {
-        player_speed_max_ = value;
-    }
-    else if ( name == "stamina_inc_max" )
-    {
-        stamina_inc_max_ = value;
-    }
-    else if ( name == "player_decay" )
-    {
-        player_decay_ = value;
-    }
-    else if ( name == "inertia_moment" )
-    {
-        inertia_moment_ = value;
-    }
-    else if ( name == "dash_power_rate" )
-    {
-        dash_power_rate_ = value;
-    }
-    else if ( name == "player_size" )
-    {
-        player_size_ = value;
-    }
-    else if ( name == "kickable_margin" )
-    {
-        kickable_margin_ = value;
-    }
-    else if ( name == "kick_rand" )
-    {
-        kick_rand_ = value;
-    }
-    else if ( name == "extra_stamina" )
-    {
-        extra_stamina_ = value;
-    }
-    else if ( name == "effort_max" )
-    {
-        effort_max_ = value;
-    }
-    else if ( name == "effort_min" )
-    {
-        effort_min_ = value;
-    }
-    else if ( name == "kick_power_rate" )
-    {
-        kick_power_rate_ = value;
-    }
-    else if ( name == "foul_detect_probability" )
-    {
-        foul_detect_probability_ = value;
-    }
-    else if ( name == "catchable_area_l_stretch" )
-    {
-        catchable_area_l_stretch_ = value;
-    }
-    else
-    {
-        std::cerr << "Unsupported parameter. name=" << name << " value=" << value << std::endl;
+        *(double_it->second) = value;
+        return true;
     }
 
+    std::cerr << "(playerTypeT::setDouble) Unsupported parameter. name=" << name << " value=" << value << std::endl;
     return true;
 }
 
@@ -369,6 +509,20 @@ PlayerParamT::toSExp( std::ostream & os ) const
     return os;
 }
 
+
+bool
+PlayerParamT::createFromSExp( const std::string & msg )
+{
+    StringMap string_map;
+
+    //if ( ! parse_param( msg, int_map_, double_map_, bool_map_, string_map ) )
+    if ( ! parse_param( msg, *this ) )
+    {
+        // nothing to do
+    }
+
+    return true;
+}
 
 bool
 PlayerParamT::setValue( const std::string & name,
@@ -1143,6 +1297,17 @@ ServerParamT::toSExp( std::ostream & os ) const
     return os;
 }
 
+bool
+ServerParamT::createFromSExp( const std::string & msg )
+{
+    //if ( ! parse_param( msg, int_map_, double_map_, bool_map_, string_map_ ) )
+    if ( ! parse_param( msg, *this ) )
+    {
+        // nothing to do
+    }
+
+    return true;
+}
 
 bool
 ServerParamT::setValue( const std::string & name,
