@@ -33,8 +33,7 @@
 #ifndef RCSSMONITOR_DISP_HOLDER_H
 #define RCSSMONITOR_DISP_HOLDER_H
 
-#include "team_graphic.h"
-
+#include <rcss/rcg/team_graphic.h>
 #include <rcss/rcg/types.h>
 #include <rcss/rcg/handler.h>
 
@@ -62,8 +61,8 @@ private:
     rcss::rcg::PlayerTypeT M_default_player_type;
     std::map< int, rcss::rcg::PlayerTypeT > M_player_types;
 
-    TeamGraphic M_team_graphic_left;
-    TeamGraphic M_team_graphic_right;
+    rcss::rcg::TeamGraphic M_team_graphic_left;
+    rcss::rcg::TeamGraphic M_team_graphic_right;
 
     PointCont M_point_cont;
     CircleCont M_circle_cont;
@@ -102,8 +101,8 @@ public:
 
     rcss::rcg::PlayMode playmode() const { return M_playmode; }
 
-    const TeamGraphic & teamGraphicLeft() const { return M_team_graphic_left; }
-    const TeamGraphic & teamGraphicRight() const { return M_team_graphic_right; }
+    const rcss::rcg::TeamGraphic & teamGraphicLeft() const { return M_team_graphic_left; }
+    const rcss::rcg::TeamGraphic & teamGraphicRight() const { return M_team_graphic_right; }
 
     const std::vector< std::size_t > & scoreChangedIndex() const
       {
@@ -130,6 +129,7 @@ public:
     bool addDispInfoV1( const rcss::rcg::dispinfo_t & disp );
     bool addDispInfoV2( const rcss::rcg::dispinfo_t2 & disp );
     bool addDispInfoV3( const char * msg );
+    bool addJSON( const char * msg );
 
 protected:
 
@@ -175,6 +175,12 @@ protected:
 
     virtual
     bool handlePlayerType( const rcss::rcg::PlayerTypeT & ptype ) override;
+
+    virtual
+    bool handleTeamGraphic( const rcss::rcg::Side side,
+                            const int x,
+                            const int y,
+                            rcss::rcg::XpmTile::Ptr tile ) override;
 
 
 private:

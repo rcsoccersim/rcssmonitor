@@ -41,6 +41,7 @@
 #include "parser_v2.h"
 #include "parser_v3.h"
 #include "parser_v4.h"
+#include "parser_json.h"
 
 #include <iostream>
 
@@ -85,6 +86,12 @@ Parser::create( std::istream & is )
         version = static_cast< int >( header[3] );
     }
 
+    if ( version == static_cast< int >( '0' ) + REC_VERSION_JSON )
+    {
+        std::cerr << "Parser::create version = " << version - static_cast< int >( '0' ) << std::endl;
+                                                                                           ptr = Parser::Ptr( new ParserJSON() );
+
+    }
     if ( version == static_cast< int >( '0' ) + REC_VERSION_5 )
     {
         // ParserV4 can parse the v5 format.

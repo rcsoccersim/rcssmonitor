@@ -333,16 +333,16 @@ FieldCanvas::updateFocus()
                            : 22 );
         for ( int i = first; i < last; ++i )
         {
-            if ( show.player_[i].state_ != 0 )
+            if ( show.players_[i].state_ != 0 )
             {
                 float d2
-                    = std::pow( show.ball_.x_ - show.player_[i].x_, 2 )
-                    + std::pow( show.ball_.y_ - show.player_[i].y_, 2 );
+                    = std::pow( show.ball_.x_ - show.players_[i].x_, 2 )
+                    + std::pow( show.ball_.y_ - show.players_[i].y_, 2 );
                 if ( d2 < min_dist2 )
                 {
                     min_dist2 = d2;
-                    side = show.player_[i].side();
-                    unum = show.player_[i].unum_;
+                    side = show.players_[i].side();
+                    unum = show.players_[i].unum_;
                 }
             }
         }
@@ -369,10 +369,10 @@ FieldCanvas::updateFocus()
         }
         id -= 1;
 
-        if ( disp->show_.player_[id].state_ != 0 )
+        if ( disp->show_.players_[id].state_ != 0 )
         {
-            Options::instance().setFocusPointReal( disp->show_.player_[id].x_,
-                                                   disp->show_.player_[id].y_ );
+            Options::instance().setFocusPointReal( disp->show_.players_[id].x_,
+                                                   disp->show_.players_[id].y_ );
         }
     }
     else

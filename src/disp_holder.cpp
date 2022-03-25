@@ -41,6 +41,7 @@
 #include <rcss/rcg/util.h>
 #include <rcss/rcg/parser_v1.h>
 #include <rcss/rcg/parser_v4.h>
+#include <rcss/rcg/parser_json.h>
 
 #ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>
@@ -143,8 +144,7 @@ const
 rcss::rcg::PlayerTypeT &
 DispHolder::playerType( const int id ) const
 {
-    std::map< int, rcss::rcg::PlayerTypeT >::const_iterator it
-        = M_player_types.find( id );
+    std::map< int, rcss::rcg::PlayerTypeT >::const_iterator it = M_player_types.find( id );
 
     if ( it == M_player_types.end() )
     {
@@ -293,6 +293,19 @@ DispHolder::addDispInfoV3( const char * msg )
     rcss::rcg::ParserV4 parser;
     return parser.parseLine( -1, msg, *this );
 }
+
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+bool
+DispHolder::addJSON( const char * msg )
+{
+    rcss::rcg::ParserJSON parser;
+    return parser.parseData( msg, *this );
+}
+
 
 /*-------------------------------------------------------------------*/
 /*!
@@ -499,6 +512,25 @@ DispHolder::handlePlayerType( const rcss::rcg::PlayerTypeT & param )
 }
 
 /*-------------------------------------------------------------------*/
+bool
+DispHolder::handleTeamGraphic( const rcss::rcg::Side side,
+                               const int x,
+                               const int y,
+                               rcss::rcg::XpmTile::Ptr tile )
+{
+    if ( side == rcss::rcg::LEFT )
+    {
+        M_team_graphic_left.addXpmTile( x, y, tile );
+    }
+    else if ( side == rcss::rcg::RIGHT )
+    {
+        M_team_graphic_right.addXpmTile( x, y, tile );
+    }
+
+    return true;
+}
+
+/*-------------------------------------------------------------------*/
 /*!
 
  */
@@ -532,7 +564,7 @@ DispHolder::analyzeTeamGraphic( const std::string & msg )
 
     if ( side == 'l' )
     {
-        if ( ! M_team_graphic_left.parse( msg.c_str() ) )
+        if ( ! M_team_graphic_left.createFromServerMessage( msg.c_str() ) )
         {
             std::cerr << "Illegal team_graphic message ["
                       << msg << "]" << std::endl;
@@ -542,7 +574,7 @@ DispHolder::analyzeTeamGraphic( const std::string & msg )
 
     if ( side == 'r' )
     {
-        if ( ! M_team_graphic_right.parse( msg.c_str() ) )
+        if ( ! M_team_graphic_right.createFromServerMessage( msg.c_str() ) )
         {
             std::cerr << "Illegal team_graphic message ["
                       << msg << "]" << std::endl;

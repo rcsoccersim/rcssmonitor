@@ -9,8 +9,11 @@ librcssrcg_la_SOURCES = \
 	parser_v2.cpp \
 	parser_v3.cpp \
 	parser_v4.cpp \
+	parser_json.cpp \
 	types.cpp \
-	util.cpp
+	util.cpp \
+	xpm_tile.cpp \
+	team_graphic.cpp
 
 librcssrcgincludedir = $(includedir)/rcss/rcg
 
@@ -22,8 +25,14 @@ librcssrcginclude_HEADERS = \
 	parser_v2.h \
 	parser_v3.h \
 	parser_v4.h \
+	parser_json.h \
 	types.h \
-	util.h
+	util.h \
+	xpm_tile.h \
+	team_graphic.h
+
+noinst_HEADERS =
+	nlohmann/json.hpp
 
 librcssrcg_la_LDFLAGS = -version-info 17:0:0
 #libXXXX_la_LDFLAGS = -version-info $(LT_CURRENT):$(LT_REVISION):$(LT_AGE)

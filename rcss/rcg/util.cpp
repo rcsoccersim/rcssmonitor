@@ -600,17 +600,17 @@ convert( const char playmode,
     // players
     for ( int i = 0; i < MAX_PLAYER*2; ++i )
     {
-        int idx = from.player_[i].unum_;
-        if ( from.player_[i].side() == NEUTRAL ) continue;
-        if ( from.player_[i].side() == RIGHT ) idx += MAX_PLAYER;
+        int idx = from.players_[i].unum_;
+        if ( from.players_[i].side() == NEUTRAL ) continue;
+        if ( from.players_[i].side() == RIGHT ) idx += MAX_PLAYER;
         if ( idx < 0 || MAX_PLAYER*2 + 1 <= idx ) continue;
 
-        to.pos[idx].enable = htons( static_cast< Int16 >( from.player_[i].state_ ) );
-        to.pos[idx].side = htons( from.player_[i].side() );
-        to.pos[idx].unum = htons( from.player_[i].unum_ );
-        to.pos[idx].angle = htons( static_cast< Int16 >( rintf( from.player_[i].body_ ) ) );
-        to.pos[idx].x = hftons( from.player_[i].x_ );
-        to.pos[idx].y = hftons( from.player_[i].y_ );
+        to.pos[idx].enable = htons( static_cast< Int16 >( from.players_[i].state_ ) );
+        to.pos[idx].side = htons( from.players_[i].side() );
+        to.pos[idx].unum = htons( from.players_[i].unum_ );
+        to.pos[idx].angle = htons( static_cast< Int16 >( rintf( from.players_[i].body_ ) ) );
+        to.pos[idx].x = hftons( from.players_[i].x_ );
+        to.pos[idx].y = hftons( from.players_[i].y_ );
     }
 
     // time
@@ -643,12 +643,12 @@ convert( const char playmode,
     // players
     for ( int i = 0; i < MAX_PLAYER * 2; ++i )
     {
-        int idx = from.player_[i].unum_ - 1;
-        if ( from.player_[i].side() == NEUTRAL ) continue;
-        if ( from.player_[i].side() == RIGHT ) idx += MAX_PLAYER;
+        int idx = from.players_[i].unum_ - 1;
+        if ( from.players_[i].side() == NEUTRAL ) continue;
+        if ( from.players_[i].side() == RIGHT ) idx += MAX_PLAYER;
         if ( idx < 0 || MAX_PLAYER*2 <= idx ) continue;
 
-        convert( from.player_[i], to.pos[idx] );
+        convert( from.players_[i], to.pos[idx] );
     }
 
     // time
@@ -672,12 +672,12 @@ convert( const ShowInfoT & from,
     // players
     for ( int i = 0; i < MAX_PLAYER * 2; ++i )
     {
-        int idx = from.player_[i].unum_ - 1;
-        if ( from.player_[i].side() == NEUTRAL ) continue;
-        if ( from.player_[i].side() == RIGHT ) idx += MAX_PLAYER;
+        int idx = from.players_[i].unum_ - 1;
+        if ( from.players_[i].side() == NEUTRAL ) continue;
+        if ( from.players_[i].side() == RIGHT ) idx += MAX_PLAYER;
         if ( idx < 0 || MAX_PLAYER*2 <= idx ) continue;
 
-        convert( from.player_[i], to.pos[idx] );
+        convert( from.players_[i], to.pos[idx] );
     }
 
     // time
@@ -699,7 +699,7 @@ convert( const showinfo_t & from,
     // players
     for ( int i = 0; i < MAX_PLAYER*2; ++i )
     {
-        convert( from.pos[i+1], to.player_[i] );
+        convert( from.pos[i+1], to.players_[i] );
     }
 
     // time
@@ -721,12 +721,12 @@ convert( const showinfo_t2 & from,
     // players
     for ( int i = 0; i < MAX_PLAYER; ++i )
     {
-        convert( LEFT, i + 1, from.pos[i], to.player_[i] );
+        convert( LEFT, i + 1, from.pos[i], to.players_[i] );
     }
 
     for ( int i = MAX_PLAYER; i < MAX_PLAYER*2; ++i )
     {
-        convert( RIGHT, i + 1 - MAX_PLAYER, from.pos[i], to.player_[i] );
+        convert( RIGHT, i + 1 - MAX_PLAYER, from.pos[i], to.players_[i] );
     }
 
     // time
@@ -748,12 +748,12 @@ convert( const short_showinfo_t2 & from,
     // players
     for ( int i = 0; i < MAX_PLAYER; ++i )
     {
-        convert( LEFT, i + 1, from.pos[i], to.player_[i] );
+        convert( LEFT, i + 1, from.pos[i], to.players_[i] );
     }
 
     for ( int i = MAX_PLAYER; i < MAX_PLAYER*2; ++i )
     {
-        convert( RIGHT, i + 1 - MAX_PLAYER, from.pos[i], to.player_[i] );
+        convert( RIGHT, i + 1 - MAX_PLAYER, from.pos[i], to.players_[i] );
     }
 
     // time

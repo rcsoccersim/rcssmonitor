@@ -501,7 +501,7 @@ ParserV4::parseShow( const int n_line,
 
         const int idx = ( side == 'l' ? unum - 1 : unum - 1 + MAX_PLAYER );
 
-        PlayerT & p = show.player_[idx];
+        PlayerT & p = show.players_[idx];
         p.side_ = ( side == 'l' ? LEFT : side == 'r' ? RIGHT : NEUTRAL );
         p.unum_ = static_cast< Int16 >( unum );
 
@@ -954,8 +954,6 @@ ParserV4::parseServerParam( const int n_line,
         std::cerr << n_line << ": Illegal server_param line. [" << line << ']' << std::endl;;
         return false;
     }
-
-    PlayerTypeT::set_default( param );
 
     return handler.handleServerParam( param );
 }
