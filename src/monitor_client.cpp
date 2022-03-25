@@ -76,7 +76,7 @@ MonitorClient::MonitorClient( QObject * parent,
         M_version = 1;
     }
 
-    if ( 4 < version )
+    if ( 5 < version )
     {
         M_version = 4;
     }
@@ -166,7 +166,39 @@ MonitorClient::handleReceive()
 {
     int receive_count = 0;
 
-    if ( M_version >= 3 )
+    if ( M_version >= 5 )
+    {
+        char buf[8192];
+        while ( M_socket->hasPendingDatagrams() )
+        {
+            quint16 from_port;
+            int n = M_socket->readDatagram( buf,
+                                            8192,
+                                            0, // QHostAddress*
+                                            &from_port );
+            if ( n > 0 )
+            {
+                buf[n] = '\0';
+                if ( ! M_disp_holder.addJSON( buf ) )
+                {
+                    std::cerr << "recv: " << buf << std::endl;
+                }
+
+                if ( from_port != M_server_port )
+                {
+                    std::cerr << "updated server port number = "
+                              << from_port
+                        //<< "  localPort = "
+                        //<< M_socket->localPort()
+                              << std::endl;
+
+                    M_server_port = from_port;
+                }
+            }
+            ++receive_count;
+        }
+    }
+    else if ( M_version >= 3 )
     {
         char buf[8192];
         while ( M_socket->hasPendingDatagrams() )

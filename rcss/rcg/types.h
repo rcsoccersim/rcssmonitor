@@ -32,8 +32,7 @@
 #ifndef RCSS_RCG_TYPES_H
 #define RCSS_RCG_TYPES_H
 
-#include <rcss/rcg/types.h>
-
+#include <unordered_map>
 #include <string>
 #include <cmath>
 #include <cstdint>
@@ -700,6 +699,7 @@ struct dispinfo_t2 {
 constexpr int REC_VERSION_4 = 4; //!< The version number of rcg v4, which is written at the head of the file.
 constexpr int REC_VERSION_5 = 5; //!< The version number of rcg v5, which is written at the head of the file.
 constexpr int REC_VERSION_6 = 6; //!< The version number of rcg v6, which is written at the head of the file.
+constexpr int REC_VERSION_JSON = REC_VERSION_6; //!< The version number of json rcg.
 
 /*!
   \struct BallT
@@ -1255,8 +1255,9 @@ struct TeamT {
 */
 struct ShowInfoT {
     UInt32 time_; //!< game time
+    UInt32 stime_; //!< game time (>0 if stopped mode)
     BallT ball_; //!< ball data
-    PlayerT player_[MAX_PLAYER * 2]; //!< player data
+    PlayerT players_[MAX_PLAYER * 2]; //!< player data
 };
 
 /*!
@@ -1334,6 +1335,12 @@ struct LineT {
 };
 
 
+typedef std::unordered_map< std::string, int * > IntMap;
+typedef std::unordered_map< std::string, double * > DoubleMap;
+typedef std::unordered_map< std::string, bool * > BoolMap;
+typedef std::unordered_map< std::string, std::string * > StringMap;
+
+
 /*!
   \struct PlayerParamT
   \brief heterogenious player trade-off parameters
@@ -1385,6 +1392,22 @@ struct PlayerParamT {
       \brief print s-expression message
      */
     std::ostream & toSExp( std::ostream & os ) const;
+
+    bool createFromSExp( const std::string & msg );
+
+    bool setValue( const std::string & name,
+                   const std::string & value );
+    bool setInt( const std::string & name,
+                 const int value );
+    bool setDouble( const std::string & name,
+                    const double value );
+    bool setBool( const std::string & name,
+                  const bool value );
+private:
+
+    IntMap int_map_;
+    DoubleMap double_map_;
+    BoolMap bool_map_;
 };
 
 /*!
@@ -1607,6 +1630,25 @@ struct ServerParamT {
       \brief print s-expression message
      */
     std::ostream & toSExp( std::ostream & os ) const;
+
+    bool createFromSExp( const std::string & msg );
+
+    bool setValue( const std::string & name,
+                   const std::string & value );
+    bool setInt( const std::string & name,
+                 const int value );
+    bool setDouble( const std::string & name,
+                    const double value );
+    bool setBool( const std::string & name,
+                  const bool value );
+    bool setString( const std::string & name,
+                    const std::string & value );
+private:
+
+    IntMap int_map_;
+    DoubleMap double_map_;
+    BoolMap bool_map_;
+    StringMap string_map_;
 };
 
 /*!
@@ -1638,11 +1680,19 @@ struct PlayerTypeT {
      */
     std::ostream & toSExp( std::ostream & os ) const;
 
-    /*!
-      \brief set the default type parameter using ServerParam
-      \param param server param
-     */
-    static void set_default( const ServerParamT & param );
+    bool createFromSExp( const std::string & msg );
+
+    bool setValue( const std::string & name,
+                   const std::string & value );
+    bool setInt( const std::string & name,
+                 const int value );
+    bool setDouble( const std::string & name,
+                    const double value );
+
+private:
+    IntMap int_map_;
+    DoubleMap double_map_;
+
 };
 
 } // end namespace

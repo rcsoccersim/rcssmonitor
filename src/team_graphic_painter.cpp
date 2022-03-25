@@ -42,6 +42,9 @@
 #include <QtGui>
 #endif
 
+
+#include <rcss/rcg/xpm_tile.h>
+
 #include "team_graphic_painter.h"
 
 #include "disp_holder.h"
@@ -143,19 +146,18 @@ TeamGraphicPainter::draw( QPainter & painter )
 */
 void
 TeamGraphicPainter::copyTeamGraphic( QPixmap & dst_pixmap,
-                                     std::set< TeamGraphic::Index > & index_set,
-                                     const TeamGraphic & team_graphic )
+                                     std::set< rcss::rcg::TeamGraphic::Index > & index_set,
+                                     const rcss::rcg::TeamGraphic & team_graphic )
 {
-    if ( dst_pixmap.width() != team_graphic.width()
-         || dst_pixmap.height() != team_graphic.height() )
+    if ( dst_pixmap.width() != (int)team_graphic.width()
+         || dst_pixmap.height() != (int)team_graphic.height() )
     {
         dst_pixmap = QPixmap( team_graphic.width(),
                               team_graphic.height() );
         dst_pixmap.fill( Qt::transparent );
     }
 
-    const TeamGraphic::Map::const_reverse_iterator end = team_graphic.tiles().rend();
-    for ( TeamGraphic::Map::const_reverse_iterator tile = team_graphic.tiles().rbegin();
+    for ( rcss::rcg::TeamGraphic::Map::const_reverse_iterator tile = team_graphic.tiles().rbegin(), end = team_graphic.tiles().rend();
           tile != end;
           ++tile )
     {
@@ -173,33 +175,33 @@ TeamGraphicPainter::copyTeamGraphic( QPixmap & dst_pixmap,
 */
 void
 TeamGraphicPainter::copyTeamGraphicXpmTile( QPixmap & dst_pixmap,
-                                            const TeamGraphic::Index & index,
-                                            const TeamGraphic::XpmTile & tile )
+                                            const rcss::rcg::TeamGraphic::Index & index,
+                                            const rcss::rcg::XpmTile & tile )
 {
-    const int array_size = 1 + tile.colors().size() + tile.height();
+    const size_t array_size = 1 + tile.colors().size() + rcss::rcg::XpmTile::HEIGHT;
 
     char ** xpm;
     xpm = new char*[ array_size ];
 
     // header
     xpm[0] = new char[64];
-    snprintf( xpm[0], 64, "%d %d %d %d",
-              tile.width(), tile.height(),
-              static_cast< int >( tile.colors().size() ), tile.cpp() );
+    snprintf( xpm[0], 64, "%zd %zd %zd %zd",
+              rcss::rcg::XpmTile::WIDTH, rcss::rcg::XpmTile::HEIGHT,
+              tile.colors().size(), rcss::rcg::XpmTile::CPP );
 
     // colors
     std::size_t idx = 1;
-    for ( const std::shared_ptr< std::string > & col : tile.colors() )
+    for ( const std::string & col : tile.colors() )
     {
-        xpm[idx] = new char[ col->length() + 1 ];
-        std::strcpy( xpm[idx], col->c_str() );
+        xpm[idx] = new char[ col.length() + 1 ];
+        std::strcpy( xpm[idx], col.c_str() );
         ++idx;
     }
 
     // pixels
     for ( const std::string & line : tile.pixelLines() )
     {
-        xpm[idx] = new char[ tile.width() + 1 ];
+        xpm[idx] = new char[ rcss::rcg::XpmTile::WIDTH + 1 ];
         std::strcpy( xpm[idx], line.c_str() );
         ++idx;
     }
@@ -207,7 +209,7 @@ TeamGraphicPainter::copyTeamGraphicXpmTile( QPixmap & dst_pixmap,
     copyTeamGraphicXpmTile( dst_pixmap, index.first, index.second, xpm );
 
     // release memories
-    for ( int i = 0; i < array_size; ++i )
+    for ( size_t i = 0; i < array_size; ++i )
     {
         delete [] xpm[i];
     }
@@ -224,8 +226,8 @@ TeamGraphicPainter::copyTeamGraphicXpmTile( QPixmap & dst_pixmap,
                                             const int y,
                                             const char * const * xpm )
 {
-    if ( dst_pixmap.width() < (x+1) * TeamGraphic::TILE_SIZE
-         || dst_pixmap.height() < (y+1) * TeamGraphic::TILE_SIZE )
+    if ( dst_pixmap.width() < (x+1) * static_cast< int >( rcss::rcg::XpmTile::WIDTH )
+         || dst_pixmap.height() < (y+1) * static_cast< int >( rcss::rcg::XpmTile::HEIGHT ) )
     {
         return;
     }
@@ -233,11 +235,10 @@ TeamGraphicPainter::copyTeamGraphicXpmTile( QPixmap & dst_pixmap,
     QPixmap pixmap( xpm );
 
     if ( pixmap.isNull()
-         || pixmap.width() != TeamGraphic::TILE_SIZE
-         || pixmap.height() != TeamGraphic::TILE_SIZE )
+         || pixmap.width() != static_cast< int >( rcss::rcg::XpmTile::WIDTH )
+         || pixmap.height() != static_cast< int >( rcss::rcg::XpmTile::HEIGHT ) )
     {
-        std::cerr << "Failed to create a pixmap from the xpm tile ("
-                  << x << ',' << y << ')'
+        std::cerr << "(TeamGraphicPainter::copyTeamGraphicXpmTile ) Failed to create a pixmap from the xpm tile (" << x << ',' << y << ')'
                   << std::endl;
         return;
     }

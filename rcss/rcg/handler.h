@@ -35,9 +35,12 @@
 #include <rcss/rcg/types.h>
 
 #include <string>
+#include <memory>
 
 namespace rcss {
 namespace rcg {
+
+class XpmTile;
 
 /*!
   \class Handler
@@ -204,6 +207,15 @@ public:
     */
     virtual
     bool handlePlayerType( const PlayerTypeT & ptype ) = 0;
+
+    /*!
+      \brief handle XPM tile of TeamGraphic
+     */
+    virtual
+    bool handleTeamGraphic( const Side side,
+                            const int x,
+                            const int y,
+                            std::shared_ptr< XpmTile > tile ) = 0;
 
 };
 

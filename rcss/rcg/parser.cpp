@@ -41,6 +41,7 @@
 #include "parser_v2.h"
 #include "parser_v3.h"
 #include "parser_v4.h"
+#include "parser_json.h"
 
 #include <iostream>
 
@@ -85,30 +86,35 @@ Parser::create( std::istream & is )
         version = static_cast< int >( header[3] );
     }
 
+    if ( version == static_cast< int >( '0' ) + REC_VERSION_JSON )
+    {
+        std::cerr << "(rcss::rcg::Parser::create) game log version = " << version - static_cast< int >( '0' ) << " (json)" << std::endl;
+        ptr = Parser::Ptr( new ParserJSON() );
+    }
     if ( version == static_cast< int >( '0' ) + REC_VERSION_5 )
     {
         // ParserV4 can parse the v5 format.
-        std::cerr << "Parser::create version = " << version - static_cast< int >( '0' ) << std::endl;
-        ptr = Parser::Ptr( new ParserV4() );
+        std::cerr << "(rcss::rcg::Parser::crete) game log version = " << version - static_cast< int >( '0' ) << std::endl;
+        ptr = Parser::Ptr( new rcss::rcg::ParserV4() );
     }
     else if ( version == static_cast< int >( '0' ) + REC_VERSION_4 )
     {
-        std::cerr << "Parser::create version = " << version - static_cast< int >( '0' ) << std::endl;
-        ptr = Parser::Ptr( new ParserV4() );
+        std::cerr << "(rcss::rcg::Parser::create) game log version = " << version - static_cast< int >( '0' ) << std::endl;
+        ptr = Parser::Ptr( new rcss::rcg::ParserV4() );
     }
     else if ( version == REC_VERSION_3 )
     {
-        std::cerr << "Parser::create version = " << version << std::endl;
-        ptr = Parser::Ptr( new ParserV3() );
+        std::cerr << "(rcss::rcg::Parser::create) game log version = " << version << std::endl;
+        ptr = Parser::Ptr( new rcss::rcg::ParserV3() );
     }
     else if ( version == REC_VERSION_2 )
     {
-        std::cerr << "Parser::create version = " << version << std::endl;
-        ptr = Parser::Ptr( new ParserV2() );
+        std::cerr << "(rcss::rcg::Parser::create) game log version = " << version << std::endl;
+        ptr = Parser::Ptr( new rcss::rcg::ParserV2() );
     }
     else if ( version == REC_OLD_VERSION )
     {
-        std::cerr << "Parser::create version = " << version << std::endl;
+        std::cerr << "(rcss::rcg::Parser::create) game log version = " << version << std::endl;
         ptr = Parser::Ptr( new ParserV1() );
     }
 

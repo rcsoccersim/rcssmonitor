@@ -50,11 +50,11 @@ quantize( const double val,
     return rint( val / prec ) * prec;
 }
 
-template < typename P >
+template < typename T >
 void
 to_sexp( std::ostream & os,
-             const char * name,
-             const P & value )
+         const char * name,
+         const T & value )
 {
     os << '(' << name << ' ' << value << ')';
 }
@@ -68,7 +68,193 @@ to_sexp< std::string >( std::ostream & os,
     os << '(' << name << ' ' << std::quoted( value ) << ')';
 }
 
-static rcss::rcg::PlayerTypeT s_default_type;
+/*-------------------------------------------------------------------*/
+// remove quatations and replace escaped quoation characters
+std::string
+clean_string( std::string str )
+{
+    if( str.empty() )
+    {
+        return str;
+    }
+
+    if ( *str.begin() == '\'' )
+    {
+        if( *str.rbegin() == '\''  )
+        {
+            str = str.substr( 1, str.length() - 2 );
+        }
+        else
+        {
+            return str;
+        }
+
+        // replace escape character
+        for ( std::string::size_type escape_pos = str.find( "\\'" );
+              escape_pos != std::string::npos;
+              escape_pos = str.find( "\\'" ) )
+        {
+            // replace "\'" with "'"
+            str.replace( escape_pos, 2, "'" );
+        }
+    }
+    else if ( *str.begin() == '"' )
+    {
+        if ( *str.rbegin() == '"'  )
+        {
+            str = str.substr( 1, str.length() - 2 );
+        }
+        else
+        {
+            return str;
+        }
+
+        // replace escape character
+        for( std::string::size_type escape_pos = str.find( "\\\"" );
+             escape_pos != std::string::npos;
+             escape_pos = str.find( "\\\"" ) )
+        {
+            // replace "\"" with """
+            str.replace( escape_pos, 2, "\"" );
+        }
+    }
+
+    return str;
+}
+
+
+/*-------------------------------------------------------------------*/
+template< typename ParamHolder >
+bool
+parse_param( const std::string & msg,
+             ParamHolder & holder )
+             // IntMap & int_map,
+             // DoubleMap & double_map,
+             // BoolMap & bool_map,
+             // StringMap & string_map )
+{
+    int n_read = 0;
+
+    char message_name[32];
+    if ( std::sscanf( msg.c_str(), " ( %31s %n ", message_name, &n_read ) != 1 )
+    {
+        std::cerr << ":error: failed to parse the message type." << std::endl;
+        return false;
+    }
+
+    for ( std::string::size_type pos = msg.find_first_of( '(', n_read );
+          pos != std::string::npos;
+          pos = msg.find_first_of( '(', pos ) )
+    {
+        std::string::size_type end_pos = msg.find_first_of( ' ', pos );
+        if ( end_pos == std::string::npos )
+        {
+            std::cerr << "(rcss::rcg::parse_param) Could not find the seprator space." << std::endl;
+            return false;
+        }
+        pos += 1;
+
+        const std::string name_str( msg, pos, end_pos - pos );
+
+        pos = end_pos; // pos indcates the position of the white space after the param name
+
+        // search end paren or double quatation
+        end_pos = msg.find_first_of( ")\"", end_pos ); //"
+        if ( end_pos == std::string::npos )
+        {
+            std::cerr << "(rcss::rcg::parse_param) Could not find the parameter value for [" << name_str << ']'
+                      << std::endl;
+            return false;
+        }
+
+        // found quated value
+        if ( msg[end_pos] == '\"' )
+        {
+            pos = end_pos;
+            end_pos = msg.find_first_of( '\"', end_pos + 1 ); //"
+            if ( end_pos == std::string::npos )
+            {
+                std::cerr << "(rcss::rcg::parse_param) Could not parse the quated value for [" << name_str << ']'
+                          << std::endl;
+                return false;
+            }
+            end_pos += 1; // skip double quatation
+        }
+        else
+        {
+            pos += 1; // skip the white space after the param name
+        }
+
+        // pos indicates the first position of the value string
+        // end_pos indicates the position of the end of paren
+
+        std::string value_str( msg, pos, end_pos - pos );
+        pos = end_pos;
+
+        // pos indicates the position of the end of paren
+
+        holder.setValue( name_str, value_str );
+#if 0
+        //
+        // check parameter maps
+        //
+        try
+        {
+            IntMap::iterator int_it = int_map.find( name_str );
+            if ( int_it != int_map.end() )
+            {
+                *(int_it->second) = std::stoi( value_str );
+                continue;
+            }
+
+            DoubleMap::iterator double_it = double_map.find( name_str );
+            if ( double_it != double_map.end() )
+            {
+                *(double_it->second) = std::stod( value_str );
+                continue;
+            }
+
+            BoolMap::iterator bool_it = bool_map.find( name_str );
+            if ( bool_it != bool_map.end() )
+            {
+                if ( value_str == "0" || value_str == "false" || value_str == "off" )
+                {
+                    *(bool_it->second) = false;
+                }
+                else if ( value_str == "1" || value_str == "true" || value_str == "on" )
+                {
+                    *(bool_it->second) = true;
+                }
+                else
+                {
+                    std::cerr << n_line << ": Unknown bool value. name=" << name_str << " value=" << value_str
+                              << std::endl;
+                }
+                continue;
+            }
+
+            StringMap::iterator string_it = string_map.find( name_str );
+            if ( string_it != string_map.end() )
+            {
+                *(string_it->second) = clean_string( value_str );
+                continue;
+            }
+
+            std::cerr << n_line << ": Unsupported parameter in " << message_name
+                      << " name=" << name_str << " value=" << value_str
+                      << std::endl;
+        }
+        catch ( std::exception & e )
+        {
+            std::cerr << e.what() << '\n'
+                      << n_line << ":  name=" << name_str << " value=" << value_str
+                      << std::endl;
+        }
+#endif
+    }
+
+    return true;
+}
 
 }
 
@@ -92,24 +278,25 @@ PlayerTypeT::PlayerTypeT()
       foul_detect_probability_( 0.5 ),
       catchable_area_l_stretch_( 1.0 )
 {
-    if ( this != &s_default_type )
-    {
-        player_speed_max_ = s_default_type.player_speed_max_;
-        stamina_inc_max_ = s_default_type.stamina_inc_max_;
-        player_decay_ = s_default_type.player_decay_;
-        inertia_moment_ = s_default_type.inertia_moment_;
-        dash_power_rate_ = s_default_type.dash_power_rate_;
-        player_size_ = s_default_type.player_size_;
-        kickable_margin_ = s_default_type.kickable_margin_;
-        kick_rand_ = s_default_type.kick_rand_;
-        extra_stamina_ = s_default_type.extra_stamina_;
-        effort_max_ = s_default_type.effort_max_;
-        effort_min_ = s_default_type.effort_min_;
-        kick_power_rate_ = s_default_type.kick_power_rate_;
-        foul_detect_probability_ = s_default_type.foul_detect_probability_;
-        catchable_area_l_stretch_ = s_default_type.catchable_area_l_stretch_;
-    }
+    int_map_.insert( IntMap::value_type( "id", &id_ ) );
+
+    double_map_.insert( DoubleMap::value_type( "player_speed_max", &player_speed_max_ ) );
+    double_map_.insert( DoubleMap::value_type( "stamina_inc_max", &stamina_inc_max_ ) );
+    double_map_.insert( DoubleMap::value_type( "player_decay", &player_decay_ ) );
+    double_map_.insert( DoubleMap::value_type( "inertia_moment", &inertia_moment_ ) );
+    double_map_.insert( DoubleMap::value_type( "dash_power_rate", &dash_power_rate_ ) );
+    double_map_.insert( DoubleMap::value_type( "player_size", &player_size_ ) );
+    double_map_.insert( DoubleMap::value_type( "kickable_margin", &kickable_margin_ ) );
+    double_map_.insert( DoubleMap::value_type( "kick_rand", &kick_rand_ ) );
+    double_map_.insert( DoubleMap::value_type( "extra_stamina", &extra_stamina_ ) );
+    double_map_.insert( DoubleMap::value_type( "effort_max", &effort_max_ ) );
+    double_map_.insert( DoubleMap::value_type( "effort_min", &effort_min_ ) );
+    // 14.0.0
+    double_map_.insert( DoubleMap::value_type( "kick_power_rate", &kick_power_rate_ ) );
+    double_map_.insert( DoubleMap::value_type( "foul_detect_probability", &foul_detect_probability_ ) );
+    double_map_.insert( DoubleMap::value_type( "catchable_area_l_stretch", &catchable_area_l_stretch_ ) );
 }
+
 
 std::ostream &
 PlayerTypeT::toSExp( std::ostream & os ) const
@@ -136,24 +323,88 @@ PlayerTypeT::toSExp( std::ostream & os ) const
     return os;
 }
 
-void
-PlayerTypeT::set_default( const ServerParamT & param )
+bool
+PlayerTypeT::createFromSExp( const std::string & msg )
 {
-    s_default_type.player_speed_max_ = param.player_speed_max_;
-    s_default_type.stamina_inc_max_ = param.stamina_inc_max_;
-    s_default_type.player_decay_ = param.player_decay_;
-    s_default_type.inertia_moment_ = param.inertia_moment_;
-    s_default_type.dash_power_rate_ = param.dash_power_rate_;
-    s_default_type.player_size_ = param.player_size_;
-    s_default_type.kickable_margin_ = param.kickable_margin_;
-    s_default_type.kick_rand_ = param.kick_rand_;
-    s_default_type.extra_stamina_ = param.extra_stamina_;
-    s_default_type.effort_max_ = param.effort_init_;
-    s_default_type.effort_min_ = param.effort_min_;
-    s_default_type.kick_power_rate_ = param.kick_power_rate_;
-    s_default_type.foul_detect_probability_ = param.foul_detect_probability_;
-    s_default_type.catchable_area_l_stretch_ = 1.0;
+    BoolMap bool_map;
+    StringMap string_map;
+
+    //if ( ! parse_param( msg, int_map_, double_map_, bool_map, string_map ) )
+    if ( ! parse_param( msg, *this ) )
+    {
+        // nothing to do
+    }
+
+    return true;
 }
+
+bool
+PlayerTypeT::setValue( const std::string & name,
+                       const std::string & value )
+{
+    try
+    {
+        IntMap::iterator int_it = int_map_.find( name );
+        if ( int_it != int_map_.end() )
+        {
+            *(int_it->second) = std::stoi( value );
+            return true;
+        }
+
+        DoubleMap::iterator double_it = double_map_.find( name );
+        if ( double_it != double_map_.end() )
+        {
+            *(double_it->second) = std::stod( value );
+            return true;
+        }
+    }
+    catch ( std::exception & e )
+    {
+        std::cerr << e.what() << std::endl;
+    }
+
+    std::cerr << "(playerTypeT::setValue) Unsupported parameter. name=" << name << " value=" << value << std::endl;
+    return true;
+}
+
+
+bool
+PlayerTypeT::setInt( const std::string & name,
+                     const int value )
+{
+    IntMap::iterator int_it = int_map_.find( name );
+    if ( int_it != int_map_.end() )
+    {
+        *(int_it->second) = value;
+        return true;
+    }
+
+    DoubleMap::iterator double_it = double_map_.find( name );
+    if ( double_it != double_map_.end() )
+    {
+        *(double_it->second) = value;
+        return true;
+    }
+
+    std::cerr << "(playerTypeT::setInt) Unsupported parameter. name=" << name << " value=" << value << std::endl;
+    return true;
+}
+
+bool
+PlayerTypeT::setDouble( const std::string & name,
+                        const double value )
+{
+    DoubleMap::iterator double_it = double_map_.find( name );
+    if ( double_it != double_map_.end() )
+    {
+        *(double_it->second) = value;
+        return true;
+    }
+
+    std::cerr << "(playerTypeT::setDouble) Unsupported parameter. name=" << name << " value=" << value << std::endl;
+    return true;
+}
+
 
 PlayerParamT::PlayerParamT()
     : player_types_( 18 ),
@@ -186,8 +437,38 @@ PlayerParamT::PlayerParamT()
       catchable_area_l_stretch_min_( 0.0 ),
       catchable_area_l_stretch_max_( 0.0 )
 {
-
+    int_map_.insert( IntMap::value_type( "player_types", &player_types_ ) );
+    int_map_.insert( IntMap::value_type( "subs_max", &subs_max_ ) );
+    int_map_.insert( IntMap::value_type( "pt_max", &pt_max_ ) );
+    bool_map_.insert( BoolMap::value_type( "allow_mult_default_type", &allow_mult_default_type_ ) );
+    double_map_.insert( DoubleMap::value_type( "player_speed_max_delta_min", &player_speed_max_delta_min_ ) );
+    double_map_.insert( DoubleMap::value_type( "player_speed_max_delta_max", &player_speed_max_delta_max_ ) );
+    double_map_.insert( DoubleMap::value_type( "stamina_inc_max_delta_factor", &stamina_inc_max_delta_factor_ ) );
+    double_map_.insert( DoubleMap::value_type( "player_decay_delta_min", &player_decay_delta_min_ ) );
+    double_map_.insert( DoubleMap::value_type( "player_decay_delta_max", &player_decay_delta_max_ ) );
+    double_map_.insert( DoubleMap::value_type( "inertia_moment_delta_factor", &inertia_moment_delta_factor_ ) );
+    double_map_.insert( DoubleMap::value_type( "dash_power_rate_delta_min", &dash_power_rate_delta_min_ ) );
+    double_map_.insert( DoubleMap::value_type( "dash_power_rate_delta_max", &dash_power_rate_delta_max_ ) );
+    double_map_.insert( DoubleMap::value_type( "player_size_delta_factor", &player_size_delta_factor_ ) );
+    double_map_.insert( DoubleMap::value_type( "kickable_margin_delta_min", &kickable_margin_delta_min_ ) );
+    double_map_.insert( DoubleMap::value_type( "kickable_margin_delta_max", &kickable_margin_delta_max_ ) );
+    double_map_.insert( DoubleMap::value_type( "kick_rand_delta_factor", &kick_rand_delta_factor_ ) );
+    double_map_.insert( DoubleMap::value_type( "extra_stamina_delta_min", &extra_stamina_delta_min_ ) );
+    double_map_.insert( DoubleMap::value_type( "extra_stamina_delta_max", &extra_stamina_delta_max_ ) );
+    double_map_.insert( DoubleMap::value_type( "effort_max_delta_factor", &effort_max_delta_factor_ ) );
+    double_map_.insert( DoubleMap::value_type( "effort_min_delta_factor", &effort_min_delta_factor_ ) );
+    int_map_.insert( IntMap::value_type( "random_seed", &random_seed_ ) );
+    double_map_.insert( DoubleMap::value_type( "new_dash_power_rate_delta_min", &new_dash_power_rate_delta_min_ ) );
+    double_map_.insert( DoubleMap::value_type( "new_dash_power_rate_delta_max", &new_dash_power_rate_delta_max_ ) );
+    double_map_.insert( DoubleMap::value_type( "new_stamina_inc_max_delta_factor", &new_stamina_inc_max_delta_factor_ ) );
+    // 14.0.0
+    double_map_.insert( DoubleMap::value_type( "kick_power_rate_delta_min", &kick_power_rate_delta_min_ ) );
+    double_map_.insert( DoubleMap::value_type( "kick_power_rate_delta_max", &kick_power_rate_delta_max_ ) );
+    double_map_.insert( DoubleMap::value_type( "foul_detect_probability_delta_factor", &foul_detect_probability_delta_factor_ ) );
+    double_map_.insert( DoubleMap::value_type( "catchable_area_l_stretch_min", &catchable_area_l_stretch_min_ ) );
+    double_map_.insert( DoubleMap::value_type( "catchable_area_l_stretch_max", &catchable_area_l_stretch_max_ ) );
 }
+
 
 std::ostream &
 PlayerParamT::toSExp( std::ostream & os ) const
@@ -226,6 +507,145 @@ PlayerParamT::toSExp( std::ostream & os ) const
     os << ')';
 
     return os;
+}
+
+
+bool
+PlayerParamT::createFromSExp( const std::string & msg )
+{
+    StringMap string_map;
+
+    //if ( ! parse_param( msg, int_map_, double_map_, bool_map_, string_map ) )
+    if ( ! parse_param( msg, *this ) )
+    {
+        // nothing to do
+    }
+
+    return true;
+}
+
+bool
+PlayerParamT::setValue( const std::string & name,
+                        const std::string & value )
+{
+    try
+    {
+        IntMap::iterator int_it = int_map_.find( name );
+        if ( int_it != int_map_.end() )
+        {
+            *(int_it->second) = std::stoi( value );
+            return true;
+        }
+
+        DoubleMap::iterator double_it = double_map_.find( name );
+        if ( double_it != double_map_.end() )
+        {
+            *(double_it->second) = std::stod( value );
+            return true;
+        }
+
+        BoolMap::iterator bool_it = bool_map_.find( name );
+        if ( bool_it != bool_map_.end() )
+        {
+            if ( value == "0" || value == "false" || value == "off" )
+            {
+                *(bool_it->second) = false;
+            }
+            else if ( value == "1" || value == "true" || value == "on" )
+            {
+                *(bool_it->second) = true;
+            }
+            else
+            {
+                std::cerr << "Unknown bool value. name=" << name << " value=" << value << std::endl;
+            }
+            return true;
+        }
+    }
+    catch ( std::exception & e )
+    {
+        std::cerr << e.what() << '\n'
+                  << "name=" << name << " value=" << value << std::endl;
+        return true;
+    }
+
+    std::cerr << "Unsupported parameter. name=" << name << " value=" << value << std::endl;
+    return true;
+}
+
+
+bool
+PlayerParamT::setInt( const std::string & name,
+                      const int value )
+{
+    IntMap::iterator int_it = int_map_.find( name );
+    if ( int_it != int_map_.end() )
+    {
+        *(int_it->second) = value;
+        return true;
+    }
+
+    DoubleMap::iterator double_it = double_map_.find( name );
+    if ( double_it != double_map_.end() )
+    {
+        *(double_it->second) = value;
+        return true;
+    }
+
+    BoolMap::iterator bool_it = bool_map_.find( name );
+    if ( bool_it != bool_map_.end() )
+    {
+        if ( value == 0 )
+        {
+            *(bool_it->second) = false;
+            return true;
+        }
+
+        if ( value == 1 )
+        {
+            *(bool_it->second) = true;
+            return true;
+        }
+    }
+
+    std::cerr << "Unsupported parameter. name=" << name << " value=" << value << std::endl;
+    return true;
+}
+
+
+bool
+PlayerParamT::setDouble( const std::string & name,
+                         const double value )
+{
+    DoubleMap::iterator it = double_map_.find( name );
+    if ( it == double_map_.end() )
+    {
+        std::cerr << "Unsupported double parameter. name=" << name << " value=" << value << std::endl;
+    }
+    else
+    {
+        *(it->second) = value;
+    }
+
+    return true;
+}
+
+
+bool
+PlayerParamT::setBool( const std::string & name,
+                       const bool value )
+{
+    BoolMap::iterator it = bool_map_.find( name );
+    if ( it == bool_map_.end() )
+    {
+        std::cerr << "Unsupported bool parameter. name=" << name << " value=" << value << std::endl;
+    }
+    else
+    {
+        *(it->second) = value;
+    }
+
+    return true;
 }
 
 
@@ -426,9 +846,228 @@ ServerParamT::ServerParamT()
       illegal_defense_dist_x_( 16.5 ),
       illegal_defense_width_( 40.32 ),
       fixed_teamname_l_( "" ),
-      fixed_teamname_r_( "" )
+      fixed_teamname_r_( "" ),
+      max_catch_angle_( 180.0 ),
+      min_catch_angle_( -180.0 )
 {
+    double_map_.insert( DoubleMap::value_type( "goal_width", &goal_width_ ) );
+    double_map_.insert( DoubleMap::value_type( "inertia_moment", &inertia_moment_ ) );
+    double_map_.insert( DoubleMap::value_type( "player_size", &player_size_ ) );
+    double_map_.insert( DoubleMap::value_type( "player_decay", &player_decay_ ) );
+    double_map_.insert( DoubleMap::value_type( "player_rand", &player_rand_ ) );
+    double_map_.insert( DoubleMap::value_type( "player_weight", &player_weight_ ) );
+    double_map_.insert( DoubleMap::value_type( "player_speed_max", &player_speed_max_ ) );
+    double_map_.insert( DoubleMap::value_type( "player_accel_max", &player_accel_max_ ) );
+    double_map_.insert( DoubleMap::value_type( "stamina_max", &stamina_max_ ) );
+    double_map_.insert( DoubleMap::value_type( "stamina_inc_max", &stamina_inc_max_ ) );
+    double_map_.insert( DoubleMap::value_type( "recover_init", &recover_init_ ) ); // not necessary
+    double_map_.insert( DoubleMap::value_type( "recover_dec_thr", &recover_dec_thr_ ) );
+    double_map_.insert( DoubleMap::value_type( "recover_min", &recover_min_ ) );
+    double_map_.insert( DoubleMap::value_type( "recover_dec", &recover_dec_ ) );
+    double_map_.insert( DoubleMap::value_type( "effort_init", &effort_init_ ) );
+    double_map_.insert( DoubleMap::value_type( "effort_dec_thr", &effort_dec_thr_ ) );
+    double_map_.insert( DoubleMap::value_type( "effort_min", &effort_min_ ) );
+    double_map_.insert( DoubleMap::value_type( "effort_dec", &effort_dec_ ) );
+    double_map_.insert( DoubleMap::value_type( "effort_inc_thr", &effort_inc_thr_ ) );
+    double_map_.insert( DoubleMap::value_type( "effort_inc",  &effort_inc_ ) );
+    double_map_.insert( DoubleMap::value_type( "kick_rand", &kick_rand_ ) );
+    bool_map_.insert( BoolMap::value_type( "team_actuator_noise", &team_actuator_noise_ ) );
+    double_map_.insert( DoubleMap::value_type( "prand_factor_l", &player_rand_factor_l_ ) );
+    double_map_.insert( DoubleMap::value_type( "prand_factor_r", &player_rand_factor_r_ ) );
+    double_map_.insert( DoubleMap::value_type( "kick_rand_factor_l", &kick_rand_factor_l_ ) );
+    double_map_.insert( DoubleMap::value_type( "kick_rand_factor_r", &kick_rand_factor_r_ ) );
+    double_map_.insert( DoubleMap::value_type( "ball_size", &ball_size_ ) );
+    double_map_.insert( DoubleMap::value_type( "ball_decay", &ball_decay_ ) );
+    double_map_.insert( DoubleMap::value_type( "ball_rand", &ball_rand_ ) );
+    double_map_.insert( DoubleMap::value_type( "ball_weight", &ball_weight_ ) );
+    double_map_.insert( DoubleMap::value_type( "ball_speed_max", &ball_speed_max_ ) );
+    double_map_.insert( DoubleMap::value_type( "ball_accel_max", &ball_accel_max_ ) );
+    double_map_.insert( DoubleMap::value_type( "dash_power_rate", &dash_power_rate_ ) );
+    double_map_.insert( DoubleMap::value_type( "kick_power_rate", &kick_power_rate_ ) );
+    double_map_.insert( DoubleMap::value_type( "kickable_margin", &kickable_margin_ ) );
+    double_map_.insert( DoubleMap::value_type( "control_radius", &control_radius_ ) );
+    //( "control_radius_width", &control_radius_width_ ) );
+    //( "kickable_area", &kickable_area_ ) ); // not needed
+    double_map_.insert( DoubleMap::value_type( "catch_probability", &catch_probability_ ) );
+    double_map_.insert( DoubleMap::value_type( "catchable_area_l", &catchable_area_l_ ) );
+    double_map_.insert( DoubleMap::value_type( "catchable_area_w", &catchable_area_w_ ) );
+    int_map_.insert( IntMap::value_type( "goalie_max_moves", &goalie_max_moves_ ) );
+    double_map_.insert( DoubleMap::value_type( "maxpower", &max_power_ ) );
+    double_map_.insert( DoubleMap::value_type( "minpower", &min_power_ ) );
+    double_map_.insert( DoubleMap::value_type( "maxmoment", &max_moment_ ) );
+    double_map_.insert( DoubleMap::value_type( "minmoment", &min_moment_ ) );
+    double_map_.insert( DoubleMap::value_type( "maxneckmoment", &max_neck_moment_ ) );
+    double_map_.insert( DoubleMap::value_type( "minneckmoment", &min_neck_moment_ ) );
+    double_map_.insert( DoubleMap::value_type( "maxneckang", &max_neck_angle_ ) );
+    double_map_.insert( DoubleMap::value_type( "minneckang", &min_neck_angle_ ) );
+    double_map_.insert( DoubleMap::value_type( "visible_angle", &visible_angle_ ) );
+    double_map_.insert( DoubleMap::value_type( "visible_distance", &visible_distance_ ) );
+    double_map_.insert( DoubleMap::value_type( "audio_cut_dist", &audio_cut_dist_ ) );
+    double_map_.insert( DoubleMap::value_type( "quantize_step", &dist_quantize_step_ ) );
+    double_map_.insert( DoubleMap::value_type( "quantize_step_l", &landmark_dist_quantize_step_ ) );
+    //( "quantize_step_dir", &dir_quantize_step_ ) );
+    //( "quantize_step_dist_team_l", &dist_quantize_step_l_ ) );
+    //( "quantize_step_dist_team_r", &dist_quantize_step_r_ ) );
+    //( "quantize_step_dist_l_team_l", &landmark_dist_quantize_step_l_ ) );
+    //( "quantize_step_dist_l_team_r", &landmark_dist_quantize_step_r_ ) );
+    //( "quantize_step_dir_team_l", &dir_quantize_step_l_ ) );
+    //( "quantize_step_dir_team_r", &dir_quantize_step_r_ ) );
+    double_map_.insert( DoubleMap::value_type( "ckick_margin", &corner_kick_margin_ ) );
+    double_map_.insert( DoubleMap::value_type( "wind_dir", &wind_dir_ ) );
+    double_map_.insert( DoubleMap::value_type( "wind_force", &wind_force_ ) );
+    double_map_.insert( DoubleMap::value_type( "wind_ang", &wind_angle_ ) );
+    double_map_.insert( DoubleMap::value_type( "wind_rand", &wind_rand_ ) );
+    bool_map_.insert( BoolMap::value_type( "wind_none", &wind_none_ ) );
+    bool_map_.insert( BoolMap::value_type( "wind_random", &use_wind_random_ ) );
+    int_map_.insert( IntMap::value_type( "half_time", &half_time_ ) );
+    int_map_.insert( IntMap::value_type( "drop_ball_time", &drop_ball_time_ ) );
+    int_map_.insert( IntMap::value_type( "port", &port_ ) );
+    int_map_.insert( IntMap::value_type( "coach_port", &coach_port_ ) );
+    int_map_.insert( IntMap::value_type( "olcoach_port", &online_coach_port_ ) );
+    int_map_.insert( IntMap::value_type( "say_coach_cnt_max", &say_coach_count_max_ ) );
+    int_map_.insert( IntMap::value_type( "say_coach_msg_size", &say_coach_msg_size_ ) );
+    int_map_.insert( IntMap::value_type( "simulator_step", &simulator_step_ ) );
+    int_map_.insert( IntMap::value_type( "send_step", &send_step_ ) );
+    int_map_.insert( IntMap::value_type( "recv_step", &recv_step_ ) );
+    int_map_.insert( IntMap::value_type( "sense_body_step", &sense_body_step_ ) );
+    //( "lcm_step", &lcm_step_ ) ); // not needed
+    int_map_.insert( IntMap::value_type( "say_msg_size", &say_msg_size_ ) );
+    int_map_.insert( IntMap::value_type( "clang_win_size", &clang_win_size_ ) );
+    int_map_.insert( IntMap::value_type( "clang_define_win", &clang_define_win_ ) );
+    int_map_.insert( IntMap::value_type( "clang_meta_win", &clang_meta_win_ ) );
+    int_map_.insert( IntMap::value_type( "clang_advice_win", &clang_advice_win_ ) );
+    int_map_.insert( IntMap::value_type( "clang_info_win", &clang_info_win_ ) );
+    int_map_.insert( IntMap::value_type( "clang_del_win", &clang_del_win_ ) );
+    int_map_.insert( IntMap::value_type( "clang_rule_win", &clang_rule_win_ ) );
+    int_map_.insert( IntMap::value_type( "clang_mess_delay", &clang_mess_delay_ ) );
+    int_map_.insert( IntMap::value_type( "clang_mess_per_cycle", &clang_mess_per_cycle_ ) );
+    int_map_.insert( IntMap::value_type( "hear_max", &hear_max_ ) );
+    int_map_.insert( IntMap::value_type( "hear_inc", &hear_inc_ ) );
+    int_map_.insert( IntMap::value_type( "hear_decay", &hear_decay_ ) );
+    int_map_.insert( IntMap::value_type( "catch_ban_cycle", &catch_ban_cycle_ ) );
+    bool_map_.insert( BoolMap::value_type( "coach", &coach_mode_ ) );
+    bool_map_.insert( BoolMap::value_type( "coach_w_referee", &coach_with_referee_mode_ ) );
+    bool_map_.insert( BoolMap::value_type( "old_coach_hear", &use_old_coach_hear_ ) );
+    int_map_.insert( IntMap::value_type( "send_vi_step", &online_coach_look_step_ ) );
+    bool_map_.insert( BoolMap::value_type( "use_offside", &use_offside_ ) );
+    double_map_.insert( DoubleMap::value_type( "offside_kick_margin", &offside_kick_margin_ ) );
+    bool_map_.insert( BoolMap::value_type( "forbid_kick_off_offside", &kick_off_offside_ ) );
+    bool_map_.insert( BoolMap::value_type( "verbose", &verbose_ ) );
+    double_map_.insert( DoubleMap::value_type( "offside_active_area_size", &offside_active_area_size_ ) );
+    int_map_.insert( IntMap::value_type( "slow_down_factor", &slow_down_factor_ ) );
+    bool_map_.insert( BoolMap::value_type( "synch_mode", &synch_mode_ ) );
+    int_map_.insert( IntMap::value_type( "synch_offset", &synch_offset_ ) );
+    int_map_.insert( IntMap::value_type( "synch_micro_sleep", &synch_micro_sleep_ ) );
+    int_map_.insert( IntMap::value_type( "start_goal_l", &start_goal_l_ ) );
+    int_map_.insert( IntMap::value_type( "start_goal_r", &start_goal_r_ ) );
+    bool_map_.insert( BoolMap::value_type( "fullstate_l", &fullstate_l_ ) );
+    bool_map_.insert( BoolMap::value_type( "fullstate_r", &fullstate_r_ ) );
+    double_map_.insert( DoubleMap::value_type( "slowness_on_top_for_left_team", &slowness_on_top_for_left_team_ ) );
+    double_map_.insert( DoubleMap::value_type( "slowness_on_top_for_right_team", &slowness_on_top_for_right_team_ ) );
+    string_map_.insert( StringMap::value_type( "landmark_file", &landmark_file_ ) );
+    bool_map_.insert( BoolMap::value_type( "send_comms", &send_comms_ ) );
+    bool_map_.insert( BoolMap::value_type( "text_logging", &text_logging_ ) );
+    bool_map_.insert( BoolMap::value_type( "game_logging", &game_logging_ ) );
+    int_map_.insert( IntMap::value_type( "game_log_version", &game_log_version_ ) );
+    string_map_.insert( StringMap::value_type( "text_log_dir", &text_log_dir_ ) );
+    string_map_.insert( StringMap::value_type( "game_log_dir", &game_log_dir_ ) );
+    string_map_.insert( StringMap::value_type( "text_log_fixed_name", &text_log_fixed_name_ ) );
+    string_map_.insert( StringMap::value_type( "game_log_fixed_name", &game_log_fixed_name_ ) );
+    bool_map_.insert( BoolMap::value_type( "text_log_fixed", &text_log_fixed_ ) );
+    bool_map_.insert( BoolMap::value_type( "game_log_fixed", &game_log_fixed_ ) );
+    bool_map_.insert( BoolMap::value_type( "text_log_dated", &text_log_dated_ ) );
+    bool_map_.insert( BoolMap::value_type( "game_log_dated", &game_log_dated_ ) );
+    string_map_.insert( StringMap::value_type( "log_date_format", &log_date_format_ ) );
+    bool_map_.insert( BoolMap::value_type( "log_times", &log_times_ ) );
+    bool_map_.insert( BoolMap::value_type( "record_messages", &record_messages_ ) );
+    int_map_.insert( IntMap::value_type( "text_log_compression", &text_log_compression_ ) );
+    int_map_.insert( IntMap::value_type( "game_log_compression", &game_log_compression_ ) );
+    bool_map_.insert( BoolMap::value_type( "profile", &profile_ ) );
+    int_map_.insert( IntMap::value_type( "point_to_ban", &point_to_ban_ ) );
+    int_map_.insert( IntMap::value_type( "point_to_duration", &point_to_duration_ ) );
+    double_map_.insert( DoubleMap::value_type( "tackle_dist", &tackle_dist_ ) );
+    double_map_.insert( DoubleMap::value_type( "tackle_back_dist", &tackle_back_dist_ ) );
+    double_map_.insert( DoubleMap::value_type( "tackle_width", &tackle_width_ ) );
+    double_map_.insert( DoubleMap::value_type( "tackle_exponent", &tackle_exponent_ ) );
+    int_map_.insert( IntMap::value_type( "tackle_cycles", &tackle_cycles_ ) );
+    double_map_.insert( DoubleMap::value_type( "tackle_power_rate", &tackle_power_rate_ ) );
+    int_map_.insert( IntMap::value_type( "freeform_wait_period", &freeform_wait_period_ ) );
+    int_map_.insert( IntMap::value_type( "freeform_send_period", &freeform_send_period_ ) );
+    bool_map_.insert( BoolMap::value_type( "free_kick_faults", &free_kick_faults_ ) );
+    bool_map_.insert( BoolMap::value_type( "back_passes", &back_passes_ ) );
+    bool_map_.insert( BoolMap::value_type( "proper_goal_kicks", &proper_goal_kicks_ ) );
+    double_map_.insert( DoubleMap::value_type( "stopped_ball_vel", &stopped_ball_vel_ ) );
+    int_map_.insert( IntMap::value_type( "max_goal_kicks", &max_goal_kicks_ ) );
+    bool_map_.insert( BoolMap::value_type( "auto_mode", &auto_mode_ ) );
+    int_map_.insert( IntMap::value_type( "kick_off_wait", &kick_off_wait_ ) );
+    int_map_.insert( IntMap::value_type( "connect_wait", &connect_wait_ ) );
+    int_map_.insert( IntMap::value_type( "game_over_wait", &game_over_wait_ ) );
+    string_map_.insert( StringMap::value_type( "team_l_start", &team_l_start_ ) );
+    string_map_.insert( StringMap::value_type( "team_r_start", &team_r_start_ ) );
+    bool_map_.insert( BoolMap::value_type( "keepaway", &keepaway_mode_ ) );
+    double_map_.insert( DoubleMap::value_type( "keepaway_length", &keepaway_length_ ) );
+    double_map_.insert( DoubleMap::value_type( "keepaway_width", &keepaway_width_ ) );
+    bool_map_.insert( BoolMap::value_type( "keepaway_logging", &keepaway_logging_ ) );
+    string_map_.insert( StringMap::value_type( "keepaway_log_dir", &keepaway_log_dir_ ) );
+    string_map_.insert( StringMap::value_type( "keepaway_log_fixed_name", &keepaway_log_fixed_name_ ) );
+    bool_map_.insert( BoolMap::value_type( "keepaway_log_fixed", &keepaway_log_fixed_ ) );
+    bool_map_.insert( BoolMap::value_type( "keepaway_log_dated", &keepaway_log_dated_ ) );
+    int_map_.insert( IntMap::value_type( "keepaway_start", &keepaway_start_ ) );
+    int_map_.insert( IntMap::value_type( "nr_normal_halfs", &nr_normal_halfs_ ) );
+    int_map_.insert( IntMap::value_type( "nr_extra_halfs", &nr_extra_halfs_ ) );
+    bool_map_.insert( BoolMap::value_type( "penalty_shoot_outs", &penalty_shoot_outs_ ) );
+    int_map_.insert( IntMap::value_type( "pen_before_setup_wait", &pen_before_setup_wait_ ) );
+    int_map_.insert( IntMap::value_type( "pen_setup_wait", &pen_setup_wait_ ) );
+    int_map_.insert( IntMap::value_type( "pen_ready_wait", &pen_ready_wait_ ) );
+    int_map_.insert( IntMap::value_type( "pen_taken_wait", &pen_taken_wait_ ) );
+    int_map_.insert( IntMap::value_type( "pen_nr_kicks", &pen_nr_kicks_ ) );
+    int_map_.insert( IntMap::value_type( "pen_max_extra_kicks", &pen_max_extra_kicks_ ) );
+    double_map_.insert( DoubleMap::value_type( "pen_dist_x", &pen_dist_x_ ) );
+    bool_map_.insert( BoolMap::value_type( "pen_random_winner", &pen_random_winner_ ) );
+    double_map_.insert( DoubleMap::value_type( "pen_max_goalie_dist_x", &pen_max_goalie_dist_x_ ) );
+    bool_map_.insert( BoolMap::value_type( "pen_allow_mult_kicks", &pen_allow_mult_kicks_ ) );
+    bool_map_.insert( BoolMap::value_type( "pen_coach_moves_players", &pen_coach_moves_players_ ) );
+    // v11
+    double_map_.insert( DoubleMap::value_type( "ball_stuck_area", &ball_stuck_area_ ) );
+    string_map_.insert( StringMap::value_type( "coach_msg_file", &coach_msg_file_ ) );
+    // v12
+    double_map_.insert( DoubleMap::value_type( "max_tackle_power", &max_tackle_power_ ) );
+    double_map_.insert( DoubleMap::value_type( "max_back_tackle_power", &max_back_tackle_power_ ) );
+    double_map_.insert( DoubleMap::value_type( "player_speed_max_min", &player_speed_max_min_ ) );
+    double_map_.insert( DoubleMap::value_type( "extra_stamina", &extra_stamina_ ) );
+    int_map_.insert( IntMap::value_type( "synch_see_offset", &synch_see_offset_ ) );
+    int_map_.insert( IntMap::value_type( "max_monitors", &max_monitors_ ) );
+    // v12.1.3
+    int_map_.insert( IntMap::value_type( "extra_half_time", &extra_half_time_ ) );
+    // v13
+    double_map_.insert( DoubleMap::value_type( "stamina_capacity", &stamina_capacity_ ) );
+    double_map_.insert( DoubleMap::value_type( "max_dash_angle", &max_dash_angle_ ) );
+    double_map_.insert( DoubleMap::value_type( "min_dash_angle", &min_dash_angle_ ) );
+    double_map_.insert( DoubleMap::value_type( "dash_angle_step", &dash_angle_step_ ) );
+    double_map_.insert( DoubleMap::value_type( "side_dash_rate", &side_dash_rate_ ) );
+    double_map_.insert( DoubleMap::value_type( "back_dash_rate", &back_dash_rate_ ) );
+    double_map_.insert( DoubleMap::value_type( "max_dash_power", &max_dash_power_ ) );
+    double_map_.insert( DoubleMap::value_type( "min_dash_power", &min_dash_power_ ) );
+    // 14.0.0
+    double_map_.insert( DoubleMap::value_type( "tackle_rand_factor", &tackle_rand_factor_ ) );
+    double_map_.insert( DoubleMap::value_type( "foul_detect_probability", &foul_detect_probability_ ) );
+    double_map_.insert( DoubleMap::value_type( "foul_exponent", &foul_exponent_ ) );
+    int_map_.insert( IntMap::value_type( "foul_cycles", &foul_cycles_ ) );
+    bool_map_.insert( BoolMap::value_type( "golden_goal", &golden_goal_ ) );
+    // 15.0
+    double_map_.insert( DoubleMap::value_type( "red_card_probability", &red_card_probability_ ) );
+    // 16.0
+    int_map_.insert( IntMap::value_type( "illegal_defense_duration", &illegal_defense_duration_ ) );
+    int_map_.insert( IntMap::value_type( "illegal_defense_number", &illegal_defense_number_ ) );
+    double_map_.insert( DoubleMap::value_type( "illegal_defense_dist_x", &illegal_defense_dist_x_ ) );
+    double_map_.insert( DoubleMap::value_type( "illegal_defense_width", &illegal_defense_width_ ) );
+    string_map_.insert( StringMap::value_type( "fixed_teamname_l", &fixed_teamname_l_ ) );
+    string_map_.insert( StringMap::value_type( "fixed_teamname_r", &fixed_teamname_r_ ) );
+    // 17.0
+    double_map_.insert( DoubleMap::value_type( "max_catch_angle", &max_catch_angle_ ) );
+    double_map_.insert( DoubleMap::value_type( "min_catch_angle", &min_catch_angle_ ) );
 
+    //
 }
 
 
@@ -656,6 +1295,161 @@ ServerParamT::toSExp( std::ostream & os ) const
     os << ')';
 
     return os;
+}
+
+bool
+ServerParamT::createFromSExp( const std::string & msg )
+{
+    //if ( ! parse_param( msg, int_map_, double_map_, bool_map_, string_map_ ) )
+    if ( ! parse_param( msg, *this ) )
+    {
+        // nothing to do
+    }
+
+    return true;
+}
+
+bool
+ServerParamT::setValue( const std::string & name,
+                        const std::string & value )
+{
+    try
+    {
+        IntMap::iterator int_it = int_map_.find( name );
+        if ( int_it != int_map_.end() )
+        {
+            *(int_it->second) = std::stoi( value );
+            return true;
+        }
+
+        DoubleMap::iterator double_it = double_map_.find( name );
+        if ( double_it != double_map_.end() )
+        {
+            *(double_it->second) = std::stod( value );
+            return true;
+        }
+
+        BoolMap::iterator bool_it = bool_map_.find( name );
+        if ( bool_it != bool_map_.end() )
+        {
+            if ( value == "0" || value == "false" || value == "off" )
+            {
+                *(bool_it->second) = false;
+            }
+            else if ( value == "1" || value == "true" || value == "on" )
+            {
+                *(bool_it->second) = true;
+            }
+            else
+            {
+                std::cerr << "Unknown bool value. name=" << name << " value=" << value << std::endl;
+            }
+            return true;
+        }
+
+        StringMap::iterator string_it = string_map_.find( name );
+        if ( string_it != string_map_.end() )
+        {
+            *(string_it->second) = clean_string( value );
+            return true;
+        }
+    }
+    catch ( std::exception & e )
+    {
+        std::cerr << e.what() << '\n'
+                  << "name=" << name << " value=" << value << std::endl;
+        return true;
+    }
+
+    std::cerr << "Unsupported parameter. name=" << name << " value=" << value << std::endl;
+    return false;
+}
+
+
+bool
+ServerParamT::setInt( const std::string & name,
+                      const int value )
+{
+    IntMap::iterator int_it = int_map_.find( name );
+    if ( int_it != int_map_.end() )
+    {
+        *(int_it->second) = value;
+        return false;
+    }
+
+    DoubleMap::iterator double_it = double_map_.find( name );
+    if ( double_it != double_map_.end() )
+    {
+        *(double_it->second) = value;
+        return true;
+    }
+
+    BoolMap::iterator bool_it = bool_map_.find( name );
+    if ( bool_it != bool_map_.end() )
+    {
+        if ( value == 0 )
+        {
+            *(bool_it->second) = false;
+            return true;
+        }
+
+        if ( value == 1 )
+        {
+            *(bool_it->second) = true;
+            return true;
+        }
+    }
+
+    std::cerr << "Unsupported parameter. name=" << name << " value=" << value << std::endl;
+    return true;
+}
+
+
+bool
+ServerParamT::setDouble( const std::string & name,
+                         const double value )
+{
+    DoubleMap::iterator it = double_map_.find( name );
+    if ( it == double_map_.end() )
+    {
+        std::cerr << "Unsupported double parameter. name=" << name << " value=" << value << std::endl;
+        return false;
+    }
+
+    *(it->second) = value;
+    return true;
+}
+
+
+bool
+ServerParamT::setBool( const std::string & name,
+                       const bool value )
+{
+    BoolMap::iterator it = bool_map_.find( name );
+    if ( it == bool_map_.end() )
+    {
+        std::cerr << "Unsupported bool parameter. name=" << name << " value=" << value << std::endl;
+        return false;
+    }
+
+    *(it->second) = value;
+    return true;
+}
+
+
+bool
+ServerParamT::setString( const std::string & name,
+                         const std::string & value )
+{
+    StringMap::iterator it = string_map_.find( name );
+    if ( it == string_map_.end() )
+    {
+        std::cerr << "Unsupported string parameter. name=" << name << " value=" << value << std::endl;
+        return false;
+    }
+
+    *(it->second) = value;
+    return true;
 }
 
 }

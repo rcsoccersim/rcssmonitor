@@ -127,7 +127,7 @@ PlayerPainter::draw( QPainter & painter )
 
     for ( int i = 0; i < rcss::rcg::MAX_PLAYER*2; ++i )
     {
-        drawAll( painter, disp->show_.player_[i], ball );
+        drawAll( painter, disp->show_.players_[i], ball );
     }
 
     if ( Options::instance().showOffsideLine() )
@@ -328,6 +328,10 @@ PlayerPainter::drawBody( QPainter & painter,
 
         if ( ! param.player_.hasFullEffort( param.player_type_.effort_max_ ) )
         {
+            std::cerr << "no full effort. max=" << param.player_type_.effort_max_
+                      << "  val=" << param.player_.effort_
+                      << "  ptype=" << param.player_.type_
+                      << std::endl;
             int r = param.draw_radius_ + 2;
             painter.setPen( opt.effortDecayedPen() );
             painter.setBrush( Qt::NoBrush );
@@ -990,10 +994,10 @@ PlayerPainter::drawOffsideLine( QPainter & painter,
         float min_x = 0.0f;
         for ( int i = 0; i < rcss::rcg::MAX_PLAYER*2; ++i )
         {
-            if ( show.player_[i].state_ != 0
-                 && show.player_[i].side_ == 'l' )
+            if ( show.players_[i].state_ != 0
+                 && show.players_[i].side_ == 'l' )
             {
-                float x = show.player_[i].x_;
+                float x = show.players_[i].x_;
                 if ( x < offside_l )
                 {
                     if ( x < min_x )
@@ -1017,10 +1021,10 @@ PlayerPainter::drawOffsideLine( QPainter & painter,
         float max_x = 0.0;
         for ( int i = 0; i < rcss::rcg::MAX_PLAYER*2; ++i )
         {
-            if ( show.player_[i].state_ != 0
-                 && show.player_[i].side_ == 'r' )
+            if ( show.players_[i].state_ != 0
+                 && show.players_[i].side_ == 'r' )
             {
-                float x = show.player_[i].x_;
+                float x = show.players_[i].x_;
                 if ( offside_r < x )
                 {
                     if ( max_x < x )

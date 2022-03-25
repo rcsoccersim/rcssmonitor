@@ -300,8 +300,6 @@ ParserV3::parseServerParam( std::istream & is,
     ServerParamT new_params;
     convert( sparams, new_params );
 
-    PlayerTypeT::set_default( new_params );
-
     return handler.handleServerParam( new_params );
 }
 
