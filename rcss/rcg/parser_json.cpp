@@ -48,11 +48,6 @@
 namespace rcss {
 namespace rcg {
 
-typedef std::unordered_map< std::string, int * > IntMap;
-typedef std::unordered_map< std::string, double * > DoubleMap;
-typedef std::unordered_map< std::string, bool * > BoolMap;
-typedef std::unordered_map< std::string, std::string * > StringMap;
-
 struct ParserJSON::Impl {
 
     typedef std::function< bool( const nlohmann::json & data, Handler & handler ) > Func;

@@ -43,7 +43,7 @@ namespace rcg {
 
 /*!
   \class ParserJSON
-  \brief rcg v4 parser class
+  \brief rcg v6 parser class
  */
 class ParserJSON
     : public Parser {
