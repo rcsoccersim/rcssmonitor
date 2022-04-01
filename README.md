@@ -5,21 +5,21 @@
 
 **RoboCup Soccer Simulator Monitor** (rcssmonitor) is used to view the simulation as it takes place by connecting to the [RoboCup Soccer Simulator Server](https://github.com/rcsoccersim/rcssserver) (rcssserver) or to view the playback of a simulation by loading game log files.
 
-## ⚽️ Quick Start
+## :soccer: Quick Start
 
-rcssmonitor is implemented by C++ and depends [Boost](https://www.boost.org/) and [Qt](https://www.qt.io/).
+rcssmonitor is implemented by C++14 and depends [Qt5](https://www.qt.io/).
 At first, related tools have to be installed on the system.
-In the case of Ubuntu 16.04 or 18.04, execute the following commands:
+In the case of Ubuntu 16.04, 18.04, or 20.04, execute the following commands:
 
 ```
 sudo apt update
-sudo apt install build-essential libboost-all-dev qt5-default libfontconfig1-dev libaudio-dev libxt-dev libglib2.0-dev libxi-dev libxrender-dev 
+sudo apt install build-essential qt5-default libfontconfig1-dev libaudio-dev libxt-dev libglib2.0-dev libxi-dev libxrender-dev
 ```
 
 Then, clone the repository. From its directory, execute commands:
 
 ```
-autoreconf -i
+./bootstrap
 ./configure
 make
 ```
@@ -45,7 +45,7 @@ make
 In this case, `rcssmonitor/build/rcssmonitor` will be the binary for the monitor.
 
 
-## 🛠 Configuring & Building
+## :hammer_and_wrench: Configuring & Building
 
 Before you can build RoboCup Soccer Simulator Monitor you will need to run the `configure` script located in the root of the distribution directory.
 
@@ -64,16 +64,32 @@ If CMake is chosen, `ccmake` command is available for the configuration:
 ```
 cd build
 ccmake ..
+cmake ..
+make
+```
+
+## :package: Installing
+
+When you have completed building the monitor, it's components can be installed into their default locations or the locations specified during configuring by running
+```
+make install
+```
+Depending on where you are installing the monitor, you may need special permissions.
+
+## :wastebasket: Uninstalling
+In the case of autotools, the monitor can also be easily removed by entering the distribution directory and running
+```
+make uninstall
+```
+This will remove all the files that where installed, but not any directories that were created during the installation process.
+
+In the case of CMake, find `install_manifest.txt` under the build directory, then execute:
+```
+xargs rm < install_manifest.txt
 ```
 
 
-## 📦 Installing
-
-When you have completed building the monitor, it's components can be installed into their default locations or the locations specified during configuring by running `make install`. Depending on where you are installing the monitor, you may need special permissions.
-
-The monitor can also be easily removed by entering the distribution directory and running `make uninstall`.  This will remove all the files that where installed, but not any directories that were created during the installation process.
-
-## ⏯ Using the Monitor
+## :play_or_pause_button: Using the Monitor
 
 To start the monitor either type
 
@@ -89,10 +105,9 @@ rcssmonitor
 
 If you invoke `rcssmonitor` with `--help` option, available options are displayed in your console.
 
-## ✉ ️Contributing
+## :incoming_envelope: Contributing
 
 For bug reports, feature requests and latest updates, please goto
 https://github.com/rcsoccersim/rcssmonitor and open an issue or a pull request.
 
 > The RoboCup Soccer Server Maintainance Group
-
