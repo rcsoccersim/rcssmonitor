@@ -31,7 +31,7 @@ librcssrcginclude_HEADERS = \
 	xpm_tile.h \
 	team_graphic.h
 
-noinst_HEADERS =
+noinst_HEADERS = \
 	nlohmann/json.hpp
 
 librcssrcg_la_LDFLAGS = -version-info 17:0:0
@@ -59,5 +59,8 @@ AM_CPPFLAGS = -I$(top_srcdir)
 AM_CFLAGS = -Wall -W
 AM_CXXFLAGS = -Wall -W
 AM_LDFLAGS =
+
+EXTRA_DIST = \
+	CMakeLists.txt
 
 CLEANFILES = *~
