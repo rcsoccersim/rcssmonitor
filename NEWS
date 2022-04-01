@@ -1,3 +1,13 @@
+[17.0.0]
+  * Remove dependency on Boost library.
+
+  * Support the monitor protocol version 5 (RCG version 6), which is a
+    JSON-based format. The parser implemented at this time is quite
+    slow, so the default client version is set to the previous one.
+
+  * Reimplement the RCG parser library. The installation destination
+    of the library header files has been unified under PREFIX/include/rcss.
+
 [16.1.0]
   * Add a team graphic scaling option. Now, users can change the drawing
     scale of team graphic images.
