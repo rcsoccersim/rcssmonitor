@@ -17,8 +17,8 @@ add_executable(rcssmonitor
   options.cpp
   player_painter.cpp
   player_type_dialog.cpp
+  rcg_handler.cpp
   score_board_painter.cpp
-  team_graphic.cpp
   team_graphic_painter.cpp
   vector_2d.cpp
   main.cpp

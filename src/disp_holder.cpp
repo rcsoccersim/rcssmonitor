@@ -37,6 +37,7 @@
 #include "disp_holder.h"
 
 #include "options.h"
+#include "rcg_handler.h"
 
 #include <rcss/rcg/util.h>
 #include <rcss/rcg/parser_v1.h>
@@ -178,7 +179,8 @@ bool
 DispHolder::addDispInfoV1( const rcss::rcg::dispinfo_t & disp )
 {
     rcss::rcg::ParserV1 parser;
-    return parser.handleDisp( disp, *this );
+    RCGHandler handler( nullptr, *this );
+    return parser.handleDisp( disp, handler );
 
     // switch ( my_ntohs( disp.mode ) ) {
     // case rcss::rcg::NO_INFO:
@@ -291,7 +293,8 @@ bool
 DispHolder::addDispInfoV3( const char * msg )
 {
     rcss::rcg::ParserV4 parser;
-    return parser.parseLine( -1, msg, *this );
+    RCGHandler handler( nullptr, *this );
+    return parser.parseLine( -1, msg, handler );
 }
 
 
@@ -303,7 +306,8 @@ bool
 DispHolder::addJSON( const char * msg )
 {
     rcss::rcg::ParserJSON parser;
-    return parser.parseData( msg, *this );
+    RCGHandler handler( nullptr, *this );
+    return parser.parseData( msg, handler );
 }
 
 
