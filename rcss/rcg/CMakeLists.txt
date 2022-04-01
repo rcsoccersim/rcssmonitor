@@ -6,8 +6,11 @@ add_library(rcssrcg SHARED
 	parser_v2.cpp
 	parser_v3.cpp
 	parser_v4.cpp
+	parser_json.cpp
 	util.cpp
 	types.cpp
+	team_graphic.cpp
+	xpm_tile.cpp
   )
 
 target_include_directories(rcssrcg

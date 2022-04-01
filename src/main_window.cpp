@@ -51,6 +51,7 @@
 #include "monitor_client.h"
 #include "player_type_dialog.h"
 #include "options.h"
+#include "rcg_handler.h"
 
 
 #ifdef HAVE_LIBZ
@@ -1439,6 +1440,7 @@ MainWindow::openGameLogFileImpl( const QString & filepath )
 
     M_disp_holder.clear();
 
+    RCGHandler handler( this, M_disp_holder );
     // // show progress dialog
     // QProgressDialog progress_dialog( this );
     // progress_dialog.setWindowTitle( QObject::tr( "parsing a game log file..." ) );
@@ -1452,7 +1454,7 @@ MainWindow::openGameLogFileImpl( const QString & filepath )
     timer.start();
 
     rcss::rcg::Parser::Ptr parser = rcss::rcg::Parser::create( fin );
-    if ( ! parser->parse( fin, M_disp_holder ) )
+    if ( ! parser->parse( fin, handler ) )
     {
         return false;
     }

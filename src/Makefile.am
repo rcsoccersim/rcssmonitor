@@ -22,6 +22,7 @@ rcssmonitor_SOURCES = \
 	options.cpp \
 	player_painter.cpp \
 	player_type_dialog.cpp \
+	rcg_handler.cpp \
 	score_board_painter.cpp \
 	team_graphic_painter.cpp \
 	vector_2d.cpp \
@@ -56,6 +57,7 @@ noinst_HEADERS = \
 	painter_interface.h \
 	player_painter.h \
 	player_type_dialog.h \
+	rcg_handler.h \
 	score_board_painter.h \
 	team_graphic_painter.h \
 	vector_2d.h
