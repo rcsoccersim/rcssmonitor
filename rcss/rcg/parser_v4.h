@@ -2,7 +2,7 @@
 
 /*!
   \file parser_v4.h
-  \brief rcg v4 parser Header File.
+  \brief rcg v4/v5 parser Header File.
 */
 
 /*
@@ -42,7 +42,7 @@ namespace rcg {
 
 /*!
   \class ParserV4
-  \brief rcg v4 parser class
+  \brief rcg v4/v5 parser class
  */
 class ParserV4
     : public Parser {

@@ -82,7 +82,6 @@ AM_CXXFLAGS = -W -Wall
 AM_LDFLAGS =
 
 EXTRA_DIST = \
-	rcssmonitor.rc \
-	src.pro
+	CMakeLists.txt
 
 CLEANFILES = $(nodist_rcssmonitor_SOURCES) *~
