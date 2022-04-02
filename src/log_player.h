@@ -53,9 +53,9 @@ private:
     bool M_live_mode;
 
     // not used
-    LogPlayer();
-    LogPlayer( const LogPlayer & );
-    const LogPlayer & operator=( const LogPlayer & );
+    LogPlayer() = delete;
+    LogPlayer( const LogPlayer & ) = delete;
+    const LogPlayer & operator=( const LogPlayer & ) = delete;
 public:
 
     LogPlayer( DispHolder & disp_holder,

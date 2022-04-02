@@ -49,7 +49,7 @@
 #include "circle_2d.h"
 #include "vector_2d.h"
 
-#include <rcsslogplayer/types.h>
+#include <rcss/rcg/types.h>
 
 #include <cstring>
 #include <cstdio>
@@ -127,7 +127,7 @@ PlayerPainter::draw( QPainter & painter )
 
     for ( int i = 0; i < rcss::rcg::MAX_PLAYER*2; ++i )
     {
-        drawAll( painter, disp->show_.player_[i], ball );
+        drawAll( painter, disp->show_.players_[i], ball );
     }
 
     if ( Options::instance().showOffsideLine() )
@@ -208,7 +208,7 @@ PlayerPainter::drawBody( QPainter & painter,
     }
 
     switch ( param.player_.side_ ) {
-    case 'l':
+    case rcss::rcg::LEFT:
         if ( param.player_.isGoalie() )
         {
             painter.setBrush( opt.leftGoalieBrush() );
@@ -218,7 +218,7 @@ PlayerPainter::drawBody( QPainter & painter,
             painter.setBrush( opt.leftTeamBrush() );
         }
         break;
-    case 'r':
+    case rcss::rcg::RIGHT:
         if ( param.player_.isGoalie() )
         {
             painter.setBrush( opt.rightGoalieBrush() );
@@ -228,7 +228,7 @@ PlayerPainter::drawBody( QPainter & painter,
             painter.setBrush( opt.rightTeamBrush() );
         }
         break;
-    case 'n':
+    case rcss::rcg::NEUTRAL:
         //std::cerr << "drawBody neutral unum=" << param.player_.unum_ << std::endl;
         painter.setBrush( Qt::black );
         break;
@@ -245,7 +245,7 @@ PlayerPainter::drawBody( QPainter & painter,
     }
 
     if ( param.player_.isIllegalDefenseState()
-         && opt.showIllegalDefenseState() )
+         && opt.showIllegalDefense() )
     {
         painter.setPen( opt.illegalDefensePen() );
     }
@@ -326,14 +326,18 @@ PlayerPainter::drawBody( QPainter & painter,
         }
 #endif
 
-        if ( std::fabs( param.player_.effort_ - param.player_type_.effort_max_ ) > 1.0e-4 )
+        if ( ! param.player_.hasFullEffort( param.player_type_.effort_max_ ) )
         {
+            std::cerr << "no full effort. max=" << param.player_type_.effort_max_
+                      << "  val=" << param.player_.effort_
+                      << "  ptype=" << param.player_.type_
+                      << std::endl;
             int r = param.draw_radius_ + 2;
             painter.setPen( opt.effortDecayedPen() );
             painter.setBrush( Qt::NoBrush );
             painter.drawEllipse( param.x_ - r, param.y_ - r, r * 2, r * 2 );
         }
-        else if ( std::fabs( param.player_.recovery_ - M_disp_holder.serverParam().recover_init_ ) > 1.0e-4 )
+        else if ( ! param.player_.hasFullRecovery() )
         {
             int r = param.draw_radius_ + 2;
             painter.setPen( opt.recoveryDecayedPen() );
@@ -951,7 +955,7 @@ PlayerPainter::drawText( QPainter & painter,
         //                : M_right_team_pen );
 
         if ( param.player_.isIllegalDefenseState()
-             && opt.showIllegalDefenseState() )
+             && opt.showIllegalDefense() )
         {
             painter.setPen( opt.illegalDefensePen() );
         }
@@ -990,10 +994,10 @@ PlayerPainter::drawOffsideLine( QPainter & painter,
         float min_x = 0.0f;
         for ( int i = 0; i < rcss::rcg::MAX_PLAYER*2; ++i )
         {
-            if ( show.player_[i].state_ != 0
-                 && show.player_[i].side_ == 'l' )
+            if ( show.players_[i].state_ != 0
+                 && show.players_[i].side_ == 'l' )
             {
-                float x = show.player_[i].x_;
+                float x = show.players_[i].x_;
                 if ( x < offside_l )
                 {
                     if ( x < min_x )
@@ -1017,10 +1021,10 @@ PlayerPainter::drawOffsideLine( QPainter & painter,
         float max_x = 0.0;
         for ( int i = 0; i < rcss::rcg::MAX_PLAYER*2; ++i )
         {
-            if ( show.player_[i].state_ != 0
-                 && show.player_[i].side_ == 'r' )
+            if ( show.players_[i].state_ != 0
+                 && show.players_[i].side_ == 'r' )
             {
-                float x = show.player_[i].x_;
+                float x = show.players_[i].x_;
                 if ( offside_r < x )
                 {
                     if ( max_x < x )

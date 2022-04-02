@@ -98,24 +98,21 @@ DrawInfoPainter::draw( QPainter & painter )
     // draw point
     //
     {
-        PointCont::const_iterator p = M_disp_holder.pointCont().find( current_time );
-        if ( p != M_disp_holder.pointCont().end() )
+        PointCont::const_iterator points = M_disp_holder.pointCont().find( current_time );
+        if ( points != M_disp_holder.pointCont().end() )
         {
-            const PointCont::const_iterator end = M_disp_holder.pointCont().upper_bound( current_time );
-            do
+            for ( decltype( points->second )::const_reference & p : points->second )
             {
-                QColor col( p->second.color_.c_str() );
+                QColor col( p.color_.c_str() );
                 if ( col.isValid() )
                 {
                     M_pen.setColor( col );
                     painter.setPen( M_pen );
-                    painter.drawRect( opt.screenX( p->second.x_ ) - 1,
-                                      opt.screenY( p->second.y_ ) - 1,
+                    painter.drawRect( opt.screenX( p.x_ ) - 1,
+                                      opt.screenY( p.y_ ) - 1,
                                       3, 3 );
                 }
-                ++p;
             }
-            while ( p != end );
         }
     }
 
@@ -123,28 +120,24 @@ DrawInfoPainter::draw( QPainter & painter )
     // draw circle
     //
     {
-        CircleCont::const_iterator c = M_disp_holder.circleCont().find( current_time );
-        if ( c != M_disp_holder.circleCont().end() )
+        CircleCont::const_iterator circles = M_disp_holder.circleCont().find( current_time );
+        if ( circles != M_disp_holder.circleCont().end() )
         {
-            const CircleCont::const_iterator end = M_disp_holder.circleCont().upper_bound( current_time );
-            do
+            for ( decltype( circles->second )::const_reference c : circles->second )
             {
-                QColor col( c->second.color_.c_str() );
+                QColor col( c.color_.c_str() );
                 if ( col.isValid() )
                 {
                     M_pen.setColor( col );
                     painter.setPen( M_pen );
 
-                    int r = opt.scale( c->second.r_ );
-                    painter.drawEllipse( opt.screenX( c->second.x_ ) - r,
-                                         opt.screenY( c->second.y_ ) - r,
+                    int r = opt.scale( c.r_ );
+                    painter.drawEllipse( opt.screenX( c.x_ ) - r,
+                                         opt.screenY( c.y_ ) - r,
                                          r * 2,
                                          r * 2 );
                 }
-
-                ++c;
             }
-            while ( c != end );
         }
     }
 
@@ -152,27 +145,23 @@ DrawInfoPainter::draw( QPainter & painter )
     // draw line
     //
     {
-        LineCont::const_iterator l = M_disp_holder.lineCont().find( current_time );
-        if ( l != M_disp_holder.lineCont().end() )
+        LineCont::const_iterator lines = M_disp_holder.lineCont().find( current_time );
+        if ( lines != M_disp_holder.lineCont().end() )
         {
-            const LineCont::const_iterator end = M_disp_holder.lineCont().upper_bound( current_time );
-            do
+            for ( decltype( lines->second )::const_reference l : lines->second )
             {
-                QColor col( l->second.color_.c_str() );
+                QColor col( l.color_.c_str() );
                 if ( col.isValid() )
                 {
                     M_pen.setColor( col );
                     painter.setPen( M_pen );
 
-                    painter.drawLine( opt.screenX( l->second.x1_ ),
-                                      opt.screenY( l->second.y1_ ),
-                                      opt.screenX( l->second.x2_ ),
-                                      opt.screenY( l->second.y2_ ) );
+                    painter.drawLine( opt.screenX( l.x1_ ),
+                                      opt.screenY( l.y1_ ),
+                                      opt.screenX( l.x2_ ),
+                                      opt.screenY( l.y2_ ) );
                 }
-
-                ++l;
             }
-            while ( l != end );
         }
     }
 

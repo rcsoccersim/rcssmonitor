@@ -35,7 +35,7 @@
 
 #include "painter_interface.h"
 
-#include "team_graphic.h"
+#include <rcss/rcg/team_graphic.h>
 
 #include <QPixmap>
 
@@ -48,29 +48,29 @@ class TeamGraphicPainter
 private:
     const DispHolder & M_disp_holder;
 
-    std::set< TeamGraphic::Index > M_team_graphic_left_set;
+    std::set< rcss::rcg::TeamGraphic::Index > M_team_graphic_left_set;
     QPixmap M_team_graphic_pixmap_left;
 
-    std::set< TeamGraphic::Index > M_team_graphic_right_set;
+    std::set< rcss::rcg::TeamGraphic::Index > M_team_graphic_right_set;
     QPixmap M_team_graphic_pixmap_right;
 
     // not used
-    TeamGraphicPainter();
+    TeamGraphicPainter() = delete;
 public:
 
     explicit
     TeamGraphicPainter( const DispHolder & disp_holder );
 
-    void draw( QPainter & painter );
+    void draw( QPainter & painter ) override;
 
 private:
 
     void copyTeamGraphic( QPixmap & dst_pixmap,
-                          std::set< TeamGraphic::Index > & index_set,
-                          const TeamGraphic & team_graphic );
+                          std::set< rcss::rcg::TeamGraphic::Index > & index_set,
+                          const rcss::rcg::TeamGraphic & team_graphic );
     void copyTeamGraphicXpmTile( QPixmap & dst_pixmap,
-                                 const TeamGraphic::Index & index,
-                                 const TeamGraphic::XpmTile & tile );
+                                 const rcss::rcg::TeamGraphic::Index & index,
+                                 const rcss::rcg::XpmTile & tile );
     void copyTeamGraphicXpmTile( QPixmap & dst_pixmap,
                                  const int x,
                                  const int y,

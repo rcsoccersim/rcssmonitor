@@ -44,7 +44,7 @@
 
 #include "mouse_state.h"
 
-#include <boost/shared_ptr.hpp>
+#include <memory>
 
 class QMenu;
 
@@ -69,8 +69,8 @@ private:
 
     QMenu * M_monitor_menu;
 
-    boost::shared_ptr< FieldPainter > M_field_painter;
-    std::vector< boost::shared_ptr< PainterInterface > > M_painters;
+    std::shared_ptr< FieldPainter > M_field_painter;
+    std::vector< std::shared_ptr< PainterInterface > > M_painters;
 
     //! 0: left, 1: middle, 2: right
     MouseState M_mouse_state[3];
@@ -80,9 +80,9 @@ private:
     const MouseState * M_menu_mouse;
 
     // not used
-    FieldCanvas();
-    FieldCanvas( const FieldCanvas & );
-    const FieldCanvas & operator=( const FieldCanvas & );
+    FieldCanvas() = delete;
+    FieldCanvas( const FieldCanvas & ) = delete;
+    const FieldCanvas & operator=( const FieldCanvas & ) = delete;
 
 public:
 

@@ -58,8 +58,6 @@
 #include <QtEndian>
 //#endif
 
-#include <boost/lexical_cast.hpp>
-
 
 typedef std::map< std::string, int * > IntMap;
 typedef std::map< std::string, double * > DoubleMap;
@@ -197,14 +195,14 @@ parse_param_line( const int n_line,
             IntMap::iterator int_it = int_map.find( name_str );
             if ( int_it != int_map.end() )
             {
-                *(int_it->second) = boost::lexical_cast< int >( value_str );
+                *(int_it->second) = std::stoi( value_str );
                 continue;
             }
 
             DoubleMap::iterator double_it = double_map.find( name_str );
             if ( double_it != double_map.end() )
             {
-                *(double_it->second) = boost::lexical_cast< double >( value_str );
+                *(double_it->second) = std::stod( value_str );
                 continue;
             }
 
@@ -230,7 +228,7 @@ parse_param_line( const int n_line,
                       << ' ' << value_str << ")"
                       << std::endl;
         }
-        catch ( boost::bad_lexical_cast & e )
+        catch ( std::exception & e )
         {
             std::cerr << e.what() << '\n'
                       << " param_name=" << name_str

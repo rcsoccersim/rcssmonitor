@@ -1,9 +1,6 @@
 
 add_executable(rcssmonitor
-  rcsslogplayer/gzfstream.cpp
-  rcsslogplayer/parser.cpp
-  rcsslogplayer/types.cpp
-  rcsslogplayer/util.cpp
+  gzfstream.cpp
   angle_deg.cpp
   ball_painter.cpp
   circle_2d.cpp
@@ -20,8 +17,8 @@ add_executable(rcssmonitor
   options.cpp
   player_painter.cpp
   player_type_dialog.cpp
+  rcg_handler.cpp
   score_board_painter.cpp
-  team_graphic.cpp
   team_graphic_painter.cpp
   vector_2d.cpp
   main.cpp
@@ -33,7 +30,7 @@ target_include_directories(rcssmonitor
   ${Qt5Gui_INCLUDE_DIRS}
   ${Qt5Widgets_INCLUDE_DIRS}
   ${Qt5Network_INCLUDE_DIRS}
-  ${Boost_INCLUDE_DIRS}
+#  ${Boost_INCLUDE_DIRS}
   ${ZLIB_INCLUDE_DIRS}
   PRIVATE
   ${PROJECT_BINARY_DIR}
@@ -42,15 +39,22 @@ target_include_directories(rcssmonitor
   )
 
 target_link_libraries(rcssmonitor
+  PRIVATE
+  rcssrcg
   Qt5::Core Qt5::Gui Qt5::Widgets Qt5::Network
-  Boost::program_options Boost::system
+#  Boost::program_options Boost::system
   ZLIB::ZLIB
   )
 
 target_compile_definitions(rcssmonitor
   PUBLIC
   HAVE_CONFIG_H
-)
+  )
+
+set_target_properties(rcssmonitor
+  PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}
+  )
 
 install(TARGETS rcssmonitor
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}

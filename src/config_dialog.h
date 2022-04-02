@@ -37,8 +37,7 @@
 #include <QListWidgetItem>
 #include <QPushButton>
 
-#include <boost/function.hpp>
-
+#include <functional>
 #include <vector>
 
 class QPushButton;
@@ -65,17 +64,17 @@ class DispHolder;
 class ColorItem
     : public QListWidgetItem {
 public:
-    typedef boost::function< void ( const QColor & ) > Func;
+    typedef std::function< void ( const QColor & ) > Setter;
 
 private:
     QColor M_new_color;
     QColor M_old_color;
-    Func M_func;
+    Setter M_setter;
 
 public:
     ColorItem( const QString & name,
                const QColor & old_color,
-               Func func,
+               Setter setter,
                QListWidget * parent = 0 );
 
     const QColor & newColor() const { return M_new_color; }
@@ -96,19 +95,19 @@ class FontButton
 
 public:
 
-    typedef boost::function< void ( const QFont & ) > Func;
+    typedef std::function< void ( const QFont & ) > Setter;
 
 private:
     QString M_name;
     QFont M_new_font;
     QFont M_old_font;
-    Func M_func;
+    Setter M_setter;
 
 public:
 
     FontButton( const QString & name,
                 const QFont & old_font,
-                Func func,
+                Setter setter,
                 ConfigDialog * parent );
 
     void setNewFont( const QFont & font );

@@ -39,7 +39,7 @@
 
 #include "painter_interface.h"
 
-#include <rcsslogplayer/types.h>
+#include <rcss/rcg/types.h>
 
 class QPainter;
 class QPixmap;
@@ -67,16 +67,16 @@ private:
                const rcss::rcg::PlayerTypeT & ptype );
     private:
         //! not used
-        Param();
+        Param() = delete;
     };
 
 
     const DispHolder & M_disp_holder;
 
     // not used
-    PlayerPainter();
-    PlayerPainter( const PlayerPainter & );
-    const PlayerPainter operator=( const PlayerPainter & );
+    PlayerPainter() = delete;
+    PlayerPainter( const PlayerPainter & ) = delete;
+    const PlayerPainter operator=( const PlayerPainter & ) = delete;
 public:
 
     explicit
@@ -84,7 +84,7 @@ public:
 
     ~PlayerPainter();
 
-    void draw( QPainter & dc );
+    void draw( QPainter & dc ) override;
 
 private:
 

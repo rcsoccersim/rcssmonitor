@@ -41,7 +41,7 @@
 #include <QBrush>
 #include <QFont>
 
-#include <rcsslogplayer/types.h>
+#include <rcss/rcg/types.h>
 
 #include <string>
 #include <cmath>
@@ -192,7 +192,7 @@ private:
     bool M_show_player_number;
     bool M_show_player_type;
     bool M_show_view_area;
-    bool M_show_illegal_defense_state;
+    bool M_show_illegal_defense;
     bool M_show_catch_area;
     bool M_show_tackle_area;
     bool M_show_kick_accel_area;
@@ -298,6 +298,9 @@ private:
     void readSettings();
     void writeSettings( bool all );
 
+    void checkConsistensy();
+    void setGeometry( const std::string & val );
+
 public:
     ~Options();
 
@@ -390,8 +393,8 @@ public:
     bool showViewArea() const { return M_show_view_area; }
     void toggleShowViewArea() { M_show_view_area = ! M_show_view_area; }
 
-    bool showIllegalDefenseState() const { return M_show_illegal_defense_state; }
-    void toggleShowIllegalDefenseState() { M_show_illegal_defense_state = ! M_show_illegal_defense_state; }
+    bool showIllegalDefense() const { return M_show_illegal_defense; }
+    void toggleShowIllegalDefense() { M_show_illegal_defense = ! M_show_illegal_defense; }
 
     bool showCatchArea() const { return M_show_catch_area; }
     void toggleShowCatchArea() { M_show_catch_area = ! M_show_catch_area; }

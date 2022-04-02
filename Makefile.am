@@ -1,11 +1,11 @@
 ACLOCAL_AMFLAGS=-I m4
 
-SUBDIRS = src .
+SUBDIRS = rcss src .
 
 EXTRA_DIST = \
-	rcssmonitor.pro \
 	README.md \
 	CMakeLists.txt \
+	cmake-config.h.in \
 	icons/accelerate.xpm \
 	icons/blank.xpm \
 	icons/decelerate.xpm \
