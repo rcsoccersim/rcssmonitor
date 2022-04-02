@@ -44,6 +44,7 @@ if(ZLIB_FOUND)
   set(HAVE_LIBZ TRUE)
 endif()
 
+
 # generate config.h
 add_definitions(-DHAVE_CONFIG_H)
 configure_file(
