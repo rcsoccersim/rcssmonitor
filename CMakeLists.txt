@@ -13,7 +13,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
 endif()
-set(CMAKE_CXX_FLAGS "-W -Wall")
 
 include(GNUInstallDirs)
 
