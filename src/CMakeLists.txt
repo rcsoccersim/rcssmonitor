@@ -51,6 +51,11 @@ target_compile_definitions(rcssmonitor
   HAVE_CONFIG_H
   )
 
+target_compile_options(rcssmonitor
+  PRIVATE
+  -W -Wall
+  )
+
 set_target_properties(rcssmonitor
   PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}

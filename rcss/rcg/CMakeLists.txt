@@ -21,6 +21,11 @@ target_include_directories(rcssrcg
   ${PROJECT_BINARY_DIR}
   )
 
+target_compile_options(rcssrcg
+  PRIVATE
+  -W -Wall
+  )
+
 
 set_target_properties(rcssrcg PROPERTIES
   VERSION 17.0.0
