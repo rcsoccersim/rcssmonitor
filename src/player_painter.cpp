@@ -328,10 +328,10 @@ PlayerPainter::drawBody( QPainter & painter,
 
         if ( ! param.player_.hasFullEffort( param.player_type_.effort_max_ ) )
         {
-            std::cerr << "no full effort. max=" << param.player_type_.effort_max_
-                      << "  val=" << param.player_.effort_
-                      << "  ptype=" << param.player_.type_
-                      << std::endl;
+            // std::cerr << "no full effort. max=" << param.player_type_.effort_max_
+            //           << "  val=" << param.player_.effort_
+            //           << "  ptype=" << param.player_.type_
+            //           << std::endl;
             int r = param.draw_radius_ + 2;
             painter.setPen( opt.effortDecayedPen() );
             painter.setBrush( Qt::NoBrush );
@@ -506,7 +506,7 @@ PlayerPainter::drawCatchArea( QPainter & painter,
         = std::sqrt( std::pow( SP.catchable_area_w_ * 0.5, 2.0 )
                      + std::pow( SP.catchable_area_l_, 2.0 ) );
     const int catchable = opt.scale( catchable_area );
-    painter.setPen( ( param.player_.side_ == 'l' )
+    painter.setPen( ( param.player_.side_ == rcss::rcg::LEFT )
                     ? opt.leftGoaliePen()
                     : opt.rightGoaliePen() );
     painter.setBrush( Qt::NoBrush );
@@ -524,7 +524,7 @@ PlayerPainter::drawCatchArea( QPainter & painter,
     const int max_r = opt.scale( max_area );
     if ( max_r > catchable )
     {
-        painter.setPen( ( param.player_.side_ == 'l' )
+        painter.setPen( ( param.player_.side_ == rcss::rcg::LEFT )
                         ? opt.leftGoalieStretchPen()
                         : opt.rightGoalieStretchPen() );
         painter.drawEllipse( param.x_ - max_r,
@@ -570,7 +570,7 @@ PlayerPainter::drawCatchArea( QPainter & painter,
 
     int text_radius = std::min( 40, param.draw_radius_ );
 
-    painter.setPen( ( param.player_.side_ == 'l' )
+    painter.setPen( ( param.player_.side_ == LEFT )
                     ? opt.rightGoaliePen()
                     : opt.leftGoaliePen() );
     painter.setFont( opt.playerFont() );
@@ -995,7 +995,7 @@ PlayerPainter::drawOffsideLine( QPainter & painter,
         for ( int i = 0; i < rcss::rcg::MAX_PLAYER*2; ++i )
         {
             if ( show.players_[i].state_ != 0
-                 && show.players_[i].side_ == 'l' )
+                 && show.players_[i].side_ == rcss::rcg::LEFT )
             {
                 float x = show.players_[i].x_;
                 if ( x < offside_l )
@@ -1022,7 +1022,7 @@ PlayerPainter::drawOffsideLine( QPainter & painter,
         for ( int i = 0; i < rcss::rcg::MAX_PLAYER*2; ++i )
         {
             if ( show.players_[i].state_ != 0
-                 && show.players_[i].side_ == 'r' )
+                 && show.players_[i].side_ == rcss::rcg::RIGHT )
             {
                 float x = show.players_[i].x_;
                 if ( offside_r < x )
