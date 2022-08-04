@@ -220,7 +220,7 @@ TeamGraphic::createFromRawXpm( const char * const * xpm_data )
             std::snprintf( header, 31, "%zd %zd %zd 1", XpmTile::WIDTH, XpmTile::HEIGHT, color_set.size() );
             tile->setHeader( header );
 
-            for ( const std::string col : color_set )
+            for ( const std::string & col : color_set )
             {
                 tile->addColor( col.c_str() );
             }

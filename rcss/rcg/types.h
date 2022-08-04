@@ -1037,7 +1037,7 @@ struct PlayerT {
     */
     bool isFocusing() const
     {
-        return focus_side_ != 'n';
+        return focus_side_ != NEUTRAL;
     }
 
     /*!
