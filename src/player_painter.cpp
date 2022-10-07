@@ -161,6 +161,11 @@ PlayerPainter::drawAll( QPainter & painter,
         drawViewArea( painter, param );
     }
 
+    if ( player.hasFocusPoint() )
+    {
+        drawFocusPoint(painter, param);
+    }
+
     if ( player.isGoalie()
          && opt.showCatchArea() )
     {
@@ -481,6 +486,31 @@ PlayerPainter::drawViewArea( QPainter & painter,
                          visible_radius * 2,
                          view_start_angle,
                          span_angle );
+    }
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+void
+PlayerPainter::drawFocusPoint( QPainter & painter,
+                               const PlayerPainter::Param & param ) const
+{
+    const Options & opt = Options::instance();
+
+    if ( opt.selectedPlayer( param.player_.side(),
+                             param.player_.unum_ ) )
+    {
+        const int ix = opt.screenX( param.player_.focusPointX() );
+        const int iy = opt.screenY( param.player_.focusPointY() );
+
+        painter.setPen( QColor(255, 0, 0 ));
+        painter.setBrush( Qt::red );
+        painter.drawEllipse( ix - param.draw_radius_ / 2,
+                             iy - param.draw_radius_ / 2,
+                             param.draw_radius_ ,
+                             param.draw_radius_ );
     }
 }
 

@@ -311,6 +311,9 @@ ParserJSON::Impl::setPlayer( const nlohmann::json & player,
         if ( player.contains( "px" ) ) p->point_x_ = player.at( "px" );
         if ( player.contains( "py" ) ) p->point_y_ = player.at( "py" );
 
+        if ( player.contains("focusx") ) p->focus_point_x = player.at("focusx");
+        if ( player.contains("focusy") ) p->focus_point_y = player.at("focusy");
+
         p->view_width_ = player.at( "vw" );
 
         p->stamina_ = player.at( "stamina" );
@@ -332,6 +335,7 @@ ParserJSON::Impl::setPlayer( const nlohmann::json & player,
             p->tackle_count_ = counts.at( "tackle" );
             p->pointto_count_ = counts.at( "pointto" );
             p->attentionto_count_ = counts.at( "attentionto" );
+            if ( counts.contains("set_focus") ) p->set_focus_count_ = counts.at("set_focus");
         }
     }
     catch ( std::exception & e )

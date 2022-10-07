@@ -761,7 +761,8 @@ struct PlayerT {
     float neck_; //!< head direction relative to body (degree)
     float point_x_; //!< arm pointing x
     float point_y_; //!< arm pointing y
-
+    float focus_point_x; //!< focus point x
+    float focus_point_y; //!< focus point x
     float view_width_; //!< view width (degree). high: value>0, low: value<0
 
     float stamina_; //!< satamina value
@@ -780,6 +781,7 @@ struct PlayerT {
     UInt16 tackle_count_; //!< tackle command count
     UInt16 pointto_count_; //!< pointto command count
     UInt16 attentionto_count_; //!< attentionto command count
+    UInt16 set_focus_count_; //!< attentionto command count
 
     /*!
       \brief initialize all variables
@@ -800,6 +802,8 @@ struct PlayerT {
           neck_( SHOWINFO_SCALE2F ),
           point_x_( SHOWINFO_SCALE2F ),
           point_y_( SHOWINFO_SCALE2F ),
+          focus_point_x( SHOWINFO_SCALE2F),
+          focus_point_y( SHOWINFO_SCALE2F ),
           view_width_( SHOWINFO_SCALE2F ),
           stamina_( SHOWINFO_SCALE2F ),
           effort_( SHOWINFO_SCALE2F ),
@@ -815,7 +819,8 @@ struct PlayerT {
           say_count_( 0xFFFF ),
           tackle_count_( 0xFFFF ),
           pointto_count_( 0xFFFF ),
-          attentionto_count_( 0xFFFF )
+          attentionto_count_( 0xFFFF ),
+          set_focus_count_( 0xFFFF )
     { }
 
     /*!
@@ -920,6 +925,15 @@ struct PlayerT {
     bool hasArm() const
     {
         return point_x_ != SHOWINFO_SCALE2F;
+    }
+
+    /*!
+      \brief check if this object has arm information
+      \return checked result
+    */
+    bool hasFocusPoint() const
+    {
+        return focus_point_x != SHOWINFO_SCALE2F;
     }
 
     //
@@ -1112,6 +1126,9 @@ struct PlayerT {
     double pointX() const { return point_x_; }
     double pointY() const { return point_y_; }
 
+    double focusPointX() const { return focus_point_x; }
+    double focusPointY() const { return focus_point_y; }
+
     double viewWidth() const { return view_width_; }
 
     double stamina() const { return stamina_; }
@@ -1130,6 +1147,7 @@ struct PlayerT {
     int tackleCount() const { return tackle_count_; }
     int pointtoCount() const { return pointto_count_; }
     int attentiontoCount() const { return attentionto_count_; }
+    int setFocusCount() const { return set_focus_count_; }
 
     bool hasFullEffort( const double max_effort ) const
     {

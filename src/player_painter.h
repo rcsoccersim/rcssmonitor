@@ -97,6 +97,8 @@ private:
                   const PlayerPainter::Param & param ) const;
     void drawViewArea( QPainter & painter,
                        const PlayerPainter::Param & param ) const;
+    void drawFocusPoint( QPainter & painter,
+                         const PlayerPainter::Param & param ) const;
     void drawCatchArea( QPainter & painter,
                         const PlayerPainter::Param & param ) const;
     void drawTackleArea( QPainter & painter,
