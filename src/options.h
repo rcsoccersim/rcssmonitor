@@ -192,6 +192,7 @@ private:
     bool M_show_player_number;
     bool M_show_player_type;
     bool M_show_view_area;
+    bool M_show_focus_point;
     bool M_show_illegal_defense;
     bool M_show_catch_area;
     bool M_show_tackle_area;
@@ -392,6 +393,9 @@ public:
 
     bool showViewArea() const { return M_show_view_area; }
     void toggleShowViewArea() { M_show_view_area = ! M_show_view_area; }
+
+    bool showFocusPoint() const { return M_show_focus_point; }
+    void toggleShowFocusPoint() { M_show_focus_point = ! M_show_focus_point; }
 
     bool showIllegalDefense() const { return M_show_illegal_defense; }
     void toggleShowIllegalDefense() { M_show_illegal_defense = ! M_show_illegal_defense; }

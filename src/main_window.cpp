@@ -1082,6 +1082,14 @@ MainWindow::createConfigDialog()
                  M_config_dialog, SLOT( toggleShowViewArea() ) );
     }
     {
+        // v
+        QAction * act = new QAction( tr( "Show Focus Point" ), this );
+        act->setStatusTip( tr( "Show/Hide player's focus point." ) );
+        this->addAction( act );
+        connect( act, SIGNAL( triggered() ),
+                 M_config_dialog, SLOT( toggleShowFocusPoint() ) );
+    }
+    {
         // c
         QAction * act = new QAction( tr( "Show Catch Area" ), this );
         act->setShortcut( Qt::Key_C );

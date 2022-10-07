@@ -161,7 +161,8 @@ PlayerPainter::drawAll( QPainter & painter,
         drawViewArea( painter, param );
     }
 
-    if ( player.hasFocusPoint() )
+    if ( player.hasFocusPoint()
+         && opt.showFocusPoint())
     {
         drawFocusPoint(painter, param);
     }
