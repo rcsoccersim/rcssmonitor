@@ -87,7 +87,7 @@ Parser::create( std::istream & is )
         version = static_cast< int >( header[3] );
     }
 
-    if ( version == static_cast< int >( '0' ) + REC_VERSION_6 )
+    if ( version == static_cast< int >( '0' ) + REC_VERSION_7 )
     {
         // ParserV6 can parse the v6 format.
         std::cerr << "(rcss::rcg::Parser::crete) game log version = " << version - static_cast< int >( '0' ) << std::endl;

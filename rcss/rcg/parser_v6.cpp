@@ -75,7 +75,7 @@ ParserV6::parse( std::istream & is,
     }
 
     const int version = std::stoi( line.substr( 3 ) );
-    if ( version != REC_VERSION_6 )
+    if ( version != REC_VERSION_7 )
     {
         return false;
     }

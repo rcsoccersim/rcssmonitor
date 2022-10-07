@@ -700,6 +700,7 @@ constexpr int REC_VERSION_4 = 4; //!< The version number of rcg v4, which is wri
 constexpr int REC_VERSION_5 = 5; //!< The version number of rcg v5, which is written at the head of the file.
 constexpr int REC_VERSION_6 = 6; //!< The version number of rcg v6, which is written at the head of the file.
 constexpr int REC_VERSION_JSON = REC_VERSION_6; //!< The version number of json rcg.
+constexpr int REC_VERSION_7 = 7; //!< The version number of rcg v7, which is written at the head of the file.
 
 /*!
   \struct BallT
