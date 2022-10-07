@@ -172,9 +172,6 @@ ParserV6::parseShow( const int n_line,
     */
 
     ShowInfoT show;
-    std::cout<<"---------------------------"<<std::endl;
-    std::cout<<line.c_str()<<std::endl;
-    std::cout<<"---------------------------"<<std::endl;
     const char * buf = line.c_str();
     char * next = nullptr;
 
@@ -213,9 +210,6 @@ ParserV6::parseShow( const int n_line,
             handler.handlePlayMode( time, static_cast< PlayMode >( pm ) );
         }
     }
-    std::cout<<"---------------------------"<<std::endl;
-    std::cout<<buf<<std::endl;
-    std::cout<<"---------------------------"<<std::endl;
     //
     // team
     //
@@ -249,9 +243,6 @@ ParserV6::parseShow( const int n_line,
 
         handler.handleTeam( time, team_l, team_r );
     }
-    std::cout<<"---------------------------"<<std::endl;
-    std::cout<<buf<<std::endl;
-    std::cout<<"---------------------------"<<std::endl;
     // ball
     {
         // ((b) x y vx vy)
@@ -275,17 +266,11 @@ ParserV6::parseShow( const int n_line,
             return false;
         }
     }
-    std::cout<<"---------------------------"<<std::endl;
-    std::cout<<buf<<std::endl;
-    std::cout<<"---------------------------"<<std::endl;
     // players
     // ((side unum) type state x y vx vy body neck focuspointx focuspointy [pointx pointy] (v h 90) (s 4000 1 1)[(f side unum)])
-    //              (c 1 1 1 1 1 1 1 1 1 1 1))
+    //              (c 1 1 1 1 1 1 1 1 1 1 1 1 1))
     for ( int i = 0; i < MAX_PLAYER*2; ++i )
     {
-        std::cout<<"---------------------------"<<std::endl;
-        std::cout<<buf<<std::endl;
-        std::cout<<"---------------------------"<<std::endl;
         if ( *buf == '\0' || *buf == ')' ) break;
 
         // ((side unum)
@@ -376,7 +361,7 @@ ParserV6::parseShow( const int n_line,
             while ( *buf == ' ' ) ++buf;
         }
 
-        // (c kick dash turn catch move tneck cview say tackle pointto atttention)
+        // (c kick dash turn catch move tneck cview say tackle pointto atttention setfocus)
         while ( *buf == '(' ) ++buf;
         ++buf; // skip 'c' //while ( *buf != '\0' && *buf != ' ' ) ++buf;
         p.kick_count_ = static_cast< UInt16 >( std::strtol( buf, &next, 10 ) ); buf = next;
