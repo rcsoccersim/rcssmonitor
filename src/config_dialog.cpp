@@ -1188,6 +1188,9 @@ ConfigDialog::createColorItems()
     M_color_list_box->addItem( new ColorItem( tr( "Large View Area" ),
                                               o->largeViewAreaPen().color(),
                                               std::bind( &Options::setLargeViewAreaColor, o, _1 ) ) );
+    M_color_list_box->addItem( new ColorItem( tr( "Focus Point" ),
+                                              o->focusPointPen().color(),
+                                              std::bind( &Options::setFocusPointColor, o, _1 ) ) );
     M_color_list_box->addItem( new ColorItem( tr( "Ball Collision" ),
                                               o->ballCollideBrush().color(),
                                               std::bind( &Options::setBallCollideColor, o, _1 ) ) );

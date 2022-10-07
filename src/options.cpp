@@ -115,6 +115,7 @@ const QColor Options::PLAYER_NUMBER_INNER_COLOR( 0, 0, 0 );
 const QColor Options::NECK_COLOR( 255, 0, 0 );
 const QColor Options::VIEW_AREA_COLOR( 191, 239, 191 );
 const QColor Options::LARGE_VIEW_AREA_COLOR( 255, 255, 255 );
+const QColor Options::FOCUS_POINT_COLOR( 255, 255, 255 );
 const QColor Options::BALL_COLLIDE_COLOR( 255, 0, 0 );
 const QColor Options::PLAYER_COLLIDE_COLOR( 105, 155, 235 );
 const QColor Options::EFFORT_DECAYED_COLOR( 255, 0, 0 );
@@ -295,6 +296,7 @@ Options::Options()
     M_neck_pen( NECK_COLOR, 0, Qt::SolidLine ),
     M_view_area_pen( VIEW_AREA_COLOR, 0, Qt::SolidLine ),
     M_large_view_area_pen( LARGE_VIEW_AREA_COLOR, 0, Qt::SolidLine ),
+    M_focus_point_pen( FOCUS_POINT_COLOR, 0, Qt::SolidLine ),
     M_ball_collide_brush( BALL_COLLIDE_COLOR, Qt::SolidPattern ),
     M_player_collide_brush( PLAYER_COLLIDE_COLOR, Qt::SolidPattern ),
     M_effort_decayed_pen( EFFORT_DECAYED_COLOR, 0, Qt::SolidLine ),
@@ -619,6 +621,9 @@ Options::readSettings()
     val = settings.value( "large_view_area_pen" );
     if ( val.isValid() ) M_large_view_area_pen.setColor( val.toString() );
 
+    val = settings.value( "focus_point_pen" );
+    if ( val.isValid() ) M_focus_point_pen.setColor( val.toString() );
+
     val = settings.value( "ball_collide_brush" );
     if ( val.isValid() ) M_ball_collide_brush.setColor( val.toString() );
 
@@ -794,6 +799,7 @@ Options::writeSettings( bool all )
     settings.setValue( "neck_pen", M_neck_pen.color().name() );
     settings.setValue( "view_area_pen", M_view_area_pen.color().name() );
     settings.setValue( "large_view_area_pen", M_large_view_area_pen.color().name() );
+    settings.setValue( "focus_point_pen", M_focus_point_pen.color().name() );
     settings.setValue( "ball_collide_brush", M_ball_collide_brush.color().name() );
     settings.setValue( "effort_decayed_pen", M_effort_decayed_pen.color().name() );
     settings.setValue( "recovery_decayed_pen", M_recovery_decayed_pen.color().name() );
@@ -1448,6 +1454,7 @@ Options::setDefaultColor()
     M_neck_pen.setColor( NECK_COLOR );
     M_view_area_pen.setColor( VIEW_AREA_COLOR );
     M_large_view_area_pen.setColor( LARGE_VIEW_AREA_COLOR );
+    M_focus_point_pen.setColor( FOCUS_POINT_COLOR );
     M_ball_collide_brush.setColor( BALL_COLLIDE_COLOR );
     M_player_collide_brush.setColor( PLAYER_COLLIDE_COLOR );
     M_effort_decayed_pen.setColor( EFFORT_DECAYED_COLOR );

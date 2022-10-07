@@ -506,12 +506,16 @@ PlayerPainter::drawFocusPoint( QPainter & painter,
         const int ix = opt.screenX( param.player_.focusPointX() );
         const int iy = opt.screenY( param.player_.focusPointY() );
 
-        painter.setPen( QColor(255, 0, 0 ));
-        painter.setBrush( Qt::red );
+        painter.setPen( opt.focusPointPen());
+        painter.setBrush( Qt::NoBrush );
         painter.drawEllipse( ix - param.draw_radius_ / 2,
                              iy - param.draw_radius_ / 2,
                              param.draw_radius_ ,
                              param.draw_radius_ );
+        painter.drawEllipse( ix - param.draw_radius_,
+                             iy - param.draw_radius_,
+                             param.draw_radius_ * 2.0,
+                             param.draw_radius_ * 2.0);
     }
 }
 
