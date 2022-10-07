@@ -127,6 +127,7 @@ public:
     bool addDispInfoV1( const rcss::rcg::dispinfo_t & disp );
     bool addDispInfoV2( const rcss::rcg::dispinfo_t2 & disp );
     bool addDispInfoV3( const char * msg );
+    bool addDispInfoV6( const char * msg );
     bool addJSON( const char * msg );
 
 public:

@@ -42,6 +42,7 @@
 #include <rcss/rcg/util.h>
 #include <rcss/rcg/parser_v1.h>
 #include <rcss/rcg/parser_v4.h>
+#include <rcss/rcg/parser_v6.h>
 #include <rcss/rcg/parser_json.h>
 
 #ifdef HAVE_ARPA_INET_H
@@ -293,6 +294,19 @@ bool
 DispHolder::addDispInfoV3( const char * msg )
 {
     rcss::rcg::ParserV4 parser;
+    RCGHandler handler( nullptr, *this );
+    return parser.parseLine( -1, msg, handler );
+}
+
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+bool
+DispHolder::addDispInfoV6( const char * msg )
+{
+    rcss::rcg::ParserV6 parser;
     RCGHandler handler( nullptr, *this );
     return parser.parseLine( -1, msg, handler );
 }

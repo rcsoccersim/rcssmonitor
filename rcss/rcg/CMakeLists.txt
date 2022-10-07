@@ -6,6 +6,7 @@ add_library(rcssrcg SHARED
 	parser_v2.cpp
 	parser_v3.cpp
 	parser_v4.cpp
+	parser_v6.cpp
 	parser_json.cpp
 	util.cpp
 	types.cpp
@@ -45,6 +46,7 @@ install(FILES
   parser_v2.h
   parser_v3.h
   parser_v4.h
+  parser_v6.h
   types.h
   util.h
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/rcss/rcg
