@@ -276,7 +276,18 @@ PlayerTypeT::PlayerTypeT()
       effort_min_( 0.6 ),
       kick_power_rate_( 0.027 ),
       foul_detect_probability_( 0.5 ),
-      catchable_area_l_stretch_( 1.0 )
+      catchable_area_l_stretch_( 1.0 ),
+      ball_max_observation_length_( 125.096 ),
+      ball_vel_far_length_( 20 ),
+      ball_vel_too_far_length_( 40 ),
+      flag_chg_far_length_( 20 ),
+      flag_chg_too_far_length_( 40 ),
+      flag_max_observation_length_( 125.096 ),
+      player_max_observation_length_( 125.096 ),
+      team_far_length_( 125.096 ),
+      team_too_far_length_( 125.096 ),
+      unum_far_length_( 20 ),
+      unum_too_far_length_( 40 )
 {
     int_map_.insert( IntMap::value_type( "id", &id_ ) );
 
@@ -295,6 +306,18 @@ PlayerTypeT::PlayerTypeT()
     double_map_.insert( DoubleMap::value_type( "kick_power_rate", &kick_power_rate_ ) );
     double_map_.insert( DoubleMap::value_type( "foul_detect_probability", &foul_detect_probability_ ) );
     double_map_.insert( DoubleMap::value_type( "catchable_area_l_stretch", &catchable_area_l_stretch_ ) );
+    // 18.0.0
+    double_map_.insert( DoubleMap::value_type( "ball_max_observation_length", &ball_max_observation_length_ ) );
+    double_map_.insert( DoubleMap::value_type( "ball_vel_far_length", &ball_vel_far_length_ ) );
+    double_map_.insert( DoubleMap::value_type( "ball_vel_too_far_length", &ball_vel_too_far_length_ ) );
+    double_map_.insert( DoubleMap::value_type( "flag_chg_far_length", &flag_chg_far_length_ ) );
+    double_map_.insert( DoubleMap::value_type( "flag_chg_too_far_length", &flag_chg_too_far_length_ ) );
+    double_map_.insert( DoubleMap::value_type( "flag_max_observation_length", &flag_max_observation_length_ ) );
+    double_map_.insert( DoubleMap::value_type( "player_max_observation_length", &player_max_observation_length_ ) );
+    double_map_.insert( DoubleMap::value_type( "team_far_length", &team_far_length_ ) );
+    double_map_.insert( DoubleMap::value_type( "team_too_far_length", &team_too_far_length_ ) );
+    double_map_.insert( DoubleMap::value_type( "unum_far_length", &unum_far_length_ ) );
+    double_map_.insert( DoubleMap::value_type( "unum_too_far_length", &unum_too_far_length_ ) );
 }
 
 
@@ -318,6 +341,18 @@ PlayerTypeT::toSExp( std::ostream & os ) const
     to_sexp( os, "kick_power_rate", quantize( kick_power_rate_, 0.000001 ) );
     to_sexp( os, "foul_detect_probability", quantize( foul_detect_probability_, 0.000001 ) );
     to_sexp( os, "catchable_area_l_stretch", quantize( catchable_area_l_stretch_, 0.000001 ) );
+    // 18.0
+    to_sexp( os, "ball_max_observation_length", quantize( ball_max_observation_length_, 0.000001 ) );
+    to_sexp( os, "ball_vel_far_length", quantize( ball_vel_far_length_, 0.000001 ) );
+    to_sexp( os, "ball_vel_too_far_length", quantize( ball_vel_too_far_length_, 0.000001 ) );
+    to_sexp( os, "flag_chg_far_length", quantize( flag_chg_far_length_, 0.000001 ) );
+    to_sexp( os, "flag_chg_too_far_length", quantize( flag_chg_too_far_length_, 0.000001 ) );
+    to_sexp( os, "flag_max_observation_length", quantize( flag_max_observation_length_, 0.000001 ) );
+    to_sexp( os, "player_max_observation_length", quantize( player_max_observation_length_, 0.000001 ) );
+    to_sexp( os, "team_far_length", quantize( team_far_length_, 0.000001 ) );
+    to_sexp( os, "team_too_far_length", quantize( team_too_far_length_, 0.000001 ) );
+    to_sexp( os, "unum_far_length", quantize( unum_far_length_, 0.000001 ) );
+    to_sexp( os, "unum_too_far_length", quantize( unum_too_far_length_, 0.000001 ) );
     os << ')';
 
     return os;

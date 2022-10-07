@@ -1673,6 +1673,18 @@ struct PlayerTypeT {
     double foul_detect_probability_;
     double catchable_area_l_stretch_;
 
+    double ball_max_observation_length_;
+    double ball_vel_far_length_;
+    double ball_vel_too_far_length_;
+    double flag_chg_far_length_;
+    double flag_chg_too_far_length_;
+    double flag_max_observation_length_;
+    double player_max_observation_length_;
+    double team_far_length_;
+    double team_too_far_length_;
+    double unum_far_length_;
+    double unum_too_far_length_;
+
     PlayerTypeT();
 
     /*!
