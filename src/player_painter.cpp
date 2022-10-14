@@ -503,9 +503,11 @@ PlayerPainter::drawFocusPoint( QPainter & painter,
     if ( opt.selectedPlayer( param.player_.side(),
                              param.player_.unum_ ) )
     {
-        const int ix = opt.screenX( param.player_.focusPointX() );
-        const int iy = opt.screenY( param.player_.focusPointY() );
-
+        const double head = param.player_.body_ + param.player_.neck_ + param.player_.focusPointDir();
+        const double dist = param.player_.focusPointDist();
+        const Vector2D focus_point = Vector2D::polar2vector(dist, head);
+        const int ix = opt.screenX( param.player_.x() + focus_point.x );
+        const int iy = opt.screenY( param.player_.y() + focus_point.y );
         painter.setPen( opt.focusPointPen());
         painter.setBrush( Qt::NoBrush );
         painter.drawEllipse( ix - param.draw_radius_ / 2,
@@ -514,8 +516,8 @@ PlayerPainter::drawFocusPoint( QPainter & painter,
                              param.draw_radius_ );
         painter.drawEllipse( ix - param.draw_radius_,
                              iy - param.draw_radius_,
-                             param.draw_radius_ * 2.0,
-                             param.draw_radius_ * 2.0);
+                             param.draw_radius_ * 2,
+                             param.draw_radius_ * 2);
     }
 }
 

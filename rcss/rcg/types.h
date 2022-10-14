@@ -762,8 +762,8 @@ struct PlayerT {
     float neck_; //!< head direction relative to body (degree)
     float point_x_; //!< arm pointing x
     float point_y_; //!< arm pointing y
-    float focus_point_x; //!< focus point x
-    float focus_point_y; //!< focus point x
+    float focus_point_dir_; //!< focus point dir to neck
+    float focus_point_dist_; //!< focus point dist to player
     float view_width_; //!< view width (degree). high: value>0, low: value<0
 
     float stamina_; //!< satamina value
@@ -803,8 +803,8 @@ struct PlayerT {
           neck_( SHOWINFO_SCALE2F ),
           point_x_( SHOWINFO_SCALE2F ),
           point_y_( SHOWINFO_SCALE2F ),
-          focus_point_x( SHOWINFO_SCALE2F),
-          focus_point_y( SHOWINFO_SCALE2F ),
+          focus_point_dir_(SHOWINFO_SCALE2F),
+          focus_point_dist_(SHOWINFO_SCALE2F ),
           view_width_( SHOWINFO_SCALE2F ),
           stamina_( SHOWINFO_SCALE2F ),
           effort_( SHOWINFO_SCALE2F ),
@@ -934,7 +934,7 @@ struct PlayerT {
     */
     bool hasFocusPoint() const
     {
-        return focus_point_x != SHOWINFO_SCALE2F;
+        return focus_point_dir_ != SHOWINFO_SCALE2F;
     }
 
     //
@@ -1127,8 +1127,8 @@ struct PlayerT {
     double pointX() const { return point_x_; }
     double pointY() const { return point_y_; }
 
-    double focusPointX() const { return focus_point_x; }
-    double focusPointY() const { return focus_point_y; }
+    double focusPointDir() const { return focus_point_dir_; }
+    double focusPointDist() const { return focus_point_dist_; }
 
     double viewWidth() const { return view_width_; }
 

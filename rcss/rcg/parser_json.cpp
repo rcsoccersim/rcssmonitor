@@ -311,8 +311,8 @@ ParserJSON::Impl::setPlayer( const nlohmann::json & player,
         if ( player.contains( "px" ) ) p->point_x_ = player.at( "px" );
         if ( player.contains( "py" ) ) p->point_y_ = player.at( "py" );
 
-        if ( player.contains("focusx") ) p->focus_point_x = player.at("focusx");
-        if ( player.contains("focusy") ) p->focus_point_y = player.at("focusy");
+        if ( player.contains("focus_dir") ) p->focus_point_dir_ = player.at("focus_dir");
+        if ( player.contains("focus_dist") ) p->focus_point_dist_ = player.at("focus_dist");
 
         p->view_width_ = player.at( "vw" );
 
