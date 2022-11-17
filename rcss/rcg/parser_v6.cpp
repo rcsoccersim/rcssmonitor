@@ -267,7 +267,7 @@ ParserV6::parseShow( const int n_line,
         }
     }
     // players
-    // ((side unum) type state x y vx vy body neck focuspointx focuspointy [pointx pointy] (v h 90) (s 4000 1 1)[(f side unum)])
+    // ((side unum) type state x y vx vy body neck focuspointdist focuspointdir [pointx pointy] (v h 90) (s 4000 1 1)[(f side unum)])
     //              (c 1 1 1 1 1 1 1 1 1 1 1 1 1))
     for ( int i = 0; i < MAX_PLAYER*2; ++i )
     {
@@ -315,8 +315,9 @@ ParserV6::parseShow( const int n_line,
         p.vy_ = strtof( buf, &next ); buf = next;
         p.body_ = strtof( buf, &next ); buf = next;
         p.neck_ = strtof( buf, &next ); buf = next;
-        p.focus_point_dir_ = strtof(buf, &next ); buf = next;
         p.focus_point_dist_ = strtof(buf, &next ); buf = next;
+        p.focus_point_dir_ = strtof(buf, &next ); buf = next;
+
         while ( *buf == ' ' ) ++buf;
 
         // x y vx vy body neck
