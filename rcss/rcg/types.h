@@ -782,7 +782,7 @@ struct PlayerT {
     UInt16 tackle_count_; //!< tackle command count
     UInt16 pointto_count_; //!< pointto command count
     UInt16 attentionto_count_; //!< attentionto command count
-    UInt16 set_focus_count_; //!< attentionto command count
+    UInt16 change_focus_count_; //!< attentionto command count
 
     /*!
       \brief initialize all variables
@@ -821,7 +821,7 @@ struct PlayerT {
           tackle_count_( 0xFFFF ),
           pointto_count_( 0xFFFF ),
           attentionto_count_( 0xFFFF ),
-          set_focus_count_( 0xFFFF )
+          change_focus_count_( 0xFFFF )
     { }
 
     /*!
@@ -1148,7 +1148,7 @@ struct PlayerT {
     int tackleCount() const { return tackle_count_; }
     int pointtoCount() const { return pointto_count_; }
     int attentiontoCount() const { return attentionto_count_; }
-    int setFocusCount() const { return set_focus_count_; }
+    int changeFocusCount() const { return change_focus_count_; }
 
     bool hasFullEffort( const double max_effort ) const
     {
