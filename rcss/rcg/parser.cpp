@@ -100,19 +100,18 @@ Parser::create( std::istream & is )
     if ( version == static_cast< int >( '0' ) + REC_VERSION_6 )
     {
         // ParserV4 can parse the v6 format.
-        std::cerr << "(rcss::rcg::Parser::crete) game log version = " << version - static_cast< int >( '0' ) << std::endl;
+        std::cerr << "(rcss::rcg::Parser::crete) game log version = " << REC_VERSION_6 << std::endl;
         ptr = Parser::Ptr( new rcss::rcg::ParserV4() );
-
     }
     else if ( version == static_cast< int >( '0' ) + REC_VERSION_5 )
     {
         // ParserV4 can parse the v5 format.
-        std::cerr << "(rcss::rcg::Parser::crete) game log version = " << version - static_cast< int >( '0' ) << std::endl;
+        std::cerr << "(rcss::rcg::Parser::crete) game log version = " << REC_VERSION_5 << std::endl;
         ptr = Parser::Ptr( new rcss::rcg::ParserV4() );
     }
     else if ( version == static_cast< int >( '0' ) + REC_VERSION_4 )
     {
-        std::cerr << "(rcss::rcg::Parser::create) game log version = " << version - static_cast< int >( '0' ) << std::endl;
+        std::cerr << "(rcss::rcg::Parser::create) game log version = " << REC_VERSION_4 << std::endl;
         ptr = Parser::Ptr( new rcss::rcg::ParserV4() );
     }
     else if ( version == REC_VERSION_3 )

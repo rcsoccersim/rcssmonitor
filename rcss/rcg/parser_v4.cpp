@@ -76,7 +76,8 @@ ParserV4::parse( std::istream & is,
 
     const int version = std::stoi( line.substr( 3 ) );
     if ( version != REC_VERSION_4
-         && version != REC_VERSION_5 )
+         && version != REC_VERSION_5
+         && version != REC_VERSION_6 )
     {
         return false;
     }
@@ -335,9 +336,9 @@ ParserV4::parseShow( const int n_line,
         while ( *buf == ' ' ) ++buf;
         p.high_quality_ = ( *buf == 'h' ? true : false ); ++buf;
         p.view_width_ = strtof( buf, &next ); buf = next;
+        while ( *buf == ' ' || *buf == ')' ) ++buf;
 
         // (fp dist dir)
-        while ( *buf == ' ' ) ++buf;
         if ( ! std::strncmp( buf, "(fp ", 4 ) )
         {
             buf += 4;
