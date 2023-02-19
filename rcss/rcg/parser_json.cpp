@@ -335,6 +335,7 @@ ParserJSON::Impl::setPlayer( const nlohmann::json & player,
             p->tackle_count_ = counts.at( "tackle" );
             p->pointto_count_ = counts.at( "pointto" );
             p->attentionto_count_ = counts.at( "attentionto" );
+            if ( counts.contains( "change_focus" ) ) p->change_focus_count_ = counts.at( "change_focus" );
         }
     }
     catch ( std::exception & e )
