@@ -1454,7 +1454,8 @@ MainWindow::openGameLogFileImpl( const QString & filepath )
     timer.start();
 
     rcss::rcg::Parser::Ptr parser = rcss::rcg::Parser::create( fin );
-    if ( ! parser->parse( fin, handler ) )
+    if ( ! parser
+         || ! parser->parse( fin, handler ) )
     {
         return false;
     }
