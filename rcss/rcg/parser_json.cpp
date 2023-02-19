@@ -313,6 +313,9 @@ ParserJSON::Impl::setPlayer( const nlohmann::json & player,
 
         p->view_width_ = player.at( "vw" );
 
+        if ( player.contains( "fdist" ) ) p->focus_dist_ = player.at( "fdist" );
+        if ( player.contains( "fdir" ) ) p->focus_dir_ = player.at( "fdir" );
+
         p->stamina_ = player.at( "stamina" );
         p->effort_ = player.at( "effort" );
         p->recovery_ = player.at( "recovery" );
