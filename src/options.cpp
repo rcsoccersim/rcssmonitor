@@ -211,7 +211,7 @@ Options::Options()
     M_connect( true ),
     M_server_host( "127.0.0.1" ),
     M_server_port( 6000 ),
-    M_client_version( 4 ),
+    M_client_version( 5 ),
     M_auto_quit_mode( false ),
     M_auto_quit_wait( 5 ),
     M_auto_reconnect_mode( false ),
