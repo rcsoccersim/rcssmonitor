@@ -372,7 +372,7 @@ ParserV4::parseShow( const int n_line,
             while ( *buf == ' ' || *buf == ')' ) ++buf;
         }
 
-        // (c kick dash turn catch move tneck cview say tackle pointto atttention)
+        // (c kick dash turn catch move tneck cview say tackle pointto atttention[ change_focus])
         while ( *buf == '(' ) ++buf;
         ++buf; // skip 'c' //while ( *buf != '\0' && *buf != ' ' ) ++buf;
         p.kick_count_ = static_cast< UInt16 >( std::strtol( buf, &next, 10 ) ); buf = next;
@@ -386,6 +386,10 @@ ParserV4::parseShow( const int n_line,
         p.tackle_count_ = static_cast< UInt16 >( std::strtol( buf, &next, 10 ) ); buf = next;
         p.pointto_count_ = static_cast< UInt16 >( std::strtol( buf, &next, 10 ) ); buf = next;
         p.attentionto_count_ = static_cast< UInt16 >( std::strtol( buf, &next, 10 ) ); buf = next;
+        if ( *buf != ')' )
+        {
+            p.change_focus_count_ = static_cast< UInt16 >( std::strtol( buf, &next, 10 ) ); buf = next;
+        }
         while ( *buf == ')' ) ++buf;
         while ( *buf == ' ' ) ++buf;
 
