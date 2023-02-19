@@ -699,7 +699,8 @@ struct dispinfo_t2 {
 constexpr int REC_VERSION_4 = 4; //!< The version number of rcg v4, which is written at the head of the file.
 constexpr int REC_VERSION_5 = 5; //!< The version number of rcg v5, which is written at the head of the file.
 constexpr int REC_VERSION_6 = 6; //!< The version number of rcg v6, which is written at the head of the file.
-constexpr int REC_VERSION_JSON = REC_VERSION_6; //!< The version number of json rcg.
+
+constexpr int REC_VERSION_JSON = -1; //!< The version number of json rcg, which is written at the head of the file.
 
 /*!
   \struct BallT
