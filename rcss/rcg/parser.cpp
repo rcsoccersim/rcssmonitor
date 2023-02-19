@@ -84,7 +84,7 @@ Parser::create( std::istream & is )
          && header[2] == 'O'
          && header[3] == 'N' )
     {
-        std::cerr << "(rcss::rcg::Parser::create) game log version = " << version - static_cast< int >( '0' ) << " (json)" << std::endl;
+        std::cerr << "(rcss::rcg::Parser::create) game log version = json" << std::endl;
         ptr = Parser::Ptr( new ParserJSON() );
         return ptr;
     }
