@@ -115,6 +115,7 @@ const QColor Options::PLAYER_NUMBER_INNER_COLOR( 0, 0, 0 );
 const QColor Options::NECK_COLOR( 255, 0, 0 );
 const QColor Options::VIEW_AREA_COLOR( 191, 239, 191 );
 const QColor Options::LARGE_VIEW_AREA_COLOR( 255, 255, 255 );
+const QColor Options::FOCUS_POINT_COLOR( 255, 255, 255 );
 const QColor Options::BALL_COLLIDE_COLOR( 255, 0, 0 );
 const QColor Options::PLAYER_COLLIDE_COLOR( 105, 155, 235 );
 const QColor Options::EFFORT_DECAYED_COLOR( 255, 0, 0 );
@@ -210,7 +211,7 @@ Options::Options()
     M_connect( true ),
     M_server_host( "127.0.0.1" ),
     M_server_port( 6000 ),
-    M_client_version( 4 ),
+    M_client_version( 5 ),
     M_auto_quit_mode( false ),
     M_auto_quit_wait( 5 ),
     M_auto_reconnect_mode( false ),
@@ -240,6 +241,7 @@ Options::Options()
     M_show_player_number( true ),
     M_show_player_type( false ),
     M_show_view_area( false ),
+    M_show_focus_point( false ),
     M_show_illegal_defense( false ),
     M_show_catch_area( false ),
     M_show_tackle_area( false ),
@@ -294,6 +296,7 @@ Options::Options()
     M_neck_pen( NECK_COLOR, 0, Qt::SolidLine ),
     M_view_area_pen( VIEW_AREA_COLOR, 0, Qt::SolidLine ),
     M_large_view_area_pen( LARGE_VIEW_AREA_COLOR, 0, Qt::SolidLine ),
+    M_focus_point_pen( FOCUS_POINT_COLOR, 0, Qt::SolidLine ),
     M_ball_collide_brush( BALL_COLLIDE_COLOR, Qt::SolidPattern ),
     M_player_collide_brush( PLAYER_COLLIDE_COLOR, Qt::SolidPattern ),
     M_effort_decayed_pen( EFFORT_DECAYED_COLOR, 0, Qt::SolidLine ),
@@ -457,6 +460,9 @@ Options::readSettings()
     val = settings.value( "show_view_area" );
     if ( val.isValid() ) M_show_view_area = val.toBool();
 
+    val = settings.value( "show_focus_point" );
+    if ( val.isValid() ) M_show_focus_point = val.toBool();
+
     val = settings.value( "show_illegal_defense" );
     if ( val.isValid() ) M_show_illegal_defense = val.toBool();
 
@@ -615,6 +621,9 @@ Options::readSettings()
     val = settings.value( "large_view_area_pen" );
     if ( val.isValid() ) M_large_view_area_pen.setColor( val.toString() );
 
+    val = settings.value( "focus_point_pen" );
+    if ( val.isValid() ) M_focus_point_pen.setColor( val.toString() );
+
     val = settings.value( "ball_collide_brush" );
     if ( val.isValid() ) M_ball_collide_brush.setColor( val.toString() );
 
@@ -738,6 +747,7 @@ Options::writeSettings( bool all )
     settings.setValue( "show_player_type", M_show_player_type );
     settings.setValue( "show_view_area", M_show_view_area );
     settings.setValue( "show_illegal_defense", M_show_illegal_defense );
+    settings.setValue( "show_focus_point", M_show_focus_point );
     settings.setValue( "show_catch_area", M_show_catch_area );
     settings.setValue( "show_tackle_area", M_show_tackle_area );
     settings.setValue( "show_kick_accel_area", M_show_kick_accel_area );
@@ -789,6 +799,7 @@ Options::writeSettings( bool all )
     settings.setValue( "neck_pen", M_neck_pen.color().name() );
     settings.setValue( "view_area_pen", M_view_area_pen.color().name() );
     settings.setValue( "large_view_area_pen", M_large_view_area_pen.color().name() );
+    settings.setValue( "focus_point_pen", M_focus_point_pen.color().name() );
     settings.setValue( "ball_collide_brush", M_ball_collide_brush.color().name() );
     settings.setValue( "effort_decayed_pen", M_effort_decayed_pen.color().name() );
     settings.setValue( "recovery_decayed_pen", M_recovery_decayed_pen.color().name() );
@@ -958,6 +969,11 @@ Options::parseCmdLine( int argc,
                                            "bool",
                                            to_onoff( M_show_view_area ) );
     parser.addOption( opt_show_view_area );
+    QCommandLineOption opt_show_focus_point( "show-focus-point",
+                                           "Show player's focus point. (Default=" + to_onoff( M_show_focus_point ) + ")",
+                                           "bool",
+                                           to_onoff( M_show_focus_point ) );
+    parser.addOption( opt_show_focus_point );
     QCommandLineOption opt_show_illegal_defense( "show-illegal-defense",
                                                  "show player's illegal defense state. (Default=" + to_onoff( M_show_illegal_defense ) + ")",
                                                  "bool",
@@ -1069,6 +1085,7 @@ Options::parseCmdLine( int argc,
     if ( parser.isSet( opt_show_player_number ) ) M_show_player_number = to_bool( parser.value( opt_show_player_number ), M_show_player_number );
     if ( parser.isSet( opt_show_player_type ) ) M_show_player_type = to_bool( parser.value( opt_show_player_type ), M_show_player_type );
     if ( parser.isSet( opt_show_view_area ) ) M_show_view_area = to_bool( parser.value( opt_show_view_area ), M_show_view_area );
+    if ( parser.isSet( opt_show_focus_point ) ) M_show_focus_point = to_bool( parser.value( opt_show_focus_point ), M_show_focus_point );
     if ( parser.isSet( opt_show_illegal_defense ) ) M_show_illegal_defense = to_bool( parser.value( opt_show_illegal_defense ), M_show_illegal_defense );
     if ( parser.isSet( opt_show_catch_area ) ) M_show_catch_area = to_bool( parser.value( opt_show_catch_area ), M_show_catch_area );
     if ( parser.isSet( opt_show_tackle_area ) ) M_show_tackle_area = to_bool( parser.value( opt_show_tackle_area ), M_show_tackle_area );
@@ -1182,6 +1199,9 @@ Options::parseCmdLine( int argc,
         ( "show-view-area",
           po::value< bool >( &M_show_view_area )->default_value( M_show_view_area, to_onoff( M_show_view_area ) ),
           "show player\'s view area." )
+        ( "show-focus-point",
+          po::value< bool >( &M_show_focus_point )->default_value( M_show_focus_point, to_onoff( M_show_focus_point ) ),
+          "show player\'s focus point." )
         ( "show-illegal-defense",
           po::value< bool >( &M_show_illegal_defense )->default_value( M_show_illegal_defense, to_onoff( M_show_illegal_defense ) ),
           "show player\'s illegal defense state." )
@@ -1434,6 +1454,7 @@ Options::setDefaultColor()
     M_neck_pen.setColor( NECK_COLOR );
     M_view_area_pen.setColor( VIEW_AREA_COLOR );
     M_large_view_area_pen.setColor( LARGE_VIEW_AREA_COLOR );
+    M_focus_point_pen.setColor( FOCUS_POINT_COLOR );
     M_ball_collide_brush.setColor( BALL_COLLIDE_COLOR );
     M_player_collide_brush.setColor( PLAYER_COLLIDE_COLOR );
     M_effort_decayed_pen.setColor( EFFORT_DECAYED_COLOR );

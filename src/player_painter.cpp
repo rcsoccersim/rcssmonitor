@@ -155,10 +155,19 @@ PlayerPainter::drawAll( QPainter & painter,
     drawDir( painter, param );
 
     if ( player.hasNeck()
-         && player.hasView()
-         && opt.showViewArea() )
+         && player.hasView() )
     {
-        drawViewArea( painter, param );
+        if ( opt.showViewArea() )
+        {
+            drawViewArea( painter, param );
+        }
+
+        if ( opt.showFocusPoint()
+             && player.focusDist() > 1.0e-5
+             && opt.selectedPlayer( player.side(), player.unum_ ) )
+        {
+            drawFocusPoint( painter, param );
+        }
     }
 
     if ( player.isGoalie()
@@ -482,6 +491,32 @@ PlayerPainter::drawViewArea( QPainter & painter,
                          view_start_angle,
                          span_angle );
     }
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+void
+PlayerPainter::drawFocusPoint( QPainter & painter,
+                               const PlayerPainter::Param & param ) const
+{
+    const Options & opt = Options::instance();
+
+    const AngleDeg focus_angle = param.player_.body_ + param.player_.neck_ + param.player_.focus_dir_;
+    const Vector2D focus_point = Vector2D::from_polar( param.player_.focusDist(), focus_angle );
+
+    const int ix = opt.screenX( param.player_.x() + focus_point.x );
+    const int iy = opt.screenY( param.player_.y() + focus_point.y );
+
+    painter.setPen( opt.focusPointPen());
+    painter.setBrush( Qt::NoBrush );
+    painter.drawLine( param.x_, param.y_, ix, iy );
+    painter.drawEllipse( ix - param.draw_radius_,
+                         iy - param.draw_radius_,
+                         param.draw_radius_ * 2,
+                         param.draw_radius_ * 2 );
+
 }
 
 /*-------------------------------------------------------------------*/

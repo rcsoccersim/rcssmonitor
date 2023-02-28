@@ -121,6 +121,7 @@ public:
     static const QColor NECK_COLOR;
     static const QColor VIEW_AREA_COLOR;
     static const QColor LARGE_VIEW_AREA_COLOR;
+    static const QColor FOCUS_POINT_COLOR;
     static const QColor BALL_COLLIDE_COLOR;
     static const QColor PLAYER_COLLIDE_COLOR;
     static const QColor EFFORT_DECAYED_COLOR;
@@ -192,6 +193,7 @@ private:
     bool M_show_player_number;
     bool M_show_player_type;
     bool M_show_view_area;
+    bool M_show_focus_point;
     bool M_show_illegal_defense;
     bool M_show_catch_area;
     bool M_show_tackle_area;
@@ -265,6 +267,7 @@ private:
     QPen M_neck_pen;
     QPen M_view_area_pen;
     QPen M_large_view_area_pen;
+    QPen M_focus_point_pen;
     QBrush M_ball_collide_brush;
     QBrush M_player_collide_brush;
     QPen M_effort_decayed_pen;
@@ -392,6 +395,9 @@ public:
 
     bool showViewArea() const { return M_show_view_area; }
     void toggleShowViewArea() { M_show_view_area = ! M_show_view_area; }
+
+    bool showFocusPoint() const { return M_show_focus_point; }
+    void toggleShowFocusPoint() { M_show_focus_point = ! M_show_focus_point; }
 
     bool showIllegalDefense() const { return M_show_illegal_defense; }
     void toggleShowIllegalDefense() { M_show_illegal_defense = ! M_show_illegal_defense; }
@@ -619,6 +625,8 @@ public:
     void setViewAreaColor( const QColor & col ) { M_view_area_pen.setColor( col ); }
     const QPen & largeViewAreaPen() const { return M_large_view_area_pen; }
     void setLargeViewAreaColor( const QColor & col ) { M_large_view_area_pen.setColor( col ); }
+    const QPen & focusPointPen() const { return M_focus_point_pen; }
+    void setFocusPointColor( const QColor & col ) { M_focus_point_pen.setColor( col ); }
     const QBrush & ballCollideBrush() const { return M_ball_collide_brush; }
     void setBallCollideColor( const QColor & col ) { M_ball_collide_brush.setColor( col ); }
     const QBrush & playerCollideBrush() const { return M_player_collide_brush; }

@@ -699,7 +699,8 @@ struct dispinfo_t2 {
 constexpr int REC_VERSION_4 = 4; //!< The version number of rcg v4, which is written at the head of the file.
 constexpr int REC_VERSION_5 = 5; //!< The version number of rcg v5, which is written at the head of the file.
 constexpr int REC_VERSION_6 = 6; //!< The version number of rcg v6, which is written at the head of the file.
-constexpr int REC_VERSION_JSON = REC_VERSION_6; //!< The version number of json rcg.
+
+constexpr int REC_VERSION_JSON = -1; //!< The version number of json rcg, which is written at the head of the file.
 
 /*!
   \struct BallT
@@ -764,6 +765,9 @@ struct PlayerT {
 
     float view_width_; //!< view width (degree). high: value>0, low: value<0
 
+    float focus_dist_; //!< distance to the focus point
+    float focus_dir_; //!< direction to the focus point, relative to head (degree)
+
     float stamina_; //!< satamina value
     float effort_; //!< effort value
     float recovery_; //!< recovery value
@@ -780,6 +784,7 @@ struct PlayerT {
     UInt16 tackle_count_; //!< tackle command count
     UInt16 pointto_count_; //!< pointto command count
     UInt16 attentionto_count_; //!< attentionto command count
+    UInt16 change_focus_count_; //!< change_focus command count
 
     /*!
       \brief initialize all variables
@@ -815,7 +820,8 @@ struct PlayerT {
           say_count_( 0xFFFF ),
           tackle_count_( 0xFFFF ),
           pointto_count_( 0xFFFF ),
-          attentionto_count_( 0xFFFF )
+          attentionto_count_( 0xFFFF ),
+          change_focus_count_( 0xFFFF )
     { }
 
     /*!
@@ -1114,6 +1120,9 @@ struct PlayerT {
 
     double viewWidth() const { return view_width_; }
 
+    double focusDist() const { return focus_dist_; }
+    double focusDir() const { return focus_dir_; }
+
     double stamina() const { return stamina_; }
     double effort() const { return effort_; }
     double recovery() const { return recovery_; }
@@ -1130,6 +1139,7 @@ struct PlayerT {
     int tackleCount() const { return tackle_count_; }
     int pointtoCount() const { return pointto_count_; }
     int attentiontoCount() const { return attentionto_count_; }
+    int changeFocusCount() const { return change_focus_count_; }
 
     bool hasFullEffort( const double max_effort ) const
     {
@@ -1672,6 +1682,19 @@ struct PlayerTypeT {
     double kick_power_rate_;
     double foul_detect_probability_;
     double catchable_area_l_stretch_;
+
+    // v18
+    double unum_far_length_;
+    double unum_too_far_length_;
+    double team_far_length_;
+    double team_too_far_length_;
+    double player_max_observation_length_;
+    double ball_vel_far_length_;
+    double ball_vel_too_far_length_;
+    double ball_max_observation_length_;
+    double flag_chg_far_length_;
+    double flag_chg_too_far_length_;
+    double flag_max_observation_length_;
 
     PlayerTypeT();
 
