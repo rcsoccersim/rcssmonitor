@@ -146,6 +146,7 @@ private:
     // object size
     QLineEdit * M_ball_size_text;
     QLineEdit * M_player_size_text;
+    QLineEdit * M_focus_point_size_text;
 
     // canvas size control
     QLineEdit * M_canvas_width_text;
@@ -350,6 +351,7 @@ public slots:
 
     void editBallSize( const QString & text );
     void editPlayerSize( const QString & text );
+    void editFocusPointSize( const QString & text );
 
     void toggleFocusBall();
     void toggleFocusPlayer();

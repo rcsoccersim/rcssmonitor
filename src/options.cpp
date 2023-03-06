@@ -252,6 +252,7 @@ Options::Options()
     M_show_draw_info( true ),
     M_ball_size( 0.35 ),
     M_player_size( 0.0 ),
+    M_focus_point_size( 2.0 ),
     M_grid_step( 0.0 ),
     M_show_grid_coord( false ),
     M_team_graphic_scale( 1.0 ),
@@ -510,6 +511,9 @@ Options::readSettings()
     val = settings.value( "player_size", M_player_size );
     if ( val.isValid() ) M_player_size = val.toDouble();
 
+    val = settings.value( "focus_point_size", M_focus_point_size );
+    if ( val.isValid() ) M_focus_point_size = val.toDouble();
+
     val = settings.value( "team_graphic_scale", M_team_graphic_scale );
     if ( val.isValid() ) M_team_graphic_scale = val.toDouble();
 
@@ -766,6 +770,7 @@ Options::writeSettings( bool all )
     settings.beginGroup( "Size" );
     settings.setValue( "ball_size", M_ball_size );
     settings.setValue( "player_size", M_player_size );
+    settings.setValue( "focus_point_size", M_focus_point_size );
     settings.setValue( "team_graphic_scale", M_team_graphic_scale );
     settings.endGroup();
 
@@ -1024,6 +1029,11 @@ Options::parseCmdLine( int argc,
                                         "double",
                                         to_string( M_player_size ) );
     parser.addOption( opt_player_size );
+    QCommandLineOption opt_focus_point_size( "focus-point-size",
+                                             "Set the fixed focus point radius. (Default=" + to_string( M_focus_point_size ) + ")",
+                                             "double",
+                                             to_string( M_focus_point_size ) );
+    parser.addOption( opt_focus_point_size );
     QCommandLineOption opt_show_grid_coord( "show-grid-coord",
                                             "Show coordinates values of grid lines. (Default=" + to_onoff( M_show_grid_coord ) + ")",
                                             "bool",
@@ -1096,6 +1106,7 @@ Options::parseCmdLine( int argc,
     if ( parser.isSet( opt_show_card ) ) M_show_card = to_bool( parser.value( opt_show_card ), M_show_card );
     if ( parser.isSet( opt_ball_size ) ) M_ball_size = parser.value( opt_ball_size ).toDouble();
     if ( parser.isSet( opt_player_size ) ) M_player_size = parser.value( opt_player_size ).toDouble();
+    if ( parser.isSet( opt_focus_point_size ) ) M_focus_point_size = parser.value( opt_focus_point_size ).toDouble();
     if ( parser.isSet( opt_show_grid_coord ) ) M_show_grid_coord = to_bool( parser.value( opt_show_grid_coord ), M_show_grid_coord );
     if ( parser.isSet( opt_grid_step ) ) M_grid_step = parser.value( opt_grid_step ).toDouble();
     if ( parser.isSet( opt_show_flag ) ) M_show_flag = to_bool( parser.value( opt_show_flag ), M_show_flag );
@@ -1232,6 +1243,9 @@ Options::parseCmdLine( int argc,
         ( "player-size",
           po::value< double >( &M_player_size )->default_value( M_player_size, to_string( M_player_size ) ),
           "set a fixed player radius." )
+        ( "focus-point-size",
+          po::value< double >( &M_focus_point_size )->default_value( M_focus_point_size, to_string( M_focus_point_size ) ),
+          "set a fixed focus point radius." )
         ( "show-grid-coord",
           po::value< bool >( &M_show_grid_coord )->default_value( M_show_grid_coord, to_onoff( M_show_grid_coord ) ),
           "show coordinates value of grid lines." )
@@ -1407,6 +1421,11 @@ Options::checkConsistensy()
     if ( M_player_size < 0.0 )
     {
         M_player_size = 0.0;
+    }
+
+    if ( M_focus_point_size < 0.1 )
+    {
+        M_focus_point_size = 0.1;
     }
 
     if ( M_grid_step < 0.0 )
