@@ -208,6 +208,7 @@ private:
 
     double M_ball_size; //!< fixed ball radius
     double M_player_size; //!< fixed player radius
+    double M_focus_point_size; //!< fixed focus point radius
 
     double M_grid_step;
     bool M_show_grid_coord;
@@ -441,6 +442,13 @@ public:
       {
           if ( value < 0.0 ) return;
           M_player_size = value;
+      }
+
+    double focusPointSize() const { return M_focus_point_size; }
+    void setFocusPointSize( const double value )
+      {
+          if ( value < 0.1 ) return;
+          M_focus_point_size = value;
       }
 
     const double & gridStep() const { return M_grid_step; }

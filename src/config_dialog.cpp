@@ -439,7 +439,7 @@ ConfigDialog::createObjectSizeControls()
 
     QHBoxLayout * box = new QHBoxLayout();
     //
-    box->addWidget( new QLabel( tr( "Ball Size:" ) ) );
+    box->addWidget( new QLabel( tr( "Ball:" ) ) );
     //
     M_ball_size_text = new QLineEdit( tr( "0.35" ) );
     M_ball_size_text->setValidator( new QDoubleValidator( 0.01, 100.0, 3, M_ball_size_text ) );
@@ -448,14 +448,23 @@ ConfigDialog::createObjectSizeControls()
              this, SLOT( editBallSize( const QString & ) ) );
     box->addWidget( M_ball_size_text );
     //
-    box->addWidget( new QLabel( tr( " Player Size:" ) ) );
+    box->addWidget( new QLabel( tr( " Player:" ) ) );
     //
     M_player_size_text = new QLineEdit( tr( "0.0" ) );
-    M_player_size_text->setValidator( new QDoubleValidator( 0.0, 100.0, 3, M_ball_size_text ) );
+    M_player_size_text->setValidator( new QDoubleValidator( 0.0, 100.0, 3, M_player_size_text ) );
     M_player_size_text->setMaximumSize( 48, 24 );
     connect( M_player_size_text, SIGNAL( textChanged( const QString & ) ),
              this, SLOT( editPlayerSize( const QString & ) ) );
     box->addWidget( M_player_size_text );
+    //
+    box->addWidget( new QLabel( tr( " Focus Point:" ) ) );
+    //
+    M_focus_point_size_text = new QLineEdit( tr( "2.0" ) );
+    M_focus_point_size_text->setValidator( new QDoubleValidator( 0.1, 100.0, 3, M_focus_point_size_text ) );
+    M_focus_point_size_text->setMaximumSize( 48, 24 );
+    connect( M_focus_point_size_text, SIGNAL( textChanged( const QString & ) ),
+             this, SLOT( editFocusPointSize( const QString & ) ) );
+    box->addWidget( M_focus_point_size_text );
     //
     top_layout->addLayout( box );
 
@@ -1483,6 +1492,24 @@ ConfigDialog::editPlayerSize( const QString & text )
     if ( ok )
     {
         Options::instance().setPlayerSize( value );
+
+        emit configured();
+    }
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+void
+ConfigDialog::editFocusPointSize( const QString & text )
+{
+    bool ok = true;
+    double value = text.toDouble( &ok );
+
+    if ( ok )
+    {
+        Options::instance().setFocusPointSize( value );
 
         emit configured();
     }

@@ -508,14 +508,15 @@ PlayerPainter::drawFocusPoint( QPainter & painter,
 
     const int ix = opt.screenX( param.player_.x() + focus_point.x );
     const int iy = opt.screenY( param.player_.y() + focus_point.y );
+    const int r = opt.scale( opt.focusPointSize() );
 
     painter.setPen( opt.focusPointPen());
     painter.setBrush( Qt::NoBrush );
     painter.drawLine( param.x_, param.y_, ix, iy );
-    painter.drawEllipse( ix - param.draw_radius_,
-                         iy - param.draw_radius_,
-                         param.draw_radius_ * 2,
-                         param.draw_radius_ * 2 );
+    painter.drawEllipse( ix - r,
+                         iy - r,
+                         r * 2,
+                         r * 2 );
 
 }
 
