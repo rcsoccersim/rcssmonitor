@@ -1,3 +1,11 @@
+[18.0.0]
+  * Support the changes of JSON-based protocol. To use the JSON-based
+    monitor protocol, -1 is required for client-version.
+
+  * Support the monitor protocol version 5 (RCG version 6).
+
+  * Add options to draw the selected player's focus point.
+
 [17.0.0]
   * Remove dependency on Boost library.
 
