@@ -76,7 +76,8 @@ ParserV4::parse( std::istream & is,
 
     const int version = std::stoi( line.substr( 3 ) );
     if ( version != REC_VERSION_4
-         && version != REC_VERSION_5 )
+         && version != REC_VERSION_5
+         && version != REC_VERSION_6 )
     {
         return false;
     }
@@ -272,7 +273,7 @@ ParserV4::parseShow( const int n_line,
     }
 
     // players
-    // ((side unum) type state x y vx vy body neck [pointx pointy] (v h 90) (s 4000 1 1)[(f side unum)])
+    // ((side unum) type state x y vx vy body neck [pointx pointy] (v h 90) [(fp dist dir)] (s 4000 1 1)[(f side unum)])
     //              (c 1 1 1 1 1 1 1 1 1 1 1))
     for ( int i = 0; i < MAX_PLAYER*2; ++i )
     {
@@ -322,7 +323,7 @@ ParserV4::parseShow( const int n_line,
         p.neck_ = strtof( buf, &next ); buf = next;
         while ( *buf == ' ' ) ++buf;
 
-        // x y vx vy body neck
+        // arm
         if ( *buf != '\0' && *buf != '(' )
         {
             p.point_x_ = strtof( buf, &next ); buf = next;
@@ -335,6 +336,16 @@ ParserV4::parseShow( const int n_line,
         while ( *buf == ' ' ) ++buf;
         p.high_quality_ = ( *buf == 'h' ? true : false ); ++buf;
         p.view_width_ = strtof( buf, &next ); buf = next;
+        while ( *buf == ' ' || *buf == ')' ) ++buf;
+
+        // (fp dist dir)
+        if ( ! std::strncmp( buf, "(fp ", 4 ) )
+        {
+            buf += 4;
+            p.focus_dist_ = strtof( buf, &next ); buf = next;
+            p.focus_dir_ = strtof( buf, &next ); buf = next;
+            while ( *buf == ' ' || *buf == ')' ) ++buf;
+        }
 
         // (s stamina effort recovery[ capacity])
         while ( *buf != '\0' && *buf != 's' ) ++buf;
@@ -353,18 +364,16 @@ ParserV4::parseShow( const int n_line,
         while ( *buf != '\0' && *buf != '(' ) ++buf;
 
         // (f side unum)
-        if ( *(buf + 1) == 'f' )
+        if ( ! std::strncmp( buf, "(f ", 3 ) )
         {
-            while ( *buf != '\0' && *buf != ' ' ) ++buf;
+            buf += 3;
             while ( *buf == ' ' ) ++buf;
             p.focus_side_ = ( *buf == 'l' ? LEFT : *buf == 'r' ? RIGHT : NEUTRAL ); ++buf;
             p.focus_unum_ = static_cast< Int16 >( std::strtol( buf, &next, 10 ) ); buf = next;
-            while ( *buf == ' ' ) ++buf;
-            while ( *buf == ')' ) ++buf;
-            while ( *buf == ' ' ) ++buf;
+            while ( *buf == ' ' || *buf == ')' ) ++buf;
         }
 
-        // (c kick dash turn catch move tneck cview say tackle pointto atttention)
+        // (c kick dash turn catch move tneck cview say tackle pointto atttention[ change_focus])
         while ( *buf == '(' ) ++buf;
         ++buf; // skip 'c' //while ( *buf != '\0' && *buf != ' ' ) ++buf;
         p.kick_count_ = static_cast< UInt16 >( std::strtol( buf, &next, 10 ) ); buf = next;
@@ -378,6 +387,10 @@ ParserV4::parseShow( const int n_line,
         p.tackle_count_ = static_cast< UInt16 >( std::strtol( buf, &next, 10 ) ); buf = next;
         p.pointto_count_ = static_cast< UInt16 >( std::strtol( buf, &next, 10 ) ); buf = next;
         p.attentionto_count_ = static_cast< UInt16 >( std::strtol( buf, &next, 10 ) ); buf = next;
+        if ( *buf != ')' )
+        {
+            p.change_focus_count_ = static_cast< UInt16 >( std::strtol( buf, &next, 10 ) ); buf = next;
+        }
         while ( *buf == ')' ) ++buf;
         while ( *buf == ' ' ) ++buf;
 

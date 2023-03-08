@@ -70,15 +70,18 @@ MonitorClient::MonitorClient( QObject * parent,
 {
     assert( parent );
 
-    // check protocl versin range
-    if ( version < 1 )
+    // check protocol versin range
+    if ( version == -1 )
+    {
+        M_version = -1;
+    }
+    else if ( version < 1 )
     {
         M_version = 1;
     }
-
-    if ( 5 < version )
+    else if ( 5 < version )
     {
-        M_version = 4;
+        M_version = 5;
     }
 
     QHostInfo host = QHostInfo::fromName( QString::fromLatin1( hostname ) );
@@ -166,7 +169,7 @@ MonitorClient::handleReceive()
 {
     int receive_count = 0;
 
-    if ( M_version >= 5 )
+    if ( M_version == -1 ) // JSON
     {
         char buf[8192];
         while ( M_socket->hasPendingDatagrams() )
@@ -198,7 +201,7 @@ MonitorClient::handleReceive()
             ++receive_count;
         }
     }
-    else if ( M_version >= 3 )
+    else if ( M_version >= 3 ) // S-Expression
     {
         char buf[8192];
         while ( M_socket->hasPendingDatagrams() )
@@ -230,7 +233,7 @@ MonitorClient::handleReceive()
             ++receive_count;
         }
     }
-    else if ( M_version == 2 )
+    else if ( M_version == 2 ) // binary format v2
     {
         rcss::rcg::dispinfo_t2 disp2;
         while ( M_socket->hasPendingDatagrams() )
@@ -263,7 +266,7 @@ MonitorClient::handleReceive()
             ++receive_count;
         }
     }
-    else if ( M_version == 1 )
+    else if ( M_version == 1 ) // binary format v1
     {
         rcss::rcg::dispinfo_t disp1;
         while ( M_socket->hasPendingDatagrams() )

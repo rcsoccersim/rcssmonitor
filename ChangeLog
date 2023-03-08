@@ -1,3 +1,10 @@
+2023-03-07  Hidehisa Akiyama  <hidehisaakiyama@users.noreply.github.com>
+
+	* CMakeLists.txt:
+	* NEWS:
+	* configurea.ac:
+	- updated a major version number. Official release 18.0.0.
+
 2022-04-02  Hidehisa Akiyama  <hidehisaakiyama@users.noreply.github.com>
 
 	* CMakeLists.txt:

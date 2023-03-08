@@ -439,7 +439,7 @@ ConfigDialog::createObjectSizeControls()
 
     QHBoxLayout * box = new QHBoxLayout();
     //
-    box->addWidget( new QLabel( tr( "Ball Size:" ) ) );
+    box->addWidget( new QLabel( tr( "Ball:" ) ) );
     //
     M_ball_size_text = new QLineEdit( tr( "0.35" ) );
     M_ball_size_text->setValidator( new QDoubleValidator( 0.01, 100.0, 3, M_ball_size_text ) );
@@ -448,14 +448,23 @@ ConfigDialog::createObjectSizeControls()
              this, SLOT( editBallSize( const QString & ) ) );
     box->addWidget( M_ball_size_text );
     //
-    box->addWidget( new QLabel( tr( " Player Size:" ) ) );
+    box->addWidget( new QLabel( tr( " Player:" ) ) );
     //
     M_player_size_text = new QLineEdit( tr( "0.0" ) );
-    M_player_size_text->setValidator( new QDoubleValidator( 0.0, 100.0, 3, M_ball_size_text ) );
+    M_player_size_text->setValidator( new QDoubleValidator( 0.0, 100.0, 3, M_player_size_text ) );
     M_player_size_text->setMaximumSize( 48, 24 );
     connect( M_player_size_text, SIGNAL( textChanged( const QString & ) ),
              this, SLOT( editPlayerSize( const QString & ) ) );
     box->addWidget( M_player_size_text );
+    //
+    box->addWidget( new QLabel( tr( " Focus Point:" ) ) );
+    //
+    M_focus_point_size_text = new QLineEdit( tr( "2.0" ) );
+    M_focus_point_size_text->setValidator( new QDoubleValidator( 0.1, 100.0, 3, M_focus_point_size_text ) );
+    M_focus_point_size_text->setMaximumSize( 48, 24 );
+    connect( M_focus_point_size_text, SIGNAL( textChanged( const QString & ) ),
+             this, SLOT( editFocusPointSize( const QString & ) ) );
+    box->addWidget( M_focus_point_size_text );
     //
     top_layout->addLayout( box );
 
@@ -601,6 +610,20 @@ ConfigDialog::createPlayerInfoControls()
                  this, SLOT( clickShowViewArea( bool ) ) );
         layout->addWidget( M_view_area_cb );
 
+        //
+        M_focus_point_cb = new QCheckBox( tr( "Focus Point" ) );
+        M_focus_point_cb->setChecked( Options::instance().showFocusPoint() );
+        connect( M_focus_point_cb, SIGNAL( clicked( bool ) ),
+                 this, SLOT( clickShowFocusPoint( bool ) ) );
+        layout->addWidget( M_focus_point_cb );
+
+        top_layout->addLayout( layout );
+    }
+
+    {
+        QHBoxLayout * layout = new QHBoxLayout();
+        layout->setMargin( 0 );
+        layout->setSpacing( 0 );
         //
         M_catch_area_cb = new QCheckBox( tr( "Catch Area" ) );
         M_catch_area_cb->setChecked( Options::instance().showCatchArea() );
@@ -1182,6 +1205,9 @@ ConfigDialog::createColorItems()
     M_color_list_box->addItem( new ColorItem( tr( "Large View Area" ),
                                               o->largeViewAreaPen().color(),
                                               std::bind( &Options::setLargeViewAreaColor, o, _1 ) ) );
+    M_color_list_box->addItem( new ColorItem( tr( "Focus Point" ),
+                                              o->focusPointPen().color(),
+                                              std::bind( &Options::setFocusPointColor, o, _1 ) ) );
     M_color_list_box->addItem( new ColorItem( tr( "Ball Collision" ),
                                               o->ballCollideBrush().color(),
                                               std::bind( &Options::setBallCollideColor, o, _1 ) ) );
@@ -1304,6 +1330,7 @@ ConfigDialog::updateAll()
     M_player_type_cb->setChecked( opt.showPlayerType() );
     M_stamina_cb->setChecked( opt.showStamina() );
     M_view_area_cb->setChecked( opt.showViewArea() );
+    M_focus_point_cb->setChecked( opt.showFocusPoint() );
     M_catch_area_cb->setChecked( opt.showCatchArea() );
     M_tackle_area_cb->setChecked( opt.showTackleArea() );
     M_kick_accel_area_cb->setChecked( opt.showKickAccelArea() );
@@ -1465,6 +1492,24 @@ ConfigDialog::editPlayerSize( const QString & text )
     if ( ok )
     {
         Options::instance().setPlayerSize( value );
+
+        emit configured();
+    }
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+void
+ConfigDialog::editFocusPointSize( const QString & text )
+{
+    bool ok = true;
+    double value = text.toDouble( &ok );
+
+    if ( ok )
+    {
+        Options::instance().setFocusPointSize( value );
 
         emit configured();
     }
@@ -1881,6 +1926,34 @@ ConfigDialog::toggleShowViewArea()
 {
     Options::instance().toggleShowViewArea();
     M_view_area_cb->setChecked( Options::instance().showViewArea() );
+
+    emit configured();
+}
+
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+void
+ConfigDialog::clickShowFocusPoint( bool checked )
+{
+    if ( Options::instance().showFocusPoint() != checked )
+    {
+        Options::instance().toggleShowFocusPoint();
+        emit configured();
+    }
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+void
+ConfigDialog::toggleShowFocusPoint()
+{
+    Options::instance().toggleShowFocusPoint();
+    M_focus_point_cb->setChecked( Options::instance().showFocusPoint() );
 
     emit configured();
 }
