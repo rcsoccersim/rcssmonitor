@@ -28,8 +28,8 @@ target_compile_options(rcssrcg
 
 
 set_target_properties(rcssrcg PROPERTIES
-  VERSION 17.0.0
-  SOVERSION 17
+  VERSION 18.0.0
+  SOVERSION 18
   )
 
 install(TARGETS rcssrcg LIBRARY
