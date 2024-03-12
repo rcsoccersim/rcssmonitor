@@ -61,6 +61,10 @@ struct ParserJSON::Impl {
 
     bool parseHeader( const nlohmann::json & data,
                       Handler & handler );
+    bool parseServerVersion( const nlohmann::json & data,
+                             Handler & handler );
+    bool parseTimeStamp( const nlohmann::json & data,
+                         Handler & handler );
 
     bool parseShow( const nlohmann::json & data,
                     Handler & handler );
@@ -110,6 +114,8 @@ ParserJSON::Impl::Impl()
     using std::placeholders::_1;
     using std::placeholders::_2;
 
+    funcs_["version"] = std::bind( &Impl::parseServerVersion, this, _1, _2 );
+    funcs_["timestamp"] = std::bind( &Impl::parseTimeStamp, this, _1, _2 );
     funcs_["show"] = std::bind( &Impl::parseShow, this, _1, _2 );
     funcs_["playmode"] = std::bind( &Impl::parsePlayMode, this, _1, _2 );
     funcs_["team"] = std::bind( &Impl::parseTeam, this, _1, _2 );
@@ -129,24 +135,48 @@ bool
 ParserJSON::Impl::parseData( const nlohmann::json & data,
                              Handler & handler )
 {
-    if ( ! data.contains( "type" ) )
+    std::cerr << "(parseData) " << std::endl;
+    if ( ! data.is_object() )
     {
         return false;
     }
 
-    std::unordered_map< std::string, Func >::iterator it = funcs_.find( data.at( "type" ) );
+    if ( data.empty() )
+    {
+        return false;
+    }
+
+    std::cerr << "data key = " << data.begin().key() << std::endl;
+
+    std::unordered_map< std::string, Func >::iterator it = funcs_.find( data.begin().key() );
     if ( it == funcs_.end() )
     {
         return false;
     }
 
-    return it->second( data, handler );
+    return it->second( data.begin().value(), handler );
 }
 
 /*-------------------------------------------------------------------*/
 bool
 ParserJSON::Impl::parseHeader( const nlohmann::json & /*data*/,
                                Handler & /*handler*/ )
+{
+    return true;
+}
+
+/*-------------------------------------------------------------------*/
+bool
+ParserJSON::Impl::parseServerVersion( const nlohmann::json & /*data*/,
+                                      Handler & /*handler*/ )
+{
+    return true;
+}
+
+/*-------------------------------------------------------------------*/
+bool
+ParserJSON::Impl::parseTimeStamp( const nlohmann::json & /*data*/,
+                                  Handler & /*handler*/ )
 {
     return true;
 }
@@ -169,7 +199,7 @@ ParserJSON::Impl::parseShow( const nlohmann::json & data,
                   << e.what() << std::endl;
         return false;
     }
-
+    std::cerr << "(parseShow) " << time << std::endl;
     ShowInfoT show;
 
     show.time_ = time;
@@ -496,9 +526,9 @@ ParserJSON::Impl::parseTeamGraphic( const nlohmann::json & data,
         const int x = data.at( "x" );
         const int y = data.at( "y" );
 
-        //for ( const nlohmann::json & str : data.at( "xpm" ) )
-        for ( const std::string & str : data.at( "xpm" ) )
+        for ( const nlohmann::json & v : data.at( "xpm" ) )
         {
+            const std::string str = v;
             if ( ! tile->addData( str.c_str() ) )
             {
                 return false;
@@ -522,7 +552,7 @@ ParserJSON::Impl::parseServerParam( const nlohmann::json & data,
                                     Handler & handler )
 {
     ServerParamT server_param;
-    for ( const auto & param : data.at( "params" ).items() )
+    for ( const auto & param : data.items() )
     {
         if ( param.value().is_number_integer() )
         {
@@ -555,7 +585,7 @@ ParserJSON::Impl::parsePlayerParam( const nlohmann::json & data,
                                     Handler & handler )
 {
     PlayerParamT player_param;
-    for ( const auto & param : data.at( "params" ).items() )
+    for ( const auto & param : data.items() )
     {
         if ( param.value().is_number_integer() )
         {
@@ -601,8 +631,13 @@ ParserJSON::Impl::parsePlayerType( const nlohmann::json & data,
         return true;
     }
 
-    for ( const auto & param : data.at( "params" ).items() )
+    for ( const auto & param : data.items() )
     {
+        if ( param.key() == "id" )
+        {
+            continue;
+        }
+
         if ( param.value().is_number() )
         {
             ptype.setDouble( param.key(), param.value().get< double >() );
@@ -642,7 +677,7 @@ ParserJSON::parse( std::istream & is,
 
 
     std::string line;
-    std::getline( is, line ); // skip the first line, "ULG6"
+    //std::getline( is, line ); // skip the first line, "ULG6"
 
     nlohmann::json rcg;
     try
