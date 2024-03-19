@@ -61,10 +61,6 @@ struct ParserJSON::Impl {
 
     bool parseHeader( const nlohmann::json & data,
                       Handler & handler );
-    bool parseServerVersion( const nlohmann::json & data,
-                             Handler & handler );
-    bool parseTimeStamp( const nlohmann::json & data,
-                         Handler & handler );
 
     bool parseShow( const nlohmann::json & data,
                     Handler & handler );
@@ -114,8 +110,6 @@ ParserJSON::Impl::Impl()
     using std::placeholders::_1;
     using std::placeholders::_2;
 
-    funcs_["version"] = std::bind( &Impl::parseServerVersion, this, _1, _2 );
-    funcs_["timestamp"] = std::bind( &Impl::parseTimeStamp, this, _1, _2 );
     funcs_["show"] = std::bind( &Impl::parseShow, this, _1, _2 );
     funcs_["playmode"] = std::bind( &Impl::parsePlayMode, this, _1, _2 );
     funcs_["team"] = std::bind( &Impl::parseTeam, this, _1, _2 );
@@ -127,7 +121,8 @@ ParserJSON::Impl::Impl()
     funcs_["player_param"] = std::bind( &Impl::parsePlayerParam, this, _1, _2 );
     funcs_["player_type"] = std::bind( &Impl::parsePlayerType, this, _1, _2 );
 
-    funcs_["header"] = std::bind( &Impl::parseHeader, this, _1, _2 );
+    funcs_["version"] = std::bind( &Impl::parseHeader, this, _1, _2 );
+    funcs_["timestamp"] = std::bind( &Impl::parseHeader, this, _1, _2 );
 }
 
 /*-------------------------------------------------------------------*/
@@ -135,48 +130,42 @@ bool
 ParserJSON::Impl::parseData( const nlohmann::json & data,
                              Handler & handler )
 {
-    std::cerr << "(parseData) " << std::endl;
+    //if ( ! data.contains( "type" ) )
     if ( ! data.is_object() )
     {
+        std::cerr << "(ParserJSON::parseData) is_object = false" << std::endl;
         return false;
     }
 
-    if ( data.empty() )
+    for ( const auto & elem : data.items() )
     {
-        return false;
+        std::unordered_map< std::string, Func >::iterator it = funcs_.find( elem.key() );
+        if ( it == funcs_.end() )
+        {
+            return false;
+        }
+
+        if ( ! it->second( elem.value(), handler ) )
+        {
+            return false;
+        }
     }
 
-    std::cerr << "data key = " << data.begin().key() << std::endl;
+    return true;
+    // std::unordered_map< std::string, Func >::iterator it = funcs_.find( data.at( "type" ) );
+    // if ( it == funcs_.end() )
+    // {
+    //     return false;
+    // }
 
-    std::unordered_map< std::string, Func >::iterator it = funcs_.find( data.begin().key() );
-    if ( it == funcs_.end() )
-    {
-        return false;
-    }
-
-    return it->second( data.begin().value(), handler );
+    // return it->second( data, handler );
+    return true;
 }
 
 /*-------------------------------------------------------------------*/
 bool
 ParserJSON::Impl::parseHeader( const nlohmann::json & /*data*/,
                                Handler & /*handler*/ )
-{
-    return true;
-}
-
-/*-------------------------------------------------------------------*/
-bool
-ParserJSON::Impl::parseServerVersion( const nlohmann::json & /*data*/,
-                                      Handler & /*handler*/ )
-{
-    return true;
-}
-
-/*-------------------------------------------------------------------*/
-bool
-ParserJSON::Impl::parseTimeStamp( const nlohmann::json & /*data*/,
-                                  Handler & /*handler*/ )
 {
     return true;
 }
@@ -199,7 +188,7 @@ ParserJSON::Impl::parseShow( const nlohmann::json & data,
                   << e.what() << std::endl;
         return false;
     }
-    std::cerr << "(parseShow) " << time << std::endl;
+
     ShowInfoT show;
 
     show.time_ = time;
@@ -214,10 +203,10 @@ ParserJSON::Impl::parseShow( const nlohmann::json & data,
         }
     }
 
-    if ( data.contains( "teams" ) )
+    if ( data.contains( "team" ) )
     {
         TeamT team_l, team_r;
-        setTeams( data.at( "teams" ), team_l, team_r );
+        setTeams( data.at( "team" ), team_l, team_r );
         if ( ! handler.handleTeam( time, team_l, team_r ) )
         {
             return false;
@@ -435,8 +424,9 @@ ParserJSON::Impl::parseTeam( const nlohmann::json & data,
     try
     {
         time = data.at( "time" );
-        const nlohmann::json & teams = data.at( "teams" );
-        if ( ! setTeams( teams, team_l, team_r ) )
+        //const nlohmann::json & teams = data.at( "team" );
+        //if ( ! setTeams( teams, team_l, team_r ) )
+        if ( ! setTeams( data, team_l, team_r ) )
         {
             return false;
         }
@@ -458,7 +448,7 @@ ParserJSON::Impl::setTeams( const nlohmann::json & teams,
                             TeamT & team_l,
                             TeamT & team_r )
 {
-    if ( ! teams.is_array() )
+    if ( ! teams.is_object() )
     {
         std::cerr << "(rcss::rcg::ParserJSON::Impl::setTeams) No array in team data." << std::endl;
         return false;
@@ -466,8 +456,8 @@ ParserJSON::Impl::setTeams( const nlohmann::json & teams,
 
     try
     {
-        const nlohmann::json & data_l = teams.at( 0 );
-        const nlohmann::json & data_r = teams.at( 1 );
+        const nlohmann::json & data_l = teams.at( "l" );
+        const nlohmann::json & data_r = teams.at( "r" );
 
         team_l.name_ = data_l.at( "name" ).is_null() ? "null" : data_l.at( "name" );
         team_l.score_ = data_l.at( "score" );
@@ -526,9 +516,15 @@ ParserJSON::Impl::parseTeamGraphic( const nlohmann::json & data,
         const int x = data.at( "x" );
         const int y = data.at( "y" );
 
-        for ( const nlohmann::json & v : data.at( "xpm" ) )
+        //for ( const nlohmann::json & str : data.at( "xpm" ).items() )
+        //for ( const std::string & str : data.at( "xpm" ) )
+        for ( const auto & elem : data.at( "xpm" ).items() )
         {
-            const std::string str = v;
+            // if ( ! str.is_string() )
+            // {
+            //     return false;
+            // }
+            const std::string str = elem.value();
             if ( ! tile->addData( str.c_str() ) )
             {
                 return false;
@@ -552,6 +548,7 @@ ParserJSON::Impl::parseServerParam( const nlohmann::json & data,
                                     Handler & handler )
 {
     ServerParamT server_param;
+    //for ( const auto & param : data.at( "params" ).items() )
     for ( const auto & param : data.items() )
     {
         if ( param.value().is_number_integer() )
@@ -585,6 +582,7 @@ ParserJSON::Impl::parsePlayerParam( const nlohmann::json & data,
                                     Handler & handler )
 {
     PlayerParamT player_param;
+    //for ( const auto & param : data.at( "params" ).items() )
     for ( const auto & param : data.items() )
     {
         if ( param.value().is_number_integer() )
@@ -631,10 +629,12 @@ ParserJSON::Impl::parsePlayerType( const nlohmann::json & data,
         return true;
     }
 
+    //for ( const auto & param : data.at( "params" ).items() )
     for ( const auto & param : data.items() )
     {
         if ( param.key() == "id" )
         {
+            ptype.id_ = param.value();
             continue;
         }
 
@@ -676,7 +676,7 @@ ParserJSON::parse( std::istream & is,
     }
 
 
-    std::string line;
+    //std::string line;
     //std::getline( is, line ); // skip the first line, "ULG6"
 
     nlohmann::json rcg;
@@ -705,6 +705,7 @@ ParserJSON::parse( std::istream & is,
         }
     }
 
+    std::string line;
     while ( std::getline( is, line ) )
     {
         // skip all
