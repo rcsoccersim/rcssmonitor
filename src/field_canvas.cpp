@@ -158,7 +158,7 @@ FieldCanvas::mousePressEvent( QMouseEvent * event )
 
         // selectPlayer( event->pos() );
     }
-    else if ( event->button() == Qt::MidButton )
+    else if ( event->button() == Qt::MiddleButton )
     {
         M_mouse_state[1].pressed( event->pos() );
         if ( M_mouse_state[1].isMenuFailed() )
@@ -189,7 +189,7 @@ FieldCanvas::mouseReleaseEvent( QMouseEvent * event )
     {
         M_mouse_state[0].released();
     }
-    else if ( event->button() == Qt::MidButton )
+    else if ( event->button() == Qt::MiddleButton )
     {
         M_mouse_state[1].released();
     }

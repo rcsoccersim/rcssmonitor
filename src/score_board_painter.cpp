@@ -142,13 +142,13 @@ ScoreBoardPainter::draw( QPainter & painter )
 
     if ( ! show_pen_score )
     {
-        main_buf.sprintf( " %10s %d:%d %-10s %19s %6d    ",
-                          all_name_l.c_str(),
-                          team_l.score_,
-                          team_r.score_,
-                          all_name_r.c_str(),
-                          s_playmode_strings[pmode].c_str(),
-                          current_time );
+        main_buf.asprintf( " %10s %d:%d %-10s %19s %6d    ",
+                           all_name_l.c_str(),
+                           team_l.score_,
+                           team_r.score_,
+                           all_name_r.c_str(),
+                           s_playmode_strings[pmode].c_str(),
+                           current_time );
     }
     else
     {
@@ -191,14 +191,14 @@ ScoreBoardPainter::draw( QPainter & painter )
             }
         }
 
-        main_buf.sprintf( " %10s %d:%d |%-5s:%-5s| %-10s %19s %6d",
-                          all_name_l.c_str(),
-                          team_l.score_, team_r.score_,
-                          left_penalty.c_str(),
-                          right_penalty.c_str(),
-                          all_name_r.c_str(),
-                          s_playmode_strings[pmode].c_str(),
-                          current_time );
+        main_buf.asprintf( " %10s %d:%d |%-5s:%-5s| %-10s %19s %6d",
+                           all_name_l.c_str(),
+                           team_l.score_, team_r.score_,
+                           left_penalty.c_str(),
+                           right_penalty.c_str(),
+                           all_name_r.c_str(),
+                           s_playmode_strings[pmode].c_str(),
+                           current_time );
     }
 
     //painter.setFont( M_font );

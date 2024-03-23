@@ -908,7 +908,11 @@ ConfigDialog::createPlayerSelectionControls()
             M_player_choice->addItem( QString( "Right number: %1" ).arg( i ) );
         }
         M_player_choice->setCurrentIndex( 0 );
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0))
+        int id_width = this->fontMetrics().horizontalAdvance( tr( "Right Number: 11" ) );
+#else
         int id_width = this->fontMetrics().width( tr( "Right Number: 11" ) );
+#endif
         M_player_choice->setMaximumWidth( id_width + 40 );
         connect( M_player_choice, SIGNAL( currentIndexChanged( int ) ),
                  this, SLOT( choicePlayer( int ) ) );
@@ -1112,7 +1116,11 @@ ConfigDialog::createColorList()
 
     createColorItems();
 
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0))
+    int font_width = this->fontMetrics().horizontalAdvance( tr( "Score Board Background" ) );
+#else
     int font_width = this->fontMetrics().width( tr( "Score Board Background" ) );
+#endif
     M_color_list_box->setMinimumWidth( font_width + 16 + 10 );
     M_color_list_box->setMinimumHeight( 300 );
     connect( M_color_list_box, SIGNAL( itemClicked( QListWidgetItem * ) ),
