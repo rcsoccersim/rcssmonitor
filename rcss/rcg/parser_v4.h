@@ -2,7 +2,7 @@
 
 /*!
   \file parser_v4.h
-  \brief rcg v4/v5 parser Header File.
+  \brief rcg v4 parser Header File.
 */
 
 /*
@@ -42,7 +42,7 @@ namespace rcg {
 
 /*!
   \class ParserV4
-  \brief rcg v4/v5 parser class
+  \brief rcg v4 parser class
  */
 class ParserV4
     : public Parser {
@@ -67,7 +67,7 @@ public:
     */
     virtual
     bool parse( std::istream & is,
-                Handler & handler ) override;
+                Handler & handler ) const override;
 
     /*!
       \brief parse data line.
@@ -82,12 +82,12 @@ public:
     */
     bool parseLine( const int n_line,
                     const std::string & line,
-                    Handler & handler );
+                    Handler & handler ) const;
 
 protected:
 
     /*!
-      \brief parse show data line
+      \brief parse SHOW_MODE inof, actually short_showinfo_t2
       \param n_line the number of total read line
       \param line the data string
       \param handler reference to the data handler object
@@ -97,10 +97,10 @@ protected:
     virtual
     bool parseShow( const int n_line,
                     const std::string & line,
-                    Handler & handler );
+                    Handler & handler ) const;
 
     /*!
-      \brief parse msg data line
+      \brief parse MSG_MODE info(msg_info_t)
       \param n_line the number of total read line
       \param line the data string
       \param handler reference to the data handler object
@@ -109,10 +109,20 @@ protected:
     */
     bool parseMsg( const int n_line,
                    const std::string & line,
-                   Handler & handler );
+                   Handler & handler ) const;
 
     /*!
-      \brief parse playmode data line
+      \brief parse team_graphic information in msg
+      \param msg message body in msg information
+      \param handler handler object
+      \return result status
+     */
+    bool parseTeamGraphic( const int n_line,
+                           const std::string & msg,
+                           Handler & handler ) const;
+
+    /*!
+      \brief parse PM_MODE info(playmode)
       \param n_line the number of total read line
       \param line the data string
       \param handler reference to the data handler object
@@ -121,10 +131,10 @@ protected:
     */
     bool parsePlayMode( const int n_line,
                         const std::string & line,
-                        Handler & handler );
+                        Handler & handler ) const;
 
     /*!
-      \brief parse team data line
+      \brief parse TEAM_MODE info(team_t * 2)
       \param n_line the number of total read line
       \param line the data string
       \param handler reference to the data handler object
@@ -133,34 +143,10 @@ protected:
     */
     bool parseTeam( const int n_line,
                     const std::string & line,
-                    Handler & handler );
+                    Handler & handler ) const;
 
     /*!
-      \brief parse server_param data line
-      \param n_line the number of total read line
-      \param line the data string
-      \param handler reference to the data handler object
-      \retval true if successfully parsed.
-      \retval false if failed to parse.
-    */
-    bool parseServerParam( const int n_line,
-                           const std::string & line,
-                           Handler & handler );
-
-    /*!
-      \brief parse player_param data line
-      \param n_line the number of total read line
-      \param line the data string
-      \param handler reference to the data handler object
-      \retval true if successfully parsed.
-      \retval false if failed to parse.
-    */
-    bool parsePlayerParam( const int n_line,
-                           const std::string & line,
-                           Handler & handler );
-
-    /*!
-      \brief parse player_type data line
+      \brief parse PT_MODE info(player_type_t)
       \param n_line the number of total read line
       \param line the data string
       \param handler reference to the data handler object
@@ -169,8 +155,31 @@ protected:
     */
     bool parsePlayerType( const int n_line,
                           const std::string & line,
-                          Handler & handler );
+                          Handler & handler ) const;
 
+    /*!
+      \brief parse PARAM_MODE info(server_params_t)
+      \param n_line the number of total read line
+      \param line the data string
+      \param handler reference to the data handler object
+      \retval true if successfully parsed.
+      \retval false if failed to parse.
+    */
+    bool parseServerParam( const int n_line,
+                           const std::string & line,
+                           Handler & handler ) const;
+
+    /*!
+      \brief parse PPARAM_MODE info(player_params_t)
+      \param n_line the number of total read line
+      \param line the data string
+      \param handler reference to the data handler object
+      \retval true if successfully parsed.
+      \retval false if failed to parse.
+    */
+    bool parsePlayerParam( const int n_line,
+                           const std::string & line,
+                           Handler & handler ) const;
 };
 
 } // end of namespace

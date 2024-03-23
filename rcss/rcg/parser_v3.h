@@ -41,28 +41,19 @@ namespace rcg {
 /*!
   \class ParserV3
   \brief rcg v3 parser class
-*/
+ */
 class ParserV3
     : public Parser {
-private:
-
-    int M_time; //!< The last parsed game time
-
 public:
-
-    /*!
-      \brief default constructor
-     */
-    ParserV3();
 
     /*!
       \brief get supported rcg version
       \return version number
-    */
+     */
     int version() const override
-    {
-        return REC_VERSION_3;
-    }
+      {
+          return REC_VERSION_3;
+      }
 
     /*!
       \brief parse input stream
@@ -72,7 +63,7 @@ public:
       \retval false, if incorrect format is detected.
     */
     bool parse( std::istream & is,
-                Handler & handler ) override;
+                Handler & handler ) const override;
 
 private:
     /*!
@@ -83,80 +74,80 @@ private:
       \retval false, if incorrect format is detected.
 
       First, check the type of data mode.
-      Second, call the parsing method for each data type.
+      Second, call each data item parsing method.
     */
     bool parseData( std::istream & is,
-                    Handler & handler );
+                    Handler & handler ) const;
 
     /*!
-      \brief parse SHOW_MODE data (short_showinfo_t2)
+      \brief parse SHOW_MODE inof, actually short_showinfo_t2
       \param is reference to the input stream
       \param handler reference to the data handler object
       \retval true if successfully parsed.
       \retval false if failed to parse.
     */
-    bool parseShortShow( std::istream & is,
-                         Handler & handler );
+    bool parseShowInfo( std::istream & is,
+                        Handler & handler ) const;
 
     /*!
-      \brief parse MSG_MODE data (msg_info_t)
+      \brief parse MSG_MODE info(msg_info_t)
       \param is reference to the input stream
       \param handler reference to the data handler object
       \retval true if successfully parsed.
       \retval false if failed to parse.
     */
-    bool parseMsg( std::istream & is,
-                   Handler & handler );
+    bool parseMsgInfo( std::istream & is,
+                       Handler & handler ) const;
 
     /*!
-      \brief parse PM_MODE data (char)
+      \brief parse PM_MODE info(playmode)
       \param is reference to the input stream
       \param handler reference to the data handler object
       \retval true if successfully parsed.
       \retval false if failed to parse.
     */
     bool parsePlayMode( std::istream & is,
-                        Handler & handler );
+                        Handler & handler ) const;
 
     /*!
-      \brief parse TEAM_MODE (team_t * 2)
+      \brief parse TEAM_MODE info(team_t * 2)
       \param is reference to the input stream
       \param handler reference to the data handler object
       \retval true if successfully parsed.
       \retval false if failed to parse.
     */
-    bool parseTeam( std::istream & is,
-                    Handler & handler );
+    bool parseTeamInfo( std::istream & is,
+                        Handler & handler ) const;
 
     /*!
-      \brief parse PT_MODE (player_type_t)
+      \brief parse PT_MODE info(player_type_t)
       \param is reference to the input stream
       \param handler reference to the data handler object
       \retval true if successfully parsed.
       \retval false if failed to parse.
     */
     bool parsePlayerType( std::istream & is,
-                          Handler & handler );
+                          Handler & handler ) const;
 
     /*!
-      \brief parse PARAM_MODE (server_params_t)
+      \brief parse PARAM_MODE info(server_params_t)
       \param is reference to the input stream
       \param handler reference to the data handler object
       \retval true if successfully parsed.
       \retval false if failed to parse.
     */
     bool parseServerParam( std::istream & is,
-                           Handler & handler );
+                           Handler & handler ) const;
 
     /*!
-      \brief parse PPARAM_MODE (player_params_t)
+      \brief parse PPARAM_MODE info(player_params_t)
       \param is reference to the input stream
       \param handler reference to the data handler object
       \retval true if successfully parsed.
       \retval false if failed to parse.
     */
     bool parsePlayerParam( std::istream & is,
-                           Handler & handler );
+                           Handler & handler ) const;
 };
 
 } // end of namespace

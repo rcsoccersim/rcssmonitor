@@ -127,7 +127,7 @@ PlayerPainter::draw( QPainter & painter )
 
     for ( int i = 0; i < rcss::rcg::MAX_PLAYER*2; ++i )
     {
-        drawAll( painter, disp->show_.players_[i], ball );
+        drawAll( painter, disp->show_.player_[i], ball );
     }
 
     if ( Options::instance().showOffsideLine() )
@@ -216,7 +216,7 @@ PlayerPainter::drawBody( QPainter & painter,
         painter.setPen( opt.playerPen() );
     }
 
-    switch ( param.player_.side_ ) {
+    switch ( param.player_.side() ) {
     case rcss::rcg::LEFT:
         if ( param.player_.isGoalie() )
         {
@@ -1030,10 +1030,10 @@ PlayerPainter::drawOffsideLine( QPainter & painter,
         float min_x = 0.0f;
         for ( int i = 0; i < rcss::rcg::MAX_PLAYER*2; ++i )
         {
-            if ( show.players_[i].state_ != 0
-                 && show.players_[i].side_ == rcss::rcg::LEFT )
+            if ( show.player_[i].state_ != 0
+                 && show.player_[i].side_ == rcss::rcg::LEFT )
             {
-                float x = show.players_[i].x_;
+                float x = show.player_[i].x_;
                 if ( x < offside_l )
                 {
                     if ( x < min_x )
@@ -1057,10 +1057,10 @@ PlayerPainter::drawOffsideLine( QPainter & painter,
         float max_x = 0.0;
         for ( int i = 0; i < rcss::rcg::MAX_PLAYER*2; ++i )
         {
-            if ( show.players_[i].state_ != 0
-                 && show.players_[i].side_ == rcss::rcg::RIGHT )
+            if ( show.player_[i].state_ != 0
+                 && show.player_[i].side_ == rcss::rcg::RIGHT )
             {
-                float x = show.players_[i].x_;
+                float x = show.player_[i].x_;
                 if ( offside_r < x )
                 {
                     if ( max_x < x )

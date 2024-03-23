@@ -1,16 +1,15 @@
 
 add_library(rcssrcg SHARED
-	handler.cpp
-	parser.cpp
-	parser_v1.cpp
-	parser_v2.cpp
-	parser_v3.cpp
-	parser_v4.cpp
-	parser_json.cpp
-	util.cpp
-	types.cpp
-	team_graphic.cpp
-	xpm_tile.cpp
+  simdjson/simdjson.cpp
+  handler.cpp
+  parser.cpp
+  parser_v1.cpp
+  parser_v2.cpp
+  parser_v3.cpp
+  parser_v4.cpp
+  parser_simdjson.cpp
+  util.cpp
+  types.cpp
   )
 
 target_include_directories(rcssrcg
@@ -28,7 +27,7 @@ target_compile_options(rcssrcg
 
 
 set_target_properties(rcssrcg PROPERTIES
-  VERSION 18.0.0
+  VERSION 19.0.0
   SOVERSION 18
   )
 
@@ -45,6 +44,7 @@ install(FILES
   parser_v2.h
   parser_v3.h
   parser_v4.h
+  parser_simdjson.h
   types.h
   util.h
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/rcss/rcg

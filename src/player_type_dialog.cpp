@@ -280,8 +280,7 @@ PlayerTypeDialog::updateData()
     QString text;
     for ( int row = 0; row < ROW_SIZE; ++row )
     {
-        const std::map< int , rcss::rcg::PlayerTypeT >::const_iterator it
-            = M_disp_holder.playerTypes().find( row );
+        const std::unordered_map< int , rcss::rcg::PlayerTypeT >::const_iterator it = M_disp_holder.playerTypes().find( row );
         if ( it == M_disp_holder.playerTypes().end() )
         {
             continue;
