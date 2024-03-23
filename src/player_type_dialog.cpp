@@ -185,6 +185,12 @@ PlayerTypeDialog::createModel()
     updateData();
 }
 
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0))
+#define HORIZONTAL_ADVANCE horizontalAdvance
+#else
+#define HORIZONTAL_ADVANCE width
+#endif
+
 /*-------------------------------------------------------------------*/
 /*!
 
@@ -204,37 +210,37 @@ PlayerTypeDialog::adjustSize()
 
     int i = 0;
     // id
-    M_item_view->setColumnWidth( i, metrics.width( "   1" ) + 4 ); ++i;
+    M_item_view->setColumnWidth( i, metrics.HORIZONTAL_ADVANCE( "   1" ) + 4 ); ++i;
     // size
-    M_item_view->setColumnWidth( i, metrics.width( "  0.00" ) + 4 ); ++i;
+    M_item_view->setColumnWidth( i, metrics.HORIZONTAL_ADVANCE( "  0.00" ) + 4 ); ++i;
     // speed max
-    M_item_view->setColumnWidth( i, metrics.width( "00.000 / 00.000" ) + 4 ); ++i;
+    M_item_view->setColumnWidth( i, metrics.HORIZONTAL_ADVANCE( "00.000 / 00.000" ) + 4 ); ++i;
     // accel max
-    M_item_view->setColumnWidth( i, metrics.width( "  0.000000" ) + 4 ); ++i;
+    M_item_view->setColumnWidth( i, metrics.HORIZONTAL_ADVANCE( "  0.000000" ) + 4 ); ++i;
     // dash power rate
-    M_item_view->setColumnWidth( i, metrics.width( "  0.000000" ) + 4 ); ++i;
+    M_item_view->setColumnWidth( i, metrics.HORIZONTAL_ADVANCE( "  0.000000" ) + 4 ); ++i;
     // decay
-    M_item_view->setColumnWidth( i, metrics.width( "  0.0000" ) + 4 ); ++i;
+    M_item_view->setColumnWidth( i, metrics.HORIZONTAL_ADVANCE( "  0.0000" ) + 4 ); ++i;
     // inertia
-    M_item_view->setColumnWidth( i, metrics.width( "  0.0000" ) + 4 ); ++i;
+    M_item_view->setColumnWidth( i, metrics.HORIZONTAL_ADVANCE( "  0.0000" ) + 4 ); ++i;
     // kickable area
-    M_item_view->setColumnWidth( i, metrics.width( "  0.0000" ) + 4 ); ++i;
+    M_item_view->setColumnWidth( i, metrics.HORIZONTAL_ADVANCE( "  0.0000" ) + 4 ); ++i;
     // kickable margin
-    M_item_view->setColumnWidth( i, metrics.width( "  0.0000" ) + 4 ); ++i;
+    M_item_view->setColumnWidth( i, metrics.HORIZONTAL_ADVANCE( "  0.0000" ) + 4 ); ++i;
     // kick power rate
-    M_item_view->setColumnWidth( i, metrics.width( "  0.000000" ) + 4 ); ++i;
+    M_item_view->setColumnWidth( i, metrics.HORIZONTAL_ADVANCE( "  0.000000" ) + 4 ); ++i;
     // kick rand
-    M_item_view->setColumnWidth( i, metrics.width( "  0.0000" ) + 4 ); ++i;
+    M_item_view->setColumnWidth( i, metrics.HORIZONTAL_ADVANCE( "  0.0000" ) + 4 ); ++i;
     // catchable area
-    M_item_view->setColumnWidth( i, metrics.width( "  0.000 - 0.000" ) + 4 ); ++i;
+    M_item_view->setColumnWidth( i, metrics.HORIZONTAL_ADVANCE( "  0.000 - 0.000" ) + 4 ); ++i;
     // stamina inc max
-    M_item_view->setColumnWidth( i, metrics.width( "  00.00" ) + 4 ); ++i;
+    M_item_view->setColumnWidth( i, metrics.HORIZONTAL_ADVANCE( "  00.00" ) + 4 ); ++i;
     // extra stamina
-    M_item_view->setColumnWidth( i, metrics.width( "  00.00" ) + 4 ); ++i;
+    M_item_view->setColumnWidth( i, metrics.HORIZONTAL_ADVANCE( "  00.00" ) + 4 ); ++i;
     // effort max - min
-    M_item_view->setColumnWidth( i, metrics.width( "  0.000 - 0.000" ) + 4 ); ++i;
+    M_item_view->setColumnWidth( i, metrics.HORIZONTAL_ADVANCE( "  0.000 - 0.000" ) + 4 ); ++i;
     // foul detect probability
-    M_item_view->setColumnWidth( i, metrics.width( "  0.0000" ) + 4 ); ++i;
+    M_item_view->setColumnWidth( i, metrics.HORIZONTAL_ADVANCE( "  0.0000" ) + 4 ); ++i;
 
     QRect rect = this->geometry();
     QRect child_rect = this->childrenRect();
@@ -308,8 +314,8 @@ PlayerTypeDialog::updateData()
             real_speed_max = param.player_speed_max_;
         }
 
-        text.sprintf( "%5.3f / %5.3f",
-                      real_speed_max, param.player_speed_max_ );
+        text.asprintf( "%5.3f / %5.3f",
+                       real_speed_max, param.player_speed_max_ );
         M_model->setData( M_model->index( row, i ), text ); ++i;
 
         // accel max
@@ -357,7 +363,7 @@ PlayerTypeDialog::updateData()
                                   + std::pow( SP.catchable_area_l_ * ( 1.0 - ( param.catchable_area_l_stretch_ - 1.0 ) ), 2.0 ) );
         double max_r = std::sqrt( std::pow( SP.catchable_area_w_ * 0.5, 2.0 )
                                   + std::pow( SP.catchable_area_l_ * param.catchable_area_l_stretch_, 2.0 ) );
-        text.sprintf( "%.3f - %.3f", min_r, max_r );
+        text.asprintf( "%.3f - %.3f", min_r, max_r );
         M_model->setData( M_model->index( row, i ), text ); ++i;
 
         // stamina inc max
@@ -371,8 +377,8 @@ PlayerTypeDialog::updateData()
         M_model->setData( M_model->index( row, i ), text ); ++i;
 
         // effort max - min
-        text.sprintf( "%.3f - %.3f",
-                      param.effort_max_, param.effort_min_ );
+        text.asprintf( "%.3f - %.3f",
+                       param.effort_max_, param.effort_min_ );
         M_model->setData( M_model->index( row, i ), text ); ++i;
 
         // foul detect probability
@@ -403,8 +409,12 @@ PlayerTypeDialog::showEvent( QShowEvent * event )
 void
 PlayerTypeDialog::wheelEvent( QWheelEvent * event )
 {
-
-    if ( event->delta() < 0 )
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 15, 0))
+    const int delta = event->angleDelta().y();
+#else
+    const int delta = event->delta();
+#endif
+    if ( delta < 0 )
     {
         this->setWindowOpacity( std::max( 0.1, this->windowOpacity() - 0.05 ) );
     }
