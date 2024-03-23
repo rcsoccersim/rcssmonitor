@@ -33,18 +33,20 @@
 #include <config.h>
 #endif
 
+#include "types.h"
+
+#include <unordered_map>
+#include <string>
+#include <sstream>
+#include <cstring>
+#include <cmath>
+
 #ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>
 #endif
 #ifdef HAVE_WINDOWS_H
 #include <windows.h>
 #endif
-
-#include <rcss/rcg/types.h>
-
-#include <sstream>
-#include <cstring>
-#include <cmath>
 
 #ifndef M_PI
 //! pi value
@@ -59,47 +61,20 @@ const float RAD2DEGF = 180.0f / 3.14159265358979323846f;
 namespace rcss {
 namespace rcg {
 
-namespace {
-
-inline
-Int16
-my_htons( const Int16 v )
-{
-    return htons( v );
-}
-
-inline
-Int16
-my_ntohs( const Int16 v )
-{
-    return ntohs( v );
-}
-
-inline
-Int32
-my_ntohl( const Int32 v )
-{
-    return ntohl( v );
-}
-
-inline
-Int32
-my_htonl( const Int32 v )
-{
-    return htonl( v );
-}
-
-}
-
-
 /*-------------------------------------------------------------------*/
-Int16
+/*!
+
+ */
+int
 nstohi( const Int16 val )
 {
     return static_cast< int >( static_cast< Int16 >( ntohs( val ) ) );
 }
 
 /*-------------------------------------------------------------------*/
+/*!
+
+ */
 Int16
 hitons( const int val )
 {
@@ -107,6 +82,9 @@ hitons( const int val )
 }
 
 /*-------------------------------------------------------------------*/
+/*!
+
+ */
 bool
 nstohb( const Int16 val )
 {
@@ -114,6 +92,9 @@ nstohb( const Int16 val )
 }
 
 /*-------------------------------------------------------------------*/
+/*!
+
+ */
 Int16
 hbtons( const bool val )
 {
@@ -121,6 +102,9 @@ hbtons( const bool val )
 }
 
 /*-------------------------------------------------------------------*/
+/*!
+
+ */
 double
 nstohd( const Int16 val )
 {
@@ -129,6 +113,9 @@ nstohd( const Int16 val )
 }
 
 /*-------------------------------------------------------------------*/
+/*!
+
+ */
 float
 nstohf( const Int16 val )
 {
@@ -137,6 +124,9 @@ nstohf( const Int16 val )
 }
 
 /*-------------------------------------------------------------------*/
+/*!
+
+ */
 Int16
 hdtons( const double & val )
 {
@@ -144,6 +134,9 @@ hdtons( const double & val )
 }
 
 /*-------------------------------------------------------------------*/
+/*!
+
+ */
 Int16
 hftons( const float & val )
 {
@@ -151,6 +144,9 @@ hftons( const float & val )
 }
 
 /*-------------------------------------------------------------------*/
+/*!
+
+ */
 double
 nltohd( const Int32 & val )
 {
@@ -159,6 +155,9 @@ nltohd( const Int32 & val )
 }
 
 /*-------------------------------------------------------------------*/
+/*!
+
+ */
 float
 nltohf( const Int32 & val )
 {
@@ -167,6 +166,9 @@ nltohf( const Int32 & val )
 }
 
 /*-------------------------------------------------------------------*/
+/*!
+
+ */
 Int32
 hdtonl( const double & val )
 {
@@ -174,6 +176,9 @@ hdtonl( const double & val )
 }
 
 /*-------------------------------------------------------------------*/
+/*!
+
+ */
 Int32
 hftonl( const float & val )
 {
@@ -181,20 +186,33 @@ hftonl( const float & val )
 }
 
 /*-------------------------------------------------------------------*/
+/*!
+
+ */
 Int32
 nstonl( const Int16 val )
 {
     return hdtonl( nstohd( val ) );
+    //return ( static_cast< Int32 >
+    //         ( htonl( static_cast< Int32 >( nstohd( val ) * SHOWINFO_SCALE2 ) ) ) );
 }
 
 /*-------------------------------------------------------------------*/
+/*!
+
+ */
 Int16
 nltons( const Int32 & val )
 {
     return hdtons( nltohd( val ) );
+    //return ( static_cast< Int16 >
+    //         ( htons( static_cast< Int16 >( nltohd( val ) * SHOWINFO_SCALE ) ) ) );
 }
 
 /*-------------------------------------------------------------------*/
+/*!
+
+ */
 void
 convert( const pos_t & from,
          BallT & to )
@@ -204,6 +222,9 @@ convert( const pos_t & from,
 }
 
 /*-------------------------------------------------------------------*/
+/*!
+
+ */
 void
 convert( const BallT & from,
          pos_t & to )
@@ -213,6 +234,9 @@ convert( const BallT & from,
 }
 
 /*-------------------------------------------------------------------*/
+/*!
+
+ */
 void
 convert( const ball_t & from,
          BallT & to )
@@ -224,6 +248,9 @@ convert( const ball_t & from,
 }
 
 /*-------------------------------------------------------------------*/
+/*!
+
+ */
 void
 convert( const BallT & from,
          ball_t & to )
@@ -235,6 +262,9 @@ convert( const BallT & from,
 }
 
 /*-------------------------------------------------------------------*/
+/*!
+
+ */
 void
 convert( const pos_t & from,
          player_t & to )
@@ -262,6 +292,9 @@ convert( const pos_t & from,
 }
 
 /*-------------------------------------------------------------------*/
+/*!
+
+ */
 void
 convert( const Side side,
          const int unum,
@@ -279,6 +312,9 @@ convert( const Side side,
 }
 
 /*-------------------------------------------------------------------*/
+/*!
+
+ */
 void
 convert( const pos_t & from,
          PlayerT & to )
@@ -286,7 +322,9 @@ convert( const pos_t & from,
     Side side = static_cast< Side >( static_cast< Int16 >( ntohs( from.side ) ) );
 
     to.state_ = static_cast< Int32 >( ntohs( from.enable ) );
-    to.side_ = side;
+    to.side_ = ( side == LEFT ? 'l'
+                 : side == RIGHT ? 'r'
+                 : 'n' );
     to.unum_ = ntohs( from.unum );
     to.body_ = static_cast< float >( ntohs( from.angle ) );
     to.x_ = nstohf( from.x );
@@ -294,6 +332,9 @@ convert( const pos_t & from,
 }
 
 /*-------------------------------------------------------------------*/
+/*!
+
+ */
 void
 convert( const PlayerT & from,
          player_t & to )
@@ -352,17 +393,22 @@ convert( const PlayerT & from,
 
 
 /*-------------------------------------------------------------------*/
+/*!
+
+ */
 void
 convert( const Side side,
          const int unum,
          const player_t & from,
          PlayerT & to )
 {
-    to.side_ = side;
+    to.side_ = ( side == LEFT ? 'l'
+                 : side == RIGHT ? 'r'
+                 : 'n' );
     to.unum_ = static_cast< Int16 >( unum );
     to.type_ = ntohs( from.type );
 
-    to.high_quality_ = ntohs( from.view_quality ) ? true : false;
+    to.view_quality_ = ntohs( from.view_quality ) ? 'h' : 'l';
 
     to.state_ = static_cast< Int32 >( ntohs( from.mode ) );
 
@@ -600,17 +646,17 @@ convert( const char playmode,
     // players
     for ( int i = 0; i < MAX_PLAYER*2; ++i )
     {
-        int idx = from.players_[i].unum_;
-        if ( from.players_[i].side() == NEUTRAL ) continue;
-        if ( from.players_[i].side() == RIGHT ) idx += MAX_PLAYER;
+        int idx = from.player_[i].unum_;
+        if ( from.player_[i].side() == NEUTRAL ) continue;
+        if ( from.player_[i].side() == RIGHT ) idx += MAX_PLAYER;
         if ( idx < 0 || MAX_PLAYER*2 + 1 <= idx ) continue;
 
-        to.pos[idx].enable = htons( static_cast< Int16 >( from.players_[i].state_ ) );
-        to.pos[idx].side = htons( from.players_[i].side() );
-        to.pos[idx].unum = htons( from.players_[i].unum_ );
-        to.pos[idx].angle = htons( static_cast< Int16 >( rintf( from.players_[i].body_ ) ) );
-        to.pos[idx].x = hftons( from.players_[i].x_ );
-        to.pos[idx].y = hftons( from.players_[i].y_ );
+        to.pos[idx].enable = htons( static_cast< Int16 >( from.player_[i].state_ ) );
+        to.pos[idx].side = htons( from.player_[i].side() );
+        to.pos[idx].unum = htons( from.player_[i].unum_ );
+        to.pos[idx].angle = htons( static_cast< Int16 >( rintf( from.player_[i].body_ ) ) );
+        to.pos[idx].x = hftons( from.player_[i].x_ );
+        to.pos[idx].y = hftons( from.player_[i].y_ );
     }
 
     // time
@@ -643,12 +689,12 @@ convert( const char playmode,
     // players
     for ( int i = 0; i < MAX_PLAYER * 2; ++i )
     {
-        int idx = from.players_[i].unum_ - 1;
-        if ( from.players_[i].side() == NEUTRAL ) continue;
-        if ( from.players_[i].side() == RIGHT ) idx += MAX_PLAYER;
+        int idx = from.player_[i].unum_ - 1;
+        if ( from.player_[i].side() == NEUTRAL ) continue;
+        if ( from.player_[i].side() == RIGHT ) idx += MAX_PLAYER;
         if ( idx < 0 || MAX_PLAYER*2 <= idx ) continue;
 
-        convert( from.players_[i], to.pos[idx] );
+        convert( from.player_[i], to.pos[idx] );
     }
 
     // time
@@ -672,12 +718,12 @@ convert( const ShowInfoT & from,
     // players
     for ( int i = 0; i < MAX_PLAYER * 2; ++i )
     {
-        int idx = from.players_[i].unum_ - 1;
-        if ( from.players_[i].side() == NEUTRAL ) continue;
-        if ( from.players_[i].side() == RIGHT ) idx += MAX_PLAYER;
+        int idx = from.player_[i].unum_ - 1;
+        if ( from.player_[i].side() == NEUTRAL ) continue;
+        if ( from.player_[i].side() == RIGHT ) idx += MAX_PLAYER;
         if ( idx < 0 || MAX_PLAYER*2 <= idx ) continue;
 
-        convert( from.players_[i], to.pos[idx] );
+        convert( from.player_[i], to.pos[idx] );
     }
 
     // time
@@ -699,7 +745,7 @@ convert( const showinfo_t & from,
     // players
     for ( int i = 0; i < MAX_PLAYER*2; ++i )
     {
-        convert( from.pos[i+1], to.players_[i] );
+        convert( from.pos[i+1], to.player_[i] );
     }
 
     // time
@@ -721,12 +767,12 @@ convert( const showinfo_t2 & from,
     // players
     for ( int i = 0; i < MAX_PLAYER; ++i )
     {
-        convert( LEFT, i + 1, from.pos[i], to.players_[i] );
+        convert( LEFT, i + 1, from.pos[i], to.player_[i] );
     }
 
     for ( int i = MAX_PLAYER; i < MAX_PLAYER*2; ++i )
     {
-        convert( RIGHT, i + 1 - MAX_PLAYER, from.pos[i], to.players_[i] );
+        convert( RIGHT, i + 1 - MAX_PLAYER, from.pos[i], to.player_[i] );
     }
 
     // time
@@ -748,497 +794,16 @@ convert( const short_showinfo_t2 & from,
     // players
     for ( int i = 0; i < MAX_PLAYER; ++i )
     {
-        convert( LEFT, i + 1, from.pos[i], to.players_[i] );
+        convert( LEFT, i + 1, from.pos[i], to.player_[i] );
     }
 
     for ( int i = MAX_PLAYER; i < MAX_PLAYER*2; ++i )
     {
-        convert( RIGHT, i + 1 - MAX_PLAYER, from.pos[i], to.players_[i] );
+        convert( RIGHT, i + 1 - MAX_PLAYER, from.pos[i], to.player_[i] );
     }
 
     // time
     to.time_ = static_cast< UInt32 >( ntohs( from.time ) );
-}
-
-
-/*-------------------------------------------------------------------*/
-/*!
-
- */
-void
-convert( const player_type_t & from,
-         PlayerTypeT & to )
-{
-    to.id_ = nstohi( from.id );
-    to.player_speed_max_ = nltohd( from.player_speed_max );
-    to.stamina_inc_max_ = nltohd( from.stamina_inc_max );
-    to.player_decay_ = nltohd( from.player_decay );
-    to.inertia_moment_ = nltohd( from.inertia_moment );
-    to.dash_power_rate_ = nltohd( from.dash_power_rate );
-    to.player_size_ = nltohd( from.player_size );
-    to.kickable_margin_ = nltohd( from.kickable_margin );
-    to.kick_rand_ = nltohd( from.kick_rand );
-    to.extra_stamina_ = nltohd( from.extra_stamina );
-    to.effort_max_ = nltohd( from.effort_max );
-    to.effort_min_ = nltohd( from.effort_min );
-}
-
-/*-------------------------------------------------------------------*/
-/*!
-
- */
-void
-convert( const PlayerTypeT & from,
-         player_type_t & to )
-{
-    to.id = hitons( from.id_ );
-    to.player_speed_max = hftonl( from.player_speed_max_ );
-    to.stamina_inc_max = hftonl( from.stamina_inc_max_ );
-    to.player_decay = hftonl( from.player_decay_ );
-    to.inertia_moment = hftonl( from.inertia_moment_ );
-    to.dash_power_rate = hftonl( from.dash_power_rate_ );
-    to.player_size = hftonl( from.player_size_ );
-    to.kickable_margin = hftonl( from.kickable_margin_ );
-    to.kick_rand = hftonl( from.kick_rand_ );
-    to.extra_stamina = hftonl( from.extra_stamina_ );
-    to.effort_max = hftonl( from.effort_max_ );
-    to.effort_min = hftonl( from.effort_min_ );
-}
-
-
-/*-------------------------------------------------------------------*/
-/*!
-
- */
-void
-convert( const player_params_t & from,
-         PlayerParamT & to )
-{
-    to.player_types_ = nstohi( from.player_types );
-    to.subs_max_ = nstohi( from.substitute_max );
-    to.pt_max_ = nstohi( from.pt_max );
-
-    to.player_speed_max_delta_min_ = nltohd( from.player_speed_max_delta_min );
-    to.player_speed_max_delta_max_ = nltohd( from.player_speed_max_delta_max );
-    to.stamina_inc_max_delta_factor_ = nltohd( from.stamina_inc_max_delta_factor );
-
-    to.player_decay_delta_min_ = nltohd( from.player_decay_delta_min );
-    to.player_decay_delta_max_ = nltohd( from.player_decay_delta_max );
-    to.inertia_moment_delta_factor_ = nltohd( from.inertia_moment_delta_factor );
-
-    to.dash_power_rate_delta_min_ = nltohd( from.dash_power_rate_delta_min );
-    to.dash_power_rate_delta_max_ = nltohd( from.dash_power_rate_delta_max );
-    to.player_size_delta_factor_ = nltohd( from.player_size_delta_factor );
-
-    to.kickable_margin_delta_min_ = nltohd( from.kickable_margin_delta_min );
-    to.kickable_margin_delta_max_ = nltohd( from.kickable_margin_delta_max );
-    to.kick_rand_delta_factor_ = nltohd( from.kick_rand_delta_factor );
-
-    to.extra_stamina_delta_min_ = nltohd( from.extra_stamina_delta_min );
-    to.extra_stamina_delta_max_ = nltohd( from.extra_stamina_delta_max );
-    to.effort_max_delta_factor_ = nltohd( from.effort_max_delta_factor );
-    to.effort_min_delta_factor_ = nltohd( from.effort_min_delta_factor );
-
-    to.random_seed_ = static_cast< int >( my_ntohl( from.random_seed ) );
-
-    to.new_dash_power_rate_delta_min_ = nltohd( from.new_dash_power_rate_delta_min );
-    to.new_dash_power_rate_delta_max_ = nltohd( from.new_dash_power_rate_delta_max );
-    to.new_stamina_inc_max_delta_factor_ = nltohd( from.new_stamina_inc_max_delta_factor );
-
-    to.allow_mult_default_type_ = static_cast< bool >( my_ntohs( from.allow_mult_default_type ) );
-}
-
-/*-------------------------------------------------------------------*/
-/*!
-
- */
-void
-convert( const PlayerParamT & from,
-         player_params_t & to )
-{
-    to.player_types = hitons( from.player_types_ );
-    to.substitute_max = hitons( from.subs_max_ );
-    to.pt_max = hitons( from.pt_max_ );
-
-    to.player_speed_max_delta_min = hdtonl( from.player_speed_max_delta_min_ );
-    to.player_speed_max_delta_max = hdtonl( from.player_speed_max_delta_max_ );
-    to.stamina_inc_max_delta_factor = hdtonl( from.stamina_inc_max_delta_factor_ );
-
-    to.player_decay_delta_min = hdtonl( from.player_decay_delta_min_ );
-    to.player_decay_delta_max = hdtonl( from.player_decay_delta_max_ );
-    to.inertia_moment_delta_factor = hdtonl( from.inertia_moment_delta_factor_ );
-
-    to.dash_power_rate_delta_min = hdtonl( from.dash_power_rate_delta_min_ );
-    to.dash_power_rate_delta_max = hdtonl( from.dash_power_rate_delta_max_ );
-    to.player_size_delta_factor = hdtonl( from.player_size_delta_factor_ );
-
-    to.kickable_margin_delta_min = hdtonl( from.kickable_margin_delta_min_ );
-    to.kickable_margin_delta_max = hdtonl( from.kickable_margin_delta_max_ );
-    to.kick_rand_delta_factor = hdtonl( from.kick_rand_delta_factor_ );
-
-    to.extra_stamina_delta_min = hdtonl( from.extra_stamina_delta_min_ );
-    to.extra_stamina_delta_max = hdtonl( from.extra_stamina_delta_max_ );
-    to.effort_max_delta_factor = hdtonl( from.effort_max_delta_factor_ );
-    to.effort_min_delta_factor = hdtonl( from.effort_min_delta_factor_ );
-    to.random_seed = my_htonl( static_cast< Int32 >( from.random_seed_ ) );
-
-    to.new_dash_power_rate_delta_min = hdtonl( from.new_dash_power_rate_delta_min_ );
-    to.new_dash_power_rate_delta_max = hdtonl( from.new_dash_power_rate_delta_max_ );
-    to.new_stamina_inc_max_delta_factor = hdtonl( from.new_stamina_inc_max_delta_factor_ );
-
-    to.allow_mult_default_type = hbtons( from.allow_mult_default_type_ );
-}
-
-/*-------------------------------------------------------------------*/
-/*!
-
- */
-void
-convert( const server_params_t & from,
-         ServerParamT & to )
-{
-    double tmp = 0.0;
-
-    to.goal_width_ = nltohd( from.goal_width );
-    to.inertia_moment_ = nltohd( from.inertia_moment );
-
-    to.player_size_ = nltohd( from.player_size );
-    to.player_decay_ = nltohd( from.player_decay );
-    to.player_rand_ = nltohd( from.player_rand );
-    to.player_weight_ = nltohd( from.player_weight );
-    to.player_speed_max_ = nltohd( from.player_speed_max );
-    to.player_accel_max_ = nltohd( from.player_accel_max );
-
-    to.stamina_max_ = nltohd( from.stamina_max );
-    to.stamina_inc_max_ = nltohd( from.stamina_inc );
-
-    to.recover_init_ = nltohd( from.recover_init );
-    to.recover_dec_thr_ = nltohd( from.recover_dec_thr );
-    to.recover_min_ = nltohd( from.recover_min );
-    to.recover_dec_ = nltohd( from.recover_dec );
-
-    to.effort_init_ = nltohd( from.effort_init );
-    to.effort_dec_thr_ = nltohd( from.effort_dec_thr );
-    to.effort_min_ = nltohd( from.effort_min );
-    to.effort_dec_ = nltohd( from.effort_dec );
-    to.effort_inc_thr_ = nltohd( from.effort_inc_thr );
-    to.effort_inc_ = nltohd( from.effort_inc );
-
-    to.kick_rand_ = nltohd( from.kick_rand );
-    to.team_actuator_noise_ = nstohb( from.team_actuator_noise );
-    to.player_rand_factor_l_ = nltohd( from.player_rand_factor_l );
-    to.player_rand_factor_r_ = nltohd( from.player_rand_factor_r );
-    to.kick_rand_factor_l_ = nltohd( from.kick_rand_factor_l );
-    to.kick_rand_factor_r_ = nltohd( from.kick_rand_factor_r );
-
-    to.ball_size_ = nltohd( from.ball_size );
-    to.ball_decay_ = nltohd( from.ball_decay );
-    to.ball_rand_ = nltohd( from.ball_rand );
-    to.ball_weight_ = nltohd( from.ball_weight );
-    to.ball_speed_max_ = nltohd( from.ball_speed_max );
-    to.ball_accel_max_ = nltohd( from.ball_accel_max );
-
-    to.dash_power_rate_ = nltohd( from.dash_power_rate );
-    to.kick_power_rate_ = nltohd( from.kick_power_rate );
-    to.kickable_margin_ = nltohd( from.kickable_margin );
-    to.control_radius_ = nltohd( from.control_radius );
-    //to.control_radius_width_ = nltohd( from.control_radius_width );
-
-    to.max_power_ = nltohd( from.max_power );
-    to.min_power_ = nltohd( from.min_power );
-    to.max_moment_ = nltohd( from.max_moment );
-    to.min_moment_ = nltohd( from.min_moment );
-    to.max_neck_moment_ = nltohd( from.max_neck_moment );
-    to.min_neck_moment_ = nltohd( from.min_neck_moment );
-    to.max_neck_angle_ = nltohd( from.max_neck_angle );
-    to.min_neck_angle_ = nltohd( from.min_neck_angle );
-
-    to.visible_angle_ = nltohd( from.visible_angle );
-    to.visible_distance_ = nltohd( from.visible_distance );
-
-    to.wind_dir_ = nltohd( from.wind_dir );
-    to.wind_force_ = nltohd( from.wind_force );
-    to.wind_angle_ = nltohd( from.wind_angle );
-    to.wind_rand_ = nltohd( from.wind_rand );
-
-    //to.kickable_area_ = nltohd( from.kickable_area );
-
-    to.catchable_area_l_ = nltohd( from.catchable_area_l );
-    to.catchable_area_w_ = nltohd( from.catchable_area_w );
-    to.catch_probability_ = nltohd( from.catch_probability );
-    to.goalie_max_moves_ = nstohi( from.goalie_max_moves );
-
-    to.corner_kick_margin_ = nltohd( from.corner_kick_margin );
-    to.offside_active_area_size_ = nltohd( from.offside_active_area_size );
-
-    to.wind_none_ = nstohb( from.wind_none );
-    to.use_wind_random_ = nstohb( from.wind_rand );
-
-    to.say_coach_count_max_ = nstohi( from.say_coach_count_max );
-    to.say_coach_msg_size_ = nstohi( from.say_coach_msg_size );
-
-    to.clang_win_size_ = nstohi( from.clang_win_size );
-    to.clang_define_win_ = nstohi( from.clang_define_win );
-    to.clang_meta_win_ = nstohi( from.clang_meta_win );
-    to.clang_advice_win_ = nstohi( from.clang_advice_win );
-    to.clang_info_win_ = nstohi( from.clang_info_win );
-    to.clang_mess_delay_ = nstohi( from.clang_mess_delay );
-    to.clang_mess_per_cycle_ = nstohi( from.clang_mess_per_cycle );
-
-    to.half_time_ = nstohi( from.half_time );
-    to.simulator_step_ = nstohi( from.simulator_step );
-    to.send_step_ = nstohi( from.send_step );
-    to.recv_step_ = nstohi( from.recv_step );
-    to.sense_body_step_ = nstohi( from.sense_body_step );
-    //to.lcm_step_ = nstohi( from.lcm_step );
-
-    to.say_msg_size_ = nstohi( from.say_msg_size );
-    to.hear_max_ = nstohi( from.hear_max );
-    to.hear_inc_ = nstohi( from.hear_inc );
-    to.hear_decay_ = nstohi( from.hear_decay );
-
-    to.catch_ban_cycle_ = nstohi( from.catch_ban_cycle );
-
-    to.slow_down_factor_ = nstohi( from.slow_down_factor );
-
-    to.use_offside_ = nstohb( from.use_offside );
-    to.kick_off_offside_ = nstohb( from.kick_off_offside );
-    to.offside_kick_margin_ = nltohd( from.offside_kick_margin );
-
-    to.audio_cut_dist_ = nltohd(from.audio_cut_dist );
-
-    to.dist_quantize_step_ = nltohd( from.dist_quantize_step );
-    to.landmark_dist_quantize_step_ = nltohd( from.landmark_dist_quantize_step );
-    //to.dir_quantize_step_ = nltohd( from.dir_quantize_step );
-    //to.dist_quantize_step_l_ = nltohd( from.dist_quantize_step_l );
-    //to.dist_quantize_step_r_ = nltohd( from.dist_quantize_step_r );
-    //to.landmark_dist_quantize_step_l_ = nltohd( from.landmark_dist_quantize_step_l );
-    //to.landmark_dist_quantize_step_r_ = nltohd( from.landmark_dist_quantize_step_r );
-    //to.dir_quantize_step_l_ = nltohd( from.dir_quantize_step_l );
-    //to.dir_quantize_step_r_ = nltohd( from.dir_quantize_step_r );
-
-    to.coach_mode_ = nstohb( from.coach_mode );
-    to.coach_with_referee_mode_ = nstohb( from.coach_with_referee_mode );
-    to.use_old_coach_hear_ = nstohb( from.use_old_coach_hear );
-
-    to.online_coach_look_step_ = nstohi( from.online_coach_look_step );
-
-    to.slowness_on_top_for_left_team_ = nltohd( from.slowness_on_top_for_left_team );
-    to.slowness_on_top_for_right_team_ = nltohd( from.slowness_on_top_for_right_team );
-
-    to.keepaway_length_ = nltohd( from.keepaway_length );
-    to.keepaway_width_ = nltohd( from.keepaway_width );
-
-    // 11.0.0
-    to.ball_stuck_area_ = 3.0;
-    tmp = nltohd( from.ball_stuck_area );
-    if ( std::fabs( tmp ) < 1000.0 ) to.ball_stuck_area_ = tmp;
-
-    // 12.0.0
-    to.max_tackle_power_ = to.max_power_;
-    tmp = nltohd( from.max_tackle_power );
-    if ( 0.0 < tmp && std::fabs( tmp ) < 200.0 ) to.max_tackle_power_ = tmp;
-
-    to.max_back_tackle_power_ = to.max_power_;
-    tmp = nltohd( from.max_back_tackle_power );
-    if ( 0.0 < tmp && std::fabs( tmp ) < 200.0 ) to.max_back_tackle_power_ = tmp;
-
-    to.tackle_dist_ = 2.0;
-    tmp = nltohd( from.tackle_dist );
-    if ( 0.0 <= tmp && std::fabs( tmp ) < 3.0 ) to.tackle_dist_ = tmp;
-
-    to.tackle_back_dist_ = 0.5;
-    tmp = nltohd( from.tackle_back_dist );
-    if ( 0.0 <= tmp && std::fabs( tmp ) < 1.0 ) to.tackle_back_dist_ = tmp;
-
-    to.tackle_width_ = 1.0;
-    tmp = nltohd( from.tackle_width );
-    if ( 0.0 < tmp && std::fabs( tmp ) < 2.0 ) to.tackle_width_ = tmp;
-
-    //
-    to.start_goal_l_ = nstohi( from.start_goal_l );
-    to.start_goal_r_ = nstohi( from.start_goal_r );
-
-    to.fullstate_l_ = nstohb( from.fullstate_l );
-    to.fullstate_r_ = nstohb( from.fullstate_r );
-
-    to.drop_ball_time_ = nstohi( from.drop_ball_time );
-
-    to.synch_mode_ = nstohb( from.synch_mode );
-    to.synch_offset_ = nstohi( from.synch_offset );
-    to.synch_micro_sleep_ = nstohi( from.synch_micro_sleep );
-
-    to.point_to_ban_ = nstohi( from.point_to_ban );
-    to.point_to_duration_ = nstohi( from.point_to_duration );
-}
-
-/*-------------------------------------------------------------------*/
-/*!
-
- */
-void
-convert( const ServerParamT & from,
-         server_params_t & to )
-{
-    to.goal_width = hdtonl( from.goal_width_ );
-    to.inertia_moment = hdtonl( from.inertia_moment_ );
-
-    to.player_size = hdtonl( from.player_size_ );
-    to.player_decay = hdtonl( from.player_decay_ );
-    to.player_rand = hdtonl( from.player_rand_ );
-    to.player_weight = hdtonl( from.player_weight_ );
-    to.player_speed_max = hdtonl( from.player_speed_max_ );
-    to.player_accel_max = hdtonl( from.player_accel_max_ );
-
-    to.stamina_max = hdtonl( from.stamina_max_ );
-    to.stamina_inc = hdtonl( from.stamina_inc_max_ );
-
-    to.recover_init = hdtonl( from.recover_init_ );
-    to.recover_dec_thr = hdtonl( from.recover_dec_thr_ );
-    to.recover_min = hdtonl( from.recover_min_ );
-    to.recover_dec = hdtonl( from.recover_dec_ );
-
-    to.effort_init = hdtonl( from.effort_init_ );
-    to.effort_dec_thr = hdtonl( from.effort_dec_thr_ );
-    to.effort_min = hdtonl( from.effort_min_ );
-    to.effort_dec = hdtonl( from.effort_dec_ );
-    to.effort_inc_thr = hdtonl( from.effort_inc_thr_ );
-    to.effort_inc = hdtonl( from.effort_inc_ );
-
-    to.kick_rand = hdtonl( from.kick_rand_ );
-    to.team_actuator_noise = hbtons( from.team_actuator_noise_ );
-    to.player_rand_factor_l = hdtonl( from.player_rand_factor_l_ );
-    to.player_rand_factor_r = hdtonl( from.player_rand_factor_r_ );
-    to.kick_rand_factor_l = hdtonl( from.kick_rand_factor_l_ );
-    to.kick_rand_factor_r = hdtonl( from.kick_rand_factor_r_ );
-
-    to.ball_size = hdtonl( from.ball_size_ );
-    to.ball_decay = hdtonl( from.ball_decay_ );
-    to.ball_rand = hdtonl( from.ball_rand_ );
-    to.ball_weight = hdtonl( from.ball_weight_ );
-    to.ball_speed_max = hdtonl( from.ball_speed_max_ );
-    to.ball_accel_max = hdtonl( from.ball_accel_max_ );
-
-    to.dash_power_rate = hdtonl( from.dash_power_rate_ );
-    to.kick_power_rate = hdtonl( from.kick_power_rate_ );
-    to.kickable_margin = hdtonl( from.kickable_margin_ );
-    to.control_radius = hdtonl( from.control_radius_ );
-    //to.control_radius_width = hdtonl( from.control_radius_width_ );
-
-    to.max_power = hdtonl( from.max_power_ );
-    to.min_power = hdtonl( from.min_power_ );
-    to.max_moment = hdtonl( from.max_moment_ );
-    to.min_moment = hdtonl( from.min_moment_ );
-    to.max_neck_moment = hdtonl( from.max_neck_moment_ );
-    to.min_neck_moment = hdtonl( from.min_neck_moment_ );
-    to.max_neck_angle = hdtonl( from.max_neck_angle_ );
-    to.min_neck_angle = hdtonl( from.min_neck_angle_ );
-
-    to.visible_angle = hdtonl( from.visible_angle_ );
-    to.visible_distance = hdtonl( from.visible_distance_ );
-
-    to.wind_dir = hdtonl( from.wind_dir_ );
-    to.wind_force = hdtonl( from.wind_force_ );
-    to.wind_angle = hdtonl( from.wind_angle_ );
-    to.wind_rand = hdtonl( from.wind_rand_ );
-
-    to.kickable_area = hdtonl( from.player_size_
-                               + from.kickable_margin_
-                               + from.ball_size_ );
-
-    to.catchable_area_l = hdtonl( from.catchable_area_l_ );
-    to.catchable_area_w = hdtonl( from.catchable_area_w_ );
-    to.catch_probability = hdtonl( from.catch_probability_ );
-    to.goalie_max_moves = hitons( from.goalie_max_moves_ );
-
-    to.corner_kick_margin = hdtonl( from.corner_kick_margin_ );
-    to.offside_active_area_size = hdtonl( from.offside_active_area_size_ );
-
-    to.wind_none = hbtons( from.wind_none_ );
-    to.use_wind_random = hbtons( from.use_wind_random_ );
-
-    to.say_coach_count_max = hitons( from.say_coach_count_max_ );
-    to.say_coach_msg_size = hitons( from.say_coach_msg_size_ );
-
-    to.clang_win_size = hitons( from.clang_win_size_ );
-    to.clang_define_win = hitons( from.clang_define_win_ );
-    to.clang_meta_win = hitons( from.clang_meta_win_ );
-    to.clang_advice_win = hitons( from.clang_advice_win_ );
-    to.clang_info_win = hitons( from.clang_info_win_ );
-    to.clang_mess_delay = hitons( from.clang_mess_delay_ );
-    to.clang_mess_per_cycle = hitons( from.clang_mess_per_cycle_ );
-
-    to.half_time = hitons( from.half_time_ );
-    to.simulator_step = hitons( from.simulator_step_ );
-    to.send_step = hitons( from.send_step_ );
-    to.recv_step = hitons( from.recv_step_ );
-    to.sense_body_step = hitons( from.sense_body_step_ );
-
-    to.lcm_step = hitons( 300 );
-
-    to.say_msg_size = hitons( from.say_msg_size_ );
-    to.hear_max = hitons( from.hear_max_ );
-    to.hear_inc = hitons( from.hear_inc_ );
-    to.hear_decay = hitons( from.hear_decay_ );
-
-    to.catch_ban_cycle = hitons( from.catch_ban_cycle_ );
-
-    to.slow_down_factor = hitons( from.slow_down_factor_ );
-
-    to.use_offside = hbtons( from.use_offside_ );
-    to.kick_off_offside = hbtons( from.kick_off_offside_ );
-    to.offside_kick_margin = hdtonl( from.offside_kick_margin_ );
-
-    to.audio_cut_dist = hdtonl(from.audio_cut_dist_ );
-
-    to.dist_quantize_step = hdtonl( from.dist_quantize_step_ );
-    to.landmark_dist_quantize_step = hdtonl( from.landmark_dist_quantize_step_ );
-
-    to.dir_quantize_step = my_htonl( 0 );
-    to.dist_quantize_step_l = my_htonl( 0 );
-    to.dist_quantize_step_r = my_htonl( 0 );
-    to.landmark_dist_quantize_step_l = my_htonl( 0 );
-    to.landmark_dist_quantize_step_r = my_htonl( 0 );
-    to.dir_quantize_step_l = my_htonl( 0 );
-    to.dir_quantize_step_r = my_htonl( 0 );
-
-    to.coach_mode = hbtons( from.coach_mode_ );
-    to.coach_with_referee_mode = hbtons( from.coach_with_referee_mode_ );
-    to.use_old_coach_hear = hbtons( from.use_old_coach_hear_ );
-
-    to.online_coach_look_step = hitons( from.online_coach_look_step_ );
-
-    to.slowness_on_top_for_left_team = hdtonl( from.slowness_on_top_for_left_team_ );
-    to.slowness_on_top_for_right_team = hdtonl( from.slowness_on_top_for_right_team_ );
-
-    to.keepaway_length = hdtonl( from.keepaway_length_ );
-    to.keepaway_width = hdtonl( from.keepaway_width_ );
-
-    // 11.0.0
-    to.ball_stuck_area = hdtonl( from.ball_stuck_area_ );
-
-    // 12.0.0
-    to.max_tackle_power = hdtonl( from.max_tackle_power_ );
-    to.max_back_tackle_power = hdtonl( from.max_back_tackle_power_ );
-    to.tackle_dist = hdtonl( from.tackle_dist_ );
-    to.tackle_back_dist = hdtonl( from.tackle_back_dist_ );
-    to.tackle_width = hdtonl( from.tackle_width_ );
-
-    //
-    to.start_goal_l = hitons( from.start_goal_l_ );
-    to.start_goal_r = hitons( from.start_goal_r_ );
-
-    to.fullstate_l = hbtons( from.fullstate_l_ );
-    to.fullstate_r = hbtons( from.fullstate_r_ );
-
-    to.drop_ball_time = hitons( from.drop_ball_time_ );
-
-    to.synch_mode = hbtons( from.synch_mode_ );
-    to.synch_offset = hitons( from.synch_offset_ );
-    to.synch_micro_sleep = hitons( from.synch_micro_sleep_ );
-
-    to.point_to_ban = hitons( from.point_to_ban_ );
-    to.point_to_duration = hitons( from.point_to_duration_ );
 }
 
 /*-------------------------------------------------------------------*/
@@ -1257,11 +822,78 @@ convert( const std::string & from,
 }
 
 /*-------------------------------------------------------------------*/
+PlayMode
+to_playmode_enum( const std::string & playmode )
+{
+    static const std::unordered_map< std::string, PlayMode > s_map = {
+        { "before_kick_off", PM_BeforeKickOff },
+        { "time_over", PM_TimeOver },
+        { "play_on", PM_PlayOn },
+        { "kick_off_l", PM_KickOff_Left },
+        { "kick_off_r", PM_KickOff_Right },
+        { "kick_in_l", PM_KickIn_Left },
+        { "kick_in_r", PM_KickIn_Right },
+        { "free_kick_l", PM_FreeKick_Left },
+        { "free_kick_r", PM_FreeKick_Right },
+        { "corner_kick_l", PM_CornerKick_Left },
+        { "corner_kick_r", PM_CornerKick_Right },
+        { "goal_kick_l", PM_GoalKick_Left },
+        { "goal_kick_r", PM_GoalKick_Right },
+        { "goal_l", PM_AfterGoal_Left },
+        { "goal_r", PM_AfterGoal_Right },
+        { "drop_ball", PM_Drop_Ball },
+        { "offside_l", PM_OffSide_Left },
+        { "offside_r", PM_OffSide_Right },
+        { "penalty_kick_l", PM_PK_Left },
+        { "penalty_kick_r", PM_PK_Right },
+        { "first_half_over", PM_FirstHalfOver },
+        { "pause", PM_Pause },
+        { "human_judge", PM_Human },
+        { "foul_charge_l", PM_Foul_Charge_Left },
+        { "foul_charge_r", PM_Foul_Charge_Right },
+        { "foul_push_l", PM_Foul_Push_Left },
+        { "foul_push_l", PM_Foul_Push_Right },
+        { "foul_multiple_attack_l", PM_Foul_MultipleAttacker_Left },
+        { "foul_multiple_attack_r", PM_Foul_MultipleAttacker_Right },
+        { "foul_ballout_l", PM_Foul_BallOut_Left },
+        { "foul_ballout_r", PM_Foul_BallOut_Right },
+        { "back_pass_l", PM_Back_Pass_Left },
+        { "back_pass_r", PM_Back_Pass_Right },
+        { "free_kick_fault_l", PM_Free_Kick_Fault_Left },
+        { "free_kick_fault_r", PM_Free_Kick_Fault_Right },
+        { "catch_fault_l", PM_CatchFault_Left },
+        { "catch_fault_r", PM_CatchFault_Right },
+        { "indirect_free_kick_l", PM_IndFreeKick_Left },
+        { "indirect_free_kick_r", PM_IndFreeKick_Right },
+        { "penalty_setup_l", PM_PenaltySetup_Left },
+        { "penalty_setup_r", PM_PenaltySetup_Right },
+        { "penalty_ready_l", PM_PenaltyReady_Left },
+        { "penalty_ready_r", PM_PenaltyReady_Right },
+        { "penalty_taken_l", PM_PenaltyTaken_Left },
+        { "penalty_taken_r", PM_PenaltyTaken_Right },
+        { "penalty_miss_l", PM_PenaltyMiss_Left },
+        { "penalty_miss_r", PM_PenaltyMiss_Right },
+        { "penalty_score_l", PM_PenaltyScore_Left },
+        { "penalty_score_r", PM_PenaltyScore_Right },
+        { "illegal_defense_l", PM_Illegal_Defense_Left },
+        { "illegal_defense_r", PM_Illegal_Defense_Right },
+    };
+
+    std::unordered_map< std::string, PlayMode >::const_iterator it = s_map.find( playmode );
+    if ( it == s_map.end() )
+    {
+        return PM_Null;
+    }
+
+    return it->second;
+}
+
+/*-------------------------------------------------------------------*/
 /*!
 
  */
 std::string
-to_sexp( const player_type_t & from )
+to_string( const player_type_t & from )
 {
     std::ostringstream os;
     os << "(player_type ";
@@ -1303,7 +935,7 @@ to_sexp( const player_type_t & from )
 
  */
 std::string
-to_sexp( const server_params_t & from )
+to_string( const server_params_t & from )
 {
     double tmp = 0.0;
 
@@ -1369,24 +1001,24 @@ to_sexp( const server_params_t & from )
 
        << "(wind_dir " << nltohd( from.wind_dir ) << ')'
        << "(wind_force " << nltohd( from.wind_force ) << ')'
-       << "(wind_ang " << nltohd( from.wind_angle ) << ')'
+       << "(wind_ang " << nltohd( from.wind_ang ) << ')'
        << "(wind_rand " << nltohd( from.wind_rand ) << ')'
 
         //<< "(kickable_area " << nltohd( from.kickable_area ) << ')'
 
-       << "(catchable_area_l " << nltohd( from.catchable_area_l ) << ')'
-       << "(catchable_area_w " << nltohd( from.catchable_area_w ) << ')'
+       << "(catchable_area_l " << nltohd( from.catch_area_l ) << ')'
+       << "(catchable_area_w " << nltohd( from.catch_area_w ) << ')'
        << "(catch_probability " << nltohd( from.catch_probability ) << ')'
        << "(goalie_max_moves " << nstohi( from.goalie_max_moves ) << ')'
 
        << "(ckick_margin " << nltohd( from.corner_kick_margin ) << ')'
-       << "(offside_active_area_size " << nltohd( from.offside_active_area_size ) << ')'
+       << "(offside_active_area_size " << nltohd( from.offside_active_area ) << ')'
 
        << "(wind_none " << nstohb( from.wind_none ) << ')'
        << "(wind_random " << nstohb( from.use_wind_random ) << ')'
 
-       << "(say_coach_cnt_max " << nstohi( from.say_coach_count_max ) << ')'
-       << "(say_coach_msg_size " << nstohi( from.say_coach_msg_size ) << ')'
+       << "(say_coach_cnt_max " << nstohi( from.coach_say_count_max ) << ')'
+       << "(say_coach_msg_size " << nstohi( from.coach_say_msg_size ) << ')'
 
        << "(clang_win_size " << nstohi( from.clang_win_size ) << ')'
        << "(clang_define_win " << nstohi( from.clang_define_win ) << ')'
@@ -1403,17 +1035,17 @@ to_sexp( const server_params_t & from )
        << "(sense_body_step " << nstohi( from.sense_body_step ) << ')'
         //lcm_step = nstohi( from.lcm_step )
 
-       << "(say_msg_size " << nstohi( from.say_msg_size ) << ')'
-       << "(hear_max " << nstohi( from.hear_max ) << ')'
-       << "(hear_inc " << nstohi( from.hear_inc ) << ')'
-       << "(hear_decay " << nstohi( from.hear_decay ) << ')'
+       << "(say_msg_size " << nstohi( from.player_say_msg_size ) << ')'
+       << "(hear_max " << nstohi( from.player_hear_max ) << ')'
+       << "(hear_inc " << nstohi( from.player_hear_inc ) << ')'
+       << "(hear_decay " << nstohi( from.player_hear_decay ) << ')'
 
        << "(catch_ban_cycle " << nstohi( from.catch_ban_cycle ) << ')'
 
        << "(slow_down_factor " << nstohi( from.slow_down_factor ) << ')'
 
        << "(use_offside " << nstohb( from.use_offside) << ')'
-       << "(forbid_kick_off_offside " << nstohb( from.kick_off_offside ) << ')'
+       << "(forbid_kick_off_offside " << nstohb( from.kickoff_offside ) << ')'
        << "(offside_kick_margin " << nltohd( from.offside_kick_margin ) << ')'
 
        << "(audio_cut_dist " << nltohd(from.audio_cut_dist ) << ')'
@@ -1437,8 +1069,8 @@ to_sexp( const server_params_t & from )
        << "(slowness_on_top_for_left_team " << nltohd( from.slowness_on_top_for_left_team ) << ')'
        << "(slowness_on_top_for_right_team " << nltohd( from.slowness_on_top_for_right_team ) << ')'
 
-       << "(keepaway_length " << nltohd( from.keepaway_length ) << ')'
-       << "(keepaway_width " << nltohd( from.keepaway_width ) << ')';
+       << "(keepaway_length " << nltohd( from.ka_length ) << ')'
+       << "(keepaway_width " << nltohd( from.ka_width ) << ')';
 
     // 11.0.0
     tmp = nltohd( from.ball_stuck_area );
@@ -1503,7 +1135,7 @@ to_sexp( const server_params_t & from )
 
  */
 std::string
-to_sexp( const player_params_t & from )
+to_string( const player_params_t & from )
 {
     std::ostringstream os;
     os << "(player_param ";

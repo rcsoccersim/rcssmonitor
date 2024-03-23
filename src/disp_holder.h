@@ -33,12 +33,13 @@
 #ifndef RCSSMONITOR_DISP_HOLDER_H
 #define RCSSMONITOR_DISP_HOLDER_H
 
-#include <rcss/rcg/team_graphic.h>
 #include <rcss/rcg/types.h>
 
 #include <memory>
 #include <vector>
 #include <unordered_map>
+
+#include "team_graphic.h"
 
 typedef std::shared_ptr< rcss::rcg::DispInfoT > DispPtr;
 typedef std::shared_ptr< const rcss::rcg::DispInfoT > DispConstPtr;
@@ -57,10 +58,10 @@ private:
     rcss::rcg::ServerParamT M_server_param;
     rcss::rcg::PlayerParamT M_player_param;
     rcss::rcg::PlayerTypeT M_default_player_type;
-    std::map< int, rcss::rcg::PlayerTypeT > M_player_types;
+    std::unordered_map< int, rcss::rcg::PlayerTypeT > M_player_types;
 
-    rcss::rcg::TeamGraphic M_team_graphic_left;
-    rcss::rcg::TeamGraphic M_team_graphic_right;
+    TeamGraphic M_team_graphic_left;
+    TeamGraphic M_team_graphic_right;
 
     PointCont M_point_cont;
     CircleCont M_circle_cont;
@@ -94,13 +95,13 @@ public:
 
     const rcss::rcg::ServerParamT & serverParam() const { return M_server_param; }
     const rcss::rcg::PlayerParamT & playerParam() const { return M_player_param; }
-    const std::map< int, rcss::rcg::PlayerTypeT > & playerTypes() const { return M_player_types; }
+    const std::unordered_map< int, rcss::rcg::PlayerTypeT > & playerTypes() const { return M_player_types; }
     const rcss::rcg::PlayerTypeT & playerType( const int id ) const;
 
     rcss::rcg::PlayMode playmode() const { return M_playmode; }
 
-    const rcss::rcg::TeamGraphic & teamGraphicLeft() const { return M_team_graphic_left; }
-    const rcss::rcg::TeamGraphic & teamGraphicRight() const { return M_team_graphic_right; }
+    const TeamGraphic & teamGraphicLeft() const { return M_team_graphic_left; }
+    const TeamGraphic & teamGraphicRight() const { return M_team_graphic_right; }
 
     const std::vector< std::size_t > & scoreChangedIndex() const
       {
@@ -134,16 +135,27 @@ public:
     bool handleEOF();
 
     bool handleShow( const rcss::rcg::ShowInfoT & show );
-
-    bool handlePlayMode( const int time,
-                         const rcss::rcg::PlayMode pmode );
-
-    bool handleTeam( const int time,
-                     const rcss::rcg::TeamT & team_l,
-                     const rcss::rcg::TeamT & team_r );
     bool handleMsg( const int time,
                     const int board,
                     const std::string & msg );
+    bool handleDraw( const int time,
+                     const rcss::rcg::drawinfo_t & draw );
+    bool handlePlayMode( const int time,
+                         const rcss::rcg::PlayMode pmode );
+    bool handleTeam( const int time,
+                     const rcss::rcg::TeamT & team_l,
+                     const rcss::rcg::TeamT & team_r );
+    bool handleServerParam( const rcss::rcg::ServerParamT & sparam );
+    bool handlePlayerParam( const rcss::rcg::PlayerParamT & pparam );
+    bool handlePlayerType( const rcss::rcg::PlayerTypeT & ptype );
+    bool handleTeamGraphic( const char side,
+                            const int x,
+                            const int y,
+                            const std::vector< std::string > & xpm_data );
+
+    //
+    //
+    //
 
     bool handleDrawClear( const int time );
 
@@ -155,17 +167,6 @@ public:
 
     bool handleDrawLine( const int time,
                          const rcss::rcg::LineT & line );
-
-    bool handleServerParam( const rcss::rcg::ServerParamT & sparam );
-
-    bool handlePlayerParam( const rcss::rcg::PlayerParamT & pparam );
-
-    bool handlePlayerType( const rcss::rcg::PlayerTypeT & ptype );
-
-    bool handleTeamGraphic( const rcss::rcg::Side side,
-                            const int x,
-                            const int y,
-                            rcss::rcg::XpmTile::Ptr tile );
 
 private:
     void analyzeTeamGraphic( const std::string & msg );

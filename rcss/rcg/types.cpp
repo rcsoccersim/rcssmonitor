@@ -8,8 +8,7 @@
 /*
  *Copyright:
 
- Copyright (C) The RoboCup Soccer Server Maintenance Group.
- Hidehisa AKIYAMA
+ Copyright (C) Hidehisa AKIYAMA
 
  This code is free software; you can redistribute it and/or
  modify it under the terms of the GNU Lesser General Public
@@ -36,12 +35,30 @@
 
 #include "types.h"
 
+#include "util.h"
+
 #include <iostream>
 #include <iomanip>
-#include <cmath>
+#include <map>
+#include <unordered_map>
+#include <variant>
+#include <cstring>
+
+#ifdef HAVE_ARPA_INET_H
+#include <arpa/inet.h>
+#endif
+#ifdef HAVE_WINDOWS_H
+#include <windows.h>
+#endif
+
+namespace rcss {
+namespace rcg {
+
+using ParamMap = std::unordered_map< std::string, std::variant< int*, double*, bool*, std::string* > >;
 
 namespace {
 
+/*-------------------------------------------------------------------*/
 inline
 float
 quantize( const double val,
@@ -50,6 +67,7 @@ quantize( const double val,
     return rint( val / prec ) * prec;
 }
 
+/*-------------------------------------------------------------------*/
 template < typename T >
 void
 to_sexp( std::ostream & os,
@@ -59,17 +77,17 @@ to_sexp( std::ostream & os,
     os << '(' << name << ' ' << value << ')';
 }
 
-template <>
-void
-to_sexp< std::string >( std::ostream & os,
-                        const char * name,
-                        const std::string & value )
-{
-    os << '(' << name << ' ' << std::quoted( value ) << ')';
-}
+/*-------------------------------------------------------------------*/
+// template <>
+// void
+// to_sexp< std::string >( std::ostream & os,
+//                         const char * name,
+//                         const std::string & value )
+// {
+//     os << '(' << name << ' ' << std::quoted( value ) << ')';
+// }
 
 /*-------------------------------------------------------------------*/
-// remove quatations and replace escaped quoation characters
 std::string
 clean_string( std::string str )
 {
@@ -122,23 +140,189 @@ clean_string( std::string str )
     return str;
 }
 
+/*-------------------------------------------------------------------*/
+bool
+set_value( const std::string & name,
+           const std::string & value,
+           ParamMap & param_map )
+{
+    ParamMap::iterator it = param_map.find( name );
+    if ( it != param_map.end() )
+    {
+        int ** int_ptr = std::get_if< int * >( &it->second );
+        if ( int_ptr )
+        {
+            try
+            {
+                **int_ptr = std::stoi( value );
+                return true;
+            }
+            catch ( std::exception & e )
+            {
+                std::cerr << e.what()
+                          << " name=" << name << " value=" << value << std::endl;
+                return false;
+            }
+        }
+
+        double ** double_ptr = std::get_if< double * >( &it->second );
+        if ( double_ptr )
+        {
+            try
+            {
+                **double_ptr = std::stod( value );
+            }
+            catch ( std::exception & e )
+            {
+                std::cerr << e.what()
+                          << " name=" << name << " value=" << value << std::endl;
+                return false;
+            }
+            return true;
+        }
+
+        bool ** bool_ptr = std::get_if< bool * >( &it->second );
+        if ( bool_ptr )
+        {
+            if ( value == "0" || value == "false" || value == "off" )
+            {
+                **bool_ptr = false;
+            }
+            else if ( value == "1" || value == "true" || value == "on" )
+            {
+                **bool_ptr = true;
+            }
+            else
+            {
+                std::cerr << "Unknown bool value. name=" << name << " value=" << value << std::endl;
+            }
+            return true;
+        }
+
+        std::string ** string_ptr = std::get_if< std::string * >( &it->second );
+        if ( string_ptr )
+        {
+            **string_ptr = clean_string( value );
+            return true;
+        }
+    }
+
+    std::cerr << "Unsupported parameter. name=" << name << " value=" << value << std::endl;
+    return false;
+}
 
 /*-------------------------------------------------------------------*/
-template< typename ParamHolder >
 bool
-parse_param( const std::string & msg,
-             ParamHolder & holder )
-             // IntMap & int_map,
-             // DoubleMap & double_map,
-             // BoolMap & bool_map,
-             // StringMap & string_map )
+set_integer( const std::string & name,
+             const int value,
+             ParamMap & param_map )
+{
+    ParamMap::iterator it = param_map.find( name );
+    if ( it != param_map.end() )
+    {
+        int ** int_ptr = std::get_if< int * >( &it->second );
+        if ( int_ptr )
+        {
+            **int_ptr = value;
+            return true;
+        }
+
+        double ** double_ptr = std::get_if< double * >( &it->second );
+        if ( double_ptr )
+        {
+            **double_ptr = static_cast< double >( value );
+            return true;
+        }
+
+        bool ** bool_ptr = std::get_if< bool * >( &it->second );
+        if ( bool_ptr )
+        {
+            **bool_ptr = ( value == 0 ? false : true );
+            return true;
+        }
+    }
+
+    std::cerr << "Unsupported parameter. name=" << name << " value=" << value << std::endl;
+    return false;
+}
+
+/*-------------------------------------------------------------------*/
+bool
+set_double( const std::string & name,
+            const double value,
+            ParamMap & param_map )
+{
+    ParamMap::iterator it = param_map.find( name );
+    if ( it != param_map.end() )
+    {
+        double ** double_ptr = std::get_if< double * >( &it->second );
+        if ( double_ptr )
+        {
+            **double_ptr = value;
+            return true;
+        }
+    }
+
+    std::cerr << "Unsupported parameter. name=" << name << " value=" << value << std::endl;
+    return false;
+}
+
+/*-------------------------------------------------------------------*/
+bool
+set_boolean( const std::string & name,
+             const bool value,
+             ParamMap & param_map )
+{
+    ParamMap::iterator it = param_map.find( name );
+    if ( it != param_map.end() )
+    {
+        bool ** bool_ptr = std::get_if< bool * >( &it->second );
+        if ( bool_ptr )
+        {
+            **bool_ptr = value;
+            return true;
+        }
+    }
+
+    std::cerr << "Unsupported bool parameter. name=" << name << " value=" << value << std::endl;
+    return false;
+}
+
+/*-------------------------------------------------------------------*/
+bool
+set_string( const std::string & name,
+            const std::string & value,
+            ParamMap & param_map )
+{
+    ParamMap::iterator it = param_map.find( name );
+    if ( it != param_map.end() )
+    {
+        std::string ** string_ptr = std::get_if< std::string * >( &it->second );
+        if ( string_ptr )
+        {
+            **string_ptr = value;
+            return true;
+        }
+    }
+
+    std::cerr << "Unsupported string parameter. name=" << name << " value=" << value << std::endl;
+    return false;
+}
+
+/*-------------------------------------------------------------------*/
+bool
+parse_server_message( const std::string & msg,
+                      ParamMap & param_map )
 {
     int n_read = 0;
 
+    //
+    // reach message type
+    //
     char message_name[32];
     if ( std::sscanf( msg.c_str(), " ( %31s %n ", message_name, &n_read ) != 1 )
     {
-        std::cerr << ":error: failed to parse the message type." << std::endl;
+        std::cerr << __FILE__ << ": (parse_server_message) ERROR Failed to parse the message type [" << msg << "]" << std::endl;
         return false;
     }
 
@@ -149,7 +333,8 @@ parse_param( const std::string & msg,
         std::string::size_type end_pos = msg.find_first_of( ' ', pos );
         if ( end_pos == std::string::npos )
         {
-            std::cerr << "(rcss::rcg::parse_param) Could not find the seprator space." << std::endl;
+            std::cerr << __FILE__ << ": (parse_server_message) ERROR Could not find the seprator space. at " << pos
+                      << " [" << msg << "]" << std::endl;
             return false;
         }
         pos += 1;
@@ -162,8 +347,7 @@ parse_param( const std::string & msg,
         end_pos = msg.find_first_of( ")\"", end_pos ); //"
         if ( end_pos == std::string::npos )
         {
-            std::cerr << "(rcss::rcg::parse_param) Could not find the parameter value for [" << name_str << ']'
-                      << std::endl;
+            std::cerr << __FILE__ << " (parse_server_message) ERROR Could not find the parameter value for [" << name_str << ']' << std::endl;
             return false;
         }
 
@@ -174,7 +358,7 @@ parse_param( const std::string & msg,
             end_pos = msg.find_first_of( '\"', end_pos + 1 ); //"
             if ( end_pos == std::string::npos )
             {
-                std::cerr << "(rcss::rcg::parse_param) Could not parse the quated value for [" << name_str << ']'
+                std::cerr << __FILE__ << " (parse_server_message) ERROR Could not parse the quated value for [" << name_str << ']'
                           << std::endl;
                 return false;
             }
@@ -188,491 +372,131 @@ parse_param( const std::string & msg,
         // pos indicates the first position of the value string
         // end_pos indicates the position of the end of paren
 
-        std::string value_str( msg, pos, end_pos - pos );
+        const std::string value_str( msg, pos, end_pos - pos );
         pos = end_pos;
 
         // pos indicates the position of the end of paren
 
-        holder.setValue( name_str, value_str );
-#if 0
-        //
-        // check parameter maps
-        //
-        try
-        {
-            IntMap::iterator int_it = int_map.find( name_str );
-            if ( int_it != int_map.end() )
-            {
-                *(int_it->second) = std::stoi( value_str );
-                continue;
-            }
-
-            DoubleMap::iterator double_it = double_map.find( name_str );
-            if ( double_it != double_map.end() )
-            {
-                *(double_it->second) = std::stod( value_str );
-                continue;
-            }
-
-            BoolMap::iterator bool_it = bool_map.find( name_str );
-            if ( bool_it != bool_map.end() )
-            {
-                if ( value_str == "0" || value_str == "false" || value_str == "off" )
-                {
-                    *(bool_it->second) = false;
-                }
-                else if ( value_str == "1" || value_str == "true" || value_str == "on" )
-                {
-                    *(bool_it->second) = true;
-                }
-                else
-                {
-                    std::cerr << n_line << ": Unknown bool value. name=" << name_str << " value=" << value_str
-                              << std::endl;
-                }
-                continue;
-            }
-
-            StringMap::iterator string_it = string_map.find( name_str );
-            if ( string_it != string_map.end() )
-            {
-                *(string_it->second) = clean_string( value_str );
-                continue;
-            }
-
-            std::cerr << n_line << ": Unsupported parameter in " << message_name
-                      << " name=" << name_str << " value=" << value_str
-                      << std::endl;
-        }
-        catch ( std::exception & e )
-        {
-            std::cerr << e.what() << '\n'
-                      << n_line << ":  name=" << name_str << " value=" << value_str
-                      << std::endl;
-        }
-#endif
+        // set the value to the parameter map
+        set_value( name_str, value_str, param_map );
     }
 
     return true;
 }
 
-}
+/*-------------------------------------------------------------------*/
+/*!
+  \brief visitor function to print the parameter variables stored as std::variant
+*/
+struct ValuePrinter {
+    std::ostream & os_;
 
-namespace rcss {
-namespace rcg {
+    ValuePrinter( std::ostream & os )
+        : os_( os )
+      { }
 
-PlayerTypeT::PlayerTypeT()
-    : id_( 0 ),
-      player_speed_max_( 1.2 ),
-      stamina_inc_max_( 45.0 ),
-      player_decay_( 0.4 ),
-      inertia_moment_( 5.0 ),
-      dash_power_rate_( 0.06 ),
-      player_size_( 0.3 ),
-      kickable_margin_( 0.7 ),
-      kick_rand_( 0.1 ),
-      extra_stamina_( 0.0 ),
-      effort_max_( 1.0 ),
-      effort_min_( 0.6 ),
-      kick_power_rate_( 0.027 ),
-      foul_detect_probability_( 0.5 ),
-      catchable_area_l_stretch_( 1.0 )
-{
-    int_map_.insert( IntMap::value_type( "id", &id_ ) );
+    std::ostream & operator()( const int * v )
+      {
+          return os_ << *v;
+      }
+    std::ostream & operator()( const double * v )
+      {
+          return os_ << *v;
+      }
+    std::ostream & operator()( const bool * v )
+      {
+          return os_ << std::boolalpha << *v;
+      }
+    std::ostream & operator()( const std::string * v )
+      {
+          return os_ << std::quoted( *v );
+      }
+};
 
-    double_map_.insert( DoubleMap::value_type( "player_speed_max", &player_speed_max_ ) );
-    double_map_.insert( DoubleMap::value_type( "stamina_inc_max", &stamina_inc_max_ ) );
-    double_map_.insert( DoubleMap::value_type( "player_decay", &player_decay_ ) );
-    double_map_.insert( DoubleMap::value_type( "inertia_moment", &inertia_moment_ ) );
-    double_map_.insert( DoubleMap::value_type( "dash_power_rate", &dash_power_rate_ ) );
-    double_map_.insert( DoubleMap::value_type( "player_size", &player_size_ ) );
-    double_map_.insert( DoubleMap::value_type( "kickable_margin", &kickable_margin_ ) );
-    double_map_.insert( DoubleMap::value_type( "kick_rand", &kick_rand_ ) );
-    double_map_.insert( DoubleMap::value_type( "extra_stamina", &extra_stamina_ ) );
-    double_map_.insert( DoubleMap::value_type( "effort_max", &effort_max_ ) );
-    double_map_.insert( DoubleMap::value_type( "effort_min", &effort_min_ ) );
-    // 14.0.0
-    double_map_.insert( DoubleMap::value_type( "kick_power_rate", &kick_power_rate_ ) );
-    double_map_.insert( DoubleMap::value_type( "foul_detect_probability", &foul_detect_probability_ ) );
-    double_map_.insert( DoubleMap::value_type( "catchable_area_l_stretch", &catchable_area_l_stretch_ ) );
-    // 18.0
-    double_map_.insert( DoubleMap::value_type( "unum_far_length", &unum_far_length_ ) );
-    double_map_.insert( DoubleMap::value_type( "unum_too_far_length", &unum_too_far_length_ ) );
-    double_map_.insert( DoubleMap::value_type( "team_far_length", &team_far_length_ ) );
-    double_map_.insert( DoubleMap::value_type( "team_too_far_length", &team_too_far_length_ ) );
-    double_map_.insert( DoubleMap::value_type( "player_max_observation_length", &player_max_observation_length_ ) );
-    double_map_.insert( DoubleMap::value_type( "ball_vel_far_length", &ball_vel_far_length_ ) );
-    double_map_.insert( DoubleMap::value_type( "ball_vel_too_far_length", &ball_vel_too_far_length_ ) );
-    double_map_.insert( DoubleMap::value_type( "ball_max_observation_length", &ball_max_observation_length_ ) );
-    double_map_.insert( DoubleMap::value_type( "flag_chg_far_length", &flag_chg_far_length_ ) );
-    double_map_.insert( DoubleMap::value_type( "flag_chg_too_far_length", &flag_chg_too_far_length_ ) );
-    double_map_.insert( DoubleMap::value_type( "flag_max_observation_length", &flag_max_observation_length_ ) );
-}
-
-
+/*-------------------------------------------------------------------*/
 std::ostream &
-PlayerTypeT::toSExp( std::ostream & os ) const
+print_server_message( std::ostream & os,
+                      const std::string & message_name,
+                      const ParamMap & param_map )
 {
-    os << "(player_type ";
-    to_sexp( os, "id", id_ );
-    to_sexp( os, "player_speed_max", quantize( player_speed_max_, 0.00001 ) );
-    to_sexp( os, "stamina_inc_max", quantize( stamina_inc_max_, 0.00001 ) );
-    to_sexp( os, "player_decay", quantize(player_decay_, 0.000001 ) );
-    to_sexp( os, "inertia_moment", quantize( inertia_moment_, 0.00001 ) );
-    to_sexp( os, "dash_power_rate", quantize( dash_power_rate_, 0.00000001 ) );
-    to_sexp( os, "player_size", quantize( player_size_, 0.00001 ) );
-    to_sexp( os, "kickable_margin", quantize( kickable_margin_, 0.000001 ) );
-    to_sexp( os, "kick_rand", quantize( kick_rand_, 0.000001 ) );
-    to_sexp( os, "extra_stamina", quantize( extra_stamina_, 0.00001 ) );
-    to_sexp( os, "effort_max", quantize( effort_max_, 0.000001 ) );
-    to_sexp( os, "effort_min", quantize( effort_min_, 0.000001 ) );
-    // 14.0
-    to_sexp( os, "kick_power_rate", quantize( kick_power_rate_, 0.000001 ) );
-    to_sexp( os, "foul_detect_probability", quantize( foul_detect_probability_, 0.000001 ) );
-    to_sexp( os, "catchable_area_l_stretch", quantize( catchable_area_l_stretch_, 0.000001 ) );
-    // 18.0
-    to_sexp( os, "unum_far_length", quantize( unum_far_length_, 0.000001 ) );
-    to_sexp( os, "unum_too_far_length", quantize( unum_too_far_length_, 0.000001 ) );
-    to_sexp( os, "team_far_length", quantize( team_far_length_, 0.000001 ) );
-    to_sexp( os, "team_too_far_length", quantize( team_too_far_length_, 0.000001 ) );
-    to_sexp( os, "player_max_observation_length", quantize( player_max_observation_length_, 0.000001 ) );
-    to_sexp( os, "ball_vel_far_length", quantize( ball_vel_far_length_, 0.000001 ) );
-    to_sexp( os, "ball_vel_too_far_length", quantize( ball_vel_too_far_length_, 0.000001 ) );
-    to_sexp( os, "ball_max_observation_length", quantize( ball_max_observation_length_, 0.000001 ) );
-    to_sexp( os, "flag_chg_far_length", quantize( flag_chg_far_length_, 0.000001 ) );
-    to_sexp( os, "flag_chg_too_far_length", quantize( flag_chg_too_far_length_, 0.000001 ) );
-    to_sexp( os, "flag_max_observation_length", quantize( flag_max_observation_length_, 0.000001 ) );
+    std::map< ParamMap::key_type, ParamMap::mapped_type > sorted_map;
+    for ( const ParamMap::value_type & v : param_map )
+    {
+        sorted_map.insert( v );
+    }
+
+    os << '(' << message_name << ' ';
+
+    ValuePrinter printer( os );
+    for ( const decltype( sorted_map )::value_type & v : sorted_map )
+    {
+        os << '(' << v.first << ' ';
+        std::visit( printer, v.second );
+        os << ')';
+    }
+
     os << ')';
 
     return os;
 }
 
-bool
-PlayerTypeT::createFromSExp( const std::string & msg )
-{
-    BoolMap bool_map;
-    StringMap string_map;
-
-    //if ( ! parse_param( msg, int_map_, double_map_, bool_map, string_map ) )
-    if ( ! parse_param( msg, *this ) )
-    {
-        // nothing to do
-    }
-
-    return true;
-}
-
-bool
-PlayerTypeT::setValue( const std::string & name,
-                       const std::string & value )
-{
-    try
-    {
-        IntMap::iterator int_it = int_map_.find( name );
-        if ( int_it != int_map_.end() )
-        {
-            *(int_it->second) = std::stoi( value );
-            return true;
-        }
-
-        DoubleMap::iterator double_it = double_map_.find( name );
-        if ( double_it != double_map_.end() )
-        {
-            *(double_it->second) = std::stod( value );
-            return true;
-        }
-    }
-    catch ( std::exception & e )
-    {
-        std::cerr << e.what() << std::endl;
-    }
-
-    std::cerr << "(playerTypeT::setValue) Unsupported parameter. name=" << name << " value=" << value << std::endl;
-    return true;
-}
-
-
-bool
-PlayerTypeT::setInt( const std::string & name,
-                     const int value )
-{
-    IntMap::iterator int_it = int_map_.find( name );
-    if ( int_it != int_map_.end() )
-    {
-        *(int_it->second) = value;
-        return true;
-    }
-
-    DoubleMap::iterator double_it = double_map_.find( name );
-    if ( double_it != double_map_.end() )
-    {
-        *(double_it->second) = value;
-        return true;
-    }
-
-    std::cerr << "(playerTypeT::setInt) Unsupported parameter. name=" << name << " value=" << value << std::endl;
-    return true;
-}
-
-bool
-PlayerTypeT::setDouble( const std::string & name,
-                        const double value )
-{
-    DoubleMap::iterator double_it = double_map_.find( name );
-    if ( double_it != double_map_.end() )
-    {
-        *(double_it->second) = value;
-        return true;
-    }
-
-    std::cerr << "(playerTypeT::setDouble) Unsupported parameter. name=" << name << " value=" << value << std::endl;
-    return true;
-}
-
-
-PlayerParamT::PlayerParamT()
-    : player_types_( 18 ),
-      subs_max_( 3 ),
-      pt_max_( 1 ),
-      allow_mult_default_type_( false ),
-      player_speed_max_delta_min_( 0.0 ),
-      player_speed_max_delta_max_( 0.0 ),
-      stamina_inc_max_delta_factor_( 0.0 ),
-      player_decay_delta_min_( -0.05 ),
-      player_decay_delta_max_( 0.1 ),
-      inertia_moment_delta_factor_( 25.0 ),
-      dash_power_rate_delta_min_( 0.0 ),
-      dash_power_rate_delta_max_( 0.0 ),
-      player_size_delta_factor_( -100.0 ),
-      kickable_margin_delta_min_( -0.1 ),
-      kickable_margin_delta_max_( 0.1 ),
-      kick_rand_delta_factor_( 1.0 ),
-      extra_stamina_delta_min_( 0.0 ),
-      extra_stamina_delta_max_( 100.0 ),
-      effort_max_delta_factor_( -0.002 ),
-      effort_min_delta_factor_( -0.002 ),
-      new_dash_power_rate_delta_min_( -0.0005 ),
-      new_dash_power_rate_delta_max_( 0.0015 ),
-      new_stamina_inc_max_delta_factor_( -6000.0 ),
-      random_seed_( -1 ),
-      kick_power_rate_delta_min_( 0.0 ),
-      kick_power_rate_delta_max_( 0.0 ),
-      foul_detect_probability_delta_factor_( 0.0 ),
-      catchable_area_l_stretch_min_( 0.0 ),
-      catchable_area_l_stretch_max_( 0.0 )
-{
-    int_map_.insert( IntMap::value_type( "player_types", &player_types_ ) );
-    int_map_.insert( IntMap::value_type( "subs_max", &subs_max_ ) );
-    int_map_.insert( IntMap::value_type( "pt_max", &pt_max_ ) );
-    bool_map_.insert( BoolMap::value_type( "allow_mult_default_type", &allow_mult_default_type_ ) );
-    double_map_.insert( DoubleMap::value_type( "player_speed_max_delta_min", &player_speed_max_delta_min_ ) );
-    double_map_.insert( DoubleMap::value_type( "player_speed_max_delta_max", &player_speed_max_delta_max_ ) );
-    double_map_.insert( DoubleMap::value_type( "stamina_inc_max_delta_factor", &stamina_inc_max_delta_factor_ ) );
-    double_map_.insert( DoubleMap::value_type( "player_decay_delta_min", &player_decay_delta_min_ ) );
-    double_map_.insert( DoubleMap::value_type( "player_decay_delta_max", &player_decay_delta_max_ ) );
-    double_map_.insert( DoubleMap::value_type( "inertia_moment_delta_factor", &inertia_moment_delta_factor_ ) );
-    double_map_.insert( DoubleMap::value_type( "dash_power_rate_delta_min", &dash_power_rate_delta_min_ ) );
-    double_map_.insert( DoubleMap::value_type( "dash_power_rate_delta_max", &dash_power_rate_delta_max_ ) );
-    double_map_.insert( DoubleMap::value_type( "player_size_delta_factor", &player_size_delta_factor_ ) );
-    double_map_.insert( DoubleMap::value_type( "kickable_margin_delta_min", &kickable_margin_delta_min_ ) );
-    double_map_.insert( DoubleMap::value_type( "kickable_margin_delta_max", &kickable_margin_delta_max_ ) );
-    double_map_.insert( DoubleMap::value_type( "kick_rand_delta_factor", &kick_rand_delta_factor_ ) );
-    double_map_.insert( DoubleMap::value_type( "extra_stamina_delta_min", &extra_stamina_delta_min_ ) );
-    double_map_.insert( DoubleMap::value_type( "extra_stamina_delta_max", &extra_stamina_delta_max_ ) );
-    double_map_.insert( DoubleMap::value_type( "effort_max_delta_factor", &effort_max_delta_factor_ ) );
-    double_map_.insert( DoubleMap::value_type( "effort_min_delta_factor", &effort_min_delta_factor_ ) );
-    int_map_.insert( IntMap::value_type( "random_seed", &random_seed_ ) );
-    double_map_.insert( DoubleMap::value_type( "new_dash_power_rate_delta_min", &new_dash_power_rate_delta_min_ ) );
-    double_map_.insert( DoubleMap::value_type( "new_dash_power_rate_delta_max", &new_dash_power_rate_delta_max_ ) );
-    double_map_.insert( DoubleMap::value_type( "new_stamina_inc_max_delta_factor", &new_stamina_inc_max_delta_factor_ ) );
-    // 14.0.0
-    double_map_.insert( DoubleMap::value_type( "kick_power_rate_delta_min", &kick_power_rate_delta_min_ ) );
-    double_map_.insert( DoubleMap::value_type( "kick_power_rate_delta_max", &kick_power_rate_delta_max_ ) );
-    double_map_.insert( DoubleMap::value_type( "foul_detect_probability_delta_factor", &foul_detect_probability_delta_factor_ ) );
-    double_map_.insert( DoubleMap::value_type( "catchable_area_l_stretch_min", &catchable_area_l_stretch_min_ ) );
-    double_map_.insert( DoubleMap::value_type( "catchable_area_l_stretch_max", &catchable_area_l_stretch_max_ ) );
-}
-
-
+/*-------------------------------------------------------------------*/
 std::ostream &
-PlayerParamT::toSExp( std::ostream & os ) const
+print_json( std::ostream & os,
+            const std::string & message_name,
+            const ParamMap & param_map )
 {
-    os << "(player_param ";
-    to_sexp( os, "player_types", player_types_ );
-    to_sexp( os, "subs_max", subs_max_ );
-    to_sexp( os, "pt_max", pt_max_ );
-    to_sexp( os, "allow_mult_default_type", allow_mult_default_type_ );
-    to_sexp( os, "player_speed_max_delta_min", quantize( player_speed_max_delta_min_, 0.00001 ) );
-    to_sexp( os, "player_speed_max_delta_max", quantize( player_speed_max_delta_max_, 0.00001 ) );
-    to_sexp( os, "stamina_inc_max_delta_factor", quantize( stamina_inc_max_delta_factor_, 0.00001 ) );
-    to_sexp( os, "player_decay_delta_min", quantize( player_decay_delta_min_, 0.00001 ) );
-    to_sexp( os, "player_decay_delta_max", quantize( player_decay_delta_max_, 0.00001 ) );
-    to_sexp( os, "inertia_moment_delta_factor", quantize( inertia_moment_delta_factor_, 0.00001 ) );
-    to_sexp( os, "dash_power_rate_delta_min", quantize( dash_power_rate_delta_min_, 0.00001 ) );
-    to_sexp( os, "dash_power_rate_delta_max", quantize( dash_power_rate_delta_max_, 0.00001 ) );
-    to_sexp( os, "player_size_delta_factor", quantize( player_size_delta_factor_, 0.00001 ) );
-    to_sexp( os, "kickable_margin_delta_min", quantize( kickable_margin_delta_min_, 0.00001 ) );
-    to_sexp( os, "kickable_margin_delta_max", quantize( kickable_margin_delta_max_, 0.00001 ) );
-    to_sexp( os, "kick_rand_delta_factor", quantize( kick_rand_delta_factor_, 0.00001 ) );
-    to_sexp( os, "extra_stamina_delta_min", quantize( extra_stamina_delta_min_, 0.00001 ) );
-    to_sexp( os, "extra_stamina_delta_max", quantize( extra_stamina_delta_max_, 0.00001 ) );
-    to_sexp( os, "effort_max_delta_factor", quantize( effort_max_delta_factor_, 0.00001 ) );
-    to_sexp( os, "effort_min_delta_factor", quantize( effort_min_delta_factor_, 0.00001 ) );
-    to_sexp( os, "random_seed", random_seed_ );
-    to_sexp( os, "new_dash_power_rate_delta_min", quantize( new_dash_power_rate_delta_min_, 0.00001 ) );
-    to_sexp( os, "new_dash_power_rate_delta_max", quantize( new_dash_power_rate_delta_max_, 0.00001 ) );
-    to_sexp( os, "new_stamina_inc_max_delta_factor", quantize( new_stamina_inc_max_delta_factor_, 0.00001 ) );
-    // 14.0
-    to_sexp( os, "kick_power_rate_delta_min", quantize( kick_power_rate_delta_min_, 0.000001 ) );
-    to_sexp( os, "kick_power_rate_delta_max", quantize( kick_power_rate_delta_max_, 0.000001 ) );
-    to_sexp( os, "foul_detect_probability_delta_factor", quantize( foul_detect_probability_delta_factor_, 0.00001 ) );
-    to_sexp( os, "catchable_area_l_stretch_min", quantize( catchable_area_l_stretch_min_, 0.00001 ) );
-    to_sexp( os, "catchable_area_l_stretch_max", quantize( catchable_area_l_stretch_max_, 0.00001 ) );
-    os << ')';
+    std::map< ParamMap::key_type, ParamMap::mapped_type > sorted_map;
+    for ( const ParamMap::value_type & v : param_map )
+    {
+        sorted_map.insert( v );
+    }
 
+    os << '{' << std::quoted( message_name ) << ':' << '{';
+
+    ValuePrinter printer( os );
+    bool first = true;
+    for ( const decltype( sorted_map )::value_type & v : sorted_map )
+    {
+        if ( first ) first = false; else os << ',';
+        os << std::quoted( v.first ) << ':';
+        std::visit( printer, v.second );
+    }
+
+    os << '}' << '}';
     return os;
 }
 
-
-bool
-PlayerParamT::createFromSExp( const std::string & msg )
-{
-    StringMap string_map;
-
-    //if ( ! parse_param( msg, int_map_, double_map_, bool_map_, string_map ) )
-    if ( ! parse_param( msg, *this ) )
-    {
-        // nothing to do
-    }
-
-    return true;
 }
 
-bool
-PlayerParamT::setValue( const std::string & name,
-                        const std::string & value )
+/*-------------------------------------------------------------------*/
+/*-------------------------------------------------------------------*/
+/*-------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------*/
+TeamT::TeamT( const team_t & from )
+    : TeamT()
 {
-    try
-    {
-        IntMap::iterator int_it = int_map_.find( name );
-        if ( int_it != int_map_.end() )
-        {
-            *(int_it->second) = std::stoi( value );
-            return true;
-        }
+    char buf[18];
+    std::memset( buf, 0, 18 );
+    std::strncpy( buf, from.name, sizeof( buf ) - 1 );
 
-        DoubleMap::iterator double_it = double_map_.find( name );
-        if ( double_it != double_map_.end() )
-        {
-            *(double_it->second) = std::stod( value );
-            return true;
-        }
-
-        BoolMap::iterator bool_it = bool_map_.find( name );
-        if ( bool_it != bool_map_.end() )
-        {
-            if ( value == "0" || value == "false" || value == "off" )
-            {
-                *(bool_it->second) = false;
-            }
-            else if ( value == "1" || value == "true" || value == "on" )
-            {
-                *(bool_it->second) = true;
-            }
-            else
-            {
-                std::cerr << "Unknown bool value. name=" << name << " value=" << value << std::endl;
-            }
-            return true;
-        }
-    }
-    catch ( std::exception & e )
-    {
-        std::cerr << e.what() << '\n'
-                  << "name=" << name << " value=" << value << std::endl;
-        return true;
-    }
-
-    std::cerr << "Unsupported parameter. name=" << name << " value=" << value << std::endl;
-    return true;
+    name_ = buf;
+    score_ = ntohs( from.score );
 }
 
+/*-------------------------------------------------------------------*/
+/*-------------------------------------------------------------------*/
+/*-------------------------------------------------------------------*/
 
-bool
-PlayerParamT::setInt( const std::string & name,
-                      const int value )
-{
-    IntMap::iterator int_it = int_map_.find( name );
-    if ( int_it != int_map_.end() )
-    {
-        *(int_it->second) = value;
-        return true;
-    }
+/*-------------------------------------------------------------------*/
+struct ServerParamT::Impl {
+    ParamMap param_map_;
 
-    DoubleMap::iterator double_it = double_map_.find( name );
-    if ( double_it != double_map_.end() )
-    {
-        *(double_it->second) = value;
-        return true;
-    }
+    Impl( ServerParamT * param );
+};
 
-    BoolMap::iterator bool_it = bool_map_.find( name );
-    if ( bool_it != bool_map_.end() )
-    {
-        if ( value == 0 )
-        {
-            *(bool_it->second) = false;
-            return true;
-        }
-
-        if ( value == 1 )
-        {
-            *(bool_it->second) = true;
-            return true;
-        }
-    }
-
-    std::cerr << "Unsupported parameter. name=" << name << " value=" << value << std::endl;
-    return true;
-}
-
-
-bool
-PlayerParamT::setDouble( const std::string & name,
-                         const double value )
-{
-    DoubleMap::iterator it = double_map_.find( name );
-    if ( it == double_map_.end() )
-    {
-        std::cerr << "Unsupported double parameter. name=" << name << " value=" << value << std::endl;
-    }
-    else
-    {
-        *(it->second) = value;
-    }
-
-    return true;
-}
-
-
-bool
-PlayerParamT::setBool( const std::string & name,
-                       const bool value )
-{
-    BoolMap::iterator it = bool_map_.find( name );
-    if ( it == bool_map_.end() )
-    {
-        std::cerr << "Unsupported bool parameter. name=" << name << " value=" << value << std::endl;
-    }
-    else
-    {
-        *(it->second) = value;
-    }
-
-    return true;
-}
-
-
+/*-------------------------------------------------------------------*/
 ServerParamT::ServerParamT()
     : goal_width_( 14.02 ),
       inertia_moment_( 5.0 ),
@@ -740,13 +564,13 @@ ServerParamT::ServerParamT()
       port_( 6000 ),
       coach_port_( 6001 ),
       online_coach_port_( 6002 ),
-      say_coach_count_max_( 128 ),
-      say_coach_msg_size_( 128 ),
+      coach_say_count_max_( 128 ),
+      coach_say_msg_size_( 128 ),
       simulator_step_( 100 ),
       send_step_( 150 ),
       recv_step_( 10 ),
       sense_body_step_( 100 ),
-      say_msg_size_( 10 ),
+      player_say_msg_size_( 10 ),
       clang_win_size_( 300 ),
       clang_define_win_( 1 ),
       clang_meta_win_( 1 ),
@@ -756,9 +580,9 @@ ServerParamT::ServerParamT()
       clang_rule_win_( 1 ),
       clang_mess_delay_( 50 ),
       clang_mess_per_cycle_( 1 ),
-      hear_max_( 1 ),
-      hear_inc_( 1 ),
-      hear_decay_( 1 ),
+      player_hear_max_( 1 ),
+      player_hear_inc_( 1 ),
+      player_hear_decay_( 1 ),
       catch_ban_cycle_( 5 ),
       coach_mode_( false ),
       coach_with_referee_mode_( false ),
@@ -766,7 +590,7 @@ ServerParamT::ServerParamT()
       online_coach_look_step_( 100 ),
       use_offside_( true ),
       offside_active_area_size_( 2.5 ),
-      kick_off_offside_( true ),
+      kickoff_offside_( true ),
       verbose_( false ),
       offside_kick_margin_( 9.15 ),
       slow_down_factor_( 1 ),
@@ -872,608 +696,1215 @@ ServerParamT::ServerParamT()
       fixed_teamname_l_( "" ),
       fixed_teamname_r_( "" ),
       max_catch_angle_( 180.0 ),
-      min_catch_angle_( -180.0 )
+      min_catch_angle_( -180.0 ),
+      // dist_noise_rate_( 0.0125 ),
+      // focus_dist_noise_rate_( 0.0125 ),
+      // land_dist_noise_rate_( 0.00125 ),
+      // land_focus_dist_noise_rate_( 0.00125 )
+      impl_( new Impl( this ) )
 {
-    double_map_.insert( DoubleMap::value_type( "goal_width", &goal_width_ ) );
-    double_map_.insert( DoubleMap::value_type( "inertia_moment", &inertia_moment_ ) );
-    double_map_.insert( DoubleMap::value_type( "player_size", &player_size_ ) );
-    double_map_.insert( DoubleMap::value_type( "player_decay", &player_decay_ ) );
-    double_map_.insert( DoubleMap::value_type( "player_rand", &player_rand_ ) );
-    double_map_.insert( DoubleMap::value_type( "player_weight", &player_weight_ ) );
-    double_map_.insert( DoubleMap::value_type( "player_speed_max", &player_speed_max_ ) );
-    double_map_.insert( DoubleMap::value_type( "player_accel_max", &player_accel_max_ ) );
-    double_map_.insert( DoubleMap::value_type( "stamina_max", &stamina_max_ ) );
-    double_map_.insert( DoubleMap::value_type( "stamina_inc_max", &stamina_inc_max_ ) );
-    double_map_.insert( DoubleMap::value_type( "recover_init", &recover_init_ ) ); // not necessary
-    double_map_.insert( DoubleMap::value_type( "recover_dec_thr", &recover_dec_thr_ ) );
-    double_map_.insert( DoubleMap::value_type( "recover_min", &recover_min_ ) );
-    double_map_.insert( DoubleMap::value_type( "recover_dec", &recover_dec_ ) );
-    double_map_.insert( DoubleMap::value_type( "effort_init", &effort_init_ ) );
-    double_map_.insert( DoubleMap::value_type( "effort_dec_thr", &effort_dec_thr_ ) );
-    double_map_.insert( DoubleMap::value_type( "effort_min", &effort_min_ ) );
-    double_map_.insert( DoubleMap::value_type( "effort_dec", &effort_dec_ ) );
-    double_map_.insert( DoubleMap::value_type( "effort_inc_thr", &effort_inc_thr_ ) );
-    double_map_.insert( DoubleMap::value_type( "effort_inc",  &effort_inc_ ) );
-    double_map_.insert( DoubleMap::value_type( "kick_rand", &kick_rand_ ) );
-    bool_map_.insert( BoolMap::value_type( "team_actuator_noise", &team_actuator_noise_ ) );
-    double_map_.insert( DoubleMap::value_type( "prand_factor_l", &player_rand_factor_l_ ) );
-    double_map_.insert( DoubleMap::value_type( "prand_factor_r", &player_rand_factor_r_ ) );
-    double_map_.insert( DoubleMap::value_type( "kick_rand_factor_l", &kick_rand_factor_l_ ) );
-    double_map_.insert( DoubleMap::value_type( "kick_rand_factor_r", &kick_rand_factor_r_ ) );
-    double_map_.insert( DoubleMap::value_type( "ball_size", &ball_size_ ) );
-    double_map_.insert( DoubleMap::value_type( "ball_decay", &ball_decay_ ) );
-    double_map_.insert( DoubleMap::value_type( "ball_rand", &ball_rand_ ) );
-    double_map_.insert( DoubleMap::value_type( "ball_weight", &ball_weight_ ) );
-    double_map_.insert( DoubleMap::value_type( "ball_speed_max", &ball_speed_max_ ) );
-    double_map_.insert( DoubleMap::value_type( "ball_accel_max", &ball_accel_max_ ) );
-    double_map_.insert( DoubleMap::value_type( "dash_power_rate", &dash_power_rate_ ) );
-    double_map_.insert( DoubleMap::value_type( "kick_power_rate", &kick_power_rate_ ) );
-    double_map_.insert( DoubleMap::value_type( "kickable_margin", &kickable_margin_ ) );
-    double_map_.insert( DoubleMap::value_type( "control_radius", &control_radius_ ) );
-    //( "control_radius_width", &control_radius_width_ ) );
-    //( "kickable_area", &kickable_area_ ) ); // not needed
-    double_map_.insert( DoubleMap::value_type( "catch_probability", &catch_probability_ ) );
-    double_map_.insert( DoubleMap::value_type( "catchable_area_l", &catchable_area_l_ ) );
-    double_map_.insert( DoubleMap::value_type( "catchable_area_w", &catchable_area_w_ ) );
-    int_map_.insert( IntMap::value_type( "goalie_max_moves", &goalie_max_moves_ ) );
-    double_map_.insert( DoubleMap::value_type( "maxpower", &max_power_ ) );
-    double_map_.insert( DoubleMap::value_type( "minpower", &min_power_ ) );
-    double_map_.insert( DoubleMap::value_type( "maxmoment", &max_moment_ ) );
-    double_map_.insert( DoubleMap::value_type( "minmoment", &min_moment_ ) );
-    double_map_.insert( DoubleMap::value_type( "maxneckmoment", &max_neck_moment_ ) );
-    double_map_.insert( DoubleMap::value_type( "minneckmoment", &min_neck_moment_ ) );
-    double_map_.insert( DoubleMap::value_type( "maxneckang", &max_neck_angle_ ) );
-    double_map_.insert( DoubleMap::value_type( "minneckang", &min_neck_angle_ ) );
-    double_map_.insert( DoubleMap::value_type( "visible_angle", &visible_angle_ ) );
-    double_map_.insert( DoubleMap::value_type( "visible_distance", &visible_distance_ ) );
-    double_map_.insert( DoubleMap::value_type( "audio_cut_dist", &audio_cut_dist_ ) );
-    double_map_.insert( DoubleMap::value_type( "quantize_step", &dist_quantize_step_ ) );
-    double_map_.insert( DoubleMap::value_type( "quantize_step_l", &landmark_dist_quantize_step_ ) );
-    //( "quantize_step_dir", &dir_quantize_step_ ) );
-    //( "quantize_step_dist_team_l", &dist_quantize_step_l_ ) );
-    //( "quantize_step_dist_team_r", &dist_quantize_step_r_ ) );
-    //( "quantize_step_dist_l_team_l", &landmark_dist_quantize_step_l_ ) );
-    //( "quantize_step_dist_l_team_r", &landmark_dist_quantize_step_r_ ) );
-    //( "quantize_step_dir_team_l", &dir_quantize_step_l_ ) );
-    //( "quantize_step_dir_team_r", &dir_quantize_step_r_ ) );
-    double_map_.insert( DoubleMap::value_type( "ckick_margin", &corner_kick_margin_ ) );
-    double_map_.insert( DoubleMap::value_type( "wind_dir", &wind_dir_ ) );
-    double_map_.insert( DoubleMap::value_type( "wind_force", &wind_force_ ) );
-    double_map_.insert( DoubleMap::value_type( "wind_ang", &wind_angle_ ) );
-    double_map_.insert( DoubleMap::value_type( "wind_rand", &wind_rand_ ) );
-    bool_map_.insert( BoolMap::value_type( "wind_none", &wind_none_ ) );
-    bool_map_.insert( BoolMap::value_type( "wind_random", &use_wind_random_ ) );
-    int_map_.insert( IntMap::value_type( "half_time", &half_time_ ) );
-    int_map_.insert( IntMap::value_type( "drop_ball_time", &drop_ball_time_ ) );
-    int_map_.insert( IntMap::value_type( "port", &port_ ) );
-    int_map_.insert( IntMap::value_type( "coach_port", &coach_port_ ) );
-    int_map_.insert( IntMap::value_type( "olcoach_port", &online_coach_port_ ) );
-    int_map_.insert( IntMap::value_type( "say_coach_cnt_max", &say_coach_count_max_ ) );
-    int_map_.insert( IntMap::value_type( "say_coach_msg_size", &say_coach_msg_size_ ) );
-    int_map_.insert( IntMap::value_type( "simulator_step", &simulator_step_ ) );
-    int_map_.insert( IntMap::value_type( "send_step", &send_step_ ) );
-    int_map_.insert( IntMap::value_type( "recv_step", &recv_step_ ) );
-    int_map_.insert( IntMap::value_type( "sense_body_step", &sense_body_step_ ) );
-    //( "lcm_step", &lcm_step_ ) ); // not needed
-    int_map_.insert( IntMap::value_type( "say_msg_size", &say_msg_size_ ) );
-    int_map_.insert( IntMap::value_type( "clang_win_size", &clang_win_size_ ) );
-    int_map_.insert( IntMap::value_type( "clang_define_win", &clang_define_win_ ) );
-    int_map_.insert( IntMap::value_type( "clang_meta_win", &clang_meta_win_ ) );
-    int_map_.insert( IntMap::value_type( "clang_advice_win", &clang_advice_win_ ) );
-    int_map_.insert( IntMap::value_type( "clang_info_win", &clang_info_win_ ) );
-    int_map_.insert( IntMap::value_type( "clang_del_win", &clang_del_win_ ) );
-    int_map_.insert( IntMap::value_type( "clang_rule_win", &clang_rule_win_ ) );
-    int_map_.insert( IntMap::value_type( "clang_mess_delay", &clang_mess_delay_ ) );
-    int_map_.insert( IntMap::value_type( "clang_mess_per_cycle", &clang_mess_per_cycle_ ) );
-    int_map_.insert( IntMap::value_type( "hear_max", &hear_max_ ) );
-    int_map_.insert( IntMap::value_type( "hear_inc", &hear_inc_ ) );
-    int_map_.insert( IntMap::value_type( "hear_decay", &hear_decay_ ) );
-    int_map_.insert( IntMap::value_type( "catch_ban_cycle", &catch_ban_cycle_ ) );
-    bool_map_.insert( BoolMap::value_type( "coach", &coach_mode_ ) );
-    bool_map_.insert( BoolMap::value_type( "coach_w_referee", &coach_with_referee_mode_ ) );
-    bool_map_.insert( BoolMap::value_type( "old_coach_hear", &use_old_coach_hear_ ) );
-    int_map_.insert( IntMap::value_type( "send_vi_step", &online_coach_look_step_ ) );
-    bool_map_.insert( BoolMap::value_type( "use_offside", &use_offside_ ) );
-    double_map_.insert( DoubleMap::value_type( "offside_kick_margin", &offside_kick_margin_ ) );
-    bool_map_.insert( BoolMap::value_type( "forbid_kick_off_offside", &kick_off_offside_ ) );
-    bool_map_.insert( BoolMap::value_type( "verbose", &verbose_ ) );
-    double_map_.insert( DoubleMap::value_type( "offside_active_area_size", &offside_active_area_size_ ) );
-    int_map_.insert( IntMap::value_type( "slow_down_factor", &slow_down_factor_ ) );
-    bool_map_.insert( BoolMap::value_type( "synch_mode", &synch_mode_ ) );
-    int_map_.insert( IntMap::value_type( "synch_offset", &synch_offset_ ) );
-    int_map_.insert( IntMap::value_type( "synch_micro_sleep", &synch_micro_sleep_ ) );
-    int_map_.insert( IntMap::value_type( "start_goal_l", &start_goal_l_ ) );
-    int_map_.insert( IntMap::value_type( "start_goal_r", &start_goal_r_ ) );
-    bool_map_.insert( BoolMap::value_type( "fullstate_l", &fullstate_l_ ) );
-    bool_map_.insert( BoolMap::value_type( "fullstate_r", &fullstate_r_ ) );
-    double_map_.insert( DoubleMap::value_type( "slowness_on_top_for_left_team", &slowness_on_top_for_left_team_ ) );
-    double_map_.insert( DoubleMap::value_type( "slowness_on_top_for_right_team", &slowness_on_top_for_right_team_ ) );
-    string_map_.insert( StringMap::value_type( "landmark_file", &landmark_file_ ) );
-    bool_map_.insert( BoolMap::value_type( "send_comms", &send_comms_ ) );
-    bool_map_.insert( BoolMap::value_type( "text_logging", &text_logging_ ) );
-    bool_map_.insert( BoolMap::value_type( "game_logging", &game_logging_ ) );
-    int_map_.insert( IntMap::value_type( "game_log_version", &game_log_version_ ) );
-    string_map_.insert( StringMap::value_type( "text_log_dir", &text_log_dir_ ) );
-    string_map_.insert( StringMap::value_type( "game_log_dir", &game_log_dir_ ) );
-    string_map_.insert( StringMap::value_type( "text_log_fixed_name", &text_log_fixed_name_ ) );
-    string_map_.insert( StringMap::value_type( "game_log_fixed_name", &game_log_fixed_name_ ) );
-    bool_map_.insert( BoolMap::value_type( "text_log_fixed", &text_log_fixed_ ) );
-    bool_map_.insert( BoolMap::value_type( "game_log_fixed", &game_log_fixed_ ) );
-    bool_map_.insert( BoolMap::value_type( "text_log_dated", &text_log_dated_ ) );
-    bool_map_.insert( BoolMap::value_type( "game_log_dated", &game_log_dated_ ) );
-    string_map_.insert( StringMap::value_type( "log_date_format", &log_date_format_ ) );
-    bool_map_.insert( BoolMap::value_type( "log_times", &log_times_ ) );
-    bool_map_.insert( BoolMap::value_type( "record_messages", &record_messages_ ) );
-    int_map_.insert( IntMap::value_type( "text_log_compression", &text_log_compression_ ) );
-    int_map_.insert( IntMap::value_type( "game_log_compression", &game_log_compression_ ) );
-    bool_map_.insert( BoolMap::value_type( "profile", &profile_ ) );
-    int_map_.insert( IntMap::value_type( "point_to_ban", &point_to_ban_ ) );
-    int_map_.insert( IntMap::value_type( "point_to_duration", &point_to_duration_ ) );
-    double_map_.insert( DoubleMap::value_type( "tackle_dist", &tackle_dist_ ) );
-    double_map_.insert( DoubleMap::value_type( "tackle_back_dist", &tackle_back_dist_ ) );
-    double_map_.insert( DoubleMap::value_type( "tackle_width", &tackle_width_ ) );
-    double_map_.insert( DoubleMap::value_type( "tackle_exponent", &tackle_exponent_ ) );
-    int_map_.insert( IntMap::value_type( "tackle_cycles", &tackle_cycles_ ) );
-    double_map_.insert( DoubleMap::value_type( "tackle_power_rate", &tackle_power_rate_ ) );
-    int_map_.insert( IntMap::value_type( "freeform_wait_period", &freeform_wait_period_ ) );
-    int_map_.insert( IntMap::value_type( "freeform_send_period", &freeform_send_period_ ) );
-    bool_map_.insert( BoolMap::value_type( "free_kick_faults", &free_kick_faults_ ) );
-    bool_map_.insert( BoolMap::value_type( "back_passes", &back_passes_ ) );
-    bool_map_.insert( BoolMap::value_type( "proper_goal_kicks", &proper_goal_kicks_ ) );
-    double_map_.insert( DoubleMap::value_type( "stopped_ball_vel", &stopped_ball_vel_ ) );
-    int_map_.insert( IntMap::value_type( "max_goal_kicks", &max_goal_kicks_ ) );
-    bool_map_.insert( BoolMap::value_type( "auto_mode", &auto_mode_ ) );
-    int_map_.insert( IntMap::value_type( "kick_off_wait", &kick_off_wait_ ) );
-    int_map_.insert( IntMap::value_type( "connect_wait", &connect_wait_ ) );
-    int_map_.insert( IntMap::value_type( "game_over_wait", &game_over_wait_ ) );
-    string_map_.insert( StringMap::value_type( "team_l_start", &team_l_start_ ) );
-    string_map_.insert( StringMap::value_type( "team_r_start", &team_r_start_ ) );
-    bool_map_.insert( BoolMap::value_type( "keepaway", &keepaway_mode_ ) );
-    double_map_.insert( DoubleMap::value_type( "keepaway_length", &keepaway_length_ ) );
-    double_map_.insert( DoubleMap::value_type( "keepaway_width", &keepaway_width_ ) );
-    bool_map_.insert( BoolMap::value_type( "keepaway_logging", &keepaway_logging_ ) );
-    string_map_.insert( StringMap::value_type( "keepaway_log_dir", &keepaway_log_dir_ ) );
-    string_map_.insert( StringMap::value_type( "keepaway_log_fixed_name", &keepaway_log_fixed_name_ ) );
-    bool_map_.insert( BoolMap::value_type( "keepaway_log_fixed", &keepaway_log_fixed_ ) );
-    bool_map_.insert( BoolMap::value_type( "keepaway_log_dated", &keepaway_log_dated_ ) );
-    int_map_.insert( IntMap::value_type( "keepaway_start", &keepaway_start_ ) );
-    int_map_.insert( IntMap::value_type( "nr_normal_halfs", &nr_normal_halfs_ ) );
-    int_map_.insert( IntMap::value_type( "nr_extra_halfs", &nr_extra_halfs_ ) );
-    bool_map_.insert( BoolMap::value_type( "penalty_shoot_outs", &penalty_shoot_outs_ ) );
-    int_map_.insert( IntMap::value_type( "pen_before_setup_wait", &pen_before_setup_wait_ ) );
-    int_map_.insert( IntMap::value_type( "pen_setup_wait", &pen_setup_wait_ ) );
-    int_map_.insert( IntMap::value_type( "pen_ready_wait", &pen_ready_wait_ ) );
-    int_map_.insert( IntMap::value_type( "pen_taken_wait", &pen_taken_wait_ ) );
-    int_map_.insert( IntMap::value_type( "pen_nr_kicks", &pen_nr_kicks_ ) );
-    int_map_.insert( IntMap::value_type( "pen_max_extra_kicks", &pen_max_extra_kicks_ ) );
-    double_map_.insert( DoubleMap::value_type( "pen_dist_x", &pen_dist_x_ ) );
-    bool_map_.insert( BoolMap::value_type( "pen_random_winner", &pen_random_winner_ ) );
-    double_map_.insert( DoubleMap::value_type( "pen_max_goalie_dist_x", &pen_max_goalie_dist_x_ ) );
-    bool_map_.insert( BoolMap::value_type( "pen_allow_mult_kicks", &pen_allow_mult_kicks_ ) );
-    bool_map_.insert( BoolMap::value_type( "pen_coach_moves_players", &pen_coach_moves_players_ ) );
-    // v11
-    double_map_.insert( DoubleMap::value_type( "ball_stuck_area", &ball_stuck_area_ ) );
-    string_map_.insert( StringMap::value_type( "coach_msg_file", &coach_msg_file_ ) );
-    // v12
-    double_map_.insert( DoubleMap::value_type( "max_tackle_power", &max_tackle_power_ ) );
-    double_map_.insert( DoubleMap::value_type( "max_back_tackle_power", &max_back_tackle_power_ ) );
-    double_map_.insert( DoubleMap::value_type( "player_speed_max_min", &player_speed_max_min_ ) );
-    double_map_.insert( DoubleMap::value_type( "extra_stamina", &extra_stamina_ ) );
-    int_map_.insert( IntMap::value_type( "synch_see_offset", &synch_see_offset_ ) );
-    int_map_.insert( IntMap::value_type( "max_monitors", &max_monitors_ ) );
-    // v12.1.3
-    int_map_.insert( IntMap::value_type( "extra_half_time", &extra_half_time_ ) );
-    // v13
-    double_map_.insert( DoubleMap::value_type( "stamina_capacity", &stamina_capacity_ ) );
-    double_map_.insert( DoubleMap::value_type( "max_dash_angle", &max_dash_angle_ ) );
-    double_map_.insert( DoubleMap::value_type( "min_dash_angle", &min_dash_angle_ ) );
-    double_map_.insert( DoubleMap::value_type( "dash_angle_step", &dash_angle_step_ ) );
-    double_map_.insert( DoubleMap::value_type( "side_dash_rate", &side_dash_rate_ ) );
-    double_map_.insert( DoubleMap::value_type( "back_dash_rate", &back_dash_rate_ ) );
-    double_map_.insert( DoubleMap::value_type( "max_dash_power", &max_dash_power_ ) );
-    double_map_.insert( DoubleMap::value_type( "min_dash_power", &min_dash_power_ ) );
-    // 14.0.0
-    double_map_.insert( DoubleMap::value_type( "tackle_rand_factor", &tackle_rand_factor_ ) );
-    double_map_.insert( DoubleMap::value_type( "foul_detect_probability", &foul_detect_probability_ ) );
-    double_map_.insert( DoubleMap::value_type( "foul_exponent", &foul_exponent_ ) );
-    int_map_.insert( IntMap::value_type( "foul_cycles", &foul_cycles_ ) );
-    bool_map_.insert( BoolMap::value_type( "golden_goal", &golden_goal_ ) );
-    // 15.0
-    double_map_.insert( DoubleMap::value_type( "red_card_probability", &red_card_probability_ ) );
-    // 16.0
-    int_map_.insert( IntMap::value_type( "illegal_defense_duration", &illegal_defense_duration_ ) );
-    int_map_.insert( IntMap::value_type( "illegal_defense_number", &illegal_defense_number_ ) );
-    double_map_.insert( DoubleMap::value_type( "illegal_defense_dist_x", &illegal_defense_dist_x_ ) );
-    double_map_.insert( DoubleMap::value_type( "illegal_defense_width", &illegal_defense_width_ ) );
-    string_map_.insert( StringMap::value_type( "fixed_teamname_l", &fixed_teamname_l_ ) );
-    string_map_.insert( StringMap::value_type( "fixed_teamname_r", &fixed_teamname_r_ ) );
-    // 17.0
-    double_map_.insert( DoubleMap::value_type( "max_catch_angle", &max_catch_angle_ ) );
-    double_map_.insert( DoubleMap::value_type( "min_catch_angle", &min_catch_angle_ ) );
 
-    //
 }
 
-
-std::ostream &
-ServerParamT::toSExp( std::ostream & os ) const
+/*-------------------------------------------------------------------*/
+ServerParamT::Impl::Impl( ServerParamT * p )
 {
-    os << "(server_param ";
-    to_sexp( os, "goal_width", quantize( goal_width_, 0.00001 ) );
-    to_sexp( os, "inertia_moment", quantize( inertia_moment_, 0.00001 ) );
-    to_sexp( os, "player_size", quantize( player_size_, 0.00001 ) );
-    to_sexp( os, "player_decay", quantize( player_decay_, 0.00001 ) );
-    to_sexp( os, "player_rand", quantize( player_rand_, 0.00001 ) );
-    to_sexp( os, "player_weight", quantize( player_weight_, 0.00001 ) );
-    to_sexp( os, "player_speed_max", quantize( player_speed_max_, 0.00001 ) );
-    to_sexp( os, "player_accel_max", quantize( player_accel_max_ , 0.00001 ) );
-    to_sexp( os, "stamina_max", quantize( stamina_max_, 0.00001 ) );
-    to_sexp( os, "stamina_inc_max", quantize( stamina_inc_max_, 0.00001 ) );
-    to_sexp( os, "recover_init", quantize( recover_init_, 0.00001 ) );
-    to_sexp( os, "recover_dec_thr", quantize( recover_dec_thr_, 0.00001 ) );
-    to_sexp( os, "recover_min", quantize( recover_min_, 0.00001 ) );
-    to_sexp( os, "recover_dec", quantize( recover_dec_, 0.00001 ) );
-    to_sexp( os, "effort_init", quantize( effort_init_, 0.00001 ) );
-    to_sexp( os, "effort_dec_thr", quantize( effort_dec_thr_, 0.00001 ) );
-    to_sexp( os, "effort_min", quantize( effort_min_, 0.00001 ) );
-    to_sexp( os, "effort_dec", quantize( effort_dec_, 0.00001 ) );
-    to_sexp( os, "effort_inc_thr", quantize( effort_inc_thr_, 0.00001 ) );
-    to_sexp( os, "effort_inc", quantize( effort_inc_, 0.00001 ) );
-    to_sexp( os, "kick_rand", quantize( kick_rand_, 0.00001 ) );
-    to_sexp( os, "team_actuator_noise", team_actuator_noise_ );
-    to_sexp( os, "prand_factor_l", quantize( player_rand_factor_l_, 0.00001 ) );
-    to_sexp( os, "prand_factor_r", quantize( player_rand_factor_r_, 0.00001 ) );
-    to_sexp( os, "kick_rand_factor_l", quantize( kick_rand_factor_l_, 0.00001 ) );
-    to_sexp( os, "kick_rand_factor_r", quantize( kick_rand_factor_r_, 0.00001 ) );
-    to_sexp( os, "ball_size", quantize( ball_size_, 0.00001 ) );
-    to_sexp( os, "ball_decay", quantize( ball_decay_, 0.00001 ) );
-    to_sexp( os, "ball_rand", quantize( ball_rand_, 0.00001 ) );
-    to_sexp( os, "ball_weight", quantize( ball_weight_, 0.00001 ) );
-    to_sexp( os, "ball_speed_max", quantize( ball_speed_max_, 0.00001 ) );
-    to_sexp( os, "ball_accel_max", quantize( ball_accel_max_, 0.00001 ) );
-    to_sexp( os, "dash_power_rate", quantize( dash_power_rate_, 0.00001 ) );
-    to_sexp( os, "kick_power_rate", quantize( kick_power_rate_, 0.00001 ) );
-    to_sexp( os, "kickable_margin", quantize( kickable_margin_, 0.00001 ) );
-    to_sexp( os, "control_radius", quantize( control_radius_, 0.00001 ) );
-    //( "control_radius_width", control_radius_width_ );
-    //( "kickable_area", kickable_area_ );
-    to_sexp( os, "catch_probability", quantize( catch_probability_, 0.00001 ) );
-    to_sexp( os, "catchable_area_l", quantize( catchable_area_l_, 0.00001 ) );
-    to_sexp( os, "catchable_area_w", quantize( catchable_area_w_, 0.00001 ) );
-    to_sexp( os, "goalie_max_moves", goalie_max_moves_ );
-    to_sexp( os, "maxpower", quantize( max_power_, 0.00001 ) );
-    to_sexp( os, "minpower", quantize( min_power_, 0.00001 ) );
-    to_sexp( os, "maxmoment", quantize( max_moment_, 0.00001 ) );
-    to_sexp( os, "minmoment", quantize( min_moment_, 0.00001 ) );
-    to_sexp( os, "maxneckmoment", quantize( max_neck_moment_, 0.00001 ) );
-    to_sexp( os, "minneckmoment", quantize( min_neck_moment_, 0.00001 ) );
-    to_sexp( os, "maxneckang", quantize( max_neck_angle_, 0.00001 ) );
-    to_sexp( os, "minneckang", quantize( min_neck_angle_, 0.00001 ) );
-    to_sexp( os, "visible_angle", quantize( visible_angle_, 0.00001 ) );
-    to_sexp( os, "visible_distance", quantize( visible_distance_, 0.00001 ) );
-    to_sexp( os, "audio_cut_dist", quantize( audio_cut_dist_, 0.00001 ) );
-    to_sexp( os, "quantize_step", quantize( dist_quantize_step_, 0.00001 ) );
-    to_sexp( os, "quantize_step_l", quantize( landmark_dist_quantize_step_, 0.00001 ) );
-    //( "quantize_step_dir", dir_quantize_step_ );
-    //( "quantize_step_dist_team_l", dist_quantize_step_l_ );
-    //( "quantize_step_dist_team_r", dist_quantize_step_r_ );
-    //( "quantize_step_dist_l_team_l", landmark_dist_quantize_step_l_ );
-    //( "quantize_step_dist_l_team_r", landmark_dist_quantize_step_r_ );
-    //( "quantize_step_dir_team_l", dir_quantize_step_l_ );
-    //( "quantize_step_dir_team_r", dir_quantize_step_r_ );
-    to_sexp( os, "ckick_margin", quantize( corner_kick_margin_, 0.00001 ) );
-    to_sexp( os, "wind_dir", quantize( wind_dir_, 0.00001 ) );
-    to_sexp( os, "wind_force", quantize( wind_force_, 0.00001 ) );
-    to_sexp( os, "wind_ang", quantize( wind_angle_, 0.00001 ) );
-    to_sexp( os, "wind_rand", quantize( wind_rand_, 0.00001 ) );
-    to_sexp( os, "wind_none", wind_none_ );
-    to_sexp( os, "wind_random", use_wind_random_ );
-    to_sexp( os, "half_time", half_time_ );
-    to_sexp( os, "drop_ball_time", drop_ball_time_ );
-    to_sexp( os, "port", port_ );
-    to_sexp( os, "coach_port", coach_port_ );
-    to_sexp( os, "olcoach_port", online_coach_port_ );
-    to_sexp( os, "say_coach_cnt_max", say_coach_count_max_ );
-    to_sexp( os, "say_coach_msg_size", say_coach_msg_size_ );
-    to_sexp( os, "simulator_step", simulator_step_ );
-    to_sexp( os, "send_step", send_step_ );
-    to_sexp( os, "recv_step", recv_step_ );
-    to_sexp( os, "sense_body_step", sense_body_step_ );
-    //( "lcm_step", lcm_step_ ); // not needed
-    to_sexp( os, "say_msg_size", say_msg_size_ );
-    to_sexp( os, "clang_win_size", clang_win_size_ );
-    to_sexp( os, "clang_define_win", clang_define_win_ );
-    to_sexp( os, "clang_meta_win", clang_meta_win_ );
-    to_sexp( os, "clang_advice_win", clang_advice_win_ );
-    to_sexp( os, "clang_info_win", clang_info_win_ );
-    to_sexp( os, "clang_del_win", clang_del_win_ );
-    to_sexp( os, "clang_rule_win", clang_rule_win_ );
-    to_sexp( os, "clang_mess_delay", clang_mess_delay_ );
-    to_sexp( os, "clang_mess_per_cycle", clang_mess_per_cycle_ );
-    to_sexp( os, "hear_max", hear_max_ );
-    to_sexp( os, "hear_inc", hear_inc_ );
-    to_sexp( os, "hear_decay", hear_decay_ );
-    to_sexp( os, "catch_ban_cycle", catch_ban_cycle_ );
-    to_sexp( os, "coach", coach_mode_ );
-    to_sexp( os, "coach_w_referee", coach_with_referee_mode_ );
-    to_sexp( os, "old_coach_hear", use_old_coach_hear_ );
-    to_sexp( os, "send_vi_step", online_coach_look_step_ );
-    to_sexp( os, "use_offside", use_offside_ );
-    to_sexp( os, "offside_kick_margin", quantize( offside_kick_margin_, 0.00001 ) );
-    to_sexp( os, "forbid_kick_off_offside", kick_off_offside_ );
-    to_sexp( os, "verbose", verbose_ );
-    to_sexp( os, "offside_active_area_size", quantize( offside_active_area_size_, 0.00001 ) );
-    to_sexp( os, "slow_down_factor", slow_down_factor_ );
-    to_sexp( os, "synch_mode", synch_mode_ );
-    to_sexp( os, "synch_offset", synch_offset_ );
-    to_sexp( os, "synch_micro_sleep", synch_micro_sleep_ );
-    to_sexp( os, "start_goal_l", start_goal_l_ );
-    to_sexp( os, "start_goal_r", start_goal_r_ );
-    to_sexp( os, "fullstate_l", fullstate_l_ );
-    to_sexp( os, "fullstate_r", fullstate_r_ );
-    to_sexp( os, "slowness_on_top_for_left_team", quantize( slowness_on_top_for_left_team_, 0.00001 ) );
-    to_sexp( os, "slowness_on_top_for_right_team", quantize( slowness_on_top_for_right_team_, 0.00001 ) );
-    to_sexp( os, "landmark_file", landmark_file_ );
-    to_sexp( os, "send_comms", send_comms_ );
-    to_sexp( os, "text_logging", text_logging_ );
-    to_sexp( os, "game_logging", game_logging_ );
-    to_sexp( os, "game_log_version", game_log_version_ );
-    to_sexp( os, "text_log_dir", text_log_dir_ );
-    to_sexp( os, "game_log_dir", game_log_dir_ );
-    to_sexp( os, "text_log_fixed_name", text_log_fixed_name_ );
-    to_sexp( os, "game_log_fixed_name", game_log_fixed_name_ );
-    to_sexp( os, "text_log_fixed", text_log_fixed_ );
-    to_sexp( os, "game_log_fixed", game_log_fixed_ );
-    to_sexp( os, "text_log_dated", text_log_dated_ );
-    to_sexp( os, "game_log_dated", game_log_dated_ );
-    to_sexp( os, "log_date_format", log_date_format_ );
-    to_sexp( os, "log_times", log_times_ );
-    to_sexp( os, "record_messages", record_messages_ );
-    to_sexp( os, "text_log_compression", text_log_compression_ );
-    to_sexp( os, "game_log_compression", game_log_compression_ );
-    to_sexp( os, "profile", profile_ );
-    to_sexp( os, "point_to_ban", point_to_ban_ );
-    to_sexp( os, "point_to_duration", point_to_duration_ );
-    to_sexp( os, "tackle_dist", quantize( tackle_dist_, 0.00001 ) );
-    to_sexp( os, "tackle_back_dist", quantize( tackle_back_dist_, 0.00001 ) );
-    to_sexp( os, "tackle_width", quantize( tackle_width_, 0.00001 ) );
-    to_sexp( os, "tackle_exponent", quantize( tackle_exponent_, 0.00001 ) );
-    to_sexp( os, "tackle_cycles", tackle_cycles_ );
-    to_sexp( os, "tackle_power_rate", quantize( tackle_power_rate_, 0.00001 ) );
-    to_sexp( os, "freeform_wait_period", freeform_wait_period_ );
-    to_sexp( os, "freeform_send_period", freeform_send_period_ );
-    to_sexp( os, "free_kick_faults", free_kick_faults_ );
-    to_sexp( os, "back_passes", back_passes_ );
-    to_sexp( os, "proper_goal_kicks", proper_goal_kicks_ );
-    to_sexp( os, "stopped_ball_vel", quantize( stopped_ball_vel_, 0.00001 ) );
-    to_sexp( os, "max_goal_kicks", max_goal_kicks_ );
-    to_sexp( os, "auto_mode", auto_mode_ );
-    to_sexp( os, "kick_off_wait", kick_off_wait_ );
-    to_sexp( os, "connect_wait", connect_wait_ );
-    to_sexp( os, "game_over_wait", game_over_wait_ );
-    to_sexp( os, "team_l_start", team_l_start_ );
-    to_sexp( os, "team_r_start", team_r_start_ );
-    to_sexp( os, "keepaway", keepaway_mode_ );
-    to_sexp( os, "keepaway_length", quantize( keepaway_length_, 0.00001 ) );
-    to_sexp( os, "keepaway_width", quantize( keepaway_width_, 0.00001 ) );
-    to_sexp( os, "keepaway_logging", keepaway_logging_ );
-    to_sexp( os, "keepaway_log_dir", keepaway_log_dir_ );
-    to_sexp( os, "keepaway_log_fixed_name", keepaway_log_fixed_name_ );
-    to_sexp( os, "keepaway_log_fixed", keepaway_log_fixed_ );
-    to_sexp( os, "keepaway_log_dated", keepaway_log_dated_ );
-    to_sexp( os, "keepaway_start", keepaway_start_ );
-    to_sexp( os, "nr_normal_halfs", nr_normal_halfs_ );
-    to_sexp( os, "nr_extra_halfs", nr_extra_halfs_ );
-    to_sexp( os, "penalty_shoot_outs", penalty_shoot_outs_ );
-    to_sexp( os, "pen_before_setup_wait", pen_before_setup_wait_ );
-    to_sexp( os, "pen_setup_wait", pen_setup_wait_ );
-    to_sexp( os, "pen_ready_wait", pen_ready_wait_ );
-    to_sexp( os, "pen_taken_wait", pen_taken_wait_ );
-    to_sexp( os, "pen_nr_kicks", pen_nr_kicks_ );
-    to_sexp( os, "pen_max_extra_kicks", pen_max_extra_kicks_ );
-    to_sexp( os, "pen_dist_x", quantize( pen_dist_x_, 0.00001 ) );
-    to_sexp( os, "pen_random_winner", pen_random_winner_ );
-    to_sexp( os, "pen_max_goalie_dist_x", quantize( pen_max_goalie_dist_x_, 0.00001 ) );
-    to_sexp( os, "pen_allow_mult_kicks", pen_allow_mult_kicks_ );
-    to_sexp( os, "pen_coach_moves_players", pen_coach_moves_players_ );
-    // 11
-    to_sexp( os, "ball_stuck_area", quantize( ball_stuck_area_, 0.00001 ) );
-    to_sexp( os, "coach_msg_file", coach_msg_file_ );
-    // 12
-    to_sexp( os, "max_tackle_power", quantize( max_tackle_power_, 0.00001 ) );
-    to_sexp( os, "max_back_tackle_power", quantize( max_back_tackle_power_, 0.00001 ) );
-    to_sexp( os, "player_speed_max_min", quantize( player_speed_max_min_, 0.00001 ) );
-    to_sexp( os, "extra_stamina", quantize( extra_stamina_, 0.00001 ) );
-    to_sexp( os, "synch_see_offset", synch_see_offset_ );
-    to_sexp( os, "max_monitors", max_monitors_ );
-    // 12.1.3
-    to_sexp( os, "extra_half_time", extra_half_time_ );
+    param_map_.insert( ParamMap::value_type( "goal_width", &(p->goal_width_ ) ) );
+    param_map_.insert( ParamMap::value_type( "inertia_moment", &(p->inertia_moment_ ) ) );
+    param_map_.insert( ParamMap::value_type( "player_size", &(p->player_size_ ) ) );
+    param_map_.insert( ParamMap::value_type( "player_decay", &(p->player_decay_ ) ) );
+    param_map_.insert( ParamMap::value_type( "player_rand", &(p->player_rand_ ) ) );
+    param_map_.insert( ParamMap::value_type( "player_weight", &(p->player_weight_ ) ) );
+    param_map_.insert( ParamMap::value_type( "player_speed_max", &(p->player_speed_max_ ) ) );
+    param_map_.insert( ParamMap::value_type( "player_accel_max", &(p->player_accel_max_ ) ) );
+    param_map_.insert( ParamMap::value_type( "stamina_max", &(p->stamina_max_ ) ) );
+    param_map_.insert( ParamMap::value_type( "stamina_inc_max", &(p->stamina_inc_max_ ) ) );
+    param_map_.insert( ParamMap::value_type( "recover_init", &(p->recover_init_ ) ) ); // not necessary
+    param_map_.insert( ParamMap::value_type( "recover_dec_thr", &(p->recover_dec_thr_ ) ) );
+    param_map_.insert( ParamMap::value_type( "recover_min", &(p->recover_min_ ) ) );
+    param_map_.insert( ParamMap::value_type( "recover_dec", &(p->recover_dec_ ) ) );
+    param_map_.insert( ParamMap::value_type( "effort_init", &(p->effort_init_ ) ) );
+    param_map_.insert( ParamMap::value_type( "effort_dec_thr", &(p->effort_dec_thr_ ) ) );
+    param_map_.insert( ParamMap::value_type( "effort_min", &(p->effort_min_ ) ) );
+    param_map_.insert( ParamMap::value_type( "effort_dec", &(p->effort_dec_ ) ) );
+    param_map_.insert( ParamMap::value_type( "effort_inc_thr", &(p->effort_inc_thr_ ) ) );
+    param_map_.insert( ParamMap::value_type( "effort_inc",  &(p->effort_inc_ ) ) );
+    param_map_.insert( ParamMap::value_type( "kick_rand", &(p->kick_rand_ ) ) );
+    param_map_.insert( ParamMap::value_type( "team_actuator_noise", &(p->team_actuator_noise_ ) ) );
+    param_map_.insert( ParamMap::value_type( "prand_factor_l", &(p->player_rand_factor_l_ ) ) );
+    param_map_.insert( ParamMap::value_type( "prand_factor_r", &(p->player_rand_factor_r_ ) ) );
+    param_map_.insert( ParamMap::value_type( "kick_rand_factor_l", &(p->kick_rand_factor_l_ ) ) );
+    param_map_.insert( ParamMap::value_type( "kick_rand_factor_r", &(p->kick_rand_factor_r_ ) ) );
+    param_map_.insert( ParamMap::value_type( "ball_size", &(p->ball_size_ ) ) );
+    param_map_.insert( ParamMap::value_type( "ball_decay", &(p->ball_decay_ ) ) );
+    param_map_.insert( ParamMap::value_type( "ball_rand", &(p->ball_rand_ ) ) );
+    param_map_.insert( ParamMap::value_type( "ball_weight", &(p->ball_weight_ ) ) );
+    param_map_.insert( ParamMap::value_type( "ball_speed_max", &(p->ball_speed_max_ ) ) );
+    param_map_.insert( ParamMap::value_type( "ball_accel_max", &(p->ball_accel_max_ ) ) );
+    param_map_.insert( ParamMap::value_type( "dash_power_rate", &(p->dash_power_rate_ ) ) );
+    param_map_.insert( ParamMap::value_type( "kick_power_rate", &(p->kick_power_rate_ ) ) );
+    param_map_.insert( ParamMap::value_type( "kickable_margin", &(p->kickable_margin_ ) ) );
+    param_map_.insert( ParamMap::value_type( "control_radius", &(p->control_radius_ ) ) );
+    //( "control_radius_width", &(p->control_radius_width_ ) ) );
+    //( "kickable_area", &(p->kickable_area_ ) ) ); // not needed
+    param_map_.insert( ParamMap::value_type( "catch_probability", &(p->catch_probability_ ) ) );
+    param_map_.insert( ParamMap::value_type( "catchable_area_l", &(p->catchable_area_l_ ) ) );
+    param_map_.insert( ParamMap::value_type( "catchable_area_w", &(p->catchable_area_w_ ) ) );
+    param_map_.insert( ParamMap::value_type( "goalie_max_moves", &(p->goalie_max_moves_ ) ) );
+    param_map_.insert( ParamMap::value_type( "maxpower", &(p->max_power_ ) ) );
+    param_map_.insert( ParamMap::value_type( "minpower", &(p->min_power_ ) ) );
+    param_map_.insert( ParamMap::value_type( "maxmoment", &(p->max_moment_ ) ) );
+    param_map_.insert( ParamMap::value_type( "minmoment", &(p->min_moment_ ) ) );
+    param_map_.insert( ParamMap::value_type( "maxneckmoment", &(p->max_neck_moment_ ) ) );
+    param_map_.insert( ParamMap::value_type( "minneckmoment", &(p->min_neck_moment_ ) ) );
+    param_map_.insert( ParamMap::value_type( "maxneckang", &(p->max_neck_angle_ ) ) );
+    param_map_.insert( ParamMap::value_type( "minneckang", &(p->min_neck_angle_ ) ) );
+    param_map_.insert( ParamMap::value_type( "visible_angle", &(p->visible_angle_ ) ) );
+    param_map_.insert( ParamMap::value_type( "visible_distance", &(p->visible_distance_ ) ) );
+    param_map_.insert( ParamMap::value_type( "audio_cut_dist", &(p->audio_cut_dist_ ) ) );
+    param_map_.insert( ParamMap::value_type( "quantize_step", &(p->dist_quantize_step_ ) ) );
+    param_map_.insert( ParamMap::value_type( "quantize_step_l", &(p->landmark_dist_quantize_step_ ) ) );
+    //( "quantize_step_dir", &(p->dir_quantize_step_ ) ) );
+    //( "quantize_step_dist_team_l", &(p->dist_quantize_step_l_ ) ) );
+    //( "quantize_step_dist_team_r", &(p->dist_quantize_step_r_ ) ) );
+    //( "quantize_step_dist_l_team_l", &(p->landmark_dist_quantize_step_l_ ) ) );
+    //( "quantize_step_dist_l_team_r", &(p->landmark_dist_quantize_step_r_ ) ) );
+    //( "quantize_step_dir_team_l", &(p->dir_quantize_step_l_ ) ) );
+    //( "quantize_step_dir_team_r", &(p->dir_quantize_step_r_ ) ) );
+    param_map_.insert( ParamMap::value_type( "ckick_margin", &(p->corner_kick_margin_ ) ) );
+    param_map_.insert( ParamMap::value_type( "wind_dir", &(p->wind_dir_ ) ) );
+    param_map_.insert( ParamMap::value_type( "wind_force", &(p->wind_force_ ) ) );
+    param_map_.insert( ParamMap::value_type( "wind_ang", &(p->wind_angle_ ) ) );
+    param_map_.insert( ParamMap::value_type( "wind_rand", &(p->wind_rand_ ) ) );
+    param_map_.insert( ParamMap::value_type( "wind_none", &(p->wind_none_ ) ) );
+    param_map_.insert( ParamMap::value_type( "wind_random", &(p->use_wind_random_ ) ) );
+    param_map_.insert( ParamMap::value_type( "half_time", &(p->half_time_ ) ) );
+    param_map_.insert( ParamMap::value_type( "drop_ball_time", &(p->drop_ball_time_ ) ) );
+    param_map_.insert( ParamMap::value_type( "port", &(p->port_ ) ) );
+    param_map_.insert( ParamMap::value_type( "coach_port", &(p->coach_port_ ) ) );
+    param_map_.insert( ParamMap::value_type( "olcoach_port", &(p->online_coach_port_ ) ) );
+    param_map_.insert( ParamMap::value_type( "say_coach_cnt_max", &(p->coach_say_count_max_ ) ) );
+    param_map_.insert( ParamMap::value_type( "say_coach_msg_size", &(p->coach_say_msg_size_ ) ) );
+    param_map_.insert( ParamMap::value_type( "simulator_step", &(p->simulator_step_ ) ) );
+    param_map_.insert( ParamMap::value_type( "send_step", &(p->send_step_ ) ) );
+    param_map_.insert( ParamMap::value_type( "recv_step", &(p->recv_step_ ) ) );
+    param_map_.insert( ParamMap::value_type( "sense_body_step", &(p->sense_body_step_ ) ) );
+    //( "lcm_step", &(p->lcm_step_ ) ) ); // not needed
+    param_map_.insert( ParamMap::value_type( "say_msg_size", &(p->player_say_msg_size_ ) ) );
+    param_map_.insert( ParamMap::value_type( "clang_win_size", &(p->clang_win_size_ ) ) );
+    param_map_.insert( ParamMap::value_type( "clang_define_win", &(p->clang_define_win_ ) ) );
+    param_map_.insert( ParamMap::value_type( "clang_meta_win", &(p->clang_meta_win_ ) ) );
+    param_map_.insert( ParamMap::value_type( "clang_advice_win", &(p->clang_advice_win_ ) ) );
+    param_map_.insert( ParamMap::value_type( "clang_info_win", &(p->clang_info_win_ ) ) );
+    param_map_.insert( ParamMap::value_type( "clang_del_win", &(p->clang_del_win_ ) ) );
+    param_map_.insert( ParamMap::value_type( "clang_rule_win", &(p->clang_rule_win_ ) ) );
+    param_map_.insert( ParamMap::value_type( "clang_mess_delay", &(p->clang_mess_delay_ ) ) );
+    param_map_.insert( ParamMap::value_type( "clang_mess_per_cycle", &(p->clang_mess_per_cycle_ ) ) );
+    param_map_.insert( ParamMap::value_type( "hear_max", &(p->player_hear_max_ ) ) );
+    param_map_.insert( ParamMap::value_type( "hear_inc", &(p->player_hear_inc_ ) ) );
+    param_map_.insert( ParamMap::value_type( "hear_decay", &(p->player_hear_decay_ ) ) );
+    param_map_.insert( ParamMap::value_type( "catch_ban_cycle", &(p->catch_ban_cycle_ ) ) );
+    param_map_.insert( ParamMap::value_type( "coach", &(p->coach_mode_ ) ) );
+    param_map_.insert( ParamMap::value_type( "coach_w_referee", &(p->coach_with_referee_mode_ ) ) );
+    param_map_.insert( ParamMap::value_type( "old_coach_hear", &(p->use_old_coach_hear_ ) ) );
+    param_map_.insert( ParamMap::value_type( "send_vi_step", &(p->online_coach_look_step_ ) ) );
+    param_map_.insert( ParamMap::value_type( "use_offside", &(p->use_offside_ ) ) );
+    param_map_.insert( ParamMap::value_type( "offside_kick_margin", &(p->offside_kick_margin_ ) ) );
+    param_map_.insert( ParamMap::value_type( "forbid_kick_off_offside", &(p->kickoff_offside_ ) ) );
+    param_map_.insert( ParamMap::value_type( "verbose", &(p->verbose_ ) ) );
+    param_map_.insert( ParamMap::value_type( "offside_active_area_size", &(p->offside_active_area_size_ ) ) );
+    param_map_.insert( ParamMap::value_type( "slow_down_factor", &(p->slow_down_factor_ ) ) );
+    param_map_.insert( ParamMap::value_type( "synch_mode", &(p->synch_mode_ ) ) );
+    param_map_.insert( ParamMap::value_type( "synch_offset", &(p->synch_offset_ ) ) );
+    param_map_.insert( ParamMap::value_type( "synch_micro_sleep", &(p->synch_micro_sleep_ ) ) );
+    param_map_.insert( ParamMap::value_type( "start_goal_l", &(p->start_goal_l_ ) ) );
+    param_map_.insert( ParamMap::value_type( "start_goal_r", &(p->start_goal_r_ ) ) );
+    param_map_.insert( ParamMap::value_type( "fullstate_l", &(p->fullstate_l_ ) ) );
+    param_map_.insert( ParamMap::value_type( "fullstate_r", &(p->fullstate_r_ ) ) );
+    param_map_.insert( ParamMap::value_type( "slowness_on_top_for_left_team", &(p->slowness_on_top_for_left_team_ ) ) );
+    param_map_.insert( ParamMap::value_type( "slowness_on_top_for_right_team", &(p->slowness_on_top_for_right_team_ ) ) );
+    param_map_.insert( ParamMap::value_type( "landmark_file", &(p->landmark_file_ ) ) );
+    param_map_.insert( ParamMap::value_type( "send_comms", &(p->send_comms_ ) ) );
+    param_map_.insert( ParamMap::value_type( "text_logging", &(p->text_logging_ ) ) );
+    param_map_.insert( ParamMap::value_type( "game_logging", &(p->game_logging_ ) ) );
+    param_map_.insert( ParamMap::value_type( "game_log_version", &(p->game_log_version_ ) ) );
+    param_map_.insert( ParamMap::value_type( "text_log_dir", &(p->text_log_dir_ ) ) );
+    param_map_.insert( ParamMap::value_type( "game_log_dir", &(p->game_log_dir_ ) ) );
+    param_map_.insert( ParamMap::value_type( "text_log_fixed_name", &(p->text_log_fixed_name_ ) ) );
+    param_map_.insert( ParamMap::value_type( "game_log_fixed_name", &(p->game_log_fixed_name_ ) ) );
+    param_map_.insert( ParamMap::value_type( "text_log_fixed", &(p->text_log_fixed_ ) ) );
+    param_map_.insert( ParamMap::value_type( "game_log_fixed", &(p->game_log_fixed_ ) ) );
+    param_map_.insert( ParamMap::value_type( "text_log_dated", &(p->text_log_dated_ ) ) );
+    param_map_.insert( ParamMap::value_type( "game_log_dated", &(p->game_log_dated_ ) ) );
+    param_map_.insert( ParamMap::value_type( "log_date_format", &(p->log_date_format_ ) ) );
+    param_map_.insert( ParamMap::value_type( "log_times", &(p->log_times_ ) ) );
+    param_map_.insert( ParamMap::value_type( "record_messages", &(p->record_messages_ ) ) );
+    param_map_.insert( ParamMap::value_type( "text_log_compression", &(p->text_log_compression_ ) ) );
+    param_map_.insert( ParamMap::value_type( "game_log_compression", &(p->game_log_compression_ ) ) );
+    param_map_.insert( ParamMap::value_type( "profile", &(p->profile_ ) ) );
+    param_map_.insert( ParamMap::value_type( "point_to_ban", &(p->point_to_ban_ ) ) );
+    param_map_.insert( ParamMap::value_type( "point_to_duration", &(p->point_to_duration_ ) ) );
+    param_map_.insert( ParamMap::value_type( "tackle_dist", &(p->tackle_dist_ ) ) );
+    param_map_.insert( ParamMap::value_type( "tackle_back_dist", &(p->tackle_back_dist_ ) ) );
+    param_map_.insert( ParamMap::value_type( "tackle_width", &(p->tackle_width_ ) ) );
+    param_map_.insert( ParamMap::value_type( "tackle_exponent", &(p->tackle_exponent_ ) ) );
+    param_map_.insert( ParamMap::value_type( "tackle_cycles", &(p->tackle_cycles_ ) ) );
+    param_map_.insert( ParamMap::value_type( "tackle_power_rate", &(p->tackle_power_rate_ ) ) );
+    param_map_.insert( ParamMap::value_type( "freeform_wait_period", &(p->freeform_wait_period_ ) ) );
+    param_map_.insert( ParamMap::value_type( "freeform_send_period", &(p->freeform_send_period_ ) ) );
+    param_map_.insert( ParamMap::value_type( "free_kick_faults", &(p->free_kick_faults_ ) ) );
+    param_map_.insert( ParamMap::value_type( "back_passes", &(p->back_passes_ ) ) );
+    param_map_.insert( ParamMap::value_type( "proper_goal_kicks", &(p->proper_goal_kicks_ ) ) );
+    param_map_.insert( ParamMap::value_type( "stopped_ball_vel", &(p->stopped_ball_vel_ ) ) );
+    param_map_.insert( ParamMap::value_type( "max_goal_kicks", &(p->max_goal_kicks_ ) ) );
+    param_map_.insert( ParamMap::value_type( "auto_mode", &(p->auto_mode_ ) ) );
+    param_map_.insert( ParamMap::value_type( "kick_off_wait", &(p->kick_off_wait_ ) ) );
+    param_map_.insert( ParamMap::value_type( "connect_wait", &(p->connect_wait_ ) ) );
+    param_map_.insert( ParamMap::value_type( "game_over_wait", &(p->game_over_wait_ ) ) );
+    param_map_.insert( ParamMap::value_type( "team_l_start", &(p->team_l_start_ ) ) );
+    param_map_.insert( ParamMap::value_type( "team_r_start", &(p->team_r_start_ ) ) );
+    param_map_.insert( ParamMap::value_type( "keepaway", &(p->keepaway_mode_ ) ) );
+    param_map_.insert( ParamMap::value_type( "keepaway_length", &(p->keepaway_length_ ) ) );
+    param_map_.insert( ParamMap::value_type( "keepaway_width", &(p->keepaway_width_ ) ) );
+    param_map_.insert( ParamMap::value_type( "keepaway_logging", &(p->keepaway_logging_ ) ) );
+    param_map_.insert( ParamMap::value_type( "keepaway_log_dir", &(p->keepaway_log_dir_ ) ) );
+    param_map_.insert( ParamMap::value_type( "keepaway_log_fixed_name", &(p->keepaway_log_fixed_name_ ) ) );
+    param_map_.insert( ParamMap::value_type( "keepaway_log_fixed", &(p->keepaway_log_fixed_ ) ) );
+    param_map_.insert( ParamMap::value_type( "keepaway_log_dated", &(p->keepaway_log_dated_ ) ) );
+    param_map_.insert( ParamMap::value_type( "keepaway_start", &(p->keepaway_start_ ) ) );
+    param_map_.insert( ParamMap::value_type( "nr_normal_halfs", &(p->nr_normal_halfs_ ) ) );
+    param_map_.insert( ParamMap::value_type( "nr_extra_halfs", &(p->nr_extra_halfs_ ) ) );
+    param_map_.insert( ParamMap::value_type( "penalty_shoot_outs", &(p->penalty_shoot_outs_ ) ) );
+    param_map_.insert( ParamMap::value_type( "pen_before_setup_wait", &(p->pen_before_setup_wait_ ) ) );
+    param_map_.insert( ParamMap::value_type( "pen_setup_wait", &(p->pen_setup_wait_ ) ) );
+    param_map_.insert( ParamMap::value_type( "pen_ready_wait", &(p->pen_ready_wait_ ) ) );
+    param_map_.insert( ParamMap::value_type( "pen_taken_wait", &(p->pen_taken_wait_ ) ) );
+    param_map_.insert( ParamMap::value_type( "pen_nr_kicks", &(p->pen_nr_kicks_ ) ) );
+    param_map_.insert( ParamMap::value_type( "pen_max_extra_kicks", &(p->pen_max_extra_kicks_ ) ) );
+    param_map_.insert( ParamMap::value_type( "pen_dist_x", &(p->pen_dist_x_ ) ) );
+    param_map_.insert( ParamMap::value_type( "pen_random_winner", &(p->pen_random_winner_ ) ) );
+    param_map_.insert( ParamMap::value_type( "pen_max_goalie_dist_x", &(p->pen_max_goalie_dist_x_ ) ) );
+    param_map_.insert( ParamMap::value_type( "pen_allow_mult_kicks", &(p->pen_allow_mult_kicks_ ) ) );
+    param_map_.insert( ParamMap::value_type( "pen_coach_moves_players", &(p->pen_coach_moves_players_ ) ) );
+    // v11
+    param_map_.insert( ParamMap::value_type( "ball_stuck_area", &(p->ball_stuck_area_ ) ) );
+    param_map_.insert( ParamMap::value_type( "coach_msg_file", &(p->coach_msg_file_ ) ) );
+    // v12
+    param_map_.insert( ParamMap::value_type( "max_tackle_power", &(p->max_tackle_power_ ) ) );
+    param_map_.insert( ParamMap::value_type( "max_back_tackle_power", &(p->max_back_tackle_power_ ) ) );
+    param_map_.insert( ParamMap::value_type( "player_speed_max_min", &(p->player_speed_max_min_ ) ) );
+    param_map_.insert( ParamMap::value_type( "extra_stamina", &(p->extra_stamina_ ) ) );
+    param_map_.insert( ParamMap::value_type( "synch_see_offset", &(p->synch_see_offset_ ) ) );
+    param_map_.insert( ParamMap::value_type( "max_monitors", &(p->max_monitors_ ) ) );
+    // v12.1.3
+    param_map_.insert( ParamMap::value_type( "extra_half_time", &(p->extra_half_time_ ) ) );
     // v13
-    to_sexp( os, "stamina_capacity", quantize( stamina_capacity_, 0.00001 ) );
-    to_sexp( os, "max_dash_angle", quantize( max_dash_angle_, 0.00001 ) );
-    to_sexp( os, "min_dash_angle", quantize( min_dash_angle_, 0.00001 ) );
-    to_sexp( os, "dash_angle_step", quantize( dash_angle_step_, 0.00001 ) );
-    to_sexp( os, "side_dash_rate", quantize( side_dash_rate_, 0.00001 ) );
-    to_sexp( os, "back_dash_rate", quantize( back_dash_rate_, 0.00001 ) );
-    to_sexp( os, "max_dash_power", quantize( max_dash_power_, 0.00001 ) );
-    to_sexp( os, "min_dash_power", quantize( min_dash_power_, 0.00001 ) );
-    // 14.0
-    to_sexp( os, "tackle_rand_factor", quantize( tackle_rand_factor_, 0.00001 ) );
-    to_sexp( os, "foul_detect_probability", quantize( foul_detect_probability_, 0.00001 ) );
-    to_sexp( os, "foul_exponent", quantize( foul_exponent_, 0.00001 ) );
-    to_sexp( os, "foul_cycles", foul_cycles_ );
-    to_sexp( os, "golden_goal", golden_goal_ );
+    param_map_.insert( ParamMap::value_type( "stamina_capacity", &(p->stamina_capacity_ ) ) );
+    param_map_.insert( ParamMap::value_type( "max_dash_angle", &(p->max_dash_angle_ ) ) );
+    param_map_.insert( ParamMap::value_type( "min_dash_angle", &(p->min_dash_angle_ ) ) );
+    param_map_.insert( ParamMap::value_type( "dash_angle_step", &(p->dash_angle_step_ ) ) );
+    param_map_.insert( ParamMap::value_type( "side_dash_rate", &(p->side_dash_rate_ ) ) );
+    param_map_.insert( ParamMap::value_type( "back_dash_rate", &(p->back_dash_rate_ ) ) );
+    param_map_.insert( ParamMap::value_type( "max_dash_power", &(p->max_dash_power_ ) ) );
+    param_map_.insert( ParamMap::value_type( "min_dash_power", &(p->min_dash_power_ ) ) );
+    // 14.0.0
+    param_map_.insert( ParamMap::value_type( "tackle_rand_factor", &(p->tackle_rand_factor_ ) ) );
+    param_map_.insert( ParamMap::value_type( "foul_detect_probability", &(p->foul_detect_probability_ ) ) );
+    param_map_.insert( ParamMap::value_type( "foul_exponent", &(p->foul_exponent_ ) ) );
+    param_map_.insert( ParamMap::value_type( "foul_cycles", &(p->foul_cycles_ ) ) );
+    param_map_.insert( ParamMap::value_type( "golden_goal", &(p->golden_goal_ ) ) );
     // 15.0
-    to_sexp( os, "red_card_probability", quantize( red_card_probability_, 0.00001 ) );
+    param_map_.insert( ParamMap::value_type( "red_card_probability", &(p->red_card_probability_ ) ) );
     // 16.0
-    to_sexp( os, "illegal_defense_duration", illegal_defense_duration_ );
-    to_sexp( os, "illegal_defense_number", illegal_defense_number_ );
-    to_sexp( os, "illegal_defense_dist_x", illegal_defense_dist_x_ );
-    to_sexp( os, "illegal_defense_width", illegal_defense_width_ );
-    to_sexp( os, "fixed_teamname_l", fixed_teamname_l_ );
-    to_sexp( os, "fixed_teamname_r", fixed_teamname_r_ );
+    param_map_.insert( ParamMap::value_type( "illegal_defense_duration", &(p->illegal_defense_duration_ ) ) );
+    param_map_.insert( ParamMap::value_type( "illegal_defense_number", &(p->illegal_defense_number_ ) ) );
+    param_map_.insert( ParamMap::value_type( "illegal_defense_dist_x", &(p->illegal_defense_dist_x_ ) ) );
+    param_map_.insert( ParamMap::value_type( "illegal_defense_width", &(p->illegal_defense_width_ ) ) );
+    param_map_.insert( ParamMap::value_type( "fixed_teamname_l", &(p->fixed_teamname_l_ ) ) );
+    param_map_.insert( ParamMap::value_type( "fixed_teamname_r", &(p->fixed_teamname_r_ ) ) );
     // 17.0
-    to_sexp( os, "max_catch_angle", quantize( max_catch_angle_, 0.00001 ) );
-    to_sexp( os, "min_catch_angle", quantize( min_catch_angle_, 0.00001 ) );
+    param_map_.insert( ParamMap::value_type( "max_catch_angle", &(p->max_catch_angle_ ) ) );
+    param_map_.insert( ParamMap::value_type( "min_catch_angle", &(p->min_catch_angle_ ) ) );
+    // 19.0
+    // param_map_.insert( ParamMap::value_type( "dist_noise_rate", &(p->dist_noise_rate_ ) ) );
+    // param_map_.insert( ParamMap::value_type( "focus_dist_noise_rate", &(p->focus_dist_noise_rate_ ) ) );
+    // param_map_.insert( ParamMap::value_type( "land_dist_noise_rate", &(p->land_dist_noise_rate_ ) ) );
+    // param_map_.insert( ParamMap::value_type( "land_focus_dist_noise_rate", &(p->land_focus_dist_noise_rate_ ) ) );
+}
+
+void
+ServerParamT::copyFrom( const ServerParamT & other )
+{
+    goal_width_ = other.goal_width_;
+    inertia_moment_ = other.inertia_moment_;
+    player_size_ = other.player_size_;
+    player_decay_ = other.player_decay_;
+    player_rand_ = other.player_rand_;
+    player_weight_ = other.player_weight_;
+    player_speed_max_ = other.player_speed_max_;
+    player_accel_max_ = other.player_accel_max_;
+    stamina_max_ = other.stamina_max_;
+    stamina_inc_max_ = other.stamina_inc_max_;
+    recover_init_ = other.recover_init_;
+    recover_dec_thr_ = other.recover_dec_thr_;
+    recover_min_ = other.recover_min_;
+    recover_dec_ = other.recover_dec_;
+    effort_init_ = other.effort_init_;
+    effort_dec_thr_ = other.effort_dec_thr_;
+    effort_min_ = other.effort_min_;
+    effort_dec_ = other.effort_dec_;
+    effort_inc_thr_ = other.effort_inc_thr_;
+    effort_inc_ = other.effort_inc_;
+    kick_rand_ = other.kick_rand_;
+    team_actuator_noise_ = other.team_actuator_noise_;
+    player_rand_factor_l_ = other.player_rand_factor_l_;
+    player_rand_factor_r_ = other.player_rand_factor_r_;
+    kick_rand_factor_l_ = other.kick_rand_factor_l_;
+    kick_rand_factor_r_ = other.kick_rand_factor_r_;
+    ball_size_ = other.ball_size_;
+    ball_decay_ = other.ball_decay_;
+    ball_rand_ = other.ball_rand_;
+    ball_weight_ = other.ball_weight_;
+    ball_speed_max_ = other.ball_speed_max_;
+    ball_accel_max_ = other.ball_accel_max_;
+    dash_power_rate_ = other.dash_power_rate_;
+    kick_power_rate_ = other.kick_power_rate_;
+    kickable_margin_ = other.kickable_margin_;
+    control_radius_ = other.control_radius_;
+    catch_probability_ = other.catch_probability_;
+    catchable_area_l_ = other.catchable_area_l_;
+    catchable_area_w_ = other.catchable_area_w_;
+    goalie_max_moves_ = other.goalie_max_moves_;
+    max_power_ = other.max_power_;
+    min_power_ = other.min_power_;
+    max_moment_ = other.max_moment_;
+    min_moment_ = other.min_moment_;
+    max_neck_moment_ = other.max_neck_moment_;
+    min_neck_moment_ = other.min_neck_moment_;
+    max_neck_angle_ = other.max_neck_angle_;
+    min_neck_angle_ = other.min_neck_angle_;
+    visible_angle_ = other.visible_angle_;
+    visible_distance_ = other.visible_distance_;
+    audio_cut_dist_ = other.audio_cut_dist_;
+    dist_quantize_step_ = other.dist_quantize_step_;
+    landmark_dist_quantize_step_ = other.landmark_dist_quantize_step_;
+    corner_kick_margin_ = other.corner_kick_margin_;
+    wind_dir_ = other.wind_dir_;
+    wind_force_ = other.wind_force_;
+    wind_angle_ = other.wind_angle_;
+    wind_rand_ = other.wind_rand_;
+    wind_none_ = other.wind_none_;
+    use_wind_random_ = other.use_wind_random_;
+    half_time_ = other.half_time_;
+    drop_ball_time_ = other.drop_ball_time_;
+    port_ = other.port_;
+    coach_port_ = other.coach_port_;
+    online_coach_port_ = other.online_coach_port_;
+    coach_say_count_max_ = other.coach_say_count_max_;
+    coach_say_msg_size_ = other.coach_say_msg_size_;
+    simulator_step_ = other.simulator_step_;
+    send_step_ = other.send_step_;
+    recv_step_ = other.recv_step_;
+    sense_body_step_ = other.sense_body_step_;
+    player_say_msg_size_ = other.player_say_msg_size_;
+    clang_win_size_ = other.clang_win_size_;
+    clang_define_win_ = other.clang_define_win_;
+    clang_meta_win_ = other.clang_meta_win_;
+    clang_advice_win_ = other.clang_advice_win_;
+    clang_info_win_ = other.clang_info_win_;
+    clang_del_win_ = other.clang_del_win_;
+    clang_rule_win_ = other.clang_rule_win_;
+    clang_mess_delay_ = other.clang_mess_delay_;
+    clang_mess_per_cycle_ = other.clang_mess_per_cycle_;
+    player_hear_max_ = other.player_hear_max_;
+    player_hear_inc_ = other.player_hear_inc_;
+    player_hear_decay_ = other.player_hear_decay_;
+    catch_ban_cycle_ = other.catch_ban_cycle_;
+    coach_mode_ = other.coach_mode_;
+    coach_with_referee_mode_ = other.coach_with_referee_mode_;
+    use_old_coach_hear_ = other.use_old_coach_hear_;
+    online_coach_look_step_ = other.online_coach_look_step_;
+    use_offside_ = other.use_offside_;
+    offside_active_area_size_ = other.offside_active_area_size_;
+    kickoff_offside_ = other.kickoff_offside_;
+    verbose_ = other.verbose_;
+    offside_kick_margin_ = other.offside_kick_margin_;
+    slow_down_factor_ = other.slow_down_factor_;
+    synch_mode_ = other.synch_mode_;
+    synch_offset_ = other.synch_offset_;
+    synch_micro_sleep_ = other.synch_micro_sleep_;
+    start_goal_l_ = other.start_goal_l_;
+    start_goal_r_ = other.start_goal_r_;
+    fullstate_l_ = other.fullstate_l_;
+    fullstate_r_ = other.fullstate_r_;
+    slowness_on_top_for_left_team_ = other.slowness_on_top_for_left_team_;
+    slowness_on_top_for_right_team_ = other.slowness_on_top_for_right_team_;
+    landmark_file_ = other.landmark_file_;
+    send_comms_ = other.send_comms_;
+    text_logging_ = other.text_logging_;
+    game_logging_ = other.game_logging_;
+    game_log_version_ = other.game_log_version_;
+    text_log_dir_ = other.text_log_dir_;
+    game_log_dir_ = other.game_log_dir_;
+    text_log_fixed_name_ = other.text_log_fixed_name_;
+    game_log_fixed_name_ = other.game_log_fixed_name_;
+    text_log_fixed_ = other.text_log_fixed_;
+    game_log_fixed_ = other.game_log_fixed_;
+    text_log_dated_ = other.text_log_dated_;
+    game_log_dated_ = other.game_log_dated_;
+    log_date_format_ = other.log_date_format_;
+    log_times_ = other.log_times_;
+    record_messages_ = other.record_messages_;
+    text_log_compression_ = other.text_log_compression_;
+    game_log_compression_ = other.game_log_compression_;
+    profile_ = other.profile_;
+    point_to_ban_ = other.point_to_ban_;
+    point_to_duration_ = other.point_to_duration_;
+    tackle_dist_ = other.tackle_dist_;
+    tackle_back_dist_ = other.tackle_back_dist_;
+    tackle_width_ = other.tackle_width_;
+    tackle_exponent_ = other.tackle_exponent_;
+    tackle_cycles_ = other.tackle_cycles_;
+    tackle_power_rate_ = other.tackle_power_rate_;
+    freeform_wait_period_ = other.freeform_wait_period_;
+    freeform_send_period_ = other.freeform_send_period_;
+    free_kick_faults_ = other.free_kick_faults_;
+    back_passes_ = other.back_passes_;
+    proper_goal_kicks_ = other.proper_goal_kicks_;
+    stopped_ball_vel_ = other.stopped_ball_vel_;
+    max_goal_kicks_ = other.max_goal_kicks_;
+    auto_mode_ = other.auto_mode_;
+    kick_off_wait_ = other.kick_off_wait_;
+    connect_wait_ = other.connect_wait_;
+    game_over_wait_ = other.game_over_wait_;
+    team_l_start_ = other.team_l_start_;
+    team_r_start_ = other.team_r_start_;
+    keepaway_mode_ = other.keepaway_mode_;
+    keepaway_length_ = other.keepaway_length_;
+    keepaway_width_ = other.keepaway_width_;
+    keepaway_logging_ = other.keepaway_logging_;
+    keepaway_log_dir_ = other.keepaway_log_dir_;
+    keepaway_log_fixed_name_ = other.keepaway_log_fixed_name_;
+    keepaway_log_fixed_ = other.keepaway_log_fixed_;
+    keepaway_log_dated_ = other.keepaway_log_dated_;
+    keepaway_start_ = other.keepaway_start_;
+    nr_normal_halfs_ = other.nr_normal_halfs_;
+    nr_extra_halfs_ = other.nr_extra_halfs_;
+    penalty_shoot_outs_ = other.penalty_shoot_outs_;
+    pen_before_setup_wait_ = other.pen_before_setup_wait_;
+    pen_setup_wait_ = other.pen_setup_wait_;
+    pen_ready_wait_ = other.pen_ready_wait_;
+    pen_taken_wait_ = other.pen_taken_wait_;
+    pen_nr_kicks_ = other.pen_nr_kicks_;
+    pen_max_extra_kicks_ = other.pen_max_extra_kicks_;
+    pen_dist_x_ = other.pen_dist_x_;
+    pen_random_winner_ = other.pen_random_winner_;
+    pen_max_goalie_dist_x_ = other.pen_max_goalie_dist_x_;
+    pen_allow_mult_kicks_ = other.pen_allow_mult_kicks_;
+    pen_coach_moves_players_ = other.pen_coach_moves_players_;
+    ball_stuck_area_ = other.ball_stuck_area_;
+    coach_msg_file_ = other.coach_msg_file_;
+    max_tackle_power_ = other.max_tackle_power_;
+    max_back_tackle_power_ = other.max_back_tackle_power_;
+    player_speed_max_min_ = other.player_speed_max_min_;
+    extra_stamina_ = other.extra_stamina_;
+    synch_see_offset_ = other.synch_see_offset_;
+    max_monitors_ = other.max_monitors_;
+    extra_half_time_ = other.extra_half_time_;
+    stamina_capacity_ = other.stamina_capacity_;
+    max_dash_angle_ = other.max_dash_angle_;
+    min_dash_angle_ = other.min_dash_angle_;
+    dash_angle_step_ = other.dash_angle_step_;
+    side_dash_rate_ = other.side_dash_rate_;
+    back_dash_rate_ = other.back_dash_rate_;
+    max_dash_power_ = other.max_dash_power_;
+    min_dash_power_ = other.min_dash_power_;
+    tackle_rand_factor_ = other.tackle_rand_factor_;
+    foul_detect_probability_ = other.foul_detect_probability_;
+    foul_exponent_ = other.foul_exponent_;
+    foul_cycles_ = other.foul_cycles_;
+    golden_goal_ = other.golden_goal_;
+    red_card_probability_ = other.red_card_probability_;
+    illegal_defense_duration_ = other.illegal_defense_duration_;
+    illegal_defense_number_ = other.illegal_defense_number_;
+    illegal_defense_dist_x_ = other.illegal_defense_dist_x_;
+    illegal_defense_width_ = other.illegal_defense_width_;
+    fixed_teamname_l_ = other.fixed_teamname_l_;
+    fixed_teamname_r_ = other.fixed_teamname_r_;
+    max_catch_angle_ = other.max_catch_angle_;
+    min_catch_angle_ = other.min_catch_angle_;
+    dist_noise_rate_ = other.dist_noise_rate_;
+    focus_dist_noise_rate_ = other.focus_dist_noise_rate_;
+    land_dist_noise_rate_ = other.land_dist_noise_rate_;
+    land_focus_dist_noise_rate_ = other.land_focus_dist_noise_rate_;
+}
+
+/*-------------------------------------------------------------------*/
+std::ostream &
+ServerParamT::toServerString( std::ostream & os ) const
+{
+    return print_server_message( os, "server_param", impl_->param_map_ );
+}
+
+/*-------------------------------------------------------------------*/
+std::ostream &
+ServerParamT::toJSON( std::ostream & os ) const
+{
+    return print_json( os, "server_param", impl_->param_map_ );
+}
+
+/*-------------------------------------------------------------------*/
+bool
+ServerParamT::fromServerString( const std::string & msg )
+{
+    return parse_server_message( msg, impl_->param_map_ );
+}
+
+/*-------------------------------------------------------------------*/
+bool
+ServerParamT::fromStruct( const server_params_t & from )
+{
+    goal_width_ = nltohd( from.goal_width );
+    inertia_moment_ = nltohd( from.inertia_moment );
+
+    player_size_ = nltohd( from.player_size );
+    player_decay_ = nltohd( from.player_decay );
+    player_rand_ = nltohd( from.player_rand );
+    player_weight_ = nltohd( from.player_weight );
+    player_speed_max_ = nltohd( from.player_speed_max );
+    player_accel_max_ = nltohd( from.player_accel_max );
+
+    stamina_max_ = nltohd( from.stamina_max );
+    stamina_inc_max_ = nltohd( from.stamina_inc );
+
+    recover_init_ = nltohd( from.recover_init );
+    recover_dec_thr_ = nltohd( from.recover_dec_thr );
+    recover_min_ = nltohd( from.recover_min );
+    recover_dec_ = nltohd( from.recover_dec );
+
+    effort_init_ = nltohd( from.effort_init );
+    effort_dec_thr_ = nltohd( from.effort_dec_thr );
+    effort_min_ = nltohd( from.effort_min );
+    effort_dec_ = nltohd( from.effort_dec );
+    effort_inc_thr_ = nltohd( from.effort_inc_thr );
+    effort_inc_ = nltohd( from.effort_inc );
+
+    kick_rand_ = nltohd( from.kick_rand );
+    team_actuator_noise_ = nstohb( from.team_actuator_noise );
+    player_rand_factor_l_ = nltohd( from.player_rand_factor_l );
+    player_rand_factor_r_ = nltohd( from.player_rand_factor_r );
+    kick_rand_factor_l_ = nltohd( from.kick_rand_factor_l );
+    kick_rand_factor_r_ = nltohd( from.kick_rand_factor_r );
+
+    ball_size_ = nltohd( from.ball_size );
+    ball_decay_ = nltohd( from.ball_decay );
+    ball_rand_ = nltohd( from.ball_rand );
+    ball_weight_ = nltohd( from.ball_weight );
+    ball_speed_max_ = nltohd( from.ball_speed_max );
+    ball_accel_max_ = nltohd( from.ball_accel_max );
+
+    dash_power_rate_ = nltohd( from.dash_power_rate );
+    kick_power_rate_ = nltohd( from.kick_power_rate );
+    kickable_margin_ = nltohd( from.kickable_margin );
+    control_radius_ = nltohd( from.control_radius );
+    //control_radius_width_ = nltohd( from.control_radius_width );
+
+    max_power_ = nltohd( from.max_power );
+    min_power_ = nltohd( from.min_power );
+    max_moment_ = nltohd( from.max_moment );
+    min_moment_ = nltohd( from.min_moment );
+    max_neck_moment_ = nltohd( from.max_neck_moment );
+    min_neck_moment_ = nltohd( from.min_neck_moment );
+    max_neck_angle_ = nltohd( from.max_neck_angle );
+    min_neck_angle_ = nltohd( from.min_neck_angle );
+
+    visible_angle_ = nltohd( from.visible_angle );
+    visible_distance_ = nltohd( from.visible_distance );
+
+    wind_dir_ = nltohd( from.wind_dir );
+    wind_force_ = nltohd( from.wind_force );
+    wind_angle_ = nltohd( from.wind_ang );
+    wind_rand_ = nltohd( from.wind_rand );
+
+    //kickable_area_ = nltohd( from.kickable_area );
+
+    catchable_area_l_ = nltohd( from.catch_area_l );
+    catchable_area_w_ = nltohd( from.catch_area_w );
+    catch_probability_ = nltohd( from.catch_probability );
+    goalie_max_moves_ = nstohi( from.goalie_max_moves );
+
+    corner_kick_margin_ = nltohd( from.corner_kick_margin );
+    offside_active_area_size_ = nltohd( from.offside_active_area );
+
+    wind_none_ = nstohb( from.wind_none );
+    use_wind_random_ = nstohb( from.use_wind_random );
+
+    coach_say_count_max_ = nstohi( from.coach_say_count_max );
+    coach_say_msg_size_ = nstohi( from.coach_say_msg_size );
+
+    clang_win_size_ = nstohi( from.clang_win_size );
+    clang_define_win_ = nstohi( from.clang_define_win );
+    clang_meta_win_ = nstohi( from.clang_meta_win );
+    clang_advice_win_ = nstohi( from.clang_advice_win );
+    clang_info_win_ = nstohi( from.clang_info_win );
+    clang_mess_delay_ = nstohi( from.clang_mess_delay );
+    clang_mess_per_cycle_ = nstohi( from.clang_mess_per_cycle );
+
+    half_time_ = nstohi( from.half_time );
+    simulator_step_ = nstohi( from.simulator_step );
+    send_step_ = nstohi( from.send_step );
+    recv_step_ = nstohi( from.recv_step );
+    sense_body_step_ = nstohi( from.sense_body_step );
+    //lcm_step_ = nstohi( from.lcm_step )
+
+    player_say_msg_size_ = nstohi( from.player_say_msg_size );
+    player_hear_max_ = nstohi( from.player_hear_max );
+    player_hear_inc_ = nstohi( from.player_hear_inc );
+    player_hear_decay_ = nstohi( from.player_hear_decay );
+
+    catch_ban_cycle_ = nstohi( from.catch_ban_cycle );
+
+    slow_down_factor_ = nstohi( from.slow_down_factor );
+
+    use_offside_ = nstohb( from.use_offside);
+    kickoff_offside_ = nstohb( from.kickoff_offside );
+    offside_kick_margin_ = nltohd( from.offside_kick_margin );
+
+    audio_cut_dist_ = nltohd(from.audio_cut_dist );
+
+    dist_quantize_step_ = nltohd( from.dist_quantize_step );
+    landmark_dist_quantize_step_ = rcg::nltohd( from.landmark_dist_quantize_step );
+    //nltohd( from.dir_quantize_step )
+    //nltohd( from.dist_quantize_step_l )
+    //nltohd( from.dist_quantize_step_r )
+    //nltohd( from.landmark_dist_quantize_step_l )
+    //nltohd( from.landmark_dist_quantize_step_r )
+    //nltohd( from.dir_quantize_step_l )
+    //nltohd( from.dir_quantize_step_r )
+
+    coach_mode_ = nstohb( from.coach_mode );
+    coach_with_referee_mode_ = nstohb( from.coach_with_referee_mode );
+    use_old_coach_hear_ = nstohb( from.use_old_coach_hear );
+
+    online_coach_look_step_ = nstohi( from.online_coach_look_step );
+
+    slowness_on_top_for_left_team_ = nltohd( from.slowness_on_top_for_left_team );
+    slowness_on_top_for_right_team_ = nltohd( from.slowness_on_top_for_right_team );
+
+    keepaway_length_ = nltohd( from.ka_length );
+    keepaway_width_ = nltohd( from.ka_width );;
+
+    double tmp = 0.0;
+    // 11.0.0
+    tmp = nltohd( from.ball_stuck_area );
+    if ( std::fabs( tmp ) < 1000.0 )
+    {
+        ball_stuck_area_ = tmp;;
+    }
+
+    // 12.0.0
+    tmp = nltohd( from.max_tackle_power );
+    if ( 0.0 < tmp && std::fabs( tmp ) < 200.0 )
+    {
+        max_tackle_power_ = tmp;;
+    }
+
+    tmp = nltohd( from.max_back_tackle_power );
+    if ( 0.0 < tmp && std::fabs( tmp ) < 200.0 )
+    {
+        max_back_tackle_power_ = tmp;;
+    }
+
+    tmp = nltohd( from.tackle_dist );
+    if ( 0.0 <= tmp && std::fabs( tmp ) < 3.0 )
+    {
+        tackle_dist_ = tmp;;
+    }
+
+    tmp = nltohd( from.tackle_back_dist );
+    if ( 0.0 <= tmp && std::fabs( tmp ) < 1.0 )
+    {
+        tackle_back_dist_ = tmp;;
+    }
+
+    tmp = nltohd( from.tackle_width );
+    if ( 0.0 < tmp && std::fabs( tmp ) < 2.0 )
+    {
+        tackle_width_ = tmp;;
+    }
+
+    start_goal_l_ = nstohi( from.start_goal_l );
+    start_goal_r_ = nstohi( from.start_goal_r );
+
+    fullstate_l_ = nstohb( from.fullstate_l );
+    fullstate_r_ = nstohb( from.fullstate_r );
+
+    drop_ball_time_ = nstohi( from.drop_ball_time );
+
+    synch_mode_ = nstohb( from.synch_mode );
+    synch_offset_ = nstohi( from.synch_offset );
+    synch_micro_sleep_ = nstohi( from.synch_micro_sleep );
+
+    point_to_ban_ = nstohi( from.point_to_ban );
+    point_to_duration_ = nstohi( from.point_to_duration );
+
+    return true;
+}
+
+/*-------------------------------------------------------------------*/
+bool
+ServerParamT::setValue( const std::string & name,
+                        const std::string & value )
+{
+    return set_value( name, value, impl_->param_map_ );
+}
+
+/*-------------------------------------------------------------------*/
+bool
+ServerParamT::setInt( const std::string & name,
+                      const int value )
+{
+    return set_integer( name, value, impl_->param_map_ );
+}
+
+/*-------------------------------------------------------------------*/
+bool
+ServerParamT::setDouble( const std::string & name,
+                         const double value )
+{
+    return set_double( name, value, impl_->param_map_ );
+}
+
+/*-------------------------------------------------------------------*/
+bool
+ServerParamT::setBool( const std::string & name,
+                       const bool value )
+{
+    return set_boolean( name, value, impl_->param_map_ );
+}
+
+/*-------------------------------------------------------------------*/
+bool
+ServerParamT::setString( const std::string & name,
+                         const std::string & value )
+{
+    return set_string( name, value, impl_->param_map_ );
+}
+
+/*-------------------------------------------------------------------*/
+/*-------------------------------------------------------------------*/
+/*-------------------------------------------------------------------*/
+
+struct PlayerParamT::Impl {
+    Impl( PlayerParamT * p );
+
+    ParamMap param_map_;
+};
+
+/*-------------------------------------------------------------------*/
+PlayerParamT::PlayerParamT()
+    : player_types_( 18 ),
+      substitute_max_( 3 ),
+      pt_max_( 1 ),
+      allow_mult_default_type_( false ),
+      player_speed_max_delta_min_( 0.0 ),
+      player_speed_max_delta_max_( 0.0 ),
+      stamina_inc_max_delta_factor_( 0.0 ),
+      player_decay_delta_min_( -0.05 ),
+      player_decay_delta_max_( 0.1 ),
+      inertia_moment_delta_factor_( 25.0 ),
+      dash_power_rate_delta_min_( 0.0 ),
+      dash_power_rate_delta_max_( 0.0 ),
+      player_size_delta_factor_( -100.0 ),
+      kickable_margin_delta_min_( -0.1 ),
+      kickable_margin_delta_max_( 0.1 ),
+      kick_rand_delta_factor_( 1.0 ),
+      extra_stamina_delta_min_( 0.0 ),
+      extra_stamina_delta_max_( 100.0 ),
+      effort_max_delta_factor_( -0.002 ),
+      effort_min_delta_factor_( -0.002 ),
+      new_dash_power_rate_delta_min_( -0.0005 ),
+      new_dash_power_rate_delta_max_( 0.0015 ),
+      new_stamina_inc_max_delta_factor_( -6000.0 ),
+      random_seed_( -1 ),
+      kick_power_rate_delta_min_( 0.0 ),
+      kick_power_rate_delta_max_( 0.0 ),
+      foul_detect_probability_delta_factor_( 0.0 ),
+      catchable_area_l_stretch_min_( 0.0 ),
+      catchable_area_l_stretch_max_( 0.0 ),
+      impl_( new Impl( this ) )
+{
+
+}
+
+/*-------------------------------------------------------------------*/
+PlayerParamT::Impl::Impl( PlayerParamT * p )
+{
+    param_map_.insert( ParamMap::value_type( "player_types", &(p->player_types_ ) ) );
+    param_map_.insert( ParamMap::value_type( "subs_max", &(p->substitute_max_ ) ) );
+    param_map_.insert( ParamMap::value_type( "pt_max", &(p->pt_max_ ) ) );
+    param_map_.insert( ParamMap::value_type( "allow_mult_default_type", &(p->allow_mult_default_type_ ) ) );
+    param_map_.insert( ParamMap::value_type( "player_speed_max_delta_min", &(p->player_speed_max_delta_min_ ) ) );
+    param_map_.insert( ParamMap::value_type( "player_speed_max_delta_max", &(p->player_speed_max_delta_max_ ) ) );
+    param_map_.insert( ParamMap::value_type( "stamina_inc_max_delta_factor", &(p->stamina_inc_max_delta_factor_ ) ) );
+    param_map_.insert( ParamMap::value_type( "player_decay_delta_min", &(p->player_decay_delta_min_ ) ) );
+    param_map_.insert( ParamMap::value_type( "player_decay_delta_max", &(p->player_decay_delta_max_ ) ) );
+    param_map_.insert( ParamMap::value_type( "inertia_moment_delta_factor", &(p->inertia_moment_delta_factor_ ) ) );
+    param_map_.insert( ParamMap::value_type( "dash_power_rate_delta_min", &(p->dash_power_rate_delta_min_ ) ) );
+    param_map_.insert( ParamMap::value_type( "dash_power_rate_delta_max", &(p->dash_power_rate_delta_max_ ) ) );
+    param_map_.insert( ParamMap::value_type( "player_size_delta_factor", &(p->player_size_delta_factor_ ) ) );
+    param_map_.insert( ParamMap::value_type( "kickable_margin_delta_min", &(p->kickable_margin_delta_min_ ) ) );
+    param_map_.insert( ParamMap::value_type( "kickable_margin_delta_max", &(p->kickable_margin_delta_max_ ) ) );
+    param_map_.insert( ParamMap::value_type( "kick_rand_delta_factor", &(p->kick_rand_delta_factor_ ) ) );
+    param_map_.insert( ParamMap::value_type( "extra_stamina_delta_min", &(p->extra_stamina_delta_min_ ) ) );
+    param_map_.insert( ParamMap::value_type( "extra_stamina_delta_max", &(p->extra_stamina_delta_max_ ) ) );
+    param_map_.insert( ParamMap::value_type( "effort_max_delta_factor", &(p->effort_max_delta_factor_ ) ) );
+    param_map_.insert( ParamMap::value_type( "effort_min_delta_factor", &(p->effort_min_delta_factor_ ) ) );
+    param_map_.insert( ParamMap::value_type( "random_seed", &(p->random_seed_ ) ) );
+    param_map_.insert( ParamMap::value_type( "new_dash_power_rate_delta_min", &(p->new_dash_power_rate_delta_min_ ) ) );
+    param_map_.insert( ParamMap::value_type( "new_dash_power_rate_delta_max", &(p->new_dash_power_rate_delta_max_ ) ) );
+    param_map_.insert( ParamMap::value_type( "new_stamina_inc_max_delta_factor", &(p->new_stamina_inc_max_delta_factor_ ) ) );
+    // 14.0.0
+    param_map_.insert( ParamMap::value_type( "kick_power_rate_delta_min", &(p->kick_power_rate_delta_min_ ) ) );
+    param_map_.insert( ParamMap::value_type( "kick_power_rate_delta_max", &(p->kick_power_rate_delta_max_ ) ) );
+    param_map_.insert( ParamMap::value_type( "foul_detect_probability_delta_factor", &(p->foul_detect_probability_delta_factor_ ) ) );
+    param_map_.insert( ParamMap::value_type( "catchable_area_l_stretch_min", &(p->catchable_area_l_stretch_min_ ) ) );
+    param_map_.insert( ParamMap::value_type( "catchable_area_l_stretch_max", &(p->catchable_area_l_stretch_max_ ) ) );
+}
+
+/*-------------------------------------------------------------------*/
+void
+PlayerParamT::copyFrom( const PlayerParamT & other )
+{
+    player_types_ = other.player_types_;
+    substitute_max_ = other.substitute_max_;
+    pt_max_ = other.pt_max_;;
+
+    allow_mult_default_type_ = other.allow_mult_default_type_;;
+
+    player_speed_max_delta_min_ = other.player_speed_max_delta_min_;;
+    player_speed_max_delta_max_ = other.player_speed_max_delta_max_;;
+    stamina_inc_max_delta_factor_ = other.stamina_inc_max_delta_factor_;;
+
+    player_decay_delta_min_ = other.player_decay_delta_min_;;
+    player_decay_delta_max_ = other.player_decay_delta_max_;;
+    inertia_moment_delta_factor_ = other.inertia_moment_delta_factor_;;
+
+    dash_power_rate_delta_min_ = other.dash_power_rate_delta_min_;;
+    dash_power_rate_delta_max_ = other.dash_power_rate_delta_max_;;
+    player_size_delta_factor_ = other.player_size_delta_factor_;;
+
+    kickable_margin_delta_min_ = other.kickable_margin_delta_min_;;
+    kickable_margin_delta_max_ = other.kickable_margin_delta_max_;;
+    kick_rand_delta_factor_ = other.kick_rand_delta_factor_;;
+
+    extra_stamina_delta_min_ = other.extra_stamina_delta_min_;;
+    extra_stamina_delta_max_ = other.extra_stamina_delta_max_;;
+    effort_max_delta_factor_ = other.effort_max_delta_factor_;;
+    effort_min_delta_factor_ = other.effort_min_delta_factor_;;
+
+    new_dash_power_rate_delta_min_ = other.new_dash_power_rate_delta_min_;;
+    new_dash_power_rate_delta_max_ = other.new_dash_power_rate_delta_max_;;
+    new_stamina_inc_max_delta_factor_ = other.new_stamina_inc_max_delta_factor_;;
+
+    random_seed_ = other.random_seed_;
+
+    kick_power_rate_delta_min_ = other.kick_power_rate_delta_min_;;
+    kick_power_rate_delta_max_ = other.kick_power_rate_delta_max_;;
+    foul_detect_probability_delta_factor_ = other.foul_detect_probability_delta_factor_;;
+
+    catchable_area_l_stretch_min_ = other.catchable_area_l_stretch_min_;;
+    catchable_area_l_stretch_max_ = other.catchable_area_l_stretch_max_;;
+}
+
+/*-------------------------------------------------------------------*/
+std::ostream &
+PlayerParamT::toServerString( std::ostream & os ) const
+{
+    return print_server_message( os, "player_param", impl_->param_map_ );
+}
+
+/*-------------------------------------------------------------------*/
+std::ostream &
+PlayerParamT::toJSON( std::ostream & os ) const
+{
+    return print_json( os, "player_param", impl_->param_map_ );
+}
+
+/*-------------------------------------------------------------------*/
+bool
+PlayerParamT::fromServerString( const std::string & msg )
+{
+    return parse_server_message( msg, impl_->param_map_ );
+}
+
+/*-------------------------------------------------------------------*/
+bool
+PlayerParamT::fromStruct( const player_params_t & from )
+{
+    player_types_ = nstohi( from.player_types );
+    substitute_max_ = nstohi( from.substitute_max );
+    pt_max_ = nstohi( from.pt_max );
+
+    player_speed_max_delta_min_ = nltohd( from.player_speed_max_delta_min );
+    player_speed_max_delta_max_ = nltohd( from.player_speed_max_delta_max );
+    stamina_inc_max_delta_factor_ = nltohd( from.stamina_inc_max_delta_factor );
+
+    player_decay_delta_min_ = nltohd( from.player_decay_delta_min );
+    player_decay_delta_max_ = nltohd( from.player_decay_delta_max );
+    inertia_moment_delta_factor_ = nltohd( from.inertia_moment_delta_factor );
+
+    dash_power_rate_delta_min_ = nltohd( from.dash_power_rate_delta_min );
+    dash_power_rate_delta_max_ = nltohd( from.dash_power_rate_delta_max );
+    player_size_delta_factor_ = nltohd( from.player_size_delta_factor );
+
+    kickable_margin_delta_min_ = nltohd( from.kickable_margin_delta_min );
+    kickable_margin_delta_max_ = nltohd( from.kickable_margin_delta_max );
+    kick_rand_delta_factor_ = nltohd( from.kick_rand_delta_factor );
+
+    extra_stamina_delta_min_ = nltohd( from.extra_stamina_delta_min );
+    extra_stamina_delta_max_ = nltohd( from.extra_stamina_delta_max );
+    effort_max_delta_factor_ = nltohd( from.effort_max_delta_factor );
+    effort_min_delta_factor_ = nltohd( from.effort_min_delta_factor );
+
+    random_seed_ = static_cast< int >( static_cast< rcg::Int32 >( ntohl( from.random_seed ) ) );
+
+    new_dash_power_rate_delta_min_ = nltohd( from.new_dash_power_rate_delta_min );
+    new_dash_power_rate_delta_max_ = nltohd( from.new_dash_power_rate_delta_max );
+    new_stamina_inc_max_delta_factor_ = nltohd( from.new_stamina_inc_max_delta_factor );
+
+    allow_mult_default_type_ = nstohb( from.allow_mult_default_type );
+
+    kick_power_rate_delta_min_ = nltohd( from.kick_power_rate_delta_min );
+    kick_power_rate_delta_max_ = nltohd( from.kick_power_rate_delta_max );
+    foul_detect_probability_delta_factor_ = nltohd( from.foul_detect_probability_delta_factor );
+
+    catchable_area_l_stretch_min_ = nltohd( from.catchable_area_l_stretch_min );
+    catchable_area_l_stretch_max_ = nltohd( from.catchable_area_l_stretch_max );
+
+    return true;
+}
+
+/*-------------------------------------------------------------------*/
+bool
+PlayerParamT::setValue( const std::string & name,
+                        const std::string & value )
+{
+    return set_value( name, value, impl_->param_map_ );
+}
+
+/*-------------------------------------------------------------------*/
+bool
+PlayerParamT::setInt( const std::string & name,
+                      const int value )
+{
+    return set_integer( name, value, impl_->param_map_ );
+}
+
+/*-------------------------------------------------------------------*/
+bool
+PlayerParamT::setDouble( const std::string & name,
+                         const double value )
+{
+    return set_double( name, value, impl_->param_map_ );
+}
+
+/*-------------------------------------------------------------------*/
+bool
+PlayerParamT::setBool( const std::string & name,
+                       const bool value )
+{
+    return set_boolean( name, value, impl_->param_map_ );
+}
+
+/*-------------------------------------------------------------------*/
+/*-------------------------------------------------------------------*/
+/*-------------------------------------------------------------------*/
+
+struct PlayerTypeT::Impl {
+    Impl( PlayerTypeT * param );
+
+    ParamMap param_map_;
+};
+
+/*-------------------------------------------------------------------*/
+PlayerTypeT::PlayerTypeT()
+    : id_( 0 ),
+      player_speed_max_( 1.2 ),
+      stamina_inc_max_( 45.0 ),
+      player_decay_( 0.4 ),
+      inertia_moment_( 5.0 ),
+      dash_power_rate_( 0.06 ),
+      player_size_( 0.3 ),
+      kickable_margin_( 0.7 ),
+      kick_rand_( 0.1 ),
+      extra_stamina_( 0.0 ),
+      effort_max_( 1.0 ),
+      effort_min_( 0.6 ),
+      kick_power_rate_( 0.027 ),
+      foul_detect_probability_( 0.5 ),
+      catchable_area_l_stretch_( 1.0 ),
+      impl_( new Impl( this ) )
+{
+
+}
+
+/*-------------------------------------------------------------------*/
+PlayerTypeT::Impl::Impl( PlayerTypeT * p )
+{
+    param_map_.insert( ParamMap::value_type( "id", &(p->id_ ) ) );
+
+    param_map_.insert( ParamMap::value_type( "player_speed_max", &(p->player_speed_max_ ) ) );
+    param_map_.insert( ParamMap::value_type( "stamina_inc_max", &(p->stamina_inc_max_ ) ) );
+    param_map_.insert( ParamMap::value_type( "player_decay", &(p->player_decay_ ) ) );
+    param_map_.insert( ParamMap::value_type( "inertia_moment", &(p->inertia_moment_ ) ) );
+    param_map_.insert( ParamMap::value_type( "dash_power_rate", &(p->dash_power_rate_ ) ) );
+    param_map_.insert( ParamMap::value_type( "player_size", &(p->player_size_ ) ) );
+    param_map_.insert( ParamMap::value_type( "kickable_margin", &(p->kickable_margin_ ) ) );
+    param_map_.insert( ParamMap::value_type( "kick_rand", &(p->kick_rand_ ) ) );
+    param_map_.insert( ParamMap::value_type( "extra_stamina", &(p->extra_stamina_ ) ) );
+    param_map_.insert( ParamMap::value_type( "effort_max", &(p->effort_max_ ) ) );
+    param_map_.insert( ParamMap::value_type( "effort_min", &(p->effort_min_ ) ) );
+    // 14.0.0
+    param_map_.insert( ParamMap::value_type( "kick_power_rate", &(p->kick_power_rate_ ) ) );
+    param_map_.insert( ParamMap::value_type( "foul_detect_probability", &(p->foul_detect_probability_ ) ) );
+    param_map_.insert( ParamMap::value_type( "catchable_area_l_stretch", &(p->catchable_area_l_stretch_ ) ) );
+    // 18.0
+    param_map_.insert( ParamMap::value_type( "unum_far_length", &(p->unum_far_length_ ) ) );
+    param_map_.insert( ParamMap::value_type( "unum_too_far_length", &(p->unum_too_far_length_ ) ) );
+    param_map_.insert( ParamMap::value_type( "team_far_length", &(p->team_far_length_ ) ) );
+    param_map_.insert( ParamMap::value_type( "team_too_far_length", &(p->team_too_far_length_ ) ) );
+    param_map_.insert( ParamMap::value_type( "player_max_observation_length", &(p->player_max_observation_length_ ) ) );
+    param_map_.insert( ParamMap::value_type( "ball_vel_far_length", &(p->ball_vel_far_length_ ) ) );
+    param_map_.insert( ParamMap::value_type( "ball_vel_too_far_length", &(p->ball_vel_too_far_length_ ) ) );
+    param_map_.insert( ParamMap::value_type( "ball_max_observation_length", &(p->ball_max_observation_length_ ) ) );
+    param_map_.insert( ParamMap::value_type( "flag_chg_far_length", &(p->flag_chg_far_length_ ) ) );
+    param_map_.insert( ParamMap::value_type( "flag_chg_too_far_length", &(p->flag_chg_too_far_length_ ) ) );
+    param_map_.insert( ParamMap::value_type( "flag_max_observation_length", &(p->flag_max_observation_length_ ) ) );
+    // 19.0
+    // param_map_.insert( ParamMap::value_type( "dist_noise_rate", &(p->dist_noise_rate_ ) ) );
+    // param_map_.insert( ParamMap::value_type( "focus_dist_noise_rate", &(p->focus_dist_noise_rate_ ) ) );
+    // param_map_.insert( ParamMap::value_type( "land_dist_noise_rate", &(p->land_dist_noise_rate_ ) ) );
+    // param_map_.insert( ParamMap::value_type( "land_focus_dist_noise_rate", &(p->land_focus_dist_noise_rate_ ) ) );
+}
+
+/*-------------------------------------------------------------------*/
+std::ostream &
+PlayerTypeT::toServerString( std::ostream & os ) const
+{
+    //return print_server_message( os, "player_type", param_map_ );
+
+    os << "(player_type ";
+    to_sexp( os, "id", id_ );
+
+    to_sexp( os, "player_speed_max", quantize( player_speed_max_, 0.00001 ) );
+    to_sexp( os, "stamina_inc_max", quantize( stamina_inc_max_, 0.00001 ) );
+    to_sexp( os, "player_decay", quantize(player_decay_, 0.000001 ) );
+    to_sexp( os, "inertia_moment", quantize( inertia_moment_, 0.00001 ) );
+    to_sexp( os, "dash_power_rate", quantize( dash_power_rate_, 0.00000001 ) );
+    to_sexp( os, "player_size", quantize( player_size_, 0.00001 ) );
+    to_sexp( os, "kickable_margin", quantize( kickable_margin_, 0.000001 ) );
+    to_sexp( os, "kick_rand", quantize( kick_rand_, 0.000001 ) );
+    to_sexp( os, "extra_stamina", quantize( extra_stamina_, 0.00001 ) );
+    to_sexp( os, "effort_max", quantize( effort_max_, 0.000001 ) );
+    to_sexp( os, "effort_min", quantize( effort_min_, 0.000001 ) );
+    // 14.0
+    to_sexp( os, "kick_power_rate", quantize( kick_power_rate_, 0.000001 ) );
+    to_sexp( os, "foul_detect_probability", quantize( foul_detect_probability_, 0.000001 ) );
+    to_sexp( os, "catchable_area_l_stretch", quantize( catchable_area_l_stretch_, 0.000001 ) );
+    // 18.0
+    to_sexp( os, "unum_far_length", quantize( unum_far_length_, 0.000001 ) );
+    to_sexp( os, "unum_too_far_length", quantize( unum_too_far_length_, 0.000001 ) );
+    to_sexp( os, "team_far_length", quantize( team_far_length_, 0.000001 ) );
+    to_sexp( os, "team_too_far_length", quantize( team_too_far_length_, 0.000001 ) );
+    to_sexp( os, "player_max_observation_length", quantize( player_max_observation_length_, 0.000001 ) );
+    to_sexp( os, "ball_vel_far_length", quantize( ball_vel_far_length_, 0.000001 ) );
+    to_sexp( os, "ball_vel_too_far_length", quantize( ball_vel_too_far_length_, 0.000001 ) );
+    to_sexp( os, "ball_max_observation_length", quantize( ball_max_observation_length_, 0.000001 ) );
+    to_sexp( os, "flag_chg_far_length", quantize( flag_chg_far_length_, 0.000001 ) );
+    to_sexp( os, "flag_chg_too_far_length", quantize( flag_chg_too_far_length_, 0.000001 ) );
+    to_sexp( os, "flag_max_observation_length", quantize( flag_max_observation_length_, 0.000001 ) );
+    // 19.0
+    // to_sexp( os, "dist_noise_rate", dist_noise_rate_ );
+    // to_sexp( os, "focus_dist_noise_rate", dist_noise_rate_ );
+    // to_sexp( os, "land_dist_noise_rate", dist_noise_rate_ );
+    // to_sexp( os, "land_focus_dist_noise_rate", dist_noise_rate_ );
 
     os << ')';
 
     return os;
 }
 
-bool
-ServerParamT::createFromSExp( const std::string & msg )
+/*-------------------------------------------------------------------*/
+std::ostream &
+PlayerTypeT::toJSON( std::ostream & os ) const
 {
-    //if ( ! parse_param( msg, int_map_, double_map_, bool_map_, string_map_ ) )
-    if ( ! parse_param( msg, *this ) )
+    os << '{' << std::quoted( "player_type" ) << ':' << '{';
+
+    os << std::quoted( "id" ) << ':' << id_;
+
+    os << ',' << std::quoted( "player_speed_max" ) << ':' << quantize( player_speed_max_, 0.00001 );
+
+    os << ',' << std::quoted( "stamina_inc_max" ) << ':' << quantize( stamina_inc_max_, 0.00001 );
+    os << ',' << std::quoted( "player_decay" ) << ':' << quantize(player_decay_, 0.000001 );
+    os << ',' << std::quoted( "inertia_moment" ) << ':' << quantize( inertia_moment_, 0.00001 );
+    os << ',' << std::quoted( "dash_power_rate" ) << ':' << quantize( dash_power_rate_, 0.00000001 );
+    os << ',' << std::quoted( "player_size" ) << ':' << quantize( player_size_, 0.00001 );
+    os << ',' << std::quoted( "kickable_margin" ) << ':' << quantize( kickable_margin_, 0.000001 );
+    os << ',' << std::quoted( "kick_rand" ) << ':' << quantize( kick_rand_, 0.000001 );
+    os << ',' << std::quoted( "extra_stamina" ) << ':' << quantize( extra_stamina_, 0.00001 );
+    os << ',' << std::quoted( "effort_max" ) << ':' << quantize( effort_max_, 0.000001 );
+    os << ',' << std::quoted( "effort_min" ) << ':' << quantize( effort_min_, 0.000001 );
+    // 14.0
+    os << ',' << std::quoted( "kick_power_rate" ) << ':' << quantize( kick_power_rate_, 0.000001 );
+    os << ',' << std::quoted( "foul_detect_probability" ) << ':' << quantize( foul_detect_probability_, 0.000001 );
+    os << ',' << std::quoted( "catchable_area_l_stretch" ) << ':' << quantize( catchable_area_l_stretch_, 0.000001 );
+    // 18.0
+    os << ',' << std::quoted( "unum_far_length" ) << ':' << quantize( unum_far_length_, 0.000001 );
+    os << ',' << std::quoted( "unum_too_far_length" ) << ':' << quantize( unum_too_far_length_, 0.000001 );
+    os << ',' << std::quoted( "team_far_length" ) << ':' << quantize( team_far_length_, 0.000001 );
+    os << ',' << std::quoted( "team_too_far_length" ) << ':' << quantize( team_too_far_length_, 0.000001 );
+    os << ',' << std::quoted( "player_max_observation_length" ) << ':' << quantize( player_max_observation_length_, 0.000001 );
+    os << ',' << std::quoted( "ball_vel_far_length" ) << ':' << quantize( ball_vel_far_length_, 0.000001 );
+    os << ',' << std::quoted( "ball_vel_too_far_length" ) << ':' << quantize( ball_vel_too_far_length_, 0.000001 );
+    os << ',' << std::quoted( "ball_max_observation_length" ) << ':' << quantize( ball_max_observation_length_, 0.000001 );
+    os << ',' << std::quoted( "flag_chg_far_length" ) << ':' << quantize( flag_chg_far_length_, 0.000001 );
+    os << ',' << std::quoted( "flag_chg_too_far_length" ) << ':' << quantize( flag_chg_too_far_length_, 0.000001 );
+    os << ',' << std::quoted( "flag_max_observation_length" ) << ':' << quantize( flag_max_observation_length_, 0.000001 );
+    // 19.0
+    // os << ',' << std::quoted( "dist_noise_rate" ) << ':' << quantize( dist_noise_rate_, 0.000001 );
+    // os << ',' << std::quoted( "focus_dist_noise_rate" ) << ':' << quantize( dist_noise_rate_, 0.000001 );
+    // os << ',' << std::quoted( "land_dist_noise_rate" ) << ':' << quantize( dist_noise_rate_, 0.000001 );
+    // os << ',' << std::quoted( "land_focus_dist_noise_rate" ) << ':' << quantize( dist_noise_rate_, 0.000001 );
+
+    os << '}' << '}';
+    return os;
+}
+
+/*-------------------------------------------------------------------*/
+PlayerTypeT::PlayerTypeT( const PlayerTypeT & other )
+    : PlayerTypeT()
+{
+    copyFrom( other );
+}
+
+/*-------------------------------------------------------------------*/
+const PlayerTypeT &
+PlayerTypeT::operator=( const PlayerTypeT & other )
+{
+    if ( this != &other )
     {
-        // nothing to do
+        copyFrom( other );
+    }
+    return *this;
+}
+
+/*-------------------------------------------------------------------*/
+void
+PlayerTypeT::copyFrom( const PlayerTypeT & other )
+{
+    id_ = other.id_;
+    player_speed_max_ = other.player_speed_max_;
+    stamina_inc_max_ = other.stamina_inc_max_;
+    player_decay_ = other.player_decay_;
+    inertia_moment_ = other.inertia_moment_;
+    dash_power_rate_ = other.dash_power_rate_;
+    player_size_ = other.player_size_;
+    kickable_margin_ = other.kickable_margin_;
+    kick_rand_ = other.kick_rand_;
+    extra_stamina_ = other.extra_stamina_;
+    effort_max_ = other.effort_max_;
+    effort_min_ = other.effort_min_;
+
+    kick_power_rate_ = other.kick_power_rate_;
+    foul_detect_probability_ = other.foul_detect_probability_;
+    catchable_area_l_stretch_ = other.catchable_area_l_stretch_;
+
+    // v18
+    unum_far_length_ = other.unum_far_length_;
+    unum_too_far_length_ = other.unum_too_far_length_;
+    team_far_length_ = other.team_far_length_;
+    team_too_far_length_ = other.team_too_far_length_;
+    player_max_observation_length_ = other.player_max_observation_length_;
+    ball_vel_far_length_ = other.ball_vel_far_length_;
+    ball_vel_too_far_length_ = other.ball_vel_too_far_length_;
+    ball_max_observation_length_ = other.ball_max_observation_length_;
+    flag_chg_far_length_ = other.flag_chg_far_length_;
+    flag_chg_too_far_length_ = other.flag_chg_too_far_length_;
+    flag_max_observation_length_ = other.flag_max_observation_length_;
+
+    // v19
+    // double dist_noise_rate_;
+    // double focus_dist_noise_rate_;
+    // double land_dist_noise_rate_;
+    // double land_focus_dist_noise_rate_;
+}
+
+/*-------------------------------------------------------------------*/
+bool
+PlayerTypeT::fromServerString( const std::string & msg )
+{
+    return parse_server_message( msg, impl_->param_map_ );
+}
+
+/*-------------------------------------------------------------------*/
+bool
+PlayerTypeT::fromStruct( const player_type_t & from )
+{
+    id_ = nstohi( from.id );
+
+    player_speed_max_ = nltohd( from.player_speed_max );
+    stamina_inc_max_ = nltohd( from.stamina_inc_max );
+    player_decay_ = nltohd( from.player_decay );
+    inertia_moment_ = nltohd( from.inertia_moment );
+    dash_power_rate_ = nltohd( from.dash_power_rate );
+    player_size_ = nltohd( from.player_size );
+    kickable_margin_ = nltohd( from.kickable_margin );
+    kick_rand_ = nltohd( from.kick_rand );
+    extra_stamina_ = nltohd( from.extra_stamina );
+    effort_max_ = nltohd( from.effort_max );
+    effort_min_ = nltohd( from.effort_min );;
+
+    if ( from.kick_power_rate != 0 )
+    {
+        kick_power_rate_ = nltohd( from.kick_power_rate );;
+    }
+
+    if ( from.foul_detect_probability != 0 )
+    {
+        foul_detect_probability_ = nltohd( from.foul_detect_probability );;
+    }
+
+    if ( from.catchable_area_l_stretch != 0 )
+    {
+        catchable_area_l_stretch_ = nltohd( from.catchable_area_l_stretch );;
     }
 
     return true;
 }
 
+/*-------------------------------------------------------------------*/
 bool
-ServerParamT::setValue( const std::string & name,
-                        const std::string & value )
+PlayerTypeT::setValue( const std::string & name,
+                       const std::string & value )
 {
-    try
-    {
-        IntMap::iterator int_it = int_map_.find( name );
-        if ( int_it != int_map_.end() )
-        {
-            *(int_it->second) = std::stoi( value );
-            return true;
-        }
-
-        DoubleMap::iterator double_it = double_map_.find( name );
-        if ( double_it != double_map_.end() )
-        {
-            *(double_it->second) = std::stod( value );
-            return true;
-        }
-
-        BoolMap::iterator bool_it = bool_map_.find( name );
-        if ( bool_it != bool_map_.end() )
-        {
-            if ( value == "0" || value == "false" || value == "off" )
-            {
-                *(bool_it->second) = false;
-            }
-            else if ( value == "1" || value == "true" || value == "on" )
-            {
-                *(bool_it->second) = true;
-            }
-            else
-            {
-                std::cerr << "Unknown bool value. name=" << name << " value=" << value << std::endl;
-            }
-            return true;
-        }
-
-        StringMap::iterator string_it = string_map_.find( name );
-        if ( string_it != string_map_.end() )
-        {
-            *(string_it->second) = clean_string( value );
-            return true;
-        }
-    }
-    catch ( std::exception & e )
-    {
-        std::cerr << e.what() << '\n'
-                  << "name=" << name << " value=" << value << std::endl;
-        return true;
-    }
-
-    std::cerr << "Unsupported parameter. name=" << name << " value=" << value << std::endl;
-    return false;
+    return set_value( name, value, impl_->param_map_ );
 }
 
-
+/*-------------------------------------------------------------------*/
 bool
-ServerParamT::setInt( const std::string & name,
-                      const int value )
+PlayerTypeT::setInt( const std::string & name,
+                     const int value )
 {
-    IntMap::iterator int_it = int_map_.find( name );
-    if ( int_it != int_map_.end() )
-    {
-        *(int_it->second) = value;
-        return false;
-    }
-
-    DoubleMap::iterator double_it = double_map_.find( name );
-    if ( double_it != double_map_.end() )
-    {
-        *(double_it->second) = value;
-        return true;
-    }
-
-    BoolMap::iterator bool_it = bool_map_.find( name );
-    if ( bool_it != bool_map_.end() )
-    {
-        if ( value == 0 )
-        {
-            *(bool_it->second) = false;
-            return true;
-        }
-
-        if ( value == 1 )
-        {
-            *(bool_it->second) = true;
-            return true;
-        }
-    }
-
-    std::cerr << "Unsupported parameter. name=" << name << " value=" << value << std::endl;
-    return true;
+    return set_integer( name, value, impl_->param_map_ );
 }
 
-
+/*-------------------------------------------------------------------*/
 bool
-ServerParamT::setDouble( const std::string & name,
-                         const double value )
+PlayerTypeT::setDouble( const std::string & name,
+                        const double value )
 {
-    DoubleMap::iterator it = double_map_.find( name );
-    if ( it == double_map_.end() )
-    {
-        std::cerr << "Unsupported double parameter. name=" << name << " value=" << value << std::endl;
-        return false;
-    }
-
-    *(it->second) = value;
-    return true;
-}
-
-
-bool
-ServerParamT::setBool( const std::string & name,
-                       const bool value )
-{
-    BoolMap::iterator it = bool_map_.find( name );
-    if ( it == bool_map_.end() )
-    {
-        std::cerr << "Unsupported bool parameter. name=" << name << " value=" << value << std::endl;
-        return false;
-    }
-
-    *(it->second) = value;
-    return true;
-}
-
-
-bool
-ServerParamT::setString( const std::string & name,
-                         const std::string & value )
-{
-    StringMap::iterator it = string_map_.find( name );
-    if ( it == string_map_.end() )
-    {
-        std::cerr << "Unsupported string parameter. name=" << name << " value=" << value << std::endl;
-        return false;
-    }
-
-    *(it->second) = value;
-    return true;
+    return set_double( name, value, impl_->param_map_ );
 }
 
 }

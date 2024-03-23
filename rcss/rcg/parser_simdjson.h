@@ -1,8 +1,8 @@
 // -*-c++-*-
 
 /*!
-  \file parser_json.h
-  \brief rcg v6 (JSON format) parser Header File.
+  \file parser_simdjson.h
+  \brief rcg v6 (json) parser Header File.
 */
 
 /*
@@ -29,8 +29,8 @@
 
 /////////////////////////////////////////////////////////////////////
 
-#ifndef RCSS_RCG_PARSER_JSON_H
-#define RCSS_RCG_PARSER_JSON_H
+#ifndef RCSS_RCG_PARSER_SIMDJSON_H
+#define RCSS_RCG_PARSER_SIMDJSON_H
 
 #include <rcss/rcg/parser.h>
 #include <rcss/rcg/types.h>
@@ -41,11 +41,12 @@
 namespace rcss {
 namespace rcg {
 
+
 /*!
-  \class ParserJSON
-  \brief rcg v6 parser class
+  \class ParserSimdJSON
+  \brief JSON rcg parser class
  */
-class ParserJSON
+class ParserSimdJSON
     : public Parser {
 private:
     struct Impl;
@@ -54,9 +55,9 @@ private:
 public:
 
     /*!
-      \brief create a Impl instance
-     */
-    ParserJSON();
+      \brief create the Impl instance
+    */
+    ParserSimdJSON();
 
     /*!
       \brief get supported rcg version
@@ -64,9 +65,9 @@ public:
      */
     virtual
     int version() const override
-      {
-          return REC_VERSION_JSON;
-      }
+    {
+        return REC_VERSION_JSON;
+    }
 
     /*!
       \brief parse input stream
@@ -75,9 +76,12 @@ public:
       \retval true, if successfuly parsed.
       \retval false, if incorrect format is detected.
     */
-    virtual
     bool parse( std::istream & is,
-                Handler & handler ) override;
+                Handler & handler ) const override;
+
+    bool parse( const std::string & filepath,
+                Handler & handler ) const override;
+
 
     /*!
       \brief assume to parse one monitor packet.
@@ -90,11 +94,12 @@ public:
       Second, call each data item parsing method.
     */
     bool parseData( const std::string & input,
-                    Handler & handler );
+                    Handler & handler ) const;
+
 
 };
 
-} // end of namespace
-} // end of namespace
+}
+}
 
 #endif

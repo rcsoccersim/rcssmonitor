@@ -44,55 +44,26 @@ namespace rcg {
  */
 class ParserV1
     : public Parser {
-protected:
-
-    //! The last parsed game time
-    int M_time;
-
 public:
-    /*!
-      \brief default constructor
-     */
-    ParserV1();
 
     /*!
       \brief get supported rcg version
       \return version number
      */
-    virtual
     int version() const override
-    {
-        return REC_OLD_VERSION;
-    }
+      {
+          return REC_OLD_VERSION;
+      }
 
     /*!
       \brief parse input stream
-      \param is input stream
+      \param is reference to the imput stream (usually ifstream/gzifstream).
       \param handler reference to the rcg data handler.
       \retval true, if successfuly parsed.
       \retval false, if incorrect format is detected.
     */
-    virtual
     bool parse( std::istream & is,
-                Handler & handler ) override;
-
-    /*!
-      \brief handle dispinfo_t. This method can be used to parse the monitor packet.
-      \param disp the read/received data
-      \param handler reference to the data handler
-     */
-    bool handleDisp( const dispinfo_t & disp,
-                     Handler & handler );
-
-protected:
-
-    bool handleShow( const showinfo_t & show,
-                     Handler & handler );
-    bool handleMsg( const msginfo_t & msg,
-                    Handler & handler );
-    bool handleDraw( const drawinfo_t & draw,
-                     Handler & handler );
-
+                Handler & handler ) const override;
 };
 
 } // end of namespace

@@ -1,7 +1,7 @@
 // -*-c++-*-
 
 /*!
-  \file types.h
+  \file rcss/rcg/types.h
   \brief rcg data format types.
 */
 
@@ -32,7 +32,7 @@
 #ifndef RCSS_RCG_TYPES_H
 #define RCSS_RCG_TYPES_H
 
-#include <unordered_map>
+#include <memory>
 #include <string>
 #include <cmath>
 #include <cstdint>
@@ -40,15 +40,8 @@
 namespace rcss {
 namespace rcg {
 
-
-//! type of the 16bits integer value
-typedef std::int16_t Int16;
-//! type of the unsigned 16bits integer value
-typedef std::uint16_t UInt16;
-//! type of the 32bits integer value
-typedef std::int32_t Int32;
-//! type of the unsigned 32bits integer value
-typedef std::int32_t UInt32;
+//! max player number in one team
+constexpr int MAX_PLAYER = 11;
 
 /*!
   \enum Side
@@ -57,8 +50,137 @@ typedef std::int32_t UInt32;
 enum Side {
     LEFT = 1,
     NEUTRAL = 0,
-    RIGHT = -1
+    RIGHT = -1,
 };
+
+/*!
+  \enum PlayMode
+  \brief playmode types defined in rcssserver/src/types.h
+ */
+enum PlayMode {
+    PM_Null,
+    PM_BeforeKickOff,
+    PM_TimeOver,
+    PM_PlayOn,
+    PM_KickOff_Left,
+    PM_KickOff_Right,
+    PM_KickIn_Left,
+    PM_KickIn_Right,
+    PM_FreeKick_Left,
+    PM_FreeKick_Right,
+    PM_CornerKick_Left,
+    PM_CornerKick_Right,
+    PM_GoalKick_Left,
+    PM_GoalKick_Right,
+    PM_AfterGoal_Left,
+    PM_AfterGoal_Right, // - sserver-2.94
+    PM_Drop_Ball, // - sserver-3.29
+    PM_OffSide_Left,
+    PM_OffSide_Right, // untill sserver-5.27
+    // [I.Noda:00/05/13] added for 3D viewer/commentator/small league
+    PM_PK_Left,
+    PM_PK_Right,
+    PM_FirstHalfOver,
+    PM_Pause,
+    PM_Human,
+    PM_Foul_Charge_Left,
+    PM_Foul_Charge_Right,
+    PM_Foul_Push_Left,
+    PM_Foul_Push_Right,
+    PM_Foul_MultipleAttacker_Left,
+    PM_Foul_MultipleAttacker_Right,
+    PM_Foul_BallOut_Left,
+    PM_Foul_BallOut_Right, // until sserver-7.11
+    PM_Back_Pass_Left, // after rcssserver-8.05-rel
+    PM_Back_Pass_Right,
+    PM_Free_Kick_Fault_Left,
+    PM_Free_Kick_Fault_Right,
+    PM_CatchFault_Left,
+    PM_CatchFault_Right,
+    PM_IndFreeKick_Left, // after rcssserver-9.2.0
+    PM_IndFreeKick_Right,
+    PM_PenaltySetup_Left,  // after rcssserver-9.3.0
+    PM_PenaltySetup_Right,
+    PM_PenaltyReady_Left,
+    PM_PenaltyReady_Right,
+    PM_PenaltyTaken_Left,
+    PM_PenaltyTaken_Right,
+    PM_PenaltyMiss_Left,
+    PM_PenaltyMiss_Right,
+    PM_PenaltyScore_Left,
+    PM_PenaltyScore_Right,
+    PM_Illegal_Defense_Left, // after rcssserver-16.0.0
+    PM_Illegal_Defense_Right,
+    PM_MAX
+};
+
+//! playmode string table defined in rcssserver.
+#define PLAYMODE_STRINGS {"",\
+			"before_kick_off",\
+			"time_over",\
+			"play_on",\
+			"kick_off_l",\
+			"kick_off_r",\
+			"kick_in_l",\
+			"kick_in_r",\
+			"free_kick_l",\
+			"free_kick_r",\
+			"corner_kick_l",\
+			"corner_kick_r",\
+			"goal_kick_l",\
+			"goal_kick_r",\
+			"goal_l",\
+			"goal_r",\
+			"drop_ball",\
+			"offside_l",\
+			"offside_r",\
+			"penalty_kick_l",\
+			"penalty_kick_r",\
+			"first_half_over",\
+			"pause",\
+			"human_judge",\
+			"foul_charge_l",\
+			"foul_charge_r",\
+			"foul_push_l",\
+			"foul_push_r",\
+			"foul_multiple_attack_l",\
+			"foul_multiple_attack_r",\
+			"foul_ballout_l",\
+			"foul_ballout_r",\
+      "back_pass_l", \
+      "back_pass_r", \
+      "free_kick_fault_l", \
+      "free_kick_fault_r", \
+      "catch_fault_l", \
+      "catch_fault_r", \
+      "indirect_free_kick_l", \
+      "indirect_free_kick_r",\
+      "penalty_setup_l", \
+      "penalty_setup_r",\
+      "penalty_ready_l",\
+      "penalty_ready_r", \
+      "penalty_taken_l", \
+      "penalty_taken_r", \
+      "penalty_miss_l", \
+      "penalty_miss_r", \
+      "penalty_score_l", \
+      "penalty_score_r", \
+      "illegal_defense_l", \
+      "illegal_defense_r", \
+      "", \
+      "" \
+}
+
+/*-------------------------------------------------------------------*/
+
+//! type of the 16bits integer value
+using Int16 = std::int16_t;
+//! type of the unsigned 16bits integer value
+using UInt16 = std::uint16_t;
+//! type of the 32bits integer value
+using Int32 = std::int32_t;
+//! type of the unsigned 32bits integer value
+using UInt32 = std::int32_t;
 
 /*!
   \brief max length of color name string.
@@ -72,7 +194,7 @@ enum {
 /*!
   \enum DispInfoMode
   \brief monitor data type enumeration.
-*/
+ */
 enum DispInfoMode {
     NO_INFO     = 0, //!< dummy type
     SHOW_MODE   = 1, //!< showinfo_t
@@ -100,7 +222,7 @@ enum DrawMode {
 /*!
   \enum MsgInfoMode
   \brief message data type id enumeration.
-*/
+ */
 enum MsgInfoMode {
     MSG_BOARD = 1,
     LOG_BOARD = 2
@@ -109,7 +231,7 @@ enum MsgInfoMode {
 /*!
   \enum PlayerStatus
   \brief player status bit mask.
-*/
+ */
 enum PlayerStatus {
     DISABLE         = 0x00000000,
     STAND           = 0x00000001,
@@ -129,131 +251,12 @@ enum PlayerStatus {
     BACK_PASS       = 0x00004000,
     FREE_KICK_FAULT = 0x00008000,
     POST_COLLIDE    = 0x00010000, // player collided with goal posts
-    FOUL_CHARGED    = 0x00020000, // player is frozen by intentional tackle foul
+    FOUL_CHARGED     = 0x00020000, // player is frozen by intentional tackle foul
     YELLOW_CARD     = 0x00040000,
     RED_CARD        = 0x00080000,
     ILLEGAL_DEFENSE = 0x00100000,
 };
 
-
-//! playmode string table defined in rcssserver.
-#define PLAYMODE_STRINGS {"",                   \
-            "before_kick_off",                  \
-            "time_over",                        \
-            "play_on",                          \
-            "kick_off_l",                       \
-            "kick_off_r",                       \
-            "kick_in_l",                        \
-            "kick_in_r",                        \
-            "free_kick_l",                      \
-            "free_kick_r",                      \
-            "corner_kick_l",                    \
-            "corner_kick_r",                    \
-            "goal_kick_l",                      \
-            "goal_kick_r",                      \
-            "goal_l",                           \
-            "goal_r",                           \
-            "drop_ball",                        \
-            "offside_l",                        \
-            "offside_r",                        \
-            "penalty_kick_l",                   \
-            "penalty_kick_r",                   \
-            "first_half_over",                  \
-            "pause",                            \
-            "human_judge",                      \
-            "foul_charge_l",                    \
-            "foul_charge_r",                    \
-            "foul_push_l",                      \
-            "foul_push_r",                      \
-            "foul_multiple_attack_l",           \
-            "foul_multiple_attack_r",           \
-            "foul_ballout_l",                   \
-            "foul_ballout_r",                   \
-            "back_pass_l",                      \
-            "back_pass_r",                      \
-            "free_kick_fault_l",                \
-            "free_kick_fault_r",                \
-            "catch_fault_l",                    \
-            "catch_fault_r",                    \
-            "indirect_free_kick_l",             \
-            "indirect_free_kick_r",             \
-            "penalty_setup_l",                  \
-            "penalty_setup_r",                  \
-            "penalty_ready_l",                  \
-            "penalty_ready_r",                  \
-            "penalty_taken_l",                  \
-            "penalty_taken_r",                  \
-            "penalty_miss_l",                   \
-            "penalty_miss_r",                   \
-            "penalty_score_l",                  \
-            "penalty_score_r",                  \
-            "illegal_defense_l",                \
-            "illegal_defense_r"                 \
-            }
-
-/*!
-  \enum PlayMode
-  \brief playmode types defined in rcssserver/src/types.h
- */
-enum PlayMode {
-    PM_Null,
-    PM_BeforeKickOff,
-    PM_TimeOver,
-    PM_PlayOn,
-    PM_KickOff_Left,
-    PM_KickOff_Right,
-    PM_KickIn_Left,
-    PM_KickIn_Right,
-    PM_FreeKick_Left,
-    PM_FreeKick_Right,
-    PM_CornerKick_Left,
-    PM_CornerKick_Right,
-    PM_GoalKick_Left,
-    PM_GoalKick_Right,
-    PM_AfterGoal_Left,
-    PM_AfterGoal_Right,
-    PM_Drop_Ball,
-    PM_OffSide_Left,
-    PM_OffSide_Right,
-    // [I.Noda:00/05/13] added for 3D viewer/commentator/small league
-    PM_PK_Left,
-    PM_PK_Right,
-    PM_FirstHalfOver,
-    PM_Pause,
-    PM_Human,
-    PM_Foul_Charge_Left,
-    PM_Foul_Charge_Right,
-    PM_Foul_Push_Left,
-    PM_Foul_Push_Right,
-    PM_Foul_MultipleAttacker_Left,
-    PM_Foul_MultipleAttacker_Right,
-    PM_Foul_BallOut_Left,
-    PM_Foul_BallOut_Right,
-    PM_Back_Pass_Left,
-    PM_Back_Pass_Right,
-    PM_Free_Kick_Fault_Left,
-    PM_Free_Kick_Fault_Right,
-    PM_CatchFault_Left,
-    PM_CatchFault_Right,
-    PM_IndFreeKick_Left,
-    PM_IndFreeKick_Right,
-    PM_PenaltySetup_Left,
-    PM_PenaltySetup_Right,
-    PM_PenaltyReady_Left,
-    PM_PenaltyReady_Right,
-    PM_PenaltyTaken_Left,
-    PM_PenaltyTaken_Right,
-    PM_PenaltyMiss_Left,
-    PM_PenaltyMiss_Right,
-    PM_PenaltyScore_Left,
-    PM_PenaltyScore_Right,
-    PM_Illegal_Defense_Left,
-    PM_Illegal_Defense_Right,
-    PM_MAX
-};
-
-//! The max number of players in one team
-constexpr int MAX_PLAYER = 11;
 
 /*-------------------------------------------------------------------*/
 // monitor protocol version 1
@@ -261,9 +264,8 @@ constexpr int MAX_PLAYER = 11;
 
 constexpr double SHOWINFO_SCALE = 16.0; //!< scaling factor
 constexpr float SHOWINFO_SCALEF = 16.0f; //!< scaling factor
-
-constexpr int REC_OLD_VERSION = 1; //!< The version number of rcg v1
-constexpr int REC_VERSION_2 = 2; //!< The version number of rcg v2, which is written at the head of the file.
+constexpr int REC_OLD_VERSION = 1; //!< version number of rcg v1
+constexpr int REC_VERSION_2 = 2; //!< recorded value of rcg v2
 
 /*!
   \struct pos_t
@@ -370,9 +372,12 @@ struct dispinfo_t {
 // monitor protocol version 2
 // game log format version 3
 
-constexpr double SHOWINFO_SCALE2 = 65536.0; //! scaling factor
-constexpr float SHOWINFO_SCALE2F = 65536.0f; //! scaling factor
-constexpr int REC_VERSION_3 = 3; //!< The version number of rcg v3, which is written at the head of the file.
+//! scaling variable
+constexpr double SHOWINFO_SCALE2 = 65536.0;
+//! scaling variable
+constexpr float SHOWINFO_SCALE2F = 65536.0f;
+//! version number
+constexpr int REC_VERSION_3 = 3;
 
 /*!
   \struct ball_t
@@ -440,7 +445,7 @@ struct short_showinfo_t2 {
 /*!
   \struct player_type_t
   \brief player type parameters
-*/
+ */
 struct player_type_t {
     Int16 id; //!< type id
     Int32 player_speed_max; //!< max speed
@@ -474,9 +479,8 @@ struct player_type_t {
 /*!
   \struct server_params_t
   \brief server parametors
-*/
+ */
 struct server_params_t {
-    // The order must be completely same as server_params_t in types.h of rcssserver
     Int32 goal_width; //!< goal width
     Int32 inertia_moment; //!< related to player's turn action
     Int32 player_size; //!< normal player size
@@ -526,19 +530,19 @@ struct server_params_t {
     Int32 visible_distance; //!< visible distance
     Int32 wind_dir; //!< wind direction
     Int32 wind_force; //!< wind force
-    Int32 wind_angle; //!< wind angle for rand
-    Int32 wind_rand; //!< wind noise factor
+    Int32 wind_ang; //!< wind angle for rand
+    Int32 wind_rand; //!< wind noise for force
     Int32 kickable_area; //!< kickable_area
-    Int32 catchable_area_l; //!< goalie catchable area length
-    Int32 catchable_area_w; //!< goalie catchable area width
+    Int32 catch_area_l; //!< goalie catchable area length
+    Int32 catch_area_w; //!< goalie catchable area width
     Int32 catch_probability; //!< goalie catchable possibility
     Int16 goalie_max_moves; //!< goalie max moves after a catch
     Int32 corner_kick_margin; //!< corner kick margin
-    Int32 offside_active_area_size; //!< offside active area size
+    Int32 offside_active_area; //!< offside active area size
     Int16 wind_none; //!< wind factor is none
     Int16 use_wind_random; //!< wind factor is random
-    Int16 say_coach_count_max; //!< max count of coach's freeform say
-    Int16 say_coach_msg_size; //!< max length of coach's freeform say message
+    Int16 coach_say_count_max; //!< max count of coach's freeform say
+    Int16 coach_say_msg_size; //!< max length of coach's freeform say message
     Int16 clang_win_size; //!< window of coach language window
     Int16 clang_define_win; //!< window of coach language define message
     Int16 clang_meta_win; //!< window of coach lauguage meta message
@@ -552,18 +556,18 @@ struct server_params_t {
     Int16 recv_step; //!< udp recv step interval msec
     Int16 sense_body_step; //!< sense_body interval step msec
     Int16 lcm_step; //!< lcm of all the above steps msec
-    Int16 say_msg_size; //!< string size of say message
-    Int16 hear_max; //!< player hear_capacity_max
-    Int16 hear_inc; //!< player hear_capacity_inc
-    Int16 hear_decay; //!< player hear_capacity_decay
+    Int16 player_say_msg_size; //!< string size of say message
+    Int16 player_hear_max; //!< player hear_capacity_max
+    Int16 player_hear_inc; //!< player hear_capacity_inc
+    Int16 player_hear_decay; //!< player hear_capacity_decay
     Int16 catch_ban_cycle; //!< goalie catch ban cycle
     Int16 slow_down_factor; //!< factor to slow down simulator and send intervals
     Int16 use_offside; //!< flag for using off side rule
-    Int16 kick_off_offside; //!< flag for permit kick off offside
+    Int16 kickoff_offside; //!< flag for permit kick off offside
     Int32 offside_kick_margin; //!< offside kick margin
     Int32 audio_cut_dist; //!< audio cut off distance
-    Int32 dist_quantize_step; //!< quantize step of the seen distance for movable objects
-    Int32 landmark_dist_quantize_step; //!< quantize step of the seen distance for landmarks
+    Int32 dist_quantize_step; //!< quantize step of distance
+    Int32 landmark_dist_quantize_step; //!< quantize step of distance for landmark
     Int32 dir_quantize_step; //!< quantize step of direction
     Int32 dist_quantize_step_l; //!< team right quantize step of distance
     Int32 dist_quantize_step_r; //!< team left quantize step of distance
@@ -578,8 +582,8 @@ struct server_params_t {
     Int32 slowness_on_top_for_left_team;  //!< flag for left team dash power rate reduction on field top area
     Int32 slowness_on_top_for_right_team; //!< flag for right team dash power rate reduction on field top area
 
-    Int32 keepaway_length; //!< keep away region length
-    Int32 keepaway_width;  //!< keep away region width
+    Int32 ka_length; //!< keep away region length
+    Int32 ka_width;  //!< keep away region width
 
     Int32 ball_stuck_area; //!< automatic drop ball threshold while play_on
 
@@ -688,24 +692,14 @@ struct dispinfo_t2 {
     } body; //!< union variable
 };
 
-
-/*-------------------------------------------------------------------*/
-// monitor protocol version 3, 4, 5
-// game log format version 4, 5, 6
 //
-// Data structures for the text based monitor protocol
+// Data structures for the text based monitor protocl
 //
-
-constexpr int REC_VERSION_4 = 4; //!< The version number of rcg v4, which is written at the head of the file.
-constexpr int REC_VERSION_5 = 5; //!< The version number of rcg v5, which is written at the head of the file.
-constexpr int REC_VERSION_6 = 6; //!< The version number of rcg v6, which is written at the head of the file.
-
-constexpr int REC_VERSION_JSON = -1; //!< The version number of json rcg, which is written at the head of the file.
 
 /*!
   \struct BallT
-  \brief ball data
-*/
+  \brief generic ball data for display information
+ */
 struct BallT {
     float x_; //!< ball position x
     float y_; //!< ball position y
@@ -714,23 +708,23 @@ struct BallT {
 
     /*!
       \brief initialize all variables by 0
-    */
+     */
     BallT()
         : x_( 0.0 ),
           y_( 0.0 ),
           vx_( SHOWINFO_SCALE2F ),
           vy_( SHOWINFO_SCALE2F )
-    { }
+      { }
 
     /*!
       \brief check if this object has velocity info
       \return true if this object has velocity info
-    */
+     */
     bool hasVelocity() const
-    {
-        return vx_ != SHOWINFO_SCALE2F;
-        //&& vy_ != SHOWINFO_SCALE2F;
-    }
+      {
+          return vx_ != SHOWINFO_SCALE2F;
+          //&& vy_ != SHOWINFO_SCALE2F;
+      }
 
     double x() const { return x_; }
     double y() const { return y_; }
@@ -741,15 +735,15 @@ struct BallT {
 /*!
   \struct PlayerT
   \brief generic player data for display information
-*/
+ */
 struct PlayerT {
-    Side side_; //!< player's side.
+    char side_; //!< player's side. 'l', 'r' or 'n'
     Int16 unum_; //!< player's uniform number. 0 means disabled player.
     Int16 type_; //!< heterogeneous player type id
 
-    bool high_quality_; //!< view quality is high or not.
+    char view_quality_; //!< view quality indicator, 'l' or 'h'
 
-    Side focus_side_; //!< focus target side. NEUTRAL means no focus target.
+    char focus_side_; //!< focus target side. 'l', 'r' or 'n'. 'n' means no focus target.
     Int16 focus_unum_; //!< focus target uniform number. 0 means no focus target.
 
     Int32 state_; //!< state bit flags
@@ -766,7 +760,7 @@ struct PlayerT {
     float view_width_; //!< view width (degree). high: value>0, low: value<0
 
     float focus_dist_; //!< distance to the focus point
-    float focus_dir_; //!< direction to the focus point, relative to head (degree)
+    float focus_dir_; //!< direction to the focus point, relative to the face angle
 
     float stamina_; //!< satamina value
     float effort_; //!< effort value
@@ -788,13 +782,13 @@ struct PlayerT {
 
     /*!
       \brief initialize all variables
-    */
+     */
     PlayerT()
-        : side_( NEUTRAL ),
+        : side_( 'n' ),
           unum_( 0 ),
           type_( -1 ),
-          high_quality_( true ),
-          focus_side_( NEUTRAL ),
+          view_quality_( 'h' ),
+          focus_side_( 'n' ),
           focus_unum_( 0 ),
           state_( 0 ),
           x_( 0.0f ),
@@ -806,6 +800,8 @@ struct PlayerT {
           point_x_( SHOWINFO_SCALE2F ),
           point_y_( SHOWINFO_SCALE2F ),
           view_width_( SHOWINFO_SCALE2F ),
+          focus_dist_( 0.0f ),
+          focus_dir_( 0.0f ),
           stamina_( SHOWINFO_SCALE2F ),
           effort_( SHOWINFO_SCALE2F ),
           recovery_( SHOWINFO_SCALE2F ),
@@ -822,34 +818,36 @@ struct PlayerT {
           pointto_count_( 0xFFFF ),
           attentionto_count_( 0xFFFF ),
           change_focus_count_( 0xFFFF )
-    { }
+      { }
 
     /*!
       \brief get side id
       \return side id
-    */
+     */
     Side side() const
-    {
-        return side_;
-    }
+      {
+          return ( side_ == 'l' ? LEFT
+                   : side_ == 'r' ? RIGHT
+                   : NEUTRAL );
+      }
 
     /*!
       \brief get uniform number
       \return uniform number
-    */
+     */
     int unum() const
-    {
-        return unum_;
-    }
+      {
+          return unum_;
+      }
 
     /*!
       \brief get heterogeneous player type id
       \return id number
-    */
+     */
     int type() const
-    {
-        return type_;
-    }
+      {
+          return type_;
+      }
 
     //
     // information level
@@ -858,75 +856,75 @@ struct PlayerT {
     /*!
       \brief check if this object has player type info
       \return checked result
-    */
+     */
     bool hasType() const
-    {
-        return type_ >= 0;
-    }
+      {
+          return type_ >= 0;
+      }
 
     /*!
       \brief check if this object has velocity info
       \return checked result
-    */
+     */
     bool hasVelocity() const
-    {
-        return vx_ != SHOWINFO_SCALE2F;
-        //&& vy_ != SHOWINFO_SCALE2F;
-    }
+      {
+          return vx_ != SHOWINFO_SCALE2F;
+          //&& vy_ != SHOWINFO_SCALE2F;
+      }
 
     /*!
       \brief check if this object has neck info
       \return checked result
-    */
+     */
     bool hasNeck() const
-    {
-        return neck_ != SHOWINFO_SCALE2F;
-    }
+      {
+          return neck_ != SHOWINFO_SCALE2F;
+      }
 
     /*!
       \brief check if this object has view width info
       \return checked result
-    */
+     */
     bool hasView() const
-    {
-        return view_width_ != SHOWINFO_SCALE2F;
-    }
+      {
+          return view_width_ != SHOWINFO_SCALE2F;
+      }
 
     /*!
       \brief check if this object has stamina info
       \return true if this object has stamina info
-    */
+     */
     bool hasStamina() const
-    {
-        return stamina_ != SHOWINFO_SCALE2F;
-    }
+      {
+          return stamina_ != SHOWINFO_SCALE2F;
+      }
 
     /*!
       \brief check if this object has stamina capacity info
       \return checked result
-    */
+     */
     bool hasStaminaCapacity() const
-    {
-        return stamina_capacity_ >= 0.0f;
-    }
+      {
+          return stamina_capacity_ >= 0.0f;
+      }
 
     /*!
       \brief check if this object has command count info
       \return checked result
-    */
+     */
     bool hasCommandCount() const
-    {
-        return kick_count_ != 0xFFFF;
-    }
+      {
+          return kick_count_ != 0xFFFF;
+      }
 
     /*!
       \brief check if this object has arm information
       \return checked result
-    */
+     */
     bool hasArm() const
-    {
-        return point_x_ != SHOWINFO_SCALE2F;
-    }
+      {
+          return point_x_ != SHOWINFO_SCALE2F;
+      }
 
     //
     // player state
@@ -935,170 +933,172 @@ struct PlayerT {
     /*!
       \brief check if this object is enabled.
       \return checked result
-    */
+     */
     bool isAlive() const
-    {
-        return state_ != 0;
-    }
+      {
+          return state_ != 0;
+      }
 
     /*!
       \brief check if this object is kicking.
       \return checked result
-    */
+     */
     bool isKicking() const
-    {
-        return state_ & KICK
-            && !( state_ & KICK_FAULT );
-    }
+      {
+          return state_ & KICK
+              && !( state_ & KICK_FAULT );
+      }
 
     /*!
       \brief check if this object is kicking fault.
       \return checked result
-    */
+     */
     bool isKickingFault() const
-    {
-        return state_ & KICK_FAULT;
-    }
+      {
+          return state_ & KICK_FAULT;
+      }
 
     /*!
       \brief check if this object is goalie.
       \return checked result
-    */
+     */
     bool isGoalie() const
-    {
-        return state_ & GOALIE;
-    }
+      {
+          return state_ & GOALIE;
+      }
 
     /*!
       \brief check if this object is catching.
       \return checked result
-    */
+     */
     bool isCatching() const
-    {
-        return state_ & CATCH
-            && !( state_ & CATCH_FAULT );
-    }
+      {
+          return state_ & CATCH
+              && !( state_ & CATCH_FAULT );
+      }
 
     /*!
       \brief check if this object is catching fault.
       \return checked result
-    */
+     */
     bool isCatchingFault() const
-    {
-        return state_ & CATCH_FAULT;
-    }
+      {
+          return state_ & CATCH_FAULT;
+      }
 
     /*!
       \brief check if this object is collided with ball.
       \return checked result
-    */
+     */
     bool isCollidedBall() const
-    {
-        return state_ & BALL_COLLIDE
-            || state_ & BALL_TO_PLAYER
-            || state_ & PLAYER_TO_BALL;
-    }
+      {
+          return state_ & BALL_COLLIDE
+              || state_ & BALL_TO_PLAYER
+              || state_ & PLAYER_TO_BALL;
+      }
 
     /*!
       \brief check if this object is collided with player.
       \return checked result
-    */
+     */
     bool isCollidedPlayer() const
-    {
-        return state_ & PLAYER_COLLIDE;
-    }
+      {
+          return state_ & PLAYER_COLLIDE;
+      }
 
     /*!
       \brief check if this object is tackling
       \return checked result
-    */
+     */
     bool isTackling() const
-    {
-        return state_ & TACKLE
-            && !( state_ & TACKLE_FAULT );
-    }
+      {
+          return state_ & TACKLE
+              && !( state_ & TACKLE_FAULT );
+      }
 
     /*!
       \brief check if this object is tackling fault.
       \return checked result
-    */
+     */
     bool isTacklingFault() const
-    {
-        return state_ & TACKLE_FAULT;
-    }
+      {
+          return state_ & TACKLE_FAULT;
+      }
 
     /*!
       \brief check if this object is pointing to somewhere.
       \return checked result
-    */
+     */
     bool isPointing() const
-    {
-        return point_x_ != SHOWINFO_SCALE2F
-            && point_y_ != SHOWINFO_SCALE2F;
-    }
+      {
+          return point_x_ != SHOWINFO_SCALE2F
+              && point_y_ != SHOWINFO_SCALE2F;
+      }
 
     /*!
       \brief check if this object is focusing to someone.
       \return checked result
-    */
+     */
     bool isFocusing() const
-    {
-        return focus_side_ != NEUTRAL;
-    }
+      {
+          return focus_side_ != 'n';
+      }
 
     /*!
       \brief check if this player is chaged by an opponent player.
       \return checked result
-    */
+     */
     bool isFoulCharged() const
-    {
-        return state_ & FOUL_CHARGED;
-    }
+      {
+          return state_ & FOUL_CHARGED;
+      }
 
     /*!
       \brief check if this player has yellow card or not.
       \return checked result.
-    */
+     */
     bool hasYellowCard() const
-    {
-        return state_ & YELLOW_CARD;
-    }
+      {
+          return state_ & YELLOW_CARD;
+      }
 
     /*!
       \brief check if this player has red card or not.
       \return checked result.
-    */
+     */
     bool hasRedCard() const
-    {
-        return state_ & RED_CARD;
-    }
+      {
+          return state_ & RED_CARD;
+      }
 
     /*!
       \brief check if this player is marked as an illegal defense state
       \return checked result.
-    */
+     */
     bool isIllegalDefenseState() const
-    {
-        return state_ & ILLEGAL_DEFENSE;
-    }
+      {
+          return state_ & ILLEGAL_DEFENSE;
+      }
 
     /*!
-      \brief check if view quality is high or not.
+      \brief check if view quality is high.
       \return true if view quality is high.
-    */
+     */
     bool highQuality() const
-    {
-        return high_quality_;
-    }
+      {
+          return ( view_quality_ == 'h' );
+      }
 
     /*!
       \brief get focused player's side id
       \return side id
-    */
+     */
     Side focusSide() const
-    {
-        return focus_side_;
-    }
+      {
+          return ( focus_side_ == 'l' ? LEFT
+                   : focus_side_ == 'r' ? RIGHT
+                   : NEUTRAL );
+      }
 
     //
     // accessor methods
@@ -1142,20 +1142,20 @@ struct PlayerT {
     int changeFocusCount() const { return change_focus_count_; }
 
     bool hasFullEffort( const double max_effort ) const
-    {
-        return std::fabs( max_effort - effort_ ) < 1.0e-5;
-    }
+      {
+          return std::fabs( max_effort - effort_ ) < 1.0e-5;
+      }
 
     bool hasFullRecovery() const
-    {
-        return std::fabs( 1.0 - recovery_ ) < 1.0e-5;
-    }
+      {
+          return std::fabs( 1.0 - recovery_ ) < 1.0e-5;
+      }
 };
 
 /*!
   \struct TeamT
   \brief team information
-*/
+ */
 struct TeamT {
     std::string name_; //!< team name string
     UInt16 score_; //!< total scores in normal game
@@ -1164,12 +1164,15 @@ struct TeamT {
 
     /*!
       \brief initialize all variables by 0
-    */
+     */
     TeamT()
         : score_( 0 ),
           pen_score_( 0 ),
           pen_miss_( 0 )
-    { }
+      { }
+
+    explicit
+    TeamT( const team_t & from );
 
     /*!
       \brief initialize all variables by specified values
@@ -1177,7 +1180,7 @@ struct TeamT {
       \param score total score
       \param pen_score count of penalty score
       \param pen_miss count of penalty miss
-    */
+     */
     TeamT( const char * name,
            const UInt16 score,
            const UInt16 pen_score,
@@ -1186,100 +1189,123 @@ struct TeamT {
           score_( score ),
           pen_score_( pen_score ),
           pen_miss_( pen_miss )
-    { }
+      { }
+
+
+    /*!
+      \brief initialize all variables by specified values
+      \param name team name
+      \param score total score
+      \param pen_score count of penalty score
+      \param pen_miss count of penalty miss
+     */
+    TeamT( const std::string & name,
+           const UInt16 score,
+           const UInt16 pen_score,
+           const UInt16 pen_miss )
+        : name_( name ),
+          score_( score ),
+          pen_score_( pen_score ),
+          pen_miss_( pen_miss )
+      { }
 
     /*!
       \brief clear all variables
-    */
+     */
     void clear()
-    {
-        name_.erase();
-        score_ = 0;
-        pen_score_ = 0;
-        pen_miss_ = 0;
-    }
+      {
+          name_.erase();
+          score_ = 0;
+          pen_score_ = 0;
+          pen_miss_ = 0;
+      }
 
     /*!
       \brief get the team name.
       \return team name string.
-    */
+     */
     const std::string & name() const
-    {
-        return name_;
-    }
+      {
+          return name_;
+      }
 
     /*!
       \brief get the score of normal and overtime games.
       \return score value.
-    */
+     */
     int score() const
-    {
-        return score_;
-    }
+      {
+          return score_;
+      }
 
     /*!
       \brief get the score of penalty shootouts.
       \return score of penalty shootouts.
-    */
+     */
     int penaltyScore() const
-    {
-        return pen_score_;
-    }
+      {
+          return pen_score_;
+      }
 
     /*!
       \brief get the miss count of penalty shootouts.
       \return miss count of penalty shootouts.
-    */
-    int penaltyMiss() const
-    {
-        return pen_miss_;
-    }
+     */
+    int penaltyMiss() const { return pen_miss_; }
 
     /*!
       \brief get the total penalty trial count
       \return the total penalty trial count
-    */
+     */
     int penaltyTrial() const
-    {
-        return pen_score_ + pen_miss_;
-    }
+      {
+          return pen_score_ + pen_miss_;
+      }
 
     /*!
       \brief check if artument variable has same values.
       \param other compared variable.
       \return compared result.
-    */
+     */
     bool equals( const TeamT & other ) const
-    {
-        return ( name_ == other.name_
-                 && score_ == other.score_
-                 && pen_score_ == other.pen_score_
-                 && pen_miss_ == other.pen_miss_ );
-    }
+      {
+          return ( name_ == other.name_
+                   && score_ == other.score_
+                   && pen_score_ == other.pen_score_
+                   && pen_miss_ == other.pen_miss_ );
+      }
 
 };
 
 /*!
   \struct ShowInfoT
   \brief show information
-*/
+ */
 struct ShowInfoT {
     UInt32 time_; //!< game time
-    UInt32 stime_; //!< game time (>0 if stopped mode)
+    UInt32 stime_; //!< game time (stopped)
     BallT ball_; //!< ball data
-    PlayerT players_[MAX_PLAYER * 2]; //!< player data
+    PlayerT player_[MAX_PLAYER * 2]; //!< player data
+
+    ShowInfoT()
+        : time_( 0 ),
+          stime_( 0 )
+      { }
 };
 
 /*!
   \struct DispInfoT
   \brief display information
-*/
+ */
 struct DispInfoT {
     PlayMode pmode_; //!< playmode id
     TeamT team_[2]; //!< team data
     ShowInfoT show_; //!< positional data
-};
 
+    DispInfoT()
+        : pmode_( PM_Null )
+      { }
+};
 
 /*!
   \struct PointT
@@ -1344,89 +1370,11 @@ struct LineT {
       { }
 };
 
-
-typedef std::unordered_map< std::string, int * > IntMap;
-typedef std::unordered_map< std::string, double * > DoubleMap;
-typedef std::unordered_map< std::string, bool * > BoolMap;
-typedef std::unordered_map< std::string, std::string * > StringMap;
-
-
-/*!
-  \struct PlayerParamT
-  \brief heterogenious player trade-off parameters
- */
-struct PlayerParamT {
-    int player_types_;
-    int subs_max_;
-    int pt_max_;
-
-    bool allow_mult_default_type_;
-
-    double player_speed_max_delta_min_;
-    double player_speed_max_delta_max_;
-    double stamina_inc_max_delta_factor_;
-
-    double player_decay_delta_min_;
-    double player_decay_delta_max_;
-    double inertia_moment_delta_factor_;
-
-    double dash_power_rate_delta_min_;
-    double dash_power_rate_delta_max_;
-    double player_size_delta_factor_;
-
-    double kickable_margin_delta_min_;
-    double kickable_margin_delta_max_;
-    double kick_rand_delta_factor_;
-
-    double extra_stamina_delta_min_;
-    double extra_stamina_delta_max_;
-    double effort_max_delta_factor_;
-    double effort_min_delta_factor_;
-
-    double new_dash_power_rate_delta_min_;
-    double new_dash_power_rate_delta_max_;
-    double new_stamina_inc_max_delta_factor_;
-
-    int random_seed_;
-
-    double kick_power_rate_delta_min_;
-    double kick_power_rate_delta_max_;
-    double foul_detect_probability_delta_factor_;
-
-    double catchable_area_l_stretch_min_;
-    double catchable_area_l_stretch_max_;
-
-    PlayerParamT();
-
-    /*!
-      \brief print s-expression message
-     */
-    std::ostream & toSExp( std::ostream & os ) const;
-
-    bool createFromSExp( const std::string & msg );
-
-    bool setValue( const std::string & name,
-                   const std::string & value );
-    bool setInt( const std::string & name,
-                 const int value );
-    bool setDouble( const std::string & name,
-                    const double value );
-    bool setBool( const std::string & name,
-                  const bool value );
-private:
-
-    IntMap int_map_;
-    DoubleMap double_map_;
-    BoolMap bool_map_;
-};
-
 /*!
   \struct ServerParamT
   \brief server parameters
  */
 struct ServerParamT {
-    // The order is same as addParams() in serverparam.cpp of rcssserver
-
     double goal_width_;
     double inertia_moment_;
     double player_size_;
@@ -1492,13 +1440,13 @@ struct ServerParamT {
     int port_;
     int coach_port_;
     int online_coach_port_;
-    int say_coach_count_max_;
-    int say_coach_msg_size_;
+    int coach_say_count_max_;
+    int coach_say_msg_size_;
     int simulator_step_;
     int send_step_; // player's see message interval for (normal,high) mode
     int recv_step_;
     int sense_body_step_;
-    int say_msg_size_;
+    int player_say_msg_size_;
     int clang_win_size_;
     int clang_define_win_;
     int clang_meta_win_;
@@ -1508,9 +1456,9 @@ struct ServerParamT {
     int clang_rule_win_;
     int clang_mess_delay_;
     int clang_mess_per_cycle_;
-    int hear_max_;
-    int hear_inc_;
-    int hear_decay_;
+    int player_hear_max_;
+    int player_hear_inc_;
+    int player_hear_decay_;
     int catch_ban_cycle_;
     bool coach_mode_;
     bool coach_with_referee_mode_;
@@ -1518,7 +1466,7 @@ struct ServerParamT {
     int online_coach_look_step_; // send_vi_step: online coach's see_global interval
     bool use_offside_;
     double offside_active_area_size_;
-    bool kick_off_offside_; // forbid_kick_off_offside
+    bool kickoff_offside_; // forbid_kick_off_offside
     bool verbose_;
     double offside_kick_margin_;
     int slow_down_factor_;
@@ -1633,18 +1581,47 @@ struct ServerParamT {
     // v17
     double max_catch_angle_;
     double min_catch_angle_;
+    // v19
+    double dist_noise_rate_;
+    double focus_dist_noise_rate_;
+    double land_dist_noise_rate_;
+    double land_focus_dist_noise_rate_;
 
     ServerParamT();
+
+    explicit
+    ServerParamT( const std::string & msg )
+        : ServerParamT()
+      {
+          fromServerString( msg );
+      }
+
+    explicit
+    ServerParamT( const server_params_t & param )
+        : ServerParamT()
+      {
+          fromStruct( param );
+      }
+
+    void copyFrom( const ServerParamT & other );
 
     /*!
       \brief print s-expression message
      */
-    std::ostream & toSExp( std::ostream & os ) const;
+    std::ostream & toServerString( std::ostream & os ) const;
 
-    bool createFromSExp( const std::string & msg );
+    /*!
+      \brief print as json format
+     */
+    std::ostream & toJSON( std::ostream & os ) const;
+
+    bool fromServerString( const std::string & msg );
+
+    bool fromStruct( const server_params_t & data );
 
     bool setValue( const std::string & name,
                    const std::string & value );
+
     bool setInt( const std::string & name,
                  const int value );
     bool setDouble( const std::string & name,
@@ -1654,12 +1631,111 @@ struct ServerParamT {
     bool setString( const std::string & name,
                     const std::string & value );
 private:
+    ServerParamT( const ServerParamT & ) = delete;
+    const ServerParamT & operator=( const ServerParamT & other ) = delete;
 
-    IntMap int_map_;
-    DoubleMap double_map_;
-    BoolMap bool_map_;
-    StringMap string_map_;
+    struct Impl;
+    std::shared_ptr< Impl > impl_;
 };
+
+
+/*!
+  \struct PlayerParamT
+  \brief heterogenious player trade-off parameters
+ */
+struct PlayerParamT {
+    int player_types_;
+    int substitute_max_;
+    int pt_max_;
+
+    bool allow_mult_default_type_;
+
+    double player_speed_max_delta_min_;
+    double player_speed_max_delta_max_;
+    double stamina_inc_max_delta_factor_;
+
+    double player_decay_delta_min_;
+    double player_decay_delta_max_;
+    double inertia_moment_delta_factor_;
+
+    double dash_power_rate_delta_min_;
+    double dash_power_rate_delta_max_;
+    double player_size_delta_factor_;
+
+    double kickable_margin_delta_min_;
+    double kickable_margin_delta_max_;
+    double kick_rand_delta_factor_;
+
+    double extra_stamina_delta_min_;
+    double extra_stamina_delta_max_;
+    double effort_max_delta_factor_;
+    double effort_min_delta_factor_;
+
+    double new_dash_power_rate_delta_min_;
+    double new_dash_power_rate_delta_max_;
+    double new_stamina_inc_max_delta_factor_;
+
+    int random_seed_;
+
+    double kick_power_rate_delta_min_;
+    double kick_power_rate_delta_max_;
+    double foul_detect_probability_delta_factor_;
+
+    double catchable_area_l_stretch_min_;
+    double catchable_area_l_stretch_max_;
+
+    PlayerParamT();
+
+    explicit
+    PlayerParamT( const std::string & msg )
+        : PlayerParamT()
+      {
+          fromServerString( msg );
+      }
+
+    explicit
+    PlayerParamT( const player_params_t & data )
+        : PlayerParamT()
+      {
+          fromStruct( data );
+      }
+
+    void copyFrom( const PlayerParamT & other );
+
+    /*!
+      \brief print s-expression message
+     */
+    std::ostream & toServerString( std::ostream & os ) const;
+
+    /*!
+      \brief print as json format
+     */
+    std::ostream & toJSON( std::ostream & os ) const;
+
+    /*!
+      \brief read parameters from the s-expression style message
+     */
+    bool fromServerString( const std::string & msg );
+
+    bool fromStruct( const player_params_t & data );
+
+    bool setValue( const std::string & name,
+                   const std::string & value );
+
+    bool setInt( const std::string & name,
+                 const int value );
+    bool setDouble( const std::string & name,
+                    const double value );
+    bool setBool( const std::string & name,
+                  const bool value );
+private:
+    PlayerParamT( const PlayerParamT & ) = delete;
+    const PlayerParamT& operator=( const PlayerParamT & ) = delete;
+
+    struct Impl;
+    std::shared_ptr< Impl > impl_;
+};
+
 
 /*!
   \struct PlayerTypeT
@@ -1696,14 +1772,44 @@ struct PlayerTypeT {
     double flag_chg_too_far_length_;
     double flag_max_observation_length_;
 
+    // v19
+    // double dist_noise_rate_;
+    // double focus_dist_noise_rate_;
+    // double land_dist_noise_rate_;
+    // double land_focus_dist_noise_rate_;
+
     PlayerTypeT();
+
+    PlayerTypeT( const PlayerTypeT & other );
+    const PlayerTypeT & operator=( const PlayerTypeT & other );
+
+    PlayerTypeT( const std::string & msg )
+        : PlayerTypeT()
+      {
+          fromServerString( msg );
+      }
+
+    PlayerTypeT( const player_type_t & data )
+        : PlayerTypeT()
+      {
+          fromStruct( data );
+      }
+
+    void copyFrom( const PlayerTypeT & other );
 
     /*!
       \brief print s-expression message
      */
-    std::ostream & toSExp( std::ostream & os ) const;
+    std::ostream & toServerString( std::ostream & os ) const;
 
-    bool createFromSExp( const std::string & msg );
+    /*!
+      \brief print as json format
+     */
+    std::ostream & toJSON( std::ostream & os ) const;
+
+    bool fromServerString( const std::string & msg );
+
+    bool fromStruct( const player_type_t & data );
 
     bool setValue( const std::string & name,
                    const std::string & value );
@@ -1711,12 +1817,24 @@ struct PlayerTypeT {
                  const int value );
     bool setDouble( const std::string & name,
                     const double value );
-
 private:
-    IntMap int_map_;
-    DoubleMap double_map_;
 
+    struct Impl;
+    std::shared_ptr< Impl > impl_;
 };
+
+//! recorded value of rcg v4
+constexpr int REC_VERSION_4 = 4;
+//! recorded value of rcg v5
+constexpr int REC_VERSION_5 = 5;
+//! recorded value of rcg v6
+constexpr int REC_VERSION_6 = 6;
+
+//! recorded value of json rcg
+constexpr int REC_VERSION_JSON = -1;
+
+//! default rcg version
+constexpr int DEFAULT_LOG_VERSION = REC_VERSION_6;
 
 } // end namespace
 } // end namespace

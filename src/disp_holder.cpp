@@ -42,7 +42,7 @@
 #include <rcss/rcg/util.h>
 #include <rcss/rcg/parser_v1.h>
 #include <rcss/rcg/parser_v4.h>
-#include <rcss/rcg/parser_json.h>
+#include <rcss/rcg/parser_simdjson.h>
 
 #ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>
@@ -112,8 +112,8 @@ DispHolder::~DispHolder()
 void
 DispHolder::clear()
 {
-    M_server_param = rcss::rcg::ServerParamT();
-    M_player_param = rcss::rcg::PlayerParamT();
+    M_server_param.copyFrom( rcss::rcg::ServerParamT() );
+    M_player_param.copyFrom( rcss::rcg::PlayerParamT() );
     M_player_types.clear();
 
     M_team_graphic_left.clear();
@@ -145,7 +145,7 @@ const
 rcss::rcg::PlayerTypeT &
 DispHolder::playerType( const int id ) const
 {
-    std::map< int, rcss::rcg::PlayerTypeT >::const_iterator it = M_player_types.find( id );
+    std::unordered_map< int, rcss::rcg::PlayerTypeT >::const_iterator it = M_player_types.find( id );
 
     if ( it == M_player_types.end() )
     {
@@ -178,41 +178,8 @@ DispHolder::currentDisp() const
 bool
 DispHolder::addDispInfoV1( const rcss::rcg::dispinfo_t & disp )
 {
-    rcss::rcg::ParserV1 parser;
     RCGHandler handler( nullptr, *this );
-    return parser.handleDisp( disp, handler );
-
-    // switch ( my_ntohs( disp.mode ) ) {
-    // case rcss::rcg::NO_INFO:
-    //     break;
-
-    // case rcss::rcg::SHOW_MODE:
-    //     {
-    //         rcss::rcg::ShowInfoT new_show;
-    //         M_playmode = static_cast< rcss::rcg::PlayMode >( disp.body.show.pmode );
-    //         rcss::rcg::convert( disp.body.show.team[0], M_teams[0] );
-    //         rcss::rcg::convert( disp.body.show.team[1], M_teams[1] );
-    //         rcss::rcg::convert( disp.body.show, new_show );
-
-    //         handleShow( new_show );
-    //     }
-    //     break;
-
-    // case rcss::rcg::MSG_MODE:
-    //     handleMsg( 0, // time
-    //                my_ntohs( disp.body.msg.board ),
-    //                disp.body.msg.message );
-    //     break;
-
-    // case rcss::rcg::DRAW_MODE:
-    //     // TODO
-    //     break;
-
-    // default:
-    //     return false;
-    // }
-
-    // return true;
+    return handler.handleDispInfo( disp );
 }
 
 /*-------------------------------------------------------------------*/
@@ -222,67 +189,8 @@ DispHolder::addDispInfoV1( const rcss::rcg::dispinfo_t & disp )
 bool
 DispHolder::addDispInfoV2( const rcss::rcg::dispinfo_t2 & disp )
 {
-    const int time = ( M_disp ? M_disp->show_.time_ : 0 );
-
-    switch ( my_ntohs( disp.mode ) ) {
-    case rcss::rcg::NO_INFO:
-        break;
-
-    case rcss::rcg::SHOW_MODE:
-        {
-            rcss::rcg::ShowInfoT new_show;
-            M_playmode = static_cast< rcss::rcg::PlayMode >( disp.body.show.pmode );
-            rcss::rcg::convert( disp.body.show.team[0], M_teams[0] );
-            rcss::rcg::convert( disp.body.show.team[1], M_teams[1] );
-            rcss::rcg::convert( disp.body.show, new_show );
-
-            handleShow( new_show );
-        }
-        break;
-
-    case rcss::rcg::MSG_MODE:
-        handleMsg( time,
-                   my_ntohs( disp.body.msg.board ),
-                   disp.body.msg.message );
-        break;
-    case rcss::rcg::PARAM_MODE:
-        {
-            rcss::rcg::ServerParamT new_params;
-            rcss::rcg::convert( disp.body.sparams, new_params );
-
-            handleServerParam( new_params );
-        }
-        break;
-
-    case rcss::rcg::PPARAM_MODE:
-        {
-            rcss::rcg::PlayerParamT new_params;
-            rcss::rcg::convert( disp.body.pparams, new_params );
-
-            handlePlayerParam( new_params );
-        }
-        break;
-
-    case rcss::rcg::PT_MODE:
-        {
-            rcss::rcg::PlayerTypeT new_type;
-            convert( disp.body.ptinfo, new_type );
-
-            handlePlayerType( new_type );
-        }
-        break;
-
-    case rcss::rcg::DRAW_MODE:
-    case rcss::rcg::BLANK_MODE:
-    case rcss::rcg::PM_MODE:
-    case rcss::rcg::TEAM_MODE:
-        break;
-
-    default:
-        return false;
-    }
-
-    return true;
+    RCGHandler handler( nullptr, *this );
+    return handler.handleDispInfo2( disp );
 }
 
 /*-------------------------------------------------------------------*/
@@ -305,7 +213,7 @@ DispHolder::addDispInfoV3( const char * msg )
 bool
 DispHolder::addJSON( const char * msg )
 {
-    rcss::rcg::ParserJSON parser;
+    rcss::rcg::ParserSimdJSON parser;
     RCGHandler handler( nullptr, *this );
     return parser.parseData( msg, handler );
 }
@@ -357,12 +265,6 @@ DispHolder::handleMsg( const int /* time */,
                        const int /* board */,
                        const std::string & msg )
 {
-    if ( ! msg.compare( 0, std::strlen( "(team_graphic_" ), "(team_graphic_" ) )
-    {
-        analyzeTeamGraphic( msg );
-        return true;
-    }
-
     if ( ! msg.compare( 0, std::strlen( "(change_player_type" ), "(change_player_type" ) )
     {
         return true;
@@ -489,7 +391,7 @@ DispHolder::handleDrawLine( const int time,
 bool
 DispHolder::handleServerParam( const rcss::rcg::ServerParamT & param )
 {
-    M_server_param = param;
+    M_server_param.copyFrom( param );
     return true;
 }
 
@@ -500,7 +402,7 @@ DispHolder::handleServerParam( const rcss::rcg::ServerParamT & param )
 bool
 DispHolder::handlePlayerParam( const rcss::rcg::PlayerParamT & param )
 {
-    M_player_param = param;
+    M_player_param.copyFrom( param );
     return true;
 }
 
@@ -517,21 +419,22 @@ DispHolder::handlePlayerType( const rcss::rcg::PlayerTypeT & param )
 
 /*-------------------------------------------------------------------*/
 bool
-DispHolder::handleTeamGraphic( const rcss::rcg::Side side,
+DispHolder::handleTeamGraphic( const char side,
                                const int x,
                                const int y,
-                               rcss::rcg::XpmTile::Ptr tile )
+                               const std::vector< std::string > & xpm_tile )
 {
-    if ( side == rcss::rcg::LEFT )
+    if ( side == 'l' )
     {
-        M_team_graphic_left.addXpmTile( x, y, tile );
-    }
-    else if ( side == rcss::rcg::RIGHT )
-    {
-        M_team_graphic_right.addXpmTile( x, y, tile );
+        return M_team_graphic_left.addXpmTile( x, y, xpm_tile );
     }
 
-    return true;
+    if ( side == 'r' )
+    {
+        return M_team_graphic_right.addXpmTile( x, y, xpm_tile );
+    }
+
+    return false;
 }
 
 /*-------------------------------------------------------------------*/
@@ -542,49 +445,6 @@ bool
 DispHolder::handleEOF()
 {
     return true;
-}
-
-/*-------------------------------------------------------------------*/
-/*!
-
- */
-void
-DispHolder::analyzeTeamGraphic( const std::string & msg )
-{
-    char side = 'n';
-    int x = -1, y = -1;
-
-    if ( std::sscanf( msg.c_str(),
-                      "(team_graphic_%c ( %d %d ",
-                      &side, &x, &y ) != 3
-         || ( side != 'l' && side != 'r' )
-         || x < 0
-         || y < 0 )
-    {
-        std::cerr << "Illegal team_graphic message ["
-                  << msg << "]" << std::endl;
-        return;
-    }
-
-    if ( side == 'l' )
-    {
-        if ( ! M_team_graphic_left.createFromServerMessage( msg.c_str() ) )
-        {
-            std::cerr << "Illegal team_graphic message ["
-                      << msg << "]" << std::endl;
-        }
-        return;
-    }
-
-    if ( side == 'r' )
-    {
-        if ( ! M_team_graphic_right.createFromServerMessage( msg.c_str() ) )
-        {
-            std::cerr << "Illegal team_graphic message ["
-                      << msg << "]" << std::endl;
-        }
-        return;
-    }
 }
 
 /*-------------------------------------------------------------------*/

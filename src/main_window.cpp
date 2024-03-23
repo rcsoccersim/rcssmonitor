@@ -180,8 +180,8 @@ MainWindow::init()
 
     if ( ! Options::instance().gameLogFile().empty() )
     {
-        std::cerr << "(init) open game log " << Options::instance().gameLogFile() << std::endl;
-        openGameLogFile( QString::fromStdString( Options::instance().gameLogFile() ) );
+        std::cerr << "open game log " << Options::instance().gameLogFile() << std::endl;
+        QTimer::singleShot( 100, [this]() { openGameLogFile( QString::fromStdString( Options::instance().gameLogFile() ) ); } );
     }
     else if ( Options::instance().connect() )
     {
@@ -1487,13 +1487,13 @@ MainWindow::openGameLogFileImpl( const QString & filepath )
 
     std::cerr << "parsing elapsed " << timer.elapsed() << " [ms]" << std::endl;
 
-    if ( ! fin.eof() )
-    {
-        std::cerr << "Failed to parse the rcg file [" << filepath.toStdString() << "]."
-                  << std::endl;
-        fin.close();
-        return false;
-    }
+    // if ( ! fin.eof() )
+    // {
+    //     std::cerr << "Failed to parse the rcg file [" << filepath.toStdString() << "]."
+    //               << std::endl;
+    //     fin.close();
+    //     return false;
+    // }
 
     fin.close();
 

@@ -33,13 +33,6 @@
 #include <config.h>
 #endif
 
-#ifdef HAVE_ARPA_INET_H
-#include <arpa/inet.h>
-#endif
-#ifdef HAVE_WINDOWS_H
-#include <windows.h>
-#endif
-
 #include "parser_v2.h"
 
 #include "handler.h"
@@ -47,6 +40,13 @@
 
 #include <iostream>
 #include <cstring>
+
+#ifdef HAVE_ARPA_INET_H
+#include <arpa/inet.h>
+#endif
+#ifdef HAVE_WINDOWS_H
+#include <windows.h>
+#endif
 
 namespace rcss {
 namespace rcg {
@@ -57,7 +57,7 @@ namespace rcg {
 */
 bool
 ParserV2::parse( std::istream & is,
-                 Handler & handler )
+                 Handler & handler ) const
 {
     // streampos must be the first point!!!
     is.seekg( 0 );
@@ -87,12 +87,12 @@ ParserV2::parse( std::istream & is,
         }
     }
 
-    if ( ! is.eof() )
+    if ( is.eof() )
     {
-        return false;
+        return handler.handleEOF();
     }
 
-    return handler.handleEOF();
+    return false;
 }
 
 /*-------------------------------------------------------------------*/
@@ -101,10 +101,13 @@ ParserV2::parse( std::istream & is,
 */
 bool
 ParserV2::parseData( std::istream & is,
-                     Handler & handler )
+                     Handler & handler ) const
 {
-    Int16 mode;
-    if ( ! is.read( reinterpret_cast< char * >( &mode ), sizeof( Int16 ) ) )
+    // chedk data mode.
+    dispinfo_t info;
+    is.read( reinterpret_cast< char * >( &info.mode ), sizeof( Int16 ) );
+
+    if ( ! is.good() )
     {
         if ( is.eof() )
         {
@@ -113,22 +116,33 @@ ParserV2::parseData( std::istream & is,
         return false;
     }
 
-    switch ( ntohs( mode ) ) {
+    // read each data block
+    switch ( ntohs( info.mode ) ) {
     case NO_INFO:
         return true;
-
     case SHOW_MODE:
-        return parseShow( is, handler );
+        is.read( reinterpret_cast< char* >( &info.body.show ),
+                 sizeof( showinfo_t ) );
+        if ( is.gcount() == sizeof( showinfo_t ) )
+        {
+            return handler.handleShowInfo( info.body.show );
+        }
         break;
-
     case MSG_MODE:
-        return parseMsg( is, handler );
-
+        return parseMsgInfo( is, handler );
+        break;
     case DRAW_MODE:
-        return parseDraw( is, handler );
-
+        is.read( reinterpret_cast< char* >( &info.body.draw ),
+                 sizeof( drawinfo_t ) );
+        if ( is.gcount() == sizeof( drawinfo_t ) )
+        {
+            return true;
+        }
+        break;
     default:
-        std::cerr << "(rcss::rcg::ParserV2::parseData) Unknown mode" << ntohs( mode ) << std::endl;;
+        std::cerr << __FILE__ << ':' << __LINE__
+                  << " Unknown mode" << htons( info.mode )
+                  << std::endl;;
         break;
     }
 
@@ -136,30 +150,17 @@ ParserV2::parseData( std::istream & is,
 }
 
 /*-------------------------------------------------------------------*/
+/*!
+
+*/
 bool
-ParserV2::parseShow( std::istream & is,
-                     Handler & handler )
-{
-    showinfo_t show;
-    is.read( reinterpret_cast< char * >( &show ), sizeof( showinfo_t ) );
-
-    if ( is.gcount() != sizeof( showinfo_t ) )
-    {
-        return false;
-    }
-
-    return handleShow( show, handler );
-}
-
-/*-------------------------------------------------------------------*/
-bool
-ParserV2::parseMsg( std::istream & is,
-                    Handler & handler )
+ParserV2::parseMsgInfo( std::istream & is,
+                        Handler & handler ) const
 {
     bool result = false;
 
     Int16 board;
-    is.read( reinterpret_cast< char * >( &board ), sizeof( Int16 ) );
+    is.read( reinterpret_cast< char* >( &board ), sizeof( Int16 ) );
     if ( is.gcount() != sizeof( Int16 ) )
     {
         return false;
@@ -167,7 +168,7 @@ ParserV2::parseMsg( std::istream & is,
     board = ntohs( board );
 
     Int16 len;
-    is.read( reinterpret_cast< char * >( &len ), sizeof( Int16 ) );
+    is.read( reinterpret_cast< char* >( &len ), sizeof( Int16 ) );
     if ( is.gcount() != sizeof( Int16 ) )
     {
         return false;
@@ -183,28 +184,11 @@ ParserV2::parseMsg( std::istream & is,
             len = std::strlen( msg );
         }
 
-        result = handler.handleMsg( M_time, board, std::string( msg, len ) );
+        result = handler.handleMsgInfo( board, std::string( msg, len ) );
     }
 
     delete [] msg;
     return result;
-}
-
-
-/*-------------------------------------------------------------------*/
-bool
-ParserV2::parseDraw( std::istream & is,
-                     Handler & handler )
-{
-    drawinfo_t draw;
-    is.read( reinterpret_cast< char * >( &draw ), sizeof( drawinfo_t ) );
-
-    if ( is.gcount() != sizeof( drawinfo_t ) )
-    {
-        return false;
-    }
-
-    return handleDraw( draw, handler );
 }
 
 } // end of namespace

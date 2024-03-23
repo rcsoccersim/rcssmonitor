@@ -50,15 +50,7 @@ class Parser {
 public:
 
     typedef std::shared_ptr< Parser > Ptr; //!< rcg parser pointer type
-    // typedef Ptr (*Creator)(); //!< rcg parser creator function
-    // typedef Factory< Creator, int > Creators; //!< creator function holder
-
-    // /*!
-    //   \brief factory holder singleton
-    //   \return reference to the factory holder instance
-    //  */
-    // static
-    // Creators & creators();
+    typedef Ptr (*Creator)(); //!< rcg parser creator function
 
     /*!
       \brief create a suitable version parser instance depending on the input stream.
@@ -66,7 +58,7 @@ public:
       \return smart pointer to the rcg parser instance
 
       poionted index of istream becomes 4.
-    */
+     */
     static
     Ptr create( std::istream & is );
 
@@ -74,7 +66,7 @@ protected:
 
     /*!
       \brief constructor is accessible only from the derived classes.
-    */
+     */
     Parser() = default;
 
 public:
@@ -84,25 +76,29 @@ public:
     */
     virtual
     ~Parser()
-    { }
+      { }
 
     /*!
       \brief (pure virtual) get log version
       \return version number
-    */
+     */
     virtual
     int version() const = 0;
 
     /*!
       \brief (pure virtual) analyze log data from input stream
-      \param is input stream
+      \param is reference to the imput stream (usually ifstream/gzifstream).
       \param handler reference to the rcg data handler.
       \retval true, if successfuly parsed.
       \retval false, if incorrect format is detected.
-    */
+     */
     virtual
     bool parse( std::istream & is,
-                Handler & handler ) = 0;
+                Handler & handler ) const = 0;
+
+    virtual
+    bool parse( const std::string & filepath,
+                Handler & handler ) const;
 };
 
 } // end of namespace
