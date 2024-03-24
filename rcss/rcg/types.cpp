@@ -467,6 +467,52 @@ print_json( std::ostream & os,
     return os;
 }
 
+
+
+/*-------------------------------------------------------------------*/
+struct ValueSetter {
+
+    ValueSetter()
+      { }
+
+    void operator()( const int * s,
+                     int * t )
+      {
+          *t = *s;
+      }
+    void operator()( const int *, double * ) { }
+    void operator()( const int *, bool * ) { }
+    void operator()( const int *, std::string * ) { }
+
+    void operator()( const double * s,
+                     double * t )
+      {
+          *t = *s;
+      }
+    void operator()( const double *, int * ) {}
+    void operator()( const double *, bool * ) {}
+    void operator()( const double *, std::string * ) {}
+
+    void operator()( const bool * s,
+                     bool * t )
+      {
+          *t = *s;
+      }
+    void operator()( const bool *, int * ) {}
+    void operator()( const bool *, double * ) {}
+    void operator()( const bool *, std::string * ) {}
+
+    void operator()( const std::string * s,
+                     std::string * t )
+      {
+          *t = *s;
+      }
+    void operator()( const std::string *, int * ) {}
+    void operator()( const std::string *, double * ) {}
+    void operator()( const std::string *, bool * ) {}
+
+};
+
 }
 
 /*-------------------------------------------------------------------*/
@@ -935,208 +981,17 @@ ServerParamT::Impl::Impl( ServerParamT * p )
 void
 ServerParamT::copyFrom( const ServerParamT & other )
 {
-    goal_width_ = other.goal_width_;
-    inertia_moment_ = other.inertia_moment_;
-    player_size_ = other.player_size_;
-    player_decay_ = other.player_decay_;
-    player_rand_ = other.player_rand_;
-    player_weight_ = other.player_weight_;
-    player_speed_max_ = other.player_speed_max_;
-    player_accel_max_ = other.player_accel_max_;
-    stamina_max_ = other.stamina_max_;
-    stamina_inc_max_ = other.stamina_inc_max_;
-    recover_init_ = other.recover_init_;
-    recover_dec_thr_ = other.recover_dec_thr_;
-    recover_min_ = other.recover_min_;
-    recover_dec_ = other.recover_dec_;
-    effort_init_ = other.effort_init_;
-    effort_dec_thr_ = other.effort_dec_thr_;
-    effort_min_ = other.effort_min_;
-    effort_dec_ = other.effort_dec_;
-    effort_inc_thr_ = other.effort_inc_thr_;
-    effort_inc_ = other.effort_inc_;
-    kick_rand_ = other.kick_rand_;
-    team_actuator_noise_ = other.team_actuator_noise_;
-    player_rand_factor_l_ = other.player_rand_factor_l_;
-    player_rand_factor_r_ = other.player_rand_factor_r_;
-    kick_rand_factor_l_ = other.kick_rand_factor_l_;
-    kick_rand_factor_r_ = other.kick_rand_factor_r_;
-    ball_size_ = other.ball_size_;
-    ball_decay_ = other.ball_decay_;
-    ball_rand_ = other.ball_rand_;
-    ball_weight_ = other.ball_weight_;
-    ball_speed_max_ = other.ball_speed_max_;
-    ball_accel_max_ = other.ball_accel_max_;
-    dash_power_rate_ = other.dash_power_rate_;
-    kick_power_rate_ = other.kick_power_rate_;
-    kickable_margin_ = other.kickable_margin_;
-    control_radius_ = other.control_radius_;
-    catch_probability_ = other.catch_probability_;
-    catchable_area_l_ = other.catchable_area_l_;
-    catchable_area_w_ = other.catchable_area_w_;
-    goalie_max_moves_ = other.goalie_max_moves_;
-    max_power_ = other.max_power_;
-    min_power_ = other.min_power_;
-    max_moment_ = other.max_moment_;
-    min_moment_ = other.min_moment_;
-    max_neck_moment_ = other.max_neck_moment_;
-    min_neck_moment_ = other.min_neck_moment_;
-    max_neck_angle_ = other.max_neck_angle_;
-    min_neck_angle_ = other.min_neck_angle_;
-    visible_angle_ = other.visible_angle_;
-    visible_distance_ = other.visible_distance_;
-    audio_cut_dist_ = other.audio_cut_dist_;
-    dist_quantize_step_ = other.dist_quantize_step_;
-    landmark_dist_quantize_step_ = other.landmark_dist_quantize_step_;
-    corner_kick_margin_ = other.corner_kick_margin_;
-    wind_dir_ = other.wind_dir_;
-    wind_force_ = other.wind_force_;
-    wind_angle_ = other.wind_angle_;
-    wind_rand_ = other.wind_rand_;
-    wind_none_ = other.wind_none_;
-    use_wind_random_ = other.use_wind_random_;
-    half_time_ = other.half_time_;
-    drop_ball_time_ = other.drop_ball_time_;
-    port_ = other.port_;
-    coach_port_ = other.coach_port_;
-    online_coach_port_ = other.online_coach_port_;
-    coach_say_count_max_ = other.coach_say_count_max_;
-    coach_say_msg_size_ = other.coach_say_msg_size_;
-    simulator_step_ = other.simulator_step_;
-    send_step_ = other.send_step_;
-    recv_step_ = other.recv_step_;
-    sense_body_step_ = other.sense_body_step_;
-    player_say_msg_size_ = other.player_say_msg_size_;
-    clang_win_size_ = other.clang_win_size_;
-    clang_define_win_ = other.clang_define_win_;
-    clang_meta_win_ = other.clang_meta_win_;
-    clang_advice_win_ = other.clang_advice_win_;
-    clang_info_win_ = other.clang_info_win_;
-    clang_del_win_ = other.clang_del_win_;
-    clang_rule_win_ = other.clang_rule_win_;
-    clang_mess_delay_ = other.clang_mess_delay_;
-    clang_mess_per_cycle_ = other.clang_mess_per_cycle_;
-    player_hear_max_ = other.player_hear_max_;
-    player_hear_inc_ = other.player_hear_inc_;
-    player_hear_decay_ = other.player_hear_decay_;
-    catch_ban_cycle_ = other.catch_ban_cycle_;
-    coach_mode_ = other.coach_mode_;
-    coach_with_referee_mode_ = other.coach_with_referee_mode_;
-    use_old_coach_hear_ = other.use_old_coach_hear_;
-    online_coach_look_step_ = other.online_coach_look_step_;
-    use_offside_ = other.use_offside_;
-    offside_active_area_size_ = other.offside_active_area_size_;
-    kickoff_offside_ = other.kickoff_offside_;
-    verbose_ = other.verbose_;
-    offside_kick_margin_ = other.offside_kick_margin_;
-    slow_down_factor_ = other.slow_down_factor_;
-    synch_mode_ = other.synch_mode_;
-    synch_offset_ = other.synch_offset_;
-    synch_micro_sleep_ = other.synch_micro_sleep_;
-    start_goal_l_ = other.start_goal_l_;
-    start_goal_r_ = other.start_goal_r_;
-    fullstate_l_ = other.fullstate_l_;
-    fullstate_r_ = other.fullstate_r_;
-    slowness_on_top_for_left_team_ = other.slowness_on_top_for_left_team_;
-    slowness_on_top_for_right_team_ = other.slowness_on_top_for_right_team_;
-    landmark_file_ = other.landmark_file_;
-    send_comms_ = other.send_comms_;
-    text_logging_ = other.text_logging_;
-    game_logging_ = other.game_logging_;
-    game_log_version_ = other.game_log_version_;
-    text_log_dir_ = other.text_log_dir_;
-    game_log_dir_ = other.game_log_dir_;
-    text_log_fixed_name_ = other.text_log_fixed_name_;
-    game_log_fixed_name_ = other.game_log_fixed_name_;
-    text_log_fixed_ = other.text_log_fixed_;
-    game_log_fixed_ = other.game_log_fixed_;
-    text_log_dated_ = other.text_log_dated_;
-    game_log_dated_ = other.game_log_dated_;
-    log_date_format_ = other.log_date_format_;
-    log_times_ = other.log_times_;
-    record_messages_ = other.record_messages_;
-    text_log_compression_ = other.text_log_compression_;
-    game_log_compression_ = other.game_log_compression_;
-    profile_ = other.profile_;
-    point_to_ban_ = other.point_to_ban_;
-    point_to_duration_ = other.point_to_duration_;
-    tackle_dist_ = other.tackle_dist_;
-    tackle_back_dist_ = other.tackle_back_dist_;
-    tackle_width_ = other.tackle_width_;
-    tackle_exponent_ = other.tackle_exponent_;
-    tackle_cycles_ = other.tackle_cycles_;
-    tackle_power_rate_ = other.tackle_power_rate_;
-    freeform_wait_period_ = other.freeform_wait_period_;
-    freeform_send_period_ = other.freeform_send_period_;
-    free_kick_faults_ = other.free_kick_faults_;
-    back_passes_ = other.back_passes_;
-    proper_goal_kicks_ = other.proper_goal_kicks_;
-    stopped_ball_vel_ = other.stopped_ball_vel_;
-    max_goal_kicks_ = other.max_goal_kicks_;
-    auto_mode_ = other.auto_mode_;
-    kick_off_wait_ = other.kick_off_wait_;
-    connect_wait_ = other.connect_wait_;
-    game_over_wait_ = other.game_over_wait_;
-    team_l_start_ = other.team_l_start_;
-    team_r_start_ = other.team_r_start_;
-    keepaway_mode_ = other.keepaway_mode_;
-    keepaway_length_ = other.keepaway_length_;
-    keepaway_width_ = other.keepaway_width_;
-    keepaway_logging_ = other.keepaway_logging_;
-    keepaway_log_dir_ = other.keepaway_log_dir_;
-    keepaway_log_fixed_name_ = other.keepaway_log_fixed_name_;
-    keepaway_log_fixed_ = other.keepaway_log_fixed_;
-    keepaway_log_dated_ = other.keepaway_log_dated_;
-    keepaway_start_ = other.keepaway_start_;
-    nr_normal_halfs_ = other.nr_normal_halfs_;
-    nr_extra_halfs_ = other.nr_extra_halfs_;
-    penalty_shoot_outs_ = other.penalty_shoot_outs_;
-    pen_before_setup_wait_ = other.pen_before_setup_wait_;
-    pen_setup_wait_ = other.pen_setup_wait_;
-    pen_ready_wait_ = other.pen_ready_wait_;
-    pen_taken_wait_ = other.pen_taken_wait_;
-    pen_nr_kicks_ = other.pen_nr_kicks_;
-    pen_max_extra_kicks_ = other.pen_max_extra_kicks_;
-    pen_dist_x_ = other.pen_dist_x_;
-    pen_random_winner_ = other.pen_random_winner_;
-    pen_max_goalie_dist_x_ = other.pen_max_goalie_dist_x_;
-    pen_allow_mult_kicks_ = other.pen_allow_mult_kicks_;
-    pen_coach_moves_players_ = other.pen_coach_moves_players_;
-    ball_stuck_area_ = other.ball_stuck_area_;
-    coach_msg_file_ = other.coach_msg_file_;
-    max_tackle_power_ = other.max_tackle_power_;
-    max_back_tackle_power_ = other.max_back_tackle_power_;
-    player_speed_max_min_ = other.player_speed_max_min_;
-    extra_stamina_ = other.extra_stamina_;
-    synch_see_offset_ = other.synch_see_offset_;
-    max_monitors_ = other.max_monitors_;
-    extra_half_time_ = other.extra_half_time_;
-    stamina_capacity_ = other.stamina_capacity_;
-    max_dash_angle_ = other.max_dash_angle_;
-    min_dash_angle_ = other.min_dash_angle_;
-    dash_angle_step_ = other.dash_angle_step_;
-    side_dash_rate_ = other.side_dash_rate_;
-    back_dash_rate_ = other.back_dash_rate_;
-    max_dash_power_ = other.max_dash_power_;
-    min_dash_power_ = other.min_dash_power_;
-    tackle_rand_factor_ = other.tackle_rand_factor_;
-    foul_detect_probability_ = other.foul_detect_probability_;
-    foul_exponent_ = other.foul_exponent_;
-    foul_cycles_ = other.foul_cycles_;
-    golden_goal_ = other.golden_goal_;
-    red_card_probability_ = other.red_card_probability_;
-    illegal_defense_duration_ = other.illegal_defense_duration_;
-    illegal_defense_number_ = other.illegal_defense_number_;
-    illegal_defense_dist_x_ = other.illegal_defense_dist_x_;
-    illegal_defense_width_ = other.illegal_defense_width_;
-    fixed_teamname_l_ = other.fixed_teamname_l_;
-    fixed_teamname_r_ = other.fixed_teamname_r_;
-    max_catch_angle_ = other.max_catch_angle_;
-    min_catch_angle_ = other.min_catch_angle_;
-    dist_noise_rate_ = other.dist_noise_rate_;
-    focus_dist_noise_rate_ = other.focus_dist_noise_rate_;
-    land_dist_noise_rate_ = other.land_dist_noise_rate_;
-    land_focus_dist_noise_rate_ = other.land_focus_dist_noise_rate_;
+    for ( const ParamMap::value_type & v : other.impl_->param_map_ )
+    {
+        try
+        {
+            std::visit( ValueSetter(), v.second, impl_->param_map_.at( v.first ) );
+        }
+        catch ( std::exception & e )
+        {
+            std::cerr << "(ServerParamT::copyFrom) " << e.what() << std::endl;
+        }
+    }
 }
 
 /*-------------------------------------------------------------------*/
@@ -1476,45 +1331,17 @@ PlayerParamT::Impl::Impl( PlayerParamT * p )
 void
 PlayerParamT::copyFrom( const PlayerParamT & other )
 {
-    player_types_ = other.player_types_;
-    substitute_max_ = other.substitute_max_;
-    pt_max_ = other.pt_max_;;
-
-    allow_mult_default_type_ = other.allow_mult_default_type_;;
-
-    player_speed_max_delta_min_ = other.player_speed_max_delta_min_;;
-    player_speed_max_delta_max_ = other.player_speed_max_delta_max_;;
-    stamina_inc_max_delta_factor_ = other.stamina_inc_max_delta_factor_;;
-
-    player_decay_delta_min_ = other.player_decay_delta_min_;;
-    player_decay_delta_max_ = other.player_decay_delta_max_;;
-    inertia_moment_delta_factor_ = other.inertia_moment_delta_factor_;;
-
-    dash_power_rate_delta_min_ = other.dash_power_rate_delta_min_;;
-    dash_power_rate_delta_max_ = other.dash_power_rate_delta_max_;;
-    player_size_delta_factor_ = other.player_size_delta_factor_;;
-
-    kickable_margin_delta_min_ = other.kickable_margin_delta_min_;;
-    kickable_margin_delta_max_ = other.kickable_margin_delta_max_;;
-    kick_rand_delta_factor_ = other.kick_rand_delta_factor_;;
-
-    extra_stamina_delta_min_ = other.extra_stamina_delta_min_;;
-    extra_stamina_delta_max_ = other.extra_stamina_delta_max_;;
-    effort_max_delta_factor_ = other.effort_max_delta_factor_;;
-    effort_min_delta_factor_ = other.effort_min_delta_factor_;;
-
-    new_dash_power_rate_delta_min_ = other.new_dash_power_rate_delta_min_;;
-    new_dash_power_rate_delta_max_ = other.new_dash_power_rate_delta_max_;;
-    new_stamina_inc_max_delta_factor_ = other.new_stamina_inc_max_delta_factor_;;
-
-    random_seed_ = other.random_seed_;
-
-    kick_power_rate_delta_min_ = other.kick_power_rate_delta_min_;;
-    kick_power_rate_delta_max_ = other.kick_power_rate_delta_max_;;
-    foul_detect_probability_delta_factor_ = other.foul_detect_probability_delta_factor_;;
-
-    catchable_area_l_stretch_min_ = other.catchable_area_l_stretch_min_;;
-    catchable_area_l_stretch_max_ = other.catchable_area_l_stretch_max_;;
+    for ( const ParamMap::value_type & v : other.impl_->param_map_ )
+    {
+        try
+        {
+            std::visit( ValueSetter(), v.second, impl_->param_map_.at( v.first ) );
+        }
+        catch ( std::exception & e )
+        {
+            std::cerr << "(PlayerParamT::copyFrom) " << e.what() << std::endl;
+        }
+    }
 }
 
 /*-------------------------------------------------------------------*/
@@ -1803,41 +1630,17 @@ PlayerTypeT::operator=( const PlayerTypeT & other )
 void
 PlayerTypeT::copyFrom( const PlayerTypeT & other )
 {
-    id_ = other.id_;
-    player_speed_max_ = other.player_speed_max_;
-    stamina_inc_max_ = other.stamina_inc_max_;
-    player_decay_ = other.player_decay_;
-    inertia_moment_ = other.inertia_moment_;
-    dash_power_rate_ = other.dash_power_rate_;
-    player_size_ = other.player_size_;
-    kickable_margin_ = other.kickable_margin_;
-    kick_rand_ = other.kick_rand_;
-    extra_stamina_ = other.extra_stamina_;
-    effort_max_ = other.effort_max_;
-    effort_min_ = other.effort_min_;
-
-    kick_power_rate_ = other.kick_power_rate_;
-    foul_detect_probability_ = other.foul_detect_probability_;
-    catchable_area_l_stretch_ = other.catchable_area_l_stretch_;
-
-    // v18
-    unum_far_length_ = other.unum_far_length_;
-    unum_too_far_length_ = other.unum_too_far_length_;
-    team_far_length_ = other.team_far_length_;
-    team_too_far_length_ = other.team_too_far_length_;
-    player_max_observation_length_ = other.player_max_observation_length_;
-    ball_vel_far_length_ = other.ball_vel_far_length_;
-    ball_vel_too_far_length_ = other.ball_vel_too_far_length_;
-    ball_max_observation_length_ = other.ball_max_observation_length_;
-    flag_chg_far_length_ = other.flag_chg_far_length_;
-    flag_chg_too_far_length_ = other.flag_chg_too_far_length_;
-    flag_max_observation_length_ = other.flag_max_observation_length_;
-
-    // v19
-    // double dist_noise_rate_;
-    // double focus_dist_noise_rate_;
-    // double land_dist_noise_rate_;
-    // double land_focus_dist_noise_rate_;
+    for ( const ParamMap::value_type & v : other.impl_->param_map_ )
+    {
+        try
+        {
+            std::visit( ValueSetter(), v.second, impl_->param_map_.at( v.first ) );
+        }
+        catch ( std::exception & e )
+        {
+            std::cerr << "(PlayerParamT::copyFrom) " << e.what() << std::endl;
+        }
+    }
 }
 
 /*-------------------------------------------------------------------*/
