@@ -434,6 +434,7 @@ DispHolder::handleTeamGraphic( const char side,
         return M_team_graphic_right.addXpmTile( x, y, xpm_tile );
     }
 
+    std::cerr << "(DispHolder::handleTeamGraphic) unknown side [" << side << ']' << std::endl;
     return false;
 }
 

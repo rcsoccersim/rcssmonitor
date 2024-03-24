@@ -148,6 +148,7 @@ RCGHandler::handleMsg( const int time,
     return M_holder.handleMsg( time, board, msg );
 }
 
+/*-------------------------------------------------------------------*/
 bool
 RCGHandler::handleDraw( const int time,
                         const rcss::rcg::drawinfo_t & draw )

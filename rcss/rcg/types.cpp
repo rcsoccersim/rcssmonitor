@@ -142,7 +142,8 @@ clean_string( std::string str )
 
 /*-------------------------------------------------------------------*/
 bool
-set_value( const std::string & name,
+set_value( const std::string & param_name,
+           const std::string & name,
            const std::string & value,
            ParamMap & param_map )
 {
@@ -160,7 +161,7 @@ set_value( const std::string & name,
             catch ( std::exception & e )
             {
                 std::cerr << e.what()
-                          << " name=" << name << " value=" << value << std::endl;
+                          << ' ' << param_name << " (" << name << ' ' << value << ')' << std::endl;
                 return false;
             }
         }
@@ -175,7 +176,7 @@ set_value( const std::string & name,
             catch ( std::exception & e )
             {
                 std::cerr << e.what()
-                          << " name=" << name << " value=" << value << std::endl;
+                          << ' ' << param_name << " (" << name << ' ' << value << ')' << std::endl;
                 return false;
             }
             return true;
@@ -194,7 +195,7 @@ set_value( const std::string & name,
             }
             else
             {
-                std::cerr << "Unknown bool value. name=" << name << " value=" << value << std::endl;
+                std::cerr << "Unknown bool value. " << param_name << " (" << name << ' ' << value << ')' << std::endl;
             }
             return true;
         }
@@ -207,7 +208,7 @@ set_value( const std::string & name,
         }
     }
 
-    std::cerr << "Unsupported parameter. name=" << name << " value=" << value << std::endl;
+    std::cerr << "Unsupported parameter. " << param_name << " (" << name << ' ' << value << ')' << std::endl;
     return false;
 }
 
@@ -378,7 +379,7 @@ parse_server_message( const std::string & msg,
         // pos indicates the position of the end of paren
 
         // set the value to the parameter map
-        set_value( name_str, value_str, param_map );
+        set_value( msg, name_str, value_str, param_map );
     }
 
     return true;
@@ -743,10 +744,10 @@ ServerParamT::ServerParamT()
       fixed_teamname_r_( "" ),
       max_catch_angle_( 180.0 ),
       min_catch_angle_( -180.0 ),
-      // dist_noise_rate_( 0.0125 ),
-      // focus_dist_noise_rate_( 0.0125 ),
-      // land_dist_noise_rate_( 0.00125 ),
-      // land_focus_dist_noise_rate_( 0.00125 )
+      dist_noise_rate_( 0.0125 ),
+      focus_dist_noise_rate_( 0.0125 ),
+      land_dist_noise_rate_( 0.00125 ),
+      land_focus_dist_noise_rate_( 0.00125 ),
       impl_( new Impl( this ) )
 {
 
@@ -972,10 +973,10 @@ ServerParamT::Impl::Impl( ServerParamT * p )
     param_map_.insert( ParamMap::value_type( "max_catch_angle", &(p->max_catch_angle_ ) ) );
     param_map_.insert( ParamMap::value_type( "min_catch_angle", &(p->min_catch_angle_ ) ) );
     // 19.0
-    // param_map_.insert( ParamMap::value_type( "dist_noise_rate", &(p->dist_noise_rate_ ) ) );
-    // param_map_.insert( ParamMap::value_type( "focus_dist_noise_rate", &(p->focus_dist_noise_rate_ ) ) );
-    // param_map_.insert( ParamMap::value_type( "land_dist_noise_rate", &(p->land_dist_noise_rate_ ) ) );
-    // param_map_.insert( ParamMap::value_type( "land_focus_dist_noise_rate", &(p->land_focus_dist_noise_rate_ ) ) );
+    param_map_.insert( ParamMap::value_type( "dist_noise_rate", &(p->dist_noise_rate_ ) ) );
+    param_map_.insert( ParamMap::value_type( "focus_dist_noise_rate", &(p->focus_dist_noise_rate_ ) ) );
+    param_map_.insert( ParamMap::value_type( "land_dist_noise_rate", &(p->land_dist_noise_rate_ ) ) );
+    param_map_.insert( ParamMap::value_type( "land_focus_dist_noise_rate", &(p->land_focus_dist_noise_rate_ ) ) );
 }
 
 void
@@ -1211,7 +1212,7 @@ bool
 ServerParamT::setValue( const std::string & name,
                         const std::string & value )
 {
-    return set_value( name, value, impl_->param_map_ );
+    return set_value( "server_param", name, value, impl_->param_map_ );
 }
 
 /*-------------------------------------------------------------------*/
@@ -1417,7 +1418,7 @@ bool
 PlayerParamT::setValue( const std::string & name,
                         const std::string & value )
 {
-    return set_value( name, value, impl_->param_map_ );
+    return set_value( "player_param", name, value, impl_->param_map_ );
 }
 
 /*-------------------------------------------------------------------*/
@@ -1471,6 +1472,21 @@ PlayerTypeT::PlayerTypeT()
       kick_power_rate_( 0.027 ),
       foul_detect_probability_( 0.5 ),
       catchable_area_l_stretch_( 1.0 ),
+      unum_far_length_( 20.0 ),
+      unum_too_far_length_( 40.0 ),
+      team_far_length_( 60.0 ),
+      team_too_far_length_( 125.095963164 ),
+      player_max_observation_length_( 125.095963164 ),
+      ball_vel_far_length_( 20.0 ),
+      ball_vel_too_far_length_( 40.0 ),
+      ball_max_observation_length_( 125.095963164 ),
+      flag_chg_far_length_( 20.0 ),
+      flag_chg_too_far_length_( 40.0 ),
+      flag_max_observation_length_( 125.095963164 ),
+      dist_noise_rate_( 0.0125 ),
+      focus_dist_noise_rate_( 0.0125 ),
+      land_dist_noise_rate_( 0.00125 ),
+      land_focus_dist_noise_rate_( 0.00125 ),
       impl_( new Impl( this ) )
 {
 
@@ -1509,10 +1525,10 @@ PlayerTypeT::Impl::Impl( PlayerTypeT * p )
     param_map_.insert( ParamMap::value_type( "flag_chg_too_far_length", &(p->flag_chg_too_far_length_ ) ) );
     param_map_.insert( ParamMap::value_type( "flag_max_observation_length", &(p->flag_max_observation_length_ ) ) );
     // 19.0
-    // param_map_.insert( ParamMap::value_type( "dist_noise_rate", &(p->dist_noise_rate_ ) ) );
-    // param_map_.insert( ParamMap::value_type( "focus_dist_noise_rate", &(p->focus_dist_noise_rate_ ) ) );
-    // param_map_.insert( ParamMap::value_type( "land_dist_noise_rate", &(p->land_dist_noise_rate_ ) ) );
-    // param_map_.insert( ParamMap::value_type( "land_focus_dist_noise_rate", &(p->land_focus_dist_noise_rate_ ) ) );
+    param_map_.insert( ParamMap::value_type( "dist_noise_rate", &(p->dist_noise_rate_ ) ) );
+    param_map_.insert( ParamMap::value_type( "focus_dist_noise_rate", &(p->focus_dist_noise_rate_ ) ) );
+    param_map_.insert( ParamMap::value_type( "land_dist_noise_rate", &(p->land_dist_noise_rate_ ) ) );
+    param_map_.insert( ParamMap::value_type( "land_focus_dist_noise_rate", &(p->land_focus_dist_noise_rate_ ) ) );
 }
 
 /*-------------------------------------------------------------------*/
@@ -1552,10 +1568,10 @@ PlayerTypeT::toServerString( std::ostream & os ) const
     to_sexp( os, "flag_chg_too_far_length", quantize( flag_chg_too_far_length_, 0.000001 ) );
     to_sexp( os, "flag_max_observation_length", quantize( flag_max_observation_length_, 0.000001 ) );
     // 19.0
-    // to_sexp( os, "dist_noise_rate", dist_noise_rate_ );
-    // to_sexp( os, "focus_dist_noise_rate", dist_noise_rate_ );
-    // to_sexp( os, "land_dist_noise_rate", dist_noise_rate_ );
-    // to_sexp( os, "land_focus_dist_noise_rate", dist_noise_rate_ );
+    to_sexp( os, "dist_noise_rate", dist_noise_rate_ );
+    to_sexp( os, "focus_dist_noise_rate", dist_noise_rate_ );
+    to_sexp( os, "land_dist_noise_rate", dist_noise_rate_ );
+    to_sexp( os, "land_focus_dist_noise_rate", dist_noise_rate_ );
 
     os << ')';
 
@@ -1599,10 +1615,10 @@ PlayerTypeT::toJSON( std::ostream & os ) const
     os << ',' << std::quoted( "flag_chg_too_far_length" ) << ':' << quantize( flag_chg_too_far_length_, 0.000001 );
     os << ',' << std::quoted( "flag_max_observation_length" ) << ':' << quantize( flag_max_observation_length_, 0.000001 );
     // 19.0
-    // os << ',' << std::quoted( "dist_noise_rate" ) << ':' << quantize( dist_noise_rate_, 0.000001 );
-    // os << ',' << std::quoted( "focus_dist_noise_rate" ) << ':' << quantize( dist_noise_rate_, 0.000001 );
-    // os << ',' << std::quoted( "land_dist_noise_rate" ) << ':' << quantize( dist_noise_rate_, 0.000001 );
-    // os << ',' << std::quoted( "land_focus_dist_noise_rate" ) << ':' << quantize( dist_noise_rate_, 0.000001 );
+    os << ',' << std::quoted( "dist_noise_rate" ) << ':' << quantize( dist_noise_rate_, 0.000001 );
+    os << ',' << std::quoted( "focus_dist_noise_rate" ) << ':' << quantize( dist_noise_rate_, 0.000001 );
+    os << ',' << std::quoted( "land_dist_noise_rate" ) << ':' << quantize( dist_noise_rate_, 0.000001 );
+    os << ',' << std::quoted( "land_focus_dist_noise_rate" ) << ':' << quantize( dist_noise_rate_, 0.000001 );
 
     os << '}' << '}';
     return os;
@@ -1691,7 +1707,7 @@ bool
 PlayerTypeT::setValue( const std::string & name,
                        const std::string & value )
 {
-    return set_value( name, value, impl_->param_map_ );
+    return set_value( "player_type", name, value, impl_->param_map_ );
 }
 
 /*-------------------------------------------------------------------*/
