@@ -1773,10 +1773,10 @@ struct PlayerTypeT {
     double flag_max_observation_length_;
 
     // v19
-    // double dist_noise_rate_;
-    // double focus_dist_noise_rate_;
-    // double land_dist_noise_rate_;
-    // double land_focus_dist_noise_rate_;
+    double dist_noise_rate_;
+    double focus_dist_noise_rate_;
+    double land_dist_noise_rate_;
+    double land_focus_dist_noise_rate_;
 
     PlayerTypeT();
 
