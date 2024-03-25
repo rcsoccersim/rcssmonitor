@@ -41,9 +41,10 @@
 #include "parser_v2.h"
 #include "parser_v3.h"
 #include "parser_v4.h"
-#include "parser_json.h"
+#include "parser_simdjson.h"
 
 #include <iostream>
+#include <fstream>
 
 namespace rcss {
 namespace rcg {
@@ -52,23 +53,9 @@ namespace rcg {
 /*!
 
 */
-// Parser::Creators &
-// Parser::creators()
-// {
-//     static Creators s_instance;
-//     return s_instance;
-// }
-
-
-/*-------------------------------------------------------------------*/
-/*!
-
-*/
 Parser::Ptr
 Parser::create( std::istream & is )
 {
-    Parser::Ptr ptr;
-
     char header[5];
     int version = REC_OLD_VERSION;
 
@@ -76,62 +63,87 @@ Parser::create( std::istream & is )
 
     if ( is.gcount() != 4 )
     {
-        return ptr;
+        std::cerr << "(rcss::rcg::Parser::create) no header." << std::endl;
+        return Parser::Ptr();
     }
 
-    if ( header[0] == 'J'
-         && header[1] == 'S'
-         && header[2] == 'O'
-         && header[3] == 'N' )
+    if ( header[0] == '[' )
     {
-        std::cerr << "(rcss::rcg::Parser::create) game log version = json" << std::endl;
-        ptr = Parser::Ptr( new ParserJSON() );
-        return ptr;
+        version = REC_VERSION_JSON;
     }
-
-
-    if ( header[0] == 'U'
-         && header[1] == 'L'
-         && header[2] == 'G' )
+    else if ( header[0] == 'U'
+              && header[1] == 'L'
+              && header[2] == 'G' )
     {
         version = static_cast< int >( header[3] );
     }
 
+    std::cerr << "(rcss::rcg::Parser::create) rcg version = ";
+    if ( version == -1 )
+    {
+        std::cerr << "json";
+    }
+    else
+    {
+        std::cerr << ( version == static_cast< int >( '0' ) + REC_VERSION_6 ? REC_VERSION_6
+                       : version == static_cast< int >( '0' ) + REC_VERSION_5 ? REC_VERSION_5
+                       : version == static_cast< int >( '0' ) + REC_VERSION_4 ? REC_VERSION_4
+                       : version );
+    }
+    std::cerr << std::endl;
+
+    Parser::Ptr ptr;
+
     if ( version == static_cast< int >( '0' ) + REC_VERSION_6 )
     {
-        // ParserV4 can parse the v6 format.
-        std::cerr << "(rcss::rcg::Parser::crete) game log version = " << REC_VERSION_6 << std::endl;
-        ptr = Parser::Ptr( new rcss::rcg::ParserV4() );
+        ptr = Parser::Ptr( new ParserV4() );
     }
     else if ( version == static_cast< int >( '0' ) + REC_VERSION_5 )
     {
-        // ParserV4 can parse the v5 format.
-        std::cerr << "(rcss::rcg::Parser::crete) game log version = " << REC_VERSION_5 << std::endl;
-        ptr = Parser::Ptr( new rcss::rcg::ParserV4() );
+        ptr = Parser::Ptr( new ParserV4() );
     }
     else if ( version == static_cast< int >( '0' ) + REC_VERSION_4 )
     {
-        std::cerr << "(rcss::rcg::Parser::create) game log version = " << REC_VERSION_4 << std::endl;
-        ptr = Parser::Ptr( new rcss::rcg::ParserV4() );
+        ptr = Parser::Ptr( new ParserV4() );
     }
     else if ( version == REC_VERSION_3 )
     {
-        std::cerr << "(rcss::rcg::Parser::create) game log version = " << version << std::endl;
-        ptr = Parser::Ptr( new rcss::rcg::ParserV3() );
+        ptr = Parser::Ptr( new ParserV3() );
     }
     else if ( version == REC_VERSION_2 )
     {
-        std::cerr << "(rcss::rcg::Parser::create) game log version = " << version << std::endl;
-        ptr = Parser::Ptr( new rcss::rcg::ParserV2() );
+        ptr = Parser::Ptr( new ParserV2() );
     }
     else if ( version == REC_OLD_VERSION )
     {
-        std::cerr << "(rcss::rcg::Parser::create) game log version = " << version << std::endl;
         ptr = Parser::Ptr( new ParserV1() );
+    }
+    else if ( version == REC_VERSION_JSON )
+    {
+        ptr = Parser::Ptr( new ParserSimdJSON() );
+    }
+    else
+    {
+        std::cerr << "(rcss::rcg::Parser::create) Unsupported version." << std::endl;
     }
 
     return ptr;
 }
+
+
+bool
+Parser::parse( const std::string & filepath,
+               Handler & handler ) const
+{
+    std::ifstream fin( filepath );
+    if ( ! fin )
+    {
+        return false;
+    }
+
+    return parse( fin, handler );
+}
+
 
 }
 }

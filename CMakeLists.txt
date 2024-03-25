@@ -1,13 +1,13 @@
 cmake_minimum_required(VERSION 3.5)
 
-project(rcssmonitor VERSION 18.0.0)
+project(rcssmonitor VERSION 19.0.0)
 
 if(CMAKE_VERSION VERSION_LESS "3.7.0")
     set(CMAKE_INCLUDE_CURRENT_DIR ON)
 endif()
 
 # compiler options
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if(NOT CMAKE_BUILD_TYPE)

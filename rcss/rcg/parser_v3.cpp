@@ -33,6 +33,14 @@
 #include <config.h>
 #endif
 
+#include "parser_v3.h"
+
+#include "handler.h"
+#include "types.h"
+
+#include <iostream>
+#include <cstring>
+
 #ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>
 #endif
@@ -40,29 +48,16 @@
 #include <windows.h>
 #endif
 
-#include "parser_v3.h"
-
-#include "handler.h"
-#include "types.h"
-#include "util.h"
-
-#include <iostream>
-#include <cstring>
-
 namespace rcss {
 namespace rcg {
 
 /*-------------------------------------------------------------------*/
-ParserV3::ParserV3()
-    : M_time( -1 )
-{
+/*!
 
-}
-
-/*-------------------------------------------------------------------*/
+*/
 bool
 ParserV3::parse( std::istream & is,
-                 Handler & handler )
+                 Handler & handler ) const
 {
     // streampos must be the first point!!!
     is.seekg( 0 );
@@ -92,22 +87,25 @@ ParserV3::parse( std::istream & is,
         }
     }
 
-    if ( ! is.eof() )
+    if ( is.eof() )
     {
-        return false;
+        return handler.handleEOF();
     }
 
-    return handler.handleEOF();
+    return false;
 }
 
 /*-------------------------------------------------------------------*/
+/*!
+
+*/
 bool
 ParserV3::parseData( std::istream & is,
-                     Handler & handler )
+                     Handler & handler ) const
 {
     // chedk data mode.
     Int16 mode;
-    is.read( reinterpret_cast< char * >( &mode ), sizeof( Int16 ) );
+    is.read( reinterpret_cast< char* >( &mode ), sizeof( Int16 ) );
 
     if ( ! is.good() )
     {
@@ -119,78 +117,68 @@ ParserV3::parseData( std::istream & is,
         return false;
     }
 
+    //std::cerr << "read mode = " << (int)ntohs( mode ) << std::endl;
+    // read each data block
     switch ( ntohs( mode ) ) {
     case NO_INFO:
         return true;
-
     case SHOW_MODE:
-        return parseShortShow( is, handler );
-
+        return parseShowInfo( is, handler );
     case MSG_MODE:
-        return parseMsg( is, handler );
-
+        return parseMsgInfo( is, handler );
     case PM_MODE:
         return parsePlayMode( is, handler );
-
     case TEAM_MODE:
-        return parseTeam( is, handler );
-
+        return parseTeamInfo( is, handler );
     case PT_MODE:
         return parsePlayerType( is, handler );
-
     case PARAM_MODE:
         return parseServerParam( is, handler );
-
     case PPARAM_MODE:
         return parsePlayerParam( is, handler );
-
     case BLANK_MODE:
-        std::cerr << "(rcss::rcg::ParserV3) BLANK mode is not supported." << std::endl;;
-        break;
-
     case DRAW_MODE:
-        std::cerr << "(rcss::rcg::ParserV3) DRAW mode is not supported." << std::endl;;
-        break;
-
     default:
-        std::cerr << "(rcss::rcg::ParserV3) Unknown mode" << ntohs( mode ) << std::endl;;
+        std::cerr << __FILE__ << ':' << __LINE__
+                  << " Unknown mode" << htons( mode )
+                  << std::endl;;
         break;
-
     }
 
     return false;
 }
 
 /*-------------------------------------------------------------------*/
+/*!
+
+*/
 bool
-ParserV3::parseShortShow( std::istream & is,
-                          Handler & handler )
+ParserV3::parseShowInfo( std::istream & is,
+                         Handler & handler ) const
 {
     short_showinfo_t2 short_show;
-    is.read( reinterpret_cast< char * >( &short_show ), sizeof( short_showinfo_t2 ) );
-
-    if ( is.gcount() != sizeof( short_showinfo_t2 ) )
+    is.read( reinterpret_cast< char* >( &short_show ),
+             sizeof( short_showinfo_t2 ) );
+    if ( is.gcount() == sizeof( short_showinfo_t2  ) )
     {
-        return false;
+        return handler.handleShortShowInfo2( short_show );
     }
 
-    ShowInfoT new_show;
-    convert( short_show, new_show );
-
-    M_time = static_cast< int >( new_show.time_ );
-
-    return handler.handleShow( new_show );
+    return false;
 }
 
 /*-------------------------------------------------------------------*/
+/*!
+
+*/
 bool
-ParserV3::parseMsg( std::istream & is,
-                    Handler & handler )
+ParserV3::parseMsgInfo( std::istream & is,
+                        Handler & handler ) const
 {
     bool result = false;
 
     Int16 board;
-    is.read( reinterpret_cast< char * >( &board ), sizeof( Int16 ) );
+    is.read( reinterpret_cast< char* >( &board ), sizeof( Int16 ) );
     if ( is.gcount() != sizeof( Int16 ) )
     {
         return false;
@@ -198,7 +186,7 @@ ParserV3::parseMsg( std::istream & is,
     board = ntohs( board );
 
     Int16 len;
-    is.read( reinterpret_cast< char * >( &len ), sizeof( Int16 ) );
+    is.read( reinterpret_cast< char* >( &len ), sizeof( Int16 ) );
     if ( is.gcount() != sizeof( Int16 ) )
     {
         return false;
@@ -214,7 +202,7 @@ ParserV3::parseMsg( std::istream & is,
             len = std::strlen( msg );
         }
 
-        result = handler.handleMsg( M_time, board, std::string( msg, len ) );
+        result = handler.handleMsgInfo( board, std::string( msg, len ) );
     }
 
     delete [] msg;
@@ -222,19 +210,22 @@ ParserV3::parseMsg( std::istream & is,
 }
 
 /*-------------------------------------------------------------------*/
+/*!
+
+*/
 bool
 ParserV3::parsePlayMode( std::istream & is,
-                         Handler & handler )
+                         Handler & handler ) const
 {
     char pmode;
-    is.read( reinterpret_cast< char * >( &pmode ), sizeof( char ) );
-
-    if ( is.gcount() != sizeof( char ) )
+    is.read( reinterpret_cast< char* >( &pmode ),
+             sizeof( char ) );
+    if ( is.gcount() == sizeof( char ) )
     {
-        return false;
+        return handler.handlePlayMode( pmode );
     }
 
-    return handler.handlePlayMode( M_time, static_cast< PlayMode >( pmode ) );
+    return false;
 }
 
 /*-------------------------------------------------------------------*/
@@ -242,42 +233,39 @@ ParserV3::parsePlayMode( std::istream & is,
 
 */
 bool
-ParserV3::parseTeam( std::istream & is,
-                     Handler & handler )
+ParserV3::parseTeamInfo( std::istream & is,
+                         Handler & handler ) const
 {
     team_t team[2];
-    is.read( reinterpret_cast< char * >( team ), sizeof( team_t ) * 2 );
-
-    if ( is.gcount() != sizeof( team_t ) * 2 )
+    is.read( reinterpret_cast< char* >( team ),
+             sizeof( team_t ) * 2 );
+    if ( is.gcount() == sizeof( team_t ) * 2 )
     {
-        return false;
+        return handler.handleTeamInfo( team[0], team[1] );
     }
 
-    TeamT team_l, team_r;
-    convert( team[0], team_l );
-    convert( team[1], team_r );
-
-    return handler.handleTeam( M_time, team_l, team_r );
+    return false;
 }
 
 /*-------------------------------------------------------------------*/
+/*!
+
+*/
 bool
 ParserV3::parsePlayerType( std::istream & is,
-                           Handler & handler )
+                           Handler & handler ) const
 {
-    player_type_t ptype;
-    std::memset( &ptype, 0, sizeof( player_type_t ) );
-    is.read( reinterpret_cast< char * >( &ptype ), sizeof( player_type_t ) );
+    player_type_t ptinfo;
+    std::memset( &ptinfo, 0, sizeof( player_type_t ) );
 
-    if ( is.gcount() != sizeof( player_type_t ) )
+    is.read( reinterpret_cast< char* >( &ptinfo ),
+             sizeof( player_type_t ) );
+    if ( is.gcount() == sizeof( player_type_t ) )
     {
-        return false;
+        return handler.handlePlayerType( ptinfo );
     }
 
-    PlayerTypeT new_type;
-    convert( ptype, new_type );
-
-    return handler.handlePlayerType( new_type );
+    return false;
 }
 
 /*-------------------------------------------------------------------*/
@@ -286,21 +274,19 @@ ParserV3::parsePlayerType( std::istream & is,
 */
 bool
 ParserV3::parseServerParam( std::istream & is,
-                            Handler & handler )
+                            Handler & handler ) const
 {
     server_params_t sparams;
     std::memset( &sparams, 0, sizeof( server_params_t ) );
-    is.read( reinterpret_cast< char * >( &sparams ), sizeof( server_params_t ) );
 
-    if ( is.gcount() != sizeof( server_params_t ) )
+    is.read( reinterpret_cast< char* >( &sparams ),
+             sizeof( server_params_t ) );
+    if ( is.gcount() == sizeof( server_params_t ) )
     {
-        return false;
+        return handler.handleServerParam( sparams );
     }
 
-    ServerParamT new_params;
-    convert( sparams, new_params );
-
-    return handler.handleServerParam( new_params );
+    return false;
 }
 
 /*-------------------------------------------------------------------*/
@@ -309,21 +295,19 @@ ParserV3::parseServerParam( std::istream & is,
 */
 bool
 ParserV3::parsePlayerParam( std::istream & is,
-                            Handler & handler )
+                            Handler & handler ) const
 {
     player_params_t pparams;
     std::memset( &pparams, 0, sizeof( player_params_t ) );
-    is.read( reinterpret_cast< char * >( &pparams ), sizeof( pparams ) );
 
-    if ( is.gcount() != sizeof( player_params_t ) )
+    is.read( reinterpret_cast< char* >( &pparams ),
+             sizeof( pparams ) );
+    if ( is.gcount() == sizeof( player_params_t ) )
     {
-        return false;
+        return handler.handlePlayerParam( pparams );
     }
 
-    PlayerParamT new_params;
-    convert( pparams, new_params );
-
-    return handler.handlePlayerParam( new_params );
+    return false;
 }
 
 } // end of namespace

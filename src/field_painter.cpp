@@ -592,7 +592,11 @@ FieldPainter::drawGrid( QPainter & painter ) const
 
     const QFontMetrics metrics = painter.fontMetrics();
     const int text_step_x = ( opt.showGridCoord()
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0))
+                              ? metrics.horizontalAdvance( QObject::tr( "-00.000" ) )
+#else
                               ? metrics.width( QObject::tr( "-00.000" ) )
+#endif
                               : 100000 );
     const int text_step_y = ( opt.showGridCoord()
                               ? metrics.ascent()
@@ -627,7 +631,7 @@ FieldPainter::drawGrid( QPainter & painter ) const
         int ix = opt.screenX( x );
         if ( istep > text_step_x )
         {
-            text.sprintf( "%.3f", x );
+            text.asprintf( "%.3f", x );
             painter.drawText( ix, coord_x_print_y , text );
         }
         painter.drawLine( ix, max_iy, ix, min_iy );
@@ -640,7 +644,7 @@ FieldPainter::drawGrid( QPainter & painter ) const
         int ix = opt.screenX( x );
         if ( istep > text_step_x )
         {
-            text.sprintf( "%.3f", x );
+            text.asprintf( "%.3f", x );
             painter.drawText( ix, coord_x_print_y, text );
         }
         painter.drawLine( ix, max_iy, ix, min_iy );
@@ -654,7 +658,7 @@ FieldPainter::drawGrid( QPainter & painter ) const
         int iy = opt.screenY( y );
         if ( istep > text_step_y )
         {
-            text.sprintf( "%.3f", y );
+            text.asprintf( "%.3f", y );
             painter.drawText( min_ix, iy, text );
         }
         painter.drawLine( max_ix, iy, min_ix, iy );
@@ -667,7 +671,7 @@ FieldPainter::drawGrid( QPainter & painter ) const
         int iy = opt.screenY( y );
         if ( istep > text_step_y )
         {
-            text.sprintf( "%.3f", y );
+            text.asprintf( "%.3f", y );
             painter.drawText( min_ix, iy, text );
         }
         painter.drawLine( max_ix, iy, min_ix, iy );

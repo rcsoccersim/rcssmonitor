@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.61)
-AC_INIT([rcssmonitor],[18.0.0],[https://github.com/rcsoccersim/rcssmonitor])
+AC_INIT([rcssmonitor],[19.0.0],[https://github.com/rcsoccersim/rcssmonitor])
 
 #LT_PREREQ(2.2.4)
 
@@ -44,7 +44,9 @@ AX_CHECK_ZLIB([],
 # Checks for header files.
 ##################################################
 
-AC_CHECK_HEADERS([arpa/inet.h])
+AC_CHECK_HEADERS([arpa/inet.h],
+                 break,
+                 [AC_MSG_ERROR([*** arpa/inet.h not found ***])])
 
 ##################################################
 # Checks for typedefs, structures, and compiler characteristics.
@@ -78,7 +80,7 @@ fi
 # ----------------------------------------------------------
 # check C++
 
-AX_CXX_COMPILE_STDCXX_14(noext)
+AX_CXX_COMPILE_STDCXX_17(noext)
 
 # ----------------------------------------------------------
 # check boost

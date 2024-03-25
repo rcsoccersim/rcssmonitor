@@ -416,77 +416,23 @@ void
 convert( const short_showinfo_t2 & from,
          ShowInfoT & to );
 
-
-/*-------------------------------------------------------------------*/
-/*!
-  \brief convert player_type_t to PlayerTypeT
-  \param from source variable
-  \param to destination variable
-*/
-void
-convert( const player_type_t & from,
-         PlayerTypeT & to );
-
-/*-------------------------------------------------------------------*/
-/*!
-  \brief convert PlayerTypeT to player_type_t
-  \param from source variable
-  \param to destination variable
-*/
-void
-convert( const PlayerTypeT & from,
-         player_type_t & to );
-
-/*-------------------------------------------------------------------*/
-/*!
-  \brief convert player_param_t to PlayerParamT
-  \param from source variable
-  \param to destination variable
-*/
-void
-convert( const player_params_t & from,
-         PlayerParamT & to );
-
-/*-------------------------------------------------------------------*/
-/*!
-  \brief convert PlayerParamT to player_param_t
-  \param from source variable
-  \param to destination variable
-*/
-void
-convert( const PlayerParamT & from,
-         player_params_t & to );
-
-/*-------------------------------------------------------------------*/
-/*!
-  \brief convert server_param_t to ServerParamT
-  \param from source variable
-  \param to destination variable
-*/
-void
-convert( const server_params_t & from,
-         ServerParamT & to );
-
-/*-------------------------------------------------------------------*/
-/*!
-  \brief convert ServerParamT to server_param_t
-  \param from source variable
-  \param to destination variable
-*/
-void
-convert( const ServerParamT & from,
-         server_params_t & to );
-
 /*-------------------------------------------------------------------*/
 /*!
   \brief make msginfo_t from string
   \param from source message string
   \param to destination msginfo_t variable
 */
-void
-convert( const std::string & from,
-         msginfo_t & to );
+void convert( const std::string & from,
+              msginfo_t & to );
 
+/*-------------------------------------------------------------------*/
+/*!
+  \brief convert from a playmode string to the playmode enum type value .
+  \param playmode playmode string
+  \return playmode id
+*/
+PlayMode
+to_playmode_enum( const std::string & playmode );
 
 /*-------------------------------------------------------------------*/
 /*!
@@ -495,7 +441,7 @@ convert( const std::string & from,
   \return result string
 */
 std::string
-to_sexp( const player_type_t & from );
+to_string( const player_type_t & from );
 
 /*-------------------------------------------------------------------*/
 /*!
@@ -504,7 +450,7 @@ to_sexp( const player_type_t & from );
   \return result string
 */
 std::string
-to_sexp( const server_params_t & from );
+to_string( const server_params_t & from );
 
 /*-------------------------------------------------------------------*/
 /*!
@@ -513,7 +459,7 @@ to_sexp( const server_params_t & from );
   \return result string
 */
 std::string
-to_sexp( const player_params_t & from );
+to_string( const player_params_t & from );
 
 } // end namespace
 } // end namespace

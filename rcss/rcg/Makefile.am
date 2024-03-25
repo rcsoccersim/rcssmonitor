@@ -1,19 +1,20 @@
 ## Process this file with automake to produce Makefile.in
 
+AUTOMAKE_OPTIONS = subdir-objects
+
 lib_LTLIBRARIES = librcssrcg.la
 
 librcssrcg_la_SOURCES = \
+	simdjson/simdjson.cpp \
 	handler.cpp \
 	parser.cpp \
 	parser_v1.cpp \
 	parser_v2.cpp \
 	parser_v3.cpp \
 	parser_v4.cpp \
-	parser_json.cpp \
+	parser_simdjson.cpp \
 	types.cpp \
-	util.cpp \
-	xpm_tile.cpp \
-	team_graphic.cpp
+	util.cpp
 
 librcssrcgincludedir = $(includedir)/rcss/rcg
 
@@ -25,16 +26,14 @@ librcssrcginclude_HEADERS = \
 	parser_v2.h \
 	parser_v3.h \
 	parser_v4.h \
-	parser_json.h \
+	parser_simdjson.h \
 	types.h \
-	util.h \
-	xpm_tile.h \
-	team_graphic.h
+	util.h
 
 noinst_HEADERS = \
-	nlohmann/json.hpp
+	simdjson/simdjson.h
 
-librcssrcg_la_LDFLAGS = -version-info 17:0:0
+librcssrcg_la_LDFLAGS = -version-info 19:0:0
 #libXXXX_la_LDFLAGS = -version-info $(LT_CURRENT):$(LT_REVISION):$(LT_AGE)
 #		 1. Start with version information of `0:0:0' for each libtool library.
 #

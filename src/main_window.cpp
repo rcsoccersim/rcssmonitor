@@ -180,8 +180,8 @@ MainWindow::init()
 
     if ( ! Options::instance().gameLogFile().empty() )
     {
-        std::cerr << "(init) open game log " << Options::instance().gameLogFile() << std::endl;
-        openGameLogFile( QString::fromStdString( Options::instance().gameLogFile() ) );
+        std::cerr << "open game log " << Options::instance().gameLogFile() << std::endl;
+        QTimer::singleShot( 100, [this]() { openGameLogFile( QString::fromStdString( Options::instance().gameLogFile() ) ); } );
     }
     else if ( Options::instance().connect() )
     {
@@ -884,8 +884,14 @@ MainWindow::createStatusBar()
     M_position_label = new QLabel( tr( "(0.0, 0.0)" ) );
 
     min_width
-        = M_position_label->fontMetrics().width(  tr( "(-60.0, -30.0)" ) )
+        =
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0))
+        M_position_label->fontMetrics().horizontalAdvance( tr( "(-60.0, -30.0)" ) )
+#else
+        M_position_label->fontMetrics().width( tr( "(-60.0, -30.0)" ) )
+#endif
         + 16;
+
     M_position_label->setMinimumWidth( min_width );
     M_position_label->setAlignment( Qt::AlignRight );
 
@@ -1306,7 +1312,12 @@ MainWindow::closeEvent( QCloseEvent * event )
 void
 MainWindow::wheelEvent( QWheelEvent * event )
 {
-    if ( event->delta() < 0 )
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 15, 0))
+    const int delta = event->angleDelta().y();
+#else
+    const int delta = event->delta();
+#endif
+    if ( delta < 0 )
     {
         M_log_player_step_forward_act->trigger();
     }
@@ -1450,7 +1461,7 @@ MainWindow::openGameLogFileImpl( const QString & filepath )
     // progress_dialog.setCancelButton( 0 ); // no cancel button
     // progress_dialog.setMinimumDuration( 0 ); // no duration
 
-    QTime timer;
+    QElapsedTimer timer;
     timer.start();
 
     rcss::rcg::Parser::Ptr parser = rcss::rcg::Parser::create( fin );
@@ -1487,13 +1498,13 @@ MainWindow::openGameLogFileImpl( const QString & filepath )
 
     std::cerr << "parsing elapsed " << timer.elapsed() << " [ms]" << std::endl;
 
-    if ( ! fin.eof() )
-    {
-        std::cerr << "Failed to parse the rcg file [" << filepath.toStdString() << "]."
-                  << std::endl;
-        fin.close();
-        return false;
-    }
+    // if ( ! fin.eof() )
+    // {
+    //     std::cerr << "Failed to parse the rcg file [" << filepath.toStdString() << "]."
+    //               << std::endl;
+    //     fin.close();
+    //     return false;
+    // }
 
     fin.close();
 

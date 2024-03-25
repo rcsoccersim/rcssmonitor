@@ -36,13 +36,23 @@
 
 #include "rcg_handler.h"
 
+#include "rcss/rcg/util.h"
 #include "disp_holder.h"
+
+#include <iostream>
 
 #include <QtGlobal>
 #if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
 #include <QtWidgets>
 #else
 #include <QtGui>
+#endif
+
+#ifdef HAVE_ARPA_INET_H
+#include <arpa/inet.h>
+#endif
+#ifdef HAVE_WINDOWS_H
+#include <windows.h>
 #endif
 
 /*-------------------------------------------------------------------*/
@@ -129,6 +139,7 @@ RCGHandler::handleTeam( const int time,
     return M_holder.handleTeam( time, team_l, team_r );
 }
 
+/*-------------------------------------------------------------------*/
 bool
 RCGHandler::handleMsg( const int time,
                        const int board,
@@ -139,33 +150,42 @@ RCGHandler::handleMsg( const int time,
 
 /*-------------------------------------------------------------------*/
 bool
-RCGHandler::handleDrawClear( const int time )
+RCGHandler::handleDraw( const int time,
+                        const rcss::rcg::drawinfo_t & draw )
 {
-    return M_holder.handleDrawClear( time );
-}
+    switch ( ntohs( draw.mode ) ) {
+    case rcss::rcg::DrawClear:
+        M_holder.handleDrawClear( time );
+        return true;
 
-/*-------------------------------------------------------------------*/
-bool
-RCGHandler::handleDrawPoint( const int time,
-                             const rcss::rcg::PointT & point )
-{
-    return M_holder.handleDrawPoint( time, point );
-}
+    case rcss::rcg::DrawPoint:
+        M_holder.handleDrawPoint( time,
+                                  rcss::rcg::PointT( rcss::rcg::nstohf( draw.object.pinfo.x ),
+                                                     rcss::rcg::nstohf( draw.object.pinfo.y ),
+                                                     draw.object.pinfo.color ) );
+        return true;
+    case rcss::rcg::DrawCircle:
+        M_holder.handleDrawCircle( time,
+                                   rcss::rcg::CircleT( rcss::rcg::nstohf( draw.object.cinfo.x ),
+                                                       rcss::rcg::nstohf( draw.object.cinfo.y ),
+                                                       rcss::rcg::nstohf( draw.object.cinfo.r ),
+                                                       draw.object.cinfo.color ) );
+        return true;
+    case rcss::rcg::DrawLine:
+        M_holder.handleDrawLine( time,
+                                 rcss::rcg::LineT( rcss::rcg::nstohf( draw.object.linfo.x1 ),
+                                                   rcss::rcg::nstohf( draw.object.linfo.y1 ),
+                                                   rcss::rcg::nstohf( draw.object.linfo.x2 ),
+                                                   rcss::rcg::nstohf( draw.object.linfo.y2 ),
+                                                   draw.object.linfo.color ) );
+        return true;
+    default:
+        std::cerr << "(RCGHandler::handleDraw) Unknown draw mode " << ntohs( draw.mode )
+                  << std::endl;
+        return false;
+    }
 
-/*-------------------------------------------------------------------*/
-bool
-RCGHandler::handleDrawCircle( const int time,
-                              const rcss::rcg::CircleT & circle )
-{
-    return M_holder.handleDrawCircle( time, circle );
-}
-
-/*-------------------------------------------------------------------*/
-bool
-RCGHandler::handleDrawLine( const int time,
-                            const rcss::rcg::LineT & line )
-{
-    return M_holder.handleDrawLine( time, line );
+    return true;
 }
 
 /*-------------------------------------------------------------------*/
@@ -191,10 +211,10 @@ RCGHandler::handlePlayerType( const rcss::rcg::PlayerTypeT & ptype )
 
 /*-------------------------------------------------------------------*/
 bool
-RCGHandler::handleTeamGraphic( const rcss::rcg::Side side,
+RCGHandler::handleTeamGraphic( const char side,
                                const int x,
                                const int y,
-                               rcss::rcg::XpmTile::Ptr tile )
+                               const std::vector< std::string > & xpm_tile )
 {
-    return M_holder.handleTeamGraphic( side, x, y, tile );
+    return M_holder.handleTeamGraphic( side, x, y, xpm_tile );
 }
