@@ -1,3 +1,12 @@
+2024-03-25  Hidehisa Akiyama  <hidehisaakiyama@users.noreply.github.com>
+
+	* CMakeLists.txt:
+	* NEWS:
+	* configurea.ac:
+	- updated a major version number. Official release 19.0.0.
+	- improve the rcg parser library.
+	- support a new JSON monitor protocol.
+
 2023-03-07  Hidehisa Akiyama  <hidehisaakiyama@users.noreply.github.com>
 
 	* CMakeLists.txt:
