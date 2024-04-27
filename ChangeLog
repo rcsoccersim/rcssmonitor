@@ -1,3 +1,11 @@
+2024-04-27  Hidehisa Akiyama  <hidehisaakiyama@users.noreply.github.com>
+
+	* CMakeLists.txt:
+	* NEWS:
+	* configurea.ac:
+	- updated a point version number. Official release 19.0.1.
+	- fix defects in text drawing.
+
 2024-03-25  Hidehisa Akiyama  <hidehisaakiyama@users.noreply.github.com>
 
 	* CMakeLists.txt:
