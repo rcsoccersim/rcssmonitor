@@ -623,16 +623,13 @@ FieldPainter::drawGrid( QPainter & painter ) const
     painter.setPen( opt.linePen() );
     painter.setBrush( Qt::NoBrush );
 
-    QString text;
-
     double x = 0.0;
     while ( x < max_x )
     {
         int ix = opt.screenX( x );
         if ( istep > text_step_x )
         {
-            text.asprintf( "%.3f", x );
-            painter.drawText( ix, coord_x_print_y , text );
+            painter.drawText( ix, coord_x_print_y , QString::number( x, 'f', 3 ) );
         }
         painter.drawLine( ix, max_iy, ix, min_iy );
         x += grid_step;
@@ -644,8 +641,7 @@ FieldPainter::drawGrid( QPainter & painter ) const
         int ix = opt.screenX( x );
         if ( istep > text_step_x )
         {
-            text.asprintf( "%.3f", x );
-            painter.drawText( ix, coord_x_print_y, text );
+            painter.drawText( ix, coord_x_print_y, QString::number( x, 'f', 3 ) );
         }
         painter.drawLine( ix, max_iy, ix, min_iy );
         x -= grid_step;
@@ -658,8 +654,7 @@ FieldPainter::drawGrid( QPainter & painter ) const
         int iy = opt.screenY( y );
         if ( istep > text_step_y )
         {
-            text.asprintf( "%.3f", y );
-            painter.drawText( min_ix, iy, text );
+            painter.drawText( min_ix, iy, QString::number( y, 'f', 3 ) );
         }
         painter.drawLine( max_ix, iy, min_ix, iy );
         y += grid_step;
@@ -671,8 +666,7 @@ FieldPainter::drawGrid( QPainter & painter ) const
         int iy = opt.screenY( y );
         if ( istep > text_step_y )
         {
-            text.asprintf( "%.3f", y );
-            painter.drawText( min_ix, iy, text );
+            painter.drawText( min_ix, iy, QString::number( y, 'f', 3 ) );
         }
         painter.drawLine( max_ix, iy, min_ix, iy );
         y -= grid_step;

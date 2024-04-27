@@ -283,7 +283,6 @@ PlayerTypeDialog::updateData()
 
     const rcss::rcg::ServerParamT & SP = M_disp_holder.serverParam();
 
-    QString text;
     for ( int row = 0; row < ROW_SIZE; ++row )
     {
         const std::unordered_map< int , rcss::rcg::PlayerTypeT >::const_iterator it = M_disp_holder.playerTypes().find( row );
@@ -302,9 +301,7 @@ PlayerTypeDialog::updateData()
         ++i;
 
         // size
-        //text.sprintf( "%.2f", param.player_size_ );
-        text = QString::number( param.player_size_ );
-        M_model->setData( M_model->index( row, i ), text ); ++i;
+        M_model->setData( M_model->index( row, i ), QString::number( param.player_size_, 'f', 3 ) ); ++i;
 
         // speed real/max
         double accel_max = SP.max_power_ * param.dash_power_rate_ * param.effort_max_;
@@ -314,77 +311,64 @@ PlayerTypeDialog::updateData()
             real_speed_max = param.player_speed_max_;
         }
 
-        text.asprintf( "%5.3f / %5.3f",
-                       real_speed_max, param.player_speed_max_ );
-        M_model->setData( M_model->index( row, i ), text ); ++i;
+        {
+            char buf[32];
+            std::snprintf( buf, sizeof( buf ), "%5.3f / %5.3f",
+                           real_speed_max, param.player_speed_max_ );
+            M_model->setData( M_model->index( row, i ), QString::fromLatin1( buf ) ); ++i;
+        }
 
         // accel max
-        //text.sprintf( "%.4f", accel_max );
-        text = QString::number( accel_max );
-        M_model->setData( M_model->index( row, i ), text ); ++i;
+        M_model->setData( M_model->index( row, i ), QString::number( accel_max, 'f' ) ); ++i;
 
         // dash power rate
-        //text.sprintf( "%.5f", param.dash_power_rate_ );
-        text = QString::number( param.dash_power_rate_ );
-        M_model->setData( M_model->index( row, i ), text ); ++i;
+        M_model->setData( M_model->index( row, i ), QString::number( param.dash_power_rate_, 'f' ) ); ++i;
 
         // decay
-        //text.sprintf( "%.3f", param.player_decay_ );
-        text = QString::number( param.player_decay_ );
-        M_model->setData( M_model->index( row, i ), text ); ++i;
+        M_model->setData( M_model->index( row, i ), QString::number( param.player_decay_, 'f' ) ); ++i;
 
         // inertia
-        //text.sprintf( "%.2f", param.inertia_moment_ );
-        text = QString::number( param.inertia_moment_ );
-        M_model->setData( M_model->index( row, i ), text ); ++i;
+        M_model->setData( M_model->index( row, i ), QString::number( param.inertia_moment_, 'f' ) ); ++i;
 
         // kickable area
-        //text.sprintf( "%.3f", param.player_size_ + param.kickable_margin_ + SP.ball_size_ );
-        text = QString::number( param.player_size_ + param.kickable_margin_ + SP.ball_size_ );
-        M_model->setData( M_model->index( row, i ), text ); ++i;
+        M_model->setData( M_model->index( row, i ), QString::number( param.player_size_ + param.kickable_margin_ + SP.ball_size_, 'f' ) ); ++i;
 
         // kickable margin
-        //text.sprintf( "%.3f", param.kickable_margin_ );
-        text = QString::number( param.kickable_margin_ );
-        M_model->setData( M_model->index( row, i ), text ); ++i;
+        M_model->setData( M_model->index( row, i ), QString::number( param.kickable_margin_, 'f' ) ); ++i;
 
         // kick power rate
-        //text.sprintf( "%.6f", param.kick_power_rate_ );
-        text = QString::number( param.kick_power_rate_ );
-        M_model->setData( M_model->index( row, i ), text ); ++i;
+        M_model->setData( M_model->index( row, i ), QString::number( param.kick_power_rate_, 'f', 4 ) ); ++i;
 
         // kick rand
-        //text.sprintf( "%.2f", param.kick_rand_ );
-        text = QString::number( param.kick_rand_ );
-        M_model->setData( M_model->index( row, i ), text ); ++i;
+        M_model->setData( M_model->index( row, i ), QString::number( param.kick_rand_, 'f' ) ); ++i;
 
         // catch area radius
-        double min_r = std::sqrt( std::pow( SP.catchable_area_w_ * 0.5, 2.0 )
-                                  + std::pow( SP.catchable_area_l_ * ( 1.0 - ( param.catchable_area_l_stretch_ - 1.0 ) ), 2.0 ) );
-        double max_r = std::sqrt( std::pow( SP.catchable_area_w_ * 0.5, 2.0 )
-                                  + std::pow( SP.catchable_area_l_ * param.catchable_area_l_stretch_, 2.0 ) );
-        text.asprintf( "%.3f - %.3f", min_r, max_r );
-        M_model->setData( M_model->index( row, i ), text ); ++i;
+        {
+            double min_r = std::sqrt( std::pow( SP.catchable_area_w_ * 0.5, 2.0 )
+                                      + std::pow( SP.catchable_area_l_ * ( 1.0 - ( param.catchable_area_l_stretch_ - 1.0 ) ), 2.0 ) );
+            double max_r = std::sqrt( std::pow( SP.catchable_area_w_ * 0.5, 2.0 )
+                                      + std::pow( SP.catchable_area_l_ * param.catchable_area_l_stretch_, 2.0 ) );
+            char buf[32];
+            std::snprintf( buf, sizeof( buf ), "%.3f - %.3f", min_r, max_r );
+            M_model->setData( M_model->index( row, i ), QString::fromLatin1( buf ) ); ++i;
+        }
 
         // stamina inc max
-        //text.sprintf( "%.2f", param.stamina_inc_max_ );
-        text = QString::number( param.stamina_inc_max_ );
-        M_model->setData( M_model->index( row, i ), text ); ++i;
+        M_model->setData( M_model->index( row, i ), QString::number( param.stamina_inc_max_, 'f', 4 ) ); ++i;
 
         // extra stamina
-        //text.sprintf( "%.2f", param.extra_stamina_ );
-        text = QString::number( param.extra_stamina_ );
-        M_model->setData( M_model->index( row, i ), text ); ++i;
+        M_model->setData( M_model->index( row, i ), QString::number( param.extra_stamina_, 'f', 4 ) ); ++i;
 
         // effort max - min
-        text.asprintf( "%.3f - %.3f",
-                       param.effort_max_, param.effort_min_ );
-        M_model->setData( M_model->index( row, i ), text ); ++i;
+        {
+            char buf[32];
+            std::snprintf( buf, sizeof( buf ), "%.3f - %.3f",
+                            param.effort_max_, param.effort_min_ );
+            M_model->setData( M_model->index( row, i ), QString::fromLatin1( buf ) ); ++i;
+        }
 
         // foul detect probability
-        //text.sprintf( "%.4f", param.foul_detect_probability_ );
-        text = QString::number( param.foul_detect_probability_ );
-        M_model->setData( M_model->index( row, i ), text ); ++i;
+        M_model->setData( M_model->index( row, i ), QString::number( param.foul_detect_probability_, 'f', 3 ) ); ++i;
     }
 
     adjustSize();
