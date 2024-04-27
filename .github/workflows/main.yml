@@ -27,7 +27,7 @@ jobs:
         id: cmake_version
         run: |
           cmake_version=$(grep -oP 'project\(.* VERSION \K[0-9]+\.[0-9]+\.[0-9]+' CMakeLists.txt)
-          echo "::set-output name=version::${cmake_version}"
+          echo "version=${cmake_version}" >> $GITHUB_OUTPUT
 
       - name: Create builder-image
         run: |
@@ -54,7 +54,7 @@ jobs:
         id: check_release
         run: |
           out=$(curl -s -o /dev/null -w "%{http_code}" https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ steps.cmake_version.outputs.version }})
-          echo "::set-output name=release_exists::${out}"
+          echo "release_exists=${out}" >> $GITHUB_OUTPUT
 
       - name: Create release note
         if : ${{ steps.check_release.outputs.release_exists == '404' }}
