@@ -1,0 +1,14 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=rcssmonitor
+Comment=Robocup 2D Soccer Simulation Monitor
+TryExec=rcssmonitor
+Exec=rcssmonitor
+Icon=rcssmonitor
+MimeType=image/x-foo;
+Categories=Development;
+X-KDE-Library=librcssmonitor
+X-KDE-FactoryName=rcssmonitorfactory
+X-KDE-ServiceType=rcssmonitorService
+

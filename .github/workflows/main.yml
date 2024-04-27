@@ -1,0 +1,77 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - "*"
+    tags:
+      - "*"
+
+
+env:
+  release-prefix: "rcssmonitor-"
+
+
+jobs:
+  app-image:
+    runs-on: ubuntu-latest
+    name: Build AppImage
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create release folder
+        run: |
+          mkdir -p ${{ github.workspace }}/artifact
+
+      - name: Find CMakeLists.txt version
+        id: cmake_version
+        run: |
+          cmake_version=$(grep -oP 'project\(.* VERSION \K[0-9]+\.[0-9]+\.[0-9]+' CMakeLists.txt)
+          echo "::set-output name=version::${cmake_version}"
+
+      - name: Create builder-image
+        run: |
+          docker build -t builder-image:2004 -f ./utils/appimage/Dockerfile.builder-2004 .
+
+
+      # ------------------------------------------- Ubuntu 20.04 AppImage
+      - name: Build app image on 20.04
+        run: |
+          docker run --privileged --name builder-2004 builder-image:2004 /rcssmonitor/utils/appimage/docker-entrypoint.sh
+          
+          docker cp builder-2004:/rcssmonitor/build/rcssmonitor-x86_64.AppImage \
+            ${{ github.workspace }}/artifact/rcssmonitor-${{ steps.cmake_version.outputs.version }}-x86_64.AppImage
+
+      # ------------------------------------------- Artifact
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rcssmonitor-x86_64
+          path: ${{ github.workspace }}/artifact/*
+          retention-days: 5
+
+      - name: Check if there is no release with the same tag
+        id: check_release
+        run: |
+          out=$(curl -s -o /dev/null -w "%{http_code}" https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ steps.cmake_version.outputs.version }})
+          echo "::set-output name=release_exists::${out}"
+
+      - name: Create release note
+        if : ${{ steps.check_release.outputs.release_exists == '404' }}
+        run: |
+          export GITHUB_REPOSITORY=${{ github.repository }}
+          python utils/appimage/create_release_note.py
+          cp release_note.md ${{ github.workspace }}/artifact/release_note
+          
+
+      # ------------------------------------------- Release
+      - name: Create Release
+        if: ${{ steps.check_release.outputs.release_exists == '404' }}
+        id: create_release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "${{ github.workspace }}/artifact/rcssmonitor-${{ steps.cmake_version.outputs.version }}-x86_64.AppImage"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          bodyFile: "${{ github.workspace }}/artifact/release_note"
+          name: "${{ env.release-prefix }}${{ steps.cmake_version.outputs.version }}"
+          tag: ${{ steps.cmake_version.outputs.version }}
