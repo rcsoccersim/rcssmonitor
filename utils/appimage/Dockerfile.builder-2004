@@ -1,0 +1,35 @@
+FROM ubuntu:20.04
+
+RUN apt-get clean && apt-get update --allow-insecure-repositories && \
+    DEBIAN_FRONTEND="noninteractive" apt-get -y install \
+    tzdata \
+    gcc \
+    g++ \
+    wget \
+    libfl-dev \
+    flex \
+    bison \
+    libboost-all-dev \
+    automake \
+    make \
+    cmake \
+    iputils-ping \
+    build-essential \
+    libtool \
+    fuse \
+    tree \
+    libfuse-dev \
+    zlib1g-dev \
+    qt5-default \
+    libfontconfig1-dev \
+    libaudio-dev \
+    libxt-dev \
+    libglib2.0-dev \
+    libxi-dev \
+    libxrender-dev
+
+WORKDIR /rcssmonitor
+
+COPY . /rcssmonitor
+
+
