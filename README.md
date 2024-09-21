@@ -7,12 +7,12 @@
 
 ## :soccer: Quick Start
 
-rcssmonitor is implemented by C++14 and depends [Qt5](https://www.qt.io/).
-At first, related tools have to be installed on the system.
-In the case of Ubuntu 18.04 or 20.04, execute the following commands:
-
+rcssmonitor is implemented by C++14 and depends [Qt5](https://www.qt.io/). At first, related tools have to be installed on the system. In the case of Ubuntu 22.04, execute the following command:
 ```bash
-sudo apt update
+sudo apt install build-essential automake autoconf libtool libboost-all-dev qtbase5-dev qt5-qmake libfontconfig1-dev libaudio-dev libxt-dev libglib2.0-dev libxi-dev libxrender-dev
+```
+In the case of Ubuntu 16.04 - 20.04, execute the following command:
+```bash
 sudo apt install build-essential qt5-default libfontconfig1-dev libaudio-dev libxt-dev libglib2.0-dev libxi-dev libxrender-dev
 ```
 
