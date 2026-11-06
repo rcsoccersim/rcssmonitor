@@ -9,12 +9,13 @@
 
 rcssmonitor is implemented by C++14 and depends [Qt5](https://www.qt.io/). At first, related tools have to be installed on the system. In the case of Ubuntu 22.04, execute the following command:
 ```bash
-sudo apt install build-essential automake autoconf libtool libboost-all-dev qtbase5-dev qt5-qmake libfontconfig1-dev libaudio-dev libxt-dev libglib2.0-dev libxi-dev libxrender-dev
+sudo apt install build-essential automake autoconf libtool libboost-all-dev qtbase5-dev qt5-qmake libqt5websockets5-dev libfontconfig1-dev libaudio-dev libxt-dev libglib2.0-dev libxi-dev libxrender-dev
 ```
 In the case of Ubuntu 16.04 - 20.04, execute the following command:
 ```bash
-sudo apt install build-essential qt5-default libfontconfig1-dev libaudio-dev libxt-dev libglib2.0-dev libxi-dev libxrender-dev
+sudo apt install build-essential qt5-default libqt5websockets5-dev libfontconfig1-dev libaudio-dev libxt-dev libglib2.0-dev libxi-dev libxrender-dev
 ```
+`libqt5websockets5-dev` is required only for the WebSocket connection to the server. Without it, the monitor is built without the WebSocket connection.
 
 Then, clone the repository. From its directory, execute commands:
 
@@ -61,6 +62,8 @@ You may need administrator privileges to install the monitor into the default lo
 ```
 
 The monitor has several features that can be enabled or disabled at configure time by using the `--enable-FEATURE[=ARG]` or `--disable-FEATURE` parameters to `configure`.  `--disable-FEATURE` is equivalent to `--enable-FEATURE=no` and `--enable-FEATURE` is equivlant to `--enable-FEATURE=yes`.  The only valid values for `ARG` are `yes` and `no`.
+
+The WebSocket connection is enabled if Qt WebSockets is found. To disable it, use `--disable-websocket`. In the case of CMake, use `-DENABLE_WEBSOCKET=OFF`.
 
 Once you have successfully configured the monitor, simply run `make` to build the sources.
 
@@ -125,6 +128,30 @@ rcssmonitor
 ```
 
 If you invoke `rcssmonitor` with `--help` option, available options are displayed in your console.
+
+### Connecting via TCP or WebSocket
+
+By default, the monitor connects to the server via UDP.
+If the server supports the `server::tcp_port` and `server::ws_port` parameters, the monitor can also connect via TCP or WebSocket.
+These connections are disabled in the server by default. Enable them by giving the port numbers:
+
+```bash
+rcssserver server::tcp_port=6000 server::ws_port=6080
+```
+
+Then, select the transport by `--server-transport` and give the corresponding port number by `--server-port`:
+
+```bash
+rcssmonitor --connect                                            # UDP (server::port)
+rcssmonitor --connect --server-transport tcp --server-port 6000  # TCP (server::tcp_port)
+rcssmonitor --connect --server-transport ws --server-port 6080   # WebSocket (server::ws_port)
+```
+
+Note the following points:
+
+- The protocol versions 1 and 2 (`--client-version 1` or `2`) are available only via UDP, because they use a binary format. Use the version 3 or later, or -1 (JSON format), via TCP and WebSocket.
+- The WebSocket connection uses the request path `/monitor` by default. It can be changed by `--server-ws-path` (e.g. `/player`).
+- `wss://` (WebSocket over TLS) is not supported.
 
 ## :incoming_envelope: Contributing
 

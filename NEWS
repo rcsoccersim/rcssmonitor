@@ -1,3 +1,12 @@
+[Unreleased]
+  * Support the TCP and WebSocket connections to rcssserver. The
+    transport is selected by the new option --server-transport (udp,
+    tcp or ws). The request path of WebSocket can be changed by
+    --server-ws-path. The protocol versions 1 and 2 are available only
+    via UDP. The WebSocket connection requires Qt WebSockets.
+
+  * Fix the reception of UDP messages of 8192 bytes or longer.
+
 [19.0.1]
   * Fix defects in text drawing.
 

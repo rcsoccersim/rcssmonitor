@@ -133,6 +133,13 @@ const QColor Options::ILLEGAL_DEFENSE_COLOR( 255, 0, 0 );
 
 namespace {
 
+//! the transport names for the help message
+#ifdef HAVE_QT_WEBSOCKETS
+const char * const TRANSPORT_NAMES = "udp, tcp or ws";
+#else
+const char * const TRANSPORT_NAMES = "udp or tcp (ws is not available in this build)";
+#endif
+
 #ifdef USE_Q_COMMAND_LINE_PARSER
 
 inline
@@ -875,22 +882,23 @@ Options::parseCmdLine( int argc,
                                         QString::fromStdString( M_server_host ) );
     parser.addOption( opt_server_host );
     QCommandLineOption opt_server_port( "server-port",
-                                        "Set the port number to connect as the monitor client. (Default=" + QString::number( M_server_port ) + ")",
+                                        "Set the port number of the soccer server. Specify the value of server::port for udp, server::tcp_port for tcp, or server::ws_port for ws. (Default=" + QString::number( M_server_port ) + ")",
                                         "int",
                                         QString::number( M_server_port ) );
     parser.addOption( opt_server_port );
     QCommandLineOption opt_server_transport( "server-transport",
-                                             "Set the transport to connect to the soccer server: udp, tcp or ws. (Default=" + monitor_transport_type_name( M_server_transport ) + ")",
+                                             "Set the transport to connect to the soccer server: " + QString( TRANSPORT_NAMES ) + "."
+                                             " tcp and ws require the client version 3 or later, or -1. (Default=" + monitor_transport_type_name( M_server_transport ) + ")",
                                              "str",
                                              monitor_transport_type_name( M_server_transport ) );
     parser.addOption( opt_server_transport );
     QCommandLineOption opt_server_ws_path( "server-ws-path",
-                                           "Set the request path for the WebSocket transport. (Default=" + QString::fromStdString( M_server_ws_path ) + ")",
+                                           "Set the request path for the WebSocket transport: /monitor or /player. (Default=" + QString::fromStdString( M_server_ws_path ) + ")",
                                            "str",
                                            QString::fromStdString( M_server_ws_path ) );
     parser.addOption( opt_server_ws_path );
     QCommandLineOption opt_client_version( "client-version",
-                                           "Set the version of the monitor client protocol. (Default=" + QString::number( M_client_version ) + ")",
+                                           "Set the version of the monitor client protocol. -1 means the JSON format. (Default=" + QString::number( M_client_version ) + ")",
                                            "int",
                                            QString::number( M_client_version ) );
     parser.addOption( opt_client_version );
@@ -1174,16 +1182,17 @@ Options::parseCmdLine( int argc,
           "set host name or ip address where the soccer server is running." )
         ( "server-port",
           po::value< int >( &M_server_port )->default_value( M_server_port ),
-          "set port number to connect as the monitor client." )
+          "set port number of the soccer server: server::port for udp, server::tcp_port for tcp, or server::ws_port for ws." )
         ( "server-transport",
           po::value< std::string >( &server_transport )->default_value( server_transport ),
-          "set the transport to connect to the soccer server: udp, tcp or ws." )
+          ( std::string( "set the transport to connect to the soccer server: " ) + TRANSPORT_NAMES
+            + ". tcp and ws require the client version 3 or later, or -1." ).c_str() )
         ( "server-ws-path",
           po::value< std::string >( &M_server_ws_path )->default_value( M_server_ws_path ),
-          "set the request path for the WebSocket transport." )
+          "set the request path for the WebSocket transport: /monitor or /player." )
         ( "client-version",
           po::value< int >( &M_client_version )->default_value( M_client_version ),
-          "set a monitor client protocol version." )
+          "set a monitor client protocol version. -1 means the JSON format." )
         ( "timer-interval",
           po::value< int >( &M_timer_interval )->default_value( M_timer_interval ),
           "set the default timer interval [ms] for replaying a game log file." )
