@@ -79,6 +79,7 @@ log_player.h \
 log_player_slider.h \
 main_window.h \
 monitor_client.h \
+monitor_transport.h \
 mouse_state.h \
 options.h \
 painter_interface.h \
@@ -87,6 +88,7 @@ player_type_dialog.h \
 score_board_painter.h \
 team_graphic.h \
 team_graphic_painter.h \
+udp_monitor_transport.h \
 vector_2d.h
 
 SOURCES += \
@@ -107,12 +109,14 @@ log_player.cpp \
 log_player_slider.cpp \
 main_window.cpp \
 monitor_client.cpp \
+monitor_transport.cpp \
 options.cpp \
 player_painter.cpp \
 player_type_dialog.cpp \
 score_board_painter.cpp \
 team_graphic.cpp \
 team_graphic_painter.cpp \
+udp_monitor_transport.cpp \
 vector_2d.cpp \
 main.cpp
 

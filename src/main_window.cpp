@@ -49,6 +49,7 @@
 #include "log_player.h"
 #include "log_player_slider.h"
 #include "monitor_client.h"
+#include "monitor_transport.h"
 #include "player_type_dialog.h"
 #include "options.h"
 #include "rcg_handler.h"
@@ -1532,24 +1533,46 @@ MainWindow::connectMonitorTo( const char * hostname )
 
     disconnectMonitor();
 
-    std::cerr << "Connect to [" << hostname << "] ..." << std::endl;
-    this->statusBar()->showMessage( tr( "Connect to %1 ..." ).arg( QString::fromLatin1( hostname ) ),
-                                    5000 );
+    QString error;
+    MonitorTransport * transport = create_monitor_transport( MonitorTransport::UDP,
+                                                             QString(),
+                                                             this,
+                                                             &error );
+    if ( ! transport )
+    {
+        std::cerr << "Connection failed. " << error.toStdString() << std::endl;
+        this->statusBar()->showMessage( tr( "Connection failed. %1" ).arg( error ), 5000 );
+        return;
+    }
 
     M_monitor_client = new MonitorClient( this,
                                           M_disp_holder,
-                                          hostname,
-                                          Options::instance().serverPort(),
+                                          transport,
                                           Options::instance().clientVersion() );
 
-    if ( ! M_monitor_client->isConnected() )
+    connect( M_monitor_client, SIGNAL( received() ),
+             this, SLOT( receiveMonitorPacket() ) );
+    connect( M_monitor_client, SIGNAL( disconnectRequested() ),
+             this, SLOT( disconnectMonitor() ) );
+    connect( M_monitor_client, SIGNAL( reconnectRequested() ),
+             this, SLOT( reconnectMonitor() ) );
+    connect( M_monitor_client, SIGNAL( errorMessage( const QString & ) ),
+             this, SLOT( showMonitorError( const QString & ) ) );
+
+    if ( ! M_monitor_client->start( QString::fromLatin1( hostname ),
+                                    static_cast< quint16 >( Options::instance().serverPort() ),
+                                    &error ) )
     {
-        std::cerr << "Conenction failed." << std::endl;
-        this->statusBar()->showMessage( tr( "Connection failed." ), 5000 );
+        std::cerr << "Connection failed. " << error.toStdString() << std::endl;
+        this->statusBar()->showMessage( tr( "Connection failed. %1" ).arg( error ), 5000 );
         delete M_monitor_client;
         M_monitor_client = static_cast< MonitorClient * >( 0 );
         return;
     }
+
+    std::cerr << "Connect to [" << M_monitor_client->peerName().toStdString() << "] ..." << std::endl;
+    this->statusBar()->showMessage( tr( "Connect to %1 ..." ).arg( M_monitor_client->peerName() ),
+                                    5000 );
 
     // reset all data
     M_disp_holder.clear();
@@ -1575,15 +1598,7 @@ MainWindow::connectMonitorTo( const char * hostname )
     M_connect_monitor_to_act->setEnabled( false );
     M_disconnect_monitor_act->setEnabled( true );
 
-    connect( M_monitor_client, SIGNAL( received() ),
-             this, SLOT( receiveMonitorPacket() ) );
-    connect( M_monitor_client, SIGNAL( disconnectRequested() ),
-             this, SLOT( disconnectMonitor() ) );
-    connect( M_monitor_client, SIGNAL( reconnectRequested() ),
-             this, SLOT( reconnectMonitor() ) );
-
     M_log_player->setLiveMode();
-    M_monitor_client->sendDispInit();
 
     if ( ! Options::instance().showToolBar() )
     {
@@ -1835,16 +1850,19 @@ MainWindow::disconnectMonitor()
 {
     if ( M_monitor_client )
     {
-        M_monitor_client->disconnect();
-
         disconnect( M_monitor_client, SIGNAL( received() ),
                     this, SLOT( receiveMonitorPacket() ) );
         disconnect( M_monitor_client, SIGNAL( disconnectRequested() ),
                     this, SLOT( disconnectMonitor() ) );
         disconnect( M_monitor_client, SIGNAL( reconnectRequested() ),
                     this, SLOT( reconnectMonitor() ) );
+        disconnect( M_monitor_client, SIGNAL( errorMessage( const QString & ) ),
+                    this, SLOT( showMonitorError( const QString & ) ) );
 
-        delete M_monitor_client;
+        M_monitor_client->disconnect();
+
+        // this method may be called from the slot of M_monitor_client.
+        M_monitor_client->deleteLater();
         M_monitor_client = static_cast< MonitorClient * >( 0 );
 
         //
@@ -1882,6 +1900,16 @@ MainWindow::reconnectMonitor()
     {
         connectMonitor();
     }
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+void
+MainWindow::showMonitorError( const QString & msg )
+{
+    this->statusBar()->showMessage( msg, 5000 );
 }
 
 /*-------------------------------------------------------------------*/

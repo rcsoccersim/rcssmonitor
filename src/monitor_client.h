@@ -34,14 +34,14 @@
 #define RCSSMONITOR_MONITOR_CLIENT_H
 
 #include <QObject>
-#include <QHostAddress>
+#include <QString>
 
 #include <rcss/rcg/types.h>
 
-class QHostInfo;
+class QByteArray;
 class QTimer;
-class QUdpSocket;
 class DispHolder;
+class MonitorTransport;
 
 class MonitorClient
     : public QObject {
@@ -52,14 +52,14 @@ private:
 
     DispHolder & M_disp_holder;
 
-    QHostAddress M_server_addr;
-    quint16 M_server_port;
-    QUdpSocket * M_socket;
+    MonitorTransport * M_transport;
     QTimer * M_timer;
 
     int M_version; //!< protocol version
 
     int M_waited_msec;
+
+    bool M_first_message_received; //!< true after the first message from the server
 
 
     //! not used
@@ -67,29 +67,52 @@ private:
     MonitorClient( const MonitorClient & ) = delete;
     MonitorClient & operator=( const MonitorClient & ) = delete;
 public:
-    //! constructor
+    /*!
+      \brief constructor
+      \param parent parent object
+      \param disp_holder data holder to store the received data
+      \param transport transport instance. the ownership is moved to this object.
+      \param version protocol version
+     */
     MonitorClient( QObject * parent,
                    DispHolder & disp_holder,
-                   const char * hostname,
-                   const int port,
+                   MonitorTransport * transport,
                    const int version );
 
-    ~MonitorClient();
+    ~MonitorClient() override;
+
+    /*!
+      \brief start the connection. dispinit is sent after the connection is established.
+      \param host host name or IP address of the server
+      \param port port number of the server
+      \param error the reason of the failure is stored, if not null
+      \return false only if the failure is detected immediately
+     */
+    bool start( const QString & host,
+                quint16 port,
+                QString * error );
 
     void disconnect();
 
     bool isConnected() const;
 
+    //! peer description, e.g. "udp://127.0.0.1:6000"
+    QString peerName() const;
+
 private:
 
     void sendCommand( const std::string & com );
+
+    void sendDispInit();
+    void sendDispBye();
+
+    bool handleMessage( const QByteArray & msg );
+    void requestDisconnect( const QString & reason );
 
 public:
 
     // monitor command
 
-    void sendDispInit();
-    void sendDispBye();
     void sendKickOff();
     void sendFreeKick( const double & x,
                        const double & y,
@@ -165,7 +188,9 @@ public:
 
 private slots:
 
-    void handleReceive();
+    void handleConnected();
+    void handleMessages();
+    void handleDisconnected( const QString & reason );
     void handleTimer();
 
 signals:
@@ -173,6 +198,9 @@ signals:
     void received();
     void disconnectRequested();
     void reconnectRequested();
+
+    //! error message to be shown in the status bar
+    void errorMessage( const QString & msg );
 
 };
 

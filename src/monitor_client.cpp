@@ -34,16 +34,21 @@
 #include <config.h>
 #endif
 
-#include <QtNetwork>
+#include <QByteArray>
+#include <QTimer>
 
 #include "monitor_client.h"
 
+#include "monitor_transport.h"
 #include "disp_holder.h"
 #include "options.h"
 
+#include <algorithm>
 #include <sstream>
 #include <iostream>
 #include <cassert>
+#include <cmath>
+#include <cstring>
 
 
 namespace {
@@ -56,19 +61,21 @@ const int POLL_INTERVAL_MS = 1000;
 */
 MonitorClient::MonitorClient( QObject * parent,
                               DispHolder & disp_holder,
-                              const char * hostname,
-                              const int port,
+                              MonitorTransport * transport,
                               const int version )
 
     : QObject( parent )
     , M_disp_holder( disp_holder )
-    , M_server_port( static_cast< quint16 >( port ) )
-    , M_socket( new QUdpSocket( this ) )
+    , M_transport( transport )
     , M_timer( new QTimer( this ) )
     , M_version( version )
     , M_waited_msec( 0 )
+    , M_first_message_received( false )
 {
     assert( parent );
+    assert( transport );
+
+    M_transport->setParent( this );
 
     // check protocol versin range
     if ( version == -1 )
@@ -84,40 +91,15 @@ MonitorClient::MonitorClient( QObject * parent,
         M_version = 5;
     }
 
-    QHostInfo host = QHostInfo::fromName( QString::fromLatin1( hostname ) );
-
-    if ( host.error() != QHostInfo::NoError )
-    {
-        qDebug() << "Error " << host.errorString();
-        return;
-    }
-
-    M_server_addr = host.addresses().front();
-
-    // INADDR_ANY, bind random created port to local
-    if ( ! M_socket->bind( 0 ) )
-    {
-        std::cerr << "MonitorClient. failed to bind the socket."
-                  << std::endl;
-        return;
-    }
-
-    if ( ! isConnected() )
-    {
-        std::cerr << "MonitorClient. failed to initialize the socket."
-                  << std::endl;
-        return;
-    }
-
-    // setReadBufferSize() makes no effect for QUdpSocet...
-    // M_socket->setReadBufferSize( 8192 * 256 );
-
-    connect( M_socket, SIGNAL( readyRead() ),
-             this, SLOT( handleReceive() ) );
+    connect( M_transport, SIGNAL( connected() ),
+             this, SLOT( handleConnected() ) );
+    connect( M_transport, SIGNAL( messagesAvailable() ),
+             this, SLOT( handleMessages() ) );
+    connect( M_transport, SIGNAL( disconnected( const QString & ) ),
+             this, SLOT( handleDisconnected( const QString & ) ) );
 
     connect( M_timer, SIGNAL( timeout() ),
              this, SLOT( handleTimer() ) );
-
 }
 
 /*-------------------------------------------------------------------*/
@@ -135,19 +117,41 @@ MonitorClient::~MonitorClient()
 /*!
 
 */
+bool
+MonitorClient::start( const QString & host,
+                      quint16 port,
+                      QString * error )
+{
+    if ( ! M_transport->open( host, port, error ) )
+    {
+        return false;
+    }
+
+    // the timer also limits the wait time for the connection setup.
+    M_waited_msec = 0;
+    M_timer->start( POLL_INTERVAL_MS );
+
+    return true;
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
 void
 MonitorClient::disconnect()
 {
-    if ( M_timer )
-    {
-        M_timer->stop();
-    }
+    M_timer->stop();
+
+    // no more notification from the transport
+    M_transport->disconnect( this );
 
     if ( isConnected() )
     {
         sendDispBye();
-        M_socket->close();
     }
+
+    M_transport->close();
 }
 
 /*-------------------------------------------------------------------*/
@@ -157,7 +161,17 @@ MonitorClient::disconnect()
 bool
 MonitorClient::isConnected() const
 {
-    return ( M_socket->socketDescriptor() != -1 );
+    return M_transport->isOpen();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+QString
+MonitorClient::peerName() const
+{
+    return M_transport->peerName();
 }
 
 /*-------------------------------------------------------------------*/
@@ -165,135 +179,29 @@ MonitorClient::isConnected() const
 
 */
 void
-MonitorClient::handleReceive()
+MonitorClient::handleConnected()
+{
+    sendDispInit();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+void
+MonitorClient::handleMessages()
 {
     int receive_count = 0;
 
-    if ( M_version == -1 ) // JSON
+    QByteArray msg;
+    while ( M_transport->popMessage( msg ) )
     {
-        char buf[8192];
-        while ( M_socket->hasPendingDatagrams() )
+        ++receive_count;
+
+        if ( ! handleMessage( msg ) )
         {
-            quint16 from_port;
-            int n = M_socket->readDatagram( buf,
-                                            8192,
-                                            0, // QHostAddress*
-                                            &from_port );
-            if ( n > 0 )
-            {
-                buf[n] = '\0';
-                if ( ! M_disp_holder.addJSON( buf ) )
-                {
-                    std::cerr << "recv: " << buf << std::endl;
-                }
-
-                if ( from_port != M_server_port )
-                {
-                    std::cerr << "updated server port number = "
-                              << from_port
-                        //<< "  localPort = "
-                        //<< M_socket->localPort()
-                              << std::endl;
-
-                    M_server_port = from_port;
-                }
-            }
-            ++receive_count;
-        }
-    }
-    else if ( M_version >= 3 ) // S-Expression
-    {
-        char buf[8192];
-        while ( M_socket->hasPendingDatagrams() )
-        {
-            quint16 from_port;
-            int n = M_socket->readDatagram( buf,
-                                            8192,
-                                            0, // QHostAddress*
-                                            &from_port );
-            if ( n > 0 )
-            {
-                buf[n] = '\0';
-                if ( ! M_disp_holder.addDispInfoV3( buf ) )
-                {
-                    std::cerr << "recv: " << buf << std::endl;
-                }
-
-                if ( from_port != M_server_port )
-                {
-                    std::cerr << "updated server port number = "
-                              << from_port
-                        //<< "  localPort = "
-                        //<< M_socket->localPort()
-                              << std::endl;
-
-                    M_server_port = from_port;
-                }
-            }
-            ++receive_count;
-        }
-    }
-    else if ( M_version == 2 ) // binary format v2
-    {
-        rcss::rcg::dispinfo_t2 disp2;
-        while ( M_socket->hasPendingDatagrams() )
-        {
-            quint16 from_port;
-            int n = M_socket->readDatagram( reinterpret_cast< char * >( &disp2 ),
-                                            sizeof( disp2 ),
-                                            0, // QHostAddress*
-                                            &from_port );
-            if ( n > 0 )
-            {
-                if ( ! M_disp_holder.addDispInfoV2( disp2 ) )
-                {
-                    std::cerr << "recv: "
-                              << reinterpret_cast< char * >( &disp2 )
-                              << std::endl;
-                }
-
-                if ( from_port != M_server_port )
-                {
-                    std::cerr << "updated server port number = "
-                              << from_port
-                        //<< "  localPort = "
-                        //<< M_socket->localPort()
-                              << std::endl;
-
-                    M_server_port = from_port;
-                }
-            }
-            ++receive_count;
-        }
-    }
-    else if ( M_version == 1 ) // binary format v1
-    {
-        rcss::rcg::dispinfo_t disp1;
-        while ( M_socket->hasPendingDatagrams() )
-        {
-            quint16 from_port;
-            int n =  M_socket->readDatagram( reinterpret_cast< char * >( &disp1 ),
-                                             sizeof( disp1 ),
-                                             0, // QHostAddress*
-                                             &from_port );
-            if ( n > 0 )
-            {
-                if ( ! M_disp_holder.addDispInfoV1( disp1 ) )
-                {
-                    std::cerr << "recv: "
-                              << reinterpret_cast< char * >( &disp1 )
-                              << std::endl;
-                }
-
-                if ( from_port != M_server_port )
-                {
-                    std::cerr << "updated port number = "
-                              << from_port << std::endl;
-
-                    M_server_port = from_port;
-                }
-            }
-            ++receive_count;
+            // disconnection has been requested.
+            return;
         }
     }
 
@@ -304,6 +212,79 @@ MonitorClient::handleReceive()
 
         emit received();
     }
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+bool
+MonitorClient::handleMessage( const QByteArray & msg )
+{
+    if ( ! M_first_message_received )
+    {
+        M_first_message_received = true;
+
+        // the server replies an error message instead of the initial data.
+        // e.g. (error no_more_monitor)
+        if ( msg.startsWith( "(error" ) )
+        {
+            requestDisconnect( tr( "Connection refused by the server: %1" )
+                               .arg( QString::fromLatin1( msg.constData() ) ) );
+            return false;
+        }
+    }
+
+    if ( M_version == -1 ) // JSON
+    {
+        if ( ! M_disp_holder.addJSON( msg.constData() ) )
+        {
+            std::cerr << "recv: " << msg.constData() << std::endl;
+        }
+    }
+    else if ( M_version >= 3 ) // S-Expression
+    {
+        if ( ! M_disp_holder.addDispInfoV3( msg.constData() ) )
+        {
+            std::cerr << "recv: " << msg.constData() << std::endl;
+        }
+    }
+    else if ( M_version == 2 ) // binary format v2
+    {
+        rcss::rcg::dispinfo_t2 disp2;
+        std::memset( &disp2, 0, sizeof( disp2 ) );
+        std::memcpy( &disp2, msg.constData(),
+                     std::min( static_cast< size_t >( msg.size() ), sizeof( disp2 ) ) );
+
+        if ( ! M_disp_holder.addDispInfoV2( disp2 ) )
+        {
+            std::cerr << "recv: " << msg.constData() << std::endl;
+        }
+    }
+    else if ( M_version == 1 ) // binary format v1
+    {
+        rcss::rcg::dispinfo_t disp1;
+        std::memset( &disp1, 0, sizeof( disp1 ) );
+        std::memcpy( &disp1, msg.constData(),
+                     std::min( static_cast< size_t >( msg.size() ), sizeof( disp1 ) ) );
+
+        if ( ! M_disp_holder.addDispInfoV1( disp1 ) )
+        {
+            std::cerr << "recv: " << msg.constData() << std::endl;
+        }
+    }
+
+    return true;
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+void
+MonitorClient::handleDisconnected( const QString & reason )
+{
+    requestDisconnect( tr( "Disconnected from the server: %1" ).arg( reason ) );
 }
 
 /*-------------------------------------------------------------------*/
@@ -323,10 +304,32 @@ MonitorClient::handleTimer()
         {
             //std::cerr << "MonitorClient::handleTimer() waited=" << M_waited_msec << "[ms]"
             //          << " emit reconnectRequested()" << std::endl;
-            emit reconnectRequested();
+            requestDisconnect( tr( "No response from the server." ) );
         }
     }
     else if ( M_waited_msec >= 5 * 1000 )
+    {
+        requestDisconnect( tr( "No response from the server." ) );
+    }
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+void
+MonitorClient::requestDisconnect( const QString & reason )
+{
+    M_timer->stop();
+
+    std::cerr << reason.toStdString() << std::endl;
+    emit errorMessage( reason );
+
+    if ( Options::instance().autoReconnectMode() )
+    {
+        emit reconnectRequested();
+    }
+    else
     {
         emit disconnectRequested();
     }
@@ -344,9 +347,12 @@ MonitorClient::sendCommand( const std::string & com )
         return;
     }
 
-    M_socket->writeDatagram( com.c_str(), com.length() + 1,
-                             M_server_addr,
-                             M_server_port );
+    if ( ! M_transport->sendMessage( QByteArray::fromStdString( com ) ) )
+    {
+        std::cerr << "failed to send: " << com << std::endl;
+        return;
+    }
+
     std::cerr << "send: " << com << std::endl;
 }
 
@@ -368,11 +374,6 @@ MonitorClient::sendDispInit()
     }
 
     sendCommand( ostr.str() );
-
-    if ( M_timer )
-    {
-        M_timer->start( POLL_INTERVAL_MS );
-    }
 }
 
 /*-------------------------------------------------------------------*/

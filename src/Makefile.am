@@ -19,6 +19,7 @@ rcssmonitor_SOURCES = \
 	log_player_slider.cpp \
 	main_window.cpp \
 	monitor_client.cpp \
+	monitor_transport.cpp \
 	options.cpp \
 	player_painter.cpp \
 	player_type_dialog.cpp \
@@ -26,6 +27,7 @@ rcssmonitor_SOURCES = \
 	score_board_painter.cpp \
 	team_graphic.cpp \
 	team_graphic_painter.cpp \
+	udp_monitor_transport.cpp \
 	vector_2d.cpp \
 	main.cpp
 
@@ -36,7 +38,9 @@ nodist_rcssmonitor_SOURCES = \
 	moc_log_player_slider.cpp \
 	moc_main_window.cpp \
 	moc_monitor_client.cpp \
-	moc_player_type_dialog.cpp
+	moc_monitor_transport.cpp \
+	moc_player_type_dialog.cpp \
+	moc_udp_monitor_transport.cpp
 
 noinst_HEADERS = \
 	gzfstream.h \
@@ -53,6 +57,7 @@ noinst_HEADERS = \
 	log_player_slider.h \
 	main_window.h \
 	monitor_client.h \
+	monitor_transport.h \
 	mouse_state.h \
 	options.h \
 	painter_interface.h \
@@ -62,6 +67,7 @@ noinst_HEADERS = \
 	score_board_painter.h \
 	team_graphic.h \
 	team_graphic_painter.h \
+	udp_monitor_transport.h \
 	vector_2d.h
 
 
