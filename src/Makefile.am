@@ -10,6 +10,7 @@ rcssmonitor_SOURCES = \
 	ball_painter.cpp \
 	circle_2d.cpp \
 	config_dialog.cpp \
+	connect_dialog.cpp \
 	disp_holder.cpp \
 	draw_info_painter.cpp \
 	field_canvas.cpp \
@@ -35,6 +36,7 @@ rcssmonitor_SOURCES = \
 
 nodist_rcssmonitor_SOURCES = \
 	moc_config_dialog.cpp \
+	moc_connect_dialog.cpp \
 	moc_field_canvas.cpp \
 	moc_log_player.cpp \
 	moc_log_player_slider.cpp \
@@ -51,6 +53,7 @@ noinst_HEADERS = \
 	ball_painter.h \
 	circle_2d.h \
 	config_dialog.h \
+	connect_dialog.h \
 	disp_holder.h \
 	draw_info_painter.h \
 	field_canvas.h \

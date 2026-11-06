@@ -45,6 +45,7 @@
 #include "main_window.h"
 
 #include "config_dialog.h"
+#include "connect_dialog.h"
 #include "field_canvas.h"
 #include "log_player.h"
 #include "log_player_slider.h"
@@ -1827,18 +1828,24 @@ MainWindow::connectMonitorTo()
         host = "127.0.0.1";
     }
 
-    bool ok = true;
-    QString text = QInputDialog::getText( this,
-                                          tr( "Input sserver host name" ),
-                                          tr( "Host name: "),
-                                          QLineEdit::Normal,
-                                          QString::fromStdString( host ),
-                                          & ok );
-    if ( ok
-         && ! text.isEmpty() )
+    ConnectDialog dialog( this,
+                          QString::fromStdString( host ),
+                          Options::instance().serverTransport(),
+                          Options::instance().serverPort(),
+                          QString::fromStdString( Options::instance().serverWSPath() ) );
+    if ( dialog.exec() != QDialog::Accepted
+         || dialog.host().isEmpty() )
     {
-        connectMonitorTo( text.toStdString().c_str() );
+        return;
     }
+
+    // keep the values for connectMonitor() and reconnectMonitor().
+    // the host name is stored by connectMonitorTo( const char * ).
+    Options::instance().setServerTransport( dialog.transport() );
+    Options::instance().setServerPort( dialog.port() );
+    Options::instance().setServerWSPath( dialog.wsPath().toStdString() );
+
+    connectMonitorTo( dialog.host().toStdString().c_str() );
 }
 
 /*-------------------------------------------------------------------*/

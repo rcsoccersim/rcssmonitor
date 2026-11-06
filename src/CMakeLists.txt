@@ -5,6 +5,7 @@ add_executable(rcssmonitor
   ball_painter.cpp
   circle_2d.cpp
   config_dialog.cpp
+  connect_dialog.cpp
   disp_holder.cpp
   draw_info_painter.cpp
   field_canvas.cpp

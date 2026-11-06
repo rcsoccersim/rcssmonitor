@@ -147,6 +147,8 @@ rcssmonitor --connect --server-transport tcp --server-port 6000  # TCP (server::
 rcssmonitor --connect --server-transport ws --server-port 6080   # WebSocket (server::ws_port)
 ```
 
+The transport, the port number and the request path can also be given by `Monitor` -> `Connect to ...` in the menu bar.
+
 Note the following points:
 
 - The protocol versions 1 and 2 (`--client-version 1` or `2`) are available only via UDP, because they use a binary format. Use the version 3 or later, or -1 (JSON format), via TCP and WebSocket.

@@ -3,7 +3,8 @@
     transport is selected by the new option --server-transport (udp,
     tcp or ws). The request path of WebSocket can be changed by
     --server-ws-path. The protocol versions 1 and 2 are available only
-    via UDP. The WebSocket connection requires Qt WebSockets.
+    via UDP. The WebSocket connection requires Qt WebSockets. The
+    "Connect to ..." dialog can also select the transport.
 
   * Fix the reception of UDP messages of 8192 bytes or longer.
 
