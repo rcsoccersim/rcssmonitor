@@ -1534,8 +1534,8 @@ MainWindow::connectMonitorTo( const char * hostname )
     disconnectMonitor();
 
     QString error;
-    MonitorTransport * transport = create_monitor_transport( MonitorTransport::UDP,
-                                                             QString(),
+    MonitorTransport * transport = create_monitor_transport( Options::instance().serverTransport(),
+                                                             QString::fromStdString( Options::instance().serverWSPath() ),
                                                              this,
                                                              &error );
     if ( ! transport )

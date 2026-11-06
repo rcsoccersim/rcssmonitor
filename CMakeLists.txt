@@ -54,3 +54,12 @@ configure_file(
 #
 add_subdirectory(rcss)
 add_subdirectory(src)
+
+# unit tests
+find_package(Qt5 COMPONENTS Test QUIET)
+if(Qt5Test_FOUND)
+  enable_testing()
+  add_subdirectory(test)
+else()
+  message(STATUS "Qt5 Test not found. The unit tests are not built.")
+endif()

@@ -143,6 +143,21 @@ signals:
 };
 
 /*!
+  \brief get the transport type from its name.
+  \param name "udp", "tcp", "ws" or "websocket". case insensitive.
+  \param type variable to store the result
+  \return false if the name is unknown.
+ */
+bool parse_monitor_transport_type( const QString & name,
+                                   MonitorTransport::Type * type );
+
+/*!
+  \brief get the name of the transport type.
+  \return "udp", "tcp" or "ws"
+ */
+QString monitor_transport_type_name( const MonitorTransport::Type type );
+
+/*!
   \brief create the transport instance.
   \param type transport type
   \param ws_path request path used by the WebSocket transport

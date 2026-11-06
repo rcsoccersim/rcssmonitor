@@ -70,6 +70,7 @@ MonitorClient::MonitorClient( QObject * parent,
     , M_timer( new QTimer( this ) )
     , M_version( version )
     , M_waited_msec( 0 )
+    , M_transport_connected( false )
     , M_first_message_received( false )
 {
     assert( parent );
@@ -122,6 +123,21 @@ MonitorClient::start( const QString & host,
                       quint16 port,
                       QString * error )
 {
+    // the server replies text messages to v1/v2 over TCP/WebSocket.
+    // they must not be read as the binary structures.
+    if ( ( M_version == 1 || M_version == 2 )
+         && ! M_transport->isBinarySafe() )
+    {
+        if ( error )
+        {
+            *error = tr( "The protocol version %1 is not available over %2."
+                         " Use version 3 or later, or -1 (JSON)." )
+                .arg( M_version )
+                .arg( monitor_transport_type_name( M_transport->type() ) );
+        }
+        return false;
+    }
+
     if ( ! M_transport->open( host, port, error ) )
     {
         return false;
@@ -181,6 +197,7 @@ MonitorClient::peerName() const
 void
 MonitorClient::handleConnected()
 {
+    M_transport_connected = true;
     sendDispInit();
 }
 
@@ -284,7 +301,14 @@ MonitorClient::handleMessage( const QByteArray & msg )
 void
 MonitorClient::handleDisconnected( const QString & reason )
 {
-    requestDisconnect( tr( "Disconnected from the server: %1" ).arg( reason ) );
+    if ( M_transport_connected )
+    {
+        requestDisconnect( tr( "Disconnected from the server: %1" ).arg( reason ) );
+    }
+    else
+    {
+        requestDisconnect( tr( "Failed to connect to the server: %1" ).arg( reason ) );
+    }
 }
 
 /*-------------------------------------------------------------------*/

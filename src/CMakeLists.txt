@@ -13,6 +13,7 @@ add_executable(rcssmonitor
   log_player.cpp
   log_player_slider.cpp
   main_window.cpp
+  message_splitter.cpp
   monitor_client.cpp
   monitor_transport.cpp
   options.cpp
@@ -21,6 +22,7 @@ add_executable(rcssmonitor
   rcg_handler.cpp
   score_board_painter.cpp
   team_graphic.cpp
+  tcp_monitor_transport.cpp
   team_graphic_painter.cpp
   udp_monitor_transport.cpp
   vector_2d.cpp

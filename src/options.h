@@ -41,6 +41,8 @@
 #include <QBrush>
 #include <QFont>
 
+#include "monitor_transport.h"
+
 #include <rcss/rcg/types.h>
 
 #include <string>
@@ -145,6 +147,8 @@ private:
     bool M_connect;
     std::string M_server_host;
     int M_server_port;
+    MonitorTransport::Type M_server_transport;
+    std::string M_server_ws_path;
     int M_client_version;
 
     //
@@ -330,6 +334,8 @@ public:
     void setServerHost( const std::string & host ) { M_server_host = host; }
 
     int serverPort() const { return M_server_port; }
+    MonitorTransport::Type serverTransport() const { return M_server_transport; }
+    const std::string & serverWSPath() const { return M_server_ws_path; }
     int clientVersion() const { return M_client_version; }
 
     bool autoQuitMode() const { return M_auto_quit_mode; }

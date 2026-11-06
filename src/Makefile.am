@@ -18,6 +18,7 @@ rcssmonitor_SOURCES = \
 	log_player.cpp \
 	log_player_slider.cpp \
 	main_window.cpp \
+	message_splitter.cpp \
 	monitor_client.cpp \
 	monitor_transport.cpp \
 	options.cpp \
@@ -25,6 +26,7 @@ rcssmonitor_SOURCES = \
 	player_type_dialog.cpp \
 	rcg_handler.cpp \
 	score_board_painter.cpp \
+	tcp_monitor_transport.cpp \
 	team_graphic.cpp \
 	team_graphic_painter.cpp \
 	udp_monitor_transport.cpp \
@@ -40,6 +42,7 @@ nodist_rcssmonitor_SOURCES = \
 	moc_monitor_client.cpp \
 	moc_monitor_transport.cpp \
 	moc_player_type_dialog.cpp \
+	moc_tcp_monitor_transport.cpp \
 	moc_udp_monitor_transport.cpp
 
 noinst_HEADERS = \
@@ -56,6 +59,7 @@ noinst_HEADERS = \
 	log_player.h \
 	log_player_slider.h \
 	main_window.h \
+	message_splitter.h \
 	monitor_client.h \
 	monitor_transport.h \
 	mouse_state.h \
@@ -65,6 +69,7 @@ noinst_HEADERS = \
 	player_type_dialog.h \
 	rcg_handler.h \
 	score_board_painter.h \
+	tcp_monitor_transport.h \
 	team_graphic.h \
 	team_graphic_painter.h \
 	udp_monitor_transport.h \

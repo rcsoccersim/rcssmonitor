@@ -59,6 +59,7 @@ private:
 
     int M_waited_msec;
 
+    bool M_transport_connected; //!< true after the transport is connected
     bool M_first_message_received; //!< true after the first message from the server
 
 

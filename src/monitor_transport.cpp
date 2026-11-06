@@ -36,6 +36,7 @@
 
 #include "monitor_transport.h"
 
+#include "tcp_monitor_transport.h"
 #include "udp_monitor_transport.h"
 
 /*-------------------------------------------------------------------*/
@@ -61,6 +62,63 @@ MonitorTransport::~MonitorTransport()
 /*!
 
 */
+bool
+parse_monitor_transport_type( const QString & name,
+                              MonitorTransport::Type * type )
+{
+    const QString lower = name.trimmed().toLower();
+
+    MonitorTransport::Type result;
+    if ( lower == QLatin1String( "udp" ) )
+    {
+        result = MonitorTransport::UDP;
+    }
+    else if ( lower == QLatin1String( "tcp" ) )
+    {
+        result = MonitorTransport::TCP;
+    }
+    else if ( lower == QLatin1String( "ws" )
+              || lower == QLatin1String( "websocket" ) )
+    {
+        result = MonitorTransport::WebSocket;
+    }
+    else
+    {
+        return false;
+    }
+
+    if ( type )
+    {
+        *type = result;
+    }
+    return true;
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+QString
+monitor_transport_type_name( const MonitorTransport::Type type )
+{
+    switch ( type ) {
+    case MonitorTransport::UDP:
+        return QStringLiteral( "udp" );
+    case MonitorTransport::TCP:
+        return QStringLiteral( "tcp" );
+    case MonitorTransport::WebSocket:
+        return QStringLiteral( "ws" );
+    default:
+        break;
+    }
+
+    return QString();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
 MonitorTransport *
 create_monitor_transport( const MonitorTransport::Type type,
                           const QString & /*ws_path*/,
@@ -71,7 +129,13 @@ create_monitor_transport( const MonitorTransport::Type type,
     case MonitorTransport::UDP:
         return new UdpMonitorTransport( parent );
     case MonitorTransport::TCP:
+        return new TcpMonitorTransport( parent );
     case MonitorTransport::WebSocket:
+        if ( error )
+        {
+            *error = QObject::tr( "The WebSocket transport is not available in this build." );
+        }
+        return nullptr;
     default:
         break;
     }

@@ -78,6 +78,7 @@ line_2d.h \
 log_player.h \
 log_player_slider.h \
 main_window.h \
+message_splitter.h \
 monitor_client.h \
 monitor_transport.h \
 mouse_state.h \
@@ -86,6 +87,7 @@ painter_interface.h \
 player_painter.h \
 player_type_dialog.h \
 score_board_painter.h \
+tcp_monitor_transport.h \
 team_graphic.h \
 team_graphic_painter.h \
 udp_monitor_transport.h \
@@ -108,12 +110,14 @@ line_2d.cpp \
 log_player.cpp \
 log_player_slider.cpp \
 main_window.cpp \
+message_splitter.cpp \
 monitor_client.cpp \
 monitor_transport.cpp \
 options.cpp \
 player_painter.cpp \
 player_type_dialog.cpp \
 score_board_painter.cpp \
+tcp_monitor_transport.cpp \
 team_graphic.cpp \
 team_graphic_painter.cpp \
 udp_monitor_transport.cpp \
