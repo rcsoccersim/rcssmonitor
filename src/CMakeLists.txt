@@ -51,6 +51,11 @@ target_link_libraries(rcssmonitor
   ZLIB::ZLIB
   )
 
+if(HAVE_QT_WEBSOCKETS)
+  target_sources(rcssmonitor PRIVATE ws_monitor_transport.cpp)
+  target_link_libraries(rcssmonitor PRIVATE Qt5::WebSockets)
+endif()
+
 target_compile_definitions(rcssmonitor
   PUBLIC
   HAVE_CONFIG_H

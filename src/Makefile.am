@@ -73,7 +73,13 @@ noinst_HEADERS = \
 	team_graphic.h \
 	team_graphic_painter.h \
 	udp_monitor_transport.h \
-	vector_2d.h
+	vector_2d.h \
+	ws_monitor_transport.h
+
+if HAVE_QT_WEBSOCKETS
+rcssmonitor_SOURCES += ws_monitor_transport.cpp
+nodist_rcssmonitor_SOURCES += moc_ws_monitor_transport.cpp
+endif
 
 
 rcssmonitor_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/src $(QT_CPPFLAGS)

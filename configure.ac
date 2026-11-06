@@ -83,6 +83,29 @@ fi
 AX_CXX_COMPILE_STDCXX_17(noext)
 
 # ----------------------------------------------------------
+# check Qt WebSockets
+
+AC_ARG_ENABLE([websocket],
+  [AS_HELP_STRING([--disable-websocket], [disable the WebSocket connection])],
+  [], [enable_websocket=yes])
+have_qt_websockets=no
+if test "x$enable_websocket" = "xyes"; then
+  AC_LANG_PUSH([C++])
+  save_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $QT_CXXFLAGS"
+  AC_CHECK_HEADER([QWebSocket], [have_qt_websockets=yes])
+  CPPFLAGS="$save_CPPFLAGS"
+  AC_LANG_POP([C++])
+  if test "x$have_qt_websockets" != "xyes"; then
+    AC_MSG_WARN([Qt WebSockets not found. The WebSocket connection is disabled.])
+  fi
+fi
+if test "x$have_qt_websockets" = "xyes"; then
+  AC_DEFINE([HAVE_QT_WEBSOCKETS], [1], [Define to 1 if Qt WebSockets is available.])
+fi
+AM_CONDITIONAL([HAVE_QT_WEBSOCKETS], [test "x$have_qt_websockets" = "xyes"])
+
+# ----------------------------------------------------------
 # check boost
 
 #AX_BOOST_BASE([1.38.0])
