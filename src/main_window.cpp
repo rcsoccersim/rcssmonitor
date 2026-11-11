@@ -645,9 +645,6 @@ MainWindow::createMenuReferee()
 
         const char * playmode_strings[] = PLAYMODE_STRINGS;
 
-        QSignalMapper * mapper = new QSignalMapper( this );
-        connect( mapper, SIGNAL( mapped( int ) ),
-                 this, SLOT( changePlayMode( int ) ) );
         for ( int mode = 0; mode < rcss::rcg::PM_MAX; ++mode )
         {
             if ( mode == rcss::rcg::PM_BeforeKickOff
@@ -671,8 +668,8 @@ MainWindow::createMenuReferee()
                  || mode == rcss::rcg::PM_Illegal_Defense_Right )
             {
                 QAction * act = submenu->addAction( QString::fromLatin1( playmode_strings[mode] ) );
-                connect( act, SIGNAL( triggered() ), mapper, SLOT( map() ) );
-                mapper->setMapping( act, mode );
+                connect( act, &QAction::triggered,
+                         this, [this, mode]() { changePlayMode( mode ); } );
             }
         }
     }
@@ -883,9 +880,6 @@ MainWindow::createFieldCanvas()
     {
         const char * playmode_strings[] = PLAYMODE_STRINGS;
 
-        QSignalMapper * mapper = new QSignalMapper( this );
-        connect( mapper, SIGNAL( mapped( int ) ),
-                 M_field_canvas, SLOT( changePlayMode( int ) ) );
         for ( int mode = 0; mode < rcss::rcg::PM_MAX; ++mode )
         {
             if ( mode == rcss::rcg::PM_BeforeKickOff
@@ -910,8 +904,8 @@ MainWindow::createFieldCanvas()
             {
                 QAction * act = new QAction( M_playmode_change_act_group );
                 act->setText( QString::fromLatin1( playmode_strings[mode] ) );
-                connect( act, SIGNAL( triggered() ), mapper, SLOT( map() ) );
-                mapper->setMapping( act, mode );
+                connect( act, &QAction::triggered,
+                         M_field_canvas, [this, mode]() { M_field_canvas->changePlayMode( mode ); } );
             }
         }
 
