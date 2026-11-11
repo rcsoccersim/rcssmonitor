@@ -543,7 +543,7 @@ PlayerPainter::drawCatchArea( QPainter & painter,
         = std::sqrt( std::pow( SP.catchable_area_w_ * 0.5, 2.0 )
                      + std::pow( SP.catchable_area_l_, 2.0 ) );
     const int catchable = opt.scale( catchable_area );
-    painter.setPen( ( param.player_.side_ == rcss::rcg::LEFT )
+    painter.setPen( ( param.player_.side() == rcss::rcg::LEFT )
                     ? opt.leftGoaliePen()
                     : opt.rightGoaliePen() );
     painter.setBrush( Qt::NoBrush );
@@ -561,7 +561,7 @@ PlayerPainter::drawCatchArea( QPainter & painter,
     const int max_r = opt.scale( max_area );
     if ( max_r > catchable )
     {
-        painter.setPen( ( param.player_.side_ == rcss::rcg::LEFT )
+        painter.setPen( ( param.player_.side() == rcss::rcg::LEFT )
                         ? opt.leftGoalieStretchPen()
                         : opt.rightGoalieStretchPen() );
         painter.drawEllipse( param.x_ - max_r,
