@@ -32,7 +32,7 @@
 - GPU を使うテストを並列で回しすぎない (web 版の作業中に、GPU のページフォルトで作業マシンが落ちたことがある)。
 - 区切りごとに、§14 に記録 (決めたこと、見つけた不具合、計測、試験) を足す。
 - 計画書は、日本語版 (この文書) と英語版 (`PLAN_3D-VIEW.en.md`) を並行して保つ。どちらかを直したら、同じ区切りでもう一方も同じ内容に直す。
-- ブランチを作るとき、コミットとプッシュをするときは、ユーザに確かめる (コミットとプッシュはユーザが行う)。
+- ブランチはユーザが GitHub 上で作り、手元ではそれを取ってきて切り替える (§9.1)。コミットとプッシュはユーザが行う。
 
 ## 1. 目的と範囲
 
@@ -52,18 +52,20 @@
 - 不具合の修正、JSON パーサの改善、Qt6 対応もこの計画で行う。
 - 計画書は日本語で書き、英語版を並行して保つ (§0.1)。
 - 作業は `develop` から派生させたブランチで進める。TCP / WebSocket 対応は、公式に採用するかが決まっていないので、今は取り込まない (D7、2026-11-11)。
+- Phase 0〜3 (Qt6 対応まで) は、終わったものから develop に取り込む。3D 表示 (Phase 4〜8) は、完成して公式に採用されることが決まってから develop に取り込む (§9.1、2026-11-11)。
+- qmake のビルドは廃止する (D11、2026-11-11)。
 
 ### 2.2 作業の初めに決めること
 
 Phase 0 でユーザに確かめてから進める。推奨案は、この計画の以下の節の前提にしている。
 
-2026-11-11 の状態: D7 と D10 はユーザが決めた (表の「決定」)。D1 は Phase 0 の試作の結果で決める。D2〜D6、D8、D9 は推奨案で進める。D11 は Phase 0 で見つけた問題で、ユーザに確かめる。
+2026-11-11 の状態: D7、D10、D11 はユーザが決めた (表の「決定」。D11 は Phase 0 で見つけた問題)。D1 は Phase 0 の試作の結果で決める。D2〜D6、D8、D9 は推奨案で進める。
 
 | # | 項目 | 推奨 | 代わりの案 | 理由 |
 |---|---|---|---|---|
 | D1 | 3D の描画の技術 | `QOpenGLWidget` と自前の描画 (OpenGL 3.3 core、シェーダを自分で書く) | Qt Quick 3D (`QQuickWidget` で埋め込む) | 下の §2.3 |
 | D2 | 対応する Qt の版 | Qt 5.15 と Qt 6.2 以降の両方 (1 つのソースで切り替える) | Qt6 だけにする | Ubuntu 22.04 には Qt 5.15 と Qt 6.2 の両方がある。両対応の期間を経て、次の版で Qt5 をやめられる |
-| D3 | ビルドの仕組み | CMake を主にする。Qt6 は CMake だけで対応し、autotools と qmake (`.pro`) は Qt5 のまま残す (3D は CMake でだけビルドする) | 3 つとも Qt6 に対応させる / autotools と qmake をやめる | 3 つを保守する手間が大きい。autotools の `AX_HAVE_QT` は qmake を通して Qt を探すので、Qt6 への対応が難しい |
+| D3 | ビルドの仕組み | CMake を主にする。Qt6 は CMake だけで対応し、autotools は Qt5 のまま残す (3D は CMake でだけビルドする)。qmake (`.pro`) は D11 で廃止 | 3 つとも Qt6 に対応させる / autotools と qmake をやめる | 3 つを保守する手間が大きい。autotools の `AX_HAVE_QT` は qmake を通して Qt を探すので、Qt6 への対応が難しい |
 | D4 | 3D をビルドの任意にするか | CMake の `ENABLE_3D` (既定 ON)。OpenGL 3.3 が使えない環境では、実行時に 3D を無効にして 2D だけで動く | 必須にする | 古い GPU や仮想マシンでも、2D の監視は今までどおり使えるようにする |
 | D5 | glTF の読み込み | cgltf (1 つのヘッダ、MIT) と、アニメーションの評価を自前で書く | tinygltf (MIT)、Assimp (BSD、大きい) | §5.8 のとおり、姿勢はログから毎回求めるので、アニメーションの再生機は要らず、キーフレームを読むだけでよい |
 | D6 | 人型のモデル | web 版の `Mannequin.glb` (CC0) を、圧縮なしで書き出し直して Qt のリソース (qrc) に入れる | meshoptimizer のデコーダ (MIT) を同梱して、web 版のファイルをそのまま読む | web 版のファイルは `EXT_meshopt_compression` と `KHR_mesh_quantization` を必須にしている。デスクトップのアプリでは大きさより依存の少なさを取る |
@@ -71,7 +73,7 @@ Phase 0 でユーザに確かめてから進める。推奨案は、この計画
 | D8 | 版 | 20.0.0 (asio 版 rcssserver 20、rcssmonitor-web 20 にそろえる) | 19.1.0 など | Qt6 対応と 3D 表示は大きな変更 |
 | D9 | ブランチの方針 | web 版と同じ (master: リリース、develop: 取り込み先、feature/*: 作業、hotfix/*)。取り込みはマージコミットを作る。フェーズごとのブランチは §9.1 | 今の rcssmonitor の運用に合わせる | web 版の `docs/release.md` |
 | D10 | master の AppImage ワークフロー (§3.2) | **決定の方向**: 今のワークフローは保守の負担になっているので、無効にする。保守のやさしい方式を作れるなら、それに置き換える (ユーザ)。推奨の置き換え先は §2.4 | 今のまま残す (Qt 5.12 でもビルドできる範囲にとどめることになり、D2 と合わない) | Ubuntu 20.04 (サポート終了) の Docker イメージ、`qt5-default`、自前のシェルと Python のスクリプトを保守し続ける必要がある。autotools でビルドするので 3D が入らない (D3) |
-| D11 | qmake のビルド (§3.2) | **未定**。推奨: やめる (`rcssmonitor.pro` と `src/src.pro` を消し、README に書く) | 直して (定義 1 つ、版、boost) CI に入れる | develop の時点ですでに壊れていて、誰も気づいていなかった。CMake と autotools の 2 つで足りる。直すなら、ファイルを足すたびに `.pro` も直し、CI で確かめ続ける必要がある |
+| D11 | qmake のビルド (§3.2) | **決定**: 廃止する。`rcssmonitor.pro`、`src/src.pro` と、qmake のビルドだけが使っていた古いパーサの写し `src/rcsslogplayer/` を消す (`feature/ci`)。NEWS に書く (Phase 9)。autotools は Qt を探すのに qmake を使うので、`qt5-qmake` のパッケージは引き続き要る | 直して (定義 1 つ、版、boost) CI に入れる | qmake を使う機械がなくなる (ユーザ)。develop の時点ですでに壊れていて、誰も気づいていなかった。CMake と autotools の 2 つで足りる |
 
 ### 2.3 D1 (3D の描画の技術) の比較
 
@@ -116,10 +118,10 @@ Phase 0 の試作 (§9) で、推奨案で「人型 22 体と影を 1920×1080 �
 
 ### 3.2 ビルド
 
-- CMake (`CMakeLists.txt`、`src/CMakeLists.txt`)、autotools (`configure.ac`、`m4/ax_have_qt.m4`)、qmake (`rcssmonitor.pro`) の 3 つがある。
+- CMake (`CMakeLists.txt`、`src/CMakeLists.txt`)、autotools (`configure.ac`、`m4/ax_have_qt.m4`)、qmake (`rcssmonitor.pro`) の 3 つがある。qmake は D11 で廃止した (`feature/ci`)。
 - どれも Qt5 に決め打ち (`find_package(Qt5 COMPONENTS Core Gui Widgets Network REQUIRED)`)。`feature/support-tcp-ws` では、WebSockets と Test を任意で探す。
 - C++17、CMake 3.5 以上。
-- qmake のビルドは develop で通らない (2026-11-11 に確かめた)。`src/src.pro` に `HAVE_ARPA_INET_H` の定義がなく、`disp_holder.cpp` の `ntohs` で止まる。版は 16.0.0 のまま、使っていない boost にリンクする。扱いは D11。CMake と autotools は通る。
+- qmake のビルドは develop で通らない (2026-11-11 に確かめた)。`src/src.pro` に `HAVE_ARPA_INET_H` の定義がなく、`disp_holder.cpp` の `ntohs` で止まる。版は 16.0.0 のまま、使っていない boost にリンクする。D11 で廃止した。CMake と autotools は通る。
 - develop には CI がない (`.github/workflows` がない)。
 - master にだけ、PR #59 の AppImage のワークフロー (`.github/workflows/main.yml`、名前は `ci`) と `utils/appimage/` がある。任意のブランチとタグへの push で動き、Ubuntu 20.04 の Docker イメージ (`qt5-default` で Qt 5.12.8) の中で autotools でビルドし、`CMakeLists.txt` の版のリリースがなければ作る。ビルドとテストの確認はしない。扱いは D10。
 
@@ -418,28 +420,29 @@ web 版の `docs/parity.md` §7。行番号は 2026-11-11 の develop (01f880a) 
 4. `QT_VERSION_CHECK` の分岐のうち、Qt 5.15 より古いものを消す。
 5. 非推奨の警告をなくす: Qt5 では `QT_DISABLE_DEPRECATED_BEFORE=0x050F00` でビルドし、Qt6 では非推奨の警告が出ないことを確かめる。
 6. 高 DPI: Qt6 では既定で有効。2D の描画 (線の太さ、文字の大きさ) が、倍率 1、1.5、2 で崩れないことを確かめる。3D は `devicePixelRatio` に合わせて描く。
-7. autotools と qmake は D3 のとおり Qt5 のまま残し、README に「Qt6 と 3D は CMake で」と書く。
+7. autotools は D3 のとおり Qt5 のまま残し (qmake は D11 で廃止)、README に「Qt6 と 3D は CMake で」と書く。
 8. CI で Qt5 と Qt6 の両方をビルドする (§10)。
 9. README のインストールの手順を、Ubuntu 22.04 / 24.04 / 26.04 の Qt5 と Qt6 の両方について書き直す。
 
 ## 9. フェーズ計画
 
-各フェーズは feature ブランチで進め、終わったら develop に取り込む (D9)。区切りごとにユーザに確かめる。
+各フェーズは feature ブランチで進め、終わったら develop に取り込む (D9)。ただし 3D 表示 (Phase 4〜8) は、完成して公式に採用されることが決まってから develop に取り込む。区切りごとにユーザに確かめる。
 
 ### 9.1 ブランチ (2026-11-11 にユーザが了承)
 
 | フェーズ | ブランチ |
 |---|---|
 | Phase 0: CI とテストの仕組み | `feature/ci` |
-| Phase 0: 3D の試作 | `proto/3d-gl` (ローカルだけ。取り込まない) |
+| Phase 0: 3D の試作 | `proto/3d-gl` (取り込まない。作り方は試作に入るときに相談する) |
 | Phase 1: 不具合の修正 | `fix/parity-bugs` |
 | Phase 2: パーサの改善 | `feature/json-parser` |
 | Phase 3: Qt6 対応 | `feature/qt6` |
 | Phase 4〜8: 3D 表示 | `feature/3d-view` |
 
-- 最初のブランチは develop から作る。取り込みはユーザが行うので、前のフェーズのブランチがまだ develop に入っていなければ、前のフェーズのブランチから派生させる (積み重ね)。Phase 1 と Phase 3 は、どちらも `main_window.cpp`、`config_dialog.cpp`、`player_painter.cpp` を変えるので、並行させずに順に積む。
-- `proto/3d-gl` は develop から作る。
-- どのブランチも、作る前にユーザに確かめる (§0.1)。上流 (upstream) は、プッシュするときに設定する (`--no-track` で作る)。
+- Phase 0〜3 は、終わったものから develop に取り込む (取り込みはユーザが行う)。次のフェーズのブランチは、前のフェーズを取り込んだ develop から作る。取り込む前に始めるときは、前のフェーズのブランチから作る (積み重ね)。Phase 1 と Phase 3 は、どちらも `main_window.cpp`、`config_dialog.cpp`、`player_painter.cpp` を変えるので、並行させずに順に積む。
+- `feature/3d-view` は、Qt6 対応 (Phase 3) を取り込んだ develop から作る。完成して公式に採用されることが決まるまで、develop に取り込まない。そのあいだに develop に入ったもの (TCP / WebSocket 対応など) は、develop を `feature/3d-view` にマージして取り込む。
+- ブランチはユーザが GitHub 上で作る (2026-11-11 から)。手元では `git fetch origin` の後に `git switch <ブランチ>` とし、GitHub のブランチを追跡するブランチを作って切り替える。`feature/ci` だけは手元で先に作ったので、`git push -u origin feature/ci` で GitHub に作る。
+- `proto/3d-gl` (試作) の作り方は、試作に入るときに相談する (2026-11-11)。
 
 ### Phase 0: 土台と検証
 
@@ -510,7 +513,7 @@ web 版の `docs/parity.md` §7。行番号は 2026-11-11 の develop (01f880a) 
 
 ### Phase 9: 文書とリリース
 
-**作業**: README (3D、キー、設定、Qt6 のビルド)、ChangeLog と NEWS、版を D8 にする。D10 の結果に従って、master の `main.yml` と `utils/appimage/` を消すか、案 A に置き換える (master への取り込みで行う)。ユーザが master に取り込み、タグを付ける。
+**作業**: README (3D、キー、設定、Qt6 のビルド)、ChangeLog と NEWS (qmake の廃止 (D11) も書く)、版を D8 にする。D10 の結果に従って、master の `main.yml` と `utils/appimage/` を消すか、案 A に置き換える (master への取り込みで行う)。ユーザが master に取り込み、タグを付ける。
 
 **完了条件**: リリースされる。
 
@@ -585,6 +588,8 @@ GL に依存しない計算を、web 版の単体テストを手本に移す。
 
 **変更**: `main_window.cpp` (切り替え、メニュー、ツールバー、キー)、`field_canvas.cpp` (右クリックのメニューを共有)、`log_player.cpp` (alpha)、`options.{h,cpp}` (設定)、`config_dialog.cpp`、`player_painter.cpp` と `ball_painter.cpp` と `field_painter.cpp` (計算の切り出し、芝の縞の引数)、`rcss/rcg/*` (§6、§7)、`CMakeLists.txt` と `src/CMakeLists.txt` (Qt6、3D)、README。
 
+**削除**: `rcssmonitor.pro`、`src/src.pro`、`src/rcsslogplayer/` (D11。Phase 0 で消した)。
+
 ## 13. 対象外
 
 - web 版に固有のこと: ブラウザでの配布 (単一 HTML、GitHub Pages)、file:// と https の制約、ブラウザのキーの横取り、URL のパラメータ (rcssmonitor ではコマンドラインと設定ファイル)。
@@ -639,3 +644,18 @@ GL に依存しない計算を、web 版の単体テストを手本に移す。
 - Ubuntu 26.04 (resolute) には、Qt 5.15.18 (`qtbase5-dev`、`qt5-qmake`、`libqt5websockets5-dev`) と Qt 6.10.2 (`qt6-base-dev`、`qt6-websockets-dev`) がある (packages.ubuntu.com で確かめた)。
 - web 版の CI は ubuntu-26.04 のランナーで通っているので、同じ指定を使った。
 - GNUInstallDirs: 一度別の prefix で構成したビルドディレクトリで `CMAKE_INSTALL_PREFIX=/usr` に変えると、`-DCMAKE_INSTALL_LIBDIR=lib` を渡しても `lib/x86_64-linux-gnu` に計算し直される。CI はまっさらなディレクトリで構成するので問題ない。
+
+#### 2026-11-11: qmake の廃止とブランチの運用
+
+**決めたこと (ユーザ)**
+- D11: qmake のビルドを廃止する。qmake を使う機械がなくなるため。
+- ブランチは、今後はユーザが GitHub 上で作ってから作業する (§9.1)。
+- Phase 0〜3 (Qt6 対応まで) は、終わったものから develop に取り込む。3D 表示は、完成して公式に採用されることが決まってから develop に取り込む。
+- 3D の試作は、`feature/ci` を GitHub に上げた後に、改めて相談する。
+
+**作ったもの**
+- `rcssmonitor.pro`、`src/src.pro`、`src/rcsslogplayer/` (qmake のビルドだけが使っていた古い rcsslogplayer のパーサの写し。CMake と autotools は `rcss/rcg/` を使う) を消した。
+
+**試験**
+- 消した後の作業ツリーの写しで、CMake のビルドと ctest、autotools のビルドが通った。
+- 手元のリモートは SSH (`git@github.com:`) なので、ワークフローのファイルを含むプッシュに、トークンの `workflow` 権限は要らない。

@@ -32,7 +32,7 @@ This plan is loaded to drive the development of rcssmonitor. The design and hist
 - Do not run too many GPU tests in parallel (during the web version work, a GPU page fault brought the work machine down).
 - At each step, add a record to §14 (decisions, bugs found, measurements, tests).
 - Keep the Japanese version (`PLAN_3D-VIEW.md`) and the English version (this document) of the plan in parallel. When one is changed, change the other to the same content in the same step.
-- Ask the user before creating a branch, committing, or pushing (the user does the commits and pushes).
+- The user creates branches on GitHub; locally, fetch them and switch to them (§9.1). The user does the commits and pushes.
 
 ## 1. Goals and scope
 
@@ -52,18 +52,20 @@ Out of scope: §13.
 - The bug fixes, the JSON parser improvements, and the Qt6 support are also part of this plan.
 - The plan is written in Japanese, with an English version kept in parallel (§0.1).
 - The work is done on branches derived from `develop`. The TCP / WebSocket support is not merged for now, because whether to adopt it officially has not been decided (D7, 2026-11-11).
+- Phases 0–3 (up to the Qt6 support) are merged into develop as each one is done. The 3D view (Phases 4–8) is merged into develop only after it is complete and its official adoption is decided (§9.1, 2026-11-11).
+- The qmake build is dropped (D11, 2026-11-11).
 
 ### 2.2 To decide at the start
 
 Confirm with the user in Phase 0 before proceeding. The recommendations are assumed by the following sections of this plan.
 
-State on 2026-11-11: the user decided D7 and D10 ("Decided" in the table). D1 is decided by the result of the Phase 0 prototype. D2–D6, D8, and D9 proceed with the recommendations. D11 is a problem found in Phase 0, to be confirmed with the user.
+State on 2026-11-11: the user decided D7, D10, and D11 ("Decided" in the table; D11 is a problem found in Phase 0). D1 is decided by the result of the Phase 0 prototype. D2–D6, D8, and D9 proceed with the recommendations.
 
 | # | Item | Recommendation | Alternatives | Reason |
 |---|---|---|---|---|
 | D1 | 3D rendering technology | `QOpenGLWidget` with our own rendering (OpenGL 3.3 core, our own shaders) | Qt Quick 3D (embedded with `QQuickWidget`) | §2.3 below |
 | D2 | Supported Qt versions | Both Qt 5.15 and Qt 6.2 or later (one source, switched) | Qt6 only | Ubuntu 22.04 has both Qt 5.15 and Qt 6.2. After a period of supporting both, Qt5 can be dropped in the next version |
-| D3 | Build systems | CMake is the main one. Qt6 is supported by CMake only; autotools and qmake (`.pro`) stay on Qt5 (3D is built by CMake only) | Make all three support Qt6 / drop autotools and qmake | Maintaining three is a lot of work. autotools' `AX_HAVE_QT` finds Qt through qmake, which makes Qt6 support hard |
+| D3 | Build systems | CMake is the main one. Qt6 is supported by CMake only; autotools stays on Qt5 (3D is built by CMake only). qmake (`.pro`) is dropped by D11 | Make all three support Qt6 / drop autotools and qmake | Maintaining three is a lot of work. autotools' `AX_HAVE_QT` finds Qt through qmake, which makes Qt6 support hard |
 | D4 | Is 3D optional in the build | CMake option `ENABLE_3D` (default ON). Where OpenGL 3.3 is unavailable, 3D is disabled at run time and the program works in 2D only | Make it mandatory | Keep 2D monitoring usable as before on old GPUs and virtual machines |
 | D5 | glTF loading | cgltf (single header, MIT) plus our own animation evaluation | tinygltf (MIT), Assimp (BSD, large) | As in §5.8, the pose is computed from the log every time, so no animation player is needed; reading the keyframes is enough |
 | D6 | Figure model | Re-export the web version's `Mannequin.glb` (CC0) without compression and put it in the Qt resources (qrc) | Bundle the meshoptimizer decoder (MIT) and read the web version's file as is | The web version's file requires `EXT_meshopt_compression` and `KHR_mesh_quantization`. For a desktop app, fewer dependencies matter more than size |
@@ -71,7 +73,7 @@ State on 2026-11-11: the user decided D7 and D10 ("Decided" in the table). D1 is
 | D8 | Version | 20.0.0 (aligned with asio rcssserver 20 and rcssmonitor-web 20) | 19.1.0 etc. | The Qt6 support and the 3D view are big changes |
 | D9 | Branch policy | Same as the web version (master: releases, develop: integration, feature/*: work, hotfix/*). Merges create merge commits. Per-phase branches in §9.1 | Follow rcssmonitor's current practice | The web version's `docs/release.md` |
 | D10 | master's AppImage workflow (§3.2) | **Decided direction**: the current workflow is a maintenance burden, so disable it. Replace it with an easier-to-maintain method if one can be established (user). Recommended replacement in §2.4 | Keep it as is (the code would have to stay buildable with Qt 5.12, which conflicts with D2) | It requires maintaining an Ubuntu 20.04 (end of support) Docker image, `qt5-default`, and custom shell and Python scripts. It builds with autotools, so 3D would not be included (D3) |
-| D11 | The qmake build (§3.2) | **Undecided**. Recommendation: drop it (delete `rcssmonitor.pro` and `src/src.pro`, and say so in the README) | Fix it (one definition, the version, boost) and add it to CI | It was already broken on develop, and nobody had noticed. CMake and autotools are enough. Fixing it means updating the `.pro` files whenever a file is added, and checking them in CI from then on |
+| D11 | The qmake build (§3.2) | **Decided**: drop it. Delete `rcssmonitor.pro`, `src/src.pro`, and `src/rcsslogplayer/`, an old copy of a parser that only the qmake build used (`feature/ci`). Mention it in NEWS (Phase 9). autotools uses qmake to find Qt, so the `qt5-qmake` package is still needed | Fix it (one definition, the version, boost) and add it to CI | No machine will use qmake any more (user). It was already broken on develop, and nobody had noticed. CMake and autotools are enough |
 
 ### 2.3 Comparison for D1 (3D rendering technology)
 
@@ -116,10 +118,10 @@ Decide after confirming with the recommended option, in the Phase 0 prototype (�
 
 ### 3.2 Build
 
-- There are three: CMake (`CMakeLists.txt`, `src/CMakeLists.txt`), autotools (`configure.ac`, `m4/ax_have_qt.m4`), and qmake (`rcssmonitor.pro`).
+- There are three: CMake (`CMakeLists.txt`, `src/CMakeLists.txt`), autotools (`configure.ac`, `m4/ax_have_qt.m4`), and qmake (`rcssmonitor.pro`). qmake was dropped by D11 (`feature/ci`).
 - All are hard-wired to Qt5 (`find_package(Qt5 COMPONENTS Core Gui Widgets Network REQUIRED)`). `feature/support-tcp-ws` optionally looks for WebSockets and Test.
 - C++17, CMake 3.5 or later.
-- The qmake build fails on develop (checked on 2026-11-11). `src/src.pro` lacks the `HAVE_ARPA_INET_H` definition, so it stops at `ntohs` in `disp_holder.cpp`. Its version is still 16.0.0, and it links the unused boost. Handled by D11. The CMake and autotools builds pass.
+- The qmake build fails on develop (checked on 2026-11-11). `src/src.pro` lacks the `HAVE_ARPA_INET_H` definition, so it stops at `ntohs` in `disp_holder.cpp`. Its version is still 16.0.0, and it links the unused boost. Dropped by D11. The CMake and autotools builds pass.
 - develop has no CI (no `.github/workflows`).
 - Only master has the AppImage workflow of PR #59 (`.github/workflows/main.yml`, named `ci`) and `utils/appimage/`. It runs on pushes to any branch and tag, builds with autotools in an Ubuntu 20.04 Docker image (Qt 5.12.8 from `qt5-default`), and creates a release when there is none for the version in `CMakeLists.txt`. It does not check the build or run tests. Handled by D10.
 
@@ -418,28 +420,29 @@ Tests: with fixtures (a short excerpt of `1-json.rcg.gz`, broken lines, unknown 
 4. Remove the `QT_VERSION_CHECK` branches for versions older than Qt 5.15.
 5. Eliminate deprecation warnings: build with `QT_DISABLE_DEPRECATED_BEFORE=0x050F00` on Qt5, and confirm that there are no deprecation warnings on Qt6.
 6. High DPI: enabled by default in Qt6. Confirm that the 2D drawing (line widths, text sizes) does not break at scale 1, 1.5, and 2. 3D renders according to `devicePixelRatio`.
-7. autotools and qmake stay on Qt5 as in D3; write in the README "Qt6 and 3D with CMake".
+7. autotools stays on Qt5 as in D3 (qmake is dropped by D11); write in the README "Qt6 and 3D with CMake".
 8. Build both Qt5 and Qt6 in CI (§10).
 9. Rewrite the README installation instructions for both Qt5 and Qt6 on Ubuntu 22.04 / 24.04 / 26.04.
 
 ## 9. Phase plan
 
-Each phase proceeds on a feature branch and is merged into develop when it is done (D9). Confirm with the user at each step.
+Each phase proceeds on a feature branch and is merged into develop when it is done (D9). The 3D view (Phases 4–8), however, is merged into develop only after it is complete and its official adoption is decided. Confirm with the user at each step.
 
 ### 9.1 Branches (approved by the user on 2026-11-11)
 
 | Phase | Branch |
 |---|---|
 | Phase 0: CI and test infrastructure | `feature/ci` |
-| Phase 0: 3D prototype | `proto/3d-gl` (local only; not merged) |
+| Phase 0: 3D prototype | `proto/3d-gl` (not merged; how to create it is discussed when the prototype starts) |
 | Phase 1: Bug fixes | `fix/parity-bugs` |
 | Phase 2: Parser improvements | `feature/json-parser` |
 | Phase 3: Qt6 support | `feature/qt6` |
 | Phase 4–8: 3D view | `feature/3d-view` |
 
-- The first branch is created from develop. Since the user does the merges, if the previous phase's branch is not in develop yet, derive from the previous phase's branch (stacking). Phase 1 and Phase 3 both change `main_window.cpp`, `config_dialog.cpp`, and `player_painter.cpp`, so stack them in order rather than working on them in parallel.
-- `proto/3d-gl` is created from develop.
-- Ask the user before creating any branch (§0.1). The upstream is set when pushing (create the branch with `--no-track`).
+- Phases 0–3 are merged into develop as each one is done (the user does the merges). The next phase's branch is created from develop after the previous phase has been merged. To start before that merge, create it from the previous phase's branch (stacking). Phase 1 and Phase 3 both change `main_window.cpp`, `config_dialog.cpp`, and `player_painter.cpp`, so stack them in order rather than working on them in parallel.
+- `feature/3d-view` is created from develop after the Qt6 support (Phase 3) has been merged. It is not merged into develop until it is complete and its official adoption is decided. Anything merged into develop in the meantime (the TCP / WebSocket support, etc.) is brought in by merging develop into `feature/3d-view`.
+- The user creates the branches on GitHub (from 2026-11-11). Locally, run `git fetch origin` and then `git switch <branch>`, which creates a local branch tracking the GitHub branch and switches to it. Only `feature/ci` was created locally first, so it is created on GitHub with `git push -u origin feature/ci`.
+- How to create `proto/3d-gl` (the prototype) is discussed when the prototype starts (2026-11-11).
 
 ### Phase 0: Foundation and validation
 
@@ -510,7 +513,7 @@ Each phase proceeds on a feature branch and is merged into develop when it is do
 
 ### Phase 9: Documents and release
 
-**Work**: README (3D, keys, settings, Qt6 build), ChangeLog and NEWS, the version per D8. According to the result of D10, delete master's `main.yml` and `utils/appimage/` or replace them with option A (done in the merge into master). The user merges into master and tags the release.
+**Work**: README (3D, keys, settings, Qt6 build), ChangeLog and NEWS (including the removal of qmake, D11), the version per D8. According to the result of D10, delete master's `main.yml` and `utils/appimage/` or replace them with option A (done in the merge into master). The user merges into master and tags the release.
 
 **Done when**: it is released.
 
@@ -585,6 +588,8 @@ Port the GL-independent calculations, using the web version's unit tests as mode
 
 **Change**: `main_window.cpp` (switching, menus, toolbar, keys), `field_canvas.cpp` (sharing the right-click menu), `log_player.cpp` (alpha), `options.{h,cpp}` (settings), `config_dialog.cpp`, `player_painter.cpp`, `ball_painter.cpp`, and `field_painter.cpp` (extracting the calculations, the grass stripe argument), `rcss/rcg/*` (§6, §7), `CMakeLists.txt` and `src/CMakeLists.txt` (Qt6, 3D), README.
 
+**Delete**: `rcssmonitor.pro`, `src/src.pro`, `src/rcsslogplayer/` (D11; deleted in Phase 0).
+
 ## 13. Out of scope
 
 - Things specific to the web version: distribution in the browser (single HTML, GitHub Pages), the file:// and https restrictions, browser key interception, URL parameters (rcssmonitor uses the command line and the settings file).
@@ -639,3 +644,18 @@ At each step, append the date, the decisions, what was built, the bugs found and
 - Ubuntu 26.04 (resolute) has Qt 5.15.18 (`qtbase5-dev`, `qt5-qmake`, `libqt5websockets5-dev`) and Qt 6.10.2 (`qt6-base-dev`, `qt6-websockets-dev`) (checked on packages.ubuntu.com).
 - The web version's CI passes on ubuntu-26.04 runners, so the same label is used.
 - GNUInstallDirs: in a build directory first configured with another prefix, changing `CMAKE_INSTALL_PREFIX` to `/usr` recomputes the libdir as `lib/x86_64-linux-gnu` even with `-DCMAKE_INSTALL_LIBDIR=lib`. CI configures in a fresh directory, so this does not matter there.
+
+#### 2026-11-11: Dropping qmake, and the branch workflow
+
+**Decisions (user)**
+- D11: drop the qmake build, because no machine will use qmake any more.
+- From now on, the user creates branches on GitHub before the work starts (§9.1).
+- Phases 0–3 (up to the Qt6 support) are merged into develop as each one is done. The 3D view is merged into develop only after it is complete and its official adoption is decided.
+- The 3D prototype is discussed again after `feature/ci` is on GitHub.
+
+**Built**
+- Deleted `rcssmonitor.pro`, `src/src.pro`, and `src/rcsslogplayer/` (an old copy of the rcsslogplayer parser that only the qmake build used; CMake and autotools use `rcss/rcg/`).
+
+**Tests**
+- On a copy of the working tree after the deletion, the CMake build and ctest, and the autotools build, passed.
+- The local remote uses SSH (`git@github.com:`), so a push that contains workflow files does not need the token's `workflow` scope.
