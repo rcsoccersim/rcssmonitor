@@ -25,7 +25,7 @@ function(rcssmonitor_add_test name)
   target_link_libraries(test_${name}
     PRIVATE
     ${ARGN}
-    Qt5::Test
+    Qt${QT_VERSION_MAJOR}::Test
     )
 
   add_test(NAME ${name} COMMAND test_${name})
@@ -35,18 +35,18 @@ function(rcssmonitor_add_test name)
     )
 endfunction()
 
-rcssmonitor_add_test(rcg_parser rcssrcg Qt5::Core)
-rcssmonitor_add_test(rcg_util rcssrcg Qt5::Core)
+rcssmonitor_add_test(rcg_parser rcssrcg Qt${QT_VERSION_MAJOR}::Core)
+rcssmonitor_add_test(rcg_util rcssrcg Qt${QT_VERSION_MAJOR}::Core)
 rcssmonitor_add_test(disp_holder rcssmonitor_core)
 rcssmonitor_add_test(overlay_math rcssmonitor_core)
 rcssmonitor_add_test(play_mode_position rcssmonitor_core)
 rcssmonitor_add_test(config_dialog rcssmonitor_core)
 rcssmonitor_add_test(player_select_keys rcssmonitor_core)
 rcssmonitor_add_test(play_mode_actions rcssmonitor_core)
-rcssmonitor_add_test(player_type_sort Qt5::Core Qt5::Gui)
+rcssmonitor_add_test(player_type_sort Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Gui)
 rcssmonitor_add_test(game_log_file rcssmonitor_core)
-rcssmonitor_add_test(line_parser rcssrcg Qt5::Core)
-rcssmonitor_add_test(rcg_types rcssrcg Qt5::Core)
+rcssmonitor_add_test(line_parser rcssrcg Qt${QT_VERSION_MAJOR}::Core)
+rcssmonitor_add_test(rcg_types rcssrcg Qt${QT_VERSION_MAJOR}::Core)
 
 # A benchmark of loading game logs (test/bench_load.cpp). CTest does not run it.
 add_executable(bench_load
