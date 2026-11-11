@@ -676,93 +676,106 @@ ParserSimdJSON::Impl::parseShow( simdjson::ondemand::value & val,
         return false;
     }
 
-    size_t i = 0;
+    // a player is placed by side and unum, not by the order in the array
+    int64_t unum = 0;
     try
     {
         for ( simdjson::ondemand::value p : val["players"].get_array() )
         {
-            if ( i >= 22 )
+            stmp = p["side"].get_string();
+            unum = p["unum"].get_int64();
+            if ( stmp.length() != 1
+                 || ( stmp[0] != 'l' && stmp[0] != 'r' )
+                 || unum < 1
+                 || MAX_PLAYER < unum )
             {
-                std::cerr << "(ParserSimdJSON::parseShow) player index overflow " << i << std::endl;
-                return false;
+                std::cerr << "(ParserSimdJSON::parseShow) time " << show.time_
+                          << ": skipped an illegal player " << stmp << ' ' << unum << std::endl;
+                continue;
+            }
+
+            PlayerT & player = show.player_[unum - 1 + ( stmp[0] == 'r' ? MAX_PLAYER : 0 )];
+            if ( player.unum_ != 0 )
+            {
+                std::cerr << "(ParserSimdJSON::parseShow) time " << show.time_
+                          << ": duplicated player " << stmp << ' ' << unum << std::endl;
+                player = PlayerT();
             }
 
             // begin
-            stmp = p["side"].get_string();
-            show.player_[i].side_ = stmp[0];
-            show.player_[i].unum_ = p["unum"].get_int64();
-            show.player_[i].type_ = p["type"].get_int64();
-            show.player_[i].state_ = p["state"].get_int64();
+            player.side_ = stmp[0];
+            player.unum_ = static_cast< Int16 >( unum );
+            player.type_ = p["type"].get_int64();
+            player.state_ = p["state"].get_int64();
 
             // pos
-            show.player_[i].x_ = p["x"].get_double();
-            show.player_[i].y_ = p["y"].get_double();
-            show.player_[i].vx_ = p["vx"].get_double();
-            show.player_[i].vy_ = p["vy"].get_double();
-            show.player_[i].body_ = p["body"].get_double();
-            show.player_[i].neck_ = p["neck"].get_double();
+            player.x_ = p["x"].get_double();
+            player.y_ = p["y"].get_double();
+            player.vx_ = p["vx"].get_double();
+            player.vy_ = p["vy"].get_double();
+            player.body_ = p["body"].get_double();
+            player.neck_ = p["neck"].get_double();
 
             // arm
             err = p["px"].get_double().get( dtmp );
-            if ( err == simdjson::SUCCESS ) show.player_[i].point_x_ = dtmp;
+            if ( err == simdjson::SUCCESS ) player.point_x_ = dtmp;
             err = p["py"].get_double().get( dtmp );
-            if ( err == simdjson::SUCCESS ) show.player_[i].point_y_ = dtmp;
+            if ( err == simdjson::SUCCESS ) player.point_y_ = dtmp;
 
             // view mode
             stmp = p["vq"].get_string();
-            show.player_[i].view_quality_ = ( stmp == "l" ? 'l' : 'h' );
-            show.player_[i].view_width_ = p["vw"].get_double();
+            player.view_quality_ = ( stmp == "l" ? 'l' : 'h' );
+            player.view_width_ = p["vw"].get_double();
 
             // focus point
             err = p["fdist"].get_double().get( dtmp );
-            if ( err == simdjson::SUCCESS ) show.player_[i].focus_dist_ = dtmp;
+            if ( err == simdjson::SUCCESS ) player.focus_dist_ = dtmp;
             err = p["fdir"].get_double().get( dtmp );
-            if ( err == simdjson::SUCCESS ) show.player_[i].focus_dir_ = dtmp;
+            if ( err == simdjson::SUCCESS ) player.focus_dir_ = dtmp;
 
             // stamina
-            show.player_[i].stamina_ = p["stamina"].get_double();
-            show.player_[i].effort_ = p["effort"].get_double();
-            show.player_[i].recovery_ = p["recovery"].get_double();
-            show.player_[i].stamina_capacity_ = p["capacity"].get_double();
+            player.stamina_ = p["stamina"].get_double();
+            player.effort_ = p["effort"].get_double();
+            player.recovery_ = p["recovery"].get_double();
+            player.stamina_capacity_ = p["capacity"].get_double();
 
             // focus
             err = p["fside"].get_string().get( stmp );
-            if ( err == simdjson::SUCCESS ) show.player_[i].focus_side_ = stmp[0];
+            if ( err == simdjson::SUCCESS ) player.focus_side_ = stmp[0];
             err = p["fnum"].get_int64().get( itmp );
-            if ( err == simdjson::SUCCESS ) show.player_[i].focus_unum_ = itmp;
+            if ( err == simdjson::SUCCESS ) player.focus_unum_ = itmp;
 
             // count
             err = p["kick"].get_int64().get( itmp );
-            if ( err == simdjson::SUCCESS ) show.player_[i].kick_count_ = itmp;
+            if ( err == simdjson::SUCCESS ) player.kick_count_ = itmp;
             err = p["dash"].get_int64().get( itmp );
-            if ( err == simdjson::SUCCESS ) show.player_[i].dash_count_ = itmp;
+            if ( err == simdjson::SUCCESS ) player.dash_count_ = itmp;
             err = p["turn"].get_int64().get( itmp );
-            if ( err == simdjson::SUCCESS ) show.player_[i].turn_count_ = itmp;
+            if ( err == simdjson::SUCCESS ) player.turn_count_ = itmp;
             err = p["catch"].get_int64().get( itmp );
-            if ( err == simdjson::SUCCESS ) show.player_[i].catch_count_ = itmp;
+            if ( err == simdjson::SUCCESS ) player.catch_count_ = itmp;
             err = p["move"].get_int64().get( itmp );
-            if ( err == simdjson::SUCCESS ) show.player_[i].move_count_ = itmp;
+            if ( err == simdjson::SUCCESS ) player.move_count_ = itmp;
             err = p["turn_neck"].get_int64().get( itmp );
-            if ( err == simdjson::SUCCESS ) show.player_[i].turn_neck_count_ = itmp;
+            if ( err == simdjson::SUCCESS ) player.turn_neck_count_ = itmp;
             err = p["change_view"].get_int64().get( itmp );
-            if ( err == simdjson::SUCCESS ) show.player_[i].change_view_count_ = itmp;
+            if ( err == simdjson::SUCCESS ) player.change_view_count_ = itmp;
             err = p["say"].get_int64().get( itmp );
-            if ( err == simdjson::SUCCESS ) show.player_[i].say_count_ = itmp;
+            if ( err == simdjson::SUCCESS ) player.say_count_ = itmp;
             err = p["tackle"].get_int64().get( itmp );
-            if ( err == simdjson::SUCCESS ) show.player_[i].tackle_count_ = itmp;
+            if ( err == simdjson::SUCCESS ) player.tackle_count_ = itmp;
             err = p["pointto"].get_int64().get( itmp );
-            if ( err == simdjson::SUCCESS ) show.player_[i].pointto_count_ = itmp;
+            if ( err == simdjson::SUCCESS ) player.pointto_count_ = itmp;
             err = p["attentionto"].get_int64().get( itmp );
-            if ( err == simdjson::SUCCESS ) show.player_[i].attentionto_count_ = itmp;
+            if ( err == simdjson::SUCCESS ) player.attentionto_count_ = itmp;
             err = p["change_focus"].get_int64().get( itmp );
-            if ( err == simdjson::SUCCESS ) show.player_[i].change_focus_count_ = itmp;
+            if ( err == simdjson::SUCCESS ) player.change_focus_count_ = itmp;
 
-            ++i;
         }
     }
     catch ( std::exception & e )
     {
-        std::cerr << "(ParserSimdJSON::parseShow) player part " << i << ": " << e.what() << std::endl;
+        std::cerr << "(ParserSimdJSON::parseShow) player part " << unum << ": " << e.what() << std::endl;
     }
 
     return handler.handleShow( show );

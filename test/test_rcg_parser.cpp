@@ -366,6 +366,48 @@ jsonWithUnknownKeys()
     return data;
 }
 
+/*!
+  \brief the player objects of a JSON show line, in order.
+*/
+std::vector< std::string >
+jsonPlayers( const std::string & show )
+{
+    const std::string key = "\"players\":[";
+    const std::size_t first = show.find( key ) + key.size();
+    const std::size_t last = show.rfind( ']' );
+
+    std::vector< std::string > players;
+    std::size_t pos = first;
+    while ( pos < last )
+    {
+        std::size_t next = show.find( ",{\"side\":", pos );
+        if ( next == std::string::npos || next > last ) next = last;
+        players.push_back( show.substr( pos, next - pos ) );
+        pos = next + 1;
+    }
+    return players;
+}
+
+/*!
+  \brief a JSON show line with its player objects replaced.
+*/
+std::string
+jsonShowWithPlayers( const std::string & show,
+                     const std::vector< std::string > & players )
+{
+    const std::string key = "\"players\":[";
+    const std::size_t first = show.find( key ) + key.size();
+    const std::size_t last = show.rfind( ']' );
+
+    std::string list;
+    for ( const std::string & p : players )
+    {
+        if ( ! list.empty() ) list += ',';
+        list += p;
+    }
+    return show.substr( 0, first ) + list + show.substr( last );
+}
+
 //! the number of shows in the large logs: the lines are parsed in parallel
 const int MANY_SHOWS = 5000;
 
@@ -391,6 +433,7 @@ private slots:
     void jsonRecordThatFailsOneLine();
     void liveMessages();
     void jsonViewQuality();
+    void jsonPlayersBySideAndUnum();
     void textManyLines();
     void textManyLinesStopAtIllegalLine();
     void jsonManyLines();
@@ -643,6 +686,61 @@ TestRcgParser::jsonViewQuality()
     QCOMPARE( handler.shows_[0].player_[0].view_quality_, 'l' );
     QCOMPARE( handler.shows_[0].player_[1].view_quality_, 'h' );
     QCOMPARE( handler.shows_[1].player_[0].view_quality_, 'h' );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  The players are placed by side and unum, not by their order in the array
+  (B4). A missing player stays disabled, an illegal one is skipped, and of
+  a duplicated one, the last is read.
+*/
+void
+TestRcgParser::jsonPlayersBySideAndUnum()
+{
+    std::string header, show;
+    splitFixture( readFixture( "head_json.rcg" ), 23, "{\"show\":{\"time\":1,", &header, &show );
+
+    std::vector< std::string > players = jsonPlayers( show );
+    QCOMPARE( players.size(), size_t( 22 ) );
+    QVERIFY( players[15].find( "{\"side\":\"r\",\"unum\":5," ) == 0 );
+
+    std::string illegal = players[0];
+    replaceFirst( &illegal, "\"side\":\"l\"", "\"side\":\"x\"" );
+    std::string out_of_range = players[0];
+    replaceFirst( &out_of_range, "\"unum\":1,", "\"unum\":12," );
+    std::string duplicated = players[1]; // l 2, read after the first one
+    replaceFirst( &duplicated, "\"x\":", "\"x\":7,\"old_x\":" );
+
+    players.erase( players.begin() + 15 ); // r 5
+    std::reverse( players.begin(), players.end() );
+    players.insert( players.begin() + 3, illegal );
+    players.push_back( out_of_range );
+    players.push_back( duplicated );
+
+    const std::string data = header + jsonShowWithPlayers( show, players ) + "\n]\n";
+
+    RecordingHandler handler;
+    QVERIFY( parseJsonData( data, handler ) );
+    QCOMPARE( handler.shows_.size(), size_t( 1 ) );
+
+    const rcss::rcg::ShowInfoT & s = handler.shows_.front();
+    for ( int i = 0; i < rcss::rcg::MAX_PLAYER * 2; ++i )
+    {
+        const char side = ( i < rcss::rcg::MAX_PLAYER ? 'l' : 'r' );
+        const int unum = i % rcss::rcg::MAX_PLAYER + 1;
+        if ( i == 15 )
+        {
+            QCOMPARE( s.player_[i].side_, 'n' );
+            QCOMPARE( int( s.player_[i].unum_ ), 0 );
+            continue;
+        }
+        QCOMPARE( s.player_[i].side_, side );
+        QCOMPARE( int( s.player_[i].unum_ ), unum );
+    }
+    QCOMPARE( s.player_[0].x_, -49.0f );
+    QCOMPARE( s.player_[1].x_, 7.0f );
+    QCOMPARE( s.player_[21].x_, 11.0f );
+    QCOMPARE( s.player_[21].y_, 11.0f );
 }
 
 /*-------------------------------------------------------------------*/
