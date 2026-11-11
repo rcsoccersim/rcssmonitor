@@ -705,6 +705,8 @@ struct BallT {
     float y_; //!< ball position y
     float vx_; //!< ball velocity x
     float vy_; //!< ball velocity y
+    float z_; //!< ball height [m], up is positive. 0 on the ground (and without the height in the data)
+    float vz_; //!< ball vertical velocity [m/cycle], up is positive
 
     /*!
       \brief initialize all variables by 0
@@ -713,7 +715,9 @@ struct BallT {
         : x_( 0.0 ),
           y_( 0.0 ),
           vx_( SHOWINFO_SCALE2F ),
-          vy_( SHOWINFO_SCALE2F )
+          vy_( SHOWINFO_SCALE2F ),
+          z_( 0.0 ),
+          vz_( 0.0 )
       { }
 
     /*!

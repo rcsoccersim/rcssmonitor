@@ -800,6 +800,9 @@ ParserSimdJSON::Impl::parseShow( simdjson::ondemand::value & val,
         read_double( ball, "y", &show.ball_.y_ );
         read_double( ball, "vx", &show.ball_.vx_ );
         read_double( ball, "vy", &show.ball_.vy_ );
+        // the height, for a planned 2.5D simulator (the keys are provisional)
+        read_double( ball, "z", &show.ball_.z_ );
+        read_double( ball, "vz", &show.ball_.vz_ );
     }
 
     // a player is placed by side and unum, not by the order in the array

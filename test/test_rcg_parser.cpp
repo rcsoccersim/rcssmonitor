@@ -437,6 +437,7 @@ private slots:
     void jsonViewQuality();
     void jsonPlayersBySideAndUnum();
     void jsonOmittedFields();
+    void jsonBallHeight();
     void textManyLines();
     void textManyLinesStopAtIllegalLine();
     void jsonManyLines();
@@ -820,6 +821,30 @@ TestRcgParser::jsonOmittedFields()
     QCOMPARE( int( s2.stime_ ), 3 );
     QCOMPARE( s2.ball_.vx_, 0.25f );
     QCOMPARE( s2.player_[0].unum_, rcss::rcg::Int16( 0 ) );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  The height of the ball and its vertical velocity are read if they are
+  there (§7.6 of the plan), and are 0 if not.
+*/
+void
+TestRcgParser::jsonBallHeight()
+{
+    const std::string data
+        = "[\n"
+          "{\"show\":{\"time\":1,\"ball\":{\"x\":1,\"y\":2,\"z\":1.5,\"vx\":0.5,\"vy\":0,\"vz\":-0.25},\"players\":[]}},\n"
+          "{\"show\":{\"time\":2,\"ball\":{\"x\":1.5,\"y\":2,\"vx\":0.5,\"vy\":0},\"players\":[]}}\n"
+          "]\n";
+
+    RecordingHandler handler;
+    QVERIFY( parseJsonData( data, handler ) );
+    QCOMPARE( handler.shows_.size(), size_t( 2 ) );
+    QCOMPARE( handler.shows_[0].ball_.z_, 1.5f );
+    QCOMPARE( handler.shows_[0].ball_.vz_, -0.25f );
+    QCOMPARE( handler.shows_[0].ball_.x_, 1.0f );
+    QCOMPARE( handler.shows_[1].ball_.z_, 0.0f );
+    QCOMPARE( handler.shows_[1].ball_.vz_, 0.0f );
 }
 
 /*-------------------------------------------------------------------*/
