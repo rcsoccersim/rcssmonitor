@@ -590,7 +590,7 @@ Port the GL-independent calculations, using the web version's unit tests as mode
 | `overlay_math.{h,cpp}` | Overlay calculations shared by 2D and 3D (moved from the 2D painters). Created in `src/` in Phase 1, with the offside lines |
 | `play_mode_position.{h,cpp}` | The ball position for Change Playmode (Phase 1; also used by the 3D referee operations) |
 | `player_type_sort_proxy.h` | Sorting of the player type list (Phase 1) |
-| `game_log_file.{h,cpp}` | Reading a log file into one buffer and parsing it (Phase 2) |
+| `game_log_file.{h,cpp}` | Reading a log file into one buffer and parsing it. With libdeflate, gzip is decompressed with it (Phase 2) |
 | `rcss/rcg/line_parser.{h,cpp}` | Parsing the lines of a log in parallel and passing them to the handler in order (Phase 2) |
 | `test/bench_load.cpp` | Measuring the loading speed (Phase 2; not run in CI) |
 | `stadium_3d`, `scenery_3d`, `ball_3d`, `ball_aids_3d` | Components |
@@ -808,3 +808,34 @@ After PR #63 (`feature/ci`) was merged into develop with a merge commit, the use
 - As JSON is now read line by line, a record that cannot be parsed (including one with an unknown key; B3) skips only that line (before, the whole parse stopped). B3 will skip only the unknown keys.
 - `Handler::handleTimestamp()` is not virtual, so the recording handler of the parallel path cannot record it. Fix it with §7 item 7 (passing the timestamp to the handler).
 - In the parallel path, the return values of the handler's functions are not used (the app's handler always returns true).
+
+#### 2026-11-12: libdeflate (`feature/json-parser`)
+
+The 8 commits of batch A (d36e1a9 to 8b9d510) were pushed. CI passed both CMake and autotools. The warnings of the bundled simdjson (9 of `-Wtemplate-id-cdtor`) are gone with 5.1.1, and there are no compiler warnings. The CI run when the branch was created (c269eee) failed because the runner could not resolve `security.ubuntu.com` and could not install the packages (unrelated to the code).
+
+**Decided (user)**
+- Use libdeflate as an optional dependency to decompress faster (without it, zlib alone works).
+
+**Measured (before)**: Decompression alone: zlib (`gzread`, 1 MB at a time) JSON 69 ms, text 48 ms. libdeflate (read the file, decompress at once) 34 ms, 22 ms (including reading, 7.5 ms and 6.5 ms).
+
+**Made**
+- `src/game_log_file.cpp`: With libdeflate, the file is read as it is and, if gzip, decompressed at once. The output size comes from the ISIZE at the end, and is doubled when it is not enough (up to the largest deflate ratio, 1032:1). Concatenated gzip members are read, and bytes that are not gzip after a member are ignored, as zlib does. Data that libdeflate cannot decompress (cut in the middle) are read again on the zlib path. zlib reads a gzip that is cut in the middle up to the cut (a log of a server that stopped abnormally; §7 item 4).
+- CMake: `ENABLE_LIBDEFLATE` (default ON). If found, `HAVE_LIBDEFLATE` is defined (searched with `find_path` and `find_library`, because libdeflate on older distributions has no CMake config file). autotools: `--with-libdeflate` (by default it is used if found; `--without-libdeflate` does not use it; `--with-libdeflate` fails if it is not found). The library is added only to the app, with `LIBDEFLATE_LIBS` (in the global `LIBS`, it would also go into the test link of `AX_HAVE_QT`, which checks Qt).
+- CI: the CMake job installs `libdeflate-dev` and the autotools job does not (both paths are compiled). README says it is an optional dependency.
+
+**Results (the app's `parsing elapsed`, offscreen, 3 runs)**
+
+| Build | JSON | Text |
+|---|---|---|
+| CMake, zlib only | 91–119 ms | 95–100 ms |
+| CMake, libdeflate | 63–76 ms | 59–60 ms |
+| autotools, zlib only | 117–119 ms | 76–106 ms |
+| autotools, libdeflate | 76–77 ms | 59–64 ms |
+
+`bench_load` (best of 5): zlib only 84–117 / 60 ms, libdeflate 53–74 / 33–42 ms.
+
+**Tests**
+- Added to test `game_log_file`: a gzip of several members (the last member is small, so the size from ISIZE is not enough and the growing path is taken), a gzip cut in the middle (read up to the cut), and extra bytes after the gzip.
+- Checked on clean copies: CMake without and with libdeflate, and autotools in 3 cases (used if found, `--without-libdeflate`, and `--with-libdeflate` when it is missing). In both CMake builds, all 9 tests pass.
+- As a failure falls back to zlib, passing tests alone do not show that the libdeflate path was taken. With a temporary print, it was confirmed that a plain gzip, several members, and extra bytes are read with libdeflate, and a cut one with zlib.
+- `libdeflate-dev` is not installed on the work machine, so the package fetched with `apt-get download` was extracted into a temporary directory and used (the library is the system's `libdeflate.so.0`).

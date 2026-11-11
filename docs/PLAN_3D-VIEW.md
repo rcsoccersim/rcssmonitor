@@ -590,7 +590,7 @@ GL に依存しない計算を、web 版の単体テストを手本に移す。
 | `overlay_math.{h,cpp}` | 2D と 3D で共有する重ね描きの計算 (2D の painter から移す)。Phase 1 で `src/` に作り、オフサイドラインを移した |
 | `play_mode_position.{h,cpp}` | Change Playmode のボールの位置 (Phase 1。3D の審判操作でも使う) |
 | `player_type_sort_proxy.h` | 選手タイプ一覧の並べ替え (Phase 1) |
-| `game_log_file.{h,cpp}` | ログのファイルを 1 つのバッファに読み、解析する (Phase 2) |
+| `game_log_file.{h,cpp}` | ログのファイルを 1 つのバッファに読み、解析する。libdeflate があれば、gzip をそれで展開する (Phase 2) |
 | `rcss/rcg/line_parser.{h,cpp}` | ログの行を並列に解析し、順に Handler に渡す (Phase 2) |
 | `test/bench_load.cpp` | 読み込みの速さを測る (Phase 2。CI では動かさない) |
 | `stadium_3d`、`scenery_3d`、`ball_3d`、`ball_aids_3d` | 部品 |
@@ -808,3 +808,34 @@ PR #63 (`feature/ci`) を Merge Commit で develop に取り込んだ後、ユ�
 - JSON を 1 行ずつ読むようにしたので、解析できないレコード (未知のキーを含む。B3) は、その行だけ飛ばす (前は解析全体が止まった)。B3 では、未知のキーだけを飛ばすようにする。
 - `Handler::handleTimestamp()` は仮想関数でないので、並列のときの記録用の Handler では記録できない。§7 の 7 (timestamp を Handler に渡す) のときに直す。
 - 並列のとき、Handler の関数の戻り値は使わない (アプリの Handler はいつも true を返す)。
+
+#### 2026-11-12: libdeflate (`feature/json-parser`)
+
+まとまり A の 8 コミット (d36e1a9〜8b9d510) をプッシュした。CI は CMake と autotools の両方が通った。同梱の simdjson の警告 (`-Wtemplate-id-cdtor` 9 件) は 5.1.1 でなくなり、コンパイラの警告はない。なお、ブランチを作ったときの CI (c269eee) は、ランナーが `security.ubuntu.com` の名前を引けずにパッケージを入れられなかったために失敗した (コードとは関係ない)。
+
+**決めたこと (ユーザ)**
+- 展開を速くするため、libdeflate を任意の依存として使う (見つからなければ zlib だけで動く)。
+
+**測ったこと (直す前)**: 展開だけで、zlib (`gzread`、1 MB ずつ) が JSON 69 ms、テキスト 48 ms。libdeflate (ファイルを読み、一度に展開) が 34 ms、22 ms (読み込みの 7.5 ms、6.5 ms を含む)。
+
+**作ったもの**
+- `src/game_log_file.cpp`: libdeflate があれば、ファイルをそのまま読み、gzip なら一度に展開する。展開先の大きさは末尾の ISIZE で決め、足りなければ倍にする (deflate の最大の比 1032:1 を上限にする)。複数のメンバをつないだ gzip を読み、メンバの後の gzip でないバイトは zlib と同じく無視する。libdeflate が展開できないデータ (途中で切れたもの) は、zlib の道で読み直す。zlib は、途中で切れた gzip を切れたところまで読む (サーバが異常終了したログ。§7 の 4)。
+- CMake: `ENABLE_LIBDEFLATE` (既定 ON)。見つかれば `HAVE_LIBDEFLATE` を定義する (古いディストリビューションの libdeflate には CMake の設定ファイルがないので、`find_path` と `find_library` で探す)。autotools: `--with-libdeflate` (既定は見つかれば使う。`--without-libdeflate` で使わない、`--with-libdeflate` で見つからなければエラー)。ライブラリは `LIBDEFLATE_LIBS` でアプリにだけ付ける (全体の `LIBS` に足すと、Qt を確かめる `AX_HAVE_QT` の試しのリンクにも付く)。
+- CI: CMake のジョブに `libdeflate-dev` を入れ、autotools のジョブには入れない (両方の道をコンパイルする)。README に、任意の依存であることを書いた。
+
+**結果 (アプリの `parsing elapsed`、offscreen、3 回)**
+
+| ビルド | JSON | テキスト |
+|---|---|---|
+| CMake、zlib だけ | 91〜119 ms | 95〜100 ms |
+| CMake、libdeflate | 63〜76 ms | 59〜60 ms |
+| autotools、zlib だけ | 117〜119 ms | 76〜106 ms |
+| autotools、libdeflate | 76〜77 ms | 59〜64 ms |
+
+`bench_load` (5 回の最良) は、zlib だけで 84〜117 / 60 ms、libdeflate で 53〜74 / 33〜42 ms。
+
+**試験**
+- テスト `game_log_file` に足した: 複数のメンバの gzip (最後のメンバが小さいので、ISIZE から決めた大きさが足りず、広げる道を通る)、途中で切れた gzip (切れたところまで読む)、gzip の後の余計なバイト。
+- CMake で libdeflate なしとありの両方、autotools で 3 つの場合 (見つかれば使う、`--without-libdeflate`、見つからないときの `--with-libdeflate`) を、きれいなコピーで確かめた。CMake の 2 つは 9 個のテストがすべて通る。
+- 失敗しても zlib に戻るので、テストが通るだけでは libdeflate の道を通ったかがわからない。一時的に表示を入れて、ふつうの gzip、複数のメンバ、余計なバイトは libdeflate で、途中で切れたものは zlib で読むことを確かめた。
+- 手元には `libdeflate-dev` がないので、`apt-get download` で取ってきたパッケージを一時ディレクトリに展開して使った (ライブラリはシステムの `libdeflate.so.0`)。
