@@ -45,6 +45,7 @@
 #include "player_type_dialog.h"
 
 #include "disp_holder.h"
+#include "player_type_sort_proxy.h"
 
 #include <rcss/rcg/types.h>
 
@@ -55,28 +56,6 @@
 namespace {
 const int COL_SIZE = 15; // the number of param string
 }
-
-class PlayerTypeSortProxy
-    : public QSortFilterProxyModel {
-public:
-    PlayerTypeSortProxy( QObject * parent )
-        : QSortFilterProxyModel( parent )
-      { }
-
-protected:
-
-    virtual
-    bool lessThan( const QModelIndex & left,
-                   const QModelIndex & right ) const
-      {
-          const QAbstractItemModel * src = sourceModel();
-
-          double lhs = src->data( left ).toString().toDouble();
-          double rhs = src->data( right ).toString().toDouble();
-
-          return lhs < rhs;
-      }
-};
 
 /*-------------------------------------------------------------------*/
 /*!

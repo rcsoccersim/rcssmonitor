@@ -62,6 +62,7 @@ noinst_HEADERS = \
 	play_mode_position.h \
 	player_painter.h \
 	player_type_dialog.h \
+	player_type_sort_proxy.h \
 	rcg_handler.h \
 	score_board_painter.h \
 	team_graphic.h \
