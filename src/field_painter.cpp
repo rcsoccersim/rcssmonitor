@@ -34,13 +34,7 @@
 #include <config.h>
 #endif
 
-#include <QtGlobal>
-
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
 #include <QtWidgets>
-#else
-#include <QtGui>
-#endif
 
 #include "field_painter.h"
 
@@ -592,11 +586,7 @@ FieldPainter::drawGrid( QPainter & painter ) const
 
     const QFontMetrics metrics = painter.fontMetrics();
     const int text_step_x = ( opt.showGridCoord()
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0))
                               ? metrics.horizontalAdvance( QObject::tr( "-00.000" ) )
-#else
-                              ? metrics.width( QObject::tr( "-00.000" ) )
-#endif
                               : 100000 );
     const int text_step_y = ( opt.showGridCoord()
                               ? metrics.ascent()

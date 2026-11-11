@@ -34,13 +34,7 @@
 #include <config.h>
 #endif
 
-#include <QtGlobal>
-
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
 #include <QtWidgets>
-#else
-#include <QtGui>
-#endif
 
 #include "main_window.h"
 
@@ -883,11 +877,7 @@ MainWindow::createStatusBar()
 
     min_width
         =
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0))
         M_position_label->fontMetrics().horizontalAdvance( tr( "(-60.0, -30.0)" ) )
-#else
-        M_position_label->fontMetrics().width( tr( "(-60.0, -30.0)" ) )
-#endif
         + 16;
 
     M_position_label->setMinimumWidth( min_width );
@@ -1310,11 +1300,7 @@ MainWindow::closeEvent( QCloseEvent * event )
 void
 MainWindow::wheelEvent( QWheelEvent * event )
 {
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 15, 0))
     const int delta = event->angleDelta().y();
-#else
-    const int delta = event->delta();
-#endif
     if ( delta < 0 )
     {
         M_log_player_step_forward_act->trigger();
@@ -1639,11 +1625,7 @@ MainWindow::printShortcutKeys()
         table_widget->setHorizontalHeaderLabels( header );
 
         table_widget->horizontalHeader()->setStretchLastSection( true );
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
         table_widget->horizontalHeader()->setSectionResizeMode( QHeaderView::ResizeToContents );
-#else
-        table_widget->horizontalHeader()->setResizeMode( QHeaderView::ResizeToContents );
-#endif
         table_widget->verticalHeader()->hide();
 
         int row = 0;

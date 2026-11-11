@@ -34,13 +34,7 @@
 #include <config.h>
 #endif
 
-#include <QtGlobal>
-
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
 #include <QtWidgets>
-#else
-#include <QtGui>
-#endif
 
 #include "player_painter.h"
 
@@ -306,7 +300,6 @@ PlayerPainter::drawBody( QPainter & painter,
     // draw stamina status if effort or recovery is decayed.
     if ( param.player_.hasStamina() )
     {
-#if QT_VERSION >= 0x040300
         double stamina_rate = param.player_.stamina_ / M_disp_holder.serverParam().stamina_max_;
         int dark_rate = 200 - static_cast< int >( rint( 200 * rint( stamina_rate / 0.125 ) * 0.125 ) );
         dark_rate = std::max( 0, dark_rate - 50 );
@@ -324,17 +317,6 @@ PlayerPainter::drawBody( QPainter & painter,
                              param.y_ - param.body_radius_,
                              param.body_radius_ * 2 ,
                              param.body_radius_ * 2  );
-#else
-        if ( param.player_.stamina_ < 1500.0f )
-        {
-            painter.setPen( Qt::NoPen );
-            painter.setBrush( Qt::black );
-            painter.drawEllipse( param.x_ - param.body_radius_,
-                                 param.y_ - param.body_radius_,
-                                 param.body_radius_ * 2 ,
-                                 param.body_radius_ * 2  );
-        }
-#endif
 
         if ( ! param.player_.hasFullEffort( param.player_type_.effort_max_ ) )
         {

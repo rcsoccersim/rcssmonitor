@@ -34,13 +34,7 @@
 #include <config.h>
 #endif
 
-#include <QtGlobal>
-
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
 #include <QtWidgets>
-#else
-#include <QtGui>
-#endif
 
 #include "player_type_dialog.h"
 
@@ -101,18 +95,12 @@ PlayerTypeDialog::createTable()
     M_item_view->verticalHeader()->hide();
     M_item_view->setShowGrid( false );
     M_item_view->setAlternatingRowColors( true );
-#if QT_VERSION >= 0x040200
     M_item_view->setSortingEnabled( true );
-#endif
 
     M_item_view->setHorizontalScrollBarPolicy( Qt::ScrollBarAlwaysOff );
     M_item_view->setVerticalScrollBarPolicy( Qt::ScrollBarAlwaysOff );
 
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
     M_item_view->horizontalHeader()->setSectionResizeMode( QHeaderView::ResizeToContents );
-#else
-    M_item_view->horizontalHeader()->setResizeMode( QHeaderView::ResizeToContents );
-#endif
 
     QFont font = M_item_view->font();
     font.setPointSize( 9 );
@@ -164,11 +152,6 @@ PlayerTypeDialog::createModel()
     updateData();
 }
 
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0))
-#define HORIZONTAL_ADVANCE horizontalAdvance
-#else
-#define HORIZONTAL_ADVANCE width
-#endif
 
 /*-------------------------------------------------------------------*/
 /*!
@@ -189,37 +172,37 @@ PlayerTypeDialog::adjustSize()
 
     int i = 0;
     // id
-    M_item_view->setColumnWidth( i, metrics.HORIZONTAL_ADVANCE( "   1" ) + 4 ); ++i;
+    M_item_view->setColumnWidth( i, metrics.horizontalAdvance( "   1" ) + 4 ); ++i;
     // size
-    M_item_view->setColumnWidth( i, metrics.HORIZONTAL_ADVANCE( "  0.00" ) + 4 ); ++i;
+    M_item_view->setColumnWidth( i, metrics.horizontalAdvance( "  0.00" ) + 4 ); ++i;
     // speed max
-    M_item_view->setColumnWidth( i, metrics.HORIZONTAL_ADVANCE( "00.000 / 00.000" ) + 4 ); ++i;
+    M_item_view->setColumnWidth( i, metrics.horizontalAdvance( "00.000 / 00.000" ) + 4 ); ++i;
     // accel max
-    M_item_view->setColumnWidth( i, metrics.HORIZONTAL_ADVANCE( "  0.000000" ) + 4 ); ++i;
+    M_item_view->setColumnWidth( i, metrics.horizontalAdvance( "  0.000000" ) + 4 ); ++i;
     // dash power rate
-    M_item_view->setColumnWidth( i, metrics.HORIZONTAL_ADVANCE( "  0.000000" ) + 4 ); ++i;
+    M_item_view->setColumnWidth( i, metrics.horizontalAdvance( "  0.000000" ) + 4 ); ++i;
     // decay
-    M_item_view->setColumnWidth( i, metrics.HORIZONTAL_ADVANCE( "  0.0000" ) + 4 ); ++i;
+    M_item_view->setColumnWidth( i, metrics.horizontalAdvance( "  0.0000" ) + 4 ); ++i;
     // inertia
-    M_item_view->setColumnWidth( i, metrics.HORIZONTAL_ADVANCE( "  0.0000" ) + 4 ); ++i;
+    M_item_view->setColumnWidth( i, metrics.horizontalAdvance( "  0.0000" ) + 4 ); ++i;
     // kickable area
-    M_item_view->setColumnWidth( i, metrics.HORIZONTAL_ADVANCE( "  0.0000" ) + 4 ); ++i;
+    M_item_view->setColumnWidth( i, metrics.horizontalAdvance( "  0.0000" ) + 4 ); ++i;
     // kickable margin
-    M_item_view->setColumnWidth( i, metrics.HORIZONTAL_ADVANCE( "  0.0000" ) + 4 ); ++i;
+    M_item_view->setColumnWidth( i, metrics.horizontalAdvance( "  0.0000" ) + 4 ); ++i;
     // kick power rate
-    M_item_view->setColumnWidth( i, metrics.HORIZONTAL_ADVANCE( "  0.000000" ) + 4 ); ++i;
+    M_item_view->setColumnWidth( i, metrics.horizontalAdvance( "  0.000000" ) + 4 ); ++i;
     // kick rand
-    M_item_view->setColumnWidth( i, metrics.HORIZONTAL_ADVANCE( "  0.0000" ) + 4 ); ++i;
+    M_item_view->setColumnWidth( i, metrics.horizontalAdvance( "  0.0000" ) + 4 ); ++i;
     // catchable area
-    M_item_view->setColumnWidth( i, metrics.HORIZONTAL_ADVANCE( "  0.000 - 0.000" ) + 4 ); ++i;
+    M_item_view->setColumnWidth( i, metrics.horizontalAdvance( "  0.000 - 0.000" ) + 4 ); ++i;
     // stamina inc max
-    M_item_view->setColumnWidth( i, metrics.HORIZONTAL_ADVANCE( "  00.00" ) + 4 ); ++i;
+    M_item_view->setColumnWidth( i, metrics.horizontalAdvance( "  00.00" ) + 4 ); ++i;
     // extra stamina
-    M_item_view->setColumnWidth( i, metrics.HORIZONTAL_ADVANCE( "  00.00" ) + 4 ); ++i;
+    M_item_view->setColumnWidth( i, metrics.horizontalAdvance( "  00.00" ) + 4 ); ++i;
     // effort max - min
-    M_item_view->setColumnWidth( i, metrics.HORIZONTAL_ADVANCE( "  0.000 - 0.000" ) + 4 ); ++i;
+    M_item_view->setColumnWidth( i, metrics.horizontalAdvance( "  0.000 - 0.000" ) + 4 ); ++i;
     // foul detect probability
-    M_item_view->setColumnWidth( i, metrics.HORIZONTAL_ADVANCE( "  0.0000" ) + 4 ); ++i;
+    M_item_view->setColumnWidth( i, metrics.horizontalAdvance( "  0.0000" ) + 4 ); ++i;
 
     QRect rect = this->geometry();
     QRect child_rect = this->childrenRect();
@@ -246,18 +229,7 @@ PlayerTypeDialog::updateData()
 
     if ( M_model->rowCount() != ROW_SIZE )
     {
-#if QT_VERSION >= 0x040200
         M_model->setRowCount( ROW_SIZE );
-#else
-        if ( M_model->rowCount() < ROW_SIZE )
-        {
-            M_model->insertRows( 0, ROW_SIZE - M_model->rowCount() );
-        }
-        else if ( M_model->rowCount() > ROW_SIZE )
-        {
-            M_model->removeRows( 0, M_model->rowCount() - ROW_SIZE );
-        }
-#endif
     }
 
     const rcss::rcg::ServerParamT & SP = M_disp_holder.serverParam();
@@ -372,11 +344,7 @@ PlayerTypeDialog::showEvent( QShowEvent * event )
 void
 PlayerTypeDialog::wheelEvent( QWheelEvent * event )
 {
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 15, 0))
     const int delta = event->angleDelta().y();
-#else
-    const int delta = event->delta();
-#endif
     if ( delta < 0 )
     {
         this->setWindowOpacity( std::max( 0.1, this->windowOpacity() - 0.05 ) );
