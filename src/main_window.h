@@ -36,6 +36,9 @@
 #include <QMainWindow>
 #include <QString>
 
+#include <utility>
+#include <vector>
+
 #include "disp_holder.h"
 
 class QActionGroup;
@@ -106,6 +109,10 @@ private:
     QActionGroup * M_style_act_group;
     QAction * M_show_config_dialog_act;
 
+    //! the toolbar actions and their icons (XPM in black), drawn in the
+    //! text color of the palette
+    std::vector< std::pair< QAction *, const char * const * > > M_tool_icons;
+
     // not used
     MainWindow( const MainWindow & ) = delete;
     const MainWindow & operator=( const MainWindow & ) = delete;
@@ -143,9 +150,14 @@ private:
     void createFieldCanvas();
     void createConfigDialog();
 
+    void setToolIcon( QAction * act,
+                      const char * const xpm[] );
+    void updateToolIcons();
+
 protected:
 
     // overrided methods
+    void changeEvent( QEvent * event ) override;
     void closeEvent( QCloseEvent * event );
 //     void resizeEvent( QResizeEvent * event );
     void wheelEvent( QWheelEvent * event );

@@ -28,6 +28,7 @@ rcssmonitor_SOURCES = \
 	score_board_painter.cpp \
 	team_graphic.cpp \
 	team_graphic_painter.cpp \
+	tool_icon.cpp \
 	vector_2d.cpp \
 	main.cpp
 
@@ -67,6 +68,7 @@ noinst_HEADERS = \
 	score_board_painter.h \
 	team_graphic.h \
 	team_graphic_painter.h \
+	tool_icon.h \
 	vector_2d.h
 
 

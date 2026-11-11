@@ -48,10 +48,12 @@
 #include "player_type_dialog.h"
 #include "options.h"
 #include "rcg_handler.h"
+#include "tool_icon.h"
 
 #include <rcss/rcg/util.h>
 #include <rcss/rcg/parser.h>
 
+#include <algorithm>
 #include <string>
 #include <iostream>
 #include <fstream>
@@ -305,8 +307,8 @@ void
 MainWindow::createActionsLogPlayer()
 {
     {
-        QAction * act = new QAction( QIcon( QPixmap( live_xpm ) ),
-                                     tr( "Live Mode" ), this );
+        QAction * act = new QAction( tr( "Live Mode" ), this );
+        setToolIcon( act, live_xpm );
         act->setShortcut( Qt::CTRL | Qt::Key_L );
         act->setStatusTip( tr( "Set monitor to live mode.(" )
                            + act->shortcut().toString() + tr( ")" ) );
@@ -319,8 +321,8 @@ MainWindow::createActionsLogPlayer()
         M_live_mode_act->setEnabled( false );
     }
     {
-        QAction * act = new QAction( QIcon( QPixmap( play_xpm ) ),
-                                     tr( "Play/Stop" ), this );
+        QAction * act = new QAction( tr( "Play/Stop" ), this );
+        setToolIcon( act, play_xpm );
         act->setShortcut( Qt::Key_Space );
         act->setStatusTip( tr( "Play/Stop the log player. (" )
                            + act->shortcut().toString() + tr( ")" ) );
@@ -335,8 +337,8 @@ MainWindow::createActionsLogPlayer()
         M_log_player_play_or_stop_act = act;
     }
     {
-        QAction * act = new QAction( QIcon( QPixmap( minus_xpm ) ),
-                                     tr( "Step Backward" ), this );
+        QAction * act = new QAction( tr( "Step Backward" ), this );
+        setToolIcon( act, minus_xpm );
         act->setShortcut( Qt::Key_Left );
         act->setStatusTip( tr( "One step backward the log player.(" )
                            + act->shortcut().toString() + tr( ")" ) );
@@ -350,8 +352,8 @@ MainWindow::createActionsLogPlayer()
         M_log_player_step_backward_act = act;
     }
     {
-        QAction * act = new QAction( QIcon( QPixmap( plus_xpm ) ),
-                                     tr( "Step Forward" ), this );
+        QAction * act = new QAction( tr( "Step Forward" ), this );
+        setToolIcon( act, plus_xpm );
         act->setShortcut( Qt::Key_Right );
         act->setStatusTip( tr( "One step forward the log player.(" )
                            + act->shortcut().toString() + tr( ")" ) );
@@ -365,8 +367,8 @@ MainWindow::createActionsLogPlayer()
         M_log_player_step_forward_act = act;
     }
     {
-       QAction * act = new QAction( QIcon( QPixmap( decelerate_xpm ) ),
-                                     tr( "Decelerate" ), this );
+       QAction * act = new QAction( tr( "Decelerate" ), this );
+        setToolIcon( act, decelerate_xpm );
         act->setShortcut( Qt::CTRL | Qt::Key_Down );
         act->setStatusTip( tr( "Decelerate the replaying speed.(" )
                            + act->shortcut().toString() + tr( ")" ) );
@@ -378,8 +380,8 @@ MainWindow::createActionsLogPlayer()
         M_log_player_decelerate_act = act;
     }
     {
-        QAction * act = new QAction( QIcon( QPixmap( accelerate_xpm ) ),
-                                     tr( "Accelerate" ), this );
+        QAction * act = new QAction( tr( "Accelerate" ), this );
+        setToolIcon( act, accelerate_xpm );
         act->setShortcut( Qt::CTRL | Qt::Key_Up );
         act->setStatusTip( tr( "Accelerate the replaying speed.(" )
                            + act->shortcut().toString() + tr( ")" ) );
@@ -391,8 +393,8 @@ MainWindow::createActionsLogPlayer()
         M_log_player_accelerate_act = act;
     }
     {
-        QAction * act = new QAction( QIcon( QPixmap( prev_score_xpm ) ),
-                                     tr( "Previous score" ), this );
+        QAction * act = new QAction( tr( "Previous score" ), this );
+        setToolIcon( act, prev_score_xpm );
         act->setShortcut( tr( "Ctrl+G" ) );
         act->setStatusTip( tr( "Go to the previous goal scene.(" )
                            + act->shortcut().toString() + tr(")" ) );
@@ -404,8 +406,8 @@ MainWindow::createActionsLogPlayer()
         M_log_player_previous_score_act = act;
     }
     {
-        QAction * act = new QAction( QIcon( QPixmap( next_score_xpm ) ),
-                                     tr( "Next score" ), this );
+        QAction * act = new QAction( tr( "Next score" ), this );
+        setToolIcon( act, next_score_xpm );
         act->setShortcut( Qt::Key_G );
         act->setStatusTip( tr( "Go to the next goal scene.(" )
                            + act->shortcut().toString() + tr( ")" ) );
@@ -1189,6 +1191,61 @@ MainWindow::createConfigDialog()
         connect( act, SIGNAL( triggered() ),
                  M_config_dialog, SLOT( setUnselect() ) );
     }
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  set the icon of a toolbar action, drawn in the text color of the
+  palette, and keep it to draw it again when the palette changes.
+ */
+void
+MainWindow::setToolIcon( QAction * act,
+                         const char * const xpm[] )
+{
+    std::vector< std::pair< QAction *, const char * const * > >::iterator it
+        = std::find_if( M_tool_icons.begin(), M_tool_icons.end(),
+                        [act]( const std::pair< QAction *, const char * const * > & v )
+                        {
+                            return v.first == act;
+                        } );
+    if ( it != M_tool_icons.end() )
+    {
+        it->second = xpm;
+    }
+    else
+    {
+        M_tool_icons.emplace_back( act, xpm );
+    }
+
+    act->setIcon( toolIcon( xpm, this->palette() ) );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+void
+MainWindow::updateToolIcons()
+{
+    for ( const std::pair< QAction *, const char * const * > & v : M_tool_icons )
+    {
+        v.first->setIcon( toolIcon( v.second, this->palette() ) );
+    }
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  The palette changes, e.g. when the desktop changes to a dark theme.
+ */
+void
+MainWindow::changeEvent( QEvent * event )
+{
+    if ( event->type() == QEvent::PaletteChange )
+    {
+        updateToolIcons();
+    }
+
+    QMainWindow::changeEvent( event );
 }
 
 /*-------------------------------------------------------------------*/
@@ -2282,7 +2339,6 @@ MainWindow::setLiveMode()
 void
 MainWindow::togglePlayOrStopIcon( bool checked )
 {
-    M_log_player_play_or_stop_act->setIcon( checked
-                                            ? QIcon( QPixmap( stop_xpm ) )
-                                            : QIcon( QPixmap( play_xpm ) ) );
+    setToolIcon( M_log_player_play_or_stop_act,
+                 checked ? stop_xpm : play_xpm );
 }

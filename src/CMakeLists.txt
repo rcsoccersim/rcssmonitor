@@ -24,6 +24,7 @@ add_library(rcssmonitor_core STATIC
   score_board_painter.cpp
   team_graphic.cpp
   team_graphic_painter.cpp
+  tool_icon.cpp
   vector_2d.cpp
   )
 
