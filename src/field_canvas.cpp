@@ -57,14 +57,9 @@
 
 */
 FieldCanvas::FieldCanvas( DispHolder & disp_holder )
-    :
-#ifdef USE_GLWIDGET
-    QGLWidget( QGLFormat( QGL::SampleBuffers ) ),
-#else
-    QWidget( /* parent, flags */ ),
-#endif
-    M_disp_holder( disp_holder ),
-    M_monitor_menu( static_cast< QMenu * >( 0 ) )
+    : QWidget( /* parent, flags */ ),
+      M_disp_holder( disp_holder ),
+      M_monitor_menu( static_cast< QMenu * >( 0 ) )
 {
     M_focus_move_mouse = &M_mouse_state[0];
     M_measure_mouse = &M_mouse_state[1];
