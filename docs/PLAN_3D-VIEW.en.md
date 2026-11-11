@@ -72,7 +72,7 @@ State on 2026-11-11: the user decided D7, D10, and D11 ("Decided" in the table; 
 | D7 | Base of the work | **Decided**: derive from `develop`. Leave `feature/support-tcp-ws` unmerged, and merge it once it is adopted (§3.5) | (Original recommendation) merge `feature/support-tcp-ws` first and branch from there / branch directly from `feature/support-tcp-ws` | Whether to adopt the TCP / WebSocket support officially has not been decided (user). The 3D view diff can also be reviewed separately |
 | D8 | Version | 20.0.0 (aligned with asio rcssserver 20 and rcssmonitor-web 20) | 19.1.0 etc. | The Qt6 support and the 3D view are big changes |
 | D9 | Branch policy | Same as the web version (master: releases, develop: integration, feature/*: work, hotfix/*). Merges create merge commits. Per-phase branches in §9.1 | Follow rcssmonitor's current practice | The web version's `docs/release.md` |
-| D10 | master's AppImage workflow (§3.2) | **Decided direction**: the current workflow is a maintenance burden, so disable it. Replace it with an easier-to-maintain method if one can be established (user). Recommended replacement in §2.4 | Keep it as is (the code would have to stay buildable with Qt 5.12, which conflicts with D2) | It requires maintaining an Ubuntu 20.04 (end of support) Docker image, `qt5-default`, and custom shell and Python scripts. It builds with autotools, so 3D would not be included (D3) |
+| D10 | master's AppImage workflow (§3.2) | **Decided**: drop the AppImage (option B of §2.4, 2026-11-11). The current workflow is a maintenance burden (the user disabled it in the GitHub UI), and with the browser version of the monitor, the AppImage is less needed (user). Option A was tried and worked, but is not adopted | Keep it as is (the code would have to stay buildable with Qt 5.12, which conflicts with D2) | It requires maintaining an Ubuntu 20.04 (end of support) Docker image, `qt5-default`, and custom shell and Python scripts. It builds with autotools, so 3D would not be included (D3) |
 | D11 | The qmake build (§3.2) | **Decided**: drop it. Delete `rcssmonitor.pro`, `src/src.pro`, and `src/rcsslogplayer/`, an old copy of a parser that only the qmake build used (`feature/ci`). Mention it in NEWS (Phase 9). autotools uses qmake to find Qt, so the `qt5-qmake` package is still needed | Fix it (one definition, the version, boost) and add it to CI | No machine will use qmake any more (user). It was already broken on develop, and nobody had noticed. CMake and autotools are enough |
 
 ### 2.3 Comparison for D1 (3D rendering technology)
@@ -87,12 +87,15 @@ Decide after confirming with the recommended option, in the Phase 0 prototype (�
 
 ### 2.4 Replacement options for D10 (AppImage)
 
+Option B (drop it) was decided on 2026-11-11. Option A was tried in Phase 0 and worked (§14), but is not adopted. How to build it is kept in `.github/workflows/appimage.yml` of commit 1fe26c6, in the text below, and in §14.
+
 | Option | Content | What to maintain |
 |---|---|---|
-| **A. Build with CMake and linuxdeploy in a tag-triggered `release.yml`** (recommended) | Same shape as the web version's `release.yml`. Runs only when a tag (`rcssmonitor-X.Y.Z`) is pushed or when run by hand. Builds with CMake in `container: ubuntu:22.04` (Qt 5.15.3 / Qt 6.2.4, glibc 2.35) on the runner, installs into `DESTDIR`, bundles an AppImage with linuxdeploy and linuxdeploy-plugin-qt, and attaches it to the release with `gh release`. The desktop file and the icon are installed by CMake's `install()` | One workflow (about 50 lines). Raise the base version when an Ubuntu LTS ends (22.04 → 24.04). Raise the linuxdeploy version (pinned) |
-| B. Drop the AppImage | Delete the workflow and `utils/appimage/`. Distribution is the source and the per-distribution build instructions (README) only | Nothing |
+| A. Build with CMake and linuxdeploy in a tag-triggered `release.yml` (tried and worked, but not adopted) | Same shape as the web version's `release.yml`. Runs only when a tag (`rcssmonitor-X.Y.Z`) is pushed or when run by hand. Builds with CMake in `container: ubuntu:22.04` (Qt 5.15.3 / Qt 6.2.4, glibc 2.35) on the runner, installs into `DESTDIR`, bundles an AppImage with linuxdeploy and linuxdeploy-plugin-qt, and attaches it to the release with `gh release`. The desktop file and the icon are installed by CMake's `install()` | One workflow (about 50 lines). Raise the base version when an Ubuntu LTS ends (22.04 → 24.04). Raise the linuxdeploy version (pinned) |
+| **B. Drop the AppImage** (decided) | Delete the workflow and `utils/appimage/`. Distribution is the source and the per-distribution build instructions (README) only. For only viewing logs, point to the browser version | Nothing |
 
-- With either option, disable the current `main.yml`. It runs on pushes to any branch and tag, and creates a release when there is none for the version in `CMakeLists.txt`. So merely raising the version on a work branch creates a release. Disabling it in the GitHub UI (Actions → ci → Disable workflow) stops it without a commit, and it can be undone. Delete the files when merging 20.0.0 into master (or replace them, with option A).
+- Why option B (2026-11-11): (1) rcssserver is released as source only, so people who use the monitor live already have an environment to build the server. (2) For only viewing logs, the browser version, which needs no installation, is enough. (3) Standard support for 22.04 ends in April 2027, and with Qt6 and 3D (OpenGL), checking the combination with the user's graphics drivers adds work. On the other hand, the 19.0.1 downloads were 257 for the AppImage and 1,154 for the source (2026-11-11), so the AppImage had users. The release notes and the README point to building from source and to the browser version. Note that the browser version's live connection needs a server with WebSocket support (asio rcssserver 20); connecting to the current rcssserver 19 (UDP only) needs the native version.
+- With either option, disable the current `main.yml` (the user disabled it on 2026-11-11). It runs on pushes to any branch and tag, and creates a release when there is none for the version in `CMakeLists.txt`. So merely raising the version on a work branch creates a release. Disabling it in the GitHub UI (Actions → ci → Disable workflow) stops it without a commit, and it can be undone. Delete the files when merging 20.0.0 into master (or replace them, with option A).
 - Try option A while building the CI in Phase 0. A manually triggered workflow (`workflow_dispatch`) cannot be run unless the same file is on the default branch (master), so during the trial it runs on pushes to `feature/ci`; when adopted, it runs on tag pushes and by hand. Decide on adoption after confirming that the resulting AppImage starts on other environments (Ubuntu 22.04, 24.04, 26.04). Whether an AppImage with 3D works with the user's OpenGL (linuxdeploy does not bundle libGL) is checked in Phase 4 or later.
 - The base is 22.04 because an AppImage does not run on a glibc older than the one it was built with. The Qt of 22.04 (5.15.3, 6.2.4) equals the lower bounds of D2, so this also checks that the code builds with the lowest versions.
 - The current workflow also uses linuxdeploy (the unpinned `continuous` release). What option A changes: CMake instead of autotools, `container: ubuntu:22.04` instead of a custom Dockerfile, running on tags only instead of on every push, and a pinned linuxdeploy version.
@@ -123,7 +126,7 @@ Decide after confirming with the recommended option, in the Phase 0 prototype (�
 - C++17, CMake 3.5 or later.
 - The qmake build fails on develop (checked on 2026-11-11). `src/src.pro` lacks the `HAVE_ARPA_INET_H` definition, so it stops at `ntohs` in `disp_holder.cpp`. Its version is still 16.0.0, and it links the unused boost. Dropped by D11. The CMake and autotools builds pass.
 - develop has no CI (no `.github/workflows`).
-- Only master has the AppImage workflow of PR #59 (`.github/workflows/main.yml`, named `ci`) and `utils/appimage/`. It runs on pushes to any branch and tag, builds with autotools in an Ubuntu 20.04 Docker image (Qt 5.12.8 from `qt5-default`), and creates a release when there is none for the version in `CMakeLists.txt`. It does not check the build or run tests. Handled by D10.
+- Only master has the AppImage workflow of PR #59 (`.github/workflows/main.yml`, named `ci`) and `utils/appimage/`. It runs on pushes to any branch and tag, builds with autotools in an Ubuntu 20.04 Docker image (Qt 5.12.8 from `qt5-default`), and creates a release when there is none for the version in `CMakeLists.txt`. It does not check the build or run tests. D10 decided to drop it, and the user disabled it in the GitHub UI on 2026-11-11. The files are deleted when 20.0.0 is merged into master.
 
 ### 3.3 Places that change for Qt6 (counted on 2026-11-11 in `src/` and `rcss/rcg/`, excluding moc output and bundled libraries. Recounting on develop gives the same numbers. `feature/support-tcp-ws` has one more `QT_VERSION_CHECK`)
 
@@ -453,11 +456,11 @@ Each phase proceeds on a feature branch and is merged into develop when it is do
 - Create branches from develop, as in D7 (§9.1).
 - Set up CI (GitHub Actions). On Ubuntu 26.04 (`runs-on: ubuntu-26.04`, as in the web version's CI), build with Qt5 and run the unit tests. The Qt6 job is added in Phase 3, when the Qt6 build passes. Use action versions that run on Node.js 24 (as in the web version: checkout@v5, upload-artifact@v7, etc.).
 - Set up the test infrastructure (Qt Test, CTest) on develop, in the same shape as `feature/support-tcp-ws` (§3.5).
-- Try option A of D10 (§2.4) (during the trial, it runs on pushes to `feature/ci`).
+- Try option A of D10 (§2.4) (during the trial, it runs on pushes to `feature/ci`). → It was tried and worked, but D10 was decided as option B (drop it).
 - 3D prototype (checking D1): with `QOpenGLWidget`, draw 22 skinned figures (walking with blended clips), a 4096 px shadow map, and instanced cylinders, and measure whether 60 fps holds at 1920×1080. Run it on both Qt 5.15 and Qt 6. Record the result in §14 and decide D1.
 - Prepare the figure model as in D6.
 
-**Done when**: everything in §2.2 is decided. CI passes. The prototype confirms 60 fps (if D1 is the recommendation). Whether to adopt option A of D10 is decided.
+**Done when**: everything in §2.2 is decided. CI passes. The prototype confirms 60 fps (if D1 is the recommendation). Whether to adopt option A of D10 is decided (decided: not adopted; option B).
 
 ### Phase 1: Bug fixes
 
@@ -515,7 +518,7 @@ Each phase proceeds on a feature branch and is merged into develop when it is do
 
 ### Phase 9: Documents and release
 
-**Work**: README (3D, keys, settings, Qt6 build), ChangeLog and NEWS (including the removal of qmake, D11), the version per D8. According to the result of D10, delete master's `main.yml` and `utils/appimage/` or replace them with option A (done in the merge into master). The user merges into master and tags the release.
+**Work**: README (3D, keys, settings, Qt6 build), ChangeLog and NEWS (including the removal of qmake, D11), the version per D8. Delete master's `main.yml` and `utils/appimage/` (D10; done in the merge into master). Write in NEWS and the README that the AppImage was dropped, how to build from source, and a pointer to the browser version. The user merges into master and tags the release.
 
 **Done when**: it is released.
 
@@ -585,12 +588,11 @@ Port the GL-independent calculations, using the web version's unit tests as mode
 | `resources/models/Mannequin.glb`, `.qrc` | Figure model (CC0) and its source |
 | `test/test_*.cpp` | Unit tests and rendering tests |
 | `.github/workflows/ci.yml` | CI |
-| `.github/workflows/appimage.yml` → `release.yml` | Builds the AppImage. The trial version was added as `appimage.yml` in Phase 0. If option A of D10 is adopted, it becomes `release.yml` and attaches the AppImage to the release |
-| `data/rcssmonitor.desktop`, `icons/rcssmonitor.png` | The desktop file and the icon, installed by CMake's `install()` (added in Phase 0; §2.4) |
+| `data/rcssmonitor.desktop`, `icons/rcssmonitor.png` | The desktop file and the icon, installed by CMake's `install()` (added in Phase 0 for the AppImage trial; kept after dropping the AppImage, because a normal installation also shows the app in the application menu) |
 
 **Change**: `main_window.cpp` (switching, menus, toolbar, keys), `field_canvas.cpp` (sharing the right-click menu), `log_player.cpp` (alpha), `options.{h,cpp}` (settings), `config_dialog.cpp`, `player_painter.cpp`, `ball_painter.cpp`, and `field_painter.cpp` (extracting the calculations, the grass stripe argument), `rcss/rcg/*` (§6, §7), `CMakeLists.txt` and `src/CMakeLists.txt` (Qt6, 3D), README.
 
-**Delete**: `rcssmonitor.pro`, `src/src.pro`, `src/rcsslogplayer/` (D11; deleted in Phase 0).
+**Delete**: `rcssmonitor.pro`, `src/src.pro`, `src/rcsslogplayer/` (D11; deleted in Phase 0). The AppImage trial's `.github/workflows/appimage.yml` (D10; deleted in Phase 0). master's `.github/workflows/main.yml` and `utils/appimage/` (D10; deleted when 20.0.0 is merged into master).
 
 ## 13. Out of scope
 
@@ -685,3 +687,17 @@ At each step, append the date, the decisions, what was built, the bugs found and
 
 **Decisions (user)**
 - Changed who does the git operations: Claude does the commits and pushes, after the user has checked the proposed commit message (§0.1). The user still creates the branches on GitHub and does the PRs and merges.
+
+#### 2026-11-11: Dropping the AppImage (D10)
+
+**Decisions (user)**
+- D10: drop the AppImage (option B of §2.4). With the browser version of the monitor, the AppImage is less needed. The user disabled master's old workflow (`ci`) in the GitHub UI (confirmed as `disabled_manually` with `gh workflow list`).
+
+**Checked**
+- Downloads of the 19.0.1 release: AppImage 257, source (`rcssmonitor-19.0.1.tar.gz`) 1,154. 19.0.0 and 18.0.0 have the source only (142, 852).
+- The rcssserver releases (19.0.0, 18.1.x) are source only, with no AppImage.
+- rcssmonitor-web connects live over WebSocket only (README), which needs asio rcssserver (20).
+
+**Built**
+- Deleted the AppImage trial's `.github/workflows/appimage.yml` (the working version stays in commit 1fe26c6).
+- Kept the desktop file and the icon (`data/rcssmonitor.desktop`, `icons/rcssmonitor.png`) and their `install()`.

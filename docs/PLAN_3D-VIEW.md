@@ -72,7 +72,7 @@ Phase 0 でユーザに確かめてから進める。推奨案は、この計画
 | D7 | 作業の土台 | **決定**: `develop` から派生させる。`feature/support-tcp-ws` は取り込まずに残し、採用が決まってから取り込む (§3.5) | (当初の推奨) `feature/support-tcp-ws` を先に取り込み、そこから切る / `feature/support-tcp-ws` から直接切る | TCP / WebSocket 対応を公式に採用するかがまだ決まっていない (ユーザ)。3D 表示の差分とも分けて見られる |
 | D8 | 版 | 20.0.0 (asio 版 rcssserver 20、rcssmonitor-web 20 にそろえる) | 19.1.0 など | Qt6 対応と 3D 表示は大きな変更 |
 | D9 | ブランチの方針 | web 版と同じ (master: リリース、develop: 取り込み先、feature/*: 作業、hotfix/*)。取り込みはマージコミットを作る。フェーズごとのブランチは §9.1 | 今の rcssmonitor の運用に合わせる | web 版の `docs/release.md` |
-| D10 | master の AppImage ワークフロー (§3.2) | **決定の方向**: 今のワークフローは保守の負担になっているので、無効にする。保守のやさしい方式を作れるなら、それに置き換える (ユーザ)。推奨の置き換え先は §2.4 | 今のまま残す (Qt 5.12 でもビルドできる範囲にとどめることになり、D2 と合わない) | Ubuntu 20.04 (サポート終了) の Docker イメージ、`qt5-default`、自前のシェルと Python のスクリプトを保守し続ける必要がある。autotools でビルドするので 3D が入らない (D3) |
+| D10 | master の AppImage ワークフロー (§3.2) | **決定**: AppImage を廃止する (§2.4 の案 B、2026-11-11)。今のワークフローは保守の負担になっていて (ユーザが GitHub の画面で無効にした)、ブラウザ版のモニタがあるので AppImage の必要性も低い (ユーザ)。案 A は試して動いたが、採用しない | 今のまま残す (Qt 5.12 でもビルドできる範囲にとどめることになり、D2 と合わない) | Ubuntu 20.04 (サポート終了) の Docker イメージ、`qt5-default`、自前のシェルと Python のスクリプトを保守し続ける必要がある。autotools でビルドするので 3D が入らない (D3) |
 | D11 | qmake のビルド (§3.2) | **決定**: 廃止する。`rcssmonitor.pro`、`src/src.pro` と、qmake のビルドだけが使っていた古いパーサの写し `src/rcsslogplayer/` を消す (`feature/ci`)。NEWS に書く (Phase 9)。autotools は Qt を探すのに qmake を使うので、`qt5-qmake` のパッケージは引き続き要る | 直して (定義 1 つ、版、boost) CI に入れる | qmake を使う機械がなくなる (ユーザ)。develop の時点ですでに壊れていて、誰も気づいていなかった。CMake と autotools の 2 つで足りる |
 
 ### 2.3 D1 (3D の描画の技術) の比較
@@ -87,12 +87,15 @@ Phase 0 の試作 (§9) で、推奨案で「人型 22 体と影を 1920×1080 �
 
 ### 2.4 D10 (AppImage) の置き換え先の案
 
+2026-11-11 に案 B (廃止) に決めた。案 A は Phase 0 で試して動いた (§14) が、採用しない。案 A の作り方は、コミット 1fe26c6 の `.github/workflows/appimage.yml` と、下の記述と §14 に残す。
+
 | 案 | 内容 | 保守するもの |
 |---|---|---|
-| **A. タグで動く `release.yml` で、CMake と linuxdeploy で作る** (推奨) | web 版の `release.yml` と同じ形。タグ (`rcssmonitor-X.Y.Z`) を push したときと、手で実行したときだけ動く。ランナーの上の `container: ubuntu:22.04` (Qt 5.15.3 / Qt 6.2.4、glibc 2.35) で CMake でビルドし、`DESTDIR` にインストールして、linuxdeploy と linuxdeploy-plugin-qt で AppImage にまとめ、`gh release` でリリースに添付する。デスクトップのファイルとアイコンは CMake の `install()` で入れる | ワークフロー 1 つ (50 行ほど)。Ubuntu の LTS が終わるときに基盤の版を上げる (22.04 → 24.04)。linuxdeploy の版 (固定する) を上げる |
-| B. AppImage をやめる | ワークフローと `utils/appimage/` を消す。配布はソースと、各ディストリビューションでのビルドの手順 (README) だけにする | なし |
+| A. タグで動く `release.yml` で、CMake と linuxdeploy で作る (試して動いたが、採用しない) | web 版の `release.yml` と同じ形。タグ (`rcssmonitor-X.Y.Z`) を push したときと、手で実行したときだけ動く。ランナーの上の `container: ubuntu:22.04` (Qt 5.15.3 / Qt 6.2.4、glibc 2.35) で CMake でビルドし、`DESTDIR` にインストールして、linuxdeploy と linuxdeploy-plugin-qt で AppImage にまとめ、`gh release` でリリースに添付する。デスクトップのファイルとアイコンは CMake の `install()` で入れる | ワークフロー 1 つ (50 行ほど)。Ubuntu の LTS が終わるときに基盤の版を上げる (22.04 → 24.04)。linuxdeploy の版 (固定する) を上げる |
+| **B. AppImage をやめる** (決定) | ワークフローと `utils/appimage/` を消す。配布はソースと、各ディストリビューションでのビルドの手順 (README) だけにする。ログを見るだけならブラウザ版を案内する | なし |
 
-- どちらの案でも、今の `main.yml` は無効にする。このワークフローは任意のブランチとタグへの push で動き、`CMakeLists.txt` の版のリリースがなければ作る。そのため、作業のブランチで版を上げただけでリリースができてしまう。GitHub の画面 (Actions → ci → Disable workflow) で無効にすれば、コミットなしで止められ、戻すこともできる。ファイルは、20.0.0 を master に取り込むときに消す (案 A なら置き換える)。
+- 案 B に決めた理由 (2026-11-11): (1) rcssserver のリリースはソースだけで、ライブで使う人はサーバをビルドする環境を持っている。(2) ログを見るだけなら、インストールの要らないブラウザ版で足りる。(3) 22.04 の標準サポートが 2027 年 4 月に終わり、Qt6 と 3D (OpenGL) が入ると、利用者の環境のドライバとの組み合わせを確かめる手間が増える。一方で、19.0.1 のダウンロード数は AppImage 257、ソース 1,154 (2026-11-11) で、AppImage の利用者もいた。リリースノートと README で、ソースからのビルドとブラウザ版を案内する。なお、ブラウザ版のライブ接続は WebSocket に対応したサーバ (asio 版の 20) が前提で、今の rcssserver 19 (UDP だけ) とつなぐにはネイティブ版が要る。
+- どちらの案でも、今の `main.yml` は無効にする (2026-11-11 にユーザが無効にした)。このワークフローは任意のブランチとタグへの push で動き、`CMakeLists.txt` の版のリリースがなければ作る。そのため、作業のブランチで版を上げただけでリリースができてしまう。GitHub の画面 (Actions → ci → Disable workflow) で無効にすれば、コミットなしで止められ、戻すこともできる。ファイルは、20.0.0 を master に取り込むときに消す (案 A なら置き換える)。
 - 案 A は、Phase 0 で CI を作るときに試す。手で実行する形 (`workflow_dispatch`) は、既定のブランチ (master) に同じファイルがないと動かせないので、試すあいだは `feature/ci` への push で動かし、採用するときにタグの push と手での実行で動く形にする。できた AppImage が別の環境 (Ubuntu 22.04、24.04、26.04) で起動することを確かめてから、採用を決める。3D の入った AppImage が利用者の環境の OpenGL で動くか (linuxdeploy は libGL をまとめない) は、Phase 4 以降に確かめる。
 - 基盤を 22.04 にするのは、AppImage はビルドした環境より古い glibc では動かないため。22.04 の Qt (5.15.3、6.2.4) は D2 の下限と同じなので、下限の版でビルドできることの確認にもなる。
 - 今のワークフローも linuxdeploy (版を固定しない `continuous`) を使っている。案 A で変わるのは、autotools の代わりに CMake、自前の Dockerfile の代わりに `container: ubuntu:22.04`、どの push でも動くのをやめてタグだけにすること、linuxdeploy の版を固定すること。
@@ -123,7 +126,7 @@ Phase 0 の試作 (§9) で、推奨案で「人型 22 体と影を 1920×1080 �
 - C++17、CMake 3.5 以上。
 - qmake のビルドは develop で通らない (2026-11-11 に確かめた)。`src/src.pro` に `HAVE_ARPA_INET_H` の定義がなく、`disp_holder.cpp` の `ntohs` で止まる。版は 16.0.0 のまま、使っていない boost にリンクする。D11 で廃止した。CMake と autotools は通る。
 - develop には CI がない (`.github/workflows` がない)。
-- master にだけ、PR #59 の AppImage のワークフロー (`.github/workflows/main.yml`、名前は `ci`) と `utils/appimage/` がある。任意のブランチとタグへの push で動き、Ubuntu 20.04 の Docker イメージ (`qt5-default` で Qt 5.12.8) の中で autotools でビルドし、`CMakeLists.txt` の版のリリースがなければ作る。ビルドとテストの確認はしない。扱いは D10。
+- master にだけ、PR #59 の AppImage のワークフロー (`.github/workflows/main.yml`、名前は `ci`) と `utils/appimage/` がある。任意のブランチとタグへの push で動き、Ubuntu 20.04 の Docker イメージ (`qt5-default` で Qt 5.12.8) の中で autotools でビルドし、`CMakeLists.txt` の版のリリースがなければ作る。ビルドとテストの確認はしない。D10 で廃止に決め、ユーザが 2026-11-11 に GitHub の画面で無効にした。ファイルは 20.0.0 を master に取り込むときに消す。
 
 ### 3.3 Qt6 で変わる箇所 (2026-11-11 の `src/` と `rcss/rcg/` で数えた。moc の生成物と同梱ライブラリを除く。develop で数え直しても同じ数。`feature/support-tcp-ws` では `QT_VERSION_CHECK` が 1 つ多い)
 
@@ -453,11 +456,11 @@ web 版の `docs/parity.md` §7。行番号は 2026-11-11 の develop (01f880a) 
 - D7 に従って、develop からブランチを作る (§9.1)。
 - CI (GitHub Actions) を用意する。Ubuntu 26.04 (`runs-on: ubuntu-26.04`。web 版の CI と同じ) で、Qt5 のビルドと単体テスト。Qt6 のジョブは、Qt6 でビルドが通るようになる Phase 3 で足す。アクションは Node.js 24 で動く版 (web 版と同じく checkout@v5、upload-artifact@v7 など) を使う。
 - テストの仕組み (Qt Test、CTest) を develop の上に作る。形は §3.5 のとおり `feature/support-tcp-ws` にそろえる。
-- D10 の案 A (§2.4) を試す (試すあいだは `feature/ci` への push で動かす)。
+- D10 の案 A (§2.4) を試す (試すあいだは `feature/ci` への push で動かす)。→ 試して動いたが、D10 は案 B (廃止) に決めた。
 - 3D の試作 (D1 の確認): `QOpenGLWidget` で、骨つきの人型 22 体 (クリップを混ぜて歩かせる) と、4096 px の影の地図と、インスタンス描画の円柱を描き、1920×1080 で 60 fps を保てるかを測る。Qt 5.15 と Qt 6 の両方で動かす。結果を §14 に記録し、D1 を決める。
 - 人型のモデルを D6 のとおりに用意する。
 
-**完了条件**: §2.2 がすべて決まる。CI が通る。試作で 60 fps を確かめる (D1 が推奨案のとき)。D10 の案 A を採用するかが決まる。
+**完了条件**: §2.2 がすべて決まる。CI が通る。試作で 60 fps を確かめる (D1 が推奨案のとき)。D10 の案 A を採用するかが決まる (決まった: 採用せず、案 B)。
 
 ### Phase 1: 不具合の修正
 
@@ -515,7 +518,7 @@ web 版の `docs/parity.md` §7。行番号は 2026-11-11 の develop (01f880a) 
 
 ### Phase 9: 文書とリリース
 
-**作業**: README (3D、キー、設定、Qt6 のビルド)、ChangeLog と NEWS (qmake の廃止 (D11) も書く)、版を D8 にする。D10 の結果に従って、master の `main.yml` と `utils/appimage/` を消すか、案 A に置き換える (master への取り込みで行う)。ユーザが master に取り込み、タグを付ける。
+**作業**: README (3D、キー、設定、Qt6 のビルド)、ChangeLog と NEWS (qmake の廃止 (D11) も書く)、版を D8 にする。master の `main.yml` と `utils/appimage/` を消す (D10。master への取り込みで行う)。NEWS と README に、AppImage をやめたこと、ソースからのビルドの手順、ブラウザ版への案内を書く。ユーザが master に取り込み、タグを付ける。
 
 **完了条件**: リリースされる。
 
@@ -585,12 +588,11 @@ GL に依存しない計算を、web 版の単体テストを手本に移す。
 | `resources/models/Mannequin.glb`、`.qrc` | 人型のモデル (CC0) と出典 |
 | `test/test_*.cpp` | 単体テストと描画のテスト |
 | `.github/workflows/ci.yml` | CI |
-| `.github/workflows/appimage.yml` → `release.yml` | AppImage を作る。Phase 0 で試す版を `appimage.yml` として足した。D10 の案 A を採用したら、`release.yml` にしてリリースに添付する |
-| `data/rcssmonitor.desktop`、`icons/rcssmonitor.png` | デスクトップのファイルとアイコン。CMake の `install()` で入れる (Phase 0 で足した。§2.4) |
+| `data/rcssmonitor.desktop`、`icons/rcssmonitor.png` | デスクトップのファイルとアイコン。CMake の `install()` で入れる (Phase 0 で AppImage の試行のために足した。普通のインストールでもアプリのメニューに出るので、AppImage をやめた後も残す) |
 
 **変更**: `main_window.cpp` (切り替え、メニュー、ツールバー、キー)、`field_canvas.cpp` (右クリックのメニューを共有)、`log_player.cpp` (alpha)、`options.{h,cpp}` (設定)、`config_dialog.cpp`、`player_painter.cpp` と `ball_painter.cpp` と `field_painter.cpp` (計算の切り出し、芝の縞の引数)、`rcss/rcg/*` (§6、§7)、`CMakeLists.txt` と `src/CMakeLists.txt` (Qt6、3D)、README。
 
-**削除**: `rcssmonitor.pro`、`src/src.pro`、`src/rcsslogplayer/` (D11。Phase 0 で消した)。
+**削除**: `rcssmonitor.pro`、`src/src.pro`、`src/rcsslogplayer/` (D11。Phase 0 で消した)。AppImage の試行の `.github/workflows/appimage.yml` (D10。Phase 0 で消した)。master の `.github/workflows/main.yml` と `utils/appimage/` (D10。20.0.0 を master に取り込むときに消す)。
 
 ## 13. 対象外
 
@@ -685,3 +687,17 @@ GL に依存しない計算を、web 版の単体テストを手本に移す。
 
 **決めたこと (ユーザ)**
 - git の操作の分担を変えた: コミットとプッシュは Claude が行う。その前に、コミットメッセージの案をユーザが確認する (§0.1)。ブランチは引き続きユーザが GitHub 上で作り、PR と取り込みはユーザが行う。
+
+#### 2026-11-11: AppImage の廃止 (D10)
+
+**決めたこと (ユーザ)**
+- D10: AppImage を廃止する (§2.4 の案 B)。ブラウザ版のモニタがあるので、AppImage の必要性が低い。master の古いワークフロー (`ci`) は、ユーザが GitHub の画面で無効にした (`gh workflow list` で `disabled_manually` を確かめた)。
+
+**確かめたこと**
+- 19.0.1 のリリースのダウンロード数: AppImage 257、ソース (`rcssmonitor-19.0.1.tar.gz`) 1,154。19.0.0 と 18.0.0 はソースだけ (142、852)。
+- rcssserver のリリース (19.0.0、18.1.x) はソースだけで、AppImage はない。
+- rcssmonitor-web のライブ接続は WebSocket だけ (README)。asio 版の rcssserver (20) が前提。
+
+**作ったもの**
+- AppImage の試行の `.github/workflows/appimage.yml` を消した (動いた形はコミット 1fe26c6 に残る)。
+- デスクトップのファイルとアイコン (`data/rcssmonitor.desktop`、`icons/rcssmonitor.png`) と、その `install()` は残した。
