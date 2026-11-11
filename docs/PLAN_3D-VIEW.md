@@ -1,0 +1,614 @@
+# rcssmonitor 3D 表示・Qt6 対応 開発計画
+
+| 項目 | 内容 |
+|---|---|
+| 作成日 | 2026-11-11 |
+| 対象 | rcssmonitor。作業の土台は `develop` (01f880a、19.0.1)。TCP / WebSocket 対応 (`feature/support-tcp-ws`) は含めない (D7) |
+| 参照実装 | rcssmonitor-web 20.0.0-beta.2 (タグ `v20.0.0-beta.2`、ed36941)。作業ツリーは、このリポジトリと並べて置いた `../rcssmonitor-web` |
+| 参照したサーバ | asio 版 rcssserver 19.x。作業ツリーは、このリポジトリと並べて置いた `../rcssserver` (`feature/asio-migration` ブランチ) |
+| 英語版 | [PLAN_3D-VIEW.en.md](PLAN_3D-VIEW.en.md) (内容は同じ。§0.1) |
+| 状態 | Phase 0 (2026-11-11 着手) |
+
+## 0. この計画書の使い方
+
+この計画書を読み込ませて rcssmonitor の開発を進める。web 版 (rcssmonitor-web) で 3D 表示を作ったときの設計と経緯は、web 版の次の資料にある。部品を作る前に、対応する資料とソースを読むこと。
+
+| 資料 | 内容 |
+|---|---|
+| `rcssmonitor-web/docs/DEVELOPMENT_PLAN.md` §5「Phase 6: 3D 表示」 | 3D 表示の仕様と設計 (カメラ、選手視点、重ね描き、人型、影、景色、ボールの円と軌跡など) |
+| 同 §9「Phase 6」区切り 1〜16 | 作った順の記録。ユーザの決定、見つけた不具合とその原因、計測の結果 |
+| `rcssmonitor-web/docs/parity.md` | rcssmonitor の機能との対応表。§7 に rcssmonitor の不具合、§8 にキーの互換表 |
+| `rcssmonitor-web/docs/protocol.md` | モニタプロトコルと rcg 形式のメモ (JSON の項目、状態ビット、プレイモード) |
+| `rcssmonitor-web/src/view/render3d/` ほか | 3D 表示の実装 (§4.2 の対応表) |
+| `rcssmonitor-web/test/unit/`、`test/e2e/view3d.spec.ts` | 単体テスト (移植の手本) と E2E テスト |
+
+### 0.1 作業の取り決め (ユーザとの約束)
+
+- 報告は日本語で行う。実装を報告するときは、コミットメッセージの案を添える。
+- コミットとプッシュは、ユーザの指示があってから行う。コミットメッセージは英語で書き、末尾に指定の `Co-Authored-By` 行を付ける。
+- PR が向く取り込み (master への取り込みなど) は、ユーザが行う。
+- 動かして試すときは、ユーザの設定ファイル `~/.rcssmonitor.conf` を書き換えない。`HOME` を一時ディレクトリにして起動する (例: `HOME=$(mktemp -d) ./src/rcssmonitor`)。
+- rcssserver を動かすときは、`RCSS_CONF_DIR` を一時ディレクトリにする (`~/.rcssserver` を汚さない)。
+- GPU を使うテストを並列で回しすぎない (web 版の作業中に、GPU のページフォルトで作業マシンが落ちたことがある)。
+- 区切りごとに、§14 に記録 (決めたこと、見つけた不具合、計測、試験) を足す。
+- 計画書は、日本語版 (この文書) と英語版 (`PLAN_3D-VIEW.en.md`) を並行して保つ。どちらかを直したら、同じ区切りでもう一方も同じ内容に直す。
+- ブランチを作るとき、コミットとプッシュをするときは、ユーザに確かめる (コミットとプッシュはユーザが行う)。
+
+## 1. 目的と範囲
+
+1. **3D 表示**: rcssmonitor-web の 3D 表示と同等の機能を rcssmonitor に実装する (§4、§5)。
+2. **不具合の修正**: web 版の移植で見つけた rcssmonitor の不具合 14 件を直す (§6)。
+3. **JSON パーサの改善**: JSON のログとライブのメッセージを、web 版と同じく頑健に読めるようにする (§7)。
+4. **Qt6 対応**: Qt6 でビルドできるようにし、非推奨の API を置き換える (§8)。
+5. あわせて、CI (GitHub Actions) とテストを整える (§10)。
+
+範囲外は §13。
+
+## 2. 決定事項と、作業の初めに決めること
+
+### 2.1 決まっていること (ユーザ)
+
+- 3D 表示は、rcssmonitor-web の 3D 表示と同等にする。カメラ、選手視点、重ね描き、人型、影、景色、ボールの円と軌跡、設定、キーを含む。
+- 不具合の修正、JSON パーサの改善、Qt6 対応もこの計画で行う。
+- 計画書は日本語で書き、英語版を並行して保つ (§0.1)。
+- 作業は `develop` から派生させたブランチで進める。TCP / WebSocket 対応は、公式に採用するかが決まっていないので、今は取り込まない (D7、2026-11-11)。
+
+### 2.2 作業の初めに決めること
+
+Phase 0 でユーザに確かめてから進める。推奨案は、この計画の以下の節の前提にしている。
+
+2026-11-11 の状態: D7 と D10 はユーザが決めた (表の「決定」)。D1 は Phase 0 の試作の結果で決める。D2〜D6、D8、D9 は推奨案で進める。
+
+| # | 項目 | 推奨 | 代わりの案 | 理由 |
+|---|---|---|---|---|
+| D1 | 3D の描画の技術 | `QOpenGLWidget` と自前の描画 (OpenGL 3.3 core、シェーダを自分で書く) | Qt Quick 3D (`QQuickWidget` で埋め込む) | 下の §2.3 |
+| D2 | 対応する Qt の版 | Qt 5.15 と Qt 6.2 以降の両方 (1 つのソースで切り替える) | Qt6 だけにする | Ubuntu 22.04 には Qt 5.15 と Qt 6.2 の両方がある。両対応の期間を経て、次の版で Qt5 をやめられる |
+| D3 | ビルドの仕組み | CMake を主にする。Qt6 は CMake だけで対応し、autotools と qmake (`.pro`) は Qt5 のまま残す (3D は CMake でだけビルドする) | 3 つとも Qt6 に対応させる / autotools と qmake をやめる | 3 つを保守する手間が大きい。autotools の `AX_HAVE_QT` は qmake を通して Qt を探すので、Qt6 への対応が難しい |
+| D4 | 3D をビルドの任意にするか | CMake の `ENABLE_3D` (既定 ON)。OpenGL 3.3 が使えない環境では、実行時に 3D を無効にして 2D だけで動く | 必須にする | 古い GPU や仮想マシンでも、2D の監視は今までどおり使えるようにする |
+| D5 | glTF の読み込み | cgltf (1 つのヘッダ、MIT) と、アニメーションの評価を自前で書く | tinygltf (MIT)、Assimp (BSD、大きい) | §5.8 のとおり、姿勢はログから毎回求めるので、アニメーションの再生機は要らず、キーフレームを読むだけでよい |
+| D6 | 人型のモデル | web 版の `Mannequin.glb` (CC0) を、圧縮なしで書き出し直して Qt のリソース (qrc) に入れる | meshoptimizer のデコーダ (MIT) を同梱して、web 版のファイルをそのまま読む | web 版のファイルは `EXT_meshopt_compression` と `KHR_mesh_quantization` を必須にしている。デスクトップのアプリでは大きさより依存の少なさを取る |
+| D7 | 作業の土台 | **決定**: `develop` から派生させる。`feature/support-tcp-ws` は取り込まずに残し、採用が決まってから取り込む (§3.5) | (当初の推奨) `feature/support-tcp-ws` を先に取り込み、そこから切る / `feature/support-tcp-ws` から直接切る | TCP / WebSocket 対応を公式に採用するかがまだ決まっていない (ユーザ)。3D 表示の差分とも分けて見られる |
+| D8 | 版 | 20.0.0 (asio 版 rcssserver 20、rcssmonitor-web 20 にそろえる) | 19.1.0 など | Qt6 対応と 3D 表示は大きな変更 |
+| D9 | ブランチの方針 | web 版と同じ (master: リリース、develop: 取り込み先、feature/*: 作業、hotfix/*)。取り込みはマージコミットを作る。フェーズごとのブランチは §9.1 | 今の rcssmonitor の運用に合わせる | web 版の `docs/release.md` |
+| D10 | master の AppImage ワークフロー (§3.2) | **決定の方向**: 今のワークフローは保守の負担になっているので、無効にする。保守のやさしい方式を作れるなら、それに置き換える (ユーザ)。推奨の置き換え先は §2.4 | 今のまま残す (Qt 5.12 でもビルドできる範囲にとどめることになり、D2 と合わない) | Ubuntu 20.04 (サポート終了) の Docker イメージ、`qt5-default`、自前のシェルと Python のスクリプトを保守し続ける必要がある。autotools でビルドするので 3D が入らない (D3) |
+
+### 2.3 D1 (3D の描画の技術) の比較
+
+| 案 | よい点 | 気になる点 |
+|---|---|---|
+| **QOpenGLWidget と自前の描画** (推奨) | Qt5 と Qt6 の両方で同じコードが動く。QML を持ち込まない (rcssmonitor は QWidget だけのアプリ)。web 版でやったこと (インスタンス描画、影の地図、自作のシェーダ、骨の姿勢をログから毎回決めること、背番号の大きさの上限、描くたびの状態の管理) をすべて自分で決められる。依存は Qt の OpenGL モジュールと cgltf だけ | 描画の基盤を書く量が多い (シェーダ 10 種ほど、影の地図、骨つきメッシュ、線、ビルボード)。macOS の OpenGL は非推奨 (4.1 core までは動く) |
+| Qt Quick 3D | 材質、影、霧、骨つきメッシュ、インスタンス描画、ピッキングがそろっている | Qt6 が前提 (骨のアニメーションやインスタンス描画は Qt 6 の機能)。シーンは QML で書き、C++ からはデータを渡す形になる。骨つきの glTF は、ビルド時の変換 (Balsam) を通す道が案内されていて、実行時の読み込み (RuntimeLoader) で骨のアニメーションを扱えるかは確かめられていない。骨を毎フレーム自分で動かす使い方 (§5.8) が素直にできるかも、試す必要がある |
+| Qt 3D | C++ の API がある | Qt 6.8 で非推奨になり、標準のリリースから外れた。新しく使わない |
+
+Phase 0 の試作 (§9) で、推奨案で「人型 22 体と影を 1920×1080 で 60 fps」を確かめてから決める。
+
+### 2.4 D10 (AppImage) の置き換え先の案
+
+| 案 | 内容 | 保守するもの |
+|---|---|---|
+| **A. タグで動く `release.yml` で、CMake と linuxdeploy で作る** (推奨) | web 版の `release.yml` と同じ形。タグ (`rcssmonitor-X.Y.Z`) を push したときと、手で実行したときだけ動く。ランナーの上の `container: ubuntu:22.04` (Qt 5.15.3 / Qt 6.2.4、glibc 2.35) で CMake でビルドし、`DESTDIR` にインストールして、linuxdeploy と linuxdeploy-plugin-qt で AppImage にまとめ、`gh release` でリリースに添付する。デスクトップのファイルとアイコンは CMake の `install()` で入れる | ワークフロー 1 つ (50 行ほど)。Ubuntu の LTS が終わるときに基盤の版を上げる (22.04 → 24.04)。linuxdeploy の版 (固定する) を上げる |
+| B. AppImage をやめる | ワークフローと `utils/appimage/` を消す。配布はソースと、各ディストリビューションでのビルドの手順 (README) だけにする | なし |
+
+- どちらの案でも、今の `main.yml` は無効にする。このワークフローは任意のブランチとタグへの push で動き、`CMakeLists.txt` の版のリリースがなければ作る。そのため、作業のブランチで版を上げただけでリリースができてしまう。GitHub の画面 (Actions → ci → Disable workflow) で無効にすれば、コミットなしで止められ、戻すこともできる。ファイルは、20.0.0 を master に取り込むときに消す (案 A なら置き換える)。
+- 案 A は、Phase 0 で CI を作るときに試す。手で実行する形 (`workflow_dispatch`) は、既定のブランチ (master) に同じファイルがないと動かせないので、試すあいだは `feature/ci` への push で動かし、採用するときにタグの push と手での実行で動く形にする。できた AppImage が別の環境 (Ubuntu 22.04、24.04、26.04) で起動することを確かめてから、採用を決める。3D の入った AppImage が利用者の環境の OpenGL で動くか (linuxdeploy は libGL をまとめない) は、Phase 4 以降に確かめる。
+- 基盤を 22.04 にするのは、AppImage はビルドした環境より古い glibc では動かないため。22.04 の Qt (5.15.3、6.2.4) は D2 の下限と同じなので、下限の版でビルドできることの確認にもなる。
+
+## 3. 現状の rcssmonitor
+
+### 3.1 構成
+
+| ファイル | 役割 |
+|---|---|
+| `src/main_window.cpp` | メニュー、ツールバー、キー (`createActions*`)、審判操作。`createFieldCanvas()` で `FieldCanvas` を中央のウィジェットにする |
+| `src/field_canvas.cpp` | 2D の描画先。`QWidget` (定義 `USE_GLWIDGET` があれば `QGLWidget`)。painter を順に呼ぶ。マウス操作、右クリックのメニュー |
+| `src/field_painter.cpp`、`player_painter.cpp`、`ball_painter.cpp`、`draw_info_painter.cpp` | 2D の描画。選手の状態の色、キャッチ・タックル・キックの範囲、オフサイドラインなどの計算もここにある |
+| `src/disp_holder.cpp` | 受け取ったフレームを持つ。ライブとログの両方 |
+| `src/log_player.cpp` | `QTimer` で 1 フレームずつ進める。フレームのあいだの補間はない |
+| `src/monitor_client.cpp` | ライブ接続。develop では UDP だけ (TCP / WebSocket は `feature/support-tcp-ws` の `*_monitor_transport.cpp`) |
+| `src/options.cpp` | 設定。`QSettings` で `~/.rcssmonitor.conf` に保存。コマンドラインのオプションもここ |
+| `src/config_dialog.cpp` | 設定ダイアログ (Show、Canvas、Color、Font のタブ) |
+| `src/player_type_dialog.cpp` | 選手タイプの一覧 |
+| `rcss/rcg/` | ログとメッセージの解析。`parser_simdjson.cpp` (JSON、同梱の simdjson を使う)、`parser_v1〜v4.cpp`、`types.cpp` (パラメータの既定値)、`util.cpp` (プレイモードの名前など)。`nlohmann/json.hpp` も同梱されている |
+| `test/` | develop にはない (単体テストがない)。`feature/support-tcp-ws` には Qt Test の `test_message_splitter.cpp` がある |
+
+### 3.2 ビルド
+
+- CMake (`CMakeLists.txt`、`src/CMakeLists.txt`)、autotools (`configure.ac`、`m4/ax_have_qt.m4`)、qmake (`rcssmonitor.pro`) の 3 つがある。
+- どれも Qt5 に決め打ち (`find_package(Qt5 COMPONENTS Core Gui Widgets Network REQUIRED)`)。`feature/support-tcp-ws` では、WebSockets と Test を任意で探す。
+- C++17、CMake 3.5 以上。
+- develop には CI がない (`.github/workflows` がない)。
+- master にだけ、PR #59 の AppImage のワークフロー (`.github/workflows/main.yml`、名前は `ci`) と `utils/appimage/` がある。任意のブランチとタグへの push で動き、Ubuntu 20.04 の Docker イメージ (`qt5-default` で Qt 5.12.8) の中で autotools でビルドし、`CMakeLists.txt` の版のリリースがなければ作る。ビルドとテストの確認はしない。扱いは D10。
+
+### 3.3 Qt6 で変わる箇所 (2026-11-11 の `src/` と `rcss/rcg/` で数えた。moc の生成物と同梱ライブラリを除く。develop で数え直しても同じ数。`feature/support-tcp-ws` では `QT_VERSION_CHECK` が 1 つ多い)
+
+| 内容 | 箇所数 | Qt6 での書き方 |
+|---|---|---|
+| `QKeySequence` を `Qt::CTRL + Qt::Key_X` / `Qt::ALT + …` で作る | 19 + 5 | `Qt::CTRL \| Qt::Key_X` (Qt 6 で `+` は非推奨。Qt 5.15 でも `\|` は使える) |
+| `QLayout::setMargin()` | 34 | `setContentsMargins()` (Qt6 で削除) |
+| `QMouseEvent::pos()`、`globalPos()` | 13、1 | Qt6 では `position().toPoint()`、`globalPosition().toPoint()` (`pos()` は Qt 6 で非推奨)。`position()` は Qt 5.15 にないので、両対応では小さな関数で `QT_VERSION_CHECK` を分ける |
+| `QWheelEvent::delta()`、`orientation()` | 2、1 | `angleDelta()` (Qt6 で削除) |
+| `QSignalMapper` | 2 | ラムダの接続 |
+| `QFontMetrics::width()` | 数か所 (一部はすでに `QT_VERSION_CHECK` で `horizontalAdvance` と分けてある) | `horizontalAdvance()` |
+| `QTime::start()` / `elapsed()` | 1 | `QElapsedTimer` |
+| `QGLWidget` (`USE_GLWIDGET` のとき) | 3 | `QOpenGLWidget` (Qt6 では `Qt6::OpenGLWidgets`)。2D でこの定義を使っている人がいないなら、定義ごと消す |
+| `QT_VERSION_CHECK` の分岐 | 22 | Qt 5.15 より古い分岐を消して整理する |
+| `QAction` (93 か所) | — | Qt6 では QtGui に移ったが、`#include <QAction>` のままで両方で動く。`#include <QtWidgets/QAction>` があれば直す |
+
+`std::endl` は Qt と関係ないのでそのままでよい。`QRegExp`、`QDesktopWidget`、`QTextCodec` は使われていない。
+
+### 3.4 ブランチ (2026-11-11)
+
+- `develop` (01f880a、19.0.1): 作業の土台。
+- `master` (42848cd、19.0.1): develop に、PR #59 の AppImage のワークフローと `utils/appimage/`、`.gitignore` を足したもの (§3.2)。それ以外は develop と同じ。
+- `feature/support-tcp-ws` (45bca98): develop (01f880a) に TCP / WebSocket 対応の 5 コミット。未取り込み (D7)。計画書 `docs/TRANSPORT_PLAN.md` (リポジトリ未登録) がある。
+- `feature/ci`: この計画の最初のブランチ (§9.1)。develop (01f880a) から 2026-11-11 に作った。
+- `origin/feature/json-reformat` (2024-03): 旧パーサ `rcss/rcg/parser_json.cpp` と `parser.cpp` を新しい JSON 形式に合わせた 2 コミット。今の develop は `parser_simdjson.cpp` を使っているので、内容を確かめて、§7 の作業に取り込むか捨てるかを決める。
+- `origin/develop_observation` (2022-11)、`origin/fix/qt-asprintf` (master に取り込み済み) は、この計画と関係しない。
+
+### 3.5 TCP / WebSocket 対応を後で取り込むとき
+
+D7 のとおり、この計画のブランチは `feature/support-tcp-ws` を含まない。採用が決まって取り込むときは、次のことが起きる。
+
+- 両方が変えるファイル: `src/main_window.cpp`、`src/options.{h,cpp}`、`CMakeLists.txt`、`src/CMakeLists.txt`、`configure.ac`、`src/Makefile.am`、`src/src.pro`、`README.md`、`NEWS`、`test/CMakeLists.txt` (どちらも新しく作る)。機能が別なので、衝突の解決は難しくない見込み。
+- テストの仕組みは、この計画でも `feature/support-tcp-ws` と同じ形にする (最上位の `CMakeLists.txt` で Test を探し、見つかれば `enable_testing()` と `add_subdirectory(test)`。`test/CMakeLists.txt` にテストごとの `add_executable` と `add_test`)。取り込むときは、両方のテストを並べるだけで済むようにする。
+- Phase 3 (Qt6 対応) は、TCP / WebSocket 対応で足したファイル (`connect_dialog.cpp`、`*_monitor_transport.cpp`、`message_splitter.cpp`) を含まない。取り込むときは、develop を `feature/support-tcp-ws` にマージし (プッシュ済みなので rebase はしない)、そこでこれらのファイルの Qt6 対応と、WebSockets を探す CMake の Qt6 対応 (`Qt${QT_VERSION_MAJOR}::WebSockets`) を行ってから、PR にする。Qt6 で WebSocket を使うには `qt6-websockets-dev` が要る (作業マシンには未導入)。
+- 計画書の行番号 (§6) のうち、`main_window.cpp` の行は、取り込んだ後にずれる。
+
+## 4. 参照実装 (rcssmonitor-web) の 3D 表示
+
+### 4.1 機能の一覧
+
+web 版の README の「3D view」と、リリースノート `docs/release-notes/v20.0.0-beta.2.md` の「New: the 3D view」がまとまった説明になっている。
+
+- **切り替え**: View > 3D View、ツールバーの 3D ボタン、キー D。2D と 3D を切り替えても、フレーム、選手の選択、審判メニューの状態が保たれる。
+- **カメラ** (View > 3D Camera、ツールバーの選択欄、キー E で次へ): free (左ドラッグで回す、Shift / Ctrl + ドラッグで動かす、ホイールで寄る)、broadcast、close-up (ボール)、close-up (選択した選手)、top、ゴール裏 (左、右)、選択した選手の視点。ほかのカメラもドラッグすると free になる。
+- **ピッチ全体の視点**: I でピッチ脇から、Ctrl+I で次の視点 (9 個)。メニューとツールバーのボタンからも選べる。2D では I は今までどおりフィールドを画面に合わせ、Ctrl+I は「3D 用」と知らせるだけ。
+- **選手視点**: 肩越し (既定) か目の高さ。向きは頭 (体 + 首) か体かその中間。動きは滑らか (角速度に上限) か即時。画角は一定 (既定 120°) か視野の幅に合わせるか、なめらかに追うか。描くものはすべてか、視野の中だけか、サーバの視覚の規則か (既定)。設定ダイアログの Player Camera タブ。
+- **2D と同じ描画**: 選手の状態の色、カード、視野、足元の円 (キック可能範囲か Player Size) の中の体と顔の向きの線、Show タブの重ね描き (注視点、キャッチ・タックル・キックの加速範囲、指差し、オフサイドライン、ボールの予測軌道、選手の種類、不正な守備の背番号の色)。範囲の数値 (タックルの確率など) は HUD に書く。
+- **背番号とスタミナ**: 背番号は頭の上 (画面上で Player フォントの 2 倍までに抑える)。真上のカメラでは 2D と同じくキック可能範囲の右に、2D と同じ大きさで書く。スタミナとスタミナ容量は頭の上のバー (S キーで、なし → スタミナ → 容量 → 両方)。
+- **審判操作**: 右クリックで、選手を狙えばその選手 (カード) とその足元、地面ならピッチと周りの点。ピッチの外や地平線より上では位置なし。
+- **人型** (3D タブの Players): CC0 のマネキン。速さで歩き・走り、ログからキック、タックル、キャッチ、指差し、ファウルを受けて座り込む。止めても戻しても同じ姿勢。真上のカメラと、向きのわからない選手は円柱。
+- **両端の区別**: ゴールのネット、ピッチのまわりの広告板、ゴール裏の空中の看板をチームの色にする (広告板と看板は切り替え可)。方位の帯とミニマップを重ねられる。
+- **見た目** (3D タブ、どれも切り替え可、既定でオン): 太陽の影、芝の刈り目の縞、空、両タッチライン沿いの観客席、五角形の模様で転がるボール。
+- **ボールを見つける助け** (3D タブの Ball): 地面の円 (既定 0.7 m) と、最近のサイクルの軌跡 (飛行機雲)。
+- **ボールの高さ**: show に `ball.z` があれば空中に描き、真下に影を出す (計画中の 2.5 次元シミュレータ用。今のサーバとログにはない)。
+- **性能**: 1920×1080、デスクトップの GPU で、すべてオンでも 60 fps (Firefox で計測)。
+
+### 4.2 web 版のモジュールと、rcssmonitor での担当 (仮の名前)
+
+| web 版 (`src/view/` 以下) | 行数 | 内容 | rcssmonitor での担当 |
+|---|---|---|---|
+| `render3d/render3d.ts` | 1927 | 3D の描画の中心。シーンの組み立て、選手、ラベル、バー、カメラの更新、審判操作の当たり判定、点検用の状態 | `FieldView3D` (QOpenGLWidget) と `Scene3D` に分ける |
+| `render3d/cameras.ts` | 230 | カメラの種類、中継風・ゴール裏・寄りの位置、視点、なめらかな追従 | `Cameras3D` (三次元の計算だけ。GL に依存しない) |
+| `render3d/player-camera.ts` | 204 | 選手視点のスタイルと動き | `PlayerCamera3D` |
+| `render3d/sight.ts` | 111 | 選手が知覚するもの (視野、サーバの規則) | `Sight` |
+| `render3d/interpolate.ts` | 81 | フレームのあいだの補間 | `Interpolate` |
+| `render3d/scene-math.ts` | 279 | 座標の対応、ピッチ全体を収める距離、スタミナの色、色の明暗など | `SceneMath` |
+| `render3d/overlays.ts`、`../overlay-math.ts` | 435、235 | 地面の重ね描きと、2D と共有する計算 | 2D の painter から計算を切り出して共有する (`OverlayMath`) |
+| `render3d/stadium.ts` | 270 | 広告板と看板 | `Stadium3D` |
+| `render3d/scenery.ts` | 402 | 芝の縞、空、観客席 | `Scenery3D` |
+| `render3d/ball.ts`、`ball-aids.ts` | 189、338 | ボールの模様と転がり、円と軌跡 | `Ball3D`、`BallAids3D` |
+| `render3d/field-texture.ts` | 55 | 2D の field painter で地面の絵を描く | `FieldPainter` を `QImage` に描いて使う |
+| `render3d/figures/` (`figures.ts`、`pose.ts`、`gltf.ts`) | 152、270、413 | 人型。動作の決め方、姿勢、glTF の読み込みと骨の操作 | `Figures3D`、`Pose`、`GltfModel` |
+| `hud/guides.ts`、`hud/hud.ts`、`hud/score-board.ts` | 261、183、62 | 方位の帯、ミニマップ、HUD の文字、スコアボード | QPainter で 3D の上に描く (§5.5) |
+| `player-style.ts` | 107 | 2D と同じ選手の色 | 2D の `PlayerPainter` の色の決め方を共有する |
+
+### 4.3 主な定数 (web 版の値。迷ったら web 版のソースを正とする)
+
+| 項目 | 値 | web 版の場所 |
+|---|---|---|
+| 座標 | ワールドの X = フィールドの x、Z = フィールドの y、Y が上。フィールドの角度 d は `rotation.y = -d` (度→ラジアン)。glTF のモデルの前は +Z なので `rotation.y = π/2 - body` | `scene-math.ts`、`figures/gltf.ts` |
+| 縦の画角 | 35° (選手視点以外) | `cameras.ts` `CAMERA_FOV` |
+| 中継風 | ピッチ全体が収まる距離の 0.55 倍 (16:9 で約 72 m)、仰角 32°。ボールの地面上の位置を、タッチラインとゴールラインから 10 m 内側までで追う | `broadcastPose` |
+| なめらかな追従 | 時定数 0.35 s。1 フレームに進める時間は 0.1 s まで。0.02 m 以内で止まったとみなす | `smoothToward`、`SETTLED` |
+| ゴール裏 | x = ±(52.5 + 18)、高さ 10 m。見る点はゴールとボールの中間 (横は 0.6 倍)。画角 45° | `goalPose` |
+| 真上 | 正射影。地面の絵の範囲を、高さの 15% を HUD に残して収める | `topHalfSize` |
+| 寄り | 距離 12 m (3〜60)、仰角 20° (5〜85)。選手は高さ 1 m を見る。時定数 = 0.0089 s/m × 距離 (0.05〜0.35 s)。ホイール 1 ノッチで約 1.1 倍 | `closeupPose`、`closeupTimeConstant` |
+| 視点 | 9 個の方位と仰角 (`VIEWPOINT_ANGLES`)。ピッチと周り 2 m の四隅が、横 97%、縦 85% に収まる最短の距離を式で求める | `fitView` |
+| 選手視点 | 既定は肩越し (6 m 後ろ、3 m 上)、頭、滑らか、一定の画角 120° (横)、サーバの規則。τ 0.5 s、ω 90°/s。目の高さ 1.65 m | `player-camera.ts` |
+| 視覚の規則 | 視野の中は `player_max_observation_length` まで。`unum_far_length` 20 m〜`unum_too_far_length` 40 m で背番号が薄れ、背番号がなければ向きもない。`team_far_length` 40 m〜`team_too_far_length` 60 m でチームが灰色に。視野の外は `visible_distance` 3 m 以内を感じる | `sight.ts` |
+| 背番号 | 1.3 m の高さのラベル (文字は 40/64)。画面上の文字の高さは Player フォントの 2 倍まで。縮めるときは頭の上に向かって縮める | `fitLabels`、`LABEL_MAX_FONT` |
+| 地面の層の高さ | 影の面 0.01、足元の円 0.02、ボールの円 0.028、ボールの影 0.03、視野 0.035〜0.04、重ね描きの線 0.045 m | 各ファイル |
+| 広告板 | タッチラインとゴールラインから 5.5 m、高さ 1 m、10 m ごとにチーム名、明るさはチームの色の 0.32 倍 | `BOARDS`、`BOARD_SHADE` |
+| 看板 | ゴールラインの 22 m 後ろ、幅 50 m、高さ 8 m、下端 12 m | `BANNER` |
+| 影 | 太陽の向き (-60, 65, -30) (左奥、仰角 44°)。地図は 4096 px (GPU が 8192 を扱えれば) か 2048 px。地面の絵の範囲 + 4 m、高さ 3 m までを覆う。PCF、半径 2、bias -0.0005、normalBias 0.02。影だけを描く面の濃さ 0.4。影を落とすのは選手とゴールの枠。真上のカメラでは描かない | `render3d.ts` `fitSunShadow` |
+| 芝の縞 | 幅 5.25 m (ピッチに 20 本)。芝の色の 1.05 倍と 0.92 倍 | `GRASS` |
+| 空 | 天頂 #3d7ccc、地平線 #d4e4f0、地平線より下 #6f9f7f。半径 1900 m の球をカメラに付ける。霧 600〜1500 m。外の地面は 3000 m 四方 | `SKY` |
+| 観客席 | 広告板の 2 m 外から 16 段 (奥行き 0.85 m、高さ 0.42 m、最前列の下に 1.2 m の壁)。長さは広告板と同じ。観客の 45% がその半分のチームの色 | `STANDS` |
+| ボール | 模様は正二十面体の頂点に黒い五角形 12 個 (角は隣の頂点への 1/3)。転がりは 1 サイクルに 0.8π まで。5 m を超える移動は置き直し | `ball.ts` |
+| ボールの円 | 半径 0.7 m (0.1〜5)。線は 0.06 m か画面上 2 px の太いほう。内側の濃さ 0.12 | `ball-aids.ts` |
+| 軌跡 | 5 サイクル (1〜30)。頭の幅はボールの直径の 1.5 倍か画面上 6 px の太いほう。濃さ 0.75。古いほど細く薄い | `ball-aids.ts` |
+| 人型 | 背の高さ 1.85 m × 1.2。クリップ Idle_Loop、Walk_Loop、Jog_Fwd_Loop、Sprint_Loop (それぞれ 1.4、3.6、6.5 m/s)。骨 Head、spine_02、thigh_l/r、calf_l/r、upperarm_l/r (65 本のうち姿勢で動かすもの)。ユニフォームの材質 M_Main | `figures/gltf.ts` |
+
+### 4.4 ログと rcssserver の仕様で効くこと
+
+- **タックルのビット**: rcssserver は、選手を止めているあいだ (`tackle_cycles`、既定 10) Tackle / TackleFault のビットを残す。ファウルになったタックルは止めないので、ビットは 1 フレームだけ。人型は、ビットが続くフレームのあいだだけ滑らせる (`Player::tackle`、`resetState`)。
+- **FoulCharged のビット**: ファウルを受けた選手は `foul_cycles` (既定 5) のあいだ止まり、そのあいだビットが残る。
+- **Catch のビット**: 1 フレームだけ。キャッチの姿勢は `catch_ban_cycle` のあいだ保つ。
+- **Kick のビット**: キックのあいだ (`kick_cycles`) 残る。ふつうは 1 フレーム。
+- ライブの show には、接続していない選手も `state: 0` で入り、x = -(unum × 3 × side)、y = -37 に置かれる。
+- 詳しくは `rcssmonitor-web/docs/protocol.md` §5。
+
+## 5. 設計
+
+### 5.1 全体の構成
+
+```
+MainWindow
+ └ QStackedWidget (中央)
+     ├ FieldCanvas      (2D。今のまま)
+     └ FieldView3D      (3D。QOpenGLWidget)
+          ├ Scene3D      シーンの組み立てと描画 (GL)
+          ├ Cameras3D / PlayerCamera3D / Sight / Interpolate  (計算だけ。GL に依存しない)
+          ├ Figures3D    人型 (cgltf、姿勢の計算、骨の行列)
+          └ HUD          QPainter で 3D の上に描く
+DispHolder / LogPlayer / Options  (2D と共有)
+```
+
+- 2D と 3D は `DispHolder` と選手の選択を共有する。切り替えはウィジェットを入れ替えるだけで、再生の位置と選択はそのまま。
+- 3D の描画に要る計算 (カメラ、補間、知覚、姿勢、軌跡など) は、GL に依存しないクラスに置き、単体テストで確かめる。web 版でも同じ分け方にした。
+- `ENABLE_3D` が OFF、または実行時に OpenGL 3.3 core の文脈が作れないときは、3D のメニューとキーを無効にし、理由をステータスバーに出す。
+
+### 5.2 時間と補間
+
+- 今の `LogPlayer` は `QTimer` で 1 フレームずつ進めるだけで、フレームのあいだの位置を持たない。3D は、今のフレーム、次のフレーム、その間の割合 (alpha) で描く。`LogPlayer` に「最後に進めてからの経過時間 / 間隔」を返す関数を足す (`QElapsedTimer`)。止めているときは alpha = 0。
+- 補間は、位置は線形、角度は短い回り方向。プレイモードが変わる前後と、大きな瞬間移動 (選手 1 サイクルに 2 m 超、ボール 5 m 超など) の前後では補間しない (web 版 `interpolate.ts`)。
+- ライブでは 1 サイクル遅れて描き、最新と 1 つ前のあいだを補間する (動きをなめらかにするため)。
+- 描画の呼び出し: 再生中、カメラが動いているあいだ、人型の姿勢が変わるあいだは、毎フレーム `update()` する (`QOpenGLWidget::frameSwapped` に続けて次を頼む)。止まって何も動かなくなったら呼ばない。
+- **姿勢、ボールの回転、軌跡は、ログのフレームと alpha だけから決める** (描くたびに状態を積み上げない)。止めても、コマ送りで戻しても、同じフレームなら同じに見える。web 版では、描くたびに時間を積み上げたせいで、戻すと脚が止まったまま滑り、同じフレームでも姿勢が変わった (§11)。
+
+### 5.3 描画の基盤
+
+OpenGL 3.3 core (`QSurfaceFormat` で要求。macOS は 4.1 core まで)。`QOpenGLFunctions_3_3_Core` を使う。マルチサンプリング 4×。
+
+| 描き方 | 使う所 |
+|---|---|
+| 光の当たらないテクスチャ | 地面の絵、外の地面、看板、広告板、観客席 (光あり) |
+| 光の当たる単色 (Lambert) のインスタンス描画 | 選手の円柱と頭、向きの印、ゴールの枠 |
+| 半透明の単色のインスタンス描画 | 足元の円、減衰の輪、選択の輪、視野の扇形 |
+| 骨つきメッシュ (Standard に近い光) | 人型 (ユニフォームの色を材質ごとに変える) |
+| 線 (頂点に色) | 重ね描き、視野の大きな扇形、ネット |
+| 点 | ボールの予測軌道の点 |
+| ビルボード (画面を向く四角にテクスチャ) | 背番号、カード、スタミナのバー |
+| 影の深さ (インスタンスと骨つき) | 太陽の影の地図 |
+| 影だけを描く面 | 地面に落ちる影 |
+| 空のグラデーション | 空の球 |
+| ボールの模様 | ボール (方向から五角形を求める) |
+| ボールの円 | ボールの円 (距離から線と内側を求める) |
+| 霧 | 外の地面を地平線に溶かす |
+
+- フレームごとに中身が変わるバッファは、大きさを決めて一度だけ作り、使い回す (`glBufferSubData`)。web 版では、毎フレーム新しいバッファを作って GPU のメモリが漏れたことがある。
+- 影の地図は、真上のカメラでは描かない (影の面も隠す)。影の設定がオフなら描かない。
+- 描く順: 不透明 → 地面の層 (高さで重ねる) → 半透明 → 空 → ビルボード (深さの検査なし)。
+
+### 5.4 各部品
+
+web 版の対応するファイルを読み、同じ値と同じ考え方で作る。値は §4.3。
+
+- **地面**: 2D の `FieldPainter` で、1 m を 24 px、ペンを 3 倍にした `QImage` に描き、テクスチャにする。ゴールは描かない (3D で作る)。芝の縞は、芝の塗りの後、線の前に描く (`FieldPainter` に「芝の上、線の下に描く」引数を足す)。地面の絵は、色やオプションが変わったときだけ描き直す。
+- **ゴール**: 枠 (柱とクロスバー、高さ 2.44 m) と半透明のネット (チームの色)。
+- **選手**: 円柱 (胴)、球 (頭)、足元の円、体の向きの黒い円錐、顔の向きの赤い円錐、カード。色は 2D の `PlayerPainter` と同じ決め方 (状態の色、スタミナで暗く、選択)。部品ごとにインスタンス描画。足元の円の中に、体の向き (選手の線の色) と顔の向き (首の色。視野を描くときは描かない) の線。
+- **ボール**: 半径はオプションの Ball Size か `ball_size`。高さがあれば空中に描き、影は真下 (高さで薄く)。模様と転がりは `ball.ts`。
+- **ラベル**: 背番号 (と選手の種類) を `QImage` に書いてテクスチャにし、ビルボードで描く。大きさの上限と、真上のカメラでの置き方は `fitLabels`、`labelPlace`。
+- **スタミナのバー**: カメラの下向きにずらして、背番号の下に並べる。色は `staminaHue` (残りが `recover_dec_thr` と `effort_dec_thr` を下回ると赤)。選手視点のサーバの規則では、選んだ選手のバーだけ。
+- **重ね描き**: 2D の `PlayerPainter` と `BallPainter` から計算 (キャッチ範囲の半径、タックルの確率、キックの加速、予測軌道、オフサイドライン) を切り出して共有し、地面に線で描く。範囲の数値は HUD に書く。
+- **視野**: 選手ごとの扇形 (視野の幅、`visible_distance`)、選択した選手は 60 m の線の扇形。
+- **広告板と看板**: `stadium.ts`。チーム名とロゴ (Team Graphic がオンのとき) をテクスチャに書く。
+- **景色**: `scenery.ts`。観客席の面はピッチ側と上だけに向け、裏と端は外に向ける (片面だけ描く)。寄りのカメラがタッチライン際で席の中に入っても、ピッチが隠れない。
+- **ボールの円と軌跡**: `ball-aids.ts`。線の太さの下限は、カメラからの奥行きで 1 px の長さを求めて決める。
+- **影**: §4.3。
+- **人型**: §5.8。
+- **審判操作**: 画面の点から光線を出し、選手 (見えない当たり判定用の円柱。人型は 1.2 倍) か地面との交点を求める。ピッチと周りの外、地平線より上は位置なしにして、Drop Ball と Free Kick を無効にする (理由をツールチップに)。今の `FieldCanvas` の右クリックのメニューを 3D でも使う。
+
+### 5.5 HUD
+
+- `QOpenGLWidget` の `paintGL` の最後に、`QPainter` で 2D の上書きを描く: スコアボード (2D と同じ painter)、チームのロゴ、範囲の数値、方位の帯、ミニマップ、メッセージ。
+- 方位の帯: 画面の上の中央、幅 480 px まで。カメラの向きを中央に、時計回りを右に。両ゴール (チームの色の L、R) とボールの向き (`guides.ts`)。
+- ミニマップ: 右下に 2D と同じピッチ。選手、ボール、カメラの位置と見ている範囲。
+- どちらも設定で「オフ / 選手視点だけ / すべてのカメラ」。真上のカメラでは方位の帯を出さない。
+
+### 5.6 入力
+
+- マウス: free カメラは、左ドラッグで回す、Shift (または Ctrl) + 左ドラッグで動かす、ホイールと中ボタンで寄る (web 版は three.js の OrbitControls。同じ操作を自分で書く)。ほかのカメラでドラッグすると free になる。寄りのカメラではホイールで距離を変え、設定に残す。右クリックは審判のメニュー。
+- キー (web 版の `docs/parity.md` §8 と `src/ui/shortcuts.ts`):
+
+| キー | 機能 | rcssmonitor の今 |
+|---|---|---|
+| D | 2D / 3D の切り替え | 空き |
+| E | 次のカメラ | 空き |
+| I | 3D ではピッチ脇の視点 (free)。2D では今までどおり | Fit Field Size |
+| Ctrl+I | 3D では次の視点。2D では「3D 用」と知らせる | 空き |
+| S | スタミナの表示を、なし → スタミナ → 容量 → 両方で回す (3D のバーにも効く) | 同じ (2D) |
+
+Shift を使うショートカットは作らない。関係のある別の操作は Ctrl を付ける (G / Ctrl+G、Z / Ctrl+Z と同じ形)。
+
+### 5.7 設定
+
+`Options` に足し、`~/.rcssmonitor.conf` に保存する。名前は web 版 (URL のパラメータ名と同じ) にそろえ、コマンドラインのオプションにも同じ名前で足す。範囲の外の値は読み込まない。
+
+| 名前 | 既定 | 値 |
+|---|---|---|
+| `view_3d` | off | 3D で始める |
+| `camera_3d` | broadcast | free / broadcast / closeup-ball / closeup-player / top / goal-left / goal-right / player |
+| `closeup_distance_3d`、`closeup_elevation_3d` | 12、20 | 3〜60 m、5〜85° |
+| `player_camera_position` | shoulder | eye / shoulder |
+| `player_camera_direction` | head | head / body / middle |
+| `player_camera_motion` | smooth | instant / smooth |
+| `player_camera_fov` | fixed | view / eased / fixed |
+| `player_camera_sight` | server | all / view / server |
+| `player_camera_time_constant`、`player_camera_max_turn`、`player_camera_fixed_fov` | 0.5、90、120 | 0〜5 s、1〜3600 °/s、20〜120° |
+| `compass_3d`、`minimap_3d` | off | off / player / all |
+| `boards_3d`、`banners_3d` | on | |
+| `player_model_3d` | simple | simple / figure |
+| `shadows_3d`、`grass_stripes_3d`、`sky_3d`、`stands_3d`、`ball_pattern_3d` | on | |
+| `ball_ring_3d`、`ball_ring_radius_3d` | on、0.7 | 0.1〜5 m |
+| `ball_trail_3d`、`ball_trail_cycles_3d` | on、5 | 1〜30 (整数) |
+
+設定ダイアログ:
+
+- **3D タブ**: Close-up Camera (距離、仰角)、Guides (方位の帯、ミニマップ)、Players (Model、Shadows)、Ball (Pattern、Ring、Trail、Ring Radius、Trail cycles)、Stadium (Boards、Banners、Stands、Grass Stripes、Sky)、Default ボタン。
+- **Player Camera タブ**: 4 つのスタイル、時定数、最大角速度、一定の画角、Player Sight、Default ボタン。
+- どの項目にもツールチップで詳しい説明を付ける。数値の欄は、ツールチップに範囲を書き、範囲の外は端に寄せる (入力中はエラーの色)。選んだスタイルが使わない数値の欄は薄くする。
+- web 版では、3D の項目が増えて 1 つのタブが縦に長くなりすぎたので、Player Camera を別のタブに分けた。項目がさらに増えたら、同じく分ける。
+
+### 5.8 人型
+
+- モデル: `Mannequin.glb` (Quaternius の Universal Animation Library [Standard]、CC0) の、メッシュ、骨 65 本、クリップ 4 つ。web 版の `src/view/render3d/figures/models/README.md` に出典と削り方がある。D6 のとおり、圧縮なしで書き出し直して qrc に入れる。
+- 読み込み: cgltf でメッシュ (位置、法線、骨の番号と重み)、骨の階層と逆バインド行列、クリップのキーフレームを読む。
+- **姿勢は毎フレーム、ログから決める** (再生機を持たない):
+  1. 歩いた距離の表 (`gaitAt`): 選手ごとに、フレームまでに歩いた距離 (体の向きと逆に動いた分は引く。1 サイクルに 2 m を超える移動は数えない) を、ログから一度だけ求めて覚えておく。
+  2. クリップの時刻: 歩き・走り・全力疾走は「歩いた距離 / そのクリップの速さ」、待機は試合の時刻。速さで重みを決めて混ぜる (全力疾走 (v-5)/1.5、走り (v-2)/1.5、歩き v/0.8 を 0〜1 に切る)。
+  3. 骨の局所の回転を、キーフレームから求めて重みで混ぜる。
+  4. 動作の姿勢を重ねる (`pose.ts`): 首 (頭の骨を首の角度で回す)、キック (前後のフレームのビットから、振りかぶり、蹴る瞬間、振り抜き。蹴る脚はボールの側)、タックル (ビットが続くあいだ滑り、最後から 0.3 サイクル保って 1.5 サイクルで起きる)、ファウルを受けた (座り込んで手を後ろにつく)、キャッチ (両手を上げる)、指差し (右腕)。動作は、ビットが続くフレームの範囲 (`actionRun`) で決める。
+  5. 骨の行列を求めて、骨つきの描画に渡す。
+- 回転は、クリップの姿勢の上に「毎回はじめから」重ねる。web 版 (three.js) では、アニメーションの再生機が値の変わらない骨を書き直さないため、重ねた回転が描くたびにたまり、首や体が回り続けた (§11)。自前で毎回求めれば起きない。
+- 大きさは実物の 1.2 倍。真上のカメラでは円柱で描く。選手視点のサーバの規則で、向きがわからない選手も円柱で描く (人型は形で向きを見せてしまうため)。人型には向きの円錐を付けない。
+- 当たり判定は、全員分の見えない円柱で行う (人型は 1.2 倍)。
+
+## 6. 不具合の修正
+
+web 版の `docs/parity.md` §7。行番号は 2026-11-11 の develop (01f880a) で確かめた (`feature/support-tcp-ws` と違うのは B11 だけ。あちらでは 2394-2429)。直し方は web 版の実装を参考にする。
+
+| # | 不具合 | 場所 | 直し方 |
+|---|---|---|---|
+| B1 | 65,535 フレームを超えると、ライブ表示が止まる | `src/disp_holder.cpp:65` (`MAX_SIZE = 65535`)、`:249` | 上限で受け付けをやめない。上限を大きくするか、古いフレームから捨てる (どちらにするかは実装のときに決め、§14 に記録する)。web 版は上限なし |
+| B2 | JSON の `vq` を bool として入れている。`view_quality_` は `'h'` / `'l'` の char なので、JSON のログでは視覚の質がいつも低いと判定される | `rcss/rcg/parser_simdjson.cpp:478` | `'h'` / `'l'` を入れる |
+| B3 | JSON の未知のキーで、解析全体が中断する | `rcss/rcg/parser_simdjson.cpp:85-164` | 未知のキーは飛ばす (§7) |
+| B4 | JSON の選手を、配列の順に格納している | `rcss/rcg/parser_simdjson.cpp:447-525` | `side` と `unum` で格納する (§7) |
+| B5 | `foul_push_r` が PM_Null になる (`{ "foul_push_l", PM_Foul_Push_Right }` の打ち間違い) | `rcss/rcg/util.cpp:854-855` | `foul_push_r` にする |
+| B6 | テキスト rcg のチームグラフィックで、16 文字以上の文字列が壊れる (`char buf[16]` に `%15[^"]` で読むので、16 文字以上では閉じの `"` と合わず、読み取りの位置がずれる) | `rcss/rcg/parser_v4.cpp:625-709` (`:696-697`) | 引用符の中を、長さを決め打ちにせずに読む (`std::string` で次の `"` まで) |
+| B7 | パラメータの既定値が古い (`player_speed_max` 1.2、`stamina_max` 4000 など約 40 項目)。`effort_inc` が対応表にない | `rcss/rcg/types.cpp:547-760` | asio 版 rcssserver 19.0.0 の既定値にそろえる (web 版 `src/core/param-defaults.ts` の値) |
+| B8 | テキスト rcg に、`(名前` で始まらない行が 1 行でもあると、ログ全体の読み込みが止まる | `rcss/rcg/parser_v4.cpp:95-102, 123-128` | その行を飛ばして続ける |
+| B9 | オフサイドラインが x = 0 とボールの間にしか引かれない (選手の side を列挙値と比べている) | `src/player_painter.cpp:1034, 1061` | 比べ方を直す |
+| B10 | 左のキーパーのキャッチ範囲に、右のキーパーの色を使う (B9 と同じ比較の誤り) | `src/player_painter.cpp:545, 563` | 同上 |
+| B11 | Change Playmode の back_pass で、位置を計算した後に何も送られない | `src/main_window.cpp:2359-2394` | `back_pass_l` / `back_pass_r` を送る (web 版 `src/io/live/commands.ts` `changePlayModeCommands`) |
+| B12 | 設定ダイアログの "Fix" が Auto-right になる (`setPlayerSelectType( SELECT_AUTO_RIGHT )`) | `src/config_dialog.cpp:2441` | `SELECT_FIX` にする |
+| B13 | 色の一覧の Illegal Defense の項目が、初期値に Pointto の色 (`pointtoPen().color()`) を使う | `src/config_dialog.cpp:1258-1260` | Illegal Defense の色を使う |
+| B14 | 選手タイプ一覧で、数値が 2 つある列が並べ替わらない (セルの文字列を 1 つの数値として読む) | `src/player_type_dialog.cpp:69-75` | 最初の数値で比べる |
+
+- 1 件ずつ、できれば単体テストを付けて直す (Qt Test。解析の不具合はフィクスチャで、描画の不具合は計算を切り出して確かめる)。
+- master への取り込みを急ぐなら、不具合の修正だけを先に別の PR にできる。
+
+## 7. JSON パーサの改善
+
+対象は `rcss/rcg/parser_simdjson.cpp` (ログ) と、ライブの JSON メッセージ (同じパーサを `disp_holder.cpp` から使う)。web 版の `src/io/rcg-json.ts` と `docs/protocol.md` §3、§7 に合わせる。
+
+1. 未知のキーは飛ばす (B3)。今後サーバが項目を足しても読めるように。
+2. `vq` を `'h'` / `'l'` で入れる (B2)。
+3. 選手を `side` と `unum` で格納する (B4)。配列の要素が欠けても、順が違ってもよいように。
+4. ログを 1 行 1 レコードとして読む。サーバが異常終了すると末尾の `]` が欠けるので、`[` と `]` の行を飛ばし、行末の `,` を取り除いて読む。1 行が壊れていたら、その行だけ飛ばして警告を出す。
+5. 省略されうる項目を受け付ける: `stime` (0 より大きいときだけ)、`px` / `py` (指差し中だけ)、`fside` / `fnum` (attentionto のあるときだけ)、`pen_score` / `pen_miss` (PK を蹴ったチームだけ)、チーム名の `null` (接続前)、`capacity`。
+6. ボールの高さ `ball.z` と鉛直方向の速度 `ball.vz` を、あれば読む (2.5 次元シミュレータ用。単位は m と m/サイクル、上が正。キー名は仮で、サーバの形式が決まったら合わせる)。`types.h` の `BallT` に足す。
+7. `timestamp` (`%FT%T%z`、オフセットにコロンなし) を壊さずに扱う。
+8. 速さを測る: 全試合の JSON ログ (作業ツリーの直下に置いた `1-json.rcg.gz`、6,209 フレーム。リポジトリには入れない) の読み込み時間を、改善の前後で比べて §14 に記録する。web 版はブラウザで約 0.3〜0.5 秒。
+9. `origin/feature/json-reformat` の内容 (旧パーサの新形式対応) を確かめ、上と重ならないものがあれば取り込む。
+10. テキスト rcg の B6、B8 もこの段階で直す。
+
+テスト: フィクスチャ (`1-json.rcg.gz` から短く切り出したもの、壊れた行、未知のキー、選手の順の入れ替え、末尾の `]` の欠け) で、フレーム数、特定のフレームの値、プレイモードの並びを確かめる。web 版の `test/unit/rcg-json.test.ts`、`rcg-text.test.ts`、`full-logs.test.ts` が手本。
+
+## 8. Qt6 対応
+
+1. CMake: `find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core)` で版を選び、`Qt${QT_VERSION_MAJOR}::Widgets` などでリンクする。Test も同じ形にする (WebSockets は、取り込むときに §3.5 で)。Qt6 では `OpenGL` と `OpenGLWidgets` を足す (3D 用)。Qt5 の `QOpenGLWidget` は Widgets にある。
+2. §3.3 の置き換えを行う。Qt 5.15 でも動く書き方を選ぶ (両対応、D2)。
+3. `USE_GLWIDGET` の `QGLWidget` は、使われていなければ消す。使うなら `QOpenGLWidget` にする。
+4. `QT_VERSION_CHECK` の分岐のうち、Qt 5.15 より古いものを消す。
+5. 非推奨の警告をなくす: Qt5 では `QT_DISABLE_DEPRECATED_BEFORE=0x050F00` でビルドし、Qt6 では非推奨の警告が出ないことを確かめる。
+6. 高 DPI: Qt6 では既定で有効。2D の描画 (線の太さ、文字の大きさ) が、倍率 1、1.5、2 で崩れないことを確かめる。3D は `devicePixelRatio` に合わせて描く。
+7. autotools と qmake は D3 のとおり Qt5 のまま残し、README に「Qt6 と 3D は CMake で」と書く。
+8. CI で Qt5 と Qt6 の両方をビルドする (§10)。
+9. README のインストールの手順を、Ubuntu 22.04 / 24.04 / 26.04 の Qt5 と Qt6 の両方について書き直す。
+
+## 9. フェーズ計画
+
+各フェーズは feature ブランチで進め、終わったら develop に取り込む (D9)。区切りごとにユーザに確かめる。
+
+### 9.1 ブランチ (2026-11-11 にユーザが了承)
+
+| フェーズ | ブランチ |
+|---|---|
+| Phase 0: CI とテストの仕組み | `feature/ci` |
+| Phase 0: 3D の試作 | `proto/3d-gl` (ローカルだけ。取り込まない) |
+| Phase 1: 不具合の修正 | `fix/parity-bugs` |
+| Phase 2: パーサの改善 | `feature/json-parser` |
+| Phase 3: Qt6 対応 | `feature/qt6` |
+| Phase 4〜8: 3D 表示 | `feature/3d-view` |
+
+- 最初のブランチは develop から作る。取り込みはユーザが行うので、前のフェーズのブランチがまだ develop に入っていなければ、前のフェーズのブランチから派生させる (積み重ね)。Phase 1 と Phase 3 は、どちらも `main_window.cpp`、`config_dialog.cpp`、`player_painter.cpp` を変えるので、並行させずに順に積む。
+- `proto/3d-gl` は develop から作る。
+- どのブランチも、作る前にユーザに確かめる (§0.1)。上流 (upstream) は、プッシュするときに設定する (`--no-track` で作る)。
+
+### Phase 0: 土台と検証
+
+**作業**
+- §2.2 の決めることを、ユーザに確かめる。
+- D7 に従って、develop からブランチを作る (§9.1)。
+- CI (GitHub Actions) を用意する。Ubuntu 26.04 (`runs-on: ubuntu-26.04`。web 版の CI と同じ) で、Qt5 のビルドと単体テスト。Qt6 のジョブは、Qt6 でビルドが通るようになる Phase 3 で足す。アクションは Node.js 24 で動く版 (web 版と同じく checkout@v5、upload-artifact@v7 など) を使う。
+- テストの仕組み (Qt Test、CTest) を develop の上に作る。形は §3.5 のとおり `feature/support-tcp-ws` にそろえる。
+- D10 の案 A (§2.4) を試す (試すあいだは `feature/ci` への push で動かす)。
+- 3D の試作 (D1 の確認): `QOpenGLWidget` で、骨つきの人型 22 体 (クリップを混ぜて歩かせる) と、4096 px の影の地図と、インスタンス描画の円柱を描き、1920×1080 で 60 fps を保てるかを測る。Qt 5.15 と Qt 6 の両方で動かす。結果を §14 に記録し、D1 を決める。
+- 人型のモデルを D6 のとおりに用意する。
+
+**完了条件**: §2.2 がすべて決まる。CI が通る。試作で 60 fps を確かめる (D1 が推奨案のとき)。D10 の案 A を採用するかが決まる。
+
+### Phase 1: 不具合の修正
+
+**作業**: §6 の B1、B5、B9〜B14 (パーサ以外)。単体テストを付ける。
+
+**完了条件**: 直した不具合ごとにテストがあり、CI が通る。ユーザが実際のログで確かめる。
+
+### Phase 2: JSON パーサとテキストパーサの改善
+
+**作業**: §7 (B2〜B4、B6〜B8 を含む)。
+
+**完了条件**: フィクスチャのテストが通る。全試合のログ 2 本 (JSON とテキスト v5) を読めて、件数がファイルと一致する。読み込み時間を記録する。
+
+### Phase 3: Qt6 対応
+
+**作業**: §8。CI に Qt6 のジョブを足す。
+
+**完了条件**: Qt 5.15 と Qt 6 の両方でビルドでき、非推奨の警告がない。CI の両方の版が通る。ユーザが 2D の表示、ライブ接続 (UDP。TCP / WebSocket は取り込んだ後に §3.5 で)、ログの再生、審判操作、設定ダイアログを、Qt6 で確かめる。
+
+### Phase 4: 3D の土台
+
+**作業**
+- `FieldView3D` と、2D との切り替え (D キー、メニュー、ツールバー)。`ENABLE_3D` と、GL が使えないときの扱い。
+- 時間と補間 (§5.2)。ライブの 1 サイクル遅れ。
+- 地面の絵、ゴール、選手 (円柱。状態の色、カード、向きの印、足元の円と向きの線、視野)、ボール (高さと影)。
+- カメラ: free、broadcast、top、ゴール裏 2 つ。E キー。マウスの操作。
+- HUD (スコアボード、ロゴ)。
+- 背番号のラベル (大きさの上限、真上のカメラでの置き方)。
+
+**完了条件**: 2D と 3D を切り替えても、フレームと選択が保たれる。`ball.z` のある show (テスト用に作る) で、ボールが空中に描かれ、影が地面に出る。カメラごとの位置の単体テストが通る。
+
+### Phase 5: 2D と同じ情報と、審判操作
+
+**作業**: 重ね描き (§5.4。2D の painter から計算を切り出して共有する)、範囲の数値の HUD、スタミナのバーと S キー、不正な守備の色、審判操作の当たり判定 (§5.4)。
+
+**完了条件**: Show タブの切り替えが 3D でも効く。3D で右クリックした選手と地面の点に、審判のコマンドが送られる (擬似サーバで確かめる。web 版の `tools/replay-server` が参考)。
+
+### Phase 6: 選手視点と、ほかのカメラ
+
+**作業**: 選手視点の 4 つのスタイルと知覚 (§4.3、`player-camera.ts`、`sight.ts`)、寄りのカメラ 2 つ (ホイールで距離)、ピッチ全体の視点 9 個 (I、Ctrl+I、メニュー、ツールバー)、方位の帯とミニマップ、両端のチームの色 (ネット、広告板、看板)、設定ダイアログの 3D タブと Player Camera タブ。
+
+**完了条件**: 選手視点の 4 つの項目のすべての組み合わせを選べる。`smooth` が角速度の上限を超えない (単体テスト)。`view` と `server` の描き分け (単体テスト)。どの視点でもピッチの四隅が画面に収まる (単体テスト)。
+
+### Phase 7: 人型
+
+**作業**: §5.8。
+
+**完了条件**: 人型で、歩く、走る、キック、タックル (ファウルでは一瞬)、ファウルを受けて座り込む、キャッチ、指差しを、実際のログで確かめる。コマ送りで進んで戻ったときと、跳んで戻ったときに、同じ姿勢になる (単体テストと、描画の点検用の状態で確かめる)。同じフレームを何度描いても、首と脚が変わらない。
+
+### Phase 8: 見た目とボールの助け
+
+**作業**: 影 (§4.3)、芝の縞、空と霧、観客席、ボールの模様と転がり、ボールの円と軌跡。設定とダイアログ。
+
+**完了条件**: どれも設定で切り替えられる。真上のカメラに切り替えた最初のフレームが、次のフレームと同じ (§11 の 4)。1920×1080、デスクトップの GPU で、すべてオンでも 60 fps を保つ (計測を §14 に記録)。
+
+### Phase 9: 文書とリリース
+
+**作業**: README (3D、キー、設定、Qt6 のビルド)、ChangeLog と NEWS、版を D8 にする。D10 の結果に従って、master の `main.yml` と `utils/appimage/` を消すか、案 A に置き換える (master への取り込みで行う)。ユーザが master に取り込み、タグを付ける。
+
+**完了条件**: リリースされる。
+
+## 10. テスト計画
+
+### 10.1 単体テスト (Qt Test)
+
+GL に依存しない計算を、web 版の単体テストを手本に移す。
+
+| web 版のテスト | 確かめること |
+|---|---|
+| `view3d-motion.test.ts` | 補間、カメラの位置 (中継風、ゴール裏、真上、寄り)、追従、カメラの順、設定 |
+| `viewpoints.test.ts` | 視点の式 (四隅が収まり、どこかが端に接する) |
+| `player-camera.test.ts` | 選手視点のスタイル、角速度の上限、知覚の規則 |
+| `figures.test.ts` | 動作の範囲 (タックルのビットが 10 フレーム続くときと 1 フレームのとき)、ファウルを受けた姿勢、歩いた距離の表 (描く順によらず同じ、後ろ向きで減る、瞬間移動を数えない) |
+| `overlays.test.ts` | 重ね描きの計算、向きの線の端と色、スタミナのバー |
+| `scenery.test.ts` | 芝の縞の帯、観客席の面の向きと範囲、ボールの五角形と転がり |
+| `ball-aids.test.ts` | 軌跡の点の年齢と長さ、置き直しで切れること、帯の向き・幅・濃さ |
+| `guides.test.ts`、`scene3d.test.ts` | 方位の帯とミニマップの座標、ボールの高さと影の濃さ、色 |
+| `rcg-json.test.ts`、`rcg-text.test.ts`、`full-logs.test.ts` | パーサ (§7) |
+
+### 10.2 描画のテスト
+
+- `FieldView3D` に、点検用の状態を返す関数を作る (web 版の `Render3DState`: 描いた選手と人型の数、カメラの位置と向き、ボールの位置と回転、影、景色、ラベルの位置と大きさ、重ね描きの数、描画命令の数など)。描画のテストは、これを見て確かめる。
+- 画面外の描画 (`QOffscreenSurface` と `QOpenGLFramebufferObject`、または `QT_QPA_PLATFORM=offscreen`) と、CI ではソフトウェアの OpenGL (Mesa llvmpipe、`LIBGL_ALWAYS_SOFTWARE=1`) を使う。必要なら `xvfb-run`。
+- 画素で確かめるのは、色に頼らない比べ方にする (例: 切り替えた最初のフレームと次のフレームが同じ)。web 版では、黒い画素だけを数えたテストが、白くなった同じ不具合を見逃した。
+- **ソフトウェアの描画は遅い**。テストでは影を切って描く (影を確かめるテストだけ明示してオンにする)、なめらかに動くカメラの到着を待たない、人型を使うテストは時間の制限に余裕を持たせる。web 版の CI では、ランナーが遅いときにこの 3 点で時間切れが起きた。
+
+### 10.3 手で確かめること
+
+- 実際の GPU での fps (描画時間をログに出す仕組みを作る)。
+- asio 版 rcssserver とのライブ接続 (UDP。TCP / WebSocket は取り込んだ後)。`RCSS_CONF_DIR` と `HOME` を一時ディレクトリにする (§0.1)。
+- 全試合のログ (作業ツリーの直下に置いた `1-json.rcg.gz` と `202207160432-HELIOS2022_1-vs-CYRUS_0.rcg.gz`。リポジトリには入れない) での見た目。web 版と並べて見比べる。
+
+## 11. web 版で得た教訓
+
+1. **ログから決める**: 人型の姿勢、ボールの回転、軌跡は、フレームと alpha だけから毎回求める。描くたびに時間や回転を積み上げると、コマ送りや巻き戻しで崩れる (web 版の区切り 12)。
+2. **ビットの続く範囲を見る**: タックルとファウルは、ビットが続くフレームの範囲で姿勢を決める (§4.4)。最初は「ビットのあったフレームから tackle_cycles」としたため、止められたタックルが 2 倍の長さ倒れ、ファウルでは滑ったまま走った。作ったデータ (ビットが 1 フレームだけ) のテストでは気づけなかったので、実際のログで確かめる。
+3. **重ねる回転は毎回はじめから**: 骨の回転をクリップの姿勢の上に重ねるとき、前のフレームの結果の上に重ねない。
+4. **状態の切り替えの最初のフレームを確かめる**: web 版では、three.js が GPU にデータを送る時期の都合で、真上のカメラに切り替えた最初のフレームだけ、円柱が初期値 (原点) のまま描かれた。カメラや設定を切り替えた直後のフレームを、次のフレームと比べるテストを入れる。
+5. **画面上の大きさに上限と下限**: 背番号とバーは、近くで大きくなりすぎないよう上限 (Player フォントの 2 倍)。ボールの円の線と軌跡の頭は、遠くで消えないよう下限 (2 px、6 px)。
+6. **追従の遅れ**: 近いカメラほど遅れを小さくする (寄りの時定数は距離に比例)。1 フレームに進める時間に上限を設ける。
+7. **観客席は片面だけ**: カメラが席の中や後ろに入っても、ピッチを隠さない。
+8. **太陽の向き**: 手前のカメラから影が見えるよう、左奥から照らす。真上のカメラでは影を描かない。ボールは高さを読むための真下の影のまま。
+9. **補間しない場面**: プレイモードの切り替えと瞬間移動の前後。ライブは 1 サイクル遅れて描く。
+10. **ソフトウェアの描画は遅い**: CI のテストは軽く保つ (§10.2)。
+11. **キーの決め方**: rcssmonitor の空いているキーを使い、Shift は使わず、関係のある操作は Ctrl を付ける。ブラウザと違い、ネイティブ版はキーの横取りの問題がない。
+12. **設定の見せ方**: 項目ごとのツールチップ、範囲の明示、範囲の外の扱い、使わない欄を薄くする。タブが長くなったら分ける。
+13. **ユーザが決めた既定値**: 選手視点 (肩越し、頭、滑らか、120° 一定、サーバの規則、τ 0.5、ω 90)、人型の既定は円柱 (simple)、影と景色とボールの助けは既定でオン。
+
+## 12. 変更・追加するファイル (見込み)
+
+**追加** (`src/view3d/` にまとめる案)
+
+| ファイル | 内容 |
+|---|---|
+| `field_view_3d.{h,cpp}` | QOpenGLWidget。入力、時間、描画の呼び出し、点検用の状態 |
+| `scene_3d.{h,cpp}` | シーンの組み立てと描画 |
+| `gl_*.{h,cpp}`、`shaders/*.glsl` | 描画の基盤 (シェーダ、バッファ、テクスチャ、影の地図) |
+| `cameras_3d.{h,cpp}`、`player_camera_3d.{h,cpp}`、`sight.{h,cpp}`、`interpolate.{h,cpp}`、`scene_math.{h,cpp}` | 計算 (GL に依存しない) |
+| `overlay_math.{h,cpp}` | 2D と 3D で共有する重ね描きの計算 (2D の painter から移す) |
+| `stadium_3d`、`scenery_3d`、`ball_3d`、`ball_aids_3d` | 部品 |
+| `figures_3d`、`pose`、`gltf_model` | 人型 |
+| `hud_3d`、`guides` | HUD、方位の帯、ミニマップ |
+| `config_dialog` の 3D タブ、Player Camera タブ | 設定 |
+| `third_party/cgltf/cgltf.h` | glTF の読み込み (MIT) |
+| `resources/models/Mannequin.glb`、`.qrc` | 人型のモデル (CC0) と出典 |
+| `test/test_*.cpp` | 単体テストと描画のテスト |
+| `.github/workflows/ci.yml` | CI |
+| `.github/workflows/release.yml` | AppImage を作ってリリースに添付する (D10 の案 A を採用したとき) |
+| `rcssmonitor.desktop` とアイコン | CMake の `install()` で入れる (D10 の案 A を採用したとき。今は master の `utils/appimage/` にだけある) |
+
+**変更**: `main_window.cpp` (切り替え、メニュー、ツールバー、キー)、`field_canvas.cpp` (右クリックのメニューを共有)、`log_player.cpp` (alpha)、`options.{h,cpp}` (設定)、`config_dialog.cpp`、`player_painter.cpp` と `ball_painter.cpp` と `field_painter.cpp` (計算の切り出し、芝の縞の引数)、`rcss/rcg/*` (§6、§7)、`CMakeLists.txt` と `src/CMakeLists.txt` (Qt6、3D)、README。
+
+## 13. 対象外
+
+- web 版に固有のこと: ブラウザでの配布 (単一 HTML、GitHub Pages)、file:// と https の制約、ブラウザのキーの横取り、URL のパラメータ (rcssmonitor ではコマンドラインと設定ファイル)。
+- バイナリの rcg (v1〜v3) の 3D での扱いの改善 (今の 2D と同じく読めればよい)。
+- 2.5 次元シミュレータのサーバ側の形式に合わせること (形式が決まってから)。
+- rcssmonitor-web の将来の拡張 (ドラッグで選手を動かす、msg の一覧など)。
+
+## 14. 記録
+
+区切りごとに、日付、決めたこと、作ったもの、見つけた不具合とその原因、計測、試験を書き足す。
+
+### Phase 0
+
+#### 2026-11-11: 方針の確認とブランチ
+
+**決めたこと (ユーザ)**
+- D7: 作業は develop から派生させる。`feature/support-tcp-ws` は、TCP / WebSocket 対応の採用が決まってから取り込む (§3.5)。
+- ブランチは §9.1 のとおり。最初に `feature/ci` を develop (01f880a) から作った。
+- D10: master の AppImage のワークフローは保守の負担になっている。無効にするか、保守のやさしい方式に置き換える。置き換え先の案は §2.4 (推奨は案 A。Phase 0 で試してから決める)。
+- 計画書をリポジトリに入れる。英語版 `PLAN_3D-VIEW.en.md` を並行して保つ (§0.1)。
+- D2〜D6、D8、D9 は推奨案で進める。D1 は試作の結果で決める。
+
+**確かめたこと**
+- ローカルの develop は origin/develop より 2 コミット遅れていたが、ユーザが更新した (01f880a)。`feature/support-tcp-ws` も 01f880a から分かれている。
+- master は develop より進んでいる (PR #59 の AppImage のワークフロー。§3.2、§3.4)。計画書の初版の「master と develop は同じ内容」「CI はない」を直した。
+- `test/` は `feature/support-tcp-ws` で足したもので、develop にはない (§3.1)。
+- §6 の行番号を develop で確かめ直した。違うのは B11 だけ。§3.3 の箇所数も develop で同じ。
+- 作業環境: Ubuntu 24.04、CMake 3.28、Qt 5.15.13 と Qt 6.4.2 (Core、Gui、Widgets、Network、OpenGL、OpenGLWidgets、Test がある。Qt6 の WebSockets はない)。GPU は AMD (PCI ID 13c0)。
+- rcssmonitor-web の作業ツリーは `v20.0.0-beta.2` (ed36941) の 1 コミット後 (bcab423。計画書の更新だけ)。
+- asio 版 rcssserver の作業ツリーは、リポジトリ直下 (`rcssserver-19.x-asio/`) から `../rcssserver` (`feature/asio-migration`、19.0.0) に移っていた。冒頭の表を直した。
+- 既存のリリースのタグは `rcssmonitor-X.Y.Z` の形。19.0.1 のリリースには AppImage が添付されている。
