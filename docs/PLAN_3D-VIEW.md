@@ -409,6 +409,7 @@ web 版の `docs/parity.md` §7。行番号は 2026-11-11 の develop (01f880a) 
 8. 速さを測る: 全試合の JSON ログ (作業ツリーの直下に置いた `1-json.rcg.gz`、6,209 フレーム。リポジトリには入れない) の読み込み時間を、改善の前後で比べて §14 に記録する。web 版はブラウザで約 0.3〜0.5 秒。
 9. `origin/feature/json-reformat` の内容 (旧パーサの新形式対応) を確かめ、上と重ならないものがあれば取り込む。
 10. テキスト rcg の B6、B8 もこの段階で直す。
+11. 同梱の simdjson (3.8.0。GCC 15 でビルドできるよう、3.10.0 の修正を 3 行だけ入れた。§14) を、新しい版にするかを決める (2026-11 の最新は 5.1.1)。
 
 テスト: フィクスチャ (`1-json.rcg.gz` から短く切り出したもの、壊れた行、未知のキー、選手の順の入れ替え、末尾の `]` の欠け) で、フレーム数、特定のフレームの値、プレイモードの並びを確かめる。web 版の `test/unit/rcg-json.test.ts`、`rcg-text.test.ts`、`full-logs.test.ts` が手本。
 
@@ -659,3 +660,17 @@ GL に依存しない計算を、web 版の単体テストを手本に移す。
 **試験**
 - 消した後の作業ツリーの写しで、CMake のビルドと ctest、autotools のビルドが通った。
 - 手元のリモートは SSH (`git@github.com:`) なので、ワークフローのファイルを含むプッシュに、トークンの `workflow` 権限は要らない。
+
+#### 2026-11-11: CI の 1 回目 (5fa9729) の失敗と修正
+
+**CI の結果**
+- CI: CMake と autotools の両方が、同梱の simdjson 3.8.0 のコンパイルで止まった。ランナーの GCC 15.2.0 が、`base_formatter` の `this->print_newline()` など 3 か所を `-Wtemplate-body` でエラーにする (このクラスにその関数がない)。今回の変更ではなく、develop がもともと GCC 15 でビルドできない (新しいディストリビューションでビルドできない) という不具合。
+- AppImage: ビルドとまとめる段階は通った (26 MB)。3 つの版すべての起動確認で、`libharfbuzz.so.0` がないために失敗した。linuxdeploy は harfbuzz などを、利用者の環境のものを使うようにまとめない。最小のコンテナに、それが入っていなかった (AppImage の不具合ではない)。
+
+**直したこと**
+- `rcss/rcg/simdjson/simdjson.h` の 3 か所を、上流が 3.10.0 で直したのと同じ形 (`static_cast<formatter*>(this)->print_newline()` など) にした。上流から持ってきた修正であることを注釈に書いた。同じ形の誤りは、ほかにはない。新しい版にするかは §7 の 11。
+- `appimage.yml` の起動確認で入れるパッケージを、AppImage が環境に求めるものにそろえた。CI の AppImage をダウンロードして展開し、ELF の NEEDED から、まとめられていないライブラリを洗い出した: libc などの基本のもののほか、libGL、libEGL、fontconfig、freetype、harfbuzz、libX11、libX11-xcb、libxcb、libICE、libSM、libcom_err、libgpg-error、zlib。xcb の拡張、xkbcommon、glib、dbus は AppImage に入っている。パッケージ名は、どれも Ubuntu 26.04 にある (packages.ubuntu.com で確かめた)。
+
+**試験**
+- 手元 (GCC 13) で、ビルドと ctest が通った。GCC 15 は手元にないので、次の CI で確かめる。1 回目の CI は `rcss/rcg` で止まり、`src/` はまだ GCC 15 でコンパイルされていない。次の CI で、`src/` に GCC 15 のエラーが出る可能性がある。
+- 展開した AppImage には、Qt のプラットフォームのプラグインとして xcb だけが入っている (`offscreen` では起動できない。起動確認は `xvfb-run` の下で xcb を使う)。

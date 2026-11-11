@@ -81,14 +81,18 @@ jobs:
         image: ['ubuntu:22.04', 'ubuntu:24.04', 'ubuntu:26.04']
     steps:
       - name: Install a desktop's libraries and a virtual display
-        # linuxdeploy leaves out the libraries that every desktop has
-        # (libGL, fontconfig, libxcb, ...), so install them here.
+        # linuxdeploy leaves out the libraries that a desktop always has and
+        # that must match the system. These are what the AppImage needs from
+        # the system besides libc, libstdc++ and the like (checked with the
+        # NEEDED entries of its ELF files): libGL, libEGL, fontconfig,
+        # freetype, harfbuzz, libX11, libX11-xcb, libxcb, libICE, libSM,
+        # libcom_err, libgpg-error and zlib. The xcb extensions, xkbcommon,
+        # glib and dbus are in the AppImage.
         run: |
           apt-get update
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-            xvfb xauth libgl1 libegl1 libfontconfig1 libglib2.0-0 libdbus-1-3 \
-            libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
-            libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libxcb-xkb1
+            xvfb xauth libgl1 libegl1 libfontconfig1 libfreetype6 libharfbuzz0b \
+            libx11-6 libx11-xcb1 libxcb1 libice6 libsm6 libcom-err2 libgpg-error0 zlib1g
       - uses: actions/download-artifact@v8
         with:
           name: rcssmonitor-appimage

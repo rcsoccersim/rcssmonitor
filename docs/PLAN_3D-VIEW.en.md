@@ -409,6 +409,7 @@ The targets are `rcss/rcg/parser_simdjson.cpp` (logs) and the live JSON messages
 8. Measure the speed: compare the load time of a full-game JSON log (`1-json.rcg.gz` placed at the top of the working tree, 6,209 frames; not in the repository) before and after the improvements, and record it in §14. The web version takes about 0.3–0.5 s in a browser.
 9. Check the content of `origin/feature/json-reformat` (the old parser's support for the new format) and take anything that does not overlap with the above.
 10. Also fix the text rcg bugs B6 and B8 at this stage.
+11. Decide whether to update the bundled simdjson (3.8.0, with three lines of the 3.10.0 fix applied so that it builds with GCC 15; §14) to a newer release (the latest in 2026-11 is 5.1.1).
 
 Tests: with fixtures (a short excerpt of `1-json.rcg.gz`, broken lines, unknown keys, swapped player order, a missing final `]`), check the number of frames, the values in specific frames, and the sequence of play modes. Models: the web version's `test/unit/rcg-json.test.ts`, `rcg-text.test.ts`, and `full-logs.test.ts`.
 
@@ -659,3 +660,17 @@ At each step, append the date, the decisions, what was built, the bugs found and
 **Tests**
 - On a copy of the working tree after the deletion, the CMake build and ctest, and the autotools build, passed.
 - The local remote uses SSH (`git@github.com:`), so a push that contains workflow files does not need the token's `workflow` scope.
+
+#### 2026-11-11: The first CI run (5fa9729) failed, and the fixes
+
+**CI results**
+- CI: both CMake and autotools stopped compiling the bundled simdjson 3.8.0. The runner's GCC 15.2.0 rejects three places in `base_formatter`, such as `this->print_newline()`, with `-Wtemplate-body` (the class has no such functions). This is not from these changes: develop itself does not build with GCC 15 (so not on newer distributions).
+- AppImage: building and bundling passed (26 MB). The start check failed on all three releases because `libharfbuzz.so.0` was missing. linuxdeploy does not bundle harfbuzz and the like, so that the user's system copy is used, and the minimal containers did not have it (not a defect of the AppImage).
+
+**Fixed**
+- Changed the three places in `rcss/rcg/simdjson/simdjson.h` to the form upstream used to fix them in 3.10.0 (`static_cast<formatter*>(this)->print_newline()` etc.), with a comment saying the fix comes from upstream. There are no other places with the same error. Whether to update to a newer release is §7 item 11.
+- Made the packages installed for the start check in `appimage.yml` match what the AppImage needs from the system. Downloaded and unpacked the CI's AppImage, and listed the libraries that are not bundled from the NEEDED entries of its ELF files: besides basic ones such as libc, libGL, libEGL, fontconfig, freetype, harfbuzz, libX11, libX11-xcb, libxcb, libICE, libSM, libcom_err, libgpg-error, and zlib. The xcb extensions, xkbcommon, glib, and dbus are in the AppImage. All the package names exist in Ubuntu 26.04 (checked on packages.ubuntu.com).
+
+**Tests**
+- Locally (GCC 13), the build and ctest passed. GCC 15 is not available locally, so the next CI run checks it. The first CI run stopped at `rcss/rcg`, and `src/` has not been compiled with GCC 15 yet; the next run may show GCC 15 errors in `src/`.
+- The unpacked AppImage has only xcb as Qt's platform plugin (it cannot start with `offscreen`; the start check uses xcb under `xvfb-run`).
