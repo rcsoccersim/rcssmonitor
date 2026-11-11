@@ -57,7 +57,7 @@ Out of scope: §13.
 
 Confirm with the user in Phase 0 before proceeding. The recommendations are assumed by the following sections of this plan.
 
-State on 2026-11-11: the user decided D7 and D10 ("Decided" in the table). D1 is decided by the result of the Phase 0 prototype. D2–D6, D8, and D9 proceed with the recommendations.
+State on 2026-11-11: the user decided D7 and D10 ("Decided" in the table). D1 is decided by the result of the Phase 0 prototype. D2–D6, D8, and D9 proceed with the recommendations. D11 is a problem found in Phase 0, to be confirmed with the user.
 
 | # | Item | Recommendation | Alternatives | Reason |
 |---|---|---|---|---|
@@ -71,6 +71,7 @@ State on 2026-11-11: the user decided D7 and D10 ("Decided" in the table). D1 is
 | D8 | Version | 20.0.0 (aligned with asio rcssserver 20 and rcssmonitor-web 20) | 19.1.0 etc. | The Qt6 support and the 3D view are big changes |
 | D9 | Branch policy | Same as the web version (master: releases, develop: integration, feature/*: work, hotfix/*). Merges create merge commits. Per-phase branches in §9.1 | Follow rcssmonitor's current practice | The web version's `docs/release.md` |
 | D10 | master's AppImage workflow (§3.2) | **Decided direction**: the current workflow is a maintenance burden, so disable it. Replace it with an easier-to-maintain method if one can be established (user). Recommended replacement in §2.4 | Keep it as is (the code would have to stay buildable with Qt 5.12, which conflicts with D2) | It requires maintaining an Ubuntu 20.04 (end of support) Docker image, `qt5-default`, and custom shell and Python scripts. It builds with autotools, so 3D would not be included (D3) |
+| D11 | The qmake build (§3.2) | **Undecided**. Recommendation: drop it (delete `rcssmonitor.pro` and `src/src.pro`, and say so in the README) | Fix it (one definition, the version, boost) and add it to CI | It was already broken on develop, and nobody had noticed. CMake and autotools are enough. Fixing it means updating the `.pro` files whenever a file is added, and checking them in CI from then on |
 
 ### 2.3 Comparison for D1 (3D rendering technology)
 
@@ -92,6 +93,8 @@ Decide after confirming with the recommended option, in the Phase 0 prototype (�
 - With either option, disable the current `main.yml`. It runs on pushes to any branch and tag, and creates a release when there is none for the version in `CMakeLists.txt`. So merely raising the version on a work branch creates a release. Disabling it in the GitHub UI (Actions → ci → Disable workflow) stops it without a commit, and it can be undone. Delete the files when merging 20.0.0 into master (or replace them, with option A).
 - Try option A while building the CI in Phase 0. A manually triggered workflow (`workflow_dispatch`) cannot be run unless the same file is on the default branch (master), so during the trial it runs on pushes to `feature/ci`; when adopted, it runs on tag pushes and by hand. Decide on adoption after confirming that the resulting AppImage starts on other environments (Ubuntu 22.04, 24.04, 26.04). Whether an AppImage with 3D works with the user's OpenGL (linuxdeploy does not bundle libGL) is checked in Phase 4 or later.
 - The base is 22.04 because an AppImage does not run on a glibc older than the one it was built with. The Qt of 22.04 (5.15.3, 6.2.4) equals the lower bounds of D2, so this also checks that the code builds with the lowest versions.
+- The current workflow also uses linuxdeploy (the unpinned `continuous` release). What option A changes: CMake instead of autotools, `container: ubuntu:22.04` instead of a custom Dockerfile, running on tags only instead of on every push, and a pinned linuxdeploy version.
+- master's `utils/appimage/rcssmonitor.png` is actually a 512×512 JPEG (the RoboCup logo), so its extension is wrong. The trial uses `icons/rcssmonitor.png`, a PNG made from the app's window icon `icons/rcss.xpm` (48×48).
 
 ## 3. Current rcssmonitor
 
@@ -109,13 +112,14 @@ Decide after confirming with the recommended option, in the Phase 0 prototype (�
 | `src/config_dialog.cpp` | Settings dialog (Show, Canvas, Color, Font tabs) |
 | `src/player_type_dialog.cpp` | Player type list |
 | `rcss/rcg/` | Parsing of logs and messages. `parser_simdjson.cpp` (JSON, uses the bundled simdjson), `parser_v1–v4.cpp`, `types.cpp` (parameter defaults), `util.cpp` (play mode names, etc.). `nlohmann/json.hpp` is also bundled |
-| `test/` | Not on develop (no unit tests). `feature/support-tcp-ws` has the Qt Test `test_message_splitter.cpp` |
+| `test/` | Not on develop (no unit tests). `feature/support-tcp-ws` has the Qt Test `test_message_splitter.cpp`. This plan added `test_rcg_parser.cpp` and fixtures (`test/data/`) on `feature/ci` (§14) |
 
 ### 3.2 Build
 
 - There are three: CMake (`CMakeLists.txt`, `src/CMakeLists.txt`), autotools (`configure.ac`, `m4/ax_have_qt.m4`), and qmake (`rcssmonitor.pro`).
 - All are hard-wired to Qt5 (`find_package(Qt5 COMPONENTS Core Gui Widgets Network REQUIRED)`). `feature/support-tcp-ws` optionally looks for WebSockets and Test.
 - C++17, CMake 3.5 or later.
+- The qmake build fails on develop (checked on 2026-11-11). `src/src.pro` lacks the `HAVE_ARPA_INET_H` definition, so it stops at `ntohs` in `disp_holder.cpp`. Its version is still 16.0.0, and it links the unused boost. Handled by D11. The CMake and autotools builds pass.
 - develop has no CI (no `.github/workflows`).
 - Only master has the AppImage workflow of PR #59 (`.github/workflows/main.yml`, named `ci`) and `utils/appimage/`. It runs on pushes to any branch and tag, builds with autotools in an Ubuntu 20.04 Docker image (Qt 5.12.8 from `qt5-default`), and creates a release when there is none for the version in `CMakeLists.txt`. It does not check the build or run tests. Handled by D10.
 
@@ -399,7 +403,7 @@ The targets are `rcss/rcg/parser_simdjson.cpp` (logs) and the live JSON messages
 4. Read the log as one record per line. When the server terminates abnormally the final `]` is missing, so skip the `[` and `]` lines and strip the trailing `,`. If a line is broken, skip only that line and warn.
 5. Accept fields that may be omitted: `stime` (only when greater than 0), `px` / `py` (only while pointing), `fside` / `fnum` (only with an attentionto), `pen_score` / `pen_miss` (only for teams that took penalty kicks), `null` team names (before connection), `capacity`.
 6. Read the ball height `ball.z` and the vertical velocity `ball.vz` if present (for the 2.5D simulator; units m and m/cycle, up is positive. The key names are tentative and will follow the server format once it is decided). Add them to `BallT` in `types.h`.
-7. Handle `timestamp` (`%FT%T%z`, offset without a colon) without breaking it.
+7. Handle `timestamp` (`%FT%T%z`, offset without a colon) without breaking it. The current parser skips `version` and `timestamp` and does not pass them to the handler (`parseVersion` and `parseTimestamp` are empty; checked on 2026-11-11). Pass both to the handler (`handleServerVersion`, `handleTimestamp`).
 8. Measure the speed: compare the load time of a full-game JSON log (`1-json.rcg.gz` placed at the top of the working tree, 6,209 frames; not in the repository) before and after the improvements, and record it in §14. The web version takes about 0.3–0.5 s in a browser.
 9. Check the content of `origin/feature/json-reformat` (the old parser's support for the new format) and take anything that does not overlap with the above.
 10. Also fix the text rcg bugs B6 and B8 at this stage.
@@ -576,8 +580,8 @@ Port the GL-independent calculations, using the web version's unit tests as mode
 | `resources/models/Mannequin.glb`, `.qrc` | Figure model (CC0) and its source |
 | `test/test_*.cpp` | Unit tests and rendering tests |
 | `.github/workflows/ci.yml` | CI |
-| `.github/workflows/release.yml` | Builds the AppImage and attaches it to the release (if option A of D10 is adopted) |
-| `rcssmonitor.desktop` and the icon | Installed by CMake's `install()` (if option A of D10 is adopted; currently only in master's `utils/appimage/`) |
+| `.github/workflows/appimage.yml` → `release.yml` | Builds the AppImage. The trial version was added as `appimage.yml` in Phase 0. If option A of D10 is adopted, it becomes `release.yml` and attaches the AppImage to the release |
+| `data/rcssmonitor.desktop`, `icons/rcssmonitor.png` | The desktop file and the icon, installed by CMake's `install()` (added in Phase 0; §2.4) |
 
 **Change**: `main_window.cpp` (switching, menus, toolbar, keys), `field_canvas.cpp` (sharing the right-click menu), `log_player.cpp` (alpha), `options.{h,cpp}` (settings), `config_dialog.cpp`, `player_painter.cpp`, `ball_painter.cpp`, and `field_painter.cpp` (extracting the calculations, the grass stripe argument), `rcss/rcg/*` (§6, §7), `CMakeLists.txt` and `src/CMakeLists.txt` (Qt6, 3D), README.
 
@@ -612,3 +616,26 @@ At each step, append the date, the decisions, what was built, the bugs found and
 - The rcssmonitor-web working tree is 1 commit after `v20.0.0-beta.2` (ed36941) (bcab423; a plan update only).
 - The asio rcssserver working tree had moved from the top of the repository (`rcssserver-19.x-asio/`) to `../rcssserver` (`feature/asio-migration`, 19.0.0). Fixed the header table.
 - The existing release tags have the form `rcssmonitor-X.Y.Z`. The 19.0.1 release has an AppImage attached.
+
+#### 2026-11-11: Test infrastructure and CI (`feature/ci`)
+
+**Built**
+- Test infrastructure: the top-level `CMakeLists.txt` looks for Qt5 Test and adds `test/` (written the same way as `feature/support-tcp-ws`, per §3.5). The first test, `test/test_rcg_parser.cpp`, checks what the text rcg (v5) and JSON parsers pass to the handler: header, parameters, teams, play modes, and shows. The fixtures `test/data/head_v5.rcg` (20 KB) and `head_json.rcg` (41 KB) are cut from the start of the two full-game logs: the header and parameters, then the first play modes, team, and 3 shows (team graphics left out).
+- `.github/workflows/ci.yml`: on ubuntu-26.04, the CMake (Qt5) build and ctest, and the autotools (Qt5) build. Runs on pushes to master, develop, `feature/**`, `fix/**`, `hotfix/**`, and on PRs.
+- `.github/workflows/appimage.yml`: the trial of option A of D10 (§2.4). Runs on pushes to `feature/ci`. Builds with CMake in an `ubuntu:22.04` container, bundles the AppImage with linuxdeploy `1-alpha-20251107-1` and linuxdeploy-plugin-qt `1-alpha-20250213-1`, and checks that it starts by running `--version` under `xvfb-run` in `ubuntu:22.04`, `24.04`, and `26.04` containers.
+- `data/rcssmonitor.desktop` and `icons/rcssmonitor.png` (48×48, made from `icons/rcss.xpm`). CMake's `install()` puts them in `share/applications` and `share/icons/hicolor/48x48/apps`.
+
+**Tests (local, Ubuntu 24.04, Qt 5.15.13)**
+- Ran the same steps as the two jobs of `ci.yml` on a clean copy of HEAD plus these changes. The CMake build and ctest (test functions `textV5` and `json` both pass) and the autotools build passed.
+- Confirmed that the test catches failures (the first version expected something the parser does not do, and failed; see the third finding below).
+- Installing into a `DESTDIR` puts the desktop file (no problems from `desktop-file-validate`) and the icon in place, and the installed `rcssmonitor --version` exits with 0.
+- linuxdeploy's behavior (checked in the source of the pinned release): without `--desktop-file`, it uses the first desktop file in the AppDir, looks for the icon in the AppDir's hicolor, and also deploys the dependencies of executables already in the AppDir.
+- `appimage.yml` has not been run locally (linuxdeploy was not run locally). It will be checked in CI after the push.
+
+**Found**
+- The qmake build fails on develop (§3.2, D11).
+- The JSON parser skips `version` and `timestamp` (§7 item 7).
+- Text rcg v4, v5, and v6 are all read by `ParserV4`, whose `Parser::version()` returns 4. The log's own version reaches the handler's `logVersion()` (by design; the test follows this).
+- Ubuntu 26.04 (resolute) has Qt 5.15.18 (`qtbase5-dev`, `qt5-qmake`, `libqt5websockets5-dev`) and Qt 6.10.2 (`qt6-base-dev`, `qt6-websockets-dev`) (checked on packages.ubuntu.com).
+- The web version's CI passes on ubuntu-26.04 runners, so the same label is used.
+- GNUInstallDirs: in a build directory first configured with another prefix, changing `CMAKE_INSTALL_PREFIX` to `/usr` recomputes the libdir as `lib/x86_64-linux-gnu` even with `-DCMAKE_INSTALL_LIBDIR=lib`. CI configures in a fresh directory, so this does not matter there.

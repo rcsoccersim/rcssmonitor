@@ -1,0 +1,53 @@
+name: CI
+
+# Branches (docs/PLAN_3D-VIEW.md, D9 and §9.1): master has the releases,
+# develop gathers the work, and feature/*, fix/* and hotfix/* branch off them.
+on:
+  push:
+    branches: [master, develop, 'feature/**', 'fix/**', 'hotfix/**']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  cmake-qt5:
+    name: CMake, Qt5
+    # Named, not ubuntu-latest, which moves to a new image now and then.
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install the packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake qtbase5-dev zlib1g-dev
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build --parallel
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+        env:
+          QT_QPA_PLATFORM: offscreen
+
+  # autotools stays on Qt5 (D3). Build it so that a source file missing
+  # from the Makefile.am files is caught.
+  autotools-qt5:
+    name: autotools, Qt5
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install the packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential autoconf automake libtool qtbase5-dev zlib1g-dev
+      - name: Bootstrap
+        run: ./bootstrap
+      - name: Configure
+        # The Qt5 qmake by its full path: /usr/bin/qmake may be missing
+        # or point to another Qt.
+        run: ./configure QMAKE=/usr/lib/qt5/bin/qmake
+      - name: Build
+        run: make -j"$(nproc)"

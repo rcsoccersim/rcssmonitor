@@ -57,7 +57,7 @@
 
 Phase 0 でユーザに確かめてから進める。推奨案は、この計画の以下の節の前提にしている。
 
-2026-11-11 の状態: D7 と D10 はユーザが決めた (表の「決定」)。D1 は Phase 0 の試作の結果で決める。D2〜D6、D8、D9 は推奨案で進める。
+2026-11-11 の状態: D7 と D10 はユーザが決めた (表の「決定」)。D1 は Phase 0 の試作の結果で決める。D2〜D6、D8、D9 は推奨案で進める。D11 は Phase 0 で見つけた問題で、ユーザに確かめる。
 
 | # | 項目 | 推奨 | 代わりの案 | 理由 |
 |---|---|---|---|---|
@@ -71,6 +71,7 @@ Phase 0 でユーザに確かめてから進める。推奨案は、この計画
 | D8 | 版 | 20.0.0 (asio 版 rcssserver 20、rcssmonitor-web 20 にそろえる) | 19.1.0 など | Qt6 対応と 3D 表示は大きな変更 |
 | D9 | ブランチの方針 | web 版と同じ (master: リリース、develop: 取り込み先、feature/*: 作業、hotfix/*)。取り込みはマージコミットを作る。フェーズごとのブランチは §9.1 | 今の rcssmonitor の運用に合わせる | web 版の `docs/release.md` |
 | D10 | master の AppImage ワークフロー (§3.2) | **決定の方向**: 今のワークフローは保守の負担になっているので、無効にする。保守のやさしい方式を作れるなら、それに置き換える (ユーザ)。推奨の置き換え先は §2.4 | 今のまま残す (Qt 5.12 でもビルドできる範囲にとどめることになり、D2 と合わない) | Ubuntu 20.04 (サポート終了) の Docker イメージ、`qt5-default`、自前のシェルと Python のスクリプトを保守し続ける必要がある。autotools でビルドするので 3D が入らない (D3) |
+| D11 | qmake のビルド (§3.2) | **未定**。推奨: やめる (`rcssmonitor.pro` と `src/src.pro` を消し、README に書く) | 直して (定義 1 つ、版、boost) CI に入れる | develop の時点ですでに壊れていて、誰も気づいていなかった。CMake と autotools の 2 つで足りる。直すなら、ファイルを足すたびに `.pro` も直し、CI で確かめ続ける必要がある |
 
 ### 2.3 D1 (3D の描画の技術) の比較
 
@@ -92,6 +93,8 @@ Phase 0 の試作 (§9) で、推奨案で「人型 22 体と影を 1920×1080 �
 - どちらの案でも、今の `main.yml` は無効にする。このワークフローは任意のブランチとタグへの push で動き、`CMakeLists.txt` の版のリリースがなければ作る。そのため、作業のブランチで版を上げただけでリリースができてしまう。GitHub の画面 (Actions → ci → Disable workflow) で無効にすれば、コミットなしで止められ、戻すこともできる。ファイルは、20.0.0 を master に取り込むときに消す (案 A なら置き換える)。
 - 案 A は、Phase 0 で CI を作るときに試す。手で実行する形 (`workflow_dispatch`) は、既定のブランチ (master) に同じファイルがないと動かせないので、試すあいだは `feature/ci` への push で動かし、採用するときにタグの push と手での実行で動く形にする。できた AppImage が別の環境 (Ubuntu 22.04、24.04、26.04) で起動することを確かめてから、採用を決める。3D の入った AppImage が利用者の環境の OpenGL で動くか (linuxdeploy は libGL をまとめない) は、Phase 4 以降に確かめる。
 - 基盤を 22.04 にするのは、AppImage はビルドした環境より古い glibc では動かないため。22.04 の Qt (5.15.3、6.2.4) は D2 の下限と同じなので、下限の版でビルドできることの確認にもなる。
+- 今のワークフローも linuxdeploy (版を固定しない `continuous`) を使っている。案 A で変わるのは、autotools の代わりに CMake、自前の Dockerfile の代わりに `container: ubuntu:22.04`、どの push でも動くのをやめてタグだけにすること、linuxdeploy の版を固定すること。
+- master の `utils/appimage/rcssmonitor.png` は、中身が 512×512 の JPEG (RoboCup のロゴ) で、拡張子が合っていない。試す版では、アプリの窓のアイコン `icons/rcss.xpm` (48×48) を PNG にした `icons/rcssmonitor.png` を使う。
 
 ## 3. 現状の rcssmonitor
 
@@ -109,13 +112,14 @@ Phase 0 の試作 (§9) で、推奨案で「人型 22 体と影を 1920×1080 �
 | `src/config_dialog.cpp` | 設定ダイアログ (Show、Canvas、Color、Font のタブ) |
 | `src/player_type_dialog.cpp` | 選手タイプの一覧 |
 | `rcss/rcg/` | ログとメッセージの解析。`parser_simdjson.cpp` (JSON、同梱の simdjson を使う)、`parser_v1〜v4.cpp`、`types.cpp` (パラメータの既定値)、`util.cpp` (プレイモードの名前など)。`nlohmann/json.hpp` も同梱されている |
-| `test/` | develop にはない (単体テストがない)。`feature/support-tcp-ws` には Qt Test の `test_message_splitter.cpp` がある |
+| `test/` | develop にはない (単体テストがない)。`feature/support-tcp-ws` には Qt Test の `test_message_splitter.cpp` がある。この計画では `feature/ci` で `test_rcg_parser.cpp` とフィクスチャ (`test/data/`) を足した (§14) |
 
 ### 3.2 ビルド
 
 - CMake (`CMakeLists.txt`、`src/CMakeLists.txt`)、autotools (`configure.ac`、`m4/ax_have_qt.m4`)、qmake (`rcssmonitor.pro`) の 3 つがある。
 - どれも Qt5 に決め打ち (`find_package(Qt5 COMPONENTS Core Gui Widgets Network REQUIRED)`)。`feature/support-tcp-ws` では、WebSockets と Test を任意で探す。
 - C++17、CMake 3.5 以上。
+- qmake のビルドは develop で通らない (2026-11-11 に確かめた)。`src/src.pro` に `HAVE_ARPA_INET_H` の定義がなく、`disp_holder.cpp` の `ntohs` で止まる。版は 16.0.0 のまま、使っていない boost にリンクする。扱いは D11。CMake と autotools は通る。
 - develop には CI がない (`.github/workflows` がない)。
 - master にだけ、PR #59 の AppImage のワークフロー (`.github/workflows/main.yml`、名前は `ci`) と `utils/appimage/` がある。任意のブランチとタグへの push で動き、Ubuntu 20.04 の Docker イメージ (`qt5-default` で Qt 5.12.8) の中で autotools でビルドし、`CMakeLists.txt` の版のリリースがなければ作る。ビルドとテストの確認はしない。扱いは D10。
 
@@ -399,7 +403,7 @@ web 版の `docs/parity.md` §7。行番号は 2026-11-11 の develop (01f880a) 
 4. ログを 1 行 1 レコードとして読む。サーバが異常終了すると末尾の `]` が欠けるので、`[` と `]` の行を飛ばし、行末の `,` を取り除いて読む。1 行が壊れていたら、その行だけ飛ばして警告を出す。
 5. 省略されうる項目を受け付ける: `stime` (0 より大きいときだけ)、`px` / `py` (指差し中だけ)、`fside` / `fnum` (attentionto のあるときだけ)、`pen_score` / `pen_miss` (PK を蹴ったチームだけ)、チーム名の `null` (接続前)、`capacity`。
 6. ボールの高さ `ball.z` と鉛直方向の速度 `ball.vz` を、あれば読む (2.5 次元シミュレータ用。単位は m と m/サイクル、上が正。キー名は仮で、サーバの形式が決まったら合わせる)。`types.h` の `BallT` に足す。
-7. `timestamp` (`%FT%T%z`、オフセットにコロンなし) を壊さずに扱う。
+7. `timestamp` (`%FT%T%z`、オフセットにコロンなし) を壊さずに扱う。今のパーサは `version` と `timestamp` を読み飛ばし、Handler に渡していない (`parseVersion`、`parseTimestamp` が空。2026-11-11 に確かめた)。両方を Handler (`handleServerVersion`、`handleTimestamp`) に渡す。
 8. 速さを測る: 全試合の JSON ログ (作業ツリーの直下に置いた `1-json.rcg.gz`、6,209 フレーム。リポジトリには入れない) の読み込み時間を、改善の前後で比べて §14 に記録する。web 版はブラウザで約 0.3〜0.5 秒。
 9. `origin/feature/json-reformat` の内容 (旧パーサの新形式対応) を確かめ、上と重ならないものがあれば取り込む。
 10. テキスト rcg の B6、B8 もこの段階で直す。
@@ -576,8 +580,8 @@ GL に依存しない計算を、web 版の単体テストを手本に移す。
 | `resources/models/Mannequin.glb`、`.qrc` | 人型のモデル (CC0) と出典 |
 | `test/test_*.cpp` | 単体テストと描画のテスト |
 | `.github/workflows/ci.yml` | CI |
-| `.github/workflows/release.yml` | AppImage を作ってリリースに添付する (D10 の案 A を採用したとき) |
-| `rcssmonitor.desktop` とアイコン | CMake の `install()` で入れる (D10 の案 A を採用したとき。今は master の `utils/appimage/` にだけある) |
+| `.github/workflows/appimage.yml` → `release.yml` | AppImage を作る。Phase 0 で試す版を `appimage.yml` として足した。D10 の案 A を採用したら、`release.yml` にしてリリースに添付する |
+| `data/rcssmonitor.desktop`、`icons/rcssmonitor.png` | デスクトップのファイルとアイコン。CMake の `install()` で入れる (Phase 0 で足した。§2.4) |
 
 **変更**: `main_window.cpp` (切り替え、メニュー、ツールバー、キー)、`field_canvas.cpp` (右クリックのメニューを共有)、`log_player.cpp` (alpha)、`options.{h,cpp}` (設定)、`config_dialog.cpp`、`player_painter.cpp` と `ball_painter.cpp` と `field_painter.cpp` (計算の切り出し、芝の縞の引数)、`rcss/rcg/*` (§6、§7)、`CMakeLists.txt` と `src/CMakeLists.txt` (Qt6、3D)、README。
 
@@ -612,3 +616,26 @@ GL に依存しない計算を、web 版の単体テストを手本に移す。
 - rcssmonitor-web の作業ツリーは `v20.0.0-beta.2` (ed36941) の 1 コミット後 (bcab423。計画書の更新だけ)。
 - asio 版 rcssserver の作業ツリーは、リポジトリ直下 (`rcssserver-19.x-asio/`) から `../rcssserver` (`feature/asio-migration`、19.0.0) に移っていた。冒頭の表を直した。
 - 既存のリリースのタグは `rcssmonitor-X.Y.Z` の形。19.0.1 のリリースには AppImage が添付されている。
+
+#### 2026-11-11: テストの仕組みと CI (`feature/ci`)
+
+**作ったもの**
+- テストの仕組み: 最上位の `CMakeLists.txt` で Qt5 Test を探し、`test/` を足す (§3.5 のとおり `feature/support-tcp-ws` と同じ書き方)。最初のテスト `test/test_rcg_parser.cpp` は、テキスト rcg (v5) と JSON のパーサが、ヘッダ、パラメータ、チーム、プレイモード、show をどう Handler に渡すかを確かめる。フィクスチャ `test/data/head_v5.rcg` (20 KB) と `head_json.rcg` (41 KB) は、全試合ログ 2 本の先頭から、ヘッダとパラメータ、最初のプレイモード、チーム、show 3 つを切り出したもの (チームグラフィックは除いた)。
+- `.github/workflows/ci.yml`: ubuntu-26.04 で、CMake (Qt5) のビルドと ctest、autotools (Qt5) のビルド。master、develop、`feature/**`、`fix/**`、`hotfix/**` への push と PR で動く。
+- `.github/workflows/appimage.yml`: D10 の案 A を試す版 (§2.4)。`feature/ci` への push で動く。`ubuntu:22.04` のコンテナで CMake でビルドし、linuxdeploy `1-alpha-20251107-1` と linuxdeploy-plugin-qt `1-alpha-20250213-1` で AppImage にまとめ、`ubuntu:22.04`、`24.04`、`26.04` のコンテナで `xvfb-run` の下で `--version` を実行して起動を確かめる。
+- `data/rcssmonitor.desktop` と `icons/rcssmonitor.png` (48×48。`icons/rcss.xpm` から作った)。CMake の `install()` で `share/applications` と `share/icons/hicolor/48x48/apps` に入れる。
+
+**試験 (手元、Ubuntu 24.04、Qt 5.15.13)**
+- HEAD のきれいなコピーに今回の変更を載せて、`ci.yml` の 2 つのジョブと同じ手順を実行した。CMake のビルドと ctest (テスト関数 `textV5` と `json` がどちらも通る)、autotools のビルドが通った。
+- テストが失敗を拾うことも確かめた (最初にパーサの作りと違う期待値を書いて、失敗した。下の 3 つ目)。
+- `DESTDIR` へのインストールで、デスクトップのファイル (`desktop-file-validate` で問題なし) とアイコンが入り、入れた `rcssmonitor --version` が 0 で終わる。
+- linuxdeploy の動き (固定した版のソースで確かめた): `--desktop-file` を渡さなければ AppDir の最初のデスクトップファイルを使い、アイコンは AppDir の hicolor から探し、AppDir にすでにある実行ファイルの依存も入れる。
+- `appimage.yml` は手元では動かしていない (linuxdeploy を手元で動かしていない)。push した後の CI で確かめる。
+
+**見つけたこと**
+- qmake のビルドが develop で通らない (§3.2、D11)。
+- JSON パーサは `version` と `timestamp` を読み飛ばしている (§7 の 7)。
+- テキスト rcg の v4、v5、v6 はどれも `ParserV4` が読み、`Parser::version()` は 4 を返す。ログの版は Handler の `logVersion()` に渡る (仕様。テストはこれに合わせた)。
+- Ubuntu 26.04 (resolute) には、Qt 5.15.18 (`qtbase5-dev`、`qt5-qmake`、`libqt5websockets5-dev`) と Qt 6.10.2 (`qt6-base-dev`、`qt6-websockets-dev`) がある (packages.ubuntu.com で確かめた)。
+- web 版の CI は ubuntu-26.04 のランナーで通っているので、同じ指定を使った。
+- GNUInstallDirs: 一度別の prefix で構成したビルドディレクトリで `CMAKE_INSTALL_PREFIX=/usr` に変えると、`-DCMAKE_INSTALL_LIBDIR=lib` を渡しても `lib/x86_64-linux-gnu` に計算し直される。CI はまっさらなディレクトリで構成するので問題ない。
