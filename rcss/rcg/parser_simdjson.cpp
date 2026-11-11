@@ -35,6 +35,8 @@
 
 #include "parser_simdjson.h"
 
+#include "line_parser.h"
+
 #include "handler.h"
 #include "types.h"
 #include "util.h"
@@ -46,6 +48,7 @@
 #include <cstring>
 #include <fstream>
 #include <iterator>
+#include <memory>
 
 namespace rcss {
 namespace rcg {
@@ -100,7 +103,7 @@ struct ParserSimdJSON::Impl {
 namespace {
 
 //! the number of the broken lines reported one by one
-const int MAX_REPORTED_LINES = 10;
+const std::size_t MAX_REPORTED_LINES = 10;
 
 inline
 bool
@@ -232,25 +235,13 @@ ParserSimdJSON::Impl::parseLines( const char * data,
                                   const std::size_t size,
                                   Handler & handler )
 {
-    simdjson::ondemand::parser parser;
-
     const char * const end = data + size;
-    const char * pos = data;
-    int n_line = 0;
-    int n_skipped = 0;
 
-    while ( pos < end )
+    std::vector< LineRef > records;
+    for ( const LineRef & line : split_lines( data, size ) )
     {
-        const char * eol = static_cast< const char * >( std::memchr( pos, '\n', end - pos ) );
-        if ( ! eol )
-        {
-            eol = end;
-        }
-
-        ++n_line;
-        const char * first = pos;
-        const char * last = eol;
-        pos = ( eol < end ? eol + 1 : end );
+        const char * first = line.begin_;
+        const char * last = line.begin_ + line.length_;
 
         while ( first < last && is_space( *first ) ) ++first;
         while ( first < last && is_space( *( last - 1 ) ) ) --last;
@@ -266,20 +257,33 @@ ParserSimdJSON::Impl::parseLines( const char * data,
             continue;
         }
 
-        if ( ! parseRecord( parser, first, static_cast< std::size_t >( last - first ), end, handler ) )
-        {
-            ++n_skipped;
-            if ( n_skipped <= MAX_REPORTED_LINES )
-            {
-                std::cerr << "(ParserSimdJSON::parse) line " << n_line
-                          << ": skipped a record that could not be parsed" << std::endl;
-            }
-        }
+        records.push_back( LineRef{ first, static_cast< std::size_t >( last - first ), line.number_ } );
     }
 
-    if ( n_skipped > MAX_REPORTED_LINES )
+    // each thread has its own simdjson parser
+    const std::vector< int > skipped
+        = parse_lines( records,
+                       [this, end]() -> LineParser
+                       {
+                           std::shared_ptr< simdjson::ondemand::parser > parser
+                               = std::make_shared< simdjson::ondemand::parser >();
+                           return [this, end, parser]( const LineRef & record, Handler & h ) -> bool
+                               {
+                                   return parseRecord( *parser, record.begin_, record.length_, end, h );
+                               };
+                       },
+                       false,
+                       handler );
+
+    for ( std::size_t i = 0; i < skipped.size() && i < MAX_REPORTED_LINES; ++i )
     {
-        std::cerr << "(ParserSimdJSON::parse) skipped " << n_skipped << " lines in total" << std::endl;
+        std::cerr << "(ParserSimdJSON::parse) line " << skipped[i]
+                  << ": skipped a record that could not be parsed" << std::endl;
+    }
+
+    if ( skipped.size() > MAX_REPORTED_LINES )
+    {
+        std::cerr << "(ParserSimdJSON::parse) skipped " << skipped.size() << " lines in total" << std::endl;
     }
 
     handler.handleEOF();

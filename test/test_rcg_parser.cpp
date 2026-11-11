@@ -79,6 +79,8 @@ public:
     rcss::rcg::TeamT team_r_;
     std::vector< PlayModeRecord > playmodes_;
     std::vector< rcss::rcg::ShowInfoT > shows_;
+    //! the shows ('s') and play modes ('p') with their times, in order
+    std::vector< std::pair< char, int > > events_;
 
     bool handleEOF() override
       {
@@ -89,6 +91,7 @@ public:
     bool handleShow( const rcss::rcg::ShowInfoT & show ) override
       {
           shows_.push_back( show );
+          events_.emplace_back( 's', static_cast< int >( show.time_ ) );
           return true;
       }
 
@@ -109,6 +112,7 @@ public:
                          const rcss::rcg::PlayMode pm ) override
       {
           playmodes_.push_back( { time, pm } );
+          events_.emplace_back( 'p', time );
           return true;
       }
 
@@ -273,6 +277,50 @@ parseJsonData( const std::string & data,
 }
 
 /*!
+  \brief the first lines of a fixture, and the line that starts with prefix.
+*/
+void
+splitFixture( const std::string & data,
+              const int n_header_lines,
+              const std::string & prefix,
+              std::string * header,
+              std::string * line )
+{
+    std::size_t pos = 0;
+    for ( int i = 0; i < n_header_lines; ++i )
+    {
+        pos = data.find( '\n', pos ) + 1;
+    }
+    *header = data.substr( 0, pos );
+
+    const std::size_t start = data.find( "\n" + prefix ) + 1;
+    *line = data.substr( start, data.find( '\n', start ) - start );
+}
+
+/*!
+  \brief the events of a log of n shows, with a play mode at the shows
+  1, 1001, 2001, ..., in order.
+*/
+std::vector< std::pair< char, int > >
+manyEvents( const int n,
+            const std::vector< int > & excluded = {} )
+{
+    std::vector< std::pair< char, int > > events;
+    for ( int t = 1; t <= n; ++t )
+    {
+        if ( t % 1000 == 1 ) events.emplace_back( 'p', t );
+        if ( std::find( excluded.begin(), excluded.end(), t ) == excluded.end() )
+        {
+            events.emplace_back( 's', t );
+        }
+    }
+    return events;
+}
+
+//! the number of shows in the large logs: the lines are parsed in parallel
+const int MANY_SHOWS = 5000;
+
+/*!
   \brief unit test of the rcg parsers
 */
 class TestRcgParser
@@ -289,6 +337,9 @@ private slots:
     void jsonBrokenLines();
     void jsonOneLine();
     void jsonCrLf();
+    void textManyLines();
+    void textManyLinesStopAtIllegalLine();
+    void jsonManyLines();
 };
 
 /*-------------------------------------------------------------------*/
@@ -441,6 +492,96 @@ TestRcgParser::jsonCrLf()
     RecordingHandler handler;
     QVERIFY( parseJsonData( data, handler ) );
     checkJson( handler );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  A large text log, parsed in parallel: the shows and play modes reach the
+  handler in the order of the lines.
+*/
+void
+TestRcgParser::textManyLines()
+{
+    std::string header, show;
+    splitFixture( readFixture( "head_v5.rcg" ), 21, "(show 1 ", &header, &show );
+
+    std::string data = header;
+    for ( int t = 1; t <= MANY_SHOWS; ++t )
+    {
+        if ( t % 1000 == 1 ) data += "(playmode " + std::to_string( t ) + " play_on)\n";
+        data += "(show " + std::to_string( t ) + show.substr( 7 ) + "\n";
+    }
+
+    RecordingHandler handler;
+    rcss::rcg::Parser::Ptr parser = rcss::rcg::Parser::create( data.data(), data.size() );
+    QVERIFY( parser );
+    QVERIFY( parser->parse( data.data(), data.size(), handler ) );
+    QVERIFY( handler.eof_ );
+    QCOMPARE( handler.player_type_count_, 18 );
+    QCOMPARE( handler.events_, manyEvents( MANY_SHOWS ) );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  In a large text log, an illegal line ends the parse as before: nothing
+  after it reaches the handler.
+*/
+void
+TestRcgParser::textManyLinesStopAtIllegalLine()
+{
+    std::string header, show;
+    splitFixture( readFixture( "head_v5.rcg" ), 21, "(show 1 ", &header, &show );
+
+    std::string data = header;
+    for ( int t = 1; t <= MANY_SHOWS; ++t )
+    {
+        if ( t % 1000 == 1 ) data += "(playmode " + std::to_string( t ) + " play_on)\n";
+        data += "(show " + std::to_string( t ) + show.substr( 7 ) + "\n";
+        if ( t == 3000 ) data += "an illegal line\n";
+    }
+
+    RecordingHandler handler;
+    rcss::rcg::Parser::Ptr parser = rcss::rcg::Parser::create( data.data(), data.size() );
+    QVERIFY( parser );
+    QVERIFY( ! parser->parse( data.data(), data.size(), handler ) );
+    QCOMPARE( handler.events_, manyEvents( 3000 ) );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  A large JSON log, parsed in parallel: the records reach the handler in
+  the order of the lines, and a broken line is skipped.
+*/
+void
+TestRcgParser::jsonManyLines()
+{
+    std::string header, show;
+    splitFixture( readFixture( "head_json.rcg" ), 23, "{\"show\":{\"time\":1,", &header, &show );
+    const std::string after_time = show.substr( std::string( "{\"show\":{\"time\":1" ).size() );
+
+    std::string data = header;
+    for ( int t = 1; t <= MANY_SHOWS; ++t )
+    {
+        if ( t % 1000 == 1 )
+        {
+            data += "{\"playmode\":{\"time\":" + std::to_string( t ) + ",\"mode\":\"play_on\"}},\n";
+        }
+        if ( t == 2500 )
+        {
+            data += "{\"show\":{\"time\":2500,\"ball\":{\n"; // broken
+            continue;
+        }
+        data += "{\"show\":{\"time\":" + std::to_string( t ) + after_time;
+        if ( data.back() != ',' ) data += ',';
+        data += '\n';
+    }
+    data += "]\n";
+
+    RecordingHandler handler;
+    QVERIFY( parseJsonData( data, handler ) );
+    QVERIFY( handler.eof_ );
+    QCOMPARE( handler.player_type_count_, 18 );
+    QCOMPARE( handler.events_, manyEvents( MANY_SHOWS, { 2500 } ) );
 }
 
 QTEST_APPLESS_MAIN( TestRcgParser )

@@ -35,6 +35,8 @@
 
 #include "parser_v4.h"
 
+#include "line_parser.h"
+
 #include "handler.h"
 #include "types.h"
 
@@ -45,6 +47,7 @@
 #include <climits>
 #include <cstdio>
 #include <iterator>
+#include <memory>
 #include <string>
 
 namespace rcss {
@@ -79,60 +82,56 @@ ParserV4::parse( const char * data,
                  const std::size_t size,
                  Handler & handler ) const
 {
-    const char * const end = data + size;
-    const char * pos = data;
-
-    // the next line, without its '\n', as std::getline() gives it
-    std::string line;
-    line.reserve( 8192 );
-    auto next_line = [&]() -> bool
-        {
-            if ( pos >= end )
-            {
-                return false;
-            }
-            const char * eol = static_cast< const char * >( std::memchr( pos, '\n', end - pos ) );
-            if ( ! eol )
-            {
-                eol = end;
-            }
-            line.assign( pos, eol );
-            pos = ( eol < end ? eol + 1 : end );
-            return true;
-        };
+    std::vector< LineRef > lines = split_lines( data, size );
 
     // skip header line
-    if ( ! next_line()
-         || line.length() < 4
-         || line.compare( 0, 3, "ULG" ) != 0 )
+    const std::string header = ( lines.empty()
+                                 ? std::string()
+                                 : std::string( lines.front().begin_, lines.front().length_ ) );
+    if ( lines.empty()
+         || header.length() < 4
+         || header.compare( 0, 3, "ULG" ) != 0 )
     {
-        std::cerr << "Unknown header line: [" << line << "]" << std::endl;
+        std::cerr << "Unknown header line: [" << header << "]" << std::endl;
         return false;
     }
 
-    const int version = std::atoi( line.c_str() + 3 );
+    const int version = std::atoi( header.c_str() + 3 );
     if ( version != REC_VERSION_4
          && version != REC_VERSION_5
          && version != REC_VERSION_6 )
     {
-        std::cerr << "Unsupported rcg version: [" << line << "]" << std::endl;
+        std::cerr << "Unsupported rcg version: [" << header << "]" << std::endl;
         return false;
     }
 
     if ( ! handler.handleLogVersion( version ) )
     {
-        std::cerr << "Unsupported game log version: [" << line << "]" << std::endl;
+        std::cerr << "Unsupported game log version: [" << header << "]" << std::endl;
         return false;
     }
 
-    int n_line = 1;
-    while ( next_line() )
+    lines.erase( lines.begin() );
+
+    // each thread has its own line buffer. As before, the first line that
+    // cannot be parsed ends the parse.
+    const std::vector< int > failed
+        = parse_lines( lines,
+                       [this]() -> LineParser
+                       {
+                           std::shared_ptr< std::string > buf = std::make_shared< std::string >();
+                           buf->reserve( 8192 );
+                           return [this, buf]( const LineRef & line, Handler & h ) -> bool
+                               {
+                                   buf->assign( line.begin_, line.length_ );
+                                   return parseLine( line.number_, *buf, h );
+                               };
+                       },
+                       true,
+                       handler );
+    if ( ! failed.empty() )
     {
-        ++n_line;
-        if ( ! parseLine( n_line, line, handler ) )
-        {
-            return false;
-        }
+        return false;
     }
 
     return handler.handleEOF();

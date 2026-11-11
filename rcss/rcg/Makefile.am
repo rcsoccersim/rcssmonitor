@@ -7,6 +7,7 @@ lib_LTLIBRARIES = librcssrcg.la
 librcssrcg_la_SOURCES = \
 	simdjson/simdjson.cpp \
 	handler.cpp \
+	line_parser.cpp \
 	parser.cpp \
 	parser_v1.cpp \
 	parser_v2.cpp \
@@ -31,6 +32,7 @@ librcssrcginclude_HEADERS = \
 	util.h
 
 noinst_HEADERS = \
+	line_parser.h \
 	simdjson/simdjson.h
 
 librcssrcg_la_LDFLAGS = -version-info 19:0:0
@@ -56,8 +58,8 @@ librcssrcg_la_LDFLAGS = -version-info 19:0:0
 
 AM_CPPFLAGS = -I$(top_srcdir)
 AM_CFLAGS = -Wall -W
-AM_CXXFLAGS = -Wall -W
-AM_LDFLAGS =
+AM_CXXFLAGS = -Wall -W -pthread
+AM_LDFLAGS = -pthread
 
 EXTRA_DIST = \
 	CMakeLists.txt

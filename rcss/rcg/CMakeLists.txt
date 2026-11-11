@@ -2,6 +2,7 @@
 add_library(rcssrcg SHARED
   simdjson/simdjson.cpp
   handler.cpp
+  line_parser.cpp
   parser.cpp
   parser_v1.cpp
   parser_v2.cpp
@@ -18,6 +19,13 @@ target_include_directories(rcssrcg
   PRIVATE
   ${PROJECT_SOURCE_DIR}
   ${PROJECT_BINARY_DIR}
+  )
+
+# the parsers use std::thread
+find_package(Threads REQUIRED)
+target_link_libraries(rcssrcg
+  PRIVATE
+  Threads::Threads
   )
 
 target_compile_options(rcssrcg
