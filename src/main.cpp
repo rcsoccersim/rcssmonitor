@@ -51,6 +51,15 @@ main( int argc,
               << "Copyright (C) 2009 - 2022 RoboCup Soccer Simulator Maintenance Group.\n"
               << std::endl;
 
+#if QT_VERSION < QT_VERSION_CHECK( 6, 0, 0 )
+    // Scale by the device pixel ratio of the screen, as Qt6 always does,
+    // also by a fractional one (e.g. 1.29 with 124 dpi): the same canvas
+    // size makes the same window with Qt5 and Qt6.
+    QApplication::setAttribute( Qt::AA_EnableHighDpiScaling );
+    QApplication::setAttribute( Qt::AA_UseHighDpiPixmaps );
+    QGuiApplication::setHighDpiScaleFactorRoundingPolicy( Qt::HighDpiScaleFactorRoundingPolicy::PassThrough );
+#endif
+
     QApplication app( argc, argv );
     QApplication::setApplicationName( PACKAGE_NAME );
     QApplication::setApplicationVersion( VERSION );
