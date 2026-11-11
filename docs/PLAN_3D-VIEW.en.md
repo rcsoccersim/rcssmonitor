@@ -7,7 +7,7 @@
 | Reference implementation | rcssmonitor-web 20.0.0-beta.2 (tag `v20.0.0-beta.2`, ed36941). Its working tree is `../rcssmonitor-web`, next to this repository |
 | Server referred to | The asio version of rcssserver 19.x. Its working tree is `../rcssserver` (branch `feature/asio-migration`), next to this repository |
 | Japanese version | [PLAN_3D-VIEW.md](PLAN_3D-VIEW.md) (same content; §0.1) |
-| Status | Phase 2 (started 2026-11-12). The 3D prototype of Phase 0 is discussed later |
+| Status | Phase 3 (started 2026-11-12). The 3D prototype of Phase 0 is discussed later |
 
 ## 0. How to use this plan
 
@@ -108,7 +108,7 @@ Option B (drop it) was decided on 2026-11-11. Option A was tried in Phase 0 and 
 | File | Role |
 |---|---|
 | `src/main_window.cpp` | Menus, toolbar, keys (`createActions*`), referee operations. `createFieldCanvas()` makes `FieldCanvas` the central widget |
-| `src/field_canvas.cpp` | 2D drawing target. A `QWidget` (a `QGLWidget` if `USE_GLWIDGET` is defined). Calls the painters in order. Mouse operations, right-click menu |
+| `src/field_canvas.cpp` | 2D drawing target. A `QWidget` (a `QGLWidget` if `USE_GLWIDGET` is defined; `USE_GLWIDGET` was removed in Phase 3). Calls the painters in order. Mouse operations, right-click menu |
 | `src/field_painter.cpp`, `player_painter.cpp`, `ball_painter.cpp`, `draw_info_painter.cpp` | 2D drawing. Calculations such as player state colors, catch / tackle / kick areas, and the offside line are also here |
 | `src/disp_holder.cpp` | Holds the received frames, for both live and logs |
 | `src/log_player.cpp` | Advances one frame at a time with a `QTimer`. No interpolation between frames |
@@ -134,7 +134,7 @@ Option B (drop it) was decided on 2026-11-11. Option A was tried in Phase 0 and 
 |---|---|---|
 | `QKeySequence` built with `Qt::CTRL + Qt::Key_X` / `Qt::ALT + …` | 19 + 5 | `Qt::CTRL \| Qt::Key_X` (`+` is deprecated in Qt 6; `\|` also works in Qt 5.15) |
 | `QLayout::setMargin()` | 34 | `setContentsMargins()` (removed in Qt6) |
-| `QMouseEvent::pos()`, `globalPos()` | 13, 1 | In Qt6, `position().toPoint()`, `globalPosition().toPoint()` (`pos()` is deprecated in Qt 6). `position()` does not exist in Qt 5.15, so for dual support a small function switches with `QT_VERSION_CHECK` |
+| `QMouseEvent::pos()`, `globalPos()` | 13, 1 | In Qt6, `position().toPoint()`, `globalPosition().toPoint()` (`pos()` is deprecated in Qt 6). `position()` does not exist in Qt 5.15, so for dual support a small function switches with `QT_VERSION_CHECK`. → Correction (Phase 3): `QMouseEvent::pos()` is not deprecated in Qt 6.2–6.10 (deprecated are `globalPos()`, `x()`, `y()`, and `pos()` of the other events). The code uses only `QMouseEvent::pos()` and `QContextMenuEvent::globalPos()`, so nothing needs to change |
 | `QWheelEvent::delta()`, `orientation()` | 2, 1 | `angleDelta()` (removed in Qt6) |
 | `QSignalMapper` | 2 | Lambda connections |
 | `QFontMetrics::width()` | A few (some already switch to `horizontalAdvance` with `QT_VERSION_CHECK`) | `horizontalAdvance()` |
@@ -421,16 +421,16 @@ Tests: with fixtures (a short excerpt of `1-json.rcg.gz`, broken lines, unknown 
 
 ## 8. Qt6 support
 
-1. CMake: select the version with `find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core)` and link with `Qt${QT_VERSION_MAJOR}::Widgets` etc. Test in the same way (WebSockets when merging, per §3.5). For Qt6, add `OpenGL` and `OpenGLWidgets` (for 3D). In Qt5, `QOpenGLWidget` is in Widgets.
-2. Make the replacements in §3.3, choosing forms that also work on Qt 5.15 (dual support, D2).
-3. Remove `QGLWidget` under `USE_GLWIDGET` if it is unused. If it is used, make it `QOpenGLWidget`.
-4. Remove the `QT_VERSION_CHECK` branches for versions older than Qt 5.15.
-5. Eliminate deprecation warnings: build with `QT_DISABLE_DEPRECATED_BEFORE=0x050F00` on Qt5, and confirm that there are no deprecation warnings on Qt6.
-6. High DPI: enabled by default in Qt6. Confirm that the 2D drawing (line widths, text sizes) does not break at scale 1, 1.5, and 2. 3D renders according to `devicePixelRatio`.
-7. autotools stays on Qt5 as in D3 (qmake is dropped by D11); write in the README "Qt6 and 3D with CMake".
-8. Build both Qt5 and Qt6 in CI (§10).
-9. Rewrite the README installation instructions for both Qt5 and Qt6 on Ubuntu 22.04 / 24.04 / 26.04.
-10. Raise `cmake_minimum_required(VERSION 3.5)`. The CMake in CI warns that "compatibility with CMake < 3.10 will be removed" (§14). Qt6 needs CMake 3.16 or later, so make it 3.16.
+1. CMake: select the version with `find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core)` and link with `Qt${QT_VERSION_MAJOR}::Widgets` etc. Test in the same way (WebSockets when merging, per §3.5). For Qt6, add `OpenGL` and `OpenGLWidgets` (for 3D). In Qt5, `QOpenGLWidget` is in Widgets. → Done in Phase 3 (OpenGL is added in Phase 4; §14).
+2. Make the replacements in §3.3, choosing forms that also work on Qt 5.15 (dual support, D2). → Done in Phase 3.
+3. Remove `QGLWidget` under `USE_GLWIDGET` if it is unused. If it is used, make it `QOpenGLWidget`. → Removed.
+4. Remove the `QT_VERSION_CHECK` branches for versions older than Qt 5.15. → Done.
+5. Eliminate deprecation warnings: build with `QT_DISABLE_DEPRECATED_BEFORE=0x050F00` on Qt5, and confirm that there are no deprecation warnings on Qt6. → CMake always defines `QT_DISABLE_DEPRECATED_BEFORE` (0x050F00 for Qt5, 0x060000 for Qt6), and CI builds with `-Werror=deprecated-declarations`.
+6. High DPI: enabled by default in Qt6. Confirm that the 2D drawing (line widths, text sizes) does not break at scale 1, 1.5, and 2. 3D renders according to `devicePixelRatio`. → Checked by drawing offscreen at scale 1, 1.5, and 2. Qt5 now scales by the screen's ratio as Qt6 does (§14).
+7. autotools stays on Qt5 as in D3 (qmake is dropped by D11); write in the README "Qt6 and 3D with CMake". → The README says "autotools is for Qt5 only" (3D is written in Phase 4).
+8. Build both Qt5 and Qt6 in CI (§10). → Done, also the oldest Qt 6.2 (an Ubuntu 22.04 container).
+9. Rewrite the README installation instructions for both Qt5 and Qt6 on Ubuntu 22.04 / 24.04 / 26.04. → Done.
+10. Raise `cmake_minimum_required(VERSION 3.5)`. The CMake in CI warns that "compatibility with CMake < 3.10 will be removed" (§14). Qt6 needs CMake 3.16 or later, so make it 3.16. → Done.
 
 ## 9. Phase plan
 
@@ -635,7 +635,7 @@ At each step, append the date, the decisions, what was built, the bugs found and
 - master is ahead of develop (the AppImage workflow of PR #59; §3.2, §3.4). Fixed the first draft's "master and develop have the same content" and "there is no CI".
 - `test/` was added on `feature/support-tcp-ws` and is not on develop (§3.1).
 - Rechecked the §6 line numbers on develop. Only B11 differs. The §3.3 counts are also the same on develop.
-- Work environment: Ubuntu 24.04, CMake 3.28, Qt 5.15.13 and Qt 6.4.2 (Core, Gui, Widgets, Network, OpenGL, OpenGLWidgets, and Test are available; Qt6 WebSockets is not). GPU: AMD (PCI ID 13c0).
+- Work environment: Ubuntu 24.04, CMake 3.28, Qt 5.15.13 and Qt 6.4.2 (Core, Gui, Widgets, Network, OpenGL, OpenGLWidgets, and Test are available; Qt6 WebSockets is not). → Correction (Phase 3): only the runtime libraries of Qt6 were installed, without the development packages. In Phase 3 the user installed `qt6-base-dev` and `libqt6opengl6-dev`. GPU: AMD (PCI ID 13c0).
 - The rcssmonitor-web working tree is 1 commit after `v20.0.0-beta.2` (ed36941) (bcab423; a plan update only).
 - The asio rcssserver working tree had moved from the top of the repository (`rcssserver-19.x-asio/`) to `../rcssserver` (`feature/asio-migration`, 19.0.0). Fixed the header table.
 - The existing release tags have the form `rcssmonitor-X.Y.Z`. The 19.0.1 release has an AppImage attached.
@@ -874,3 +874,49 @@ After pushing the 2 libdeflate commits (e0e21ef, 6328ac9), the rest of §7 and B
 - The 10 commits of batch B (0bf9ee3 to caf490b) were pushed.
 - The user checked on the actual screen: the loading speed and the live connection are OK. The view quality (`vq`, B2) is not used by any display of rcssmonitor (nothing in `src/` uses `view_quality_`), so it cannot be checked on the screen. B2 was checked with the parser tests.
 - Decided (user): delete the unused `rcss/rcg/nlohmann/json.hpp` (for the old JSON parser) and `src/gzfstream.{h,cpp}` (unused since batch A). With it, the empty `#ifdef HAVE_LIBZ` left in `main_window.cpp` is deleted, and the file dialog offers `*.rcg.gz` also with libdeflate alone, without zlib.
+
+#### 2026-11-12: Merge
+
+- PR #65 (`feature/json-parser`) was merged into develop with a merge commit (a6f2456). The CI of develop passed too.
+
+### Phase 3
+
+#### 2026-11-12: Qt6 support (`feature/qt6`)
+
+The user created `feature/qt6` from develop (a6f2456) on GitHub.
+
+**Preparation**
+- The work machine had only the runtime libraries of Qt6 (the Phase 0 record was corrected). The user installed `qt6-base-dev` and `libqt6opengl6-dev` (6.4.2).
+- Building with Qt5 and `QT_DISABLE_DEPRECATED_BEFORE=0x050F00` gave errors only for `setMargin` (27 places). Most of the others were deprecated in Qt 6, so they were found by building with Qt6: the sources before the replacements (Q1) with the current CMake gave 49 errors with Qt6 (`setMargin` 27, the `+` of `Qt::CTRL + Qt::Key_X` 21, the conversion of an element of `QKeySequence` to `int` 1).
+
+**Decided**
+- CMake uses Qt6 if it is found, and Qt5 otherwise. `-DQT_VERSION_MAJOR=5` selects Qt5. The oldest versions are Qt 6.2 and Qt 5.15 (D2).
+- Deprecated APIs are made unavailable at build time: `QT_DISABLE_DEPRECATED_BEFORE` is 0x050F00 for Qt5 and 0x060000 for Qt6. What Qt 6.1 or later deprecates is caught in CI with `-Werror=deprecated-declarations`.
+- `QMouseEvent::pos()` is not deprecated in any of Qt 6.2, 6.4, and 6.10 (checked in the qtbase headers; deprecated are `globalPos()`, `x()`, `y()`, and `pos()` of the other events). "`pos()` is deprecated in Qt 6" in §3.3 was wrong, so no function switching by version is made (one was made, and dropped).
+- `QTime` was already replaced with `QElapsedTimer` in A7 of Phase 2.
+
+**Made (one commit each, in order)**
+
+| Step | Content | Tests |
+|---|---|---|
+| Q1 | Removed the branches for Qt older than 5.15 (22 `QT_VERSION_CHECK`s and 4 comparisons of Qt 4 versions in hex). `QFontMetrics::width()`, `QWheelEvent::delta()`, `setResizeMode` etc. were only in the old branches | — |
+| Q2 | `setMargin( n )` became `setContentsMargins( n, n, n, n )` (removed in Qt6) | — |
+| Q3 | Key combinations became `Qt::CTRL \| Qt::Key_X` (`+` is removed in Qt6). Removed the branches of the Qt 4 macro `Q_WS_MAC` (21 places; not defined since Qt 5, so never used) and `Q_WS_WIN`. The actions that select a player with a key read the key of their shortcut as an `int` (a `QKeyCombination` in Qt6), so they now have the number of the player with `setData()`. Also fixed the names "Select Left 0" of the 10th player's action and "Selct Right" | `player_select_keys` (new): the shortcuts 1–9, 0, - of the main window, with and without Ctrl. Fails with the old `main_window.cpp`, which has no numbers. All actions of the main window, with their names and shortcuts, were written out and compared with before: the same except the names and numbers of the player selection |
+| Q4 | `QSignalMapper` (2 places, deprecated in Qt 5.15) became lambda connections | `play_mode_actions` (new): an item of "Change Playmode" in the field menu passes its mode to `FieldCanvas`. Fails when a wrong mode is passed |
+| Q5 | Removed `USE_GLWIDGET` and `QGLWidget` (no build configuration defined it; Qt6 has no `QGLWidget`) | — |
+| Q6 | CMake supports both Qt5 and Qt6 (`find_package(QT NAMES Qt6 Qt5)`, `Qt${QT_VERSION_MAJOR}::…`). `cmake_minimum_required` is 3.16 (§8 item 10). `QT_DISABLE_DEPRECATED_BEFORE` is defined | 12 tests with Qt6 and Qt5 |
+| Q7 | CI: the CMake job became two, Qt5 and Qt6 (`-Werror=deprecated-declarations`), and a job checks the oldest Qt 6.2 (an `ubuntu:22.04` container, CMake 3.22) | — |
+| Q8 | Rewrote the README's installation: CMake first, the Qt6 and Qt5 packages of Ubuntu 22.04 / 24.04 / 26.04, how to select the Qt, autotools for Qt5 only, CMake's options. Fixed C++14 to C++17, and dropped the unneeded packages such as boost | — |
+| Q9 | Qt5 also scales by the device pixel ratio of the screen (`AA_EnableHighDpiScaling`, also a fractional one). Qt6 always does, so the same canvas size makes the same window (the user's check below) | On the work machine's screen, Qt5's ratio and logical DPI became the same as Qt6's |
+| Q10 | The toolbar icons (XPMs in black) are drawn in the text color of the palette (white becomes transparent, gray half transparent), and again when the palette changes. With a dark palette, the black icons were hard to see and their white backgrounds stood out | `tool_icon` (new): the tinting, and drawing again when the palette changes. Fails when the redrawing is stopped. The toolbar was drawn offscreen with a dark and a light palette and looked at |
+
+**Tests**
+- Every step Q1–Q10 builds and passes its tests with CMake from a clean copy. From Q6 on, with both Qt 6.4.2 and Qt 5.15.13, without warnings even with `-Werror=deprecated-declarations` (12 tests, 13 from Q10). The last step also builds with autotools (Qt5).
+- High DPI (§8 item 6): with Qt6, the main window with a log at frame 1,000 was drawn offscreen at scale 1, 1.5, and 2 into images. The layout, text, and buttons do not break. The field lines and player outlines stay 1 device pixel, so they are relatively thin at scale 2. The team logo (XPM) is scaled up and blurred. Offscreen, the text of Qt6's menus and score board is a little smaller than Qt5's (likely a difference of the default font). The check on an actual screen is the user's.
+- Ubuntu 22.04 (Qt 6.2) was not tried locally, as there is no Docker. CI checks it.
+
+**The user's checks (Qt6, on the actual screen)**
+- The live connection, log playback, referee operations, and the config dialog are fine.
+- With the same canvas size, the window size differs between Qt5 and Qt6, and so does the size of the team graphic. Cause: the work machine's screen is 3840×2160 at 124 dpi (GNOME on Wayland; Qt5 and Qt6 both run on XWayland). Qt6 always scales by the screen's ratio (124 / 96 = 1.29), while Qt5 did not scale pixels and made only the text larger for 124 dpi. Qt6 draws consistently; with Qt5, the team graphic and the lines were small compared with the text. Decided (user): Qt5 also scales as Qt6 does (Q9).
+- With a dark desktop theme, the Qt6 window is dark too (background #323232; Qt5 stays light), and the toolbar icons are hard to see. Decided (user): the icons follow the palette (Q10).
+- With Qt6, loading takes over 800 ms for JSON and over 70 ms for text. Cause: the user's build directory had `CMAKE_BUILD_TYPE=Debug` (simdjson is not optimized). A Debug build with Qt6 was confirmed to take 692–868 ms for JSON and 73 ms for text. In Release, Qt6 and Qt5 take the same: JSON 70 ms, text 60 ms. The user's machine has no `libdeflate-dev` either (zlib only).

@@ -7,7 +7,7 @@
 | 参照実装 | rcssmonitor-web 20.0.0-beta.2 (タグ `v20.0.0-beta.2`、ed36941)。作業ツリーは、このリポジトリと並べて置いた `../rcssmonitor-web` |
 | 参照したサーバ | asio 版 rcssserver 19.x。作業ツリーは、このリポジトリと並べて置いた `../rcssserver` (`feature/asio-migration` ブランチ) |
 | 英語版 | [PLAN_3D-VIEW.en.md](PLAN_3D-VIEW.en.md) (内容は同じ。§0.1) |
-| 状態 | Phase 2 (2026-11-12 着手)。Phase 0 の 3D の試作は後で相談する |
+| 状態 | Phase 3 (2026-11-12 着手)。Phase 0 の 3D の試作は後で相談する |
 
 ## 0. この計画書の使い方
 
@@ -108,7 +108,7 @@ Phase 0 の試作 (§9) で、推奨案で「人型 22 体と影を 1920×1080 �
 | ファイル | 役割 |
 |---|---|
 | `src/main_window.cpp` | メニュー、ツールバー、キー (`createActions*`)、審判操作。`createFieldCanvas()` で `FieldCanvas` を中央のウィジェットにする |
-| `src/field_canvas.cpp` | 2D の描画先。`QWidget` (定義 `USE_GLWIDGET` があれば `QGLWidget`)。painter を順に呼ぶ。マウス操作、右クリックのメニュー |
+| `src/field_canvas.cpp` | 2D の描画先。`QWidget` (定義 `USE_GLWIDGET` があれば `QGLWidget`。Phase 3 で `USE_GLWIDGET` を消した)。painter を順に呼ぶ。マウス操作、右クリックのメニュー |
 | `src/field_painter.cpp`、`player_painter.cpp`、`ball_painter.cpp`、`draw_info_painter.cpp` | 2D の描画。選手の状態の色、キャッチ・タックル・キックの範囲、オフサイドラインなどの計算もここにある |
 | `src/disp_holder.cpp` | 受け取ったフレームを持つ。ライブとログの両方 |
 | `src/log_player.cpp` | `QTimer` で 1 フレームずつ進める。フレームのあいだの補間はない |
@@ -134,7 +134,7 @@ Phase 0 の試作 (§9) で、推奨案で「人型 22 体と影を 1920×1080 �
 |---|---|---|
 | `QKeySequence` を `Qt::CTRL + Qt::Key_X` / `Qt::ALT + …` で作る | 19 + 5 | `Qt::CTRL \| Qt::Key_X` (Qt 6 で `+` は非推奨。Qt 5.15 でも `\|` は使える) |
 | `QLayout::setMargin()` | 34 | `setContentsMargins()` (Qt6 で削除) |
-| `QMouseEvent::pos()`、`globalPos()` | 13、1 | Qt6 では `position().toPoint()`、`globalPosition().toPoint()` (`pos()` は Qt 6 で非推奨)。`position()` は Qt 5.15 にないので、両対応では小さな関数で `QT_VERSION_CHECK` を分ける |
+| `QMouseEvent::pos()`、`globalPos()` | 13、1 | Qt6 では `position().toPoint()`、`globalPosition().toPoint()` (`pos()` は Qt 6 で非推奨)。`position()` は Qt 5.15 にないので、両対応では小さな関数で `QT_VERSION_CHECK` を分ける。 → 訂正 (Phase 3): `QMouseEvent::pos()` は Qt 6.2〜6.10 で非推奨ではない (非推奨なのは `globalPos()`、`x()`、`y()` と、ほかのイベントの `pos()`)。使っているのは `QMouseEvent::pos()` と `QContextMenuEvent::globalPos()` だけなので、直さなくてよい |
 | `QWheelEvent::delta()`、`orientation()` | 2、1 | `angleDelta()` (Qt6 で削除) |
 | `QSignalMapper` | 2 | ラムダの接続 |
 | `QFontMetrics::width()` | 数か所 (一部はすでに `QT_VERSION_CHECK` で `horizontalAdvance` と分けてある) | `horizontalAdvance()` |
@@ -421,16 +421,16 @@ web 版の `docs/parity.md` §7。行番号は 2026-11-11 の develop (01f880a) 
 
 ## 8. Qt6 対応
 
-1. CMake: `find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core)` で版を選び、`Qt${QT_VERSION_MAJOR}::Widgets` などでリンクする。Test も同じ形にする (WebSockets は、取り込むときに §3.5 で)。Qt6 では `OpenGL` と `OpenGLWidgets` を足す (3D 用)。Qt5 の `QOpenGLWidget` は Widgets にある。
-2. §3.3 の置き換えを行う。Qt 5.15 でも動く書き方を選ぶ (両対応、D2)。
-3. `USE_GLWIDGET` の `QGLWidget` は、使われていなければ消す。使うなら `QOpenGLWidget` にする。
-4. `QT_VERSION_CHECK` の分岐のうち、Qt 5.15 より古いものを消す。
-5. 非推奨の警告をなくす: Qt5 では `QT_DISABLE_DEPRECATED_BEFORE=0x050F00` でビルドし、Qt6 では非推奨の警告が出ないことを確かめる。
-6. 高 DPI: Qt6 では既定で有効。2D の描画 (線の太さ、文字の大きさ) が、倍率 1、1.5、2 で崩れないことを確かめる。3D は `devicePixelRatio` に合わせて描く。
-7. autotools は D3 のとおり Qt5 のまま残し (qmake は D11 で廃止)、README に「Qt6 と 3D は CMake で」と書く。
-8. CI で Qt5 と Qt6 の両方をビルドする (§10)。
-9. README のインストールの手順を、Ubuntu 22.04 / 24.04 / 26.04 の Qt5 と Qt6 の両方について書き直す。
-10. `cmake_minimum_required(VERSION 3.5)` を上げる。CI の CMake が「3.10 より古い版との互換は将来なくなる」と警告している (§14)。Qt6 は CMake 3.16 以上を要るので、3.16 にする。
+1. CMake: `find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core)` で版を選び、`Qt${QT_VERSION_MAJOR}::Widgets` などでリンクする。Test も同じ形にする (WebSockets は、取り込むときに §3.5 で)。Qt6 では `OpenGL` と `OpenGLWidgets` を足す (3D 用)。Qt5 の `QOpenGLWidget` は Widgets にある。 → Phase 3 で済 (OpenGL は Phase 4 で足す。§14)。
+2. §3.3 の置き換えを行う。Qt 5.15 でも動く書き方を選ぶ (両対応、D2)。 → Phase 3 で済。
+3. `USE_GLWIDGET` の `QGLWidget` は、使われていなければ消す。使うなら `QOpenGLWidget` にする。 → 消した。
+4. `QT_VERSION_CHECK` の分岐のうち、Qt 5.15 より古いものを消す。 → 済。
+5. 非推奨の警告をなくす: Qt5 では `QT_DISABLE_DEPRECATED_BEFORE=0x050F00` でビルドし、Qt6 では非推奨の警告が出ないことを確かめる。 → CMake で常に `QT_DISABLE_DEPRECATED_BEFORE` (Qt5 は 0x050F00、Qt6 は 0x060000) を付け、CI は `-Werror=deprecated-declarations` でビルドする。
+6. 高 DPI: Qt6 では既定で有効。2D の描画 (線の太さ、文字の大きさ) が、倍率 1、1.5、2 で崩れないことを確かめる。3D は `devicePixelRatio` に合わせて描く。 → 画面外で倍率 1、1.5、2 を描いて確かめた。Qt5 も Qt6 と同じく画面の倍率で拡大するようにした (§14)。
+7. autotools は D3 のとおり Qt5 のまま残し (qmake は D11 で廃止)、README に「Qt6 と 3D は CMake で」と書く。 → README に「autotools は Qt5 だけ」と書いた (3D は Phase 4 で書く)。
+8. CI で Qt5 と Qt6 の両方をビルドする (§10)。 → 済。下限の Qt 6.2 (Ubuntu 22.04 のコンテナ) も。
+9. README のインストールの手順を、Ubuntu 22.04 / 24.04 / 26.04 の Qt5 と Qt6 の両方について書き直す。 → 済。
+10. `cmake_minimum_required(VERSION 3.5)` を上げる。CI の CMake が「3.10 より古い版との互換は将来なくなる」と警告している (§14)。Qt6 は CMake 3.16 以上を要るので、3.16 にする。 → 済。
 
 ## 9. フェーズ計画
 
@@ -635,7 +635,7 @@ GL に依存しない計算を、web 版の単体テストを手本に移す。
 - master は develop より進んでいる (PR #59 の AppImage のワークフロー。§3.2、§3.4)。計画書の初版の「master と develop は同じ内容」「CI はない」を直した。
 - `test/` は `feature/support-tcp-ws` で足したもので、develop にはない (§3.1)。
 - §6 の行番号を develop で確かめ直した。違うのは B11 だけ。§3.3 の箇所数も develop で同じ。
-- 作業環境: Ubuntu 24.04、CMake 3.28、Qt 5.15.13 と Qt 6.4.2 (Core、Gui、Widgets、Network、OpenGL、OpenGLWidgets、Test がある。Qt6 の WebSockets はない)。GPU は AMD (PCI ID 13c0)。
+- 作業環境: Ubuntu 24.04、CMake 3.28、Qt 5.15.13 と Qt 6.4.2 (Core、Gui、Widgets、Network、OpenGL、OpenGLWidgets、Test がある。Qt6 の WebSockets はない)。 → 訂正 (Phase 3): Qt6 は実行用のライブラリだけで、開発用のパッケージはなかった。Phase 3 でユーザが `qt6-base-dev` と `libqt6opengl6-dev` を入れた。GPU は AMD (PCI ID 13c0)。
 - rcssmonitor-web の作業ツリーは `v20.0.0-beta.2` (ed36941) の 1 コミット後 (bcab423。計画書の更新だけ)。
 - asio 版 rcssserver の作業ツリーは、リポジトリ直下 (`rcssserver-19.x-asio/`) から `../rcssserver` (`feature/asio-migration`、19.0.0) に移っていた。冒頭の表を直した。
 - 既存のリリースのタグは `rcssmonitor-X.Y.Z` の形。19.0.1 のリリースには AppImage が添付されている。
@@ -874,3 +874,49 @@ libdeflate の 2 コミット (e0e21ef、6328ac9) をプッシュした後、§7
 - まとまり B の 10 コミット (0bf9ee3〜caf490b) をプッシュした。
 - ユーザが実際の画面で確かめた: 読み込みの速さとライブ接続は OK。視界の質 (`vq`、B2) は、rcssmonitor のどの表示にも使われていない (`src/` に `view_quality_` を使う箇所がない) ので、画面では確かめられない。B2 はパーサのテストで確かめた。
 - ユーザの決定: 使われていない `rcss/rcg/nlohmann/json.hpp` (古い JSON パーサ用) と `src/gzfstream.{h,cpp}` (まとまり A から使っていない) を消す。あわせて、`main_window.cpp` に残っていた中身のない `#ifdef HAVE_LIBZ` を消し、ファイルを開くダイアログの `*.rcg.gz` を、zlib がなく libdeflate だけのときにも出す。
+
+#### 2026-11-12: 取り込み
+
+- PR #65 (`feature/json-parser`) を Merge Commit で develop に取り込んだ (a6f2456)。develop の CI も通った。
+
+### Phase 3
+
+#### 2026-11-12: Qt6 対応 (`feature/qt6`)
+
+ユーザが GitHub 上で develop (a6f2456) から `feature/qt6` を作った。
+
+**準備**
+- 作業マシンには Qt6 の実行用のライブラリしかなかった (Phase 0 の記録を訂正した)。ユーザが `qt6-base-dev` と `libqt6opengl6-dev` (6.4.2) を入れた。
+- Qt5 で `QT_DISABLE_DEPRECATED_BEFORE=0x050F00` を付けてビルドすると、エラーは `setMargin` (27 か所) だけだった。ほかの多くは Qt 6 で非推奨になったものなので、Qt6 でビルドして洗い出した: 置き換える前のソース (Q1) を今の CMake で Qt6 でビルドすると、エラーは 49 件 (`setMargin` 27、`Qt::CTRL + Qt::Key_X` の `+` 21、`QKeySequence` の要素の `int` への変換 1)。
+
+**決めたこと**
+- CMake は、Qt6 が見つかればそれを使い、なければ Qt5 を使う。`-DQT_VERSION_MAJOR=5` で Qt5 を選べる。下限は Qt 6.2 と Qt 5.15 (D2)。
+- 非推奨の API は、ビルドのときに使えなくする: `QT_DISABLE_DEPRECATED_BEFORE` を Qt5 では 0x050F00、Qt6 では 0x060000 にする。Qt 6.1 以降に非推奨になったものは、CI で `-Werror=deprecated-declarations` にして捕まえる。
+- `QMouseEvent::pos()` は、Qt 6.2、6.4、6.10 のどれでも非推奨ではない (qtbase のヘッダで確かめた。非推奨なのは `globalPos()`、`x()`、`y()` と、ほかのイベントの `pos()`)。§3.3 の「`pos()` は Qt 6 で非推奨」は誤りだったので、版で分ける関数は作らない (一度作ったが取りやめた)。
+- `QTime` は Phase 2 の A7 で `QElapsedTimer` に置き換え済み。
+
+**作ったもの (順に 1 コミットずつ)**
+
+| 段階 | 内容 | テスト |
+|---|---|---|
+| Q1 | Qt 5.15 より古い Qt 向けの分岐を消した (`QT_VERSION_CHECK` 22 か所、Qt 4 の版を 16 進で比べるもの 4 か所)。`QFontMetrics::width()`、`QWheelEvent::delta()`、`setResizeMode` などは、古い側にだけあった | — |
+| Q2 | `setMargin( n )` を `setContentsMargins( n, n, n, n )` にした (Qt6 で削除) | — |
+| Q3 | キーの組み合わせを `Qt::CTRL \| Qt::Key_X` にした (Qt6 で `+` は削除)。Qt 4 のマクロ `Q_WS_MAC` の分岐 (21 か所。Qt 5 からは定義されず、使われていなかった) と `Q_WS_WIN` を消した。選手をキーで選ぶアクションは、ショートカットのキーの値を `int` として読んでいた (Qt6 では `QKeyCombination` になる) ので、選手の番号を `setData()` で持たせた。10 番目の選手のアクションの名前が「Select Left 0」、右の選手のが「Selct Right」になっていたのも直した | `player_select_keys` (新): メインウィンドウのショートカット 1〜9、0、- と Ctrl 付き。番号を持たせない前の `main_window.cpp` に戻すと失敗する。メインウィンドウのすべてのアクションの名前とショートカットを書き出して前と比べ、選手を選ぶアクションの名前と番号のほかは同じ |
+| Q4 | `QSignalMapper` (2 か所、Qt 5.15 で非推奨) をラムダの接続にした | `play_mode_actions` (新): フィールドのメニューの「Change Playmode」の項目が、そのモードを `FieldCanvas` に渡す。渡すモードを間違えると失敗する |
+| Q5 | `USE_GLWIDGET` と `QGLWidget` を消した (どのビルドの設定も定義していなかった。`QGLWidget` は Qt6 にない) | — |
+| Q6 | CMake を Qt5 と Qt6 の両方に対応させた (`find_package(QT NAMES Qt6 Qt5)`、`Qt${QT_VERSION_MAJOR}::…`)。`cmake_minimum_required` を 3.16 にした (§8 の 10)。`QT_DISABLE_DEPRECATED_BEFORE` を付ける | Qt6 と Qt5 で 12 個 |
+| Q7 | CI: CMake のジョブを Qt5 と Qt6 の 2 つにし (`-Werror=deprecated-declarations`)、下限の Qt 6.2 を確かめるジョブ (`ubuntu:22.04` のコンテナ、CMake 3.22) を足した | — |
+| Q8 | README のインストールの手順を書き直した: CMake を主にし、Ubuntu 22.04 / 24.04 / 26.04 の Qt6 と Qt5 のパッケージ、Qt の選び方、autotools は Qt5 だけ、CMake のオプション。C++14 を C++17 に直し、要らない boost などのパッケージを除いた | — |
+| Q9 | Qt5 でも、画面の倍率で拡大して描く (`AA_EnableHighDpiScaling`、端数の倍率もそのまま)。Qt6 は常にそうするので、同じキャンバスの大きさで同じウィンドウになる (下のユーザの確認) | 手元の画面で、Qt5 の倍率と論理 DPI が Qt6 と同じになることを確かめた |
+| Q10 | ツールバーのアイコン (黒い図柄の XPM) を、配色の文字の色で描く (白は透明、灰色は半透明)。配色が変わったら描き直す。暗い配色では黒い図柄が見えにくく、白い四角の背景が浮いていた | `tool_icon` (新): 色の付け直し、配色を変えたときの描き直し。描き直しを止めると失敗する。暗い配色と明るい配色で、画面外でツールバーを描いて見た |
+
+**試験**
+- Q1〜Q10 のどの段階も、きれいなコピーで CMake のビルドとテストが通る。Q6 以降は Qt 6.4.2 と Qt 5.15.13 の両方で、`-Werror=deprecated-declarations` を付けても警告なしで通る (テスト 12 個、Q10 から 13 個)。最後の段階は autotools (Qt5) でもビルドできる。
+- 高 DPI (§8 の 6): Qt6 で、ログを読んで 1,000 フレーム目に進めたメインウィンドウを、画面外で倍率 1、1.5、2 で描いて画像にした。配置、文字、ボタンは崩れない。フィールドの線と選手の輪郭は 1 物理画素のままなので、倍率 2 では相対的に細い。チームのロゴ (XPM) は拡大されてぼやける。画面外の描画では、Qt6 のメニューと得点板の文字が Qt5 より少し小さい (既定のフォントの違いと見られる)。実際の画面での確認はユーザが行う。
+- Ubuntu 22.04 (Qt 6.2) は手元に Docker がないので試していない。CI で確かめる。
+
+**ユーザの確認 (Qt6、実際の画面)**
+- ライブ接続、ログの再生、審判の操作、設定ダイアログは問題ない。
+- Qt5 と Qt6 で、同じキャンバスの大きさでもウィンドウの大きさが違い、チームグラフィックの大きさも違う。原因: 作業マシンの画面は 3840×2160、DPI 124 (Wayland の GNOME。Qt5 と Qt6 はどちらも XWayland で動く)。Qt6 は常に画面の倍率 (124 / 96 = 1.29) で拡大して描き、Qt5 は画素を拡大せずに文字だけを DPI 124 で大きくしていた。Qt6 が一貫した描き方で、Qt5 では文字に比べてチームグラフィックや線が小さかった。ユーザの決定: Qt5 も Qt6 と同じく拡大する (Q9)。
+- デスクトップが暗い配色のとき、Qt6 のウィンドウも暗くなり (背景 #323232。Qt5 は明るいまま)、ツールバーのアイコンが見えにくい。ユーザの決定: アイコンを配色に合わせる (Q10)。
+- Qt6 で JSON の読み込みが 800 ms 以上、テキストが 70 ms 以上かかる。原因: ユーザのビルドのディレクトリが `CMAKE_BUILD_TYPE=Debug` だった (simdjson が最適化されない)。Qt6 の Debug のビルドで、JSON 692〜868 ms、テキスト 73 ms になることを確かめた。Release では Qt6 も Qt5 も JSON 70 ms、テキスト 60 ms で同じ。ユーザのマシンには `libdeflate-dev` もない (zlib だけ)。
