@@ -55,9 +55,6 @@
 #include "options.h"
 #include "rcg_handler.h"
 
-
-#ifdef HAVE_LIBZ
-#endif
 #include <rcss/rcg/util.h>
 #include <rcss/rcg/parser.h>
 
@@ -1713,7 +1710,7 @@ MainWindow::openGameLogFile()
 {
     static QString s_last_path;
 
-#ifdef HAVE_LIBZ
+#if defined(HAVE_LIBZ) || defined(HAVE_LIBDEFLATE)
     QString filter( tr( "Game Log files (*.rcg *.rcg.gz);;"
                         "All files (*)" ) );
 #else

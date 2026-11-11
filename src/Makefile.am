@@ -5,7 +5,6 @@ AUTOMAKE_OPTIONS = subdir-objects
 bin_PROGRAMS = rcssmonitor
 
 rcssmonitor_SOURCES = \
-	gzfstream.cpp \
 	angle_deg.cpp \
 	ball_painter.cpp \
 	circle_2d.cpp \
@@ -42,7 +41,6 @@ nodist_rcssmonitor_SOURCES = \
 	moc_player_type_dialog.cpp
 
 noinst_HEADERS = \
-	gzfstream.h \
 	angle_deg.h \
 	ball_painter.h \
 	circle_2d.h \
