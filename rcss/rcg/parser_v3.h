@@ -55,6 +55,8 @@ public:
           return REC_VERSION_3;
       }
 
+    using Parser::parse;
+
     /*!
       \brief parse input stream
       \param is reference to the imput stream (usually ifstream/gzifstream).

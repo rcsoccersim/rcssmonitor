@@ -33,8 +33,8 @@
 /*
   Usage: bench_load [-n <repeat>] [--progress] <game log>...
 
-  Loads each game log <repeat> times (default 5) through the same path as
-  MainWindow::openGameLogFileImpl(), and prints the best time. With
+  Loads each game log <repeat> times (default 5) with loadGameLogFile(), as
+  MainWindow::openGameLogFileImpl() does, and prints the best time. With
   --progress, RCGHandler gets a parent widget and shows its progress
   dialog, as in the application.
 
@@ -48,10 +48,8 @@
 #endif
 
 #include "disp_holder.h"
-#include "gzfstream.h"
+#include "game_log_file.h"
 #include "rcg_handler.h"
-
-#include <rcss/rcg/parser.h>
 
 #include <QApplication>
 #include <QWidget>
@@ -61,7 +59,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <fstream>
 #include <string>
 #include <vector>
 
@@ -75,21 +72,9 @@ long
 loadGameLog( const char * path,
              QWidget * parent )
 {
-#ifdef HAVE_LIBZ
-    gzifstream fin( path );
-#else
-    std::ifstream fin( path );
-#endif
-    if ( ! fin )
-    {
-        return -1;
-    }
-
     DispHolder holder;
     RCGHandler handler( parent, holder );
-    rcss::rcg::Parser::Ptr parser = rcss::rcg::Parser::create( fin );
-    if ( ! parser
-         || ! parser->parse( fin, handler ) )
+    if ( ! loadGameLogFile( path, handler ) )
     {
         return -1;
     }

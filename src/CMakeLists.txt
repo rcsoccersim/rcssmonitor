@@ -10,6 +10,7 @@ add_library(rcssmonitor_core STATIC
   draw_info_painter.cpp
   field_canvas.cpp
   field_painter.cpp
+  game_log_file.cpp
   line_2d.cpp
   log_player.cpp
   log_player_slider.cpp

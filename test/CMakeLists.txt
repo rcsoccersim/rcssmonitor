@@ -42,6 +42,7 @@ rcssmonitor_add_test(overlay_math rcssmonitor_core)
 rcssmonitor_add_test(play_mode_position rcssmonitor_core)
 rcssmonitor_add_test(config_dialog rcssmonitor_core)
 rcssmonitor_add_test(player_type_sort Qt5::Core Qt5::Gui)
+rcssmonitor_add_test(game_log_file rcssmonitor_core)
 
 # A benchmark of loading game logs (test/bench_load.cpp). CTest does not run it.
 add_executable(bench_load

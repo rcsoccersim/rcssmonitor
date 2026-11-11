@@ -46,6 +46,7 @@
 
 #include "config_dialog.h"
 #include "field_canvas.h"
+#include "game_log_file.h"
 #include "log_player.h"
 #include "log_player_slider.h"
 #include "monitor_client.h"
@@ -56,7 +57,6 @@
 
 
 #ifdef HAVE_LIBZ
-#include "gzfstream.h"
 #endif
 #include <rcss/rcg/util.h>
 #include <rcss/rcg/parser.h>
@@ -1437,19 +1437,6 @@ MainWindow::openGameLogFile( const QString & filepath )
 bool
 MainWindow::openGameLogFileImpl( const QString & filepath )
 {
-#ifdef HAVE_LIBZ
-    gzifstream fin( filepath.toLatin1() );
-#else
-    std::ifstream fin( filepath.toLatin1() );
-#endif
-
-    if ( ! fin )
-    {
-        std::cerr << "failed to open the rcg file. [" << filepath.toStdString() << "]"
-                  << std::endl;
-        return false;
-    }
-
     M_disp_holder.clear();
 
     RCGHandler handler( this, M_disp_holder );
@@ -1465,9 +1452,8 @@ MainWindow::openGameLogFileImpl( const QString & filepath )
     QElapsedTimer timer;
     timer.start();
 
-    rcss::rcg::Parser::Ptr parser = rcss::rcg::Parser::create( fin );
-    if ( ! parser
-         || ! parser->parse( fin, handler ) )
+    // read the whole file into memory and parse it there (game_log_file.h)
+    if ( ! loadGameLogFile( QFile::encodeName( filepath ).toStdString(), handler ) )
     {
         return false;
     }
@@ -1506,8 +1492,6 @@ MainWindow::openGameLogFileImpl( const QString & filepath )
     //     fin.close();
     //     return false;
     // }
-
-    fin.close();
 
     std::cerr << "opened rcg file [" << filepath.toStdString()
               << "]. data size = "

@@ -37,6 +37,7 @@
 #include "rcss/rcg/types.h"
 
 #include <fstream>
+#include <iterator>
 #include <string>
 #include <vector>
 
@@ -154,36 +155,12 @@ dataPath( const char * name )
     return std::string( TEST_DATA_DIR ) + "/" + name;
 }
 
-}
-
 /*!
-  \brief unit test of the rcg parsers
+  \brief check what the parser passed from head_v5.rcg.
 */
-class TestRcgParser
-    : public QObject {
-    Q_OBJECT
-
-private slots:
-
-    void textV5();
-    void json();
-};
-
-/*-------------------------------------------------------------------*/
 void
-TestRcgParser::textV5()
+checkTextV5( const RecordingHandler & handler )
 {
-    std::ifstream fin( dataPath( "head_v5.rcg" ) );
-    QVERIFY( fin.is_open() );
-
-    rcss::rcg::Parser::Ptr parser = rcss::rcg::Parser::create( fin );
-    QVERIFY( parser );
-    // ParserV4 reads the text formats v4, v5 and v6, and reports the
-    // version of the log itself to the handler.
-    QCOMPARE( parser->version(), rcss::rcg::REC_VERSION_4 );
-
-    RecordingHandler handler;
-    QVERIFY( parser->parse( fin, handler ) );
     QVERIFY( handler.eof_ );
     QCOMPARE( handler.logVersion(), rcss::rcg::REC_VERSION_5 );
 
@@ -223,19 +200,12 @@ TestRcgParser::textV5()
     QCOMPARE( last.ball_.vy_, 1.0095f );
 }
 
-/*-------------------------------------------------------------------*/
+/*!
+  \brief check what the parser passed from head_json.rcg.
+*/
 void
-TestRcgParser::json()
+checkJson( const RecordingHandler & handler )
 {
-    std::ifstream fin( dataPath( "head_json.rcg" ) );
-    QVERIFY( fin.is_open() );
-
-    rcss::rcg::Parser::Ptr parser = rcss::rcg::Parser::create( fin );
-    QVERIFY( parser );
-    QCOMPARE( parser->version(), rcss::rcg::REC_VERSION_JSON );
-
-    RecordingHandler handler;
-    QVERIFY( parser->parse( fin, handler ) );
     QVERIFY( handler.eof_ );
     QCOMPARE( handler.logVersion(), rcss::rcg::REC_VERSION_JSON );
 
@@ -272,6 +242,112 @@ TestRcgParser::json()
     QCOMPARE( last.ball_.y_, 1.077f );
     QCOMPARE( last.ball_.vx_, -1.5855f );
     QCOMPARE( last.ball_.vy_, 1.0124f );
+}
+
+/*!
+  \brief read a whole fixture file into memory.
+*/
+std::string
+readFixture( const char * name )
+{
+    std::ifstream fin( dataPath( name ), std::ios::binary );
+    return std::string( std::istreambuf_iterator< char >( fin ),
+                        std::istreambuf_iterator< char >() );
+}
+
+}
+
+/*!
+  \brief unit test of the rcg parsers
+*/
+class TestRcgParser
+    : public QObject {
+    Q_OBJECT
+
+private slots:
+
+    void textV5();
+    void textV5Memory();
+    void json();
+    void jsonMemory();
+};
+
+/*-------------------------------------------------------------------*/
+/*!
+  A text log (v5) through a stream.
+*/
+void
+TestRcgParser::textV5()
+{
+    std::ifstream fin( dataPath( "head_v5.rcg" ) );
+    QVERIFY( fin.is_open() );
+
+    rcss::rcg::Parser::Ptr parser = rcss::rcg::Parser::create( fin );
+    QVERIFY( parser );
+    // ParserV4 reads the text formats v4, v5 and v6, and reports the
+    // version of the log itself to the handler.
+    QCOMPARE( parser->version(), rcss::rcg::REC_VERSION_4 );
+
+    RecordingHandler handler;
+    QVERIFY( parser->parse( fin, handler ) );
+    checkTextV5( handler );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  A text log (v5) in memory, as the application reads it.
+*/
+void
+TestRcgParser::textV5Memory()
+{
+    const std::string data = readFixture( "head_v5.rcg" );
+    QVERIFY( ! data.empty() );
+
+    rcss::rcg::Parser::Ptr parser = rcss::rcg::Parser::create( data.data(), data.size() );
+    QVERIFY( parser );
+    QCOMPARE( parser->version(), rcss::rcg::REC_VERSION_4 );
+
+    RecordingHandler handler;
+    QVERIFY( parser->parse( data.data(), data.size(), handler ) );
+    checkTextV5( handler );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  A JSON log through a stream.
+*/
+void
+TestRcgParser::json()
+{
+    std::ifstream fin( dataPath( "head_json.rcg" ) );
+    QVERIFY( fin.is_open() );
+
+    rcss::rcg::Parser::Ptr parser = rcss::rcg::Parser::create( fin );
+    QVERIFY( parser );
+    QCOMPARE( parser->version(), rcss::rcg::REC_VERSION_JSON );
+
+    RecordingHandler handler;
+    QVERIFY( parser->parse( fin, handler ) );
+    checkJson( handler );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  A JSON log in memory, as the application reads it.
+*/
+void
+TestRcgParser::jsonMemory()
+{
+    const std::string data = readFixture( "head_json.rcg" );
+    QVERIFY( ! data.empty() );
+
+    rcss::rcg::Parser::Ptr parser = rcss::rcg::Parser::create( data.data(), data.size() );
+    QVERIFY( parser );
+    QCOMPARE( parser->version(), rcss::rcg::REC_VERSION_JSON );
+
+    RecordingHandler handler;
+    QVERIFY( parser->parse( data.data(), data.size(), handler ) );
+    checkJson( handler );
 }
 
 QTEST_APPLESS_MAIN( TestRcgParser )

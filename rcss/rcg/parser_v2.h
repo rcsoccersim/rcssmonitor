@@ -55,6 +55,8 @@ public:
           return REC_VERSION_2;
       }
 
+    using Parser::parse;
+
     /*!
       \brief parse input stream. hander will handle each data block.
       \param is reference to the imput stream (usually ifstream).

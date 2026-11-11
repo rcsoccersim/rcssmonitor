@@ -56,6 +56,9 @@ struct ParserSimdJSON::Impl {
 
     Impl();
 
+    bool parseLog( simdjson::padded_string & json,
+                   Handler & handler );
+
     bool parseData( simdjson::ondemand::field & field,
                     Handler & handler );
 
@@ -134,6 +137,41 @@ ParserSimdJSON::Impl::Impl()
           {
               return this->parseShow( val, handler );
           };
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  parse a whole log: an array of the records
+ */
+bool
+ParserSimdJSON::Impl::parseLog( simdjson::padded_string & json,
+                                Handler & handler )
+{
+    try
+    {
+        simdjson::ondemand::parser parser;
+        simdjson::ondemand::document rcg = parser.iterate( json );
+        simdjson::ondemand::array root_array = rcg.get_array();
+
+        for ( simdjson::ondemand::object data : root_array )
+        {
+            for ( simdjson::ondemand::field field : data )
+            {
+                if ( ! parseData( field, handler ) )
+                {
+                    return false;
+                }
+            }
+        }
+    }
+    catch ( std::exception & e )
+    {
+        std::cerr << "(ParserSimdJSON::parse) ERROR\n\t" << e.what() << std::endl;
+        return false;
+    }
+
+    handler.handleEOF();
+    return true;
 }
 
 /*-------------------------------------------------------------------*/
@@ -558,32 +596,8 @@ ParserSimdJSON::parse( std::istream & is,
 
     handler.handleLogVersion( REC_VERSION_JSON );
 
-    try
-    {
-        simdjson::ondemand::parser parser;
-        simdjson::padded_string json( std::string( std::istreambuf_iterator< char >( is ), {} ) );
-        simdjson::ondemand::document rcg = parser.iterate( json );
-        simdjson::ondemand::array root_array = rcg.get_array();
-
-        for ( simdjson::ondemand::object data : root_array )
-        {
-            for ( simdjson::ondemand::field field : data )
-            {
-                if ( ! M_impl->parseData( field, handler ) )
-                {
-                    return false;
-                }
-            }
-        }
-    }
-    catch ( std::exception & e )
-    {
-        std::cerr << "(ParserSimdJSON::parse) ERROR\n\t" << e.what() << std::endl;
-        return false;
-    }
-
-    handler.handleEOF();
-    return true;
+    simdjson::padded_string json( std::string( std::istreambuf_iterator< char >( is ), {} ) );
+    return M_impl->parseLog( json, handler );
 }
 
 /*-------------------------------------------------------------------*/
@@ -593,32 +607,26 @@ ParserSimdJSON::parse( const std::string & filepath,
 {
     handler.handleLogVersion( REC_VERSION_JSON );
 
-    try
+    simdjson::padded_string json;
+    if ( simdjson::padded_string::load( filepath ).get( json ) != simdjson::SUCCESS )
     {
-        simdjson::ondemand::parser parser;
-        simdjson::padded_string json = simdjson::padded_string::load( filepath );
-        simdjson::ondemand::document rcg = parser.iterate( json );
-        simdjson::ondemand::array root_array = rcg.get_array();
-
-        for ( simdjson::ondemand::object data : root_array )
-        {
-            for ( simdjson::ondemand::field field : data )
-            {
-                if ( ! M_impl->parseData( field, handler ) )
-                {
-                    return false;
-                }
-            }
-        }
-    }
-    catch ( std::exception & e )
-    {
-        std::cerr << "(ParserSimdJSON::parse) ERROR\n\t" << e.what() << std::endl;
+        std::cerr << "(ParserSimdJSON::parse) ERROR\n\tcould not read " << filepath << std::endl;
         return false;
     }
+    return M_impl->parseLog( json, handler );
+}
 
-    handler.handleEOF();
-    return true;
+/*-------------------------------------------------------------------*/
+bool
+ParserSimdJSON::parse( const char * data,
+                       const std::size_t size,
+                       Handler & handler ) const
+{
+    handler.handleLogVersion( REC_VERSION_JSON );
+
+    // one copy, into the buffer with the padding that simdjson reads beyond the end
+    simdjson::padded_string json( data, size );
+    return M_impl->parseLog( json, handler );
 }
 
 /*-------------------------------------------------------------------*/
