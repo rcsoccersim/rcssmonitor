@@ -36,3 +36,4 @@ function(rcssmonitor_add_test name)
 endfunction()
 
 rcssmonitor_add_test(rcg_parser rcssrcg Qt5::Core)
+rcssmonitor_add_test(rcg_util rcssrcg Qt5::Core)
