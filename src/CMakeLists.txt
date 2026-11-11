@@ -1,5 +1,6 @@
 
-add_executable(rcssmonitor
+# The application except main(), as a library that the unit tests link too.
+add_library(rcssmonitor_core STATIC
   gzfstream.cpp
   angle_deg.cpp
   ball_painter.cpp
@@ -22,10 +23,9 @@ add_executable(rcssmonitor
   team_graphic.cpp
   team_graphic_painter.cpp
   vector_2d.cpp
-  main.cpp
   )
 
-target_include_directories(rcssmonitor
+target_include_directories(rcssmonitor_core
   PUBLIC
   ${Qt5Core_INCLUDE_DIRS}
   ${Qt5Gui_INCLUDE_DIRS}
@@ -33,23 +33,36 @@ target_include_directories(rcssmonitor
   ${Qt5Network_INCLUDE_DIRS}
 #  ${Boost_INCLUDE_DIRS}
   ${ZLIB_INCLUDE_DIRS}
-  PRIVATE
   ${PROJECT_BINARY_DIR}
   ${PROJECT_SOURCE_DIR}
   ${PROJECT_SOURCE_DIR}/src
   )
 
-target_link_libraries(rcssmonitor
-  PRIVATE
+target_link_libraries(rcssmonitor_core
+  PUBLIC
   rcssrcg
   Qt5::Core Qt5::Gui Qt5::Widgets Qt5::Network
 #  Boost::program_options Boost::system
   ZLIB::ZLIB
   )
 
-target_compile_definitions(rcssmonitor
+target_compile_definitions(rcssmonitor_core
   PUBLIC
   HAVE_CONFIG_H
+  )
+
+target_compile_options(rcssmonitor_core
+  PRIVATE
+  -W -Wall
+  )
+
+add_executable(rcssmonitor
+  main.cpp
+  )
+
+target_link_libraries(rcssmonitor
+  PRIVATE
+  rcssmonitor_core
   )
 
 target_compile_options(rcssmonitor
