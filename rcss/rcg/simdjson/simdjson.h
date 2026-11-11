@@ -6259,16 +6259,19 @@ public:
   /** Prints one character **/
   simdjson_inline void one_char(char c);
 
+  // rcssmonitor: the three calls below are taken from simdjson 3.10.0.
+  // GCC 15 rejects the 3.8.0 form (this->print_newline()) with
+  // -Wtemplate-body, as base_formatter has no such members.
   simdjson_inline void call_print_newline() {
-      this->print_newline();
+      static_cast<formatter*>(this)->print_newline();
   }
 
   simdjson_inline void call_print_indents(size_t depth) {
-      this->print_indents(depth);
+      static_cast<formatter*>(this)->print_indents(depth);
   }
 
   simdjson_inline void call_print_space() {
-      this->print_space();
+      static_cast<formatter*>(this)->print_space();
   }
 
 protected:
