@@ -151,7 +151,7 @@ Option B (drop it) was decided on 2026-11-11. Option A was tried in Phase 0 and 
 - `master` (42848cd, 19.0.1): develop plus the AppImage workflow of PR #59, `utils/appimage/`, and `.gitignore` (§3.2). Otherwise the same as develop.
 - `feature/support-tcp-ws` (45bca98): develop (01f880a) plus 5 commits for the TCP / WebSocket support. Not merged (D7). Has the plan `docs/TRANSPORT_PLAN.md` (not in the repository).
 - `feature/ci`: the first branch of this plan (§9.1). Created from develop (01f880a) on 2026-11-11.
-- `origin/feature/json-reformat` (2024-03): 2 commits that adapt the old parser `rcss/rcg/parser_json.cpp` and `parser.cpp` to the new JSON format. The current develop uses `parser_simdjson.cpp`, so check the content and decide whether to take it into the §7 work or discard it.
+- `origin/feature/json-reformat` (2024-03): 2 commits that adapt the old parser `rcss/rcg/parser_json.cpp` and `parser.cpp` to the new JSON format. The current develop uses `parser_simdjson.cpp`, so check the content and decide whether to take it into the §7 work or discard it. → Not taken (Phase 2, §14).
 - `origin/develop_observation` (2022-11) and `origin/fix/qt-asprintf` (merged into master) are unrelated to this plan.
 
 ### 3.5 When merging the TCP / WebSocket support later
@@ -398,22 +398,23 @@ From the web version's `docs/parity.md` §7. The line numbers were checked on de
 
 - Fix them one at a time, with a unit test where possible (Qt Test; parsing bugs with fixtures, drawing bugs by extracting the calculation and checking it).
 - Phase 1 (2026-11-11, `fix/parity-bugs`) fixed B1, B5, and B9–B14. All but B10 have tests (§14).
+- Phase 2 (2026-11-12, `feature/json-parser`) fixed B2–B4 and B6–B8, all with tests (§14).
 - If merging into master is urgent, the bug fixes alone can go first as a separate PR.
 
 ## 7. JSON parser improvements
 
 The targets are `rcss/rcg/parser_simdjson.cpp` (logs) and the live JSON messages (the same parser, used from `disp_holder.cpp`). Align with the web version's `src/io/rcg-json.ts` and `docs/protocol.md` §3 and §7.
 
-1. Skip unknown keys (B3), so that logs can still be read when the server adds fields in the future.
-2. Store `vq` as `'h'` / `'l'` (B2).
-3. Store players by `side` and `unum` (B4), so that missing array elements and a different order are tolerated.
+1. Skip unknown keys (B3), so that logs can still be read when the server adds fields in the future. → Done in B-1 of Phase 2 (§14).
+2. Store `vq` as `'h'` / `'l'` (B2). → Done in B-2.
+3. Store players by `side` and `unum` (B4), so that missing array elements and a different order are tolerated. → Done in B-3.
 4. Read the log as one record per line. When the server terminates abnormally the final `]` is missing, so skip the `[` and `]` lines and strip the trailing `,`. If a line is broken, skip only that line and warn. → Done in A4 of Phase 2 (§14).
-5. Accept fields that may be omitted: `stime` (only when greater than 0), `px` / `py` (only while pointing), `fside` / `fnum` (only with an attentionto), `pen_score` / `pen_miss` (only for teams that took penalty kicks), `null` team names (before connection), `capacity`.
-6. Read the ball height `ball.z` and the vertical velocity `ball.vz` if present (for the 2.5D simulator; units m and m/cycle, up is positive. The key names are tentative and will follow the server format once it is decided). Add them to `BallT` in `types.h`.
-7. Handle `timestamp` (`%FT%T%z`, offset without a colon) without breaking it. The current parser skips `version` and `timestamp` and does not pass them to the handler (`parseVersion` and `parseTimestamp` are empty; checked on 2026-11-11). Pass both to the handler (`handleServerVersion`, `handleTimestamp`).
+5. Accept fields that may be omitted: `stime` (only when greater than 0), `px` / `py` (only while pointing), `fside` / `fnum` (only with an attentionto), `pen_score` / `pen_miss` (only for teams that took penalty kicks), `null` team names (before connection), `capacity`. → Done in B-4.
+6. Read the ball height `ball.z` and the vertical velocity `ball.vz` if present (for the 2.5D simulator; units m and m/cycle, up is positive. The key names are tentative and will follow the server format once it is decided). Add them to `BallT` in `types.h`. → Done in B-5.
+7. Handle `timestamp` (`%FT%T%z`, offset without a colon) without breaking it. The current parser skips `version` and `timestamp` and does not pass them to the handler (`parseVersion` and `parseTimestamp` are empty; checked on 2026-11-11). Pass both to the handler (`handleServerVersion`, `handleTimestamp`). → Done in B-6.
 8. Measure the speed: compare the load time of a full-game JSON log (`1-json.rcg.gz` placed at the top of the working tree, 6,209 frames; not in the repository) before and after the improvements, and record it in §14. The web version takes about 0.3–0.5 s in a browser. → Measured in Phase 2 (§14).
-9. Check the content of `origin/feature/json-reformat` (the old parser's support for the new format) and take anything that does not overlap with the above.
-10. Also fix the text rcg bugs B6 and B8 at this stage.
+9. Check the content of `origin/feature/json-reformat` (the old parser's support for the new format) and take anything that does not overlap with the above. → There was nothing to take (§14).
+10. Also fix the text rcg bugs B6 and B8 at this stage. → Done in B-7 and B-8. B7 (the parameter defaults) is B-9.
 11. Decide whether to update the bundled simdjson (3.8.0, with three lines of the 3.10.0 fix applied so that it builds with GCC 15; §14) to a newer release (the latest in 2026-11 is 5.1.1). → Updated to 5.1.1 (A2 of Phase 2, §14).
 
 Tests: with fixtures (a short excerpt of `1-json.rcg.gz`, broken lines, unknown keys, swapped player order, a missing final `]`), check the number of frames, the values in specific frames, and the sequence of play modes. Models: the web version's `test/unit/rcg-json.test.ts`, `rcg-text.test.ts`, and `full-logs.test.ts`.
@@ -839,3 +840,31 @@ The 8 commits of batch A (d36e1a9 to 8b9d510) were pushed. CI passed both CMake 
 - Checked on clean copies: CMake without and with libdeflate, and autotools in 3 cases (used if found, `--without-libdeflate`, and `--with-libdeflate` when it is missing). In both CMake builds, all 9 tests pass.
 - As a failure falls back to zlib, passing tests alone do not show that the libdeflate path was taken. With a temporary print, it was confirmed that a plain gzip, several members, and extra bytes are read with libdeflate, and a cut one with zlib.
 - `libdeflate-dev` is not installed on the work machine, so the package fetched with `apt-get download` was extracted into a temporary directory and used (the library is the system's `libdeflate.so.0`).
+
+#### 2026-11-12: Making the parsers robust (`feature/json-parser`, batch B)
+
+After pushing the 2 libdeflate commits (e0e21ef, 6328ac9), the rest of §7 and B2–B4, B6–B8 were fixed.
+
+**Made (one commit each, in order)**
+
+| Step | Content | Tests (`rcg_parser` etc.) |
+|---|---|---|
+| B-1 | JSON: skip unknown records and keys (B3). An unknown key is reported once in a process (on a live connection it is in every message). When reading a whole document, a record that cannot be read is also skipped and the parse goes on. The live entry point (`ParserSimdJSON::parseData`) catches simdjson's exceptions (before, it did not, and a broken message could crash the app; protocol.md §3.6: the server may send invalid JSON, e.g. with a newline in a string) | an unknown record, an unknown key and a known key in a record, unknown keys in a show and in a player (one record per line and whole document), a record that cannot be read in a whole document, broken live messages |
+| B-2 | JSON: store `vq` as `'h'` / `'l'` (B2) | a player with `vq` `"l"` |
+| B-3 | JSON: store players by `side` and `unum` (B4). An illegal player is skipped, and of a duplicated one, the last is kept | reversed order, a missing player, illegal side and unum, a duplicated player |
+| B-4 | JSON: accept fields that may be omitted (§7.5). Only the show's `time` and `ball` and the player's `side` and `unum` are required; any other missing field keeps the default of `PlayerT` (the "no value" mark). Before, one missing field such as `capacity` lost that player and those after it, and a missing ball velocity dropped the whole show. The team in a show gets the show's time (was -1). A show is no longer dropped when its team cannot be read | a live-style show (with the mode and the teams, without the command counts), players without `capacity`, `px`, `fside` etc., `stime`, `pen_*`, `null` team names, a msg without `time` |
+| B-5 | JSON: read the ball's `z` and `vz` if present (§7.6). Added `z_` and `vz_` (default 0) to `BallT` | shows with and without the height |
+| B-6 | JSON: pass `version` and `timestamp` to the handler (§7.7). `Handler::handleTimestamp()` is now virtual, so that the recording handler of the parallel path records it | both sequential and parallel |
+| B-7 | Text: read the strings of a team graphic at any length (B6). An XPM with 2 characters per pixel (16 characters for 8 pixels) was broken | an XPM with 16-character rows, the server's layout |
+| B-8 | Text: skip the lines that cannot be read and go on (B8). A failure of parsing a show etc. also counts as a skipped line, and the first 10 line numbers and the total are printed (`report_skipped`, as for JSON). An empty line is just skipped. A `null` in a team line is an empty team name. A show line whose 4 ball values cannot be read is skipped (they were read as 0). A player with `unum` 0 wrote to `player_[-1]`; fixed. `parse_lines`'s "stop at the first failure" is no longer used and was removed | an illegal line, an empty line, an unknown record, a show with a broken ball, a show cut in the middle, a show with `unum` 0, a `null` team name |
+| B-9 | Align the parameter defaults with the asio-based rcssserver 19.0.0 (B7; the web version's `param-defaults.ts`): 33 server_param, 8 player_param, and 4 player_type values (`dash_power_rate` 0.06 was a typo of 0.006; `team_far_length` became the pitch diagonal 125.096 in 2022). Added `tcp_port`, `tcp_coach_port`, `tcp_olcoach_port`, `ws_port`, and `ws_allowed_origins`, which the TCP / WebSocket servers send ("Unsupported parameter" was printed). Fixed `PlayerTypeT`'s output, which wrote the value of `dist_noise_rate` for all four v19 noise rates | new test `rcg_types` |
+
+**Tests**
+- All 10 tests pass. Each step's tests were confirmed to fail when going back to the file before the fix, or when only the fixed part was turned back to the old behavior. At first, with one record per line, skipping a whole line with an unknown record gave the same result, and there was no test of a record that cannot be read in a whole document, so those two tests were added.
+- The two full-game logs were read with the parser at the end of batch A and with the current one, and everything passed to the handler (all show fields, play modes, teams, messages, team graphics) was written out and compared. The only differences are JSON's `vq` values (the bool 1 was stored as a character before) and that `version` and `timestamp` are now passed.
+- Every step B1–B9 builds and passes its tests with CMake from a clean copy. B9 also builds with autotools without warnings.
+
+**Found**
+- `origin/feature/json-reformat` (§7.9) changes `parser_json.cpp` (the old parser using nlohmann/json), which no longer exists, and nothing that the current `parser_simdjson.cpp` lacks is left. Not taken. The bundled `rcss/rcg/nlohmann/json.hpp` is used by nothing.
+- The text show parser does not check that the numbers of the player part were read (a line cut in the middle is caught by the check of the number of players). Only the ball and `unum` were fixed.
+- The speed is unchanged. The app's `parsing elapsed` (offscreen, 3 runs, with libdeflate): CMake JSON 69–72 ms, text 59–61 ms; autotools 67–73 ms, 59–61 ms (before batch B: 63–76 / 59–64 ms).
