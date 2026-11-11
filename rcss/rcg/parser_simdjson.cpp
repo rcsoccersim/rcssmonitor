@@ -96,6 +96,9 @@ struct ParserSimdJSON::Impl {
                         Handler & handler );
     bool parseTeam( simdjson::ondemand::value & val,
                     Handler & handler );
+    bool parseTeams( simdjson::ondemand::value & val,
+                     const int time,
+                     Handler & handler );
     bool parseMsg( simdjson::ondemand::value & val,
                    Handler & handler );
     bool parseShow( simdjson::ondemand::value & val,
@@ -130,6 +133,135 @@ bool
 is_space( const char c )
 {
     return c == ' ' || c == '\t' || c == '\r' || c == '\n';
+}
+
+/*!
+  \brief read a number of an object, if it is there.
+  \return false if the key is missing or its value is not a number
+*/
+template < typename Object, typename T >
+bool
+read_double( Object & obj,
+             const char * key,
+             T * value )
+{
+    double d = 0.0;
+    if ( obj[key].get_double().get( d ) != simdjson::SUCCESS )
+    {
+        return false;
+    }
+    *value = static_cast< T >( d );
+    return true;
+}
+
+/*!
+  \brief read an integer of an object, if it is there.
+  \return false if the key is missing or its value is not an integer
+*/
+template < typename Object, typename T >
+bool
+read_int( Object & obj,
+          const char * key,
+          T * value )
+{
+    int64_t i = 0;
+    if ( obj[key].get_int64().get( i ) != simdjson::SUCCESS )
+    {
+        return false;
+    }
+    *value = static_cast< T >( i );
+    return true;
+}
+
+/*!
+  \brief read a team: {"name": string or null, "score": int, "pen_score":
+  int, "pen_miss": int}. The name is null before the team connects, and
+  pen_score and pen_miss are there only for a team that took a penalty
+  kick.
+*/
+bool
+read_team( simdjson::ondemand::value & teams,
+           const char * key,
+           TeamT * team )
+{
+    simdjson::ondemand::object obj;
+    if ( teams[key].get_object().get( obj ) != simdjson::SUCCESS )
+    {
+        return false;
+    }
+
+    std::string_view name;
+    if ( obj["name"].get_string().get( name ) == simdjson::SUCCESS )
+    {
+        team->name_ = std::string( name );
+    }
+    read_int( obj, "score", &team->score_ );
+    read_int( obj, "pen_score", &team->pen_score_ );
+    read_int( obj, "pen_miss", &team->pen_miss_ );
+    return true;
+}
+
+/*!
+  \brief read a player of a show.
+*/
+void
+parsePlayer( simdjson::ondemand::value & p,
+             const char side,
+             const Int16 unum,
+             PlayerT * player )
+{
+    player->side_ = side;
+    player->unum_ = unum;
+    read_int( p, "type", &player->type_ );
+    read_int( p, "state", &player->state_ );
+
+    read_double( p, "x", &player->x_ );
+    read_double( p, "y", &player->y_ );
+    read_double( p, "vx", &player->vx_ );
+    read_double( p, "vy", &player->vy_ );
+    read_double( p, "body", &player->body_ );
+    read_double( p, "neck", &player->neck_ );
+
+    // only while pointing
+    read_double( p, "px", &player->point_x_ );
+    read_double( p, "py", &player->point_y_ );
+
+    std::string_view str;
+    if ( p["vq"].get_string().get( str ) == simdjson::SUCCESS )
+    {
+        player->view_quality_ = ( str == "l" ? 'l' : 'h' );
+    }
+    read_double( p, "vw", &player->view_width_ );
+
+    read_double( p, "fdist", &player->focus_dist_ );
+    read_double( p, "fdir", &player->focus_dir_ );
+
+    read_double( p, "stamina", &player->stamina_ );
+    read_double( p, "effort", &player->effort_ );
+    read_double( p, "recovery", &player->recovery_ );
+    read_double( p, "capacity", &player->stamina_capacity_ );
+
+    // only with an attentionto target
+    if ( p["fside"].get_string().get( str ) == simdjson::SUCCESS
+         && ( str == "l" || str == "r" ) )
+    {
+        player->focus_side_ = str[0];
+        read_int( p, "fnum", &player->focus_unum_ );
+    }
+
+    // only in a log
+    read_int( p, "kick", &player->kick_count_ );
+    read_int( p, "dash", &player->dash_count_ );
+    read_int( p, "turn", &player->turn_count_ );
+    read_int( p, "catch", &player->catch_count_ );
+    read_int( p, "move", &player->move_count_ );
+    read_int( p, "turn_neck", &player->turn_neck_count_ );
+    read_int( p, "change_view", &player->change_view_count_ );
+    read_int( p, "say", &player->say_count_ );
+    read_int( p, "tackle", &player->tackle_count_ );
+    read_int( p, "pointto", &player->pointto_count_ );
+    read_int( p, "attentionto", &player->attentionto_count_ );
+    read_int( p, "change_focus", &player->change_focus_count_ );
 }
 
 /*!
@@ -556,37 +688,31 @@ bool
 ParserSimdJSON::Impl::parseTeam( simdjson::ondemand::value & val,
                                  Handler & handler )
 {
+    int time = -1;
+    read_int( val, "time", &time );
+    return parseTeams( val, time, handler );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  read the teams {"l": {...}, "r": {...}} of a team record or a show
+ */
+bool
+ParserSimdJSON::Impl::parseTeams( simdjson::ondemand::value & val,
+                                  const int time,
+                                  Handler & handler )
+{
     bool result = false;
     try
     {
-        simdjson::error_code err = simdjson::SUCCESS;
-
         TeamT team_l;
         TeamT team_r;
-
-        int64_t time = -1;
-        err = val["time"].get_int64().get( time );
-        if ( err != simdjson::SUCCESS ) time = -1;
-
-        uint64_t i = 0;
-
-        if ( val["l"]["name"].is_string() ) team_l.name_ = val["l"]["name"].get_string().value();
-        team_l.score_ = val["l"]["score"].get_uint64();
-
-        err = val["l"]["pen_score"].get_uint64().get( i );
-        if ( err == simdjson::SUCCESS ) team_l.pen_score_ = i;
-
-        err = val["l"]["pen_miss"].get_uint64().get( i );
-        if ( err == simdjson::SUCCESS ) team_l.pen_miss_ = i;
-
-        if ( val["r"]["name"].is_string() ) team_r.name_ = val["r"]["name"].get_string().value();
-        team_r.score_ = val["r"]["score"].get_uint64();
-
-        err = val["r"]["pen_score"].get_uint64().get( i );
-        if ( err == simdjson::SUCCESS ) team_r.pen_score_ = i;
-
-        err = val["r"]["pen_miss"].get_uint64().get( i );
-        if ( err == simdjson::SUCCESS ) team_r.pen_miss_ = i;
+        if ( ! read_team( val, "l", &team_l )
+             || ! read_team( val, "r", &team_r ) )
+        {
+            std::cerr << "(ParserSimdJSON::parseTeam) no l or r" << std::endl;
+            return false;
+        }
 
         result = handler.handleTeam( time, team_l, team_r );
     }
@@ -606,8 +732,11 @@ ParserSimdJSON::Impl::parseMsg( simdjson::ondemand::value & val,
     bool result = false;
     try
     {
-        result = handler.handleMsg( val["time"].get_int64(),
-                                    val["board"].get_int64(),
+        int time = 0;
+        int board = 0;
+        read_int( val, "time", &time );
+        read_int( val, "board", &board );
+        result = handler.handleMsg( time, board,
                                     std::string( val["message"].get_string().value() ) );
     }
     catch ( std::exception & e )
@@ -619,22 +748,24 @@ ParserSimdJSON::Impl::parseMsg( simdjson::ondemand::value & val,
 }
 
 /*-------------------------------------------------------------------*/
+/*!
+  read a show. Only the time and the ball are needed; the fields that are
+  missing keep the defaults of ShowInfoT, which mean "no value" (e.g. no
+  stamina capacity, not pointing). The server writes some fields only
+  when they have a value: stime (when > 0), px and py (while pointing),
+  fside and fnum (with an attentionto target), and the command counts
+  (only in a log).
+ */
 bool
 ParserSimdJSON::Impl::parseShow( simdjson::ondemand::value & val,
                                  Handler & handler )
 {
     ShowInfoT show;
 
-    simdjson::error_code err = simdjson::SUCCESS;
-    int64_t itmp;
-    double dtmp;
-    std::string_view stmp;
-
     try
     {
         show.time_ = val["time"].get_int64();
-        err = val["stime"].get_int64().get( itmp );
-        if ( err == simdjson::SUCCESS ) show.stime_ = itmp;
+        read_int( val, "stime", &show.stime_ );
     }
     catch ( std::exception & e )
     {
@@ -642,140 +773,74 @@ ParserSimdJSON::Impl::parseShow( simdjson::ondemand::value & val,
         return false;
     }
 
+    std::string_view stmp;
+
+    // a live show has the play mode and the teams
+    if ( val["mode"].get_string().get( stmp ) == simdjson::SUCCESS )
     {
-        err = val["mode"].get_string().get( stmp );
-        if ( err == simdjson::SUCCESS )
-        {
-            if ( ! handler.handlePlayMode( show.time_, to_playmode_enum( std::string( stmp ) ) ) )
-            {
-                return false;
-            }
-        }
+        handler.handlePlayMode( show.time_, to_playmode_enum( std::string( stmp ) ) );
     }
     {
-        simdjson::simdjson_result< simdjson::ondemand::value > teams = val["team"];
-        if ( teams.error() == simdjson::SUCCESS )
+        simdjson::ondemand::value teams;
+        if ( val["team"].get( teams ) == simdjson::SUCCESS )
         {
-            if ( ! parseTeam( teams.value(), handler ) )
-            {
-                return false;
-            }
+            parseTeams( teams, show.time_, handler );
         }
     }
 
-    try
     {
-        show.ball_.x_ = val["ball"]["x"].get_double();
-        show.ball_.y_ = val["ball"]["y"].get_double();
-        show.ball_.vx_ = val["ball"]["vx"].get_double();
-        show.ball_.vy_ = val["ball"]["vy"].get_double();
-    }
-    catch ( std::exception & e )
-    {
-        std::cerr << "(ParserSimdJSON::parseShow) ball part: " << e.what() << std::endl;
-        return false;
+        simdjson::ondemand::object ball;
+        if ( val["ball"].get_object().get( ball ) != simdjson::SUCCESS )
+        {
+            std::cerr << "(ParserSimdJSON::parseShow) time " << show.time_ << ": no ball" << std::endl;
+            return false;
+        }
+
+        read_double( ball, "x", &show.ball_.x_ );
+        read_double( ball, "y", &show.ball_.y_ );
+        read_double( ball, "vx", &show.ball_.vx_ );
+        read_double( ball, "vy", &show.ball_.vy_ );
     }
 
     // a player is placed by side and unum, not by the order in the array
     int64_t unum = 0;
     try
     {
-        for ( simdjson::ondemand::value p : val["players"].get_array() )
+        simdjson::ondemand::array players;
+        if ( val["players"].get_array().get( players ) == simdjson::SUCCESS )
         {
-            stmp = p["side"].get_string();
-            unum = p["unum"].get_int64();
-            if ( stmp.length() != 1
-                 || ( stmp[0] != 'l' && stmp[0] != 'r' )
-                 || unum < 1
-                 || MAX_PLAYER < unum )
+            for ( simdjson::ondemand::value p : players )
             {
-                std::cerr << "(ParserSimdJSON::parseShow) time " << show.time_
-                          << ": skipped an illegal player " << stmp << ' ' << unum << std::endl;
-                continue;
+                unum = 0;
+                if ( p["side"].get_string().get( stmp ) != simdjson::SUCCESS
+                     || stmp.length() != 1
+                     || ( stmp[0] != 'l' && stmp[0] != 'r' )
+                     || p["unum"].get_int64().get( unum ) != simdjson::SUCCESS
+                     || unum < 1
+                     || MAX_PLAYER < unum )
+                {
+                    std::cerr << "(ParserSimdJSON::parseShow) time " << show.time_
+                              << ": skipped an illegal player " << stmp << ' ' << unum << std::endl;
+                    continue;
+                }
+
+                PlayerT & player = show.player_[unum - 1 + ( stmp[0] == 'r' ? MAX_PLAYER : 0 )];
+                if ( player.unum_ != 0 )
+                {
+                    std::cerr << "(ParserSimdJSON::parseShow) time " << show.time_
+                              << ": duplicated player " << stmp << ' ' << unum << std::endl;
+                    player = PlayerT();
+                }
+
+                parsePlayer( p, stmp[0], static_cast< Int16 >( unum ), &player );
             }
-
-            PlayerT & player = show.player_[unum - 1 + ( stmp[0] == 'r' ? MAX_PLAYER : 0 )];
-            if ( player.unum_ != 0 )
-            {
-                std::cerr << "(ParserSimdJSON::parseShow) time " << show.time_
-                          << ": duplicated player " << stmp << ' ' << unum << std::endl;
-                player = PlayerT();
-            }
-
-            // begin
-            player.side_ = stmp[0];
-            player.unum_ = static_cast< Int16 >( unum );
-            player.type_ = p["type"].get_int64();
-            player.state_ = p["state"].get_int64();
-
-            // pos
-            player.x_ = p["x"].get_double();
-            player.y_ = p["y"].get_double();
-            player.vx_ = p["vx"].get_double();
-            player.vy_ = p["vy"].get_double();
-            player.body_ = p["body"].get_double();
-            player.neck_ = p["neck"].get_double();
-
-            // arm
-            err = p["px"].get_double().get( dtmp );
-            if ( err == simdjson::SUCCESS ) player.point_x_ = dtmp;
-            err = p["py"].get_double().get( dtmp );
-            if ( err == simdjson::SUCCESS ) player.point_y_ = dtmp;
-
-            // view mode
-            stmp = p["vq"].get_string();
-            player.view_quality_ = ( stmp == "l" ? 'l' : 'h' );
-            player.view_width_ = p["vw"].get_double();
-
-            // focus point
-            err = p["fdist"].get_double().get( dtmp );
-            if ( err == simdjson::SUCCESS ) player.focus_dist_ = dtmp;
-            err = p["fdir"].get_double().get( dtmp );
-            if ( err == simdjson::SUCCESS ) player.focus_dir_ = dtmp;
-
-            // stamina
-            player.stamina_ = p["stamina"].get_double();
-            player.effort_ = p["effort"].get_double();
-            player.recovery_ = p["recovery"].get_double();
-            player.stamina_capacity_ = p["capacity"].get_double();
-
-            // focus
-            err = p["fside"].get_string().get( stmp );
-            if ( err == simdjson::SUCCESS ) player.focus_side_ = stmp[0];
-            err = p["fnum"].get_int64().get( itmp );
-            if ( err == simdjson::SUCCESS ) player.focus_unum_ = itmp;
-
-            // count
-            err = p["kick"].get_int64().get( itmp );
-            if ( err == simdjson::SUCCESS ) player.kick_count_ = itmp;
-            err = p["dash"].get_int64().get( itmp );
-            if ( err == simdjson::SUCCESS ) player.dash_count_ = itmp;
-            err = p["turn"].get_int64().get( itmp );
-            if ( err == simdjson::SUCCESS ) player.turn_count_ = itmp;
-            err = p["catch"].get_int64().get( itmp );
-            if ( err == simdjson::SUCCESS ) player.catch_count_ = itmp;
-            err = p["move"].get_int64().get( itmp );
-            if ( err == simdjson::SUCCESS ) player.move_count_ = itmp;
-            err = p["turn_neck"].get_int64().get( itmp );
-            if ( err == simdjson::SUCCESS ) player.turn_neck_count_ = itmp;
-            err = p["change_view"].get_int64().get( itmp );
-            if ( err == simdjson::SUCCESS ) player.change_view_count_ = itmp;
-            err = p["say"].get_int64().get( itmp );
-            if ( err == simdjson::SUCCESS ) player.say_count_ = itmp;
-            err = p["tackle"].get_int64().get( itmp );
-            if ( err == simdjson::SUCCESS ) player.tackle_count_ = itmp;
-            err = p["pointto"].get_int64().get( itmp );
-            if ( err == simdjson::SUCCESS ) player.pointto_count_ = itmp;
-            err = p["attentionto"].get_int64().get( itmp );
-            if ( err == simdjson::SUCCESS ) player.attentionto_count_ = itmp;
-            err = p["change_focus"].get_int64().get( itmp );
-            if ( err == simdjson::SUCCESS ) player.change_focus_count_ = itmp;
-
         }
     }
     catch ( std::exception & e )
     {
-        std::cerr << "(ParserSimdJSON::parseShow) player part " << unum << ": " << e.what() << std::endl;
+        std::cerr << "(ParserSimdJSON::parseShow) time " << show.time_
+                  << " player part " << unum << ": " << e.what() << std::endl;
+        return false;
     }
 
     return handler.handleShow( show );

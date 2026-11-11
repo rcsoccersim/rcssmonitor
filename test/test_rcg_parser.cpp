@@ -76,6 +76,7 @@ public:
     int player_type_count_ = 0;
     int team_count_ = 0;
     int msg_count_ = 0;
+    int team_time_ = 0;
     double ball_size_ = 0.0;
     rcss::rcg::TeamT team_l_;
     rcss::rcg::TeamT team_r_;
@@ -119,11 +120,12 @@ public:
           return true;
       }
 
-    bool handleTeam( const int,
+    bool handleTeam( const int time,
                      const rcss::rcg::TeamT & team_l,
                      const rcss::rcg::TeamT & team_r ) override
       {
           ++team_count_;
+          team_time_ = time;
           team_l_ = team_l;
           team_r_ = team_r;
           return true;
@@ -434,6 +436,7 @@ private slots:
     void liveMessages();
     void jsonViewQuality();
     void jsonPlayersBySideAndUnum();
+    void jsonOmittedFields();
     void textManyLines();
     void textManyLinesStopAtIllegalLine();
     void jsonManyLines();
@@ -741,6 +744,82 @@ TestRcgParser::jsonPlayersBySideAndUnum()
     QCOMPARE( s.player_[1].x_, 7.0f );
     QCOMPARE( s.player_[21].x_, 11.0f );
     QCOMPARE( s.player_[21].y_, 11.0f );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  The fields that the server writes only when they have a value, or that
+  a live show does not have, may be missing (§7.5 of the plan). The fields
+  that are missing keep their defaults.
+*/
+void
+TestRcgParser::jsonOmittedFields()
+{
+    const std::string data
+        = "[\n"
+          "{\"team\":{\"time\":0,\"l\":{\"name\":null,\"score\":0},\"r\":{\"name\":null,\"score\":0}}},\n"
+          // a live show: the play mode and the teams in the show, no counts
+          "{\"show\":{\"time\":1,\"mode\":\"kick_off_l\","
+          "\"team\":{\"l\":{\"name\":\"A\",\"score\":0},\"r\":{\"name\":\"B\",\"score\":1,\"pen_score\":2,\"pen_miss\":3}},"
+          "\"ball\":{\"x\":1,\"y\":2},"
+          "\"players\":["
+          "{\"side\":\"l\",\"unum\":1,\"type\":0,\"state\":1,\"x\":-10,\"y\":0,\"body\":0,\"neck\":0,\"vq\":\"h\",\"vw\":120,"
+          "\"stamina\":8000,\"effort\":1,\"recovery\":1},"
+          "{\"side\":\"r\",\"unum\":2,\"type\":1,\"state\":1,\"x\":10,\"y\":5,\"vx\":0.5,\"vy\":0,\"body\":90,\"neck\":-30,"
+          "\"px\":3,\"py\":4,\"vq\":\"l\",\"vw\":60,\"fdist\":2,\"fdir\":10,"
+          "\"stamina\":7000,\"effort\":0.8,\"recovery\":0.9,\"capacity\":100000,\"fside\":\"l\",\"fnum\":1}"
+          "]}},\n"
+          "{\"show\":{\"time\":2,\"stime\":3,\"ball\":{\"x\":0,\"y\":0,\"vx\":0.25,\"vy\":0},\"players\":[]}},\n"
+          "{\"msg\":{\"message\":\"(result)\"}}\n"
+          "]\n";
+
+    RecordingHandler handler;
+    QVERIFY( parseJsonData( data, handler ) );
+    QCOMPARE( handler.shows_.size(), size_t( 2 ) );
+    QCOMPARE( handler.msg_count_, 1 );
+
+    // the team in the show, at the time of the show
+    QCOMPARE( handler.team_count_, 2 );
+    QCOMPARE( handler.team_time_, 1 );
+    QCOMPARE( handler.team_l_.name_, std::string( "A" ) );
+    QCOMPARE( handler.team_r_.name_, std::string( "B" ) );
+    QCOMPARE( int( handler.team_r_.score_ ), 1 );
+    QCOMPARE( int( handler.team_r_.pen_score_ ), 2 );
+    QCOMPARE( int( handler.team_r_.pen_miss_ ), 3 );
+    QCOMPARE( int( handler.team_l_.pen_score_ ), 0 );
+
+    QCOMPARE( handler.playmodes_.size(), size_t( 1 ) );
+    QCOMPARE( handler.playmodes_[0].mode_, rcss::rcg::PM_KickOff_Left );
+
+    const rcss::rcg::ShowInfoT & s1 = handler.shows_[0];
+    QCOMPARE( s1.ball_.x_, 1.0f );
+    QVERIFY( ! s1.ball_.hasVelocity() );
+
+    const rcss::rcg::PlayerT & l1 = s1.player_[0];
+    QCOMPARE( l1.x_, -10.0f );
+    QCOMPARE( l1.view_width_, 120.0f );
+    QVERIFY( ! l1.hasStaminaCapacity() );
+    QVERIFY( ! l1.isPointing() );
+    QCOMPARE( l1.focus_side_, 'n' );
+    QCOMPARE( l1.vx_, rcss::rcg::PlayerT().vx_ );
+    QCOMPARE( l1.kick_count_, rcss::rcg::PlayerT().kick_count_ );
+
+    const rcss::rcg::PlayerT & r2 = s1.player_[12];
+    QCOMPARE( r2.side_, 'r' );
+    QCOMPARE( int( r2.unum_ ), 2 );
+    QCOMPARE( r2.vx_, 0.5f );
+    QCOMPARE( r2.point_x_, 3.0f );
+    QCOMPARE( r2.point_y_, 4.0f );
+    QCOMPARE( r2.view_quality_, 'l' );
+    QCOMPARE( r2.focus_dist_, 2.0f );
+    QCOMPARE( r2.stamina_capacity_, 100000.0f );
+    QCOMPARE( r2.focus_side_, 'l' );
+    QCOMPARE( int( r2.focus_unum_ ), 1 );
+
+    const rcss::rcg::ShowInfoT & s2 = handler.shows_[1];
+    QCOMPARE( int( s2.stime_ ), 3 );
+    QCOMPARE( s2.ball_.vx_, 0.25f );
+    QCOMPARE( s2.player_[0].unum_, rcss::rcg::Int16( 0 ) );
 }
 
 /*-------------------------------------------------------------------*/
