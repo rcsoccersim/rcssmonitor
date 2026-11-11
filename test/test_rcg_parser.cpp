@@ -34,6 +34,7 @@
 
 #include "rcss/rcg/handler.h"
 #include "rcss/rcg/parser.h"
+#include "rcss/rcg/parser_simdjson.h"
 #include "rcss/rcg/types.h"
 
 #include <algorithm>
@@ -74,6 +75,7 @@ public:
     int player_param_count_ = 0;
     int player_type_count_ = 0;
     int team_count_ = 0;
+    int msg_count_ = 0;
     double ball_size_ = 0.0;
     rcss::rcg::TeamT team_l_;
     rcss::rcg::TeamT team_r_;
@@ -99,6 +101,7 @@ public:
                     const int,
                     const std::string & ) override
       {
+          ++msg_count_;
           return true;
       }
 
@@ -317,6 +320,52 @@ manyEvents( const int n,
     return events;
 }
 
+/*!
+  \brief insert a line after the line that starts with prefix.
+*/
+void
+insertLineAfter( std::string * data,
+                 const std::string & prefix,
+                 const std::string & line )
+{
+    const std::size_t start = data->find( "\n" + prefix ) + 1;
+    const std::size_t next = data->find( '\n', start ) + 1;
+    data->insert( next, line + "\n" );
+}
+
+/*!
+  \brief replace the first occurrence of from with to.
+*/
+void
+replaceFirst( std::string * data,
+              const std::string & from,
+              const std::string & to )
+{
+    const std::size_t pos = data->find( from );
+    if ( pos != std::string::npos )
+    {
+        data->replace( pos, from.size(), to );
+    }
+}
+
+/*!
+  \brief head_json.rcg with a record and keys that the parser does not know,
+  as a newer server may write them.
+*/
+std::string
+jsonWithUnknownKeys()
+{
+    std::string data = readFixture( "head_json.rcg" );
+    insertLineAfter( &data, "{\"show\":{\"time\":1,",
+                     "{\"future_record\":{\"a\":[1,2,{\"b\":\"c\"}]}}," );
+    // an unknown key before a known one in a record
+    insertLineAfter( &data, "{\"show\":{\"time\":1,",
+                     "{\"future_key\":1,\"msg\":{\"time\":1,\"board\":1,\"message\":\"m\"}}," );
+    replaceFirst( &data, "{\"show\":{\"time\":2,", "{\"show\":{\"time\":2,\"future_key\":[0],\"future_object\":{\"x\":1}," );
+    replaceFirst( &data, "{\"side\":\"l\",\"unum\":1,", "{\"side\":\"l\",\"future_key\":true,\"unum\":1," );
+    return data;
+}
+
 //! the number of shows in the large logs: the lines are parsed in parallel
 const int MANY_SHOWS = 5000;
 
@@ -337,6 +386,10 @@ private slots:
     void jsonBrokenLines();
     void jsonOneLine();
     void jsonCrLf();
+    void jsonUnknownKeys();
+    void jsonUnknownKeysOneLine();
+    void jsonRecordThatFailsOneLine();
+    void liveMessages();
     void textManyLines();
     void textManyLinesStopAtIllegalLine();
     void jsonManyLines();
@@ -492,6 +545,85 @@ TestRcgParser::jsonCrLf()
     RecordingHandler handler;
     QVERIFY( parseJsonData( data, handler ) );
     checkJson( handler );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  A record, and keys in a record, that the parser does not know are
+  skipped, and the rest is read (B3).
+*/
+void
+TestRcgParser::jsonUnknownKeys()
+{
+    const std::string data = jsonWithUnknownKeys();
+    QVERIFY( data.find( "future_record" ) != std::string::npos );
+    QVERIFY( data.find( "future_object" ) != std::string::npos );
+    QVERIFY( data.find( "\"future_key\":true" ) != std::string::npos );
+
+    RecordingHandler handler;
+    QVERIFY( parseJsonData( data, handler ) );
+    checkJson( handler );
+    QCOMPARE( handler.msg_count_, 1 );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  The same, in a log parsed as a whole document.
+*/
+void
+TestRcgParser::jsonUnknownKeysOneLine()
+{
+    std::string data = jsonWithUnknownKeys();
+    data.erase( std::remove( data.begin(), data.end(), '\n' ), data.end() );
+
+    RecordingHandler handler;
+    QVERIFY( parseJsonData( data, handler ) );
+    checkJson( handler );
+    QCOMPARE( handler.msg_count_, 1 );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  In a log parsed as a whole document, a record that is valid JSON but
+  cannot be read is skipped, and the records after it are read.
+*/
+void
+TestRcgParser::jsonRecordThatFailsOneLine()
+{
+    std::string data = readFixture( "head_json.rcg" );
+    insertLineAfter( &data, "{\"show\":{\"time\":1,",
+                     "{\"msg\":{\"time\":1,\"board\":1}}," );
+    data.erase( std::remove( data.begin(), data.end(), '\n' ), data.end() );
+
+    RecordingHandler handler;
+    QVERIFY( parseJsonData( data, handler ) );
+    checkJson( handler );
+    QCOMPARE( handler.msg_count_, 0 );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  The messages of a live connection: a broken message fails without an
+  exception, and an unknown one is skipped.
+*/
+void
+TestRcgParser::liveMessages()
+{
+    std::string header, show;
+    splitFixture( readFixture( "head_json.rcg" ), 0, "{\"show\":{\"time\":1,", &header, &show );
+    show.pop_back(); // the comma
+
+    const rcss::rcg::ParserSimdJSON parser;
+    RecordingHandler handler;
+    QVERIFY( parser.parseData( show, handler ) );
+    QCOMPARE( handler.shows_.size(), size_t( 1 ) );
+
+    QVERIFY( parser.parseData( "{\"future_record\":{\"a\":1}}", handler ) );
+    QVERIFY( ! parser.parseData( "{\"show\":{\"time\":2,\"ball\":", handler ) );
+    QVERIFY( ! parser.parseData( "not a message", handler ) );
+    QVERIFY( ! parser.parseData( "", handler ) );
+    QVERIFY( ! parser.parseData( "{\"msg\":{\"time\":1,\"board\":1,\"message\":\"a\nb\"}}", handler ) );
+    QCOMPARE( handler.shows_.size(), size_t( 1 ) );
 }
 
 /*-------------------------------------------------------------------*/

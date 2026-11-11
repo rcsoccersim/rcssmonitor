@@ -49,6 +49,8 @@
 #include <fstream>
 #include <iterator>
 #include <memory>
+#include <mutex>
+#include <set>
 
 namespace rcss {
 namespace rcg {
@@ -104,6 +106,24 @@ namespace {
 
 //! the number of the broken lines reported one by one
 const std::size_t MAX_REPORTED_LINES = 10;
+
+/*!
+  \brief report a key that the parser does not know, once in a process: a
+  newer server may add records, and a live connection would report them in
+  every message.
+*/
+void
+report_unknown_key( const std::string & key )
+{
+    static std::mutex s_mutex;
+    static std::set< std::string > s_reported;
+
+    std::lock_guard< std::mutex > lock( s_mutex );
+    if ( s_reported.insert( key ).second )
+    {
+        std::cerr << "(ParserSimdJSON) skipped the unknown record " << key << std::endl;
+    }
+}
 
 inline
 bool
@@ -203,15 +223,29 @@ ParserSimdJSON::Impl::parseLog( simdjson::padded_string & json,
         simdjson::ondemand::document rcg = parser.iterate( json );
         simdjson::ondemand::array root_array = rcg.get_array();
 
+        std::size_t index = 0;
+        std::size_t skipped = 0;
         for ( simdjson::ondemand::object data : root_array )
         {
+            ++index;
             for ( simdjson::ondemand::field field : data )
             {
                 if ( ! parseData( field, handler ) )
                 {
-                    return false;
+                    // the rest of the record is skipped
+                    if ( ++skipped <= MAX_REPORTED_LINES )
+                    {
+                        std::cerr << "(ParserSimdJSON::parse) record " << index
+                                  << ": skipped a record that could not be parsed" << std::endl;
+                    }
+                    break;
                 }
             }
+        }
+
+        if ( skipped > MAX_REPORTED_LINES )
+        {
+            std::cerr << "(ParserSimdJSON::parse) skipped " << skipped << " records in total" << std::endl;
         }
     }
     catch ( std::exception & e )
@@ -352,9 +386,9 @@ ParserSimdJSON::Impl::parseData( simdjson::ondemand::field & field,
     std::unordered_map< std::string, Func >::iterator it = funcs_.find( key );
     if ( it == funcs_.end() )
     {
-        std::cerr << "(ParserSimdJSON::Impl::parseData) func not found. key=" << key
-                  << std::endl;
-        return false;
+        // a newer server may add records: skip the value
+        report_unknown_key( key );
+        return true;
     }
 
     if ( ! it->second( field.value(), handler ) )
@@ -803,16 +837,25 @@ bool
 ParserSimdJSON::parseData( const std::string & input,
                            Handler & handler ) const
 {
-    simdjson::ondemand::parser parser;
-    simdjson::padded_string json( input );
-    simdjson::ondemand::document data = parser.iterate( json );
-
-    for ( simdjson::ondemand::field field : data.get_object() )
+    try
     {
-        if ( ! M_impl->parseData( field, handler ) )
+        simdjson::ondemand::parser parser;
+        simdjson::padded_string json( input );
+        simdjson::ondemand::document data = parser.iterate( json );
+
+        for ( simdjson::ondemand::field field : data.get_object() )
         {
-            return false;
+            if ( ! M_impl->parseData( field, handler ) )
+            {
+                return false;
+            }
         }
+    }
+    catch ( std::exception & e )
+    {
+        // a broken message, e.g. a control character in a string
+        std::cerr << "(ParserSimdJSON::parseData) " << e.what() << std::endl;
+        return false;
     }
 
     return true;
