@@ -390,6 +390,7 @@ private slots:
     void jsonUnknownKeysOneLine();
     void jsonRecordThatFailsOneLine();
     void liveMessages();
+    void jsonViewQuality();
     void textManyLines();
     void textManyLinesStopAtIllegalLine();
     void jsonManyLines();
@@ -624,6 +625,24 @@ TestRcgParser::liveMessages()
     QVERIFY( ! parser.parseData( "", handler ) );
     QVERIFY( ! parser.parseData( "{\"msg\":{\"time\":1,\"board\":1,\"message\":\"a\nb\"}}", handler ) );
     QCOMPARE( handler.shows_.size(), size_t( 1 ) );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  The view quality is 'h' or 'l', as in the other formats (B2).
+*/
+void
+TestRcgParser::jsonViewQuality()
+{
+    std::string data = readFixture( "head_json.rcg" );
+    replaceFirst( &data, "\"vq\":\"h\"", "\"vq\":\"l\"" );
+
+    RecordingHandler handler;
+    QVERIFY( parseJsonData( data, handler ) );
+    QCOMPARE( handler.shows_.size(), size_t( 3 ) );
+    QCOMPARE( handler.shows_[0].player_[0].view_quality_, 'l' );
+    QCOMPARE( handler.shows_[0].player_[1].view_quality_, 'h' );
+    QCOMPARE( handler.shows_[1].player_[0].view_quality_, 'h' );
 }
 
 /*-------------------------------------------------------------------*/

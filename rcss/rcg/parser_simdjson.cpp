@@ -710,7 +710,7 @@ ParserSimdJSON::Impl::parseShow( simdjson::ondemand::value & val,
 
             // view mode
             stmp = p["vq"].get_string();
-            show.player_[i].view_quality_ = ( stmp == "h" ? true : false );
+            show.player_[i].view_quality_ = ( stmp == "l" ? 'l' : 'h' );
             show.player_[i].view_width_ = p["vw"].get_double();
 
             // focus point
