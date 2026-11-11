@@ -716,21 +716,28 @@ ParserV4::parseTeamGraphic( const int n_line,
         return false;
     }
 
+    // the strings in quotes, of any length (e.g. 16 characters for 8 pixels
+    // of 2 characters each)
     std::vector< std::string > xpm_data;
 
     const char * ptr = msg.c_str() + n_read;
-    while ( *ptr != '\0' )
+    while ( const char * first = std::strchr( ptr, '"' ) )
     {
-        char buf[16];
-        if ( std::sscanf( ptr, " \"%15[^\"]\" %n ", buf, &n_read ) != 1 )
+        const char * last = std::strchr( first + 1, '"' );
+        if ( ! last )
         {
             std::cerr << n_line << ": ERROR Illegal team_graphic [" << ptr << "]" << std::endl;;
             return false;
         }
-        ptr += n_read;
 
-        xpm_data.push_back( buf );
-        while ( *ptr != '\0' && *ptr != '"' ) ++ptr;
+        xpm_data.emplace_back( first + 1, last );
+        ptr = last + 1;
+    }
+
+    if ( xpm_data.empty() )
+    {
+        std::cerr << n_line << ": ERROR Illegal team_graphic [" << msg << "]" << std::endl;;
+        return false;
     }
 
     return handler.handleTeamGraphic( side, x, y, xpm_data );

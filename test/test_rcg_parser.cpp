@@ -77,6 +77,8 @@ public:
     int team_count_ = 0;
     int msg_count_ = 0;
     int team_time_ = 0;
+    int team_graphic_count_ = 0;
+    std::vector< std::string > xpm_;
     double ball_size_ = 0.0;
     rcss::rcg::TeamT team_l_;
     rcss::rcg::TeamT team_r_;
@@ -153,8 +155,10 @@ public:
     bool handleTeamGraphic( const char,
                             const int,
                             const int,
-                            const std::vector< std::string > & ) override
+                            const std::vector< std::string > & xpm ) override
       {
+          ++team_graphic_count_;
+          xpm_ = xpm;
           return true;
       }
 };
@@ -440,6 +444,7 @@ private slots:
     void jsonPlayersBySideAndUnum();
     void jsonOmittedFields();
     void jsonBallHeight();
+    void textTeamGraphic();
     void textManyLines();
     void textManyLinesStopAtIllegalLine();
     void jsonManyLines();
@@ -847,6 +852,61 @@ TestRcgParser::jsonBallHeight()
     QCOMPARE( handler.shows_[0].ball_.x_, 1.0f );
     QCOMPARE( handler.shows_[1].ball_.z_, 0.0f );
     QCOMPARE( handler.shows_[1].ball_.vz_, 0.0f );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  The strings of a team graphic are read whatever their length (B6): an
+  XPM with 2 characters per pixel has rows of 16 characters.
+*/
+void
+TestRcgParser::textTeamGraphic()
+{
+    std::string header, show;
+    splitFixture( readFixture( "head_v5.rcg" ), 21, "(show 1 ", &header, &show );
+
+    const std::vector< std::string > xpm = {
+        "8 8 2 2",
+        "aa c None",
+        "bb c #FF0000",
+        "aaaaaaaaaaaaaaaa",
+        "aabbbbbbbbbbbbaa",
+        "aabbbbbbbbbbbbaa",
+        "aabbbbbbbbbbbbaa",
+        "aabbbbbbbbbbbbaa",
+        "aabbbbbbbbbbbbaa",
+        "aabbbbbbbbbbbbaa",
+        "aaaaaaaaaaaaaaaa",
+    };
+    std::string msg = "(msg 0 1 \"(team_graphic_l (31 7";
+    for ( const std::string & row : xpm )
+    {
+        msg += " \"" + row + "\"";
+    }
+    msg += ")\")";
+
+    // as the server writes it, and the same graphic in the old format
+    const std::string one_char = "(msg 0 1 \"(team_graphic_r (0 0 \"8 8 1 1\" \"  c None\" \"        \" \"        \" "
+        "\"        \" \"        \" \"        \" \"        \" \"        \" \"        \")\")";
+
+    const std::string data = header + msg + "\n" + show + "\n";
+
+    RecordingHandler handler;
+    rcss::rcg::Parser::Ptr parser = rcss::rcg::Parser::create( data.data(), data.size() );
+    QVERIFY( parser );
+    QVERIFY( parser->parse( data.data(), data.size(), handler ) );
+    QCOMPARE( handler.team_graphic_count_, 1 );
+    QCOMPARE( handler.xpm_, xpm );
+    QCOMPARE( handler.shows_.size(), size_t( 1 ) );
+
+    const std::string data1 = header + one_char + "\n" + show + "\n";
+    RecordingHandler handler1;
+    QVERIFY( parser->parse( data1.data(), data1.size(), handler1 ) );
+    QCOMPARE( handler1.team_graphic_count_, 1 );
+    QCOMPARE( handler1.xpm_.size(), size_t( 10 ) );
+    QCOMPARE( handler1.xpm_[0], std::string( "8 8 1 1" ) );
+    QCOMPARE( handler1.xpm_[1], std::string( "  c None" ) );
+    QCOMPARE( handler1.xpm_[9], std::string( "        " ) );
 }
 
 /*-------------------------------------------------------------------*/
