@@ -26,7 +26,7 @@ This plan is loaded to drive the development of rcssmonitor. The design and hist
 
 - Report in Japanese. When reporting an implementation, attach a proposed commit message.
 - Claude does the commits and pushes. Before that, show the user the proposed commit message (and the files to include) and get it confirmed (from 2026-11-11; until then the user did them). Write commit messages in English and end them with the designated `Co-Authored-By` line.
-- Merges suited to a PR (such as merging into master) are done by the user. When a PR is made, Claude proposes its title and description (in English) (from 2026-11-11).
+- Merges suited to a PR (such as merging into master) are done by the user. When a PR is made, Claude proposes its title and description (in English), with the recommended merge method (a merge commit by default, or a squash merge with the reason when that fits) (from 2026-11-11; §9.1).
 - When running the program to try it, do not modify the user's settings file `~/.rcssmonitor.conf`. Start it with `HOME` set to a temporary directory (e.g. `HOME=$(mktemp -d) ./src/rcssmonitor`).
 - When running rcssserver, set `RCSS_CONF_DIR` to a temporary directory (do not touch `~/.rcssserver`).
 - Do not run too many GPU tests in parallel (during the web version work, a GPU page fault brought the work machine down).
@@ -71,7 +71,7 @@ State on 2026-11-11: the user decided D7, D10, and D11 ("Decided" in the table; 
 | D6 | Figure model | Re-export the web version's `Mannequin.glb` (CC0) without compression and put it in the Qt resources (qrc) | Bundle the meshoptimizer decoder (MIT) and read the web version's file as is | The web version's file requires `EXT_meshopt_compression` and `KHR_mesh_quantization`. For a desktop app, fewer dependencies matter more than size |
 | D7 | Base of the work | **Decided**: derive from `develop`. Leave `feature/support-tcp-ws` unmerged, and merge it once it is adopted (§3.5) | (Original recommendation) merge `feature/support-tcp-ws` first and branch from there / branch directly from `feature/support-tcp-ws` | Whether to adopt the TCP / WebSocket support officially has not been decided (user). The 3D view diff can also be reviewed separately |
 | D8 | Version | 20.0.0 (aligned with asio rcssserver 20 and rcssmonitor-web 20) | 19.1.0 etc. | The Qt6 support and the 3D view are big changes |
-| D9 | Branch policy | Same as the web version (master: releases, develop: integration, feature/*: work, hotfix/*). Merges create merge commits. Per-phase branches in §9.1 | Follow rcssmonitor's current practice | The web version's `docs/release.md` |
+| D9 | Branch policy | Same as the web version (master: releases, develop: integration, feature/*: work, hotfix/*). Merges use a merge commit by default (decided by the user on 2026-11-11; squash merges were also used before). When a squash merge fits, and the per-phase branches, in §9.1 | Follow rcssmonitor's current practice | The web version's `docs/release.md` |
 | D10 | master's AppImage workflow (§3.2) | **Decided**: drop the AppImage (option B of §2.4, 2026-11-11). The current workflow is a maintenance burden (the user disabled it in the GitHub UI), and with the browser version of the monitor, the AppImage is less needed (user). Option A was tried and worked, but is not adopted | Keep it as is (the code would have to stay buildable with Qt 5.12, which conflicts with D2) | It requires maintaining an Ubuntu 20.04 (end of support) Docker image, `qt5-default`, and custom shell and Python scripts. It builds with autotools, so 3D would not be included (D3) |
 | D11 | The qmake build (§3.2) | **Decided**: drop it. Delete `rcssmonitor.pro`, `src/src.pro`, and `src/rcsslogplayer/`, an old copy of a parser that only the qmake build used (`feature/ci`). Mention it in NEWS (Phase 9). autotools uses qmake to find Qt, so the `qt5-qmake` package is still needed | Fix it (one definition, the version, boost) and add it to CI | No machine will use qmake any more (user). It was already broken on develop, and nobody had noticed. CMake and autotools are enough |
 
@@ -448,6 +448,8 @@ Each phase proceeds on a feature branch and is merged into develop when it is do
 - `feature/3d-view` is created from develop after the Qt6 support (Phase 3) has been merged. It is not merged into develop until it is complete and its official adoption is decided. Anything merged into develop in the meantime (the TCP / WebSocket support, etc.) is brought in by merging develop into `feature/3d-view`.
 - The user creates the branches on GitHub (from 2026-11-11). Locally, run `git fetch origin` and then `git switch <branch>`, which creates a local branch tracking the GitHub branch and switches to it. Only `feature/ci` was created locally first, so it is created on GitHub with `git push -u origin feature/ci`.
 - How to create `proto/3d-gl` (the prototype) is discussed when the prototype starts (2026-11-11).
+- PRs are merged with a merge commit by default (D9). The PR-level history is `git log --first-parent`, a whole PR is reverted with `git revert -m 1 <merge commit>`, and a search for the cause of a bug narrows down the PR with `git bisect start --first-parent` before going into its commits. Keep every commit buildable, and fold commits that were only tried and removed before pushing.
+- A squash merge fits only a PR that meets all of the following, and Claude says so when proposing the PR: (1) a small change with one purpose, (2) its intermediate commits (fixes, trial and error) have no meaning of their own, (3) no other branch is stacked on it, (4) nothing such as the plan refers to its commit IDs. Merges from develop into master, the merge of `feature/3d-view`, and PRs with several independent changes use a merge commit.
 
 ### Phase 0: Foundation and validation
 
@@ -701,3 +703,13 @@ At each step, append the date, the decisions, what was built, the bugs found and
 **Built**
 - Deleted the AppImage trial's `.github/workflows/appimage.yml` (the working version stays in commit 1fe26c6).
 - Kept the desktop file and the icon (`data/rcssmonitor.desktop`, `icons/rcssmonitor.png`) and their `install()`.
+
+#### 2026-11-11: How PRs are merged
+
+**Decisions (user)**
+- When a PR is made, Claude proposes its title and description (§0.1).
+- PRs are merged with a merge commit by default (D9). Claude says when a squash merge fits a PR, when proposing it (the conditions are in §9.1).
+
+**Checked**
+- Past merges: into develop, merge commits (#60, #57, #53, etc.) and squash merges (#51, #54, #46) are mixed. From develop into master, merge commits (#61, #58, #55, etc.). The repository settings allow merge commits, squash, and rebase.
+- A merge commit was recommended for the `feature/ci` PR, because it has independent changes (the GCC 15 build fix, dropping qmake, etc.) and the plan refers to commit 1fe26c6.

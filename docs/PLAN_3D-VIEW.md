@@ -26,7 +26,7 @@
 
 - 報告は日本語で行う。実装を報告するときは、コミットメッセージの案を添える。
 - コミットとプッシュは Claude が行う。その前に、コミットメッセージの案 (と含めるファイル) をユーザに示し、確認を受ける (2026-11-11 から。それまではユーザが行っていた)。コミットメッセージは英語で書き、末尾に指定の `Co-Authored-By` 行を付ける。
-- PR が向く取り込み (master への取り込みなど) は、ユーザが行う。PR を作るときは、Claude がタイトルと本文の案 (英語) を出す (2026-11-11 から)。
+- PR が向く取り込み (master への取り込みなど) は、ユーザが行う。PR を作るときは、Claude がタイトルと本文の案 (英語) を出し、勧めるマージの方法 (基本は Merge Commit。Squash Merge が向くときはその理由) を添える (2026-11-11 から。§9.1)。
 - 動かして試すときは、ユーザの設定ファイル `~/.rcssmonitor.conf` を書き換えない。`HOME` を一時ディレクトリにして起動する (例: `HOME=$(mktemp -d) ./src/rcssmonitor`)。
 - rcssserver を動かすときは、`RCSS_CONF_DIR` を一時ディレクトリにする (`~/.rcssserver` を汚さない)。
 - GPU を使うテストを並列で回しすぎない (web 版の作業中に、GPU のページフォルトで作業マシンが落ちたことがある)。
@@ -71,7 +71,7 @@ Phase 0 でユーザに確かめてから進める。推奨案は、この計画
 | D6 | 人型のモデル | web 版の `Mannequin.glb` (CC0) を、圧縮なしで書き出し直して Qt のリソース (qrc) に入れる | meshoptimizer のデコーダ (MIT) を同梱して、web 版のファイルをそのまま読む | web 版のファイルは `EXT_meshopt_compression` と `KHR_mesh_quantization` を必須にしている。デスクトップのアプリでは大きさより依存の少なさを取る |
 | D7 | 作業の土台 | **決定**: `develop` から派生させる。`feature/support-tcp-ws` は取り込まずに残し、採用が決まってから取り込む (§3.5) | (当初の推奨) `feature/support-tcp-ws` を先に取り込み、そこから切る / `feature/support-tcp-ws` から直接切る | TCP / WebSocket 対応を公式に採用するかがまだ決まっていない (ユーザ)。3D 表示の差分とも分けて見られる |
 | D8 | 版 | 20.0.0 (asio 版 rcssserver 20、rcssmonitor-web 20 にそろえる) | 19.1.0 など | Qt6 対応と 3D 表示は大きな変更 |
-| D9 | ブランチの方針 | web 版と同じ (master: リリース、develop: 取り込み先、feature/*: 作業、hotfix/*)。取り込みはマージコミットを作る。フェーズごとのブランチは §9.1 | 今の rcssmonitor の運用に合わせる | web 版の `docs/release.md` |
+| D9 | ブランチの方針 | web 版と同じ (master: リリース、develop: 取り込み先、feature/*: 作業、hotfix/*)。取り込みは Merge Commit を基本にする (2026-11-11 にユーザが決めた。それまでは Squash Merge も使っていた)。Squash Merge が向く条件と、フェーズごとのブランチは §9.1 | 今の rcssmonitor の運用に合わせる | web 版の `docs/release.md` |
 | D10 | master の AppImage ワークフロー (§3.2) | **決定**: AppImage を廃止する (§2.4 の案 B、2026-11-11)。今のワークフローは保守の負担になっていて (ユーザが GitHub の画面で無効にした)、ブラウザ版のモニタがあるので AppImage の必要性も低い (ユーザ)。案 A は試して動いたが、採用しない | 今のまま残す (Qt 5.12 でもビルドできる範囲にとどめることになり、D2 と合わない) | Ubuntu 20.04 (サポート終了) の Docker イメージ、`qt5-default`、自前のシェルと Python のスクリプトを保守し続ける必要がある。autotools でビルドするので 3D が入らない (D3) |
 | D11 | qmake のビルド (§3.2) | **決定**: 廃止する。`rcssmonitor.pro`、`src/src.pro` と、qmake のビルドだけが使っていた古いパーサの写し `src/rcsslogplayer/` を消す (`feature/ci`)。NEWS に書く (Phase 9)。autotools は Qt を探すのに qmake を使うので、`qt5-qmake` のパッケージは引き続き要る | 直して (定義 1 つ、版、boost) CI に入れる | qmake を使う機械がなくなる (ユーザ)。develop の時点ですでに壊れていて、誰も気づいていなかった。CMake と autotools の 2 つで足りる |
 
@@ -448,6 +448,8 @@ web 版の `docs/parity.md` §7。行番号は 2026-11-11 の develop (01f880a) 
 - `feature/3d-view` は、Qt6 対応 (Phase 3) を取り込んだ develop から作る。完成して公式に採用されることが決まるまで、develop に取り込まない。そのあいだに develop に入ったもの (TCP / WebSocket 対応など) は、develop を `feature/3d-view` にマージして取り込む。
 - ブランチはユーザが GitHub 上で作る (2026-11-11 から)。手元では `git fetch origin` の後に `git switch <ブランチ>` とし、GitHub のブランチを追跡するブランチを作って切り替える。`feature/ci` だけは手元で先に作ったので、`git push -u origin feature/ci` で GitHub に作る。
 - `proto/3d-gl` (試作) の作り方は、試作に入るときに相談する (2026-11-11)。
+- PR の取り込みは Merge Commit を基本にする (D9)。PR 単位の履歴は `git log --first-parent`、PR 全体の取り消しは `git revert -m 1 <マージコミット>`、原因探しは `git bisect start --first-parent` で PR を絞ってから中のコミットに進む。途中のコミットもビルドできるように保ち、試して消しただけのコミットはプッシュの前にまとめる。
+- Squash Merge が向くのは、次をすべて満たす PR だけで、そのときは PR の案を出すときに伝える: (1) 目的が 1 つの小さな変更、(2) 途中のコミット (直し、試行錯誤) にそれぞれの意味がない、(3) ほかのブランチがその上に積まれていない、(4) 計画書などからそのコミット ID を参照していない。develop から master への取り込み、`feature/3d-view` の取り込み、独立した変更をいくつも含む PR は、Merge Commit にする。
 
 ### Phase 0: 土台と検証
 
@@ -701,3 +703,13 @@ GL に依存しない計算を、web 版の単体テストを手本に移す。
 **作ったもの**
 - AppImage の試行の `.github/workflows/appimage.yml` を消した (動いた形はコミット 1fe26c6 に残る)。
 - デスクトップのファイルとアイコン (`data/rcssmonitor.desktop`、`icons/rcssmonitor.png`) と、その `install()` は残した。
+
+#### 2026-11-11: PR の取り込み方
+
+**決めたこと (ユーザ)**
+- PR を作るときは、Claude がタイトルと本文の案を出す (§0.1)。
+- PR の取り込みは Merge Commit を基本にする (D9)。Squash Merge が向く PR は、Claude が PR の案を出すときに伝える (条件は §9.1)。
+
+**確かめたこと**
+- これまでの取り込み: develop へは Merge Commit (#60、#57、#53 など) と Squash Merge (#51、#54、#46) が混ざっている。develop から master へは Merge Commit (#61、#58、#55 など)。リポジトリの設定では、Merge Commit、Squash、Rebase のどれも使える。
+- `feature/ci` の PR は Merge Commit を勧めた。独立した変更 (GCC 15 でのビルドの修正、qmake の廃止など) を含み、計画書がコミット 1fe26c6 を参照しているため。
