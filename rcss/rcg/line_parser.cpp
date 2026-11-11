@@ -81,6 +81,12 @@ public:
           return true;
       }
 
+    bool handleTimestamp( const std::string & timestamp ) override
+      {
+          M_records.emplace_back( [timestamp]( Handler & h ) { return h.handleTimestamp( timestamp ); } );
+          return true;
+      }
+
     bool handleEOF() override
       {
           return true;

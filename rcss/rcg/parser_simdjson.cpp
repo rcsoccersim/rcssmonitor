@@ -532,21 +532,40 @@ ParserSimdJSON::Impl::parseData( simdjson::ondemand::field & field,
 }
 
 /*-------------------------------------------------------------------*/
+/*!
+  the version of the server that wrote the log, e.g. "18.1.3"
+ */
 bool
-ParserSimdJSON::Impl::parseVersion( simdjson::ondemand::value & /*val*/,
-                                    Handler & /*handler*/ )
+ParserSimdJSON::Impl::parseVersion( simdjson::ondemand::value & val,
+                                    Handler & handler )
 {
-    //std::cerr << "version " << val << std::endl;
-    return true;
+    std::string_view version;
+    if ( val.get_string().get( version ) != simdjson::SUCCESS )
+    {
+        std::cerr << "(ParserSimdJSON::parseVersion) not a string" << std::endl;
+        return false;
+    }
+
+    return handler.handleServerVersion( std::string( version ) );
 }
 
 /*-------------------------------------------------------------------*/
+/*!
+  the time when the log was written, e.g. "2024-03-19T18:13:33+0900"
+  (strftime's "%FT%T%z": the offset has no colon). It is passed as it is.
+ */
 bool
-ParserSimdJSON::Impl::parseTimestamp( simdjson::ondemand::value & /*val*/,
-                                    Handler & /*handler*/ )
+ParserSimdJSON::Impl::parseTimestamp( simdjson::ondemand::value & val,
+                                      Handler & handler )
 {
-    //std::cerr << "timestamp " << val << std::endl;
-    return true;
+    std::string_view timestamp;
+    if ( val.get_string().get( timestamp ) != simdjson::SUCCESS )
+    {
+        std::cerr << "(ParserSimdJSON::parseTimestamp) not a string" << std::endl;
+        return false;
+    }
+
+    return handler.handleTimestamp( std::string( timestamp ) );
 }
 
 /*-------------------------------------------------------------------*/

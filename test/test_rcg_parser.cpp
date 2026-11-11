@@ -218,6 +218,8 @@ checkJson( const RecordingHandler & handler )
 {
     QVERIFY( handler.eof_ );
     QCOMPARE( handler.logVersion(), rcss::rcg::REC_VERSION_JSON );
+    QCOMPARE( handler.serverVersion(), std::string( "18.1.3" ) );
+    QCOMPARE( handler.timestamp(), std::string( "2024-03-19T18:13:33+0900" ) );
 
     QCOMPARE( handler.server_param_count_, 1 );
     QCOMPARE( handler.ball_size_, 0.085 );
@@ -933,6 +935,8 @@ TestRcgParser::jsonManyLines()
     RecordingHandler handler;
     QVERIFY( parseJsonData( data, handler ) );
     QVERIFY( handler.eof_ );
+    QCOMPARE( handler.serverVersion(), std::string( "18.1.3" ) );
+    QCOMPARE( handler.timestamp(), std::string( "2024-03-19T18:13:33+0900" ) );
     QCOMPARE( handler.player_type_count_, 18 );
     QCOMPARE( handler.events_, manyEvents( MANY_SHOWS, { 2500 } ) );
 }
