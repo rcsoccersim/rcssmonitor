@@ -26,7 +26,7 @@ This plan is loaded to drive the development of rcssmonitor. The design and hist
 
 - Report in Japanese. When reporting an implementation, attach a proposed commit message.
 - Claude does the commits and pushes. Before that, show the user the proposed commit message (and the files to include) and get it confirmed (from 2026-11-11; until then the user did them). Write commit messages in English and end them with the designated `Co-Authored-By` line.
-- Merges suited to a PR (such as merging into master) are done by the user.
+- Merges suited to a PR (such as merging into master) are done by the user. When a PR is made, Claude proposes its title and description (in English) (from 2026-11-11).
 - When running the program to try it, do not modify the user's settings file `~/.rcssmonitor.conf`. Start it with `HOME` set to a temporary directory (e.g. `HOME=$(mktemp -d) ./src/rcssmonitor`).
 - When running rcssserver, set `RCSS_CONF_DIR` to a temporary directory (do not touch `~/.rcssserver`).
 - Do not run too many GPU tests in parallel (during the web version work, a GPU page fault brought the work machine down).
