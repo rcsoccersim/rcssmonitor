@@ -55,13 +55,25 @@
 #include <windows.h>
 #endif
 
+namespace {
+
+//! the progress dialog is shown only after this [ms]
+const int PROGRESS_DELAY_MS = 500;
+
+//! the shortest interval of the progress updates [ms]
+const qint64 PROGRESS_INTERVAL_MS = 100;
+
+}
+
 /*-------------------------------------------------------------------*/
 RCGHandler::RCGHandler( QWidget * parent,
                         DispHolder & holder )
     : M_holder( holder ),
-      M_progress( nullptr )
-
+      M_progress( nullptr ),
+      M_next_progress( PROGRESS_INTERVAL_MS )
 {
+    M_timer.start();
+
     if ( parent )
     {
         M_progress = new QProgressDialog( parent );
@@ -70,7 +82,8 @@ RCGHandler::RCGHandler( QWidget * parent,
         M_progress->setValue( 0 );
         M_progress->setLabelText( QObject::tr( "Time: 0" ) );
         M_progress->setCancelButton( 0 ); // no cancel button
-        M_progress->setMinimumDuration( 0 ); // no duration
+        // shown only when loading takes longer than this
+        M_progress->setMinimumDuration( PROGRESS_DELAY_MS );
     }
 }
 
@@ -95,28 +108,25 @@ RCGHandler::handleEOF()
 bool
 RCGHandler::handleShow( const rcss::rcg::ShowInfoT & show )
 {
-    if ( M_progress )
+    // Update the progress at most every PROGRESS_INTERVAL_MS. Updating it
+    // every 32 cycles (and processing the events, which repaints the main
+    // window, every 512) took longer than parsing the log.
+    if ( M_progress
+         && M_timer.elapsed() >= M_next_progress )
     {
-        if ( show.time_ % 32 == 1 )
-        {
-            if ( ! M_holder.dispCont().empty() )
-            {
-                int time = M_holder.dispCont().back()->show_.time_;
-                if ( time > M_progress->maximum() )
-                {
-                    M_progress->setMaximum( M_progress->maximum() + 6000 );
-                }
-                M_progress->setValue( time );
-                M_progress->setLabelText( QString( "Time: %1" ).arg( time ) );
-            }
-        }
+        M_next_progress = M_timer.elapsed() + PROGRESS_INTERVAL_MS;
 
-        if ( show.time_ % 512 == 1 )
+        const int time = static_cast< int >( show.time_ );
+        if ( time > M_progress->maximum() )
         {
-            qApp->processEvents();
-            std::fprintf( stdout, "parsing... %d\r", show.time_ );
-            std::fflush( stdout );
+            M_progress->setMaximum( ( time / 6000 + 1 ) * 6000 );
         }
+        M_progress->setValue( time );
+        M_progress->setLabelText( QString( "Time: %1" ).arg( time ) );
+
+        qApp->processEvents();
+        std::fprintf( stdout, "parsing... %d\r", time );
+        std::fflush( stdout );
     }
 
     return M_holder.handleShow( show );
