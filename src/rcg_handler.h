@@ -36,6 +36,8 @@
 #include <rcss/rcg/types.h>
 #include <rcss/rcg/handler.h>
 
+#include <QElapsedTimer>
+
 class QWidget;
 class QProgressDialog;
 class DispHolder;
@@ -47,6 +49,11 @@ private:
     DispHolder & M_holder;
 
     QProgressDialog * M_progress;
+
+    //! the time since the handler was created
+    QElapsedTimer M_timer;
+    //! the time of the next progress update [ms]
+    qint64 M_next_progress;
 
     // not used
     RCGHandler( const RCGHandler & ) = delete;

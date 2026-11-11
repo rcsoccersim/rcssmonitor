@@ -5,6 +5,8 @@
 
 #cmakedefine HAVE_LIBZ
 
+#cmakedefine HAVE_LIBDEFLATE
+
 #cmakedefine HAVE_WINDOWS_H
 
 #cmakedefine HAVE_ARPA_INET_H

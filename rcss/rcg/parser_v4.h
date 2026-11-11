@@ -58,6 +58,8 @@ public:
           return REC_VERSION_4;
       }
 
+    using Parser::parse;
+
     /*!
       \brief parse input stream
       \param is reference to the imput stream (usually ifstream/gzifstream).
@@ -67,6 +69,18 @@ public:
     */
     virtual
     bool parse( std::istream & is,
+                Handler & handler ) const override;
+
+    /*!
+      \brief analyze the whole log data in memory, line by line.
+      \param data the whole game log
+      \param size the size of data
+      \param handler reference to the rcg data handler.
+      \retval true, if successfuly parsed.
+      \retval false, if incorrect format is detected.
+    */
+    bool parse( const char * data,
+                const std::size_t size,
                 Handler & handler ) const override;
 
     /*!

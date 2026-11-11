@@ -7,7 +7,7 @@
 | 参照実装 | rcssmonitor-web 20.0.0-beta.2 (タグ `v20.0.0-beta.2`、ed36941)。作業ツリーは、このリポジトリと並べて置いた `../rcssmonitor-web` |
 | 参照したサーバ | asio 版 rcssserver 19.x。作業ツリーは、このリポジトリと並べて置いた `../rcssserver` (`feature/asio-migration` ブランチ) |
 | 英語版 | [PLAN_3D-VIEW.en.md](PLAN_3D-VIEW.en.md) (内容は同じ。§0.1) |
-| 状態 | Phase 0 (2026-11-11 着手) |
+| 状態 | Phase 2 (2026-11-12 着手)。Phase 0 の 3D の試作は後で相談する |
 
 ## 0. この計画書の使い方
 
@@ -116,7 +116,7 @@ Phase 0 の試作 (§9) で、推奨案で「人型 22 体と影を 1920×1080 �
 | `src/options.cpp` | 設定。`QSettings` で `~/.rcssmonitor.conf` に保存。コマンドラインのオプションもここ |
 | `src/config_dialog.cpp` | 設定ダイアログ (Show、Canvas、Color、Font のタブ) |
 | `src/player_type_dialog.cpp` | 選手タイプの一覧 |
-| `rcss/rcg/` | ログとメッセージの解析。`parser_simdjson.cpp` (JSON、同梱の simdjson を使う)、`parser_v1〜v4.cpp`、`types.cpp` (パラメータの既定値)、`util.cpp` (プレイモードの名前など)。`nlohmann/json.hpp` も同梱されている |
+| `rcss/rcg/` | ログとメッセージの解析。`parser_simdjson.cpp` (JSON、同梱の simdjson を使う)、`parser_v1〜v4.cpp`、`types.cpp` (パラメータの既定値)、`util.cpp` (プレイモードの名前など)。`nlohmann/json.hpp` も同梱されていた (使われておらず、Phase 2 で消した) |
 | `test/` | develop にはない (単体テストがない)。`feature/support-tcp-ws` には Qt Test の `test_message_splitter.cpp` がある。この計画では `feature/ci` で `test_rcg_parser.cpp` とフィクスチャ (`test/data/`) を足した (§14) |
 
 ### 3.2 ビルド
@@ -151,7 +151,7 @@ Phase 0 の試作 (§9) で、推奨案で「人型 22 体と影を 1920×1080 �
 - `master` (42848cd、19.0.1): develop に、PR #59 の AppImage のワークフローと `utils/appimage/`、`.gitignore` を足したもの (§3.2)。それ以外は develop と同じ。
 - `feature/support-tcp-ws` (45bca98): develop (01f880a) に TCP / WebSocket 対応の 5 コミット。未取り込み (D7)。計画書 `docs/TRANSPORT_PLAN.md` (リポジトリ未登録) がある。
 - `feature/ci`: この計画の最初のブランチ (§9.1)。develop (01f880a) から 2026-11-11 に作った。
-- `origin/feature/json-reformat` (2024-03): 旧パーサ `rcss/rcg/parser_json.cpp` と `parser.cpp` を新しい JSON 形式に合わせた 2 コミット。今の develop は `parser_simdjson.cpp` を使っているので、内容を確かめて、§7 の作業に取り込むか捨てるかを決める。
+- `origin/feature/json-reformat` (2024-03): 旧パーサ `rcss/rcg/parser_json.cpp` と `parser.cpp` を新しい JSON 形式に合わせた 2 コミット。今の develop は `parser_simdjson.cpp` を使っているので、内容を確かめて、§7 の作業に取り込むか捨てるかを決める。 → 取り込まない (Phase 2、§14)。
 - `origin/develop_observation` (2022-11)、`origin/fix/qt-asprintf` (master に取り込み済み) は、この計画と関係しない。
 
 ### 3.5 TCP / WebSocket 対応を後で取り込むとき
@@ -398,23 +398,24 @@ web 版の `docs/parity.md` §7。行番号は 2026-11-11 の develop (01f880a) 
 
 - 1 件ずつ、できれば単体テストを付けて直す (Qt Test。解析の不具合はフィクスチャで、描画の不具合は計算を切り出して確かめる)。
 - Phase 1 (2026-11-11、`fix/parity-bugs`) で B1、B5、B9〜B14 を直した。B10 のほかはテストがある (§14)。
+- Phase 2 (2026-11-12、`feature/json-parser`) で B2〜B4、B6〜B8 を直した。どれもテストがある (§14)。
 - master への取り込みを急ぐなら、不具合の修正だけを先に別の PR にできる。
 
 ## 7. JSON パーサの改善
 
 対象は `rcss/rcg/parser_simdjson.cpp` (ログ) と、ライブの JSON メッセージ (同じパーサを `disp_holder.cpp` から使う)。web 版の `src/io/rcg-json.ts` と `docs/protocol.md` §3、§7 に合わせる。
 
-1. 未知のキーは飛ばす (B3)。今後サーバが項目を足しても読めるように。
-2. `vq` を `'h'` / `'l'` で入れる (B2)。
-3. 選手を `side` と `unum` で格納する (B4)。配列の要素が欠けても、順が違ってもよいように。
-4. ログを 1 行 1 レコードとして読む。サーバが異常終了すると末尾の `]` が欠けるので、`[` と `]` の行を飛ばし、行末の `,` を取り除いて読む。1 行が壊れていたら、その行だけ飛ばして警告を出す。
-5. 省略されうる項目を受け付ける: `stime` (0 より大きいときだけ)、`px` / `py` (指差し中だけ)、`fside` / `fnum` (attentionto のあるときだけ)、`pen_score` / `pen_miss` (PK を蹴ったチームだけ)、チーム名の `null` (接続前)、`capacity`。
-6. ボールの高さ `ball.z` と鉛直方向の速度 `ball.vz` を、あれば読む (2.5 次元シミュレータ用。単位は m と m/サイクル、上が正。キー名は仮で、サーバの形式が決まったら合わせる)。`types.h` の `BallT` に足す。
-7. `timestamp` (`%FT%T%z`、オフセットにコロンなし) を壊さずに扱う。今のパーサは `version` と `timestamp` を読み飛ばし、Handler に渡していない (`parseVersion`、`parseTimestamp` が空。2026-11-11 に確かめた)。両方を Handler (`handleServerVersion`、`handleTimestamp`) に渡す。
-8. 速さを測る: 全試合の JSON ログ (作業ツリーの直下に置いた `1-json.rcg.gz`、6,209 フレーム。リポジトリには入れない) の読み込み時間を、改善の前後で比べて §14 に記録する。web 版はブラウザで約 0.3〜0.5 秒。
-9. `origin/feature/json-reformat` の内容 (旧パーサの新形式対応) を確かめ、上と重ならないものがあれば取り込む。
-10. テキスト rcg の B6、B8 もこの段階で直す。
-11. 同梱の simdjson (3.8.0。GCC 15 でビルドできるよう、3.10.0 の修正を 3 行だけ入れた。§14) を、新しい版にするかを決める (2026-11 の最新は 5.1.1)。
+1. 未知のキーは飛ばす (B3)。今後サーバが項目を足しても読めるように。 → Phase 2 の B-1 で済 (§14)。
+2. `vq` を `'h'` / `'l'` で入れる (B2)。 → B-2 で済。
+3. 選手を `side` と `unum` で格納する (B4)。配列の要素が欠けても、順が違ってもよいように。 → B-3 で済。
+4. ログを 1 行 1 レコードとして読む。サーバが異常終了すると末尾の `]` が欠けるので、`[` と `]` の行を飛ばし、行末の `,` を取り除いて読む。1 行が壊れていたら、その行だけ飛ばして警告を出す。 → Phase 2 の A4 で済 (§14)。
+5. 省略されうる項目を受け付ける: `stime` (0 より大きいときだけ)、`px` / `py` (指差し中だけ)、`fside` / `fnum` (attentionto のあるときだけ)、`pen_score` / `pen_miss` (PK を蹴ったチームだけ)、チーム名の `null` (接続前)、`capacity`。 → B-4 で済。
+6. ボールの高さ `ball.z` と鉛直方向の速度 `ball.vz` を、あれば読む (2.5 次元シミュレータ用。単位は m と m/サイクル、上が正。キー名は仮で、サーバの形式が決まったら合わせる)。`types.h` の `BallT` に足す。 → B-5 で済。
+7. `timestamp` (`%FT%T%z`、オフセットにコロンなし) を壊さずに扱う。今のパーサは `version` と `timestamp` を読み飛ばし、Handler に渡していない (`parseVersion`、`parseTimestamp` が空。2026-11-11 に確かめた)。両方を Handler (`handleServerVersion`、`handleTimestamp`) に渡す。 → B-6 で済。
+8. 速さを測る: 全試合の JSON ログ (作業ツリーの直下に置いた `1-json.rcg.gz`、6,209 フレーム。リポジトリには入れない) の読み込み時間を、改善の前後で比べて §14 に記録する。web 版はブラウザで約 0.3〜0.5 秒。 → Phase 2 で測った (§14)。
+9. `origin/feature/json-reformat` の内容 (旧パーサの新形式対応) を確かめ、上と重ならないものがあれば取り込む。 → 取り込むものはなかった (§14)。
+10. テキスト rcg の B6、B8 もこの段階で直す。 → B-7、B-8 で済。B7 (パラメータの既定値) は B-9。
+11. 同梱の simdjson (3.8.0。GCC 15 でビルドできるよう、3.10.0 の修正を 3 行だけ入れた。§14) を、新しい版にするかを決める (2026-11 の最新は 5.1.1)。 → 5.1.1 に更新した (Phase 2 の A2、§14)。
 
 テスト: フィクスチャ (`1-json.rcg.gz` から短く切り出したもの、壊れた行、未知のキー、選手の順の入れ替え、末尾の `]` の欠け) で、フレーム数、特定のフレームの値、プレイモードの並びを確かめる。web 版の `test/unit/rcg-json.test.ts`、`rcg-text.test.ts`、`full-logs.test.ts` が手本。
 
@@ -557,6 +558,7 @@ GL に依存しない計算を、web 版の単体テストを手本に移す。
 ### 10.3 手で確かめること
 
 - 実際の GPU での fps (描画時間をログに出す仕組みを作る)。
+- ログの読み込みの速さは `test/bench_load` で測る (CI では動かさない。§14)。conda などが `PATH` や `LD_LIBRARY_PATH` に入った環境では、別の Qt や zlib でビルドされ、動くので、それらを外してビルドし、測る。
 - asio 版 rcssserver とのライブ接続 (UDP。TCP / WebSocket は取り込んだ後)。`RCSS_CONF_DIR` と `HOME` を一時ディレクトリにする (§0.1)。
 - 全試合のログ (作業ツリーの直下に置いた `1-json.rcg.gz` と `202207160432-HELIOS2022_1-vs-CYRUS_0.rcg.gz`。リポジトリには入れない) での見た目。web 版と並べて見比べる。
 
@@ -589,6 +591,9 @@ GL に依存しない計算を、web 版の単体テストを手本に移す。
 | `overlay_math.{h,cpp}` | 2D と 3D で共有する重ね描きの計算 (2D の painter から移す)。Phase 1 で `src/` に作り、オフサイドラインを移した |
 | `play_mode_position.{h,cpp}` | Change Playmode のボールの位置 (Phase 1。3D の審判操作でも使う) |
 | `player_type_sort_proxy.h` | 選手タイプ一覧の並べ替え (Phase 1) |
+| `game_log_file.{h,cpp}` | ログのファイルを 1 つのバッファに読み、解析する。libdeflate があれば、gzip をそれで展開する (Phase 2) |
+| `rcss/rcg/line_parser.{h,cpp}` | ログの行を並列に解析し、順に Handler に渡す (Phase 2) |
+| `test/bench_load.cpp` | 読み込みの速さを測る (Phase 2。CI では動かさない) |
 | `stadium_3d`、`scenery_3d`、`ball_3d`、`ball_aids_3d` | 部品 |
 | `figures_3d`、`pose`、`gltf_model` | 人型 |
 | `hud_3d`、`guides` | HUD、方位の帯、ミニマップ |
@@ -753,3 +758,119 @@ PR #63 (`feature/ci`) を Merge Commit で develop に取り込んだ後、ユ�
 - `PLAYMODE_STRINGS` は、最後のプレイモードの後に空の文字列が 2 つあり、`PM_MAX` (52) より 2 つ多い (54)。
 - `Options` は `instance()` の中の静的な変数で、作られたときに `~/.rcssmonitor.conf` を読み (なければ書き)、プログラムの終了時に書く (`writeSettings(false)`: 窓の大きさ以外)。`--version` で終わるときも書く。
 - 2026-11-11 15:27 に、AppImage の確かめのために入れた `rcssmonitor --version` を、`HOME` を一時ディレクトリにせずに動かし、ユーザの `~/.rcssmonitor.conf` を書き直してしまった (§0.1 に反する)。値は読んだものをそのまま書き戻すので、中身は変わらない見込み (ファイルになかった項目が既定値で足された可能性と、並びの変化はある)。ユーザに報告し、§0.1 に「`--version` でも同じ」と書き足した。
+
+#### 2026-11-12: ユーザの確認と取り込み
+
+- PR #64 (`fix/parity-bugs`) を Merge Commit で develop に取り込んだ (c269eee)。develop の CI も通った。
+- ユーザが実際のログとライブで確かめた: B9、B10、B11、B12、B13、B14 はどれも OK。B1 は synch_mode で速く回し、65,535 フレームを超えたあたりで、古いフレームがまとめて消えることを確かめた。
+- Phase 1 の完了条件 (不具合ごとのテスト、CI、実際のログでの確認) を満たした。
+
+### Phase 2
+
+#### 2026-11-12: 読み込みの高速化 (`feature/json-parser`、まとまり A)
+
+**決めたこと (ユーザ)**
+- Phase 2 では、パーサの改善に加えて、simdjson を更新し、読み込みをさらに速くする (ユーザ: web 版より体感で遅い)。
+- 方針: (1) ファイルを 1 つのバッファに読み、メモリから解析する、(2) JSON を 1 行 1 レコードで読む、(3) 行を並列に解析する、(4) 進捗表示を間引く、(5) simdjson を 5.x にする。libdeflate (速い展開) は zlib のまま測ってから決める。別スレッドでの読み込み (読み込み中も画面を固めない) は後回し。
+- 作業は、まとまり A (高速化) と B (頑健化: B2〜B4、B6〜B8 と §7 の残り) に分け、まとまりごとにコミットメッセージを確かめる。
+
+**測ったこと (直す前)**
+- アプリの `parsing elapsed` (展開と解析): offscreen で JSON 約 378 ms、テキスト約 222 ms。ユーザが実際の画面で JSON 371 ms、テキスト 220 ms。
+- 内訳 (JSON 53.6 MB、6,209 フレーム / テキスト v5 28.7 MB、8,406 フレーム): `gzifstream` での展開 139 / 81 ms (zlib の `gzread` で 1 MB ずつなら 65 / 46 ms)。JSON パーサの中の `istreambuf_iterator` での全文のコピー 99 ms。解析と格納 約 100 / 80 ms。進捗表示 約 150 / 90 ms (32 サイクルごとの更新と、512 サイクルごとの `processEvents()` でアプリの窓が描き直される)。
+- web 版は Worker で解析し、進捗を状態行に出す (画面は固まらない)。読み込み中に途中のフレームは見せない。
+
+**作ったもの (順に 1 コミットずつ。時間は `bench_load` の 5 回の最良、進捗表示なし)**
+
+| 段階 | 内容 | JSON | テキスト |
+|---|---|---|---|
+| A1 | 測定用のプログラム `test/bench_load` (アプリと同じ道で読み、最良の時間を出す。`--progress` で進捗表示も) | 235 ms | 130 ms |
+| A2 | simdjson を 5.1.1 にした (3.8.0 に入れた GCC 15 の修正は上流にある) | 222 ms | 130 ms |
+| A3 | ファイルを `gzread` で 1 つのバッファに読む (`src/game_log_file`)。メモリから解析する入口 `Parser::create( data, size )`、`parse( data, size, handler )` を足した。JSON は simdjson への 1 回のコピーだけ | 179 ms | 121 ms |
+| A4 | JSON を 1 行 1 レコードで、その場で解析する (コピーなし)。`[` と `]` の行と行末の `,` を飛ばすので、末尾の `]` が欠けても読める。解析できない行は警告を出して飛ばす (§7 の 4) | 151 ms | — |
+| A5 | テキストもメモリから 1 行ずつ読む (`std::getline` を使わない) | — | 122 ms |
+| A6 | 行を並列に解析する (`rcss/rcg/line_parser`)。最大 8 スレッド、1 スレッドに 1,024 行以上。各スレッドは記録用の Handler に渡し、終わってから行の順に本当の Handler に渡す | 84 ms | 60 ms |
+| A7 | 進捗表示 (`RCGHandler`) を 100 ms ごとに間引き、0.5 秒以上かかるときだけ出す | — | — |
+
+**結果 (アプリの `parsing elapsed`、offscreen、3 回)**: JSON 275〜365 ms → 85〜118 ms、テキスト 214〜216 ms → 93〜102 ms。アプリは 1 回だけ読むので、2 回目以降より 30〜35 ms 遅い (大きなメモリの初めての確保、スレッドの起動など。`bench_load -n 1` で 94〜110 / 91〜96 ms)。残りの時間の多くは展開 (zlib、並列にできない)。
+
+**試験**
+- テスト `rcg_parser`: メモリからの入口 (テキスト、JSON)、末尾の `]` の欠け、壊れた行、1 行の JSON (文書全体として読む)、CR LF、大きなログ (5,000 フレーム。並列の道) で show とプレイモードの順が保たれること、テキストの不正な行で止まること、JSON の壊れた行を飛ばすこと。
+- テスト `line_parser` (新): `split_lines`、2 万行の順、失敗した行 (例外を含む) の番号、最初の失敗で止まるとき後のブロックを渡さないこと。ブロックを逆順に渡すと失敗することも確かめた。
+- テスト `game_log_file` (新): 圧縮していないファイル、1 MB を超える gzip、ないファイル、gzip のログを読んで解析する。
+- 9 個のテストがすべて通る。A4 のテストは、文書全体として読む A3 の動きに戻すと失敗することを確かめた。
+
+**見つけたこと**
+- この作業の端末では conda (`anaconda3/envs/catboost`) が `PATH` に、`~/local/lib` などが `LD_LIBRARY_PATH` に入っていて、CMake が conda の Qt と zlib を拾っていた。速さは、それらを外した環境 (システムの Qt 5.15.13 と zlib) でビルドし、測り直した (§10.3)。値はほぼ同じだった。
+- `perf` は `perf_event_paranoid=4` のため使えない。段階ごとの時間は測定用のプログラムで測った。
+- simdjson 5.1.1 は `simdjson.h` が 10 MB (3.8.0 は 3.8 MB)。コンパイルの時間は `simdjson.cpp` 3.5 → 9.6 秒、`parser_simdjson.cpp` 6.4 → 7.7 秒。`get_string()` の戻り値を使わないと警告が出るので直した。ライセンスの違いは年だけ。
+- アプリは `gzfstream` (`gzifstream`) を使わなくなった。ファイルは残してある (消すかは後で決める)。 → 後で消した (下の記録)。
+- ファイルのパスは `toLatin1()` ではなく `QFile::encodeName()` で渡す (日本語を含むパスも開ける)。
+- テキストのヘッダの版を `std::stoi` ではなく `std::atoi` で読む (`ULGx` のような壊れたヘッダで例外が出ない)。
+- JSON を 1 行ずつ読むようにしたので、解析できないレコード (未知のキーを含む。B3) は、その行だけ飛ばす (前は解析全体が止まった)。B3 では、未知のキーだけを飛ばすようにする。
+- `Handler::handleTimestamp()` は仮想関数でないので、並列のときの記録用の Handler では記録できない。§7 の 7 (timestamp を Handler に渡す) のときに直す。
+- 並列のとき、Handler の関数の戻り値は使わない (アプリの Handler はいつも true を返す)。
+
+#### 2026-11-12: libdeflate (`feature/json-parser`)
+
+まとまり A の 8 コミット (d36e1a9〜8b9d510) をプッシュした。CI は CMake と autotools の両方が通った。同梱の simdjson の警告 (`-Wtemplate-id-cdtor` 9 件) は 5.1.1 でなくなり、コンパイラの警告はない。なお、ブランチを作ったときの CI (c269eee) は、ランナーが `security.ubuntu.com` の名前を引けずにパッケージを入れられなかったために失敗した (コードとは関係ない)。
+
+**決めたこと (ユーザ)**
+- 展開を速くするため、libdeflate を任意の依存として使う (見つからなければ zlib だけで動く)。
+
+**測ったこと (直す前)**: 展開だけで、zlib (`gzread`、1 MB ずつ) が JSON 69 ms、テキスト 48 ms。libdeflate (ファイルを読み、一度に展開) が 34 ms、22 ms (読み込みの 7.5 ms、6.5 ms を含む)。
+
+**作ったもの**
+- `src/game_log_file.cpp`: libdeflate があれば、ファイルをそのまま読み、gzip なら一度に展開する。展開先の大きさは末尾の ISIZE で決め、足りなければ倍にする (deflate の最大の比 1032:1 を上限にする)。複数のメンバをつないだ gzip を読み、メンバの後の gzip でないバイトは zlib と同じく無視する。libdeflate が展開できないデータ (途中で切れたもの) は、zlib の道で読み直す。zlib は、途中で切れた gzip を切れたところまで読む (サーバが異常終了したログ。§7 の 4)。
+- CMake: `ENABLE_LIBDEFLATE` (既定 ON)。見つかれば `HAVE_LIBDEFLATE` を定義する (古いディストリビューションの libdeflate には CMake の設定ファイルがないので、`find_path` と `find_library` で探す)。autotools: `--with-libdeflate` (既定は見つかれば使う。`--without-libdeflate` で使わない、`--with-libdeflate` で見つからなければエラー)。ライブラリは `LIBDEFLATE_LIBS` でアプリにだけ付ける (全体の `LIBS` に足すと、Qt を確かめる `AX_HAVE_QT` の試しのリンクにも付く)。
+- CI: CMake のジョブに `libdeflate-dev` を入れ、autotools のジョブには入れない (両方の道をコンパイルする)。README に、任意の依存であることを書いた。
+
+**結果 (アプリの `parsing elapsed`、offscreen、3 回)**
+
+| ビルド | JSON | テキスト |
+|---|---|---|
+| CMake、zlib だけ | 91〜119 ms | 95〜100 ms |
+| CMake、libdeflate | 63〜76 ms | 59〜60 ms |
+| autotools、zlib だけ | 117〜119 ms | 76〜106 ms |
+| autotools、libdeflate | 76〜77 ms | 59〜64 ms |
+
+`bench_load` (5 回の最良) は、zlib だけで 84〜117 / 60 ms、libdeflate で 53〜74 / 33〜42 ms。
+
+**試験**
+- テスト `game_log_file` に足した: 複数のメンバの gzip (最後のメンバが小さいので、ISIZE から決めた大きさが足りず、広げる道を通る)、途中で切れた gzip (切れたところまで読む)、gzip の後の余計なバイト。
+- CMake で libdeflate なしとありの両方、autotools で 3 つの場合 (見つかれば使う、`--without-libdeflate`、見つからないときの `--with-libdeflate`) を、きれいなコピーで確かめた。CMake の 2 つは 9 個のテストがすべて通る。
+- 失敗しても zlib に戻るので、テストが通るだけでは libdeflate の道を通ったかがわからない。一時的に表示を入れて、ふつうの gzip、複数のメンバ、余計なバイトは libdeflate で、途中で切れたものは zlib で読むことを確かめた。
+- 手元には `libdeflate-dev` がないので、`apt-get download` で取ってきたパッケージを一時ディレクトリに展開して使った (ライブラリはシステムの `libdeflate.so.0`)。
+
+#### 2026-11-12: パーサの頑健化 (`feature/json-parser`、まとまり B)
+
+libdeflate の 2 コミット (e0e21ef、6328ac9) をプッシュした後、§7 の残りと B2〜B4、B6〜B8 を直した。
+
+**作ったもの (順に 1 コミットずつ)**
+
+| 段階 | 内容 | テスト (`rcg_parser` ほか) |
+|---|---|---|
+| B-1 | JSON: 未知のレコードとキーを飛ばす (B3)。未知のキーは、プロセスの中で 1 回だけ報告する (ライブでは毎回のメッセージに入るため)。文書全体として読むときも、読めないレコードを飛ばして続ける。ライブの入口 (`ParserSimdJSON::parseData`) で simdjson の例外を受け止める (前は受け止めず、壊れたメッセージで落ちるおそれがあった。protocol.md §3.6: 文字列の中の改行などで、サーバが不正な JSON を送ることがある) | 未知のレコード、レコードの中の未知のキーと既知のキー、show と選手の中の未知のキー (1 行 1 レコードと文書全体)、文書全体での読めないレコード、ライブの壊れたメッセージ |
+| B-2 | JSON: `vq` を `'h'` / `'l'` で入れる (B2) | `vq` が `"l"` の選手 |
+| B-3 | JSON: 選手を `side` と `unum` で格納する (B4)。不正な選手は飛ばし、重なった選手は後のものにする | 逆順、欠けた選手、不正な side と unum、重なった選手 |
+| B-4 | JSON: 省略されうる項目を受け付ける (§7.5)。必須は show の `time` と `ball`、選手の `side` と `unum` だけにし、ほかは欠けたら `PlayerT` の既定値 (値なしの印) のままにする。前は `capacity` などが 1 つ欠けると、その選手から後が読まれず、ボールの速度が欠けると show ごと捨てていた。show の中のチームに show の時刻を渡す (前は -1)。チームの読み込みに失敗しても show は捨てない | ライブの形の show (モードとチームを含み、コマンド回数がない)、`capacity`・`px`・`fside` などのない選手、`stime`、`pen_*`、`null` のチーム名、`time` のない msg |
+| B-5 | JSON: ボールの `z` と `vz` を、あれば読む (§7.6)。`BallT` に `z_`、`vz_` (既定 0) を足した | 高さのある show とない show |
+| B-6 | JSON: `version` と `timestamp` を Handler に渡す (§7.7)。並列のときの記録用の Handler で記録できるよう、`Handler::handleTimestamp()` を仮想関数にした | 逐次と並列の両方 |
+| B-7 | テキスト: チームグラフィックの文字列を長さを決めずに読む (B6)。1 画素 2 文字の XPM (8 画素で 16 文字) が壊れていた | 16 文字の行のある XPM、サーバが書く形 |
+| B-8 | テキスト: 読めない行を飛ばして続ける (B8)。show などの解析の失敗も「飛ばした行」に数え、最初の 10 行の番号と合計を出す (JSON と同じ `report_skipped`)。空行は飛ばすだけ。単独の team 行の `null` を空のチーム名にする。show のボールの 4 つの値が読めなければ行を飛ばす (前は 0 として読んでいた)。`unum` が 0 の選手で `player_[-1]` に書き込んでいたのを直した。`parse_lines` の「最初の失敗で止める」は使うものがなくなったので除いた | 不正な行、空行、未知のレコード、ボールの壊れた show、途中で切れた show、`unum` 0 の show、`null` のチーム名 |
+| B-9 | パラメータの既定値を asio 版 rcssserver 19.0.0 にそろえる (B7。web 版の `param-defaults.ts`)。server_param 33 項目、player_param 8 項目、player_type 4 項目 (`dash_power_rate` 0.06 は 0.006 の打ち間違い。`team_far_length` は 2022 年にピッチの対角 125.096 に変わった)。TCP / WebSocket のサーバが送る `tcp_port`、`tcp_coach_port`、`tcp_olcoach_port`、`ws_port`、`ws_allowed_origins` を足した (前は「Unsupported parameter」と出ていた)。`PlayerTypeT` の書き出しで、v19 の 4 つのノイズの率がどれも `dist_noise_rate` の値になっていたのを直した | 新しいテスト `rcg_types` |
+
+**試験**
+- 10 個のテストがすべて通る。どの段階のテストも、直す前のファイルに戻すか、直した箇所だけを前の動きに戻すと失敗することを確かめた。最初は、1 行 1 レコードでは未知のレコードの行を丸ごと飛ばしても結果が同じになり、文書全体で読めないレコードのテストもなかったので、その 2 つのテストを足した。
+- 全試合のログ 2 本を、まとまり A の終わりのパーサと今のパーサで読み、Handler に渡るものをすべて (show の全項目、プレイモード、チーム、メッセージ、チームグラフィック) 書き出して比べた。違いは、JSON の `vq` の値 (前は bool の 1 を文字として入れていた) と、`version` と `timestamp` が渡るようになったことだけ。
+- B1〜B9 のどの段階も、きれいなコピーで CMake のビルドとテストが通る。B9 は autotools でも警告なしでビルドできる。
+
+**見つけたこと**
+- `origin/feature/json-reformat` (§7.9) は、消えた `parser_json.cpp` (nlohmann/json を使う古いパーサ) への変更で、今の `parser_simdjson.cpp` にない内容は残っていない。取り込まない。同梱の `rcss/rcg/nlohmann/json.hpp` は、どこからも使われていない。
+- テキストの show の解析は、選手の部分の数値が読めたかを確かめていない (途中で切れた行は、選手の数の検査で捕まる)。ボールと `unum` だけを直した。
+- 速さは変わらない。アプリの `parsing elapsed` (offscreen、3 回、libdeflate あり) は、CMake で JSON 69〜72 ms、テキスト 59〜61 ms、autotools で 67〜73 ms、59〜61 ms (まとまり B の前は 63〜76 / 59〜64 ms)。
+
+#### 2026-11-12: ユーザの確認と、使われていないファイルの削除
+
+- まとまり B の 10 コミット (0bf9ee3〜caf490b) をプッシュした。
+- ユーザが実際の画面で確かめた: 読み込みの速さとライブ接続は OK。視界の質 (`vq`、B2) は、rcssmonitor のどの表示にも使われていない (`src/` に `view_quality_` を使う箇所がない) ので、画面では確かめられない。B2 はパーサのテストで確かめた。
+- ユーザの決定: 使われていない `rcss/rcg/nlohmann/json.hpp` (古い JSON パーサ用) と `src/gzfstream.{h,cpp}` (まとまり A から使っていない) を消す。あわせて、`main_window.cpp` に残っていた中身のない `#ifdef HAVE_LIBZ` を消し、ファイルを開くダイアログの `*.rcg.gz` を、zlib がなく libdeflate だけのときにも出す。

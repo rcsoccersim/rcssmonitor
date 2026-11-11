@@ -125,9 +125,10 @@ public:
 
     /*!
       \brief update the time stamp information
-      \param timestamp string
+      \param timestamp string, as the log has it (e.g. "2024-03-19T18:13:33+0900")
       \return result status
      */
+    virtual
     bool handleTimestamp( const std::string & timestamp )
       {
           M_timestamp = timestamp;

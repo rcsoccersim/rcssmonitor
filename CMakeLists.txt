@@ -43,6 +43,19 @@ if(ZLIB_FOUND)
   set(HAVE_LIBZ TRUE)
 endif()
 
+# check libdeflate (optional): decompresses gzip game logs faster than zlib
+option(ENABLE_LIBDEFLATE "Use libdeflate to decompress game logs, if it is found" ON)
+if(ENABLE_LIBDEFLATE)
+  find_path(LIBDEFLATE_INCLUDE_DIR libdeflate.h)
+  find_library(LIBDEFLATE_LIBRARY NAMES deflate libdeflate)
+  if(LIBDEFLATE_INCLUDE_DIR AND LIBDEFLATE_LIBRARY)
+    set(HAVE_LIBDEFLATE TRUE)
+    message(STATUS "Found libdeflate: ${LIBDEFLATE_LIBRARY}")
+  else()
+    message(STATUS "libdeflate not found. Game logs are decompressed with zlib.")
+  endif()
+endif()
+
 
 # generate config.h
 add_definitions(-DHAVE_CONFIG_H)

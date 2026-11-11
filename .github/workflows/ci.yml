@@ -21,7 +21,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            build-essential cmake qtbase5-dev zlib1g-dev
+            build-essential cmake qtbase5-dev zlib1g-dev libdeflate-dev
       - name: Configure
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
       - name: Build
@@ -32,7 +32,9 @@ jobs:
           QT_QPA_PLATFORM: offscreen
 
   # autotools stays on Qt5 (D3). Build it so that a source file missing
-  # from the Makefile.am files is caught.
+  # from the Makefile.am files is caught. It is built without libdeflate,
+  # which the CMake job uses, so that both ways of reading a gzip game log
+  # are compiled.
   autotools-qt5:
     name: autotools, Qt5
     runs-on: ubuntu-26.04

@@ -1,7 +1,6 @@
 
 # The application except main(), as a library that the unit tests link too.
 add_library(rcssmonitor_core STATIC
-  gzfstream.cpp
   angle_deg.cpp
   ball_painter.cpp
   circle_2d.cpp
@@ -10,6 +9,7 @@ add_library(rcssmonitor_core STATIC
   draw_info_painter.cpp
   field_canvas.cpp
   field_painter.cpp
+  game_log_file.cpp
   line_2d.cpp
   log_player.cpp
   log_player_slider.cpp
@@ -47,6 +47,11 @@ target_link_libraries(rcssmonitor_core
 #  Boost::program_options Boost::system
   ZLIB::ZLIB
   )
+
+if(HAVE_LIBDEFLATE)
+  target_include_directories(rcssmonitor_core PRIVATE ${LIBDEFLATE_INCLUDE_DIR})
+  target_link_libraries(rcssmonitor_core PRIVATE ${LIBDEFLATE_LIBRARY})
+endif()
 
 target_compile_definitions(rcssmonitor_core
   PUBLIC

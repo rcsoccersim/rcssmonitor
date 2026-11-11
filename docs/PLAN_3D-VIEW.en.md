@@ -7,7 +7,7 @@
 | Reference implementation | rcssmonitor-web 20.0.0-beta.2 (tag `v20.0.0-beta.2`, ed36941). Its working tree is `../rcssmonitor-web`, next to this repository |
 | Server referred to | The asio version of rcssserver 19.x. Its working tree is `../rcssserver` (branch `feature/asio-migration`), next to this repository |
 | Japanese version | [PLAN_3D-VIEW.md](PLAN_3D-VIEW.md) (same content; §0.1) |
-| Status | Phase 0 (started 2026-11-11) |
+| Status | Phase 2 (started 2026-11-12). The 3D prototype of Phase 0 is discussed later |
 
 ## 0. How to use this plan
 
@@ -116,7 +116,7 @@ Option B (drop it) was decided on 2026-11-11. Option A was tried in Phase 0 and 
 | `src/options.cpp` | Settings, saved to `~/.rcssmonitor.conf` with `QSettings`. The command line options are here too |
 | `src/config_dialog.cpp` | Settings dialog (Show, Canvas, Color, Font tabs) |
 | `src/player_type_dialog.cpp` | Player type list |
-| `rcss/rcg/` | Parsing of logs and messages. `parser_simdjson.cpp` (JSON, uses the bundled simdjson), `parser_v1–v4.cpp`, `types.cpp` (parameter defaults), `util.cpp` (play mode names, etc.). `nlohmann/json.hpp` is also bundled |
+| `rcss/rcg/` | Parsing of logs and messages. `parser_simdjson.cpp` (JSON, uses the bundled simdjson), `parser_v1–v4.cpp`, `types.cpp` (parameter defaults), `util.cpp` (play mode names, etc.). `nlohmann/json.hpp` was also bundled (unused; deleted in Phase 2) |
 | `test/` | Not on develop (no unit tests). `feature/support-tcp-ws` has the Qt Test `test_message_splitter.cpp`. This plan added `test_rcg_parser.cpp` and fixtures (`test/data/`) on `feature/ci` (§14) |
 
 ### 3.2 Build
@@ -151,7 +151,7 @@ Option B (drop it) was decided on 2026-11-11. Option A was tried in Phase 0 and 
 - `master` (42848cd, 19.0.1): develop plus the AppImage workflow of PR #59, `utils/appimage/`, and `.gitignore` (§3.2). Otherwise the same as develop.
 - `feature/support-tcp-ws` (45bca98): develop (01f880a) plus 5 commits for the TCP / WebSocket support. Not merged (D7). Has the plan `docs/TRANSPORT_PLAN.md` (not in the repository).
 - `feature/ci`: the first branch of this plan (§9.1). Created from develop (01f880a) on 2026-11-11.
-- `origin/feature/json-reformat` (2024-03): 2 commits that adapt the old parser `rcss/rcg/parser_json.cpp` and `parser.cpp` to the new JSON format. The current develop uses `parser_simdjson.cpp`, so check the content and decide whether to take it into the §7 work or discard it.
+- `origin/feature/json-reformat` (2024-03): 2 commits that adapt the old parser `rcss/rcg/parser_json.cpp` and `parser.cpp` to the new JSON format. The current develop uses `parser_simdjson.cpp`, so check the content and decide whether to take it into the §7 work or discard it. → Not taken (Phase 2, §14).
 - `origin/develop_observation` (2022-11) and `origin/fix/qt-asprintf` (merged into master) are unrelated to this plan.
 
 ### 3.5 When merging the TCP / WebSocket support later
@@ -398,23 +398,24 @@ From the web version's `docs/parity.md` §7. The line numbers were checked on de
 
 - Fix them one at a time, with a unit test where possible (Qt Test; parsing bugs with fixtures, drawing bugs by extracting the calculation and checking it).
 - Phase 1 (2026-11-11, `fix/parity-bugs`) fixed B1, B5, and B9–B14. All but B10 have tests (§14).
+- Phase 2 (2026-11-12, `feature/json-parser`) fixed B2–B4 and B6–B8, all with tests (§14).
 - If merging into master is urgent, the bug fixes alone can go first as a separate PR.
 
 ## 7. JSON parser improvements
 
 The targets are `rcss/rcg/parser_simdjson.cpp` (logs) and the live JSON messages (the same parser, used from `disp_holder.cpp`). Align with the web version's `src/io/rcg-json.ts` and `docs/protocol.md` §3 and §7.
 
-1. Skip unknown keys (B3), so that logs can still be read when the server adds fields in the future.
-2. Store `vq` as `'h'` / `'l'` (B2).
-3. Store players by `side` and `unum` (B4), so that missing array elements and a different order are tolerated.
-4. Read the log as one record per line. When the server terminates abnormally the final `]` is missing, so skip the `[` and `]` lines and strip the trailing `,`. If a line is broken, skip only that line and warn.
-5. Accept fields that may be omitted: `stime` (only when greater than 0), `px` / `py` (only while pointing), `fside` / `fnum` (only with an attentionto), `pen_score` / `pen_miss` (only for teams that took penalty kicks), `null` team names (before connection), `capacity`.
-6. Read the ball height `ball.z` and the vertical velocity `ball.vz` if present (for the 2.5D simulator; units m and m/cycle, up is positive. The key names are tentative and will follow the server format once it is decided). Add them to `BallT` in `types.h`.
-7. Handle `timestamp` (`%FT%T%z`, offset without a colon) without breaking it. The current parser skips `version` and `timestamp` and does not pass them to the handler (`parseVersion` and `parseTimestamp` are empty; checked on 2026-11-11). Pass both to the handler (`handleServerVersion`, `handleTimestamp`).
-8. Measure the speed: compare the load time of a full-game JSON log (`1-json.rcg.gz` placed at the top of the working tree, 6,209 frames; not in the repository) before and after the improvements, and record it in §14. The web version takes about 0.3–0.5 s in a browser.
-9. Check the content of `origin/feature/json-reformat` (the old parser's support for the new format) and take anything that does not overlap with the above.
-10. Also fix the text rcg bugs B6 and B8 at this stage.
-11. Decide whether to update the bundled simdjson (3.8.0, with three lines of the 3.10.0 fix applied so that it builds with GCC 15; §14) to a newer release (the latest in 2026-11 is 5.1.1).
+1. Skip unknown keys (B3), so that logs can still be read when the server adds fields in the future. → Done in B-1 of Phase 2 (§14).
+2. Store `vq` as `'h'` / `'l'` (B2). → Done in B-2.
+3. Store players by `side` and `unum` (B4), so that missing array elements and a different order are tolerated. → Done in B-3.
+4. Read the log as one record per line. When the server terminates abnormally the final `]` is missing, so skip the `[` and `]` lines and strip the trailing `,`. If a line is broken, skip only that line and warn. → Done in A4 of Phase 2 (§14).
+5. Accept fields that may be omitted: `stime` (only when greater than 0), `px` / `py` (only while pointing), `fside` / `fnum` (only with an attentionto), `pen_score` / `pen_miss` (only for teams that took penalty kicks), `null` team names (before connection), `capacity`. → Done in B-4.
+6. Read the ball height `ball.z` and the vertical velocity `ball.vz` if present (for the 2.5D simulator; units m and m/cycle, up is positive. The key names are tentative and will follow the server format once it is decided). Add them to `BallT` in `types.h`. → Done in B-5.
+7. Handle `timestamp` (`%FT%T%z`, offset without a colon) without breaking it. The current parser skips `version` and `timestamp` and does not pass them to the handler (`parseVersion` and `parseTimestamp` are empty; checked on 2026-11-11). Pass both to the handler (`handleServerVersion`, `handleTimestamp`). → Done in B-6.
+8. Measure the speed: compare the load time of a full-game JSON log (`1-json.rcg.gz` placed at the top of the working tree, 6,209 frames; not in the repository) before and after the improvements, and record it in §14. The web version takes about 0.3–0.5 s in a browser. → Measured in Phase 2 (§14).
+9. Check the content of `origin/feature/json-reformat` (the old parser's support for the new format) and take anything that does not overlap with the above. → There was nothing to take (§14).
+10. Also fix the text rcg bugs B6 and B8 at this stage. → Done in B-7 and B-8. B7 (the parameter defaults) is B-9.
+11. Decide whether to update the bundled simdjson (3.8.0, with three lines of the 3.10.0 fix applied so that it builds with GCC 15; §14) to a newer release (the latest in 2026-11 is 5.1.1). → Updated to 5.1.1 (A2 of Phase 2, §14).
 
 Tests: with fixtures (a short excerpt of `1-json.rcg.gz`, broken lines, unknown keys, swapped player order, a missing final `]`), check the number of frames, the values in specific frames, and the sequence of play modes. Models: the web version's `test/unit/rcg-json.test.ts`, `rcg-text.test.ts`, and `full-logs.test.ts`.
 
@@ -557,6 +558,7 @@ Port the GL-independent calculations, using the web version's unit tests as mode
 ### 10.3 Manual checks
 
 - fps on a real GPU (build a mechanism that logs the drawing time).
+- The loading speed of logs is measured with `test/bench_load` (not run in CI; §14). In an environment with conda or the like in `PATH` or `LD_LIBRARY_PATH`, the build and the run pick up another Qt or zlib, so build and measure without them.
 - Live connection with asio rcssserver (UDP; TCP / WebSocket after merging). Set `RCSS_CONF_DIR` and `HOME` to temporary directories (§0.1).
 - Appearance with full-game logs (`1-json.rcg.gz` and `202207160432-HELIOS2022_1-vs-CYRUS_0.rcg.gz` placed at the top of the working tree; not in the repository). Compare side by side with the web version.
 
@@ -589,6 +591,9 @@ Port the GL-independent calculations, using the web version's unit tests as mode
 | `overlay_math.{h,cpp}` | Overlay calculations shared by 2D and 3D (moved from the 2D painters). Created in `src/` in Phase 1, with the offside lines |
 | `play_mode_position.{h,cpp}` | The ball position for Change Playmode (Phase 1; also used by the 3D referee operations) |
 | `player_type_sort_proxy.h` | Sorting of the player type list (Phase 1) |
+| `game_log_file.{h,cpp}` | Reading a log file into one buffer and parsing it. With libdeflate, gzip is decompressed with it (Phase 2) |
+| `rcss/rcg/line_parser.{h,cpp}` | Parsing the lines of a log in parallel and passing them to the handler in order (Phase 2) |
+| `test/bench_load.cpp` | Measuring the loading speed (Phase 2; not run in CI) |
 | `stadium_3d`, `scenery_3d`, `ball_3d`, `ball_aids_3d` | Components |
 | `figures_3d`, `pose`, `gltf_model` | Figures |
 | `hud_3d`, `guides` | HUD, compass strip, minimap |
@@ -753,3 +758,119 @@ After PR #63 (`feature/ci`) was merged into develop with a merge commit, the use
 - `PLAYMODE_STRINGS` has two empty strings after the last play mode: 54 entries, two more than `PM_MAX` (52).
 - `Options` is a static variable in `instance()`; it reads `~/.rcssmonitor.conf` when created (writing it if missing) and writes it when the program exits (`writeSettings(false)`: all but the window size). It writes it even when exiting after `--version`.
 - On 2026-11-11 at 15:27, the installed `rcssmonitor --version` (run to check the AppImage) was run without setting `HOME` to a temporary directory, and it rewrote the user's `~/.rcssmonitor.conf` (against §0.1). It writes back the values it read, so the content is expected to be unchanged (items missing from the file may have been added with defaults, and the order may have changed). This was reported to the user, and §0.1 now says "the same for `--version`".
+
+#### 2026-11-12: The user's checks and the merge
+
+- PR #64 (`fix/parity-bugs`) was merged into develop with a merge commit (c269eee). CI on develop passed too.
+- The user checked with real logs and live: B9, B10, B11, B12, B13, and B14 are all OK. B1 was checked by running fast with synch_mode: past about 65,535 frames, the oldest frames were dropped at once.
+- The completion conditions of Phase 1 (a test per bug, CI, checks with real logs) are met.
+
+### Phase 2
+
+#### 2026-11-12: Faster loading (`feature/json-parser`, batch A)
+
+**Decisions (user)**
+- In Phase 2, besides improving the parsers, update simdjson and make loading faster still (user: it feels slower than the web version).
+- Approach: (1) read the file into one buffer and parse from memory, (2) read JSON as one record per line, (3) parse the lines in parallel, (4) thin out the progress display, (5) update simdjson to 5.x. libdeflate (faster decompression) is decided after measuring with zlib. Loading in another thread (the window not freezing while loading) is left for later.
+- The work is split into batch A (speed) and batch B (robustness: B2–B4, B6–B8, and the rest of §7), and the commit messages are confirmed per batch.
+
+**Measured (before)**
+- The app's `parsing elapsed` (decompression and parsing): offscreen, JSON about 378 ms and text about 222 ms. The user on a real screen: JSON 371 ms, text 220 ms.
+- Breakdown (JSON 53.6 MB, 6,209 frames / text v5 28.7 MB, 8,406 frames): decompression through `gzifstream` 139 / 81 ms (65 / 46 ms with zlib's `gzread`, 1 MB at a time). The whole-text copy through `istreambuf_iterator` inside the JSON parser 99 ms. Parsing and storing about 100 / 80 ms. The progress display about 150 / 90 ms (updated every 32 cycles, and `processEvents()` every 512 cycles repaints the app's window).
+- The web version parses in a Worker and shows the progress in the status bar (the page does not freeze). It does not show frames while loading.
+
+**Built (one commit each, in order; times are the best of 5 runs of `bench_load`, without the progress display)**
+
+| Stage | Content | JSON | Text |
+|---|---|---|---|
+| A1 | The benchmark `test/bench_load` (reads the same way as the app and prints the best time; `--progress` adds the progress dialog) | 235 ms | 130 ms |
+| A2 | simdjson 5.1.1 (the GCC 15 fix put into 3.8.0 is upstream) | 222 ms | 130 ms |
+| A3 | Read the file into one buffer with `gzread` (`src/game_log_file`). Added the in-memory entry points `Parser::create( data, size )` and `parse( data, size, handler )`. JSON makes only one copy, into simdjson | 179 ms | 121 ms |
+| A4 | Parse JSON as one record per line, in place (no copy). The `[` and `]` lines and the trailing `,` are skipped, so a log without its last `]` is read. A line that cannot be parsed is skipped with a warning (§7 item 4) | 151 ms | — |
+| A5 | Read the text format from memory line by line as well (without `std::getline`) | — | 122 ms |
+| A6 | Parse the lines in parallel (`rcss/rcg/line_parser`): up to 8 threads, at least 1,024 lines per thread. Each thread passes its data to a recording handler, and afterwards the records go to the real handler in the order of the lines | 84 ms | 60 ms |
+| A7 | Thin out the progress display (`RCGHandler`) to every 100 ms, and show it only when loading takes longer than 0.5 s | — | — |
+
+**Result (the app's `parsing elapsed`, offscreen, 3 runs)**: JSON 275–365 ms → 85–118 ms, text 214–216 ms → 93–102 ms. The app reads only once, which is 30–35 ms slower than later reads (the first allocation of large memory, starting threads, etc.; `bench_load -n 1` gives 94–110 / 91–96 ms). Most of the remaining time is decompression (zlib, which cannot run in parallel).
+
+**Tests**
+- Test `rcg_parser`: the in-memory entry points (text, JSON), a missing last `]`, broken lines, JSON on one line (parsed as a whole document), CR LF, and large logs (5,000 frames; the parallel path) keeping the order of the shows and play modes, stopping at an illegal text line, and skipping a broken JSON line.
+- Test `line_parser` (new): `split_lines`, the order of 20,000 lines, the numbers of the failed lines (including an exception), and not passing the later blocks when stopping at the first failure. Replaying the blocks in reverse was confirmed to fail.
+- Test `game_log_file` (new): an uncompressed file, a gzip over 1 MB, a missing file, and reading and parsing a gzip log.
+- All 9 tests pass. The A4 tests were confirmed to fail when going back to the whole-document reading of A3.
+
+**Found**
+- In the terminal of this work, conda (`anaconda3/envs/catboost`) is in `PATH` and `~/local/lib` etc. in `LD_LIBRARY_PATH`, and CMake picked up conda's Qt and zlib. The speed was measured again with a build and run without them (the system Qt 5.15.13 and zlib; §10.3). The values were about the same.
+- `perf` cannot be used because of `perf_event_paranoid=4`. The time of each step was measured with the benchmark programs.
+- In simdjson 5.1.1, `simdjson.h` is 10 MB (3.8 MB in 3.8.0). Compile times: `simdjson.cpp` 3.5 → 9.6 s, `parser_simdjson.cpp` 6.4 → 7.7 s. Not using the return value of `get_string()` now warns, which was fixed. The license differs only in the year.
+- The app no longer uses `gzfstream` (`gzifstream`). The files are kept (whether to delete them is decided later). → Deleted later (below).
+- The file path is passed with `QFile::encodeName()` instead of `toLatin1()` (paths with Japanese characters open too).
+- The version in the text header is read with `std::atoi` instead of `std::stoi` (no exception for a broken header such as `ULGx`).
+- As JSON is now read line by line, a record that cannot be parsed (including one with an unknown key; B3) skips only that line (before, the whole parse stopped). B3 will skip only the unknown keys.
+- `Handler::handleTimestamp()` is not virtual, so the recording handler of the parallel path cannot record it. Fix it with §7 item 7 (passing the timestamp to the handler).
+- In the parallel path, the return values of the handler's functions are not used (the app's handler always returns true).
+
+#### 2026-11-12: libdeflate (`feature/json-parser`)
+
+The 8 commits of batch A (d36e1a9 to 8b9d510) were pushed. CI passed both CMake and autotools. The warnings of the bundled simdjson (9 of `-Wtemplate-id-cdtor`) are gone with 5.1.1, and there are no compiler warnings. The CI run when the branch was created (c269eee) failed because the runner could not resolve `security.ubuntu.com` and could not install the packages (unrelated to the code).
+
+**Decided (user)**
+- Use libdeflate as an optional dependency to decompress faster (without it, zlib alone works).
+
+**Measured (before)**: Decompression alone: zlib (`gzread`, 1 MB at a time) JSON 69 ms, text 48 ms. libdeflate (read the file, decompress at once) 34 ms, 22 ms (including reading, 7.5 ms and 6.5 ms).
+
+**Made**
+- `src/game_log_file.cpp`: With libdeflate, the file is read as it is and, if gzip, decompressed at once. The output size comes from the ISIZE at the end, and is doubled when it is not enough (up to the largest deflate ratio, 1032:1). Concatenated gzip members are read, and bytes that are not gzip after a member are ignored, as zlib does. Data that libdeflate cannot decompress (cut in the middle) are read again on the zlib path. zlib reads a gzip that is cut in the middle up to the cut (a log of a server that stopped abnormally; §7 item 4).
+- CMake: `ENABLE_LIBDEFLATE` (default ON). If found, `HAVE_LIBDEFLATE` is defined (searched with `find_path` and `find_library`, because libdeflate on older distributions has no CMake config file). autotools: `--with-libdeflate` (by default it is used if found; `--without-libdeflate` does not use it; `--with-libdeflate` fails if it is not found). The library is added only to the app, with `LIBDEFLATE_LIBS` (in the global `LIBS`, it would also go into the test link of `AX_HAVE_QT`, which checks Qt).
+- CI: the CMake job installs `libdeflate-dev` and the autotools job does not (both paths are compiled). README says it is an optional dependency.
+
+**Results (the app's `parsing elapsed`, offscreen, 3 runs)**
+
+| Build | JSON | Text |
+|---|---|---|
+| CMake, zlib only | 91–119 ms | 95–100 ms |
+| CMake, libdeflate | 63–76 ms | 59–60 ms |
+| autotools, zlib only | 117–119 ms | 76–106 ms |
+| autotools, libdeflate | 76–77 ms | 59–64 ms |
+
+`bench_load` (best of 5): zlib only 84–117 / 60 ms, libdeflate 53–74 / 33–42 ms.
+
+**Tests**
+- Added to test `game_log_file`: a gzip of several members (the last member is small, so the size from ISIZE is not enough and the growing path is taken), a gzip cut in the middle (read up to the cut), and extra bytes after the gzip.
+- Checked on clean copies: CMake without and with libdeflate, and autotools in 3 cases (used if found, `--without-libdeflate`, and `--with-libdeflate` when it is missing). In both CMake builds, all 9 tests pass.
+- As a failure falls back to zlib, passing tests alone do not show that the libdeflate path was taken. With a temporary print, it was confirmed that a plain gzip, several members, and extra bytes are read with libdeflate, and a cut one with zlib.
+- `libdeflate-dev` is not installed on the work machine, so the package fetched with `apt-get download` was extracted into a temporary directory and used (the library is the system's `libdeflate.so.0`).
+
+#### 2026-11-12: Making the parsers robust (`feature/json-parser`, batch B)
+
+After pushing the 2 libdeflate commits (e0e21ef, 6328ac9), the rest of §7 and B2–B4, B6–B8 were fixed.
+
+**Made (one commit each, in order)**
+
+| Step | Content | Tests (`rcg_parser` etc.) |
+|---|---|---|
+| B-1 | JSON: skip unknown records and keys (B3). An unknown key is reported once in a process (on a live connection it is in every message). When reading a whole document, a record that cannot be read is also skipped and the parse goes on. The live entry point (`ParserSimdJSON::parseData`) catches simdjson's exceptions (before, it did not, and a broken message could crash the app; protocol.md §3.6: the server may send invalid JSON, e.g. with a newline in a string) | an unknown record, an unknown key and a known key in a record, unknown keys in a show and in a player (one record per line and whole document), a record that cannot be read in a whole document, broken live messages |
+| B-2 | JSON: store `vq` as `'h'` / `'l'` (B2) | a player with `vq` `"l"` |
+| B-3 | JSON: store players by `side` and `unum` (B4). An illegal player is skipped, and of a duplicated one, the last is kept | reversed order, a missing player, illegal side and unum, a duplicated player |
+| B-4 | JSON: accept fields that may be omitted (§7.5). Only the show's `time` and `ball` and the player's `side` and `unum` are required; any other missing field keeps the default of `PlayerT` (the "no value" mark). Before, one missing field such as `capacity` lost that player and those after it, and a missing ball velocity dropped the whole show. The team in a show gets the show's time (was -1). A show is no longer dropped when its team cannot be read | a live-style show (with the mode and the teams, without the command counts), players without `capacity`, `px`, `fside` etc., `stime`, `pen_*`, `null` team names, a msg without `time` |
+| B-5 | JSON: read the ball's `z` and `vz` if present (§7.6). Added `z_` and `vz_` (default 0) to `BallT` | shows with and without the height |
+| B-6 | JSON: pass `version` and `timestamp` to the handler (§7.7). `Handler::handleTimestamp()` is now virtual, so that the recording handler of the parallel path records it | both sequential and parallel |
+| B-7 | Text: read the strings of a team graphic at any length (B6). An XPM with 2 characters per pixel (16 characters for 8 pixels) was broken | an XPM with 16-character rows, the server's layout |
+| B-8 | Text: skip the lines that cannot be read and go on (B8). A failure of parsing a show etc. also counts as a skipped line, and the first 10 line numbers and the total are printed (`report_skipped`, as for JSON). An empty line is just skipped. A `null` in a team line is an empty team name. A show line whose 4 ball values cannot be read is skipped (they were read as 0). A player with `unum` 0 wrote to `player_[-1]`; fixed. `parse_lines`'s "stop at the first failure" is no longer used and was removed | an illegal line, an empty line, an unknown record, a show with a broken ball, a show cut in the middle, a show with `unum` 0, a `null` team name |
+| B-9 | Align the parameter defaults with the asio-based rcssserver 19.0.0 (B7; the web version's `param-defaults.ts`): 33 server_param, 8 player_param, and 4 player_type values (`dash_power_rate` 0.06 was a typo of 0.006; `team_far_length` became the pitch diagonal 125.096 in 2022). Added `tcp_port`, `tcp_coach_port`, `tcp_olcoach_port`, `ws_port`, and `ws_allowed_origins`, which the TCP / WebSocket servers send ("Unsupported parameter" was printed). Fixed `PlayerTypeT`'s output, which wrote the value of `dist_noise_rate` for all four v19 noise rates | new test `rcg_types` |
+
+**Tests**
+- All 10 tests pass. Each step's tests were confirmed to fail when going back to the file before the fix, or when only the fixed part was turned back to the old behavior. At first, with one record per line, skipping a whole line with an unknown record gave the same result, and there was no test of a record that cannot be read in a whole document, so those two tests were added.
+- The two full-game logs were read with the parser at the end of batch A and with the current one, and everything passed to the handler (all show fields, play modes, teams, messages, team graphics) was written out and compared. The only differences are JSON's `vq` values (the bool 1 was stored as a character before) and that `version` and `timestamp` are now passed.
+- Every step B1–B9 builds and passes its tests with CMake from a clean copy. B9 also builds with autotools without warnings.
+
+**Found**
+- `origin/feature/json-reformat` (§7.9) changes `parser_json.cpp` (the old parser using nlohmann/json), which no longer exists, and nothing that the current `parser_simdjson.cpp` lacks is left. Not taken. The bundled `rcss/rcg/nlohmann/json.hpp` is used by nothing.
+- The text show parser does not check that the numbers of the player part were read (a line cut in the middle is caught by the check of the number of players). Only the ball and `unum` were fixed.
+- The speed is unchanged. The app's `parsing elapsed` (offscreen, 3 runs, with libdeflate): CMake JSON 69–72 ms, text 59–61 ms; autotools 67–73 ms, 59–61 ms (before batch B: 63–76 / 59–64 ms).
+
+#### 2026-11-12: The user's checks, and deleting unused files
+
+- The 10 commits of batch B (0bf9ee3 to caf490b) were pushed.
+- The user checked on the actual screen: the loading speed and the live connection are OK. The view quality (`vq`, B2) is not used by any display of rcssmonitor (nothing in `src/` uses `view_quality_`), so it cannot be checked on the screen. B2 was checked with the parser tests.
+- Decided (user): delete the unused `rcss/rcg/nlohmann/json.hpp` (for the old JSON parser) and `src/gzfstream.{h,cpp}` (unused since batch A). With it, the empty `#ifdef HAVE_LIBZ` left in `main_window.cpp` is deleted, and the file dialog offers `*.rcg.gz` also with libdeflate alone, without zlib.
