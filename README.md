@@ -15,6 +15,7 @@ In the case of Ubuntu 16.04 - 20.04, execute the following command:
 ```bash
 sudo apt install build-essential qt5-default libfontconfig1-dev libaudio-dev libxt-dev libglib2.0-dev libxi-dev libxrender-dev
 ```
+To load gzip-compressed game logs (`.rcg.gz`), zlib (`zlib1g-dev`) is needed. libdeflate (`libdeflate-dev`) is optional: if it is found, gzip game logs are loaded faster. To build without it, pass `--without-libdeflate` to `configure`, or `-DENABLE_LIBDEFLATE=OFF` to CMake.
 
 Then, clone the repository. From its directory, execute commands:
 

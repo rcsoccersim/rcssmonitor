@@ -49,6 +49,11 @@ target_link_libraries(rcssmonitor_core
   ZLIB::ZLIB
   )
 
+if(HAVE_LIBDEFLATE)
+  target_include_directories(rcssmonitor_core PRIVATE ${LIBDEFLATE_INCLUDE_DIR})
+  target_link_libraries(rcssmonitor_core PRIVATE ${LIBDEFLATE_LIBRARY})
+endif()
+
 target_compile_definitions(rcssmonitor_core
   PUBLIC
   HAVE_CONFIG_H

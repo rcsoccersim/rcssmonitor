@@ -82,6 +82,48 @@ writeGzip( const std::string & path,
     gzclose( file );
     return n == static_cast< int >( data.size() );
 }
+
+/*!
+  \brief write data as a file, as they are.
+*/
+bool
+writePlain( const std::string & path,
+            const std::string & data )
+{
+    std::ofstream fout( path, std::ios::binary );
+    fout.write( data.data(), static_cast< std::streamsize >( data.size() ) );
+    return static_cast< bool >( fout );
+}
+
+/*!
+  \brief compress data as gzip, in memory.
+*/
+std::string
+gzipBytes( const QTemporaryDir & dir,
+           const std::string & data )
+{
+    const std::string path = dir.filePath( "bytes.gz" ).toStdString();
+    if ( ! writeGzip( path, data ) )
+    {
+        return std::string();
+    }
+    return readPlain( path );
+}
+
+/*!
+  \brief data larger than the 1 MB chunk of zlib.
+*/
+std::string
+largeLog()
+{
+    std::string data;
+    const std::string one = readPlain( dataPath( "head_json.rcg" ) );
+    while ( data.size() < 3 * 1024 * 1024 )
+    {
+        data += one;
+    }
+    return data;
+}
 #endif
 
 }
@@ -97,6 +139,9 @@ private slots:
 
     void readPlainFile();
     void readGzipFile();
+    void readConcatenatedGzipFile();
+    void readTruncatedGzipFile();
+    void readGzipFileWithTrailingBytes();
     void readMissingFile();
     void loadGzipFile();
 };
@@ -126,19 +171,89 @@ TestGameLogFile::readGzipFile()
     QTemporaryDir dir;
     QVERIFY( dir.isValid() );
 
-    std::string original;
-    const std::string one = readPlain( dataPath( "head_json.rcg" ) );
-    while ( original.size() < 3 * 1024 * 1024 )
-    {
-        original += one;
-    }
-
+    const std::string original = largeLog();
     const std::string path = dir.filePath( "large.rcg.gz" ).toStdString();
     QVERIFY( writeGzip( path, original ) );
 
     std::string data;
     QVERIFY( readGameLogFile( path, &data ) );
     QCOMPARE( data.size(), original.size() );
+    QVERIFY( data == original );
+#else
+    QSKIP( "built without zlib" );
+#endif
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  A gzip file of more than one member is read to the end. The last member
+  is small, so its size in the trailer is smaller than the data.
+*/
+void
+TestGameLogFile::readConcatenatedGzipFile()
+{
+#ifdef HAVE_LIBZ
+    QTemporaryDir dir;
+    QVERIFY( dir.isValid() );
+
+    const std::string first = largeLog();
+    const std::string second = readPlain( dataPath( "head_v5.rcg" ) );
+    const std::string path = dir.filePath( "concatenated.rcg.gz" ).toStdString();
+    QVERIFY( writePlain( path, gzipBytes( dir, first ) + gzipBytes( dir, second ) ) );
+
+    std::string data;
+    QVERIFY( readGameLogFile( path, &data ) );
+    QCOMPARE( data.size(), first.size() + second.size() );
+    QVERIFY( data == first + second );
+#else
+    QSKIP( "built without zlib" );
+#endif
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  A gzip file that ends in the middle (the server stopped abnormally) is
+  read up to there.
+*/
+void
+TestGameLogFile::readTruncatedGzipFile()
+{
+#ifdef HAVE_LIBZ
+    QTemporaryDir dir;
+    QVERIFY( dir.isValid() );
+
+    const std::string original = largeLog();
+    const std::string compressed = gzipBytes( dir, original );
+    const std::string path = dir.filePath( "truncated.rcg.gz" ).toStdString();
+    QVERIFY( writePlain( path, compressed.substr( 0, compressed.size() / 2 ) ) );
+
+    std::string data;
+    QVERIFY( readGameLogFile( path, &data ) );
+    QVERIFY( data.size() > original.size() / 4 );
+    QVERIFY( data.size() < original.size() );
+    QVERIFY( data == original.substr( 0, data.size() ) );
+#else
+    QSKIP( "built without zlib" );
+#endif
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  Bytes that are not gzip after the gzip data are ignored, as zlib does.
+*/
+void
+TestGameLogFile::readGzipFileWithTrailingBytes()
+{
+#ifdef HAVE_LIBZ
+    QTemporaryDir dir;
+    QVERIFY( dir.isValid() );
+
+    const std::string original = readPlain( dataPath( "head_v5.rcg" ) );
+    const std::string path = dir.filePath( "trailing.rcg.gz" ).toStdString();
+    QVERIFY( writePlain( path, gzipBytes( dir, original ) + std::string( 100, '\0' ) ) );
+
+    std::string data;
+    QVERIFY( readGameLogFile( path, &data ) );
     QVERIFY( data == original );
 #else
     QSKIP( "built without zlib" );

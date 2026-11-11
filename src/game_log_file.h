@@ -49,6 +49,10 @@ class Handler;
 
   The file is read at once into one buffer: decompressing a gzip stream
   through std::istream (gzifstream) and copying it again is much slower.
+  With libdeflate, a gzip file is decompressed in memory at once, a few
+  times faster than with zlib. Data that libdeflate cannot decompress (a
+  file that ends in the middle, as the server stopped abnormally) are
+  read with zlib, which reads them up to where they are broken.
 */
 bool readGameLogFile( const std::string & path,
                       std::string * data );
