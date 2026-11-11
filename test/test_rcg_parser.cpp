@@ -36,6 +36,7 @@
 #include "rcss/rcg/parser.h"
 #include "rcss/rcg/types.h"
 
+#include <algorithm>
 #include <fstream>
 #include <iterator>
 #include <string>
@@ -258,6 +259,20 @@ readFixture( const char * name )
 }
 
 /*!
+  \brief parse JSON log data in memory.
+  \return false if no parser was created or the parse failed.
+*/
+bool
+parseJsonData( const std::string & data,
+               RecordingHandler & handler )
+{
+    rcss::rcg::Parser::Ptr parser = rcss::rcg::Parser::create( data.data(), data.size() );
+    return parser
+        && parser->version() == rcss::rcg::REC_VERSION_JSON
+        && parser->parse( data.data(), data.size(), handler );
+}
+
+/*!
   \brief unit test of the rcg parsers
 */
 class TestRcgParser
@@ -270,6 +285,10 @@ private slots:
     void textV5Memory();
     void json();
     void jsonMemory();
+    void jsonWithoutClosingBracket();
+    void jsonBrokenLines();
+    void jsonOneLine();
+    void jsonCrLf();
 };
 
 /*-------------------------------------------------------------------*/
@@ -347,6 +366,80 @@ TestRcgParser::jsonMemory()
 
     RecordingHandler handler;
     QVERIFY( parser->parse( data.data(), data.size(), handler ) );
+    checkJson( handler );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  A JSON log whose last "]" is missing, with "," after the last record, as
+  rcssserver leaves it when it stops abnormally.
+*/
+void
+TestRcgParser::jsonWithoutClosingBracket()
+{
+    std::string data = readFixture( "head_json.rcg" );
+    const std::size_t bracket = data.rfind( ']' );
+    QVERIFY( bracket != std::string::npos );
+    data.erase( bracket );
+    const std::size_t brace = data.rfind( '}' );
+    data.insert( brace + 1, "," );
+
+    RecordingHandler handler;
+    QVERIFY( parseJsonData( data, handler ) );
+    checkJson( handler );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  The lines that cannot be parsed are skipped, and the others are read.
+*/
+void
+TestRcgParser::jsonBrokenLines()
+{
+    std::string data = readFixture( "head_json.rcg" );
+    // after the show of time 2
+    const std::size_t show2 = data.find( "{\"show\":{\"time\":2," );
+    QVERIFY( show2 != std::string::npos );
+    const std::size_t next = data.find( '\n', show2 ) + 1;
+    data.insert( next, "{\"show\":{\"time\":3,\"ball\":{\"x\":1,\nnot a record\n" );
+
+    RecordingHandler handler;
+    QVERIFY( parseJsonData( data, handler ) );
+    checkJson( handler );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  A log that is not one record per line is parsed as a whole document.
+*/
+void
+TestRcgParser::jsonOneLine()
+{
+    std::string data = readFixture( "head_json.rcg" );
+    data.erase( std::remove( data.begin(), data.end(), '\n' ), data.end() );
+
+    RecordingHandler handler;
+    QVERIFY( parseJsonData( data, handler ) );
+    checkJson( handler );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  The lines may end with CR LF.
+*/
+void
+TestRcgParser::jsonCrLf()
+{
+    const std::string lf = readFixture( "head_json.rcg" );
+    std::string data;
+    for ( const char c : lf )
+    {
+        if ( c == '\n' ) data += '\r';
+        data += c;
+    }
+
+    RecordingHandler handler;
+    QVERIFY( parseJsonData( data, handler ) );
     checkJson( handler );
 }
 
