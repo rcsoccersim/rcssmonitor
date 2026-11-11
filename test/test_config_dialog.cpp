@@ -51,6 +51,7 @@ class TestConfigDialog
 private slots:
 
     void selectFix();
+    void illegalDefenseColor();
 };
 
 /*-------------------------------------------------------------------*/
@@ -75,6 +76,37 @@ TestConfigDialog::selectFix()
     QVERIFY( QMetaObject::invokeMethod( &dialog, "clickSelectFix" ) );
     QCOMPARE( Options::instance().playerSelectType(), Options::SELECT_FIX );
     QCOMPARE( spy.count(), 1 );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  The "Illegal Defense" item of the color list starts from the illegal
+  defense color. It used to start from the pointto color.
+*/
+void
+TestConfigDialog::illegalDefenseColor()
+{
+    DispHolder holder;
+    ConfigDialog dialog( nullptr, holder );
+
+    const QColor illegal_defense = Options::instance().illegalDefensePen().color();
+    const QColor pointto = Options::instance().pointtoPen().color();
+    QVERIFY( illegal_defense != pointto );
+
+    const ColorItem * item = nullptr;
+    for ( const QListWidget * list : dialog.findChildren< QListWidget * >() )
+    {
+        for ( int i = 0; i < list->count(); ++i )
+        {
+            if ( list->item( i )->text() == "Illegal Defense" )
+            {
+                item = dynamic_cast< const ColorItem * >( list->item( i ) );
+            }
+        }
+    }
+
+    QVERIFY( item );
+    QCOMPARE( item->newColor(), illegal_defense );
 }
 
 QTEST_MAIN( TestConfigDialog )
