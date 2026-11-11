@@ -116,7 +116,7 @@ Option B (drop it) was decided on 2026-11-11. Option A was tried in Phase 0 and 
 | `src/options.cpp` | Settings, saved to `~/.rcssmonitor.conf` with `QSettings`. The command line options are here too |
 | `src/config_dialog.cpp` | Settings dialog (Show, Canvas, Color, Font tabs) |
 | `src/player_type_dialog.cpp` | Player type list |
-| `rcss/rcg/` | Parsing of logs and messages. `parser_simdjson.cpp` (JSON, uses the bundled simdjson), `parser_v1–v4.cpp`, `types.cpp` (parameter defaults), `util.cpp` (play mode names, etc.). `nlohmann/json.hpp` is also bundled |
+| `rcss/rcg/` | Parsing of logs and messages. `parser_simdjson.cpp` (JSON, uses the bundled simdjson), `parser_v1–v4.cpp`, `types.cpp` (parameter defaults), `util.cpp` (play mode names, etc.). `nlohmann/json.hpp` was also bundled (unused; deleted in Phase 2) |
 | `test/` | Not on develop (no unit tests). `feature/support-tcp-ws` has the Qt Test `test_message_splitter.cpp`. This plan added `test_rcg_parser.cpp` and fixtures (`test/data/`) on `feature/ci` (§14) |
 
 ### 3.2 Build
@@ -803,7 +803,7 @@ After PR #63 (`feature/ci`) was merged into develop with a merge commit, the use
 - In the terminal of this work, conda (`anaconda3/envs/catboost`) is in `PATH` and `~/local/lib` etc. in `LD_LIBRARY_PATH`, and CMake picked up conda's Qt and zlib. The speed was measured again with a build and run without them (the system Qt 5.15.13 and zlib; §10.3). The values were about the same.
 - `perf` cannot be used because of `perf_event_paranoid=4`. The time of each step was measured with the benchmark programs.
 - In simdjson 5.1.1, `simdjson.h` is 10 MB (3.8 MB in 3.8.0). Compile times: `simdjson.cpp` 3.5 → 9.6 s, `parser_simdjson.cpp` 6.4 → 7.7 s. Not using the return value of `get_string()` now warns, which was fixed. The license differs only in the year.
-- The app no longer uses `gzfstream` (`gzifstream`). The files are kept (whether to delete them is decided later).
+- The app no longer uses `gzfstream` (`gzifstream`). The files are kept (whether to delete them is decided later). → Deleted later (below).
 - The file path is passed with `QFile::encodeName()` instead of `toLatin1()` (paths with Japanese characters open too).
 - The version in the text header is read with `std::atoi` instead of `std::stoi` (no exception for a broken header such as `ULGx`).
 - As JSON is now read line by line, a record that cannot be parsed (including one with an unknown key; B3) skips only that line (before, the whole parse stopped). B3 will skip only the unknown keys.
@@ -868,3 +868,9 @@ After pushing the 2 libdeflate commits (e0e21ef, 6328ac9), the rest of §7 and B
 - `origin/feature/json-reformat` (§7.9) changes `parser_json.cpp` (the old parser using nlohmann/json), which no longer exists, and nothing that the current `parser_simdjson.cpp` lacks is left. Not taken. The bundled `rcss/rcg/nlohmann/json.hpp` is used by nothing.
 - The text show parser does not check that the numbers of the player part were read (a line cut in the middle is caught by the check of the number of players). Only the ball and `unum` were fixed.
 - The speed is unchanged. The app's `parsing elapsed` (offscreen, 3 runs, with libdeflate): CMake JSON 69–72 ms, text 59–61 ms; autotools 67–73 ms, 59–61 ms (before batch B: 63–76 / 59–64 ms).
+
+#### 2026-11-12: The user's checks, and deleting unused files
+
+- The 10 commits of batch B (0bf9ee3 to caf490b) were pushed.
+- The user checked on the actual screen: the loading speed and the live connection are OK. The view quality (`vq`, B2) is not used by any display of rcssmonitor (nothing in `src/` uses `view_quality_`), so it cannot be checked on the screen. B2 was checked with the parser tests.
+- Decided (user): delete the unused `rcss/rcg/nlohmann/json.hpp` (for the old JSON parser) and `src/gzfstream.{h,cpp}` (unused since batch A). With it, the empty `#ifdef HAVE_LIBZ` left in `main_window.cpp` is deleted, and the file dialog offers `*.rcg.gz` also with libdeflate alone, without zlib.

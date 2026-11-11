@@ -116,7 +116,7 @@ Phase 0 の試作 (§9) で、推奨案で「人型 22 体と影を 1920×1080 �
 | `src/options.cpp` | 設定。`QSettings` で `~/.rcssmonitor.conf` に保存。コマンドラインのオプションもここ |
 | `src/config_dialog.cpp` | 設定ダイアログ (Show、Canvas、Color、Font のタブ) |
 | `src/player_type_dialog.cpp` | 選手タイプの一覧 |
-| `rcss/rcg/` | ログとメッセージの解析。`parser_simdjson.cpp` (JSON、同梱の simdjson を使う)、`parser_v1〜v4.cpp`、`types.cpp` (パラメータの既定値)、`util.cpp` (プレイモードの名前など)。`nlohmann/json.hpp` も同梱されている |
+| `rcss/rcg/` | ログとメッセージの解析。`parser_simdjson.cpp` (JSON、同梱の simdjson を使う)、`parser_v1〜v4.cpp`、`types.cpp` (パラメータの既定値)、`util.cpp` (プレイモードの名前など)。`nlohmann/json.hpp` も同梱されていた (使われておらず、Phase 2 で消した) |
 | `test/` | develop にはない (単体テストがない)。`feature/support-tcp-ws` には Qt Test の `test_message_splitter.cpp` がある。この計画では `feature/ci` で `test_rcg_parser.cpp` とフィクスチャ (`test/data/`) を足した (§14) |
 
 ### 3.2 ビルド
@@ -803,7 +803,7 @@ PR #63 (`feature/ci`) を Merge Commit で develop に取り込んだ後、ユ�
 - この作業の端末では conda (`anaconda3/envs/catboost`) が `PATH` に、`~/local/lib` などが `LD_LIBRARY_PATH` に入っていて、CMake が conda の Qt と zlib を拾っていた。速さは、それらを外した環境 (システムの Qt 5.15.13 と zlib) でビルドし、測り直した (§10.3)。値はほぼ同じだった。
 - `perf` は `perf_event_paranoid=4` のため使えない。段階ごとの時間は測定用のプログラムで測った。
 - simdjson 5.1.1 は `simdjson.h` が 10 MB (3.8.0 は 3.8 MB)。コンパイルの時間は `simdjson.cpp` 3.5 → 9.6 秒、`parser_simdjson.cpp` 6.4 → 7.7 秒。`get_string()` の戻り値を使わないと警告が出るので直した。ライセンスの違いは年だけ。
-- アプリは `gzfstream` (`gzifstream`) を使わなくなった。ファイルは残してある (消すかは後で決める)。
+- アプリは `gzfstream` (`gzifstream`) を使わなくなった。ファイルは残してある (消すかは後で決める)。 → 後で消した (下の記録)。
 - ファイルのパスは `toLatin1()` ではなく `QFile::encodeName()` で渡す (日本語を含むパスも開ける)。
 - テキストのヘッダの版を `std::stoi` ではなく `std::atoi` で読む (`ULGx` のような壊れたヘッダで例外が出ない)。
 - JSON を 1 行ずつ読むようにしたので、解析できないレコード (未知のキーを含む。B3) は、その行だけ飛ばす (前は解析全体が止まった)。B3 では、未知のキーだけを飛ばすようにする。
@@ -868,3 +868,9 @@ libdeflate の 2 コミット (e0e21ef、6328ac9) をプッシュした後、§7
 - `origin/feature/json-reformat` (§7.9) は、消えた `parser_json.cpp` (nlohmann/json を使う古いパーサ) への変更で、今の `parser_simdjson.cpp` にない内容は残っていない。取り込まない。同梱の `rcss/rcg/nlohmann/json.hpp` は、どこからも使われていない。
 - テキストの show の解析は、選手の部分の数値が読めたかを確かめていない (途中で切れた行は、選手の数の検査で捕まる)。ボールと `unum` だけを直した。
 - 速さは変わらない。アプリの `parsing elapsed` (offscreen、3 回、libdeflate あり) は、CMake で JSON 69〜72 ms、テキスト 59〜61 ms、autotools で 67〜73 ms、59〜61 ms (まとまり B の前は 63〜76 / 59〜64 ms)。
+
+#### 2026-11-12: ユーザの確認と、使われていないファイルの削除
+
+- まとまり B の 10 コミット (0bf9ee3〜caf490b) をプッシュした。
+- ユーザが実際の画面で確かめた: 読み込みの速さとライブ接続は OK。視界の質 (`vq`、B2) は、rcssmonitor のどの表示にも使われていない (`src/` に `view_quality_` を使う箇所がない) ので、画面では確かめられない。B2 はパーサのテストで確かめた。
+- ユーザの決定: 使われていない `rcss/rcg/nlohmann/json.hpp` (古い JSON パーサ用) と `src/gzfstream.{h,cpp}` (まとまり A から使っていない) を消す。あわせて、`main_window.cpp` に残っていた中身のない `#ifdef HAVE_LIBZ` を消し、ファイルを開くダイアログの `*.rcg.gz` を、zlib がなく libdeflate だけのときにも出す。
