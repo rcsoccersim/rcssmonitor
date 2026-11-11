@@ -24,15 +24,12 @@ add_library(rcssmonitor_core STATIC
   score_board_painter.cpp
   team_graphic.cpp
   team_graphic_painter.cpp
+  tool_icon.cpp
   vector_2d.cpp
   )
 
 target_include_directories(rcssmonitor_core
   PUBLIC
-  ${Qt5Core_INCLUDE_DIRS}
-  ${Qt5Gui_INCLUDE_DIRS}
-  ${Qt5Widgets_INCLUDE_DIRS}
-  ${Qt5Network_INCLUDE_DIRS}
 #  ${Boost_INCLUDE_DIRS}
   ${ZLIB_INCLUDE_DIRS}
   ${PROJECT_BINARY_DIR}
@@ -43,7 +40,10 @@ target_include_directories(rcssmonitor_core
 target_link_libraries(rcssmonitor_core
   PUBLIC
   rcssrcg
-  Qt5::Core Qt5::Gui Qt5::Widgets Qt5::Network
+  Qt${QT_VERSION_MAJOR}::Core
+  Qt${QT_VERSION_MAJOR}::Gui
+  Qt${QT_VERSION_MAJOR}::Widgets
+  Qt${QT_VERSION_MAJOR}::Network
 #  Boost::program_options Boost::system
   ZLIB::ZLIB
   )

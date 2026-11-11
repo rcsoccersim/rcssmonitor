@@ -34,13 +34,7 @@
 #include <config.h>
 #endif
 
-#include <QtGlobal>
-
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
 #include <QtWidgets>
-#else
-#include <QtGui>
-#endif
 
 #include "config_dialog.h"
 
@@ -253,7 +247,7 @@ ConfigDialog::createWidgets()
         QFrame * frame = new QFrame();
         QVBoxLayout * layout = new QVBoxLayout();
         layout->setSizeConstraint( QLayout::SetFixedSize );
-        layout->setMargin( 4 );
+        layout->setContentsMargins( 4, 4, 4, 4 );
         layout->setSpacing( 4 );
 
         layout->addWidget( createShowControls(),
@@ -275,7 +269,7 @@ ConfigDialog::createWidgets()
         QFrame * frame = new QFrame();
         QVBoxLayout * layout = new QVBoxLayout();
         layout->setSizeConstraint( QLayout::SetFixedSize );
-        layout->setMargin( 4 );
+        layout->setContentsMargins( 4, 4, 4, 4 );
         layout->setSpacing( 4 );
 
         layout->addWidget( createZoomControls(),
@@ -301,7 +295,7 @@ ConfigDialog::createWidgets()
         QFrame * frame = new QFrame();
         QLayout * layout = createColorList();
         layout->setSizeConstraint( QLayout::SetFixedSize );
-        layout->setMargin( 4 );
+        layout->setContentsMargins( 4, 4, 4, 4 );
         layout->setSpacing( 4 );
 
         frame->setLayout( layout );
@@ -312,7 +306,7 @@ ConfigDialog::createWidgets()
         QFrame * frame = new QFrame();
         QLayout * layout = createFontButtons();
         layout->setSizeConstraint( QLayout::SetFixedSize );
-        layout->setMargin( 4 );
+        layout->setContentsMargins( 4, 4, 4, 4 );
         layout->setSpacing( 4 );
 
         frame->setLayout( layout );
@@ -324,7 +318,7 @@ ConfigDialog::createWidgets()
 //         QFrame * frame = new QFrame();
 //         QVBoxLayout * layout = new QVBoxLayout();
 //         layout->setSizeConstraint( QLayout::SetFixedSize );
-//         layout->setMargin( 4 );
+//         layout->setContentsMargins( 4, 4, 4, 4 );
 //         layout->setSpacing( 4 );
 //
 //         layout->addWidget( createTraceControls(),
@@ -352,7 +346,7 @@ ConfigDialog::createZoomControls()
 
     QVBoxLayout * top_layout = new QVBoxLayout();
     top_layout->setSizeConstraint( QLayout::SetFixedSize );
-    top_layout->setMargin( 1 );
+    top_layout->setContentsMargins( 1, 1, 1, 1 );
     top_layout->setSpacing( 0 );
 
     const QFontMetrics metrics = this->fontMetrics();
@@ -433,7 +427,7 @@ ConfigDialog::createObjectSizeControls()
     QGroupBox * group_box = new QGroupBox( tr( "Object Size" ) );
 
     QVBoxLayout * top_layout = new QVBoxLayout();
-    top_layout->setMargin( 1 );
+    top_layout->setContentsMargins( 1, 1, 1, 1 );
     top_layout->setSpacing( 0 );
 
 
@@ -484,7 +478,7 @@ ConfigDialog::createCanvasSizeControls()
 
     {
         QHBoxLayout * layout = new QHBoxLayout();
-        layout->setMargin( 1 );
+        layout->setContentsMargins( 1, 1, 1, 1 );
         layout->setSpacing( 0 );
 
         layout->addWidget( new QLabel( tr( " Width:" ) ) );
@@ -513,7 +507,7 @@ ConfigDialog::createCanvasSizeControls()
     }
     {
         QHBoxLayout * layout = new QHBoxLayout();
-        layout->setMargin( 1 );
+        layout->setContentsMargins( 1, 1, 1, 1 );
         layout->setSpacing( 0 );
 
         layout->addWidget( new QLabel( tr( " Team Graphic Scale:" ) ) );
@@ -542,12 +536,12 @@ ConfigDialog::createPlayerInfoControls()
     QGroupBox * group_box = new QGroupBox( tr( "Player Info" ) );
 
     QVBoxLayout * top_layout = new QVBoxLayout();
-    top_layout->setMargin( 1 );
+    top_layout->setContentsMargins( 1, 1, 1, 1 );
     top_layout->setSpacing( 0 );
 
     {
         QHBoxLayout * layout = new QHBoxLayout();
-        layout->setMargin( 0 );
+        layout->setContentsMargins( 0, 0, 0, 0 );
         layout->setSpacing( 0 );
 
         M_player_number_cb = new QCheckBox( tr( "Unum" ) );
@@ -580,7 +574,7 @@ ConfigDialog::createPlayerInfoControls()
     }
     {
         QHBoxLayout * layout = new QHBoxLayout();
-        layout->setMargin( 0 );
+        layout->setContentsMargins( 0, 0, 0, 0 );
         layout->setSpacing( 0 );
 
         //
@@ -600,7 +594,7 @@ ConfigDialog::createPlayerInfoControls()
     }
     {
         QHBoxLayout * layout = new QHBoxLayout();
-        layout->setMargin( 0 );
+        layout->setContentsMargins( 0, 0, 0, 0 );
         layout->setSpacing( 0 );
 
         //
@@ -622,7 +616,7 @@ ConfigDialog::createPlayerInfoControls()
 
     {
         QHBoxLayout * layout = new QHBoxLayout();
-        layout->setMargin( 0 );
+        layout->setContentsMargins( 0, 0, 0, 0 );
         layout->setSpacing( 0 );
         //
         M_catch_area_cb = new QCheckBox( tr( "Catch Area" ) );
@@ -642,7 +636,7 @@ ConfigDialog::createPlayerInfoControls()
     }
     {
         QHBoxLayout * layout = new QHBoxLayout();
-        layout->setMargin( 0 );
+        layout->setContentsMargins( 0, 0, 0, 0 );
         layout->setSpacing( 0 );
 
         //
@@ -663,7 +657,7 @@ ConfigDialog::createPlayerInfoControls()
     }
 //     {
 //         QHBoxLayout * layout = new QHBoxLayout();
-//         layout->setMargin( 0 );
+//         layout->setContentsMargins( 0, 0, 0, 0 );
 //         layout->setSpacing( 0 );
 
 //         top_layout->addLayout( layout );
@@ -683,7 +677,7 @@ ConfigDialog::createBallInfoControls()
     QGroupBox * group_box = new QGroupBox( tr( "Ball Info" ) );
 
     QHBoxLayout * top_layout = new QHBoxLayout();
-    top_layout->setMargin( 1 );
+    top_layout->setContentsMargins( 1, 1, 1, 1 );
     top_layout->setSpacing( 0 );
 
     top_layout->addWidget( new QLabel( tr( "Velocity Cycles:" ) ) );
@@ -712,12 +706,12 @@ ConfigDialog::createShowControls()
     QGroupBox * group_box = new QGroupBox( tr( "Show" ) );
 
     QVBoxLayout * top_layout = new QVBoxLayout();
-    top_layout->setMargin( 1 );
+    top_layout->setContentsMargins( 1, 1, 1, 1 );
     top_layout->setSpacing( 0 );
 
     {
         QHBoxLayout * layout = new QHBoxLayout();
-        layout->setMargin( 0 );
+        layout->setContentsMargins( 0, 0, 0, 0 );
         layout->setSpacing( 0 );
 
         M_show_score_board_cb = new QCheckBox( tr( "Score Board" ) );
@@ -736,7 +730,7 @@ ConfigDialog::createShowControls()
     }
     {
         QHBoxLayout * layout = new QHBoxLayout();
-        layout->setMargin( 0 );
+        layout->setContentsMargins( 0, 0, 0, 0 );
         layout->setSpacing( 0 );
 
         //
@@ -756,7 +750,7 @@ ConfigDialog::createShowControls()
     }
     {
         QHBoxLayout * layout = new QHBoxLayout();
-        layout->setMargin( 0 );
+        layout->setContentsMargins( 0, 0, 0, 0 );
         layout->setSpacing( 0 );
 
         M_show_ball_cb = new QCheckBox( tr( "Ball" ) );
@@ -787,7 +781,7 @@ ConfigDialog::createShowControls()
     }
 //     {
 //         QHBoxLayout * layout = new QHBoxLayout();
-//         layout->setMargin( 0 );
+//         layout->setContentsMargins( 0, 0, 0, 0 );
 //         layout->setSpacing( 0 );
 
 //         top_layout->addLayout( layout );
@@ -807,7 +801,7 @@ ConfigDialog::createFocusControls()
     QGroupBox * group_box = new QGroupBox( tr( "Focus" ) );
 
     QHBoxLayout * layout = new QHBoxLayout();
-    layout->setMargin( 1 );
+    layout->setContentsMargins( 1, 1, 1, 1 );
     layout->setSpacing( 0 );
 
     {
@@ -844,13 +838,13 @@ ConfigDialog::createPlayerSelectionControls()
     QGroupBox * group_box = new QGroupBox( tr( "Player Selection" ) );
 
     QVBoxLayout * top_layout = new QVBoxLayout();
-    top_layout->setMargin( 1 );
+    top_layout->setContentsMargins( 1, 1, 1, 1 );
     top_layout->setSpacing( 0 );
 
     // selection type
     {
         QHBoxLayout * layout = new QHBoxLayout();
-        layout->setMargin( 0 );
+        layout->setContentsMargins( 0, 0, 0, 0 );
         layout->setSpacing( 0 );
         {
             M_select_all_rb = new QRadioButton( tr( "Auto" ) );
@@ -893,7 +887,7 @@ ConfigDialog::createPlayerSelectionControls()
 
     {
         QHBoxLayout * layout = new QHBoxLayout();
-        layout->setMargin( 0 );
+        layout->setContentsMargins( 0, 0, 0, 0 );
         layout->setSpacing( 0 );
         //layout->addSpacing( 16 );
 
@@ -908,11 +902,7 @@ ConfigDialog::createPlayerSelectionControls()
             M_player_choice->addItem( QString( "Right number: %1" ).arg( i ) );
         }
         M_player_choice->setCurrentIndex( 0 );
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0))
         int id_width = this->fontMetrics().horizontalAdvance( tr( "Right Number: 11" ) );
-#else
-        int id_width = this->fontMetrics().width( tr( "Right Number: 11" ) );
-#endif
         M_player_choice->setMaximumWidth( id_width + 40 );
         connect( M_player_choice, SIGNAL( currentIndexChanged( int ) ),
                  this, SLOT( choicePlayer( int ) ) );
@@ -936,7 +926,7 @@ ConfigDialog::createMiscControls()
 {
     QGroupBox * group_box = new QGroupBox( tr( "Misc" ) );
     QVBoxLayout * top_layout = new QVBoxLayout();
-    top_layout->setMargin( 1 );
+    top_layout->setContentsMargins( 1, 1, 1, 1 );
     top_layout->setSpacing( 0 );
 
     //
@@ -959,7 +949,7 @@ ConfigDialog::createGridStepControls()
 {
     QGroupBox * group_box = new QGroupBox( tr( "Grid Lines" ) );
     QVBoxLayout * top_layout = new QVBoxLayout();
-    top_layout->setMargin( 1 );
+    top_layout->setContentsMargins( 1, 1, 1, 1 );
     top_layout->setSpacing( 0 );
 
     M_show_grid_coord_cb = new QCheckBox( tr( "Grid Coordinates" ) );
@@ -970,7 +960,7 @@ ConfigDialog::createGridStepControls()
 
     //
     QHBoxLayout * layout = new QHBoxLayout();
-    //layout->setMargin( 0 );
+    //layout->setContentsMargins( 0, 0, 0, 0 );
     //layout->setSpacing( 0 );
     //
     layout->addWidget( new QLabel( tr( "Step:" ) ) );
@@ -1010,7 +1000,7 @@ ConfigDialog::createTraceControls()
     QGroupBox * group_box = new QGroupBox( tr( "Trace" ) );
 
     QVBoxLayout * top_layout = new QVBoxLayout();
-    top_layout->setMargin( 0 );
+    top_layout->setContentsMargins( 0, 0, 0, 0 );
     top_layout->setSpacing( 0 );
 
     {
@@ -1018,7 +1008,7 @@ ConfigDialog::createTraceControls()
 
         QHBoxLayout * layout = new QHBoxLayout();
         layout->setSizeConstraint( QLayout::SetFixedSize );
-        layout->setMargin( 0 );
+        layout->setContentsMargins( 0, 0, 0, 0 );
         layout->setSpacing( 0 );
 
         M_ball_trace_start = new QLineEdit( tr( "0" ) );
@@ -1055,7 +1045,7 @@ ConfigDialog::createTraceControls()
 
         QHBoxLayout * layout= new QHBoxLayout();
         layout->setSizeConstraint( QLayout::SetFixedSize );
-        layout->setMargin( 0 );
+        layout->setContentsMargins( 0, 0, 0, 0 );
         layout->setSpacing( 0 );
 
         M_player_trace_start = new QLineEdit( tr( "0" ) );
@@ -1116,11 +1106,7 @@ ConfigDialog::createColorList()
 
     createColorItems();
 
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0))
     int font_width = this->fontMetrics().horizontalAdvance( tr( "Score Board Background" ) );
-#else
-    int font_width = this->fontMetrics().width( tr( "Score Board Background" ) );
-#endif
     M_color_list_box->setMinimumWidth( font_width + 16 + 10 );
     M_color_list_box->setMinimumHeight( 300 );
     connect( M_color_list_box, SIGNAL( itemClicked( QListWidgetItem * ) ),
@@ -1270,7 +1256,7 @@ ConfigDialog::createFontButtons()
     using std::placeholders::_1;
 
     QVBoxLayout * layout = new QVBoxLayout();
-    layout->setMargin( 4 );
+    layout->setContentsMargins( 4, 4, 4, 4 );
     layout->setSpacing( 2 );
 
     Options * o = &Options::instance();
@@ -2539,6 +2525,8 @@ ConfigDialog::choicePlayer( int number )
 void
 ConfigDialog::selectPlayerWithKey()
 {
+    // the action has the number of the player as its data: 1-11 for the
+    // left players, and 12-22 for the right players
     QAction * action = qobject_cast< QAction * >( sender() );
 
     if ( ! action )
@@ -2546,62 +2534,10 @@ ConfigDialog::selectPlayerWithKey()
         return;
     }
 
-    int key = action->shortcut()[0];
-
-    for ( int i = 1; i < 10; ++i )
+    const int number = action->data().toInt();
+    if ( 1 <= number && number <= 22 )
     {
-        if ( key == Qt::Key_0 + i )
-        {
-            selectPlayer( i );
-            return;
-        }
-        else if (
-#ifdef Q_WS_MAC
-                 key == int( Qt::META + Qt::Key_0 + i )
-#else
-                 key == int( Qt::CTRL + Qt::Key_0 + i )
-#endif
-                 )
-        {
-            selectPlayer( i + 11 );
-            return;
-        }
-    }
-
-    if ( key == Qt::Key_0 )
-    {
-        selectPlayer( 10 );
-        return;
-    }
-
-    if (
-#ifdef Q_WS_MAC
-         key == Qt::META + Qt::Key_0
-#else
-         key == Qt::CTRL + Qt::Key_0
-#endif
-         )
-    {
-        selectPlayer( 21 );
-        return;
-    }
-
-    if ( key == Qt::Key_Minus )
-    {
-        selectPlayer( 11 );
-        return;
-    }
-
-    if (
-#ifdef Q_WS_MAC
-        key == Qt::META + Qt::Key_Minus
-#else
-        key == Qt::CTRL + Qt::Key_Minus
-#endif
-        )
-    {
-        selectPlayer( 22 );
-        return;
+        selectPlayer( number );
     }
 }
 

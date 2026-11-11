@@ -1,10 +1,7 @@
-cmake_minimum_required(VERSION 3.5)
+# Qt6 needs CMake 3.16 or later
+cmake_minimum_required(VERSION 3.16)
 
 project(rcssmonitor VERSION 19.0.1)
-
-if(CMAKE_VERSION VERSION_LESS "3.7.0")
-    set(CMAKE_INCLUDE_CURRENT_DIR ON)
-endif()
 
 # compiler options
 set(CMAKE_CXX_STANDARD 17)
@@ -29,11 +26,25 @@ check_include_file_cxx("arpa/inet.h" HAVE_ARPA_INET_H)
 #  set(HAVE_BOOST_PROGRAM_OPTIONS TRUE)
 #endif()
 
-# check Qt
-find_package(Qt5 COMPONENTS Core Gui Widgets Network REQUIRED)
-if(NOT Qt5_FOUND)
-  message(FATAL_ERROR "Qt5 not found!")
+# check Qt: Qt6 if it is found, else Qt5. -DQT_VERSION_MAJOR=5 selects Qt5.
+if(NOT QT_VERSION_MAJOR)
+  find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core)
 endif()
+if(QT_VERSION_MAJOR EQUAL 6)
+  set(QT_MIN_VERSION 6.2)
+  # use none of the API that Qt 6.0 or earlier deprecated
+  set(QT_DISABLE_DEPRECATED_BEFORE 0x060000)
+elseif(QT_VERSION_MAJOR EQUAL 5)
+  set(QT_MIN_VERSION 5.15)
+  # use none of the API that Qt 5.15 or earlier deprecated: most of it is
+  # gone in Qt6
+  set(QT_DISABLE_DEPRECATED_BEFORE 0x050F00)
+else()
+  message(FATAL_ERROR "Unsupported Qt version: ${QT_VERSION_MAJOR}")
+endif()
+find_package(Qt${QT_VERSION_MAJOR} ${QT_MIN_VERSION} REQUIRED COMPONENTS Core Gui Widgets Network)
+message(STATUS "Qt: ${Qt${QT_VERSION_MAJOR}_VERSION}")
+add_compile_definitions(QT_DISABLE_DEPRECATED_BEFORE=${QT_DISABLE_DEPRECATED_BEFORE})
 
 set(CMAKE_AUTOMOC ON)
 
@@ -77,10 +88,10 @@ install(FILES icons/rcssmonitor.png
   )
 
 # unit tests
-find_package(Qt5 COMPONENTS Test QUIET)
-if(Qt5Test_FOUND)
+find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Test QUIET)
+if(Qt${QT_VERSION_MAJOR}Test_FOUND)
   enable_testing()
   add_subdirectory(test)
 else()
-  message(STATUS "Qt5 Test not found. The unit tests are not built.")
+  message(STATUS "Qt${QT_VERSION_MAJOR} Test not found. The unit tests are not built.")
 endif()
