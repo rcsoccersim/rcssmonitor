@@ -21,6 +21,7 @@ rcssmonitor_SOURCES = \
 	monitor_client.cpp \
 	options.cpp \
 	overlay_math.cpp \
+	play_mode_position.cpp \
 	player_painter.cpp \
 	player_type_dialog.cpp \
 	rcg_handler.cpp \
@@ -58,6 +59,7 @@ noinst_HEADERS = \
 	options.h \
 	overlay_math.h \
 	painter_interface.h \
+	play_mode_position.h \
 	player_painter.h \
 	player_type_dialog.h \
 	rcg_handler.h \

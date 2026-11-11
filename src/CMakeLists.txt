@@ -17,6 +17,7 @@ add_library(rcssmonitor_core STATIC
   monitor_client.cpp
   options.cpp
   overlay_math.cpp
+  play_mode_position.cpp
   player_painter.cpp
   player_type_dialog.cpp
   rcg_handler.cpp

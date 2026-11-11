@@ -49,6 +49,7 @@
 #include "log_player.h"
 #include "log_player_slider.h"
 #include "monitor_client.h"
+#include "play_mode_position.h"
 #include "player_type_dialog.h"
 #include "options.h"
 #include "rcg_handler.h"
@@ -2281,141 +2282,19 @@ MainWindow::changePlayMode( int mode,
     double x = Options::instance().fieldX( point.x() );
     double y = Options::instance().fieldY( point.y() );
 
-    x = std::min( x, + Options::PITCH_LENGTH*0.5 );
-    x = std::max( x, - Options::PITCH_LENGTH*0.5 );
-    y = std::min( y, + Options::PITCH_WIDTH*0.5 );
-    y = std::max( y, - Options::PITCH_WIDTH*0.5 );
-
-    switch ( pmode ) {
-    case rcss::rcg::PM_BeforeKickOff:
-        M_monitor_client->sendTrainerMoveBall( 0.0, 0.0, 0.0, 0.0 );
-        M_monitor_client->sendChangeMode( pmode );
-        break;
-    case rcss::rcg::PM_PlayOn:
-        M_monitor_client->sendTrainerMoveBall( x, y, 0.0, 0.0 );
-        M_monitor_client->sendChangeMode( pmode );
-        break;
-    case rcss::rcg::PM_KickIn_Left:
-    case rcss::rcg::PM_KickIn_Right:
-        y = ( y > 0.0
-              ? + Options::PITCH_WIDTH*0.5
-              : - Options::PITCH_WIDTH*0.5 );
-
-        M_monitor_client->sendTrainerMoveBall( x, y, 0.0, 0.0 );
-        M_monitor_client->sendChangeMode( pmode );
-        break;
-    case rcss::rcg::PM_CornerKick_Left:
-        x = + Options::PITCH_LENGTH*0.5 - Options::CORNER_ARC_R;
-        y = ( y > 0.0
-              ? ( + Options::PITCH_WIDTH*0.5 - Options::CORNER_ARC_R )
-              : ( - Options::PITCH_WIDTH*0.5 + Options::CORNER_ARC_R ) );
-
-        M_monitor_client->sendTrainerMoveBall( x, y, 0.0, 0.0 );
-        M_monitor_client->sendChangeMode( pmode );
-        break;
-    case rcss::rcg::PM_CornerKick_Right:
-        x = - Options::PITCH_LENGTH*0.5 + Options::CORNER_ARC_R;
-        y = ( y > 0.0
-              ? ( + Options::PITCH_WIDTH*0.5 - Options::CORNER_ARC_R )
-              : ( - Options::PITCH_WIDTH*0.5 + Options::CORNER_ARC_R ) );
-
-        M_monitor_client->sendTrainerMoveBall( x, y, 0.0, 0.0 );
-        M_monitor_client->sendChangeMode( pmode );
-        break;
-    case rcss::rcg::PM_GoalKick_Left:
-        x = - Options::PITCH_LENGTH*0.5 + Options::GOAL_AREA_LENGTH;
-        y = ( y > 0.0
-              ? + Options::GOAL_AREA_WIDTH*0.5
-              : - Options::GOAL_AREA_WIDTH*0.5 );
-
-        M_monitor_client->sendTrainerMoveBall( x, y, 0.0, 0.0 );
-        M_monitor_client->sendChangeMode( pmode );
-        break;
-    case rcss::rcg::PM_GoalKick_Right:
-        x = + Options::PITCH_LENGTH*0.5 - Options::GOAL_AREA_LENGTH;
-        y = ( y > 0.0
-              ? + Options::GOAL_AREA_WIDTH*0.5
-              : - Options::GOAL_AREA_WIDTH*0.5 );
-
-        M_monitor_client->sendTrainerMoveBall( x, y, 0.0, 0.0 );
-        M_monitor_client->sendChangeMode( pmode );
-        break;
-    case rcss::rcg::PM_Foul_Charge_Left:
-        M_monitor_client->sendTrainerMoveBall( x, y, 0.0, 0.0 );
-        M_monitor_client->sendChangeMode( pmode );
-        break;
-    case rcss::rcg::PM_Foul_Charge_Right:
-        M_monitor_client->sendTrainerMoveBall( x, y, 0.0, 0.0 );
-        M_monitor_client->sendChangeMode( pmode );
-        break;
-    case rcss::rcg::PM_Foul_Push_Left:
-        M_monitor_client->sendTrainerMoveBall( x, y, 0.0, 0.0 );
-        M_monitor_client->sendChangeMode( pmode );
-        break;
-    case rcss::rcg::PM_Foul_Push_Right:
-        M_monitor_client->sendTrainerMoveBall( x, y, 0.0, 0.0 );
-        M_monitor_client->sendChangeMode( pmode );
-        break;
-    case rcss::rcg::PM_Back_Pass_Right:
-        if ( x < ( + Options::PITCH_LENGTH*0.5 - Options::PENALTY_AREA_LENGTH ) )
-        {
-            x = + Options::PITCH_LENGTH*0.5 - Options::PENALTY_AREA_LENGTH;
-        }
-
-        if ( std::fabs( y ) > Options::PENALTY_AREA_WIDTH*0.5 )
-        {
-            y = ( y > 0.0
-                  ? + Options::PENALTY_AREA_WIDTH*0.5
-                  : - Options::PENALTY_AREA_WIDTH*0.5 );
-        }
-        break;
-    case rcss::rcg::PM_IndFreeKick_Left:
-        if ( x >= ( + Options::PITCH_LENGTH*0.5 - Options::GOAL_AREA_LENGTH )
-             && std::fabs( y ) <= Options::GOAL_AREA_WIDTH*0.5 )
-        {
-            x = + Options::PITCH_LENGTH*0.5 - Options::GOAL_AREA_LENGTH;
-        }
-
-        M_monitor_client->sendTrainerMoveBall( x, y, 0.0, 0.0 );
-        M_monitor_client->sendChangeMode( pmode );
-        break;
-    case rcss::rcg::PM_Back_Pass_Left:
-        if ( x > ( - Options::PITCH_LENGTH*0.5 + Options::PENALTY_AREA_LENGTH ) )
-        {
-            x = - Options::PITCH_LENGTH*0.5 + Options::PENALTY_AREA_LENGTH;
-        }
-
-        if ( std::fabs( y ) > Options::PENALTY_AREA_WIDTH*0.5 )
-        {
-            y = ( y > 0.0
-                  ? + Options::PENALTY_AREA_WIDTH*0.5
-                  : - Options::PENALTY_AREA_WIDTH*0.5 );
-        }
-        break;
-    case rcss::rcg::PM_IndFreeKick_Right:
-        if ( x <= ( - Options::PITCH_LENGTH*0.5 + Options::GOAL_AREA_LENGTH )
-             && std::fabs( y ) <= Options::GOAL_AREA_WIDTH*0.5 )
-        {
-            x = - Options::PITCH_LENGTH*0.5 + Options::GOAL_AREA_LENGTH;
-        }
-
-        M_monitor_client->sendTrainerMoveBall( x, y, 0.0, 0.0 );
-        M_monitor_client->sendChangeMode( pmode );
-        break;
-    case rcss::rcg::PM_Illegal_Defense_Left:
-        M_monitor_client->sendTrainerMoveBall( -41.5, 0.0, 0.0, 0.0 );
-        M_monitor_client->sendChangeMode( pmode );
-        break;
-    case rcss::rcg::PM_Illegal_Defense_Right:
-        M_monitor_client->sendTrainerMoveBall( +41.5, 0.0, 0.0, 0.0 );
-        M_monitor_client->sendChangeMode( pmode );
-        break;
-    default:
+    // Every mode that Change Playmode offers sends both the ball move and
+    // the mode change. back_pass_l / _r used to compute the position and
+    // then send nothing.
+    if ( ! playModeBallPosition( pmode, &x, &y ) )
+    {
         QMessageBox::warning( this,
                               tr( "PlayMode Change" ),
                               tr( "Unsupported playmode " ) );
-        break;
+        return;
     }
+
+    M_monitor_client->sendTrainerMoveBall( x, y, 0.0, 0.0 );
+    M_monitor_client->sendChangeMode( pmode );
 }
 
 /*-------------------------------------------------------------------*/
