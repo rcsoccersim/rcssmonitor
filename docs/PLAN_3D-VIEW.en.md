@@ -25,14 +25,14 @@ This plan is loaded to drive the development of rcssmonitor. The design and hist
 ### 0.1 Working agreements (with the user)
 
 - Report in Japanese. When reporting an implementation, attach a proposed commit message.
-- Commit and push only after the user says so. Write commit messages in English and end them with the designated `Co-Authored-By` line.
+- Claude does the commits and pushes. Before that, show the user the proposed commit message (and the files to include) and get it confirmed (from 2026-11-11; until then the user did them). Write commit messages in English and end them with the designated `Co-Authored-By` line.
 - Merges suited to a PR (such as merging into master) are done by the user.
 - When running the program to try it, do not modify the user's settings file `~/.rcssmonitor.conf`. Start it with `HOME` set to a temporary directory (e.g. `HOME=$(mktemp -d) ./src/rcssmonitor`).
 - When running rcssserver, set `RCSS_CONF_DIR` to a temporary directory (do not touch `~/.rcssserver`).
 - Do not run too many GPU tests in parallel (during the web version work, a GPU page fault brought the work machine down).
 - At each step, add a record to §14 (decisions, bugs found, measurements, tests).
 - Keep the Japanese version (`PLAN_3D-VIEW.md`) and the English version (this document) of the plan in parallel. When one is changed, change the other to the same content in the same step.
-- The user creates branches on GitHub; locally, fetch them and switch to them (§9.1). The user does the commits and pushes.
+- The user creates branches on GitHub; locally, fetch them and switch to them (§9.1).
 
 ## 1. Goals and scope
 
@@ -424,6 +424,7 @@ Tests: with fixtures (a short excerpt of `1-json.rcg.gz`, broken lines, unknown 
 7. autotools stays on Qt5 as in D3 (qmake is dropped by D11); write in the README "Qt6 and 3D with CMake".
 8. Build both Qt5 and Qt6 in CI (§10).
 9. Rewrite the README installation instructions for both Qt5 and Qt6 on Ubuntu 22.04 / 24.04 / 26.04.
+10. Raise `cmake_minimum_required(VERSION 3.5)`. The CMake in CI warns that "compatibility with CMake < 3.10 will be removed" (§14). Qt6 needs CMake 3.16 or later, so make it 3.16.
 
 ## 9. Phase plan
 
@@ -674,3 +675,13 @@ At each step, append the date, the decisions, what was built, the bugs found and
 **Tests**
 - Locally (GCC 13), the build and ctest passed. GCC 15 is not available locally, so the next CI run checks it. The first CI run stopped at `rcss/rcg`, and `src/` has not been compiled with GCC 15 yet; the next run may show GCC 15 errors in `src/`.
 - The unpacked AppImage has only xcb as Qt's platform plugin (it cannot start with `offscreen`; the start check uses xcb under `xvfb-run`).
+
+#### 2026-11-11: The second CI run (1fe26c6) passed
+
+**CI results**
+- CI: the CMake (GCC 15.2.0) build and ctest (`rcg_parser` passes), and the autotools build, passed. `src/` also compiles with GCC 15 without errors. The only warnings are 9 of `-Wtemplate-id-cdtor` (a form not allowed in C++20) in the bundled `simdjson.cpp`.
+- CMake warns about `cmake_minimum_required(VERSION 3.5)` that "compatibility with CMake < 3.10 will be removed". Raise it to 3.16 in Phase 3 (§8 item 10).
+- AppImage: 27 MB. In `ubuntu:22.04`, `24.04`, and `26.04` containers, running `--version` under `xvfb-run` printed `rcssmonitor 19.0.1` and exited on all three (the trial of option A of D10 succeeded).
+
+**Decisions (user)**
+- Changed who does the git operations: Claude does the commits and pushes, after the user has checked the proposed commit message (§0.1). The user still creates the branches on GitHub and does the PRs and merges.
