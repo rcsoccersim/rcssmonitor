@@ -11,19 +11,60 @@ permissions:
   contents: read
 
 jobs:
-  cmake-qt5:
-    name: CMake, Qt5
+  # CMake builds with Qt5 and Qt6 (D2). A use of a deprecated API is an
+  # error: QT_DISABLE_DEPRECATED_BEFORE (CMakeLists.txt) removes the API
+  # deprecated up to Qt 5.15 or 6.0, and -Werror catches the later ones.
+  cmake:
+    name: CMake, ${{ matrix.qt }}
     # Named, not ubuntu-latest, which moves to a new image now and then.
     runs-on: ubuntu-26.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - qt: Qt5
+            qt_major: 5
+            qt_packages: qtbase5-dev
+          - qt: Qt6
+            qt_major: 6
+            qt_packages: qt6-base-dev
     steps:
       - uses: actions/checkout@v5
       - name: Install the packages
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            build-essential cmake qtbase5-dev zlib1g-dev libdeflate-dev
+            build-essential cmake ${{ matrix.qt_packages }} zlib1g-dev libdeflate-dev
       - name: Configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
+            -DQT_VERSION_MAJOR=${{ matrix.qt_major }} \
+            -DCMAKE_CXX_FLAGS=-Werror=deprecated-declarations
+      - name: Build
+        run: cmake --build build --parallel
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+        env:
+          QT_QPA_PLATFORM: offscreen
+
+  # The oldest Qt that rcssmonitor supports (D2): Qt 6.2 of Ubuntu 22.04,
+  # with CMake 3.22.
+  cmake-qt6-oldest:
+    name: CMake, Qt6 (Ubuntu 22.04)
+    runs-on: ubuntu-26.04
+    container: ubuntu:22.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install the packages
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            build-essential cmake qt6-base-dev libgl-dev zlib1g-dev libdeflate-dev
+      - name: Configure
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
+            -DQT_VERSION_MAJOR=6 \
+            -DCMAKE_CXX_FLAGS=-Werror=deprecated-declarations
       - name: Build
         run: cmake --build build --parallel
       - name: Test
