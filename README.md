@@ -7,17 +7,30 @@
 
 ## :soccer: Quick Start
 
-rcssmonitor is implemented by C++14 and depends [Qt5](https://www.qt.io/). At first, related tools have to be installed on the system. In the case of Ubuntu 22.04, execute the following command:
-```bash
-sudo apt install build-essential automake autoconf libtool libboost-all-dev qtbase5-dev qt5-qmake libfontconfig1-dev libaudio-dev libxt-dev libglib2.0-dev libxi-dev libxrender-dev
-```
-In the case of Ubuntu 16.04 - 20.04, execute the following command:
-```bash
-sudo apt install build-essential qt5-default libfontconfig1-dev libaudio-dev libxt-dev libglib2.0-dev libxi-dev libxrender-dev
-```
-To load gzip-compressed game logs (`.rcg.gz`), zlib (`zlib1g-dev`) is needed. libdeflate (`libdeflate-dev`) is optional: if it is found, gzip game logs are loaded faster. To build without it, pass `--without-libdeflate` to `configure`, or `-DENABLE_LIBDEFLATE=OFF` to CMake.
+rcssmonitor is written in C++17 and depends on [Qt](https://www.qt.io/) 6 (6.2 or later) or Qt 5 (5.15). It is built with [CMake](https://cmake.org/) (3.16 or later); autotools can build it with Qt 5 only.
 
-Then, clone the repository. From its directory, execute commands:
+First, install the tools and libraries. On Ubuntu 22.04, 24.04 or 26.04, with Qt 6:
+```bash
+sudo apt install build-essential cmake qt6-base-dev zlib1g-dev libdeflate-dev
+```
+or with Qt 5:
+```bash
+sudo apt install build-essential cmake qtbase5-dev zlib1g-dev libdeflate-dev
+```
+zlib (`zlib1g-dev`) is needed to load gzip-compressed game logs (`.rcg.gz`). libdeflate (`libdeflate-dev`) is optional: if it is found, gzip game logs are loaded faster.
+
+Then, clone the repository, or download the tarball from the [releases section](https://github.com/rcsoccersim/rcssmonitor/releases) and extract it. From its directory, execute:
+
+```bash
+cmake -S . -B build
+cmake --build build
+```
+
+`build/rcssmonitor` will be the binary for the monitor. CMake uses Qt 6 if it is found, and Qt 5 otherwise; to use Qt 5 when both are installed, pass `-DQT_VERSION_MAJOR=5` to the first command.
+
+### Building with autotools (Qt 5 only)
+
+autotools needs the Qt 5 packages above and also `autoconf automake libtool qt5-qmake`. From the directory of the repository, execute:
 
 ```bash
 ./bootstrap
@@ -25,28 +38,7 @@ Then, clone the repository. From its directory, execute commands:
 make
 ```
 
-Alternatively you can download the tarball from the [releases section](https://github.com/rcsoccersim/rcssmonitor/releases), extract it and run from its contents:
-
-```bash
-tar xzvfp rcssmonitor-x.x.x.tar.gz
-cd rcssmonitor-x.x.x
-./configure
-make
-```
-
-This will built the necessary binaries to get you up and running. `rcssmonitor/src/rcssmonitor` will be the binary for the monitor.
-
-The version 16.0.0 or later support [CMake](https://cmake.org/). If CMake is prefered or problems with the above procedure, try the following commands:
-
-```bash
-mkdir build
-cd build
-cmake ..
-make
-```
-
-In this case, `rcssmonitor/build/rcssmonitor` will be the binary for the monitor.
-
+The tarball has `configure` already, so `./bootstrap` is not needed there. `src/rcssmonitor` will be the binary for the monitor.
 
 ## :hammer_and_wrench: Configuring & Building
 
@@ -65,6 +57,12 @@ The monitor has several features that can be enabled or disabled at configure ti
 
 Once you have successfully configured the monitor, simply run `make` to build the sources.
 
+With CMake, the options are given to the first command, e.g. `cmake -S . -B build -DCMAKE_INSTALL_PREFIX=YOUR_INSTALLATION_DIR`:
+
+- `CMAKE_INSTALL_PREFIX`: the installation directory (`/usr/local` by default)
+- `QT_VERSION_MAJOR`: `5` or `6`, the Qt to use (Qt 6 if it is found, by default)
+- `ENABLE_LIBDEFLATE`: `OFF` not to use libdeflate even if it is found (`ON` by default). With autotools, pass `--without-libdeflate` to `configure`.
+
 If CMake is chosen, `ccmake` command is available for the configuration:
 
 ```bash
@@ -76,8 +74,13 @@ ccmake ..
 
 When you have completed building the monitor, it's components can be installed into their default locations or the locations specified during configuring by running
 ```bash
+cmake --install build
+```
+in the case of CMake, or
+```bash
 make install
 ```
+in the case of autotools.
 Depending on where you are installing the monitor, you may need special permissions.
 
 If you install the monitor under the location you specified, you may need to set the environment variable `PATH`.
