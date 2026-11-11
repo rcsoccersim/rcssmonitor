@@ -2438,7 +2438,7 @@ ConfigDialog::clickSelectFix()
 {
     if ( Options::instance().playerSelectType() != Options::SELECT_FIX )
     {
-        Options::instance().setPlayerSelectType( Options::SELECT_AUTO_RIGHT );
+        Options::instance().setPlayerSelectType( Options::SELECT_FIX );
         emit configured();
     }
 }
