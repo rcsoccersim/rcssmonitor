@@ -27,7 +27,7 @@ This plan is loaded to drive the development of rcssmonitor. The design and hist
 - Report in Japanese. When reporting an implementation, attach a proposed commit message.
 - Claude does the commits and pushes. Before that, show the user the proposed commit message (and the files to include) and get it confirmed (from 2026-11-11; until then the user did them). Write commit messages in English and end them with the designated `Co-Authored-By` line.
 - Merges suited to a PR (such as merging into master) are done by the user. When a PR is made, Claude proposes its title and description (in English), with the recommended merge method (a merge commit by default, or a squash merge with the reason when that fits) (from 2026-11-11; §9.1).
-- When running the program to try it, do not modify the user's settings file `~/.rcssmonitor.conf`. Start it with `HOME` set to a temporary directory (e.g. `HOME=$(mktemp -d) ./src/rcssmonitor`).
+- When running the program to try it, do not modify the user's settings file `~/.rcssmonitor.conf`. Start it with `HOME` set to a temporary directory (e.g. `HOME=$(mktemp -d) ./src/rcssmonitor`). Do the same even for a run with only `--version`, which also writes the settings file on exit (found on 2026-11-11; §14). For the unit tests, CTest sets `HOME` in the build tree (§10.1).
 - When running rcssserver, set `RCSS_CONF_DIR` to a temporary directory (do not touch `~/.rcssserver`).
 - Do not run too many GPU tests in parallel (during the web version work, a GPU page fault brought the work machine down).
 - At each step, add a record to §14 (decisions, bugs found, measurements, tests).
@@ -159,7 +159,8 @@ Option B (drop it) was decided on 2026-11-11. Option A was tried in Phase 0 and 
 As in D7, the branches of this plan do not include `feature/support-tcp-ws`. When it is adopted and merged, the following happens.
 
 - Files changed by both: `src/main_window.cpp`, `src/options.{h,cpp}`, `CMakeLists.txt`, `src/CMakeLists.txt`, `configure.ac`, `src/Makefile.am`, `src/src.pro`, `README.md`, `NEWS`, `test/CMakeLists.txt` (both create it). The features are separate, so resolving the conflicts is expected to be easy.
-- This plan sets up the tests in the same shape as `feature/support-tcp-ws` (the top-level `CMakeLists.txt` looks for Test and, if found, calls `enable_testing()` and `add_subdirectory(test)`; `test/CMakeLists.txt` has an `add_executable` and an `add_test` per test). When merging, putting both sets of tests side by side should be enough.
+- This plan sets up the tests in the same shape as `feature/support-tcp-ws` (the top-level `CMakeLists.txt` looks for Test and, if found, calls `enable_testing()` and `add_subdirectory(test)`; `test/CMakeLists.txt` has an `add_executable` and an `add_test` per test). When merging, putting both sets of tests side by side should be enough. Since Phase 1, `test/CMakeLists.txt` adds tests with the function `rcssmonitor_add_test`, so add `message_splitter` with it too.
+- In Phase 1, the application sources (all but `main.cpp`) were gathered into the library `rcssmonitor_core` in `src/CMakeLists.txt`. Add the sources of the TCP / WebSocket support to `rcssmonitor_core`, not to `add_executable`.
 - Phase 3 (Qt6 support) does not cover the files added by the TCP / WebSocket support (`connect_dialog.cpp`, `*_monitor_transport.cpp`, `message_splitter.cpp`). When merging, merge develop into `feature/support-tcp-ws` (no rebase, since it has been pushed), port those files and the CMake lookup of WebSockets (`Qt${QT_VERSION_MAJOR}::WebSockets`) to Qt6 there, and then make the PR. WebSocket on Qt6 needs `qt6-websockets-dev` (not installed on the work machine).
 - Of the line numbers in this plan (§6), those in `main_window.cpp` shift after the merge.
 
@@ -380,7 +381,7 @@ From the web version's `docs/parity.md` §7. The line numbers were checked on de
 
 | # | Bug | Location | Fix |
 |---|---|---|---|
-| B1 | The live display stops after 65,535 frames | `src/disp_holder.cpp:65` (`MAX_SIZE = 65535`), `:249` | Do not stop accepting at the limit. Either raise the limit or drop the oldest frames (decide during implementation and record it in §14). The web version has no limit |
+| B1 | The live display stops after 65,535 frames | `src/disp_holder.cpp:65` (`MAX_SIZE = 65535`), `:249` | Do not stop accepting at the limit. Either raise the limit or drop the oldest frames (decide during implementation and record it in §14). The web version has no limit. → A live connection drops the oldest 4,096 frames at once when it has more than 65,535. A log file is kept whole (Phase 1, §14) |
 | B2 | JSON `vq` is stored as a bool. `view_quality_` is a char `'h'` / `'l'`, so for JSON logs the view quality is always judged low | `rcss/rcg/parser_simdjson.cpp:478` | Store `'h'` / `'l'` |
 | B3 | An unknown JSON key aborts the whole parse | `rcss/rcg/parser_simdjson.cpp:85-164` | Skip unknown keys (§7) |
 | B4 | JSON players are stored in array order | `rcss/rcg/parser_simdjson.cpp:447-525` | Store them by `side` and `unum` (§7) |
@@ -396,6 +397,7 @@ From the web version's `docs/parity.md` §7. The line numbers were checked on de
 | B14 | In the player type list, columns with two numbers do not sort (the cell text is read as one number) | `src/player_type_dialog.cpp:69-75` | Compare by the first number |
 
 - Fix them one at a time, with a unit test where possible (Qt Test; parsing bugs with fixtures, drawing bugs by extracting the calculation and checking it).
+- Phase 1 (2026-11-11, `fix/parity-bugs`) fixed B1, B5, and B9–B14. All but B10 have tests (§14).
 - If merging into master is urgent, the bug fixes alone can go first as a separate PR.
 
 ## 7. JSON parser improvements
@@ -530,6 +532,9 @@ Each phase proceeds on a feature branch and is merged into develop when it is do
 
 Port the GL-independent calculations, using the web version's unit tests as models.
 
+- Tests are added with `rcssmonitor_add_test(<name> <libraries>...)` in `test/CMakeLists.txt` (it builds `test_<name>.cpp` and registers it as `<name>`). Tests that use the application's classes link `rcssmonitor_core`.
+- CTest runs every test with `HOME` in the build tree (`test/home`) and `QT_QPA_PLATFORM=offscreen`. `Options` reads `~/.rcssmonitor.conf` when it is created (writing it if missing) and writes it on exit, so this keeps the user's settings file safe.
+
 | Web version test | What it checks |
 |---|---|
 | `view3d-motion.test.ts` | Interpolation, camera poses (broadcast, behind the goal, top, close-up), following, camera order, settings |
@@ -581,7 +586,9 @@ Port the GL-independent calculations, using the web version's unit tests as mode
 | `scene_3d.{h,cpp}` | Scene assembly and drawing |
 | `gl_*.{h,cpp}`, `shaders/*.glsl` | Rendering infrastructure (shaders, buffers, textures, shadow map) |
 | `cameras_3d.{h,cpp}`, `player_camera_3d.{h,cpp}`, `sight.{h,cpp}`, `interpolate.{h,cpp}`, `scene_math.{h,cpp}` | Calculations (no GL dependency) |
-| `overlay_math.{h,cpp}` | Overlay calculations shared by 2D and 3D (moved from the 2D painters) |
+| `overlay_math.{h,cpp}` | Overlay calculations shared by 2D and 3D (moved from the 2D painters). Created in `src/` in Phase 1, with the offside lines |
+| `play_mode_position.{h,cpp}` | The ball position for Change Playmode (Phase 1; also used by the 3D referee operations) |
+| `player_type_sort_proxy.h` | Sorting of the player type list (Phase 1) |
 | `stadium_3d`, `scenery_3d`, `ball_3d`, `ball_aids_3d` | Components |
 | `figures_3d`, `pose`, `gltf_model` | Figures |
 | `hud_3d`, `guides` | HUD, compass strip, minimap |
@@ -713,3 +720,36 @@ At each step, append the date, the decisions, what was built, the bugs found and
 **Checked**
 - Past merges: into develop, merge commits (#60, #57, #53, etc.) and squash merges (#51, #54, #46) are mixed. From develop into master, merge commits (#61, #58, #55, etc.). The repository settings allow merge commits, squash, and rebase.
 - A merge commit was recommended for the `feature/ci` PR, because it has independent changes (the GCC 15 build fix, dropping qmake, etc.) and the plan refers to commit 1fe26c6.
+
+### Phase 1
+
+#### 2026-11-11: Bug fixes (`fix/parity-bugs`)
+
+After PR #63 (`feature/ci`) was merged into develop with a merge commit, the user created `fix/parity-bugs` on GitHub.
+
+**Decisions**
+- B1: when the frames of a live connection exceed 65,535 (`MAX_LIVE_FRAMES`, the same number as before), the oldest 4,096 frames (`LIVE_TRIM_FRAMES`, about 7 minutes) are dropped at once. A log file is kept whole, as the file bounds its size. It is not made configurable (user). The first version removed the limit, which was revised after the user pointed out that rcssserver can keep a game running as long as its time fits in 32 bits, so keeping everything in memory is not realistic. A frame is about 2.3 KB (`sizeof(DispInfoT)` = 2312): 65,535 frames are about 160 MB. The frames dropped are at the front of a `vector` of pointers, so dropping them at once has no performance problem. The care is in the indices: the current position (`M_current_index`; if the frame being shown was dropped, it moves to the oldest frame left) and the score positions (`M_score_changed_index`) shift by the number dropped. The draw data kept by time (points, circles, lines) before the oldest frame left are dropped too. Live frames come only through the live entry points of `DispHolder` (`addJSON`, `addDispInfoV1`–`V3`), which drop them there (`trimLiveFrames()`).
+- For the tests, the application sources (all but `main.cpp`) are gathered into the CMake static library `rcssmonitor_core`, which both the application and the tests link.
+- One commit per bug.
+
+**Built (one commit each, in order)**
+1. `rcssmonitor_core` and the function `rcssmonitor_add_test` that adds a test (it sets `HOME` and `QT_QPA_PLATFORM`; §10.1).
+2. B5: `foul_push_r` in `util.cpp`. Test `rcg_util`: every name in `PLAYMODE_STRINGS` converts back to its play mode.
+3. B1: a live connection drops the oldest frames. Test `disp_holder`: 65,536 frames through the live entry point leave 61,439, and the newest frame can be shown (the same after the same number again). The frame being shown keeps its position, and moves to the oldest frame if it was dropped. The score positions shift, and those dropped are removed. Old draw data are dropped. A log (`handleShow`) keeps all of 65,537 frames.
+4. B9: moved the offside line calculation to `src/overlay_math.{h,cpp}` (`OverlayMath::offsideLines`), comparing with `side()` instead of `side_` (a character). Test `overlay_math`: the second last player, the ball nearer, fewer than two players in their own half, the pitch end, players not connected.
+5. B10: the goalie's catch area color (two places, the same cause as B9). No test (it only chooses a drawing color).
+6. B11: moved the ball position of each play mode to `src/play_mode_position.{h,cpp}` (`playModeBallPosition`), and `MainWindow::changePlayMode` sends both the ball move and the mode change for every mode it accepts. Test `play_mode_position`: the back_pass positions, the other modes' positions (as before), a point outside the pitch, a mode not offered.
+7. B12: `ConfigDialog::clickSelectFix` sets `SELECT_FIX`. Test `config_dialog`: calls the slot and checks (the slot is called by name, as there are two "Fix" buttons, for the view and for the player selection).
+8. B13: the initial value of Illegal Defense in the color list. Test `config_dialog`: the item's color is the illegal defense color (not the pointto color).
+9. B14: moved the sort class to `src/player_type_sort_proxy.h`, comparing the first number in a cell (as the web version's `parseFloat`). Test `player_type_sort`: a column with two numbers, a column with one, how the first number is read.
+
+**Tests (local, GCC 13, Qt 5.15.13)**
+- The tests of B5, B1, B9, B12, B13, and B14 were confirmed to fail with the code temporarily put back as it was before the fix, and to pass with the fix. For B1, two tests were also confirmed to fail when only the index shifting was temporarily disabled. B11's original defect was "sends nothing", which a test of the function cannot check directly. The positions are the same as before for every mode, and every accepted mode now always sends both commands.
+- Every stage 1–9 builds with CMake and passes its tests on a clean copy (1 to 7 tests per stage). The stages that add files for autotools (4, 6, 9) also build with autotools. No new warnings.
+
+**Found**
+- `DispHolder::handleTeam` records `M_disp_cont.size() - 1` as the score position when the score changes. With no frame yet (connecting in the middle of a game, with the team information before the first show), it is `size_t(-1)`. `trimLiveFrames()` removes positions not below the number before the drop, so this one is removed too.
+- `player_painter.cpp:610` also has `side_ == LEFT`, but it is inside `#if 0` and unused, so it was not changed.
+- `PLAYMODE_STRINGS` has two empty strings after the last play mode: 54 entries, two more than `PM_MAX` (52).
+- `Options` is a static variable in `instance()`; it reads `~/.rcssmonitor.conf` when created (writing it if missing) and writes it when the program exits (`writeSettings(false)`: all but the window size). It writes it even when exiting after `--version`.
+- On 2026-11-11 at 15:27, the installed `rcssmonitor --version` (run to check the AppImage) was run without setting `HOME` to a temporary directory, and it rewrote the user's `~/.rcssmonitor.conf` (against §0.1). It writes back the values it read, so the content is expected to be unchanged (items missing from the file may have been added with defaults, and the order may have changed). This was reported to the user, and §0.1 now says "the same for `--version`".
