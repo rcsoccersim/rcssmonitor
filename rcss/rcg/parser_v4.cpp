@@ -44,6 +44,8 @@
 #include <cmath>
 #include <climits>
 #include <cstdio>
+#include <iterator>
+#include <string>
 
 namespace rcss {
 namespace rcg {
@@ -64,11 +66,43 @@ ParserV4::parse( std::istream & is,
         return false;
     }
 
+    const std::string data( ( std::istreambuf_iterator< char >( is ) ), std::istreambuf_iterator< char >() );
+    return parse( data.data(), data.size(), handler );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+bool
+ParserV4::parse( const char * data,
+                 const std::size_t size,
+                 Handler & handler ) const
+{
+    const char * const end = data + size;
+    const char * pos = data;
+
+    // the next line, without its '\n', as std::getline() gives it
     std::string line;
     line.reserve( 8192 );
+    auto next_line = [&]() -> bool
+        {
+            if ( pos >= end )
+            {
+                return false;
+            }
+            const char * eol = static_cast< const char * >( std::memchr( pos, '\n', end - pos ) );
+            if ( ! eol )
+            {
+                eol = end;
+            }
+            line.assign( pos, eol );
+            pos = ( eol < end ? eol + 1 : end );
+            return true;
+        };
 
     // skip header line
-    if ( ! std::getline( is, line )
+    if ( ! next_line()
          || line.length() < 4
          || line.compare( 0, 3, "ULG" ) != 0 )
     {
@@ -76,7 +110,7 @@ ParserV4::parse( std::istream & is,
         return false;
     }
 
-    const int version = std::stoi( line.substr( 3 ) );
+    const int version = std::atoi( line.c_str() + 3 );
     if ( version != REC_VERSION_4
          && version != REC_VERSION_5
          && version != REC_VERSION_6 )
@@ -92,7 +126,7 @@ ParserV4::parse( std::istream & is,
     }
 
     int n_line = 1;
-    while ( std::getline( is, line ) )
+    while ( next_line() )
     {
         ++n_line;
         if ( ! parseLine( n_line, line, handler ) )
@@ -101,12 +135,7 @@ ParserV4::parse( std::istream & is,
         }
     }
 
-    if ( is.eof() )
-    {
-        return handler.handleEOF();
-    }
-
-    return false;
+    return handler.handleEOF();
 }
 
 /*-------------------------------------------------------------------*/

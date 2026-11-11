@@ -72,6 +72,18 @@ public:
                 Handler & handler ) const override;
 
     /*!
+      \brief analyze the whole log data in memory, line by line.
+      \param data the whole game log
+      \param size the size of data
+      \param handler reference to the rcg data handler.
+      \retval true, if successfuly parsed.
+      \retval false, if incorrect format is detected.
+    */
+    bool parse( const char * data,
+                const std::size_t size,
+                Handler & handler ) const override;
+
+    /*!
       \brief parse data line.
       \param n_line the number of total read line
       \param line the data string
