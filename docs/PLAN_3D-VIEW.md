@@ -27,7 +27,7 @@
 - 報告は日本語で行う。実装を報告するときは、コミットメッセージの案を添える。
 - コミットとプッシュは Claude が行う。その前に、コミットメッセージの案 (と含めるファイル) をユーザに示し、確認を受ける (2026-11-11 から。それまではユーザが行っていた)。コミットメッセージは英語で書き、末尾に指定の `Co-Authored-By` 行を付ける。
 - PR が向く取り込み (master への取り込みなど) は、ユーザが行う。PR を作るときは、Claude がタイトルと本文の案 (英語) を出し、勧めるマージの方法 (基本は Merge Commit。Squash Merge が向くときはその理由) を添える (2026-11-11 から。§9.1)。
-- 動かして試すときは、ユーザの設定ファイル `~/.rcssmonitor.conf` を書き換えない。`HOME` を一時ディレクトリにして起動する (例: `HOME=$(mktemp -d) ./src/rcssmonitor`)。
+- 動かして試すときは、ユーザの設定ファイル `~/.rcssmonitor.conf` を書き換えない。`HOME` を一時ディレクトリにして起動する (例: `HOME=$(mktemp -d) ./src/rcssmonitor`)。`--version` だけの起動でも、終了時に設定ファイルを書くので、同じようにする (2026-11-11 に確かめた。§14)。単体テストは CTest が `HOME` をビルドディレクトリの下にする (§10.1)。
 - rcssserver を動かすときは、`RCSS_CONF_DIR` を一時ディレクトリにする (`~/.rcssserver` を汚さない)。
 - GPU を使うテストを並列で回しすぎない (web 版の作業中に、GPU のページフォルトで作業マシンが落ちたことがある)。
 - 区切りごとに、§14 に記録 (決めたこと、見つけた不具合、計測、試験) を足す。
@@ -159,7 +159,8 @@ Phase 0 の試作 (§9) で、推奨案で「人型 22 体と影を 1920×1080 �
 D7 のとおり、この計画のブランチは `feature/support-tcp-ws` を含まない。採用が決まって取り込むときは、次のことが起きる。
 
 - 両方が変えるファイル: `src/main_window.cpp`、`src/options.{h,cpp}`、`CMakeLists.txt`、`src/CMakeLists.txt`、`configure.ac`、`src/Makefile.am`、`src/src.pro`、`README.md`、`NEWS`、`test/CMakeLists.txt` (どちらも新しく作る)。機能が別なので、衝突の解決は難しくない見込み。
-- テストの仕組みは、この計画でも `feature/support-tcp-ws` と同じ形にする (最上位の `CMakeLists.txt` で Test を探し、見つかれば `enable_testing()` と `add_subdirectory(test)`。`test/CMakeLists.txt` にテストごとの `add_executable` と `add_test`)。取り込むときは、両方のテストを並べるだけで済むようにする。
+- テストの仕組みは、この計画でも `feature/support-tcp-ws` と同じ形にする (最上位の `CMakeLists.txt` で Test を探し、見つかれば `enable_testing()` と `add_subdirectory(test)`。`test/CMakeLists.txt` にテストごとの `add_executable` と `add_test`)。取り込むときは、両方のテストを並べるだけで済むようにする。Phase 1 で `test/CMakeLists.txt` はテストを足す関数 `rcssmonitor_add_test` を使う形になったので、`message_splitter` もこの関数で足す。
+- Phase 1 で、アプリのソース (`main.cpp` 以外) は `src/CMakeLists.txt` のライブラリ `rcssmonitor_core` にまとめた。TCP / WebSocket 対応で足したソースは、`add_executable` ではなく `rcssmonitor_core` に足す。
 - Phase 3 (Qt6 対応) は、TCP / WebSocket 対応で足したファイル (`connect_dialog.cpp`、`*_monitor_transport.cpp`、`message_splitter.cpp`) を含まない。取り込むときは、develop を `feature/support-tcp-ws` にマージし (プッシュ済みなので rebase はしない)、そこでこれらのファイルの Qt6 対応と、WebSockets を探す CMake の Qt6 対応 (`Qt${QT_VERSION_MAJOR}::WebSockets`) を行ってから、PR にする。Qt6 で WebSocket を使うには `qt6-websockets-dev` が要る (作業マシンには未導入)。
 - 計画書の行番号 (§6) のうち、`main_window.cpp` の行は、取り込んだ後にずれる。
 
@@ -380,7 +381,7 @@ web 版の `docs/parity.md` §7。行番号は 2026-11-11 の develop (01f880a) 
 
 | # | 不具合 | 場所 | 直し方 |
 |---|---|---|---|
-| B1 | 65,535 フレームを超えると、ライブ表示が止まる | `src/disp_holder.cpp:65` (`MAX_SIZE = 65535`)、`:249` | 上限で受け付けをやめない。上限を大きくするか、古いフレームから捨てる (どちらにするかは実装のときに決め、§14 に記録する)。web 版は上限なし |
+| B1 | 65,535 フレームを超えると、ライブ表示が止まる | `src/disp_holder.cpp:65` (`MAX_SIZE = 65535`)、`:249` | 上限で受け付けをやめない。上限を大きくするか、古いフレームから捨てる (どちらにするかは実装のときに決め、§14 に記録する)。web 版は上限なし。→ ライブ接続では、65,535 を超えたら古いものから 4,096 フレームをまとめて捨てる。ログファイルは全部持つ (Phase 1、§14) |
 | B2 | JSON の `vq` を bool として入れている。`view_quality_` は `'h'` / `'l'` の char なので、JSON のログでは視覚の質がいつも低いと判定される | `rcss/rcg/parser_simdjson.cpp:478` | `'h'` / `'l'` を入れる |
 | B3 | JSON の未知のキーで、解析全体が中断する | `rcss/rcg/parser_simdjson.cpp:85-164` | 未知のキーは飛ばす (§7) |
 | B4 | JSON の選手を、配列の順に格納している | `rcss/rcg/parser_simdjson.cpp:447-525` | `side` と `unum` で格納する (§7) |
@@ -396,6 +397,7 @@ web 版の `docs/parity.md` §7。行番号は 2026-11-11 の develop (01f880a) 
 | B14 | 選手タイプ一覧で、数値が 2 つある列が並べ替わらない (セルの文字列を 1 つの数値として読む) | `src/player_type_dialog.cpp:69-75` | 最初の数値で比べる |
 
 - 1 件ずつ、できれば単体テストを付けて直す (Qt Test。解析の不具合はフィクスチャで、描画の不具合は計算を切り出して確かめる)。
+- Phase 1 (2026-11-11、`fix/parity-bugs`) で B1、B5、B9〜B14 を直した。B10 のほかはテストがある (§14)。
 - master への取り込みを急ぐなら、不具合の修正だけを先に別の PR にできる。
 
 ## 7. JSON パーサの改善
@@ -530,6 +532,9 @@ web 版の `docs/parity.md` §7。行番号は 2026-11-11 の develop (01f880a) 
 
 GL に依存しない計算を、web 版の単体テストを手本に移す。
 
+- テストは `test/CMakeLists.txt` の `rcssmonitor_add_test(<名前> <ライブラリ>...)` で足す (`test_<名前>.cpp` をビルドし、`<名前>` として登録する)。アプリのクラスを使うテストは `rcssmonitor_core` をリンクする。
+- CTest はどのテストも `HOME` をビルドディレクトリの下 (`test/home`) にし、`QT_QPA_PLATFORM=offscreen` で動かす。`Options` は作られたときに `~/.rcssmonitor.conf` を読み (なければ書き)、終了時に書くので、利用者の設定ファイルを守るため。
+
 | web 版のテスト | 確かめること |
 |---|---|
 | `view3d-motion.test.ts` | 補間、カメラの位置 (中継風、ゴール裏、真上、寄り)、追従、カメラの順、設定 |
@@ -581,7 +586,9 @@ GL に依存しない計算を、web 版の単体テストを手本に移す。
 | `scene_3d.{h,cpp}` | シーンの組み立てと描画 |
 | `gl_*.{h,cpp}`、`shaders/*.glsl` | 描画の基盤 (シェーダ、バッファ、テクスチャ、影の地図) |
 | `cameras_3d.{h,cpp}`、`player_camera_3d.{h,cpp}`、`sight.{h,cpp}`、`interpolate.{h,cpp}`、`scene_math.{h,cpp}` | 計算 (GL に依存しない) |
-| `overlay_math.{h,cpp}` | 2D と 3D で共有する重ね描きの計算 (2D の painter から移す) |
+| `overlay_math.{h,cpp}` | 2D と 3D で共有する重ね描きの計算 (2D の painter から移す)。Phase 1 で `src/` に作り、オフサイドラインを移した |
+| `play_mode_position.{h,cpp}` | Change Playmode のボールの位置 (Phase 1。3D の審判操作でも使う) |
+| `player_type_sort_proxy.h` | 選手タイプ一覧の並べ替え (Phase 1) |
 | `stadium_3d`、`scenery_3d`、`ball_3d`、`ball_aids_3d` | 部品 |
 | `figures_3d`、`pose`、`gltf_model` | 人型 |
 | `hud_3d`、`guides` | HUD、方位の帯、ミニマップ |
@@ -713,3 +720,36 @@ GL に依存しない計算を、web 版の単体テストを手本に移す。
 **確かめたこと**
 - これまでの取り込み: develop へは Merge Commit (#60、#57、#53 など) と Squash Merge (#51、#54、#46) が混ざっている。develop から master へは Merge Commit (#61、#58、#55 など)。リポジトリの設定では、Merge Commit、Squash、Rebase のどれも使える。
 - `feature/ci` の PR は Merge Commit を勧めた。独立した変更 (GCC 15 でのビルドの修正、qmake の廃止など) を含み、計画書がコミット 1fe26c6 を参照しているため。
+
+### Phase 1
+
+#### 2026-11-11: 不具合の修正 (`fix/parity-bugs`)
+
+PR #63 (`feature/ci`) を Merge Commit で develop に取り込んだ後、ユーザが GitHub 上で `fix/parity-bugs` を作った。
+
+**決めたこと**
+- B1: ライブ接続のフレームは、65,535 (`MAX_LIVE_FRAMES`。前と同じ数) を超えたら、古いものから 4,096 フレーム (`LIVE_TRIM_FRAMES`。約 7 分) をまとめて捨てる。ログファイルは、ファイルが大きさの上限なので全部持つ。設定で変えられるようにはしない (ユーザ)。初めは上限をなくす案にしたが、ユーザの指摘で改めた: rcssserver は 32 ビットの時刻の範囲で試合を続けられるので、全部をメモリに持つのは現実的でない。1 フレームは約 2.3 KB (`sizeof(DispInfoT)` = 2312) で、65,535 フレームで約 160 MB。捨てるのはポインタの `vector` の先頭なので、まとめて捨てれば性能の問題はない。気をつけるのは添字で、今の位置 (`M_current_index`。捨てたフレームを見ていたら残っている最も古いフレームにする) と得点の位置 (`M_score_changed_index`) を、捨てた数だけずらす。時刻ごとに持つ描画命令 (点、円、線) も、残っている最も古いフレームより前のものを捨てる。ライブのフレームは `DispHolder` のライブ用の入口 (`addJSON`、`addDispInfoV1`〜`V3`) だけを通るので、そこで捨てる (`trimLiveFrames()`)。
+- テストのため、アプリのソース (`main.cpp` 以外) を CMake の静的ライブラリ `rcssmonitor_core` にまとめ、アプリとテストがそれをリンクする。
+- 不具合ごとに 1 コミットにする。
+
+**作ったもの (順に 1 コミットずつ)**
+1. `rcssmonitor_core` と、テストを足す関数 `rcssmonitor_add_test` (`HOME` と `QT_QPA_PLATFORM` を設定する。§10.1)。
+2. B5: `util.cpp` の `foul_push_r`。テスト `rcg_util`: `PLAYMODE_STRINGS` のすべての名前が元のプレイモードに戻る。
+3. B1: ライブ接続で古いフレームから捨てる。テスト `disp_holder`: ライブの入口から 65,536 フレームを入れると 61,439 フレームになり、最新のフレームを表示できる (もう一度同じ数を入れても同じ)。見ていたフレームの位置が保たれ、捨てられたら最も古いフレームに移る。得点の位置がずれ、捨てたものは除かれる。古い描画命令が捨てられる。ログ (`handleShow`) は 65,537 フレームを全部持つ。
+4. B9: オフサイドラインの計算を `src/overlay_math.{h,cpp}` (`OverlayMath::offsideLines`) に移し、`side_` (文字) ではなく `side()` で比べる。テスト `overlay_math`: 後ろから 2 人目、ボールのほうが近いとき、自陣に 2 人いないとき、ピッチの端、接続していない選手。
+5. B10: キーパーのキャッチ範囲の色 (2 か所、B9 と同じ原因)。テストはない (描画の色の選び方だけ)。
+6. B11: プレイモードごとのボールの位置を `src/play_mode_position.{h,cpp}` (`playModeBallPosition`) に移し、`MainWindow::changePlayMode` は受け付けたすべてのモードで、ボールの移動とモードの変更の 2 つを送る。テスト `play_mode_position`: back_pass の位置、ほかのモードの位置 (前と同じ)、ピッチの外の点、受け付けないモード。
+7. B12: `ConfigDialog::clickSelectFix` が `SELECT_FIX` を入れる。テスト `config_dialog`: スロットを呼んで確かめる (「Fix」のボタンは視点と選手の選択の 2 つあるため、スロットを名前で呼ぶ)。
+8. B13: 色の一覧の Illegal Defense の初期値。テスト `config_dialog`: 一覧の項目の色が Illegal Defense の色 (Pointto の色ではない)。
+9. B14: 並べ替えのクラスを `src/player_type_sort_proxy.h` に移し、セルの先頭の数値で比べる (web 版の `parseFloat` と同じ)。テスト `player_type_sort`: 数値が 2 つある列、1 つの列、先頭の数値の読み方。
+
+**試験 (手元、GCC 13、Qt 5.15.13)**
+- B5、B1、B9、B12、B13、B14 のテストは、直す前のコードに一時的に戻すと失敗し、直すと通ることを確かめた。B1 は、添字をずらす処理だけを一時的に止めた場合も、2 つのテストが失敗することを確かめた。B11 の元の不具合は「送らない」ことなので、関数のテストでは直接は確かめられない。位置の計算はすべてのモードで前と同じで、受け付けたモードは必ず 2 つを送る形にした。
+- 1〜9 のどの段階も、きれいなコピーで CMake のビルドとテストが通る (段階ごとに 1〜7 個のテスト)。autotools でファイルを足した段階 (4、6、9) は autotools のビルドも通る。新しい警告はない。
+
+**見つけたこと**
+- `DispHolder::handleTeam` は、得点が変わると `M_disp_cont.size() - 1` を得点の位置にする。フレームがまだないとき (試合の途中で接続して、最初の show の前にチームの情報が来たとき) は `size_t(-1)` になる。`trimLiveFrames()` は、捨てる前の数より大きい位置を除くので、これも除かれる。
+- `player_painter.cpp:610` にも `side_ == LEFT` があるが、`#if 0` の中で使われていないので直していない。
+- `PLAYMODE_STRINGS` は、最後のプレイモードの後に空の文字列が 2 つあり、`PM_MAX` (52) より 2 つ多い (54)。
+- `Options` は `instance()` の中の静的な変数で、作られたときに `~/.rcssmonitor.conf` を読み (なければ書き)、プログラムの終了時に書く (`writeSettings(false)`: 窓の大きさ以外)。`--version` で終わるときも書く。
+- 2026-11-11 15:27 に、AppImage の確かめのために入れた `rcssmonitor --version` を、`HOME` を一時ディレクトリにせずに動かし、ユーザの `~/.rcssmonitor.conf` を書き直してしまった (§0.1 に反する)。値は読んだものをそのまま書き戻すので、中身は変わらない見込み (ファイルになかった項目が既定値で足された可能性と、並びの変化はある)。ユーザに報告し、§0.1 に「`--version` でも同じ」と書き足した。

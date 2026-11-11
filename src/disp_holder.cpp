@@ -62,7 +62,8 @@
 #include <cstring>
 
 const size_t DispHolder::INVALID_INDEX = size_t( -1 );
-const size_t DispHolder::MAX_SIZE = 65535;
+const size_t DispHolder::MAX_LIVE_FRAMES = 65535;
+const size_t DispHolder::LIVE_TRIM_FRAMES = 4096;
 
 namespace {
 // struct TimeCmp {
@@ -84,6 +85,27 @@ my_ntohs( const rcss::rcg::Int16 val )
 #endif
 }
 
+/*!
+  \brief erase the entries before the given time from a map keyed by time.
+*/
+template < typename Cont >
+void
+erase_before( Cont & cont,
+              const int time )
+{
+    for ( typename Cont::iterator it = cont.begin(); it != cont.end(); )
+    {
+        if ( it->first < time )
+        {
+            it = cont.erase( it );
+        }
+        else
+        {
+            ++it;
+        }
+    }
+}
+
 }
 
 /*-------------------------------------------------------------------*/
@@ -93,7 +115,7 @@ my_ntohs( const rcss::rcg::Int16 val )
 DispHolder::DispHolder()
     : M_current_index( INVALID_INDEX )
 {
-    M_disp_cont.reserve( MAX_SIZE );
+    M_disp_cont.reserve( MAX_LIVE_FRAMES + 1 );
 }
 
 /*-------------------------------------------------------------------*/
@@ -179,7 +201,9 @@ bool
 DispHolder::addDispInfoV1( const rcss::rcg::dispinfo_t & disp )
 {
     RCGHandler handler( nullptr, *this );
-    return handler.handleDispInfo( disp );
+    const bool result = handler.handleDispInfo( disp );
+    trimLiveFrames();
+    return result;
 }
 
 /*-------------------------------------------------------------------*/
@@ -190,7 +214,9 @@ bool
 DispHolder::addDispInfoV2( const rcss::rcg::dispinfo_t2 & disp )
 {
     RCGHandler handler( nullptr, *this );
-    return handler.handleDispInfo2( disp );
+    const bool result = handler.handleDispInfo2( disp );
+    trimLiveFrames();
+    return result;
 }
 
 /*-------------------------------------------------------------------*/
@@ -202,7 +228,9 @@ DispHolder::addDispInfoV3( const char * msg )
 {
     rcss::rcg::ParserV4 parser;
     RCGHandler handler( nullptr, *this );
-    return parser.parseLine( -1, msg, handler );
+    const bool result = parser.parseLine( -1, msg, handler );
+    trimLiveFrames();
+    return result;
 }
 
 
@@ -215,7 +243,56 @@ DispHolder::addJSON( const char * msg )
 {
     rcss::rcg::ParserSimdJSON parser;
     RCGHandler handler( nullptr, *this );
-    return parser.parseData( msg, handler );
+    const bool result = parser.parseData( msg, handler );
+    trimLiveFrames();
+    return result;
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  When the frames of a live connection exceed MAX_LIVE_FRAMES, drop the
+  oldest ones, LIVE_TRIM_FRAMES or more at once, and shift the indices
+  (the current index, the score changes) by the number dropped. The draw
+  data before the oldest frame left are dropped too. rcssserver can run for
+  as long as its time fits in 32 bits, so keeping everything is not
+  possible; stopping at the limit, as before, froze the live view.
+ */
+void
+DispHolder::trimLiveFrames()
+{
+    if ( M_disp_cont.size() <= MAX_LIVE_FRAMES )
+    {
+        return;
+    }
+
+    const size_t old_size = M_disp_cont.size();
+    const size_t drop = old_size - ( MAX_LIVE_FRAMES - LIVE_TRIM_FRAMES );
+
+    M_disp_cont.erase( M_disp_cont.begin(),
+                       M_disp_cont.begin() + drop );
+
+    if ( M_current_index != INVALID_INDEX )
+    {
+        // a dropped frame moves to the oldest frame left
+        M_current_index = ( M_current_index < drop
+                            ? 0
+                            : M_current_index - drop );
+    }
+
+    std::vector< std::size_t > score_changed_index;
+    for ( std::size_t idx : M_score_changed_index )
+    {
+        if ( drop <= idx && idx < old_size )
+        {
+            score_changed_index.push_back( idx - drop );
+        }
+    }
+    M_score_changed_index.swap( score_changed_index );
+
+    const int oldest_time = static_cast< int >( M_disp_cont.front()->show_.time_ );
+    erase_before( M_point_cont, oldest_time );
+    erase_before( M_circle_cont, oldest_time );
+    erase_before( M_line_cont, oldest_time );
 }
 
 
@@ -246,10 +323,9 @@ DispHolder::handleShow( const rcss::rcg::ShowInfoT & show )
     }
 #endif
 
-    if ( M_disp_cont.size() <= MAX_SIZE )
-    {
-        M_disp_cont.push_back( disp );
-    }
+    // A log file is kept whole. The live messages trim the oldest frames
+    // after this (trimLiveFrames()).
+    M_disp_cont.push_back( disp );
 
     M_disp = disp;
 
