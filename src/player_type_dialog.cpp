@@ -87,7 +87,7 @@ void
 PlayerTypeDialog::createTable()
 {
     QVBoxLayout * layout = new QVBoxLayout();
-    layout->setMargin( 4 );
+    layout->setContentsMargins( 4, 4, 4, 4 );
 
     M_item_view = new QTableView();
     //M_item_view->setRootIsDecorated( false );

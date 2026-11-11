@@ -247,7 +247,7 @@ ConfigDialog::createWidgets()
         QFrame * frame = new QFrame();
         QVBoxLayout * layout = new QVBoxLayout();
         layout->setSizeConstraint( QLayout::SetFixedSize );
-        layout->setMargin( 4 );
+        layout->setContentsMargins( 4, 4, 4, 4 );
         layout->setSpacing( 4 );
 
         layout->addWidget( createShowControls(),
@@ -269,7 +269,7 @@ ConfigDialog::createWidgets()
         QFrame * frame = new QFrame();
         QVBoxLayout * layout = new QVBoxLayout();
         layout->setSizeConstraint( QLayout::SetFixedSize );
-        layout->setMargin( 4 );
+        layout->setContentsMargins( 4, 4, 4, 4 );
         layout->setSpacing( 4 );
 
         layout->addWidget( createZoomControls(),
@@ -295,7 +295,7 @@ ConfigDialog::createWidgets()
         QFrame * frame = new QFrame();
         QLayout * layout = createColorList();
         layout->setSizeConstraint( QLayout::SetFixedSize );
-        layout->setMargin( 4 );
+        layout->setContentsMargins( 4, 4, 4, 4 );
         layout->setSpacing( 4 );
 
         frame->setLayout( layout );
@@ -306,7 +306,7 @@ ConfigDialog::createWidgets()
         QFrame * frame = new QFrame();
         QLayout * layout = createFontButtons();
         layout->setSizeConstraint( QLayout::SetFixedSize );
-        layout->setMargin( 4 );
+        layout->setContentsMargins( 4, 4, 4, 4 );
         layout->setSpacing( 4 );
 
         frame->setLayout( layout );
@@ -318,7 +318,7 @@ ConfigDialog::createWidgets()
 //         QFrame * frame = new QFrame();
 //         QVBoxLayout * layout = new QVBoxLayout();
 //         layout->setSizeConstraint( QLayout::SetFixedSize );
-//         layout->setMargin( 4 );
+//         layout->setContentsMargins( 4, 4, 4, 4 );
 //         layout->setSpacing( 4 );
 //
 //         layout->addWidget( createTraceControls(),
@@ -346,7 +346,7 @@ ConfigDialog::createZoomControls()
 
     QVBoxLayout * top_layout = new QVBoxLayout();
     top_layout->setSizeConstraint( QLayout::SetFixedSize );
-    top_layout->setMargin( 1 );
+    top_layout->setContentsMargins( 1, 1, 1, 1 );
     top_layout->setSpacing( 0 );
 
     const QFontMetrics metrics = this->fontMetrics();
@@ -427,7 +427,7 @@ ConfigDialog::createObjectSizeControls()
     QGroupBox * group_box = new QGroupBox( tr( "Object Size" ) );
 
     QVBoxLayout * top_layout = new QVBoxLayout();
-    top_layout->setMargin( 1 );
+    top_layout->setContentsMargins( 1, 1, 1, 1 );
     top_layout->setSpacing( 0 );
 
 
@@ -478,7 +478,7 @@ ConfigDialog::createCanvasSizeControls()
 
     {
         QHBoxLayout * layout = new QHBoxLayout();
-        layout->setMargin( 1 );
+        layout->setContentsMargins( 1, 1, 1, 1 );
         layout->setSpacing( 0 );
 
         layout->addWidget( new QLabel( tr( " Width:" ) ) );
@@ -507,7 +507,7 @@ ConfigDialog::createCanvasSizeControls()
     }
     {
         QHBoxLayout * layout = new QHBoxLayout();
-        layout->setMargin( 1 );
+        layout->setContentsMargins( 1, 1, 1, 1 );
         layout->setSpacing( 0 );
 
         layout->addWidget( new QLabel( tr( " Team Graphic Scale:" ) ) );
@@ -536,12 +536,12 @@ ConfigDialog::createPlayerInfoControls()
     QGroupBox * group_box = new QGroupBox( tr( "Player Info" ) );
 
     QVBoxLayout * top_layout = new QVBoxLayout();
-    top_layout->setMargin( 1 );
+    top_layout->setContentsMargins( 1, 1, 1, 1 );
     top_layout->setSpacing( 0 );
 
     {
         QHBoxLayout * layout = new QHBoxLayout();
-        layout->setMargin( 0 );
+        layout->setContentsMargins( 0, 0, 0, 0 );
         layout->setSpacing( 0 );
 
         M_player_number_cb = new QCheckBox( tr( "Unum" ) );
@@ -574,7 +574,7 @@ ConfigDialog::createPlayerInfoControls()
     }
     {
         QHBoxLayout * layout = new QHBoxLayout();
-        layout->setMargin( 0 );
+        layout->setContentsMargins( 0, 0, 0, 0 );
         layout->setSpacing( 0 );
 
         //
@@ -594,7 +594,7 @@ ConfigDialog::createPlayerInfoControls()
     }
     {
         QHBoxLayout * layout = new QHBoxLayout();
-        layout->setMargin( 0 );
+        layout->setContentsMargins( 0, 0, 0, 0 );
         layout->setSpacing( 0 );
 
         //
@@ -616,7 +616,7 @@ ConfigDialog::createPlayerInfoControls()
 
     {
         QHBoxLayout * layout = new QHBoxLayout();
-        layout->setMargin( 0 );
+        layout->setContentsMargins( 0, 0, 0, 0 );
         layout->setSpacing( 0 );
         //
         M_catch_area_cb = new QCheckBox( tr( "Catch Area" ) );
@@ -636,7 +636,7 @@ ConfigDialog::createPlayerInfoControls()
     }
     {
         QHBoxLayout * layout = new QHBoxLayout();
-        layout->setMargin( 0 );
+        layout->setContentsMargins( 0, 0, 0, 0 );
         layout->setSpacing( 0 );
 
         //
@@ -657,7 +657,7 @@ ConfigDialog::createPlayerInfoControls()
     }
 //     {
 //         QHBoxLayout * layout = new QHBoxLayout();
-//         layout->setMargin( 0 );
+//         layout->setContentsMargins( 0, 0, 0, 0 );
 //         layout->setSpacing( 0 );
 
 //         top_layout->addLayout( layout );
@@ -677,7 +677,7 @@ ConfigDialog::createBallInfoControls()
     QGroupBox * group_box = new QGroupBox( tr( "Ball Info" ) );
 
     QHBoxLayout * top_layout = new QHBoxLayout();
-    top_layout->setMargin( 1 );
+    top_layout->setContentsMargins( 1, 1, 1, 1 );
     top_layout->setSpacing( 0 );
 
     top_layout->addWidget( new QLabel( tr( "Velocity Cycles:" ) ) );
@@ -706,12 +706,12 @@ ConfigDialog::createShowControls()
     QGroupBox * group_box = new QGroupBox( tr( "Show" ) );
 
     QVBoxLayout * top_layout = new QVBoxLayout();
-    top_layout->setMargin( 1 );
+    top_layout->setContentsMargins( 1, 1, 1, 1 );
     top_layout->setSpacing( 0 );
 
     {
         QHBoxLayout * layout = new QHBoxLayout();
-        layout->setMargin( 0 );
+        layout->setContentsMargins( 0, 0, 0, 0 );
         layout->setSpacing( 0 );
 
         M_show_score_board_cb = new QCheckBox( tr( "Score Board" ) );
@@ -730,7 +730,7 @@ ConfigDialog::createShowControls()
     }
     {
         QHBoxLayout * layout = new QHBoxLayout();
-        layout->setMargin( 0 );
+        layout->setContentsMargins( 0, 0, 0, 0 );
         layout->setSpacing( 0 );
 
         //
@@ -750,7 +750,7 @@ ConfigDialog::createShowControls()
     }
     {
         QHBoxLayout * layout = new QHBoxLayout();
-        layout->setMargin( 0 );
+        layout->setContentsMargins( 0, 0, 0, 0 );
         layout->setSpacing( 0 );
 
         M_show_ball_cb = new QCheckBox( tr( "Ball" ) );
@@ -781,7 +781,7 @@ ConfigDialog::createShowControls()
     }
 //     {
 //         QHBoxLayout * layout = new QHBoxLayout();
-//         layout->setMargin( 0 );
+//         layout->setContentsMargins( 0, 0, 0, 0 );
 //         layout->setSpacing( 0 );
 
 //         top_layout->addLayout( layout );
@@ -801,7 +801,7 @@ ConfigDialog::createFocusControls()
     QGroupBox * group_box = new QGroupBox( tr( "Focus" ) );
 
     QHBoxLayout * layout = new QHBoxLayout();
-    layout->setMargin( 1 );
+    layout->setContentsMargins( 1, 1, 1, 1 );
     layout->setSpacing( 0 );
 
     {
@@ -838,13 +838,13 @@ ConfigDialog::createPlayerSelectionControls()
     QGroupBox * group_box = new QGroupBox( tr( "Player Selection" ) );
 
     QVBoxLayout * top_layout = new QVBoxLayout();
-    top_layout->setMargin( 1 );
+    top_layout->setContentsMargins( 1, 1, 1, 1 );
     top_layout->setSpacing( 0 );
 
     // selection type
     {
         QHBoxLayout * layout = new QHBoxLayout();
-        layout->setMargin( 0 );
+        layout->setContentsMargins( 0, 0, 0, 0 );
         layout->setSpacing( 0 );
         {
             M_select_all_rb = new QRadioButton( tr( "Auto" ) );
@@ -887,7 +887,7 @@ ConfigDialog::createPlayerSelectionControls()
 
     {
         QHBoxLayout * layout = new QHBoxLayout();
-        layout->setMargin( 0 );
+        layout->setContentsMargins( 0, 0, 0, 0 );
         layout->setSpacing( 0 );
         //layout->addSpacing( 16 );
 
@@ -926,7 +926,7 @@ ConfigDialog::createMiscControls()
 {
     QGroupBox * group_box = new QGroupBox( tr( "Misc" ) );
     QVBoxLayout * top_layout = new QVBoxLayout();
-    top_layout->setMargin( 1 );
+    top_layout->setContentsMargins( 1, 1, 1, 1 );
     top_layout->setSpacing( 0 );
 
     //
@@ -949,7 +949,7 @@ ConfigDialog::createGridStepControls()
 {
     QGroupBox * group_box = new QGroupBox( tr( "Grid Lines" ) );
     QVBoxLayout * top_layout = new QVBoxLayout();
-    top_layout->setMargin( 1 );
+    top_layout->setContentsMargins( 1, 1, 1, 1 );
     top_layout->setSpacing( 0 );
 
     M_show_grid_coord_cb = new QCheckBox( tr( "Grid Coordinates" ) );
@@ -960,7 +960,7 @@ ConfigDialog::createGridStepControls()
 
     //
     QHBoxLayout * layout = new QHBoxLayout();
-    //layout->setMargin( 0 );
+    //layout->setContentsMargins( 0, 0, 0, 0 );
     //layout->setSpacing( 0 );
     //
     layout->addWidget( new QLabel( tr( "Step:" ) ) );
@@ -1000,7 +1000,7 @@ ConfigDialog::createTraceControls()
     QGroupBox * group_box = new QGroupBox( tr( "Trace" ) );
 
     QVBoxLayout * top_layout = new QVBoxLayout();
-    top_layout->setMargin( 0 );
+    top_layout->setContentsMargins( 0, 0, 0, 0 );
     top_layout->setSpacing( 0 );
 
     {
@@ -1008,7 +1008,7 @@ ConfigDialog::createTraceControls()
 
         QHBoxLayout * layout = new QHBoxLayout();
         layout->setSizeConstraint( QLayout::SetFixedSize );
-        layout->setMargin( 0 );
+        layout->setContentsMargins( 0, 0, 0, 0 );
         layout->setSpacing( 0 );
 
         M_ball_trace_start = new QLineEdit( tr( "0" ) );
@@ -1045,7 +1045,7 @@ ConfigDialog::createTraceControls()
 
         QHBoxLayout * layout= new QHBoxLayout();
         layout->setSizeConstraint( QLayout::SetFixedSize );
-        layout->setMargin( 0 );
+        layout->setContentsMargins( 0, 0, 0, 0 );
         layout->setSpacing( 0 );
 
         M_player_trace_start = new QLineEdit( tr( "0" ) );
@@ -1256,7 +1256,7 @@ ConfigDialog::createFontButtons()
     using std::placeholders::_1;
 
     QVBoxLayout * layout = new QVBoxLayout();
-    layout->setMargin( 4 );
+    layout->setContentsMargins( 4, 4, 4, 4 );
     layout->setSpacing( 2 );
 
     Options * o = &Options::instance();
