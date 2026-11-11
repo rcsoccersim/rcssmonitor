@@ -2525,6 +2525,8 @@ ConfigDialog::choicePlayer( int number )
 void
 ConfigDialog::selectPlayerWithKey()
 {
+    // the action has the number of the player as its data: 1-11 for the
+    // left players, and 12-22 for the right players
     QAction * action = qobject_cast< QAction * >( sender() );
 
     if ( ! action )
@@ -2532,62 +2534,10 @@ ConfigDialog::selectPlayerWithKey()
         return;
     }
 
-    int key = action->shortcut()[0];
-
-    for ( int i = 1; i < 10; ++i )
+    const int number = action->data().toInt();
+    if ( 1 <= number && number <= 22 )
     {
-        if ( key == Qt::Key_0 + i )
-        {
-            selectPlayer( i );
-            return;
-        }
-        else if (
-#ifdef Q_WS_MAC
-                 key == int( Qt::META + Qt::Key_0 + i )
-#else
-                 key == int( Qt::CTRL + Qt::Key_0 + i )
-#endif
-                 )
-        {
-            selectPlayer( i + 11 );
-            return;
-        }
-    }
-
-    if ( key == Qt::Key_0 )
-    {
-        selectPlayer( 10 );
-        return;
-    }
-
-    if (
-#ifdef Q_WS_MAC
-         key == Qt::META + Qt::Key_0
-#else
-         key == Qt::CTRL + Qt::Key_0
-#endif
-         )
-    {
-        selectPlayer( 21 );
-        return;
-    }
-
-    if ( key == Qt::Key_Minus )
-    {
-        selectPlayer( 11 );
-        return;
-    }
-
-    if (
-#ifdef Q_WS_MAC
-        key == Qt::META + Qt::Key_Minus
-#else
-        key == Qt::CTRL + Qt::Key_Minus
-#endif
-        )
-    {
-        selectPlayer( 22 );
-        return;
+        selectPlayer( number );
     }
 }
 
