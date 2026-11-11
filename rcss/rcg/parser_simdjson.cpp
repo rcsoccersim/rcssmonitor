@@ -107,9 +107,6 @@ struct ParserSimdJSON::Impl {
 
 namespace {
 
-//! the number of the broken lines reported one by one
-const std::size_t MAX_REPORTED_LINES = 10;
-
 /*!
   \brief report a key that the parser does not know, once in a process: a
   newer server may add records, and a live connection would report them in
@@ -355,8 +352,8 @@ ParserSimdJSON::Impl::parseLog( simdjson::padded_string & json,
         simdjson::ondemand::document rcg = parser.iterate( json );
         simdjson::ondemand::array root_array = rcg.get_array();
 
-        std::size_t index = 0;
-        std::size_t skipped = 0;
+        int index = 0;
+        std::vector< int > skipped;
         for ( simdjson::ondemand::object data : root_array )
         {
             ++index;
@@ -365,20 +362,13 @@ ParserSimdJSON::Impl::parseLog( simdjson::padded_string & json,
                 if ( ! parseData( field, handler ) )
                 {
                     // the rest of the record is skipped
-                    if ( ++skipped <= MAX_REPORTED_LINES )
-                    {
-                        std::cerr << "(ParserSimdJSON::parse) record " << index
-                                  << ": skipped a record that could not be parsed" << std::endl;
-                    }
+                    skipped.push_back( index );
                     break;
                 }
             }
         }
 
-        if ( skipped > MAX_REPORTED_LINES )
-        {
-            std::cerr << "(ParserSimdJSON::parse) skipped " << skipped << " records in total" << std::endl;
-        }
+        report_skipped( "ParserSimdJSON::parse", "record", skipped );
     }
     catch ( std::exception & e )
     {
@@ -438,19 +428,8 @@ ParserSimdJSON::Impl::parseLines( const char * data,
                                    return parseRecord( *parser, record.begin_, record.length_, end, h );
                                };
                        },
-                       false,
                        handler );
-
-    for ( std::size_t i = 0; i < skipped.size() && i < MAX_REPORTED_LINES; ++i )
-    {
-        std::cerr << "(ParserSimdJSON::parse) line " << skipped[i]
-                  << ": skipped a record that could not be parsed" << std::endl;
-    }
-
-    if ( skipped.size() > MAX_REPORTED_LINES )
-    {
-        std::cerr << "(ParserSimdJSON::parse) skipped " << skipped.size() << " lines in total" << std::endl;
-    }
+    report_skipped( "ParserSimdJSON::parse", "line", skipped );
 
     handler.handleEOF();
     return true;

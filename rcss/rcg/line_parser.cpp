@@ -40,6 +40,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <iostream>
 #include <memory>
 #include <string>
 #include <thread>
@@ -54,6 +55,9 @@ const std::size_t MAX_THREADS = 8;
 
 //! the fewest lines for a thread; fewer lines are parsed in one thread
 const std::size_t MIN_LINES_PER_THREAD = 1024;
+
+//! the number of the skipped lines reported one by one
+const std::size_t MAX_REPORTED_LINES = 10;
 
 /*!
   \class RecordingHandler
@@ -228,7 +232,6 @@ split_lines( const char * data,
 std::vector< int >
 parse_lines( const std::vector< LineRef > & lines,
              const LineParserFactory & make_parser,
-             const bool stop_at_failure,
              Handler & handler )
 {
     std::vector< int > failed;
@@ -244,10 +247,6 @@ parse_lines( const std::vector< LineRef > & lines,
             if ( ! parse_one( parse, line, handler ) )
             {
                 failed.push_back( line.number_ );
-                if ( stop_at_failure )
-                {
-                    break;
-                }
             }
         }
         return failed;
@@ -264,7 +263,7 @@ parse_lines( const std::vector< LineRef > & lines,
     workers.reserve( threads );
     for ( Block & block : blocks )
     {
-        workers.emplace_back( [&lines, &make_parser, &block, stop_at_failure]()
+        workers.emplace_back( [&lines, &make_parser, &block]()
                               {
                                   const LineParser parse = make_parser();
                                   for ( std::size_t i = block.first_; i < block.last_; ++i )
@@ -272,10 +271,6 @@ parse_lines( const std::vector< LineRef > & lines,
                                       if ( ! parse_one( parse, lines[i], block.recorder_ ) )
                                       {
                                           block.failed_.push_back( lines[i].number_ );
-                                          if ( stop_at_failure )
-                                          {
-                                              break;
-                                          }
                                       }
                                   }
                               } );
@@ -290,14 +285,30 @@ parse_lines( const std::vector< LineRef > & lines,
     {
         block.recorder_.replay( handler );
         failed.insert( failed.end(), block.failed_.begin(), block.failed_.end() );
-        if ( stop_at_failure
-             && ! block.failed_.empty() )
-        {
-            break;
-        }
     }
 
     return failed;
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+void
+report_skipped( const std::string & who,
+                const std::string & what,
+                const std::vector< int > & numbers )
+{
+    for ( std::size_t i = 0; i < numbers.size() && i < MAX_REPORTED_LINES; ++i )
+    {
+        std::cerr << '(' << who << ") " << what << ' ' << numbers[i]
+                  << ": skipped, as it could not be parsed" << std::endl;
+    }
+
+    if ( numbers.size() > MAX_REPORTED_LINES )
+    {
+        std::cerr << '(' << who << ") skipped " << numbers.size() << ' ' << what << "s in total" << std::endl;
+    }
 }
 
 }

@@ -34,6 +34,7 @@
 
 #include <cstddef>
 #include <functional>
+#include <string>
 #include <vector>
 
 namespace rcss {
@@ -79,11 +80,10 @@ using LineParserFactory = std::function< LineParser () >;
   \brief parse lines and pass their data to a handler in the order of the
   lines. With many lines, consecutive blocks of them are parsed in
   parallel, each into a recording handler, and the records are passed to
-  the handler in order afterwards.
+  the handler in order afterwards. A line that fails (or throws) is
+  skipped.
   \param lines the lines
   \param make_parser makes the line parser of each thread
-  \param stop_at_failure if true, the lines after the first line that fails
-  are not parsed, and their data are not passed.
   \param handler the handler
   \return the numbers of the lines that failed, in order
 
@@ -91,8 +91,18 @@ using LineParserFactory = std::function< LineParser () >;
 */
 std::vector< int > parse_lines( const std::vector< LineRef > & lines,
                                 const LineParserFactory & make_parser,
-                                const bool stop_at_failure,
                                 Handler & handler );
+
+/*!
+  \brief print the numbers of the lines that were skipped to std::cerr:
+  the first ones one by one, and then the number of them.
+  \param who the name of the parser, at the head of each message
+  \param what "lines" or "records"
+  \param numbers the numbers of the lines (or records) that were skipped
+*/
+void report_skipped( const std::string & who,
+                     const std::string & what,
+                     const std::vector< int > & numbers );
 
 }
 }

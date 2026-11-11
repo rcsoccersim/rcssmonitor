@@ -446,7 +446,8 @@ private slots:
     void jsonBallHeight();
     void textTeamGraphic();
     void textManyLines();
-    void textManyLinesStopAtIllegalLine();
+    void textManyLinesSkipIllegalLines();
+    void textNullTeamName();
     void jsonManyLines();
 };
 
@@ -938,11 +939,11 @@ TestRcgParser::textManyLines()
 
 /*-------------------------------------------------------------------*/
 /*!
-  In a large text log, an illegal line ends the parse as before: nothing
-  after it reaches the handler.
+  In a large text log, the lines that cannot be parsed are skipped, and the
+  lines after them are read (B8). An empty line is not an error.
 */
 void
-TestRcgParser::textManyLinesStopAtIllegalLine()
+TestRcgParser::textManyLinesSkipIllegalLines()
 {
     std::string header, show;
     splitFixture( readFixture( "head_v5.rcg" ), 21, "(show 1 ", &header, &show );
@@ -951,15 +952,58 @@ TestRcgParser::textManyLinesStopAtIllegalLine()
     for ( int t = 1; t <= MANY_SHOWS; ++t )
     {
         if ( t % 1000 == 1 ) data += "(playmode " + std::to_string( t ) + " play_on)\n";
+        if ( t == 4500 )
+        {
+            data += "(show 4500 ((b) 1 2\n"; // the ball broken
+            continue;
+        }
+        if ( t == 4600 )
+        {
+            // cut in the middle, as the server stopped abnormally
+            data += "(show 4600" + show.substr( 7, show.size() / 2 ) + "\n";
+            continue;
+        }
+        if ( t == 4700 )
+        {
+            // an illegal unum
+            std::string bad = "(show 4700" + show.substr( 7 );
+            replaceFirst( &bad, "((l 1)", "((l 0)" );
+            data += bad + "\n";
+            continue;
+        }
         data += "(show " + std::to_string( t ) + show.substr( 7 ) + "\n";
-        if ( t == 3000 ) data += "an illegal line\n";
+        if ( t == 1500 ) data += "an illegal line\n";
+        if ( t == 2500 ) data += "\n";
+        if ( t == 3500 ) data += "(unknown_record 1 2)\n";
     }
 
     RecordingHandler handler;
     rcss::rcg::Parser::Ptr parser = rcss::rcg::Parser::create( data.data(), data.size() );
     QVERIFY( parser );
-    QVERIFY( ! parser->parse( data.data(), data.size(), handler ) );
-    QCOMPARE( handler.events_, manyEvents( 3000 ) );
+    QVERIFY( parser->parse( data.data(), data.size(), handler ) );
+    QVERIFY( handler.eof_ );
+    QCOMPARE( handler.events_, manyEvents( MANY_SHOWS, { 4500, 4600, 4700 } ) );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  The team name "null" (before a team connects) is an empty name, also in
+  a team line, as in the team of a show line.
+*/
+void
+TestRcgParser::textNullTeamName()
+{
+    std::string header, show;
+    splitFixture( readFixture( "head_v5.rcg" ), 21, "(show 1 ", &header, &show );
+    const std::string data = header + "(team 1 null CYRUS 0 0)\n" + show + "\n";
+
+    RecordingHandler handler;
+    rcss::rcg::Parser::Ptr parser = rcss::rcg::Parser::create( data.data(), data.size() );
+    QVERIFY( parser );
+    QVERIFY( parser->parse( data.data(), data.size(), handler ) );
+    QCOMPARE( handler.team_count_, 1 );
+    QCOMPARE( handler.team_l_.name_, std::string() );
+    QCOMPARE( handler.team_r_.name_, std::string( "CYRUS" ) );
 }
 
 /*-------------------------------------------------------------------*/

@@ -131,7 +131,6 @@ private slots:
     void splitLines();
     void manyLinesInOrder();
     void failedLinesSkipped();
-    void stopAtFailure();
 };
 
 /*-------------------------------------------------------------------*/
@@ -166,7 +165,7 @@ TestLineParser::manyLinesInOrder()
     TimeHandler handler;
     const std::vector< int > failed
         = rcss::rcg::parse_lines( rcss::rcg::split_lines( data.data(), data.size() ),
-                                  makeNumberParser, false, handler );
+                                  makeNumberParser, handler );
     QVERIFY( failed.empty() );
     QCOMPARE( handler.times_, range( 1, 20000 ) );
 }
@@ -182,26 +181,9 @@ TestLineParser::failedLinesSkipped()
     TimeHandler handler;
     const std::vector< int > failed
         = rcss::rcg::parse_lines( rcss::rcg::split_lines( data.data(), data.size() ),
-                                  makeNumberParser, false, handler );
+                                  makeNumberParser, handler );
     QCOMPARE( failed, std::vector< int >( { 5000, 15000 } ) );
     QCOMPARE( handler.times_, range( 1, 20000, { 5000, 15000 } ) );
-}
-
-/*-------------------------------------------------------------------*/
-/*!
-  With stop_at_failure, nothing after the first failed line reaches the
-  handler, also from the blocks that other threads parsed.
-*/
-void
-TestLineParser::stopAtFailure()
-{
-    const std::string data = numberLines( 20000, { { 12345, "bad" }, { 18000, "bad" } } );
-    TimeHandler handler;
-    const std::vector< int > failed
-        = rcss::rcg::parse_lines( rcss::rcg::split_lines( data.data(), data.size() ),
-                                  makeNumberParser, true, handler );
-    QCOMPARE( failed, std::vector< int >( { 12345 } ) );
-    QCOMPARE( handler.times_, range( 1, 12344 ) );
 }
 
 QTEST_APPLESS_MAIN( TestLineParser )
