@@ -38,7 +38,11 @@
 
 #include "options.h"
 
+#include "angle_deg.h"
+#include "circle_2d.h"
+
 #include <algorithm>
+#include <cmath>
 
 namespace OverlayMath {
 
@@ -110,6 +114,197 @@ offsideLines( const rcss::rcg::ShowInfoT & show )
     }
 
     return OffsideLines{ offside_l, offside_r };
+}
+
+/*-------------------------------------------------------------------*/
+bool
+focusPoint( const rcss::rcg::PlayerT & player,
+            Vector2D * point )
+{
+    if ( player.focusDist() <= 1.0e-5 )
+    {
+        return false;
+    }
+    const AngleDeg focus_angle = player.body_ + player.neck_ + player.focus_dir_;
+    *point = Vector2D( player.x(), player.y() ) + Vector2D::from_polar( player.focusDist(), focus_angle );
+    return true;
+}
+
+/*-------------------------------------------------------------------*/
+CatchArea
+catchArea( const rcss::rcg::ServerParamT & SP,
+           const rcss::rcg::PlayerTypeT & type )
+{
+    CatchArea area;
+    area.catchable_ = std::sqrt( std::pow( SP.catchable_area_w_ * 0.5, 2.0 )
+                                 + std::pow( SP.catchable_area_l_, 2.0 ) );
+
+    const double max_catchable_area_l = SP.catchable_area_l_ * type.catchable_area_l_stretch_;
+    area.max_ = std::sqrt( std::pow( SP.catchable_area_w_ * 0.5, 2.0 )
+                           + std::pow( max_catchable_area_l, 2.0 ) );
+
+    const double min_catchable_area_l = SP.catchable_area_l_ * ( 1.0 - ( type.catchable_area_l_stretch_ - 1.0 ) );
+    area.min_ = std::sqrt( std::pow( SP.catchable_area_w_ * 0.5, 2.0 )
+                           + std::pow( min_catchable_area_l, 2.0 ) );
+
+    area.stretched_ = ( area.max_ > area.catchable_ );
+    return area;
+}
+
+/*-------------------------------------------------------------------*/
+TackleChances
+tackleChances( const rcss::rcg::ServerParamT & SP,
+               const rcss::rcg::PlayerT & player,
+               const rcss::rcg::BallT & ball )
+{
+    TackleChances chances = { false, 0.0, false, 0.0 };
+
+    // the ball relative to the player's body
+    Vector2D player_to_ball = Vector2D( ball.x_, ball.y_ ) - Vector2D( player.x_, player.y_ );
+    player_to_ball.rotate( - player.body_ );
+
+    const double tackle_dist = ( player_to_ball.x > 0.0
+                                 ? SP.tackle_dist_
+                                 : SP.tackle_back_dist_ );
+    if ( tackle_dist < 1.0e-5 )
+    {
+        return chances;
+    }
+
+    const double tackle_fail_prob = ( std::pow( player_to_ball.absX() / tackle_dist, SP.tackle_exponent_ )
+                                      + std::pow( player_to_ball.absY() / SP.tackle_width_, SP.tackle_exponent_ ) );
+    const double foul_fail_prob = ( std::pow( player_to_ball.absX() / tackle_dist, SP.foul_exponent_ )
+                                    + std::pow( player_to_ball.absY() / SP.tackle_width_, SP.foul_exponent_ ) );
+    chances.tackle_ = ( tackle_fail_prob < 1.0 );
+    chances.tackle_chance_ = 1.0 - tackle_fail_prob;
+    chances.foul_ = ( foul_fail_prob < 1.0 );
+    chances.foul_chance_ = 1.0 - foul_fail_prob;
+    return chances;
+}
+
+/*-------------------------------------------------------------------*/
+QString
+tackleText( const TackleChances & chances )
+{
+    if ( chances.tackle_ && chances.foul_ )
+    {
+        return QString( "T=%1,F=%2" ).arg( chances.tackle_chance_, 0, 'g', 3 ).arg( chances.foul_chance_, 0, 'g', 3 );
+    }
+    if ( chances.tackle_ )
+    {
+        return QString( "Tackle=%1" ).arg( chances.tackle_chance_, 0, 'g', 3 );
+    }
+    if ( chances.foul_ )
+    {
+        return QString( "Foul=%1" ).arg( chances.foul_chance_, 0, 'g', 3 );
+    }
+    return QString();
+}
+
+namespace {
+
+/*!
+  \brief the arc from one of two directions to the other that passes
+  toward: it starts at the one to the left of toward
+*/
+Arc
+arc_through( const Vector2D & center,
+             const double radius,
+             const AngleDeg & a1,
+             const AngleDeg & a2,
+             const AngleDeg & toward )
+{
+    const bool first = a1.isLeftOf( toward );
+    const AngleDeg & start = ( first ? a1 : a2 );
+    const AngleDeg & end = ( first ? a2 : a1 );
+    double span = ( end - start ).degree();
+    if ( span < 0.0 )
+    {
+        span += 360.0;
+    }
+    return Arc{ center, radius, start.degree(), span };
+}
+
+}
+
+/*-------------------------------------------------------------------*/
+KickAccel
+kickAccel( const rcss::rcg::ServerParamT & SP,
+           const rcss::rcg::PlayerTypeT & type,
+           const rcss::rcg::PlayerT & player,
+           const rcss::rcg::BallT & ball )
+{
+    KickAccel kick;
+    kick.kickable_ = false;
+    kick.max_accel_ = 0.0;
+    if ( ! ball.hasVelocity() )
+    {
+        return kick;
+    }
+
+    const Vector2D bpos( ball.x_, ball.y_ );
+    Vector2D player_to_ball = bpos - Vector2D( player.x_, player.y_ );
+    player_to_ball.rotate( - player.body_ );
+
+    const double ball_dist = player_to_ball.r();
+    if ( ball_dist > type.player_size_ + type.kickable_margin_ + SP.ball_size_ )
+    {
+        return kick;
+    }
+    kick.kickable_ = true;
+
+    kick.max_accel_ = std::min( SP.max_power_
+                                * type.kick_power_rate_
+                                * ( 1.0 - 0.25 * player_to_ball.th().abs() / 180.0
+                                    - 0.25 * ( ball_dist - type.player_size_ - SP.ball_size_ ) / type.kickable_margin_ ),
+                                SP.ball_accel_max_ );
+    kick.next_ = Vector2D( bpos.x + ball.vx_, bpos.y + ball.vy_ );
+
+    const Circle2D max_speed_circle( bpos, SP.ball_speed_max_ );
+    const Circle2D max_accel_circle( kick.next_, kick.max_accel_ );
+    Vector2D i1, i2;
+    if ( max_speed_circle.intersection( max_accel_circle, &i1, &i2 ) != 2 )
+    {
+        // the circles do not cross: the reach of the largest acceleration
+        kick.arcs_.push_back( Arc{ kick.next_, kick.max_accel_, 0.0, 360.0 } );
+        return kick;
+    }
+
+    // the arc of the fastest ball, on the side of the next place, and the
+    // arc of the largest acceleration, on the side of the ball
+    const AngleDeg bpos_to_bnext = ( kick.next_ - bpos ).th();
+    kick.arcs_.push_back( arc_through( bpos, SP.ball_speed_max_,
+                                       ( i1 - bpos ).th(), ( i2 - bpos ).th(), bpos_to_bnext ) );
+    kick.arcs_.push_back( arc_through( kick.next_, kick.max_accel_,
+                                       ( i1 - kick.next_ ).th(), ( i2 - kick.next_ ).th(), bpos_to_bnext + 180.0 ) );
+    return kick;
+}
+
+/*-------------------------------------------------------------------*/
+std::vector< Vector2D >
+ballPath( const rcss::rcg::ServerParamT & SP,
+          const rcss::rcg::BallT & ball,
+          const int cycles,
+          const double min_step )
+{
+    std::vector< Vector2D > path;
+    if ( ! ball.hasVelocity() )
+    {
+        return path;
+    }
+    Vector2D pos( ball.x_, ball.y_ );
+    Vector2D vel( ball.vx_, ball.vy_ );
+    for ( int i = 0; i < std::min( 100, cycles ); ++i )
+    {
+        if ( vel.r() < min_step )
+        {
+            break;
+        }
+        pos += vel;
+        vel *= SP.ball_decay_;
+        path.push_back( pos );
+    }
+    return path;
 }
 
 }
