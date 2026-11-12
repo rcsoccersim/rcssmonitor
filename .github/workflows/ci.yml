@@ -14,6 +14,8 @@ jobs:
   # CMake builds with Qt5 and Qt6 (D2). A use of a deprecated API is an
   # error: QT_DISABLE_DEPRECATED_BEFORE (CMakeLists.txt) removes the API
   # deprecated up to Qt 5.15 or 6.0, and -Werror catches the later ones.
+  # The tests run under Xvfb with Mesa's software OpenGL (llvmpipe), so that
+  # the 3D view is drawn offscreen too (docs/PLAN_3D-VIEW.md §10.2).
   cmake:
     name: CMake, ${{ matrix.qt }}
     # Named, not ubuntu-latest, which moves to a new image now and then.
@@ -27,25 +29,29 @@ jobs:
             qt_packages: qtbase5-dev
           - qt: Qt6
             qt_major: 6
-            qt_packages: qt6-base-dev
+            qt_packages: qt6-base-dev libqt6opengl6-dev
     steps:
       - uses: actions/checkout@v5
       - name: Install the packages
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            build-essential cmake ${{ matrix.qt_packages }} zlib1g-dev libdeflate-dev
+            build-essential cmake ${{ matrix.qt_packages }} zlib1g-dev libdeflate-dev \
+            xvfb xauth libgl1-mesa-dri
       - name: Configure
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
             -DQT_VERSION_MAJOR=${{ matrix.qt_major }} \
             -DCMAKE_CXX_FLAGS=-Werror=deprecated-declarations
+      - name: Check that the 3D view is built
+        run: grep -q '^#define HAVE_3D_VIEW' build/config.h
       - name: Build
         run: cmake --build build --parallel
       - name: Test
-        run: ctest --test-dir build --output-on-failure
+        run: xvfb-run -a ctest --test-dir build --output-on-failure
         env:
           QT_QPA_PLATFORM: offscreen
+          LIBGL_ALWAYS_SOFTWARE: 1
 
   # The oldest Qt that rcssmonitor supports (D2): Qt 6.2 of Ubuntu 22.04,
   # with CMake 3.22.
@@ -59,18 +65,22 @@ jobs:
         run: |
           apt-get update
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-            build-essential cmake qt6-base-dev libgl-dev zlib1g-dev libdeflate-dev
+            build-essential cmake qt6-base-dev libqt6opengl6-dev libgl-dev zlib1g-dev libdeflate-dev \
+            xvfb xauth libgl1-mesa-dri
       - name: Configure
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
             -DQT_VERSION_MAJOR=6 \
             -DCMAKE_CXX_FLAGS=-Werror=deprecated-declarations
+      - name: Check that the 3D view is built
+        run: grep -q '^#define HAVE_3D_VIEW' build/config.h
       - name: Build
         run: cmake --build build --parallel
       - name: Test
-        run: ctest --test-dir build --output-on-failure
+        run: xvfb-run -a ctest --test-dir build --output-on-failure
         env:
           QT_QPA_PLATFORM: offscreen
+          LIBGL_ALWAYS_SOFTWARE: 1
 
   # autotools stays on Qt5 (D3). Build it so that a source file missing
   # from the Makefile.am files is caught. It is built without libdeflate,
