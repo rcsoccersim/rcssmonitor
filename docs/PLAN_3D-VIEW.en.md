@@ -7,7 +7,7 @@
 | Reference implementation | rcssmonitor-web 20.0.0-beta.2 (tag `v20.0.0-beta.2`, ed36941). Its working tree is `../rcssmonitor-web`, next to this repository |
 | Server referred to | The asio version of rcssserver 19.x. Its working tree is `../rcssserver` (branch `feature/asio-migration`), next to this repository |
 | Japanese version | [PLAN_3D-VIEW.md](PLAN_3D-VIEW.md) (same content; §0.1) |
-| Status | Phase 4 done (2026-11-12, `feature/3d-view`; steps 4-1 to 4-5, §14). Next: Phase 5 |
+| Status | Phase 5 (started 2026-11-12, `feature/3d-view`). Steps 5-1 to 5-4 (§14). Phase 4 done |
 
 ## 0. How to use this plan
 
@@ -307,6 +307,7 @@ The structure of the rendering infrastructure (4-3b, §14).
 | `gl/texture_2d` | A texture of an image (mipmaps, anisotropic filtering) |
 | `gl/billboard_mesh` | Instanced drawing of rectangles that face the camera (billboards): the numbers and the cards (4-5) |
 | `gl/render_state` | How to draw (depth test and write, culling back faces, translucency). Every pass applies its whole state and does not depend on what the pass before left |
+| `gl/vertex_batch` | Vertices with their own colors, made again in every frame, drawn as lines, points or triangles; the shader leaves the gaps of dotted lines by the vertices' distances. The overlays and the view areas (5-1) |
 | `gl/frame` | The start and the end of a frame (`GLFrame::begin()`, `end()`): the framebuffer to draw into and clearing it, resetting the state that QPainter (the HUD) may leave, and the state handed to QPainter (4-5) |
 | `meshes_3d` | The vertices of the shapes (GL-independent; unit tests check the winding of the triangles and the normals) |
 
@@ -518,7 +519,7 @@ Each phase proceeds on a feature branch and is merged into develop when it is do
 
 ### Phase 5: Same information as 2D, and referee operations
 
-**Work**: overlays (§5.4; extract the calculations from the 2D painters and share them), area values in the HUD, stamina bars and the S key, the illegal defense color, hit testing for referee operations (§5.4).
+**Work**: overlays (§5.4; extract the calculations from the 2D painters and share them), area values in the HUD, stamina bars and the S key, the illegal defense color, hit testing for referee operations (§5.4). → Steps: 5-1 the part that draws lines, the direction lines in the foot circles, the view areas (moved from Phase 4). 5-2 the overlays of 2D and the area values in the HUD. 5-3 the stamina bars and the S key. 5-4 hit testing for referee operations. The illegal defense color was done with the numbers in 4-5.
 
 **Done when**: the Show tab switches work in 3D too. Referee commands are sent for players and ground points right-clicked in 3D (checked with a fake server; the web version's `tools/replay-server` is a reference).
 
@@ -1136,4 +1137,32 @@ The two commits of 4-4 (e05064b, fdc2a96) were pushed, and the CI passed. The us
 - In the CI of the three commits of 4-5 (2958c3f to 4ea0ff1), the label test of `scene_3d` failed in the three CMake jobs (it had passed here). Cause: the width of a label depends on the font, and the CI's font differs from the one here. The point that checks "nothing on the other side" fell on the center circle in the CI. The player was moved away from the lines (x = 20, y = 20), and the point is taken on the other side of the player from the label.
 - Trying eight fonts here also showed that the check of the orientation by the shape of a "7" (bar at the top, foot at the left) failed with two of them (the shapes and vertical places of glyphs differ by font). The orientation is now checked by the correlation of the whiteness of the drawn label on a 24 x 8 grid with the image of its slot in the atlas, which must be 0.1 more alike than upside down or mirrored. The text is "7,t0" (with the player type), which no font makes symmetric. It passes with all eight fonts, and fails upside down or mirrored.
 
+### Phase 5
+
+#### 2026-11-12: Step 5-1, drawing lines, direction lines, view areas (`feature/3d-view`)
+
+The commits of 4-5 and of the CI fix (2958c3f to 45614ca) were pushed, and the CI passed. Phase 4 is done.
+
+**Decided**
+- Phase 5 is split into four steps: 5-1 the part that draws lines, the direction lines in the foot circles, the view areas (moved to Phase 5 in 4-3). 5-2 the overlays of 2D (focus point, catch, tackle and kick areas, pointto, offside lines, the ball's path) and the area values in the HUD. 5-3 the stamina bars and the S key. 5-4 hit testing for referee operations. The user checks each step.
+- What changes shape in every frame, such as lines, dots and sectors, is a list of vertices with their own colors (`ColorVertex3D`), drawn by `gl/vertex_batch` with one draw call. What is drawn where is decided by the GL-independent `OverlayBuilder` (the web version's `overlays.ts`). Lines are one pixel wide (as the web version; OpenGL 3.3 core cannot draw wide lines).
+- A view area is filled as a translucent sector, as in the web version (2D draws only its outline).
+
+**Made**
+- `gl/vertex_batch` and the shaders `colored.vert`, `colored.frag`: lines, points (their size the shader's `uPointSize`) and triangles. A dotted line has the distance along it in its vertices, and the shader leaves a gap every 0.3 m (as the web version). The attribute `A_DISTANCE` was added.
+- `src/view3d/overlay_builder`: `addLine()`, `addArc()` (the distance goes on along the arc, for dotted arcs), `addDirections()` (the direction lines in the foot circles: as the 2D `drawDir`, from the center to the edge of the kickable area, the body in the player pen's color, the face in the neck's, not drawn when the view areas are), `addViewAreas()` (the Show tab's View Area: a translucent sector per player (to `visible_distance`, the view width, opacity 0.25), and for the selected player the lines of its large view (arcs at 20, 40, 60 m, the edges to 60 m, the circle of `visible_distance`)). Heights: sectors 0.035, the large view 0.04, the other lines 0.045 m.
+- `SceneContent` has lists of sectors, lines, dotted lines and points. `Scene3D` draws them in the translucent pass, after the foot circles and rings, before the nets.
+- A bug of 4-5 fixed: a thin vertical line showed at the right end of the number of the right team's 11. Its slot in the atlas was next to the white slot of the cards, and reading the texture mixed in its white. The white slot now has 8 px of room around its white, and the cards read only its inside (16 px from the edges).
+
+**Tests**
+- Test `overlay_builder` (new): the vertices, height, color and distances of a line; a circle and a quarter arc (on the circle, joined, distances going on, direction); the direction lines (the ends and colors of the body and the face, without the neck, a player not connected, with the view areas, without the players); the sectors (number of triangles, the apex and `visible_distance`, the range of angles, height, color and opacity, without a view width); the large view (number of lines, color, height, the edges, the arcs at 20 and 40 m, the circle that is felt).
+- Added to test `scene_3d`: from 10 m above, a solid line drawn all along, a dotted one about half, two dots, and a translucent triangle (the grass tinted, not covered). At first the check of the triangle looked outside the image and passed by chance; it was moved into the view, and the points looked at are checked to be in the image.
+- Added to test `label_atlas`: the edges of every slot are transparent (nothing mixes into the next slot), and what the cards read is white and overlaps no other slot.
+- Every test was confirmed to fail when what it checks is broken for a while (the gaps of dotted lines, not drawing the points or the sectors, the size of the points, the distances of arcs, the face line with view areas, the angles of the sectors, the large view of the selected player, the room around the white slot).
+- Clean builds pass the tests with Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`; 24 tests). `-DENABLE_3D=OFF` (15 tests) and autotools pass too.
+- Frame 3,000 of the full game log was drawn offscreen with the view areas, the left team's 8 selected, and looked at.
+
+**The user's check, and a bug found**
+- The user checked on the screen (the direction lines, the view areas, the large view, the line next to the number gone).
+- The user pointed out that the automatic selection of a player (the one nearest to the ball) does not work in 3D. Cause: 2D selects the player in `FieldCanvas::updateFocus()` whenever the canvas is drawn, and while 3D is shown the 2D canvas is not drawn. Fix: the selection moved to a function `selectPlayerNearestBall()` (`src/player_selection`), which both the 2D view and the 3D view call when they are drawn. Test `player_selection` (new): choosing from both teams and from one, with a nearer player of the other team, a player not connected, nobody, not automatic. Confirmed to fail when the range is widened to both teams (at first there was no case of a nearer player of the other team, and breaking the range of one team passed). The 2D images, with the automatic selection on, are the same as HEAD down to the pixels in four frames.
 
