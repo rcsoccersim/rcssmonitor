@@ -480,6 +480,26 @@ public:
 
     const QPoint & fieldCenter() const { return M_field_center;}
 
+    /*!
+      \brief the scale (pixels per meter) and the center (pixels) that map
+      the field to the screen
+    */
+    struct FieldTransform {
+        double scale;
+        QPoint center;
+    };
+    FieldTransform fieldTransform() const { return FieldTransform{ M_field_scale, M_field_center }; }
+    /*!
+      \brief set the mapping of the field for a while, e.g. to draw the field
+      into an image (the ground of the 3D view), and set it back afterward.
+      Unlike setFieldScale(), this does not zoom.
+    */
+    void setFieldTransform( const FieldTransform & t )
+      {
+          M_field_scale = t.scale;
+          M_field_center = t.center;
+      }
+
     FocusType focusType() const { return M_focus_type; }
     void setFocusType( const Options::FocusType type ) { M_focus_type = type; }
 

@@ -45,6 +45,9 @@ private:
 
     const DispHolder & M_disp_holder;
 
+    //! the width of the pens, in pixels of the 2D view (1 for the 2D view)
+    double M_pen_scale;
+
     // not used
     FieldPainter() = delete;
     FieldPainter( const FieldPainter & ) = delete;
@@ -56,7 +59,16 @@ public:
 
     void draw( QPainter & painter ) override;
 
+    /*!
+      \brief draw the field without the goals, which the 3D view builds
+      itself, with the pens pen_scale times wider: the ground of the 3D view.
+    */
+    void drawGround( QPainter & painter,
+                     const double pen_scale );
+
 private:
+
+    QPen pen( const QPen & pen ) const;
 
     void drawBackGround( QPainter & painter ) const;
     void drawLines( QPainter & painter ) const;
