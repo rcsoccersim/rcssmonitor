@@ -87,6 +87,12 @@ install(FILES icons/rcssmonitor.png
   DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/48x48/apps
   )
 
+# prototypes of the 3D view (Phase 0 of docs/PLAN_3D-VIEW.md)
+option(BUILD_PROTO_3D "Build the prototypes of the 3D view" OFF)
+if(BUILD_PROTO_3D)
+  add_subdirectory(proto/3d-gl)
+endif()
+
 # unit tests
 find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Test QUIET)
 if(Qt${QT_VERSION_MAJOR}Test_FOUND)
