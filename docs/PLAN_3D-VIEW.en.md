@@ -34,6 +34,12 @@ This plan is loaded to drive the development of rcssmonitor. The design and hist
 - Keep the Japanese version (`PLAN_3D-VIEW.md`) and the English version (this document) of the plan in parallel. When one is changed, change the other to the same content in the same step.
 - The user creates branches on GitHub; locally, fetch them and switch to them (§9.1).
 
+### 0.2 To bring into the web version
+
+What this plan decided that the web version (rcssmonitor-web) should also get later. Mark an item when the web version has it.
+
+- [ ] **The same operations as 2D** (§5.6, 5-1b, 2026-11-12, user): in 3D too, the wheel steps the frames, and Z and X (and Ctrl+Z) bring the camera nearer / farther. In the web version the wheel moves the 3D camera (three.js OrbitControls' zoom, and the distance of the close-up cameras `closeupWheel`); make it follow 2D (the web version's 2D wheel and keys) as rcssmonitor does. Also follow rcssmonitor in that a following camera keeps following at the new distance, the top camera shows around the ball when nearer, a change of the camera sets the zoom back, and I sets it back.
+
 ## 1. Goals and scope
 
 1. **3D view**: implement in rcssmonitor the same features as the 3D view of rcssmonitor-web (§4, §5).
@@ -340,13 +346,16 @@ Read the corresponding web version file and build with the same values and the s
 ### 5.6 Input
 
 - Mouse: in the free camera, left-drag orbits, Shift (or Ctrl) + left-drag pans, the wheel and the middle button zoom (the web version uses three.js OrbitControls; write the same operations ourselves). Dragging in any other camera switches to free. In the close-up cameras, the wheel changes the distance, which is kept in the settings. Right-click is the referee menu. → 4-4: in 2D the wheel steps the frames, so a 3D camera that does not take the wheel (the top camera) steps the frames as before.
+- **The same operations as 2D (user, 2026-11-12, 5-1b)**: with the wheel moving the camera in 3D, the operations differ from 2D (the wheel steps the frames, Z and X zoom) and confuse. They follow 2D, even if they differ from usual 3D viewers. In 3D too, the wheel steps the frames. Z brings the camera nearer, X and Ctrl+Z farther (by 1.5, as 2D). A following camera keeps following at the new distance; the top camera shows a different height, and when nearer, shows around the ball (within the ground image); the free camera moves toward what it looks at. A change of the camera sets the zoom back. I sets the zoom back (replaced by the viewpoint of the whole pitch in Phase 6). The distance of the close-up cameras (Phase 6) is changed with Z and X too, not the wheel. Mouse drags (turn, move, middle button to zoom) stay. The web version will follow the same operations later (§0.2).
 - Keys (the web version's `docs/parity.md` §8 and `src/ui/shortcuts.ts`):
 
 | Key | Function | rcssmonitor now |
 |---|---|---|
 | D | Switch 2D / 3D | Free |
 | E | Next camera | Free |
-| I | In 3D, the viewpoint from the side of the pitch (free). In 2D, as before | Fit Field Size |
+| Z, X, Ctrl+Z | In 3D, the camera nearer / farther. In 2D, as before (5-1b) | Zoom In, Zoom Out |
+| I | In 3D, the viewpoint from the side of the pitch (free). In 2D, as before (from 5-1b until Phase 6, in 3D it sets the zoom back) | Fit Field Size |
+| Wheel | Steps the frames, in both 2D and 3D (5-1b) | Same (2D) |
 | Ctrl+I | In 3D, the next viewpoint. In 2D, tells that it is for 3D | Free |
 | S | Cycle the stamina display none → stamina → capacity → both (also affects the 3D bars) | Same (2D) |
 
@@ -1165,4 +1174,22 @@ The commits of 4-5 and of the CI fix (2958c3f to 45614ca) were pushed, and the C
 **The user's check, and a bug found**
 - The user checked on the screen (the direction lines, the view areas, the large view, the line next to the number gone).
 - The user pointed out that the automatic selection of a player (the one nearest to the ball) does not work in 3D. Cause: 2D selects the player in `FieldCanvas::updateFocus()` whenever the canvas is drawn, and while 3D is shown the 2D canvas is not drawn. Fix: the selection moved to a function `selectPlayerNearestBall()` (`src/player_selection`), which both the 2D view and the 3D view call when they are drawn. Test `player_selection` (new): choosing from both teams and from one, with a nearer player of the other team, a player not connected, nobody, not automatic. Confirmed to fail when the range is widened to both teams (at first there was no case of a nearer player of the other team, and breaking the range of one team passed). The 2D images, with the automatic selection on, are the same as HEAD down to the pixels in four frames.
+
+#### 2026-11-12: Step 5-1b, the same operations as 2D (`feature/3d-view`)
+
+The four commits of 5-1 and of the fix of the automatic selection (f4153d0 to 2167e85) were pushed, and the CI passed.
+
+**Decided (user)**
+- 2D steps the frames with the wheel and zooms with Z and X. With the wheel moving the camera in 3D, the operations differ and confuse. They follow 2D, even if they differ from usual 3D viewers (§5.6). The web version will follow later too, written in §0.2.
+
+**Made**
+- `CameraController::zoom()`, `resetZoom()`: a following camera (broadcast, behind the goals) keeps following at the distance from what it looks at times the zoom (gliding). The top camera shows the height of its view times the zoom, and when nearer shows around the ball, within the ground image. The free camera moves toward what it looks at. The zoom is 0.04 to 4, and goes back to 1 when the camera changes. `resetZoom()` sets it to 1, and puts the free camera back to the whole pitch.
+- `FieldView3D`: no longer takes the wheel (the main window steps the frames, as in 2D). `zoomCamera()`.
+- Main window: Z, X, Ctrl+Z and I bring the camera nearer, farther and back when the 3D view is shown (by 1.5, as 2D); in 2D, as before.
+
+**Tests**
+- Added to test `cameras_3d`: the broadcast camera follows the ball when nearer, at 1/1.5 of the distance; the range of the zoom; setting it back, and back on a change of the camera; the top camera's height halved around the ball; within the ground image at a corner; the free camera moving nearer and back to the whole pitch.
+- Added to test `view_switch`: with the 2D view shown, Z, X and I zoom and fit the 2D field as before.
+- Every test was confirmed to fail when what it checks is broken for a while (the distance of a following camera, the top camera's height, keeping within the ground image, setting back on a change of camera, the range, sending the keys to 2D). At first the ball of the top camera's test was outside what a zoom of 0.5 can show, and the test failed (the behavior was right; the test's values were fixed).
+- Clean builds pass the tests with Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`; 25 tests). `-DENABLE_3D=OFF` (16 tests) and autotools pass too.
 
