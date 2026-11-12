@@ -1,5 +1,7 @@
 # The tests run with HOME in the build tree, so that they never read or
-# write the user's ~/.rcssmonitor.conf (Options reads and writes it).
+# write the user's ~/.rcssmonitor.conf (Options reads and writes it). Each
+# test removes the settings that an earlier run left there before it starts
+# (fresh_settings.cpp), when HOME is RCSSMONITOR_TEST_HOME.
 set(TEST_HOME ${CMAKE_CURRENT_BINARY_DIR}/home)
 file(MAKE_DIRECTORY ${TEST_HOME})
 
@@ -8,6 +10,7 @@ file(MAKE_DIRECTORY ${TEST_HOME})
 function(rcssmonitor_add_test name)
   add_executable(test_${name}
     test_${name}.cpp
+    fresh_settings.cpp
     )
 
   target_include_directories(test_${name}
@@ -34,7 +37,7 @@ function(rcssmonitor_add_test name)
   # skipped, not as passed
   set_tests_properties(${name}
     PROPERTIES
-    ENVIRONMENT "HOME=${TEST_HOME};QT_QPA_PLATFORM=offscreen"
+    ENVIRONMENT "HOME=${TEST_HOME};RCSSMONITOR_TEST_HOME=${TEST_HOME};QT_QPA_PLATFORM=offscreen"
     SKIP_REGULAR_EXPRESSION "\nSKIP   : "
     )
 endfunction()
