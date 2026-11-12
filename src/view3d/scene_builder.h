@@ -33,11 +33,13 @@
 #ifndef RCSSMONITOR_SCENE_BUILDER_H
 #define RCSSMONITOR_SCENE_BUILDER_H
 
+#include "camera_3d.h"
 #include "instance_3d.h"
 
 #include <vector>
 
 class DispHolder;
+class LabelAtlas;
 class Options;
 
 namespace rcss {
@@ -66,6 +68,9 @@ struct SceneContent {
     std::vector< Instance3D > decay_rings; //!< 1.1 to 1.22 on the xz plane: the decay of effort or recovery
     std::vector< Instance3D > quads; //!< 1 x 1 on the xy plane, centered, both sides: the nets and the floors of the goals
 
+    // over everything, facing the camera, from far to near
+    std::vector< Billboard3D > labels; //!< the numbers and the cards (LabelAtlas)
+
     void clear();
 };
 
@@ -85,6 +90,15 @@ constexpr float GOAL_HEIGHT = 2.44f;
 constexpr float DISC_Y = 0.02f;
 constexpr float BALL_SHADOW_Y = 0.03f;
 constexpr float RING_Y = 0.03f;
+
+// the labels (rcssmonitor-web render3d.ts)
+constexpr float NUMBER_HEIGHT = HEAD_HEIGHT + 0.75f; //!< the center of a number label
+constexpr float LABEL_BASE = HEAD_HEIGHT + HEAD_RADIUS; //!< the top of the head, where a label shrinks toward
+constexpr float LABEL_GAP = 0.25f; //!< from the top camera, between the circle on the ground and the number (m)
+constexpr float LABEL_MAX_FONT = 2.0f; //!< a number's text is at most this many times the 2D player font high on the screen
+constexpr float CARD_WIDTH = 0.42f; //!< a card (m), to the right of the number
+constexpr float CARD_HEIGHT = 0.6f;
+constexpr float CARD_GAP = 0.08f; //!< between the number's text and the card (m)
 
 constexpr float DISC_OPACITY = 0.45f;
 constexpr float NET_OPACITY = 0.3f;
@@ -114,6 +128,39 @@ void addShow( SceneContent & content,
               const rcss::rcg::ShowInfoT & show,
               const DispHolder & holder,
               const Options & options );
+
+/*!
+  \struct LabelView
+  \brief what the size of the labels depends on: the camera, and the screen
+*/
+struct LabelView {
+    CameraPose camera;
+    float height; //!< of the view (logical pixels)
+    double font_pixels; //!< the height of the 2D player font (the Font tab) on the screen (pixels)
+};
+
+/*!
+  \brief the number labels and the cards of a show (rcssmonitor-web
+  fitLabels(), labelPlace()). A label has the number and the player type,
+  as the 2D view writes them (Show tab), white, or in the color of illegal
+  defense. From the top camera, it is where the 2D view writes it, to the
+  right of the circle on the ground, as high on the screen as the 2D player
+  font. From the other cameras, it is above the head, in meters, but at most
+  LABEL_MAX_FONT times the font high on the screen: a nearer label shrinks
+  toward the head. A yellow or red card is to the right of the number.
+  \param content where to add them
+  \param show the show (interpolated)
+  \param holder the server parameters and the player types
+  \param options what to draw, the sizes and the colors
+  \param atlas the texts of the labels, drawn again when they change
+  \param view the camera and the screen
+*/
+void addLabels( SceneContent & content,
+                const rcss::rcg::ShowInfoT & show,
+                const DispHolder & holder,
+                const Options & options,
+                LabelAtlas & atlas,
+                const LabelView & view );
 
 }
 

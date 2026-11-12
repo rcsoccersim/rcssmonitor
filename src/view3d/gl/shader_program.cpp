@@ -70,7 +70,10 @@ shader_header()
         + "#define A_NORMAL " + QByteArray::number( GLAttribute::NORMAL ) + "\n"
         + "#define A_UV " + QByteArray::number( GLAttribute::UV ) + "\n"
         + "#define A_MODEL " + QByteArray::number( GLAttribute::MODEL ) + "\n"
-        + "#define A_COLOR " + QByteArray::number( GLAttribute::COLOR ) + "\n";
+        + "#define A_COLOR " + QByteArray::number( GLAttribute::COLOR ) + "\n"
+        + "#define A_BILLBOARD_CENTER " + QByteArray::number( GLAttribute::BILLBOARD_CENTER ) + "\n"
+        + "#define A_BILLBOARD_SIZE " + QByteArray::number( GLAttribute::BILLBOARD_SIZE ) + "\n"
+        + "#define A_BILLBOARD_UV " + QByteArray::number( GLAttribute::BILLBOARD_UV ) + "\n";
 }
 
 /*!

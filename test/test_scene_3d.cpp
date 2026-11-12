@@ -35,6 +35,7 @@
 #include "field_painter.h"
 #include "field_view_3d.h"
 #include "ground_texture.h"
+#include "label_atlas.h"
 #include "options.h"
 #include "scene_3d.h"
 #include "scene_builder.h"
@@ -42,6 +43,7 @@
 #include <QOffscreenSurface>
 #include <QOpenGLContext>
 #include <QOpenGLFramebufferObject>
+#include <QOpenGLFunctions_3_3_Core>
 
 #include <cmath>
 #include <memory>
@@ -80,6 +82,7 @@ private slots:
     void ground();
     void content();
     void topCamera();
+    void labels();
     void cleanupTestCase();
 };
 
@@ -189,6 +192,19 @@ TestScene3D::content()
     scene.render( fbo.handle(), w, h, camera, content );
     QCOMPARE( first, fbo.toImage() );
 
+    // the same after what QPainter (the HUD) may leave: clipping, masks
+    {
+        QOpenGLFunctions_3_3_Core gl;
+        QVERIFY( gl.initializeOpenGLFunctions() );
+        gl.glEnable( GL_SCISSOR_TEST );
+        gl.glScissor( 0, 0, 10, 10 );
+        gl.glColorMask( GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE );
+        gl.glDepthMask( GL_FALSE );
+        gl.glDepthFunc( GL_GREATER );
+    }
+    scene.render( fbo.handle(), w, h, camera, content );
+    QCOMPARE( first, fbo.toImage() );
+
     const QColor field = Options::instance().fieldBrush().color();
     const QColor team = Options::instance().leftTeamBrush().color();
     const QColor ball = Options::instance().ballBrush().color();
@@ -269,6 +285,93 @@ TestScene3D::topCamera()
     // the player above the center, not below
     QVERIFY2( distance( at( 0.4, -20.0 ), field ) > 20, qPrintable( at( 0.4, -20.0 ).name() ) );
     QVERIFY2( distance( at( 0.4, 20.0 ), field ) < 12, qPrintable( at( 0.4, 20.0 ).name() ) );
+
+    scene.release();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  The number label of a player from the top camera, over the ground to the
+  right of the player, white in a black outline, upright and not mirrored
+  (a 7: its bar at the top, its foot at the left); nothing to its left. The
+  same in every frame.
+*/
+void
+TestScene3D::labels()
+{
+    DispHolder holder;
+    FieldPainter painter( holder );
+    Scene3D scene;
+    QVERIFY( scene.initialize() );
+    scene.setGround( GroundTexture::draw( painter ) );
+
+    const int w = 400, h = 300;
+    QOpenGLFramebufferObjectFormat fbo_format;
+    fbo_format.setAttachment( QOpenGLFramebufferObject::Depth );
+    QOpenGLFramebufferObject fbo( w, h, fbo_format );
+
+    rcss::rcg::ShowInfoT show;
+    rcss::rcg::PlayerT & p = show.player_[0];
+    p.side_ = 'l';
+    p.unum_ = 7;
+    p.state_ = rcss::rcg::STAND;
+    p.x_ = 0.0f;
+    p.y_ = 10.0f;
+    show.ball_.x_ = 100.0f; // out of the view
+
+    const CameraPose camera = Cameras3D::top( float( w ) / h );
+    LabelAtlas atlas;
+    SceneContent content;
+    SceneBuilder::addShow( content, show, holder, Options::instance() );
+    SceneBuilder::addLabels( content, show, holder, Options::instance(), atlas,
+                             SceneBuilder::LabelView{ camera, float( h ), 30.0 } );
+    QCOMPARE( content.labels.size(), size_t( 1 ) );
+    scene.setLabels( atlas.image() );
+
+    scene.render( fbo.handle(), w, h, camera, content );
+    const QImage image = fbo.toImage();
+    scene.render( fbo.handle(), w, h, camera, content );
+    QCOMPARE( image, fbo.toImage() );
+
+    // the label's area on the screen
+    const double px_per_m = h / 2.0 / camera.ortho_half_height;
+    const Billboard3D & label = content.labels[0];
+    const double text_w = atlas.textWidth( 6 ) * label.size.y() / LabelAtlas::LABEL_SCALE * px_per_m;
+    const double text_h = label.size.y() * LabelAtlas::LABEL_FONT / LabelAtlas::LABEL_HEIGHT * px_per_m;
+    const int cx = int( std::lround( w / 2 + label.center.x() * px_per_m ) );
+    const int cy = int( std::lround( h / 2 + label.center.z() * px_per_m ) );
+    int white = 0, black = 0;
+    int top = 0, bottom = 0, bottom_left = 0, bottom_right = 0; // white pixels
+    for ( int y = int( cy - text_h / 2 ); y <= int( cy + text_h / 2 ); ++y )
+    {
+        for ( int x = int( cx - text_w / 2 ); x <= int( cx + text_w / 2 ); ++x )
+        {
+            const QColor c = image.pixelColor( x, y );
+            if ( c.lightness() < 25 ) ++black;
+            if ( c.lightness() <= 230 ) continue;
+            ++white;
+            if ( y < cy - text_h / 4 ) ++top;
+            if ( y > cy + text_h / 4 )
+            {
+                ++bottom;
+                ( x < cx ? bottom_left : bottom_right ) += 1;
+            }
+        }
+    }
+    QVERIFY2( white > 10 && black > 10, qPrintable( QString( "white %1 black %2" ).arg( white ).arg( black ) ) );
+    QVERIFY2( top > bottom, qPrintable( QString( "top %1 bottom %2" ).arg( top ).arg( bottom ) ) );
+    QVERIFY2( bottom_left > bottom_right, qPrintable( QString( "left %1 right %2" ).arg( bottom_left ).arg( bottom_right ) ) );
+
+    // nothing on the other side of the player
+    const QColor field = Options::instance().fieldBrush().color();
+    const int mirror = int( std::lround( w / 2 - label.center.x() * px_per_m ) );
+    QVERIFY2( distance( image.pixelColor( mirror, cy ), field ) < 12, qPrintable( image.pixelColor( mirror, cy ).name() ) );
+
+    // over everything: the same under the ground (the top camera has no perspective)
+    SceneContent buried = content;
+    buried.labels[0].center.setY( -5.0f );
+    scene.render( fbo.handle(), w, h, camera, buried );
+    QCOMPARE( fbo.toImage(), image );
 
     scene.release();
 }

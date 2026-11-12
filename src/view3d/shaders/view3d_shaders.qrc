@@ -10,5 +10,7 @@
     <file>lit.frag</file>
     <file>flat.vert</file>
     <file>flat.frag</file>
+    <file>billboard.vert</file>
+    <file>billboard.frag</file>
   </qresource>
 </RCC>

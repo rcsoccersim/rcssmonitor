@@ -69,6 +69,9 @@ struct RenderState {
     //! the layers on the ground and the nets: hidden by the solids, hiding nothing, seen from both sides
     static RenderState translucent() { return { true, false, false, true }; }
 
+    //! the labels: over everything, translucent, seen from both sides
+    static RenderState overlay() { return { false, false, false, true }; }
+
     //! as QPainter expects it when it draws over the scene (the HUD)
     static RenderState painter() { return { false, true, false, false }; }
 

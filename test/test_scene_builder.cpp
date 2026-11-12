@@ -32,7 +32,9 @@
 
 #include <QtTest>
 
+#include "cameras_3d.h"
 #include "disp_holder.h"
+#include "label_atlas.h"
 #include "options.h"
 #include "scene_builder.h"
 
@@ -72,6 +74,40 @@ near( const QVector3D & a,
       const QVector3D & b )
 {
     return ( a - b ).length() < 1.0e-4f;
+}
+
+bool
+near( const float a,
+      const float b )
+{
+    return std::fabs( a - b ) < 1.0e-4f;
+}
+
+//! a camera at the position, looking at the target
+SceneBuilder::LabelView
+labelView( const QVector3D & position,
+           const QVector3D & target )
+{
+    SceneBuilder::LabelView view;
+    view.camera.position = position;
+    view.camera.target = target;
+    view.camera.fov_y = 35.0f;
+    view.height = 720.0f;
+    view.font_pixels = 12.0;
+    return view;
+}
+
+//! the height (m) of a label's text: 40 of its 64 pixels
+float
+textHeight( const Billboard3D & label )
+{
+    return label.size.y() * LabelAtlas::LABEL_FONT / LabelAtlas::LABEL_HEIGHT;
+}
+
+QVector4D
+rgba( const QColor & c )
+{
+    return QVector4D( float( c.redF() ), float( c.greenF() ), float( c.blueF() ), 1.0f );
 }
 
 }
@@ -228,6 +264,162 @@ private slots:
           QCOMPARE( c.discs.back().color.w(), 0.3f );
       }
 
+    void labelsFar()
+      {
+          LabelAtlas atlas;
+          SceneContent c;
+          rcss::rcg::ShowInfoT show = makeShow();
+          show.player_[3].side_ = 'n'; // not in the show
+          SceneBuilder::addLabels( c, show, M_holder, Options::instance(), atlas,
+                                   labelView( QVector3D( 0, 40, 60 ), QVector3D( 0, 0, 0 ) ) );
+          QCOMPARE( c.labels.size(), size_t( rcss::rcg::MAX_PLAYER * 2 - 1 ) );
+
+          // far from the camera: above the head, in meters (1.3 m high, 3:1)
+          auto it = std::find_if( c.labels.begin(), c.labels.end(), []( const Billboard3D & b ) {
+                  return near( b.center, QVector3D( -10, SceneBuilder::NUMBER_HEIGHT, -30 ) ); } );
+          QVERIFY( it != c.labels.end() );
+          QVERIFY( near( it->size.y(), float( LabelAtlas::LABEL_SCALE ) ) );
+          QVERIFY( near( it->size.x(), float( LabelAtlas::LABEL_SCALE ) * 3.0f ) );
+          QCOMPARE( it->offset, QVector2D( 0, 0 ) );
+          // with its text in its slot, white
+          QCOMPARE( it->uv, atlas.uv( 0 ) );
+          QCOMPARE( it->color, QVector4D( 1, 1, 1, 1 ) );
+          QVERIFY( atlas.textWidth( 0 ) > 0.0 );
+
+          // from far to near: the first is the farthest from the camera
+          const QVector3D eye( 0, 40, 60 );
+          const QVector3D forward = -eye.normalized();
+          for ( std::size_t i = 1; i < c.labels.size(); ++i )
+          {
+              QVERIFY( QVector3D::dotProduct( c.labels[i - 1].center - eye, forward )
+                       >= QVector3D::dotProduct( c.labels[i].center - eye, forward ) - 1.0e-4f );
+          }
+      }
+
+    void labelsNear()
+      {
+          // 5 m in front of the camera: the text would be 185 pixels high;
+          // it is 2 x 12 pixels at most, smaller toward the head
+          LabelAtlas atlas;
+          SceneContent c;
+          rcss::rcg::ShowInfoT show = makeShow();
+          for ( auto & p : show.player_ ) p.state_ = 0, p.side_ = 'n';
+          show.player_[0].side_ = 'l';
+          show.player_[0].state_ = rcss::rcg::STAND;
+          show.player_[0].x_ = 0.0f;
+          show.player_[0].y_ = 0.0f;
+          const SceneBuilder::LabelView view = labelView( QVector3D( 0, SceneBuilder::NUMBER_HEIGHT, 5 ),
+                                                          QVector3D( 0, SceneBuilder::NUMBER_HEIGHT, 0 ) );
+          SceneBuilder::addLabels( c, show, M_holder, Options::instance(), atlas, view );
+          QCOMPARE( c.labels.size(), size_t( 1 ) );
+          const Billboard3D & label = c.labels[0];
+
+          const float focal = 720.0f / ( 2.0f * std::tan( 17.5f * float( M_PI ) / 180.0f ) );
+          const float depth = 5.0f; // the camera looks level
+          const float pixels = textHeight( label ) * focal / depth;
+          QVERIFY2( std::fabs( pixels - 24.0f ) < 0.5f, qPrintable( QString::number( pixels ) ) );
+          const float k = label.size.y() / float( LabelAtlas::LABEL_SCALE );
+          QVERIFY( k < 0.2f );
+          QVERIFY( near( label.center.y(), SceneBuilder::LABEL_BASE + k * ( SceneBuilder::NUMBER_HEIGHT - SceneBuilder::LABEL_BASE ) ) );
+      }
+
+    void labelsTop()
+      {
+          // from the top camera: to the right of the circle on the ground,
+          // the foot of the text at the player's center, as high as the font
+          LabelAtlas atlas;
+          SceneContent c;
+          SceneBuilder::LabelView view = labelView( QVector3D(), QVector3D() );
+          view.camera = Cameras3D::top( 16.0f / 9.0f );
+          SceneBuilder::addLabels( c, makeShow(), M_holder, Options::instance(), atlas, view );
+
+          const rcss::rcg::PlayerTypeT & type = M_holder.playerType( 0 );
+          const float ground = float( type.player_size_ + type.kickable_margin_ + M_holder.serverParam().ball_size_ );
+          const float pixels_per_meter = 720.0f / ( 2.0f * view.camera.ortho_half_height );
+          auto it = std::find_if( c.labels.begin(), c.labels.end(), []( const Billboard3D & b ) {
+                  return std::fabs( b.center.z() + 30.0f ) < 1.0f && b.center.x() < 0.0f; } );
+          QVERIFY( it != c.labels.end() );
+          QVERIFY( std::fabs( textHeight( *it ) * pixels_per_meter - 12.0f ) < 1.0e-3f );
+          const float k = it->size.y() / float( LabelAtlas::LABEL_SCALE );
+          const float width = float( atlas.textWidth( 0 ) ) * k;
+          QVERIFY( near( it->center.x(), -10.0f + ground + SceneBuilder::LABEL_GAP * k + width / 2.0f ) );
+          QVERIFY( near( it->center.z(), -30.0f - textHeight( *it ) / 2.0f ) );
+      }
+
+    void labelTexts()
+      {
+          Options & opt = Options::instance();
+          LabelAtlas atlas;
+          SceneContent c;
+          const SceneBuilder::LabelView view = labelView( QVector3D( 0, 40, 60 ), QVector3D( 0, 0, 0 ) );
+
+          // the number and the type: a wider text
+          SceneBuilder::addLabels( c, makeShow(), M_holder, opt, atlas, view );
+          const double number = atlas.textWidth( 0 );
+          opt.toggleShowPlayerType();
+          SceneBuilder::addLabels( c, makeShow(), M_holder, opt, atlas, view );
+          opt.toggleShowPlayerType();
+          QVERIFY( atlas.textWidth( 0 ) > number );
+
+          // neither: no labels
+          c.clear();
+          opt.toggleShowPlayerNumber();
+          SceneBuilder::addLabels( c, makeShow(), M_holder, opt, atlas, view );
+          opt.toggleShowPlayerNumber();
+          QCOMPARE( c.labels.size(), size_t( 0 ) );
+
+          // illegal defense, in its color when it is shown
+          rcss::rcg::ShowInfoT show = makeShow();
+          show.player_[0].state_ |= rcss::rcg::ILLEGAL_DEFENSE;
+          c.clear();
+          opt.toggleShowIllegalDefense();
+          SceneBuilder::addLabels( c, show, M_holder, opt, atlas, view );
+          opt.toggleShowIllegalDefense();
+          auto it = std::find_if( c.labels.begin(), c.labels.end(), [&]( const Billboard3D & b ) { return b.uv == atlas.uv( 0 ); } );
+          QVERIFY( it != c.labels.end() );
+          QCOMPARE( it->color, rgba( opt.illegalDefensePen().color() ) );
+          c.clear();
+          SceneBuilder::addLabels( c, show, M_holder, opt, atlas, view );
+          it = std::find_if( c.labels.begin(), c.labels.end(), [&]( const Billboard3D & b ) { return b.uv == atlas.uv( 0 ); } );
+          QCOMPARE( it->color, QVector4D( 1, 1, 1, 1 ) );
+      }
+
+    void cards()
+      {
+          Options & opt = Options::instance();
+          LabelAtlas atlas;
+          SceneContent c;
+          const SceneBuilder::LabelView view = labelView( QVector3D( 0, 40, 60 ), QVector3D( 0, 0, 0 ) );
+          rcss::rcg::ShowInfoT show = makeShow();
+          show.player_[0].state_ |= rcss::rcg::YELLOW_CARD;
+          show.player_[1].state_ |= rcss::rcg::RED_CARD;
+          SceneBuilder::addLabels( c, show, M_holder, opt, atlas, view );
+          QCOMPARE( c.labels.size(), size_t( rcss::rcg::MAX_PLAYER * 2 + 2 ) );
+
+          // to the right of the number, in the white slot tinted yellow or red
+          std::vector< Billboard3D > cards;
+          std::copy_if( c.labels.begin(), c.labels.end(), std::back_inserter( cards ), [&]( const Billboard3D & b ) {
+                  return b.uv == atlas.uv( LabelAtlas::WHITE_SLOT ); } );
+          QCOMPARE( cards.size(), size_t( 2 ) );
+          const Billboard3D & yellow = ( cards[0].center.z() < cards[1].center.z() ? cards[0] : cards[1] );
+          const Billboard3D & red = ( cards[0].center.z() < cards[1].center.z() ? cards[1] : cards[0] );
+          QCOMPARE( yellow.color, QVector4D( 1, 1, 0, 1 ) );
+          QCOMPARE( red.color, QVector4D( 1, 0, 0, 1 ) );
+          QVERIFY( near( yellow.center, QVector3D( -10, SceneBuilder::NUMBER_HEIGHT, -30 ) ) );
+          QVERIFY( near( yellow.size.x(), SceneBuilder::CARD_WIDTH ) );
+          QVERIFY( near( yellow.size.y(), SceneBuilder::CARD_HEIGHT ) );
+          const float right = float( atlas.textWidth( 0 ) ) / 2.0f + SceneBuilder::CARD_GAP + SceneBuilder::CARD_WIDTH / 2.0f;
+          QVERIFY( near( yellow.offset.x(), right ) );
+          QCOMPARE( yellow.offset.y(), 0.0f );
+
+          // not shown: no cards
+          c.clear();
+          opt.toggleShowCard();
+          SceneBuilder::addLabels( c, show, M_holder, opt, atlas, view );
+          opt.toggleShowCard();
+          QCOMPARE( c.labels.size(), size_t( rcss::rcg::MAX_PLAYER * 2 ) );
+      }
+
     void hidden()
       {
           Options & opt = Options::instance();
@@ -245,6 +437,14 @@ private slots:
           opt.toggleShowBall();
           QCOMPARE( c.spheres.size(), size_t( rcss::rcg::MAX_PLAYER * 2 ) );
           QCOMPARE( c.discs.size(), size_t( rcss::rcg::MAX_PLAYER * 2 ) );
+
+          // no players: no labels
+          LabelAtlas atlas;
+          c.clear();
+          opt.toggleShowPlayer();
+          SceneBuilder::addLabels( c, makeShow(), M_holder, opt, atlas, labelView( QVector3D( 0, 40, 60 ), QVector3D() ) );
+          opt.toggleShowPlayer();
+          QCOMPARE( c.labels.size(), size_t( 0 ) );
       }
 };
 

@@ -56,9 +56,12 @@ if(HAVE_3D_VIEW)
     view3d/field_view_3d.cpp
     view3d/ground_texture.cpp
     view3d/interpolate.cpp
+    view3d/label_atlas.cpp
     view3d/meshes_3d.cpp
     view3d/scene_builder.cpp
     view3d/scene_3d.cpp
+    view3d/gl/billboard_mesh.cpp
+    view3d/gl/frame.cpp
     view3d/gl/instanced_mesh.cpp
     view3d/gl/render_state.cpp
     view3d/gl/shader_program.cpp

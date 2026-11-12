@@ -34,6 +34,9 @@
 #define RCSSMONITOR_INSTANCE_3D_H
 
 #include <QMatrix4x4>
+#include <QRectF>
+#include <QVector2D>
+#include <QVector3D>
 #include <QVector4D>
 
 /*!
@@ -56,6 +59,21 @@
 struct Instance3D {
     QMatrix4x4 model; //!< the shape's space to the world
     QVector4D color; //!< red, green, blue, opacity: 0 to 1
+};
+
+/*!
+  \struct Billboard3D
+  \brief a "billboard": a rectangle that always faces the camera, with a
+  part of a texture on it (the number labels and the cards, LabelAtlas).
+  It stays upright on the screen, and its size is in meters of the world
+  (so it is smaller far away), as three.js's sprites.
+*/
+struct Billboard3D {
+    QVector3D center; //!< where it is in the world
+    QVector2D size; //!< width and height (m)
+    QVector2D offset; //!< from center to the middle of the rectangle, along the camera's right and up (m)
+    QRectF uv; //!< the part of the texture (LabelAtlas::uv())
+    QVector4D color; //!< multiplies the texture's color: the tint, and the opacity in w
 };
 
 #endif

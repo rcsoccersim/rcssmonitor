@@ -43,12 +43,16 @@
 #include "field_painter.h"
 #include "log_player.h"
 #include "options.h"
+#include "score_board_painter.h"
+#include "team_graphic_painter.h"
 
+#include <QFontInfo>
 #include <QGuiApplication>
 #include <QMouseEvent>
 #include <QOffscreenSurface>
 #include <QOpenGLContext>
 #include <QOpenGLFunctions_3_3_Core>
+#include <QPainter>
 #include <QWheelEvent>
 
 #include <cmath>
@@ -62,6 +66,8 @@ FieldView3D::FieldView3D( DispHolder & disp_holder,
       M_disp_holder( disp_holder ),
       M_log_player( log_player ),
       M_field_painter( new FieldPainter( disp_holder ) ),
+      M_score_board_painter( new ScoreBoardPainter( disp_holder ) ),
+      M_team_graphic_painter( new TeamGraphicPainter( disp_holder ) ),
       M_ready( false ),
       M_newest( nullptr ),
       M_moving( false )
@@ -151,6 +157,8 @@ FieldView3D::initializeGL()
         std::cerr << "(FieldView3D) OpenGL 3.3 core is not available" << std::endl;
     }
     M_ground_key.clear();
+    // the new context has no texture of the labels yet
+    M_label_atlas = LabelAtlas();
 }
 
 /*-------------------------------------------------------------------*/
@@ -192,16 +200,15 @@ FieldView3D::paintGL()
     // between the two frames
     M_content.clear();
     SceneBuilder::addGoals( M_content );
-    float ball_x = 0.0f, ball_y = 0.0f;
+    rcss::rcg::ShowInfoT show;
     if ( ! frames.empty() )
     {
-        const rcss::rcg::ShowInfoT show = Interpolate::show( *frames[at.index],
-                                                             ( at.next != at.index ? frames[at.next].get() : nullptr ),
-                                                             at.alpha );
+        show = Interpolate::show( *frames[at.index],
+                                  ( at.next != at.index ? frames[at.next].get() : nullptr ),
+                                  at.alpha );
         SceneBuilder::addShow( M_content, show, M_disp_holder, Options::instance() );
-        ball_x = show.ball_.x_;
-        ball_y = show.ball_.y_;
     }
+    const float ball_x = show.ball_.x_, ball_y = show.ball_.y_;
 
     // the camera, after the ball for the time since the last frame
     const double dt = ( M_frame_clock.isValid() ? M_frame_clock.restart() * 1.0e-3 : 0.0 );
@@ -215,6 +222,21 @@ FieldView3D::paintGL()
                  || ( live && since_newest < 1.0 )
                  || ! M_camera.settled() );
 
+    // the number labels and the cards, sized for the camera and the screen
+    if ( ! frames.empty() )
+    {
+        const SceneBuilder::LabelView label_view = {
+            camera,
+            float( height() ),
+            double( QFontInfo( Options::instance().playerFont() ).pixelSize() ),
+        };
+        SceneBuilder::addLabels( M_content, show, M_disp_holder, Options::instance(), M_label_atlas, label_view );
+    }
+    if ( M_label_atlas.takeChanged() )
+    {
+        M_scene.setLabels( M_label_atlas.image() );
+    }
+
     // draw into the widget's framebuffer, in physical pixels: on a screen
     // scaled by 1.5, a widget of 100 logical pixels has 150 of them
     const qreal dpr = devicePixelRatioF();
@@ -223,6 +245,17 @@ FieldView3D::paintGL()
                     static_cast< int >( std::lround( height() * dpr ) ),
                     camera,
                     M_content );
+
+    // the HUD over the scene, as the 2D view draws it. The team logo on the
+    // right is placed by the size of the canvas in the options, which the
+    // 2D view sets when it is drawn: set it here, the same size.
+    if ( ! frames.empty() )
+    {
+        Options::instance().updateFieldSize( width(), height() );
+        QPainter painter( this );
+        M_score_board_painter->draw( painter );
+        M_team_graphic_painter->draw( painter );
+    }
 }
 
 /*-------------------------------------------------------------------*/

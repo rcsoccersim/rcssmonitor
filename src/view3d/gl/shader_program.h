@@ -54,7 +54,8 @@
 
   The sources are files in the resources (src/view3d/shaders, listed in
   view3d_shaders.qrc) without the "#version" line: load() adds it, and the
-  locations of the attributes (GLAttribute) as A_POSITION, ..., A_COLOR.
+  locations of the attributes (GLAttribute) as A_POSITION, ..., A_COLOR,
+  A_BILLBOARD_CENTER, ...
   The two shaders are compiled and "linked" into one program, which is
   chosen with bind() before drawing.
 

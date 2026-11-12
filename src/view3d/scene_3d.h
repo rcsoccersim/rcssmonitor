@@ -35,6 +35,7 @@
 
 #include "camera_3d.h"
 #include "scene_builder.h"
+#include "gl/billboard_mesh.h"
 #include "gl/instanced_mesh.h"
 #include "gl/shader_program.h"
 #include "gl/texture_2d.h"
@@ -95,6 +96,9 @@ public:
     //! send the image of the ground (GroundTexture::draw()) to the GPU
     void setGround( const QImage & image );
 
+    //! send the image of the labels (LabelAtlas::image()) to the GPU
+    void setLabels( const QImage & image );
+
     /*!
       \brief draw the scene.
       \param fbo the framebuffer to draw into: OpenGL's number of the
@@ -116,6 +120,7 @@ private:
     ShaderProgram M_ground_program; //!< "ground": the image of the ground, unlit
     ShaderProgram M_lit_program; //!< "lit": the solids, lit by the sun
     ShaderProgram M_flat_program; //!< "flat": the flat colors, translucent
+    ShaderProgram M_billboard_program; //!< "billboard": the labels, facing the camera
 
     // the shapes (Meshes3D), each drawn in instances
     InstancedMesh M_ground; //!< the area of the ground image
@@ -126,8 +131,10 @@ private:
     InstancedMesh M_ring; //!< the outline of a highlighted player
     InstancedMesh M_decay_ring; //!< the decay of effort or recovery
     InstancedMesh M_quad; //!< the nets, the floors of the goals
+    BillboardMesh M_billboards; //!< the numbers and the cards
 
     Texture2D M_ground_texture; //!< the image of the ground
+    Texture2D M_label_texture; //!< the images of the labels
     const std::vector< Instance3D > M_ground_instance; //!< one instance of the ground, where it is (no move)
 };
 

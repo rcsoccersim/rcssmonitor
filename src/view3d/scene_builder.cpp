@@ -36,13 +36,18 @@
 
 #include "scene_builder.h"
 
+#include "label_atlas.h"
+
 #include "disp_holder.h"
 #include "options.h"
 #include "player_style.h"
 
 #include <rcss/rcg/types.h>
 
+#include <QStringList>
+
 #include <algorithm>
+#include <cmath>
 
 namespace {
 
@@ -52,6 +57,34 @@ rgba( const QColor & c,
       const float opacity = 1.0f )
 {
     return QVector4D( float( c.redF() ), float( c.greenF() ), float( c.blueF() ), opacity );
+}
+
+//! the circle on the ground: the Player Size option, or the kickable area (as in 2D)
+float
+ground_radius( const rcss::rcg::PlayerTypeT & type,
+               const rcss::rcg::ServerParamT & sp,
+               const Options & opt )
+{
+    return float( opt.playerSize() >= 0.01
+                  ? opt.playerSize()
+                  : type.player_size_ + type.kickable_margin_ + sp.ball_size_ );
+}
+
+//! the label of a player: its number and its type, as the 2D view writes them (not the stamina)
+QString
+label_text( const rcss::rcg::PlayerT & p,
+            const Options & opt )
+{
+    QStringList parts;
+    if ( opt.showPlayerNumber() )
+    {
+        parts << QString::number( p.unum_ );
+    }
+    if ( opt.showPlayerType() )
+    {
+        parts << QString( "t%1" ).arg( p.type_ );
+    }
+    return parts.join( ',' );
 }
 
 //! add an instance of a shape to its list
@@ -69,6 +102,7 @@ add( std::vector< Instance3D > & list,
 void
 SceneContent::clear()
 {
+    labels.clear();
     cylinders.clear();
     spheres.clear();
     cones.clear();
@@ -190,9 +224,7 @@ addShow( SceneContent & content,
             const rcss::rcg::PlayerTypeT & type = holder.playerType( p.type_ );
             const PlayerStyle style = playerStyle( p, type, sp, opt );
             const float body_r = float( type.player_size_ );
-            const float ground_r = float( opt.playerSize() >= 0.01
-                                          ? opt.playerSize()
-                                          : type.player_size_ + type.kickable_margin_ + sp.ball_size_ );
+            const float ground_r = ground_radius( type, sp, opt );
             const QVector4D body = rgba( style.body.color() );
 
             // the body: the unit cylinder scaled to the player and standing
@@ -265,6 +297,125 @@ addShow( SceneContent & content,
         m.translate( ball.x_, BALL_SHADOW_Y, ball.y_ );
         m.scale( r * 1.15f, 1.0f, r * 1.15f );
         add( content.discs, m, QVector4D( 0.0f, 0.0f, 0.0f, float( ballShadowOpacity( ball ) ) ) );
+    }
+}
+
+/*-------------------------------------------------------------------*/
+void
+addLabels( SceneContent & content,
+           const rcss::rcg::ShowInfoT & show,
+           const DispHolder & holder,
+           const Options & opt,
+           LabelAtlas & atlas,
+           const LabelView & view )
+{
+    if ( ! opt.showPlayer() )
+    {
+        return;
+    }
+
+    const rcss::rcg::ServerParamT & sp = holder.serverParam();
+    const CameraPose & camera = view.camera;
+    const bool top = ( camera.ortho_half_height > 0.0f );
+    const float label_scale = float( LabelAtlas::LABEL_SCALE );
+    const float aspect = float( LabelAtlas::LABEL_WIDTH ) / LabelAtlas::LABEL_HEIGHT;
+    // the height of a number's text (m), 40 of the 64 pixels of a label
+    const float text_height = label_scale * LabelAtlas::LABEL_FONT / LabelAtlas::LABEL_HEIGHT;
+    const float most_pixels = LABEL_MAX_FONT * float( view.font_pixels );
+    const QRectF white = atlas.uv( LabelAtlas::WHITE_SLOT );
+
+    // the camera: forward for the depth, and the pixels per meter 1 m in
+    // front of it (perspective) or anywhere (top)
+    const QVector3D forward = ( camera.target - camera.position ).normalized();
+    const float focal = view.height / ( 2.0f * std::tan( camera.fov_y * float( M_PI ) / 360.0f ) );
+    const float top_pixels_per_meter = ( top ? view.height / ( 2.0f * camera.ortho_half_height ) : 0.0f );
+
+    // the labels of each player (a number and a card), to sort by depth
+    struct Labels {
+        float depth;
+        std::vector< Billboard3D > billboards;
+    };
+    std::vector< Labels > all;
+
+    for ( const rcss::rcg::PlayerT & p : show.player_ )
+    {
+        if ( p.side() == rcss::rcg::NEUTRAL
+             || p.unum_ < 1 || rcss::rcg::MAX_PLAYER < p.unum_ )
+        {
+            continue;
+        }
+        const int slot = ( p.side() == rcss::rcg::RIGHT ? rcss::rcg::MAX_PLAYER : 0 ) + p.unum_ - 1;
+        const QString text = label_text( p, opt );
+        const bool shown = ! text.isEmpty();
+        const bool carded = ( opt.showCard() && ( p.hasRedCard() || p.hasYellowCard() ) );
+        if ( ! shown && ! carded )
+        {
+            continue;
+        }
+        if ( shown )
+        {
+            atlas.setText( slot, text, opt.playerFont() );
+        }
+        const float text_width = ( shown ? float( atlas.textWidth( slot ) ) : 0.0f );
+
+        // where the number is (its center), and k: how many times its size in meters
+        QVector3D at( p.x_, NUMBER_HEIGHT, p.y_ );
+        float k = 1.0f;
+        float depth = 0.0f;
+        if ( top )
+        {
+            // as the 2D view: to the right of the circle on the ground, the
+            // foot of the text at the player's center, as high as the font
+            k = float( view.font_pixels ) * LabelAtlas::LABEL_HEIGHT / LabelAtlas::LABEL_FONT
+                / top_pixels_per_meter / label_scale;
+            const float ground_r = ground_radius( holder.playerType( p.type_ ), sp, opt );
+            const float left = p.x_ + ground_r + LABEL_GAP * k;
+            at = QVector3D( left + text_width * k / 2.0f, NUMBER_HEIGHT, p.y_ - text_height * k / 2.0f );
+        }
+        else
+        {
+            // above the head; nearer than where its text is LABEL_MAX_FONT
+            // times the font high, smaller, toward the head
+            depth = QVector3D::dotProduct( at - camera.position, forward );
+            const float full_pixels = ( depth > 0.01f ? text_height * focal / depth : 0.0f );
+            if ( full_pixels > most_pixels )
+            {
+                k = most_pixels / full_pixels;
+            }
+            at.setY( LABEL_BASE + k * ( NUMBER_HEIGHT - LABEL_BASE ) );
+        }
+
+        Labels labels;
+        labels.depth = depth;
+        if ( shown )
+        {
+            const QColor color = ( opt.showIllegalDefense() && p.isIllegalDefenseState()
+                                   ? opt.illegalDefensePen().color()
+                                   : QColor( Qt::white ) );
+            labels.billboards.push_back( Billboard3D{ at,
+                                                      QVector2D( label_scale * aspect * k, label_scale * k ),
+                                                      QVector2D( 0.0f, 0.0f ),
+                                                      atlas.uv( slot ),
+                                                      rgba( color ) } );
+        }
+        if ( carded )
+        {
+            const QColor color = ( p.hasRedCard() ? QColor( Qt::red ) : QColor( Qt::yellow ) );
+            labels.billboards.push_back( Billboard3D{ at,
+                                                      QVector2D( CARD_WIDTH * k, CARD_HEIGHT * k ),
+                                                      QVector2D( ( text_width / 2.0f + CARD_GAP + CARD_WIDTH / 2.0f ) * k, 0.0f ),
+                                                      white,
+                                                      rgba( color ) } );
+        }
+        all.push_back( labels );
+    }
+
+    // far first: a nearer label is drawn over a farther one
+    std::stable_sort( all.begin(), all.end(),
+                      []( const Labels & a, const Labels & b ) { return a.depth > b.depth; } );
+    for ( const Labels & l : all )
+    {
+        content.labels.insert( content.labels.end(), l.billboards.begin(), l.billboards.end() );
     }
 }
 

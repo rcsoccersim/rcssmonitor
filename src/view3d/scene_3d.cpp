@@ -38,6 +38,7 @@
 
 #include "ground_texture.h"
 #include "meshes_3d.h"
+#include "gl/frame.h"
 #include "gl/render_state.h"
 
 #include <QVector3D>
@@ -47,7 +48,7 @@
 namespace {
 
 // the color of the background: the sky, until it is drawn (Phase 8)
-const float SKY[] = { 0.55f, 0.72f, 0.88f };
+const QColor SKY = QColor::fromRgbF( 0.55, 0.72, 0.88 );
 
 // toward the sun: from the far left, 44 degrees up (rcssmonitor-web, §4.3)
 const QVector3D SUN = QVector3D( -60.0f, 65.0f, -30.0f ).normalized();
@@ -82,11 +83,13 @@ Scene3D::initialize()
     // compile the shaders
     if ( ! M_ground_program.load( "ground" )
          || ! M_lit_program.load( "lit" )
-         || ! M_flat_program.load( "flat" ) )
+         || ! M_flat_program.load( "flat" )
+         || ! M_billboard_program.load( "billboard" ) )
     {
         M_ground_program.destroy();
         M_lit_program.destroy();
         M_flat_program.destroy();
+        M_billboard_program.destroy();
         return false;
     }
 
@@ -100,6 +103,7 @@ Scene3D::initialize()
     M_ring.create( *this, Meshes3D::ring( 0.92f, 1.08f, 40 ) );
     M_decay_ring.create( *this, Meshes3D::ring( 1.1f, 1.22f, 40 ) );
     M_quad.create( *this, Meshes3D::quad() );
+    M_billboards.create( *this );
     M_initialized = true;
     return true;
 }
@@ -116,10 +120,13 @@ Scene3D::release()
     {
         m->destroy( *this );
     }
+    M_billboards.destroy( *this );
     M_ground_texture.destroy( *this );
+    M_label_texture.destroy( *this );
     M_ground_program.destroy();
     M_lit_program.destroy();
     M_flat_program.destroy();
+    M_billboard_program.destroy();
     M_initialized = false;
 }
 
@@ -128,6 +135,13 @@ void
 Scene3D::setGround( const QImage & image )
 {
     M_ground_texture.upload( *this, image );
+}
+
+/*-------------------------------------------------------------------*/
+void
+Scene3D::setLabels( const QImage & image )
+{
+    M_label_texture.upload( *this, image );
 }
 
 /*-------------------------------------------------------------------*/
@@ -146,14 +160,8 @@ Scene3D::render( GLuint fbo,
     // the camera: one matrix that takes a point of the world to the screen
     const QMatrix4x4 view_proj = camera.projection( float( width ) / std::max( 1, height ) ) * camera.view();
 
-    //
-    // start the frame: draw into the framebuffer, over all of it, and clear
-    // it to the sky color and the depth to "farthest"
-    //
-    glBindFramebuffer( GL_FRAMEBUFFER, fbo );
-    glViewport( 0, 0, width, height );
-    glClearColor( SKY[0], SKY[1], SKY[2], 1.0f );
-    glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+    // start the frame: into the framebuffer, cleared to the sky
+    GLFrame::begin( *this, fbo, width, height, SKY );
 
     //
     // pass 1: the ground, with the image of the 2D view on texture unit 0
@@ -190,10 +198,23 @@ Scene3D::render( GLuint fbo,
     M_quad.draw( *this, content.quads );
 
     //
-    // end the frame: leave OpenGL as QPainter expects it, so that the HUD
-    // can be drawn over the scene
+    // pass 4: the labels, over everything (as the 2D view writes the
+    // numbers over the players), facing the camera, from far to near
     //
-    M_flat_program.release();
-    glBindTexture( GL_TEXTURE_2D, 0 );
-    RenderState::painter().apply( *this );
+    if ( ! content.labels.empty() )
+    {
+        const QMatrix4x4 view = camera.view();
+        RenderState::overlay().apply( *this );
+        M_billboard_program.bind();
+        M_billboard_program.set( "uViewProj", view_proj );
+        // the rows of the view matrix: the camera's right and up in the world
+        M_billboard_program.set( "uRight", QVector3D( view( 0, 0 ), view( 0, 1 ), view( 0, 2 ) ) );
+        M_billboard_program.set( "uUp", QVector3D( view( 1, 0 ), view( 1, 1 ), view( 1, 2 ) ) );
+        M_billboard_program.set( "uTexture", 0 );
+        M_label_texture.bind( *this, 0 );
+        M_billboards.draw( *this, content.labels );
+    }
+
+    // end the frame: OpenGL as QPainter expects it, for the HUD over the scene
+    GLFrame::end( *this );
 }

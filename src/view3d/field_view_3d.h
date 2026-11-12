@@ -34,6 +34,7 @@
 #define RCSSMONITOR_FIELD_VIEW_3D_H
 
 #include "cameras_3d.h"
+#include "label_atlas.h"
 #include "scene_3d.h"
 #include "scene_builder.h"
 
@@ -48,6 +49,8 @@
 class DispHolder;
 class FieldPainter;
 class LogPlayer;
+class ScoreBoardPainter;
+class TeamGraphicPainter;
 
 namespace rcss {
 namespace rcg {
@@ -71,6 +74,9 @@ struct DispInfoT;
     into its framebuffer, which Qt then shows in the window.
   Outside them, makeCurrent() and doneCurrent() make the context current
   and not (the destructor).
+
+  Over the scene, QPainter draws the HUD as the 2D view does (the score
+  board and the team logos, with the 2D painters).
 
   The mouse moves the camera (CameraController): the left button turns it
   around what it looks at, with Shift, Ctrl or Meta moves it, and the
@@ -132,6 +138,9 @@ private:
     DispHolder & M_disp_holder; //!< the frames, shared with the 2D view
     const LogPlayer & M_log_player; //!< whether a log is playing, and how far to the next frame
     std::unique_ptr< FieldPainter > M_field_painter; //!< the 2D field painter, which draws the ground image
+    std::unique_ptr< ScoreBoardPainter > M_score_board_painter; //!< the HUD: the 2D score board
+    std::unique_ptr< TeamGraphicPainter > M_team_graphic_painter; //!< the HUD: the 2D team logos
+    LabelAtlas M_label_atlas; //!< the texts of the number labels
     Scene3D M_scene; //!< the OpenGL drawing
     SceneContent M_content; //!< what to draw, reused in every frame
     bool M_ready; //!< Scene3D could be initialized
