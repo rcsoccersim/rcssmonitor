@@ -38,6 +38,7 @@
 
 #include "disp_holder.h"
 #include "options.h"
+#include "overlay_math.h"
 
 #include <rcss/rcg/types.h>
 
@@ -208,6 +209,188 @@ addViewAreas( SceneContent & content,
             last = next;
         }
     }
+}
+
+namespace {
+
+QPointF
+point_of( const Vector2D & v )
+{
+    return QPointF( v.x, v.y );
+}
+
+}
+
+/*-------------------------------------------------------------------*/
+void
+addOverlays( SceneContent & content,
+             const rcss::rcg::ShowInfoT & show,
+             const DispHolder & holder,
+             const Options & opt )
+{
+    const rcss::rcg::ServerParamT & sp = holder.serverParam();
+    const rcss::rcg::BallT & ball = show.ball_;
+
+    if ( opt.showPlayer() )
+    {
+        for ( const rcss::rcg::PlayerT & p : show.player_ )
+        {
+            if ( p.side() == rcss::rcg::NEUTRAL
+                 || ! p.isAlive() )
+            {
+                continue;
+            }
+            const rcss::rcg::PlayerTypeT & type = holder.playerType( p.type_ );
+            const QPointF center( p.x_, p.y_ );
+            const bool selected = opt.selectedPlayer( p.side(), p.unum_ );
+
+            // the focus point of the selected player
+            Vector2D focus;
+            if ( opt.showFocusPoint()
+                 && selected
+                 && p.hasNeck() && p.hasView()
+                 && OverlayMath::focusPoint( p, &focus ) )
+            {
+                const QColor color = opt.focusPointPen().color();
+                addLine( content.lines, center, point_of( focus ), color );
+                addArc( content.lines, point_of( focus ), opt.focusPointSize(), color );
+            }
+
+            // the catch areas of a goalie
+            if ( opt.showCatchArea()
+                 && p.isGoalie() )
+            {
+                const bool left = ( p.side() == rcss::rcg::LEFT );
+                const OverlayMath::CatchArea area = OverlayMath::catchArea( sp, type );
+                addArc( content.lines, center, area.catchable_,
+                        ( left ? opt.leftGoaliePen() : opt.rightGoaliePen() ).color() );
+                if ( area.stretched_ )
+                {
+                    const QColor stretch = ( left ? opt.leftGoalieStretchPen() : opt.rightGoalieStretchPen() ).color();
+                    addArc( content.dotted_lines, center, area.max_, stretch );
+                    addArc( content.dotted_lines, center, area.min_, stretch );
+                }
+            }
+
+            // the tackle area, turned with the body, and its chances
+            const OverlayMath::TackleChances chances = ( opt.showTackleArea()
+                                                         ? OverlayMath::tackleChances( sp, p, ball )
+                                                         : OverlayMath::TackleChances{ false, 0.0, false, 0.0 } );
+            if ( chances.any() )
+            {
+                const QColor color = opt.tacklePen().color();
+                auto corner = [&]( const double x, const double y ) {
+                    Vector2D v( x, y );
+                    v.rotate( p.body_ );
+                    return QPointF( p.x_ + v.x, p.y_ + v.y );
+                };
+                const QPointF corners[4] = {
+                    corner( - sp.tackle_back_dist_, - sp.tackle_width_ ),
+                    corner( sp.tackle_dist_, - sp.tackle_width_ ),
+                    corner( sp.tackle_dist_, sp.tackle_width_ ),
+                    corner( - sp.tackle_back_dist_, sp.tackle_width_ ),
+                };
+                for ( int i = 0; i < 4; ++i )
+                {
+                    addLine( content.lines, corners[i], corners[( i + 1 ) % 4], color );
+                }
+                content.texts.push_back( OverlayText{ on_ground( center, LINE_Y ), OverlayMath::tackleText( chances ), color } );
+            }
+
+            // where the selected player can kick the ball to
+            if ( opt.showKickAccelArea()
+                 && selected )
+            {
+                const OverlayMath::KickAccel kick = OverlayMath::kickAccel( sp, type, p, ball );
+                if ( kick.kickable_ )
+                {
+                    const QColor color = opt.kickAccelPen().color();
+                    addLine( content.lines, QPointF( ball.x_, ball.y_ ), point_of( kick.next_ ), color );
+                    for ( const OverlayMath::Arc & arc : kick.arcs_ )
+                    {
+                        addArc( content.lines, point_of( arc.center_ ), arc.radius_, color, arc.start_, arc.span_ );
+                    }
+                    content.texts.push_back( OverlayText{ on_ground( point_of( kick.next_ ), LINE_Y ),
+                                                          QString::asprintf( "MaxAccel=%.3f", kick.max_accel_ ),
+                                                          color } );
+                }
+            }
+
+            // where the player points
+            if ( opt.showPointto()
+                 && p.isPointing() )
+            {
+                const QColor color = opt.pointtoPen().color();
+                const QPointF q( p.point_x_, p.point_y_ );
+                const QPointF d( POINTTO_CROSS, POINTTO_CROSS ), e( POINTTO_CROSS, - POINTTO_CROSS );
+                addLine( content.lines, center, q, color );
+                addLine( content.lines, q - d, q + d, color );
+                addLine( content.lines, q - e, q + e, color );
+            }
+        }
+
+        // the offside lines across the pitch
+        if ( opt.showOffsideLine() )
+        {
+            const OverlayMath::OffsideLines lines = OverlayMath::offsideLines( show );
+            const double half = Options::PITCH_HALF_WIDTH;
+            addLine( content.lines, QPointF( lines.left_, - half ), QPointF( lines.left_, half ), opt.leftTeamPen().color() );
+            addLine( content.lines, QPointF( lines.right_, - half ), QPointF( lines.right_, half ), opt.rightTeamPen().color() );
+        }
+    }
+
+    // the ball's path without noise: a line to its end and a dot at each cycle
+    if ( opt.showBall()
+         && opt.ballVelCycle() > 0 )
+    {
+        const std::vector< Vector2D > path = OverlayMath::ballPath( sp, ball, opt.ballVelCycle(), BALL_PATH_MIN_STEP );
+        if ( ! path.empty() )
+        {
+            const QColor color = opt.ballVelPen().color();
+            addLine( content.lines, QPointF( ball.x_, ball.y_ ), point_of( path.back() ), color );
+            for ( const Vector2D & q : path )
+            {
+                content.points.push_back( ColorVertex3D{ on_ground( point_of( q ), LINE_Y ), rgba( color ), 0.0f } );
+            }
+        }
+    }
+}
+
+/*-------------------------------------------------------------------*/
+std::vector< PlacedText >
+placeTexts( const std::vector< OverlayText > & texts,
+            const QMatrix4x4 & view_projection,
+            const QSize & size,
+            const QFontMetrics & metrics )
+{
+    std::vector< PlacedText > placed;
+    std::vector< QRect > taken; // where the texts placed so far are
+    for ( const OverlayText & t : texts )
+    {
+        // the point on the screen; none behind the camera or off the screen
+        const QVector4D clip = view_projection * QVector4D( t.at, 1.0f );
+        if ( clip.w() <= 1.0e-6f )
+        {
+            continue;
+        }
+        const double sx = ( clip.x() / clip.w() + 1.0 ) / 2.0 * size.width();
+        const double sy = ( 1.0 - clip.y() / clip.w() ) / 2.0 * size.height();
+        if ( sx < 0.0 || sy < 0.0 || sx >= size.width() || sy >= size.height() )
+        {
+            continue;
+        }
+
+        // beside the point, a line down while it would cover another
+        const int width = metrics.horizontalAdvance( t.text );
+        QRect rect( int( std::lround( sx ) ) + 10, int( std::lround( sy ) ) + 2, width, metrics.height() );
+        while ( std::any_of( taken.begin(), taken.end(), [&]( const QRect & r ) { return r.intersects( rect ); } ) )
+        {
+            rect.translate( 0, metrics.height() );
+        }
+        taken.push_back( rect );
+        placed.push_back( PlacedText{ QPoint( rect.left(), rect.top() + metrics.ascent() ), t.text, t.color } );
+    }
+    return placed;
 }
 
 }

@@ -107,6 +107,7 @@ SceneContent::clear()
     lines.clear();
     dotted_lines.clear();
     points.clear();
+    texts.clear();
     cylinders.clear();
     spheres.clear();
     cones.clear();

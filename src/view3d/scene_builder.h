@@ -36,6 +36,9 @@
 #include "camera_3d.h"
 #include "instance_3d.h"
 
+#include <QColor>
+#include <QString>
+
 #include <vector>
 
 class DispHolder;
@@ -48,6 +51,18 @@ struct BallT;
 struct ShowInfoT;
 }
 }
+
+/*!
+  \struct OverlayText
+  \brief a text of an overlay (the chance of a tackle, the largest
+  acceleration of a kick), at a point on the ground, which the HUD writes
+  beside it in the 2D player font, as the 2D view does
+*/
+struct OverlayText {
+    QVector3D at; //!< the point in the world
+    QString text;
+    QColor color;
+};
 
 /*!
   \struct SceneContent
@@ -73,6 +88,9 @@ struct SceneContent {
     std::vector< ColorVertex3D > lines; //!< each two vertices, a line: the overlays on the ground
     std::vector< ColorVertex3D > dotted_lines; //!< each two vertices, a dotted line
     std::vector< ColorVertex3D > points; //!< dots
+
+    // written by the HUD (QPainter), not by OpenGL
+    std::vector< OverlayText > texts; //!< the texts of the overlays
 
     // over everything, facing the camera, from far to near
     std::vector< Billboard3D > labels; //!< the numbers and the cards (LabelAtlas)

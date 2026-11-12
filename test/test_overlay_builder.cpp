@@ -35,6 +35,7 @@
 #include "disp_holder.h"
 #include "options.h"
 #include "overlay_builder.h"
+#include "overlay_math.h"
 
 #include <rcss/rcg/types.h>
 
@@ -88,6 +89,16 @@ rgba( const QColor & c,
     return QVector4D( float( c.redF() ), float( c.greenF() ), float( c.blueF() ), opacity );
 }
 
+//! set an option of the Show tab, which Options only toggles
+void
+setShow( bool ( Options::*shown )() const,
+         void ( Options::*toggle )(),
+         const bool on )
+{
+    Options & opt = Options::instance();
+    if ( ( opt.*shown )() != on ) ( opt.*toggle )();
+}
+
 }
 
 class TestOverlayBuilder
@@ -107,7 +118,17 @@ private slots:
 
     void init()
       {
+          // each test from the same options, whatever the one before left
           Options::instance().unselectPlayer();
+          setShow( &Options::showPlayer, &Options::toggleShowPlayer, true );
+          setShow( &Options::showBall, &Options::toggleShowBall, true );
+          setShow( &Options::showViewArea, &Options::toggleShowViewArea, false );
+          setShow( &Options::showFocusPoint, &Options::toggleShowFocusPoint, false );
+          setShow( &Options::showCatchArea, &Options::toggleShowCatchArea, false );
+          setShow( &Options::showTackleArea, &Options::toggleShowTackleArea, false );
+          setShow( &Options::showKickAccelArea, &Options::toggleShowKickAccelArea, false );
+          setShow( &Options::showPointto, &Options::toggleShowPointto, false );
+          setShow( &Options::showOffsideLine, &Options::toggleShowOffsideLine, false );
       }
 
     void line()
@@ -235,6 +256,197 @@ private slots:
           OverlayBuilder::addViewAreas( c, makeShow( 3, 4, 20.0f, 10.0f ), M_holder, opt );
           opt.toggleShowViewArea();
           QVERIFY( c.sectors.empty() );
+      }
+
+    void overlaysOff()
+      {
+          // none of them asked: nothing (the ball's path is on by default: off here)
+          Options & opt = Options::instance();
+          const int vel = opt.ballVelCycle();
+          opt.setBallVelCycle( 0 );
+          rcss::rcg::ShowInfoT show = makeShow( 0, 0, 0.0f, 0.0f, 90.0f );
+          show.player_[0].state_ |= rcss::rcg::GOALIE;
+          show.player_[0].point_x_ = 5.0f;
+          show.player_[0].point_y_ = 5.0f;
+          SceneContent c;
+          OverlayBuilder::addOverlays( c, show, M_holder, opt );
+          opt.setBallVelCycle( vel );
+          QVERIFY( c.lines.empty() && c.dotted_lines.empty() && c.points.empty() && c.texts.empty() );
+      }
+
+    void focusPoint()
+      {
+          Options & opt = Options::instance();
+          rcss::rcg::ShowInfoT show = makeShow( 0, 0, 0.0f, 0.0f, 90.0f );
+          show.player_[0].focus_dist_ = 5.0f;
+          SceneContent c;
+          opt.toggleShowFocusPoint();
+          OverlayBuilder::addOverlays( c, show, M_holder, opt ); // not selected
+          QVERIFY( c.lines.empty() );
+          opt.setSelectedNumber( rcss::rcg::LEFT, 1 );
+          OverlayBuilder::addOverlays( c, show, M_holder, opt );
+          opt.toggleShowFocusPoint();
+          // a line to it, and a circle around it
+          QCOMPARE( c.lines.size(), size_t( 2 + OverlayBuilder::CIRCLE_SEGMENTS * 2 ) );
+          QVERIFY( near( field( c.lines[1] ), QPointF( 5, 0 ) ) );
+          QCOMPARE( c.lines[0].color, rgba( opt.focusPointPen().color() ) );
+      }
+
+    void catchArea()
+      {
+          Options & opt = Options::instance();
+          rcss::rcg::ShowInfoT show = makeShow( -50, 0, 0.0f );
+          SceneContent c;
+          opt.toggleShowCatchArea();
+          OverlayBuilder::addOverlays( c, show, M_holder, opt ); // not a goalie
+          QVERIFY( c.lines.empty() );
+          show.player_[0].state_ |= rcss::rcg::GOALIE;
+          OverlayBuilder::addOverlays( c, show, M_holder, opt );
+          opt.toggleShowCatchArea();
+          // the catchable circle, in the goalie's color
+          const double r = OverlayMath::catchArea( M_holder.serverParam(), M_holder.playerType( 0 ) ).catchable_;
+          QCOMPARE( c.lines.size(), size_t( OverlayBuilder::CIRCLE_SEGMENTS * 2 ) );
+          QVERIFY( near( field( c.lines[0] ), QPointF( -50 + r, 0 ) ) );
+          QCOMPARE( c.lines[0].color, rgba( opt.leftGoaliePen().color() ) );
+          QVERIFY( c.dotted_lines.empty() ); // the default type has no stretch
+      }
+
+    void tackleArea()
+      {
+          Options & opt = Options::instance();
+          const rcss::rcg::ServerParamT & sp = M_holder.serverParam();
+          rcss::rcg::ShowInfoT show = makeShow( 0, 0, 90.0f ); // facing +y
+          show.ball_.x_ = 0.0f;
+          show.ball_.y_ = 1.0f;
+          SceneContent c;
+          opt.toggleShowTackleArea();
+          OverlayBuilder::addOverlays( c, show, M_holder, opt );
+          // the box turned with the body: 4 sides, and the chances at the player
+          QCOMPARE( c.lines.size(), size_t( 8 ) );
+          QVERIFY( near( field( c.lines[2] ), QPointF( sp.tackle_width_, sp.tackle_dist_ ) ) );
+          QVERIFY( near( field( c.lines[4] ), QPointF( - sp.tackle_width_, sp.tackle_dist_ ) ) );
+          QCOMPARE( c.texts.size(), size_t( 1 ) );
+          QVERIFY( c.texts[0].text.startsWith( "T=" ) );
+          QCOMPARE( c.texts[0].at, QVector3D( 0, OverlayBuilder::LINE_Y, 0 ) );
+          QCOMPARE( c.texts[0].color, opt.tacklePen().color() );
+
+          // out of reach: nothing
+          c.clear();
+          show.ball_.y_ = 5.0f;
+          OverlayBuilder::addOverlays( c, show, M_holder, opt );
+          opt.toggleShowTackleArea();
+          QVERIFY( c.lines.empty() && c.texts.empty() );
+      }
+
+    void kickAccelArea()
+      {
+          Options & opt = Options::instance();
+          rcss::rcg::ShowInfoT show = makeShow( 0, 0, 0.0f );
+          show.ball_.x_ = 0.6f;
+          show.ball_.vx_ = 1.5f;
+          show.ball_.vy_ = 0.0f;
+          SceneContent c;
+          opt.toggleShowKickAccelArea();
+          OverlayBuilder::addOverlays( c, show, M_holder, opt ); // not selected
+          QVERIFY( c.lines.empty() );
+          opt.setSelectedNumber( rcss::rcg::LEFT, 1 );
+          OverlayBuilder::addOverlays( c, show, M_holder, opt );
+          opt.toggleShowKickAccelArea();
+          // the line to the next place, the arcs, and the largest acceleration at the next place
+          QVERIFY( c.lines.size() > 2 + 8 );
+          QCOMPARE( c.texts.size(), size_t( 1 ) );
+          QVERIFY( near( field( c.lines[0] ), QPointF( 0.6, 0 ) ) );
+          QVERIFY( near( field( c.lines[1] ), QPointF( 2.1, 0 ) ) );
+          QVERIFY( c.lines.size() > 2 + 8 );
+          QCOMPARE( c.texts.size(), size_t( 1 ) );
+          QVERIFY( c.texts[0].text.startsWith( "MaxAccel=" ) );
+          QVERIFY( near( QPointF( c.texts[0].at.x(), c.texts[0].at.z() ), QPointF( 2.1, 0 ) ) );
+      }
+
+    void pointtoAndOffside()
+      {
+          Options & opt = Options::instance();
+          rcss::rcg::ShowInfoT show = makeShow( 0, 0, 0.0f );
+          show.player_[0].point_x_ = 10.0f;
+          show.player_[0].point_y_ = -5.0f;
+          SceneContent c;
+          opt.toggleShowPointto();
+          OverlayBuilder::addOverlays( c, show, M_holder, opt );
+          opt.toggleShowPointto();
+          // a line to the point and a cross there
+          QCOMPARE( c.lines.size(), size_t( 6 ) );
+          QVERIFY( near( field( c.lines[1] ), QPointF( 10, -5 ) ) );
+          QVERIFY( near( field( c.lines[2] ), QPointF( 10 - OverlayBuilder::POINTTO_CROSS, -5 - OverlayBuilder::POINTTO_CROSS ) ) );
+
+          // the offside lines across the pitch
+          c.clear();
+          opt.toggleShowOffsideLine();
+          OverlayBuilder::addOverlays( c, show, M_holder, opt );
+          opt.toggleShowOffsideLine();
+          const OverlayMath::OffsideLines lines = OverlayMath::offsideLines( show );
+          QCOMPARE( c.lines.size(), size_t( 4 ) );
+          QVERIFY( near( field( c.lines[0] ), QPointF( lines.left_, -Options::PITCH_HALF_WIDTH ) ) );
+          QVERIFY( near( field( c.lines[1] ), QPointF( lines.left_, Options::PITCH_HALF_WIDTH ) ) );
+          QCOMPARE( c.lines[2].color, rgba( opt.rightTeamPen().color() ) );
+      }
+
+    void ballPath()
+      {
+          Options & opt = Options::instance();
+          const int vel = opt.ballVelCycle();
+          opt.setBallVelCycle( 5 );
+          rcss::rcg::ShowInfoT show = makeShow( 0, 0, 0.0f );
+          show.ball_.x_ = 1.0f;
+          show.ball_.vx_ = 2.0f;
+          show.ball_.vy_ = 0.0f;
+          SceneContent c;
+          OverlayBuilder::addOverlays( c, show, M_holder, opt );
+          opt.setBallVelCycle( vel );
+          // a dot after each cycle, and a line to the last
+          QCOMPARE( c.points.size(), size_t( 5 ) );
+          QVERIFY( near( field( c.points[0] ), QPointF( 3, 0 ) ) );
+          QCOMPARE( c.lines.size(), size_t( 2 ) );
+          QVERIFY( near( field( c.lines[1] ), field( c.points.back() ) ) );
+          QCOMPARE( c.points[0].color, rgba( opt.ballVelPen().color() ) );
+      }
+
+    void placeTexts()
+      {
+          // a camera straight above the origin, without perspective: 1 m = 10 pixels
+          CameraPose camera;
+          camera.position = QVector3D( 0, 100, 0 );
+          camera.target = QVector3D( 0, 0, 0 );
+          camera.up = QVector3D( 0, 0, -1 );
+          camera.ortho_half_height = 20.0f;
+          const QSize size( 400, 400 );
+          const QMatrix4x4 m = camera.projection( 1.0f ) * camera.view();
+          const QFontMetrics metrics( QFont( "Sans Serif", 9 ) );
+
+          std::vector< OverlayText > texts = {
+              { QVector3D( 0, 0, 0 ), "a", Qt::red },
+              { QVector3D( 0.1f, 0, 0 ), "b", Qt::blue }, // covering the first: a line down
+              { QVector3D( -10, 0, -10 ), "c", Qt::green },
+              { QVector3D( 30, 0, 0 ), "off", Qt::green }, // off the screen
+          };
+          const std::vector< OverlayBuilder::PlacedText > placed = OverlayBuilder::placeTexts( texts, m, size, metrics );
+          QCOMPARE( placed.size(), size_t( 3 ) );
+          // 10 pixels right of and 2 below the point, at the baseline
+          QCOMPARE( placed[0].baseline, QPoint( 200 + 10, 200 + 2 + metrics.ascent() ) );
+          QCOMPARE( placed[0].color, QColor( Qt::red ) );
+          QCOMPARE( placed[1].baseline, QPoint( 201 + 10, 200 + 2 + metrics.ascent() + metrics.height() ) );
+          QCOMPARE( placed[2].baseline, QPoint( 100 + 10, 100 + 2 + metrics.ascent() ) );
+
+          // right behind a perspective camera: left out (projected, it would
+          // be at the center of the screen)
+          camera.ortho_half_height = 0.0f;
+          camera.position = QVector3D( 0, 10, 10 );
+          camera.target = QVector3D( 0, 0, 20 );
+          camera.up = QVector3D( 0, 1, 0 );
+          const QVector3D behind = camera.position - 5.0f * ( camera.target - camera.position ).normalized();
+          const QVector3D ahead = camera.position + 5.0f * ( camera.target - camera.position ).normalized();
+          const QMatrix4x4 perspective = camera.projection( 1.0f ) * camera.view();
+          QVERIFY( OverlayBuilder::placeTexts( { { behind, "x", Qt::red } }, perspective, size, metrics ).empty() );
+          QCOMPARE( OverlayBuilder::placeTexts( { { ahead, "x", Qt::red } }, perspective, size, metrics ).size(), size_t( 1 ) );
       }
 
     void largeViewArea()

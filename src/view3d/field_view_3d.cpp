@@ -216,6 +216,7 @@ FieldView3D::paintGL()
         SceneBuilder::addShow( M_content, show, M_disp_holder, Options::instance() );
         OverlayBuilder::addDirections( M_content, show, M_disp_holder, Options::instance() );
         OverlayBuilder::addViewAreas( M_content, show, M_disp_holder, Options::instance() );
+        OverlayBuilder::addOverlays( M_content, show, M_disp_holder, Options::instance() );
     }
     const float ball_x = show.ball_.x_, ball_y = show.ball_.y_;
 
@@ -264,6 +265,19 @@ FieldView3D::paintGL()
         QPainter painter( this );
         M_score_board_painter->draw( painter );
         M_team_graphic_painter->draw( painter );
+
+        // the texts of the overlays, beside their points, in the player font
+        if ( ! M_content.texts.empty() )
+        {
+            const QFont & font = Options::instance().playerFont();
+            painter.setFont( font );
+            const QMatrix4x4 view_projection = camera.projection( aspect ) * camera.view();
+            for ( const OverlayBuilder::PlacedText & t : OverlayBuilder::placeTexts( M_content.texts, view_projection, size(), QFontMetrics( font ) ) )
+            {
+                painter.setPen( t.color );
+                painter.drawText( t.baseline, t.text );
+            }
+        }
     }
 }
 

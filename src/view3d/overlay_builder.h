@@ -36,7 +36,10 @@
 #include "scene_builder.h"
 
 #include <QColor>
+#include <QFontMetrics>
+#include <QPoint>
 #include <QPointF>
+#include <QSize>
 
 class DispHolder;
 class Options;
@@ -66,6 +69,8 @@ constexpr float SECTOR_OPACITY = 0.25f; //!< of the view areas
 constexpr int CIRCLE_SEGMENTS = 48; //!< of a whole circle
 constexpr int SECTOR_SEGMENTS = 32; //!< of a view area, whatever its width
 constexpr double LARGE_VIEW_RADII[] = { 20.0, 40.0, 60.0 }; //!< the arcs of the selected player's view (m): the numbers and the teams fade there
+constexpr double POINTTO_CROSS = 0.4; //!< half the size of the cross where a player points (m)
+constexpr double BALL_PATH_MIN_STEP = 0.01; //!< the ball's path ends when the ball moves less than this in a cycle (m)
 
 /*!
   \brief add a line on the ground
@@ -115,6 +120,53 @@ void addViewAreas( SceneContent & content,
                    const rcss::rcg::ShowInfoT & show,
                    const DispHolder & holder,
                    const Options & options );
+
+/*!
+  \brief the overlays that the Show tab asks for, as the 2D view
+  (PlayerPainter, BallPainter) with the calculations of OverlayMath:
+  - the focus point of the selected player (a line to it and a circle)
+  - the catch areas of the goalies (the catchable circle, and dotted the
+    largest and smallest by the stretch)
+  - the tackle area turned with the body, when a tackle or a foul may
+    succeed, and its chances as a text
+  - the kick acceleration area of the selected player when it can kick:
+    the ball's next place and the arcs that bound it, and the largest
+    acceleration as a text
+  - the pointing: a line to where the player points, and a cross there
+  - the offside lines across the pitch, in the team colors
+  - the ball's path without noise (Ball Vel Cycle): a line and dots
+  The players not connected have none.
+*/
+void addOverlays( SceneContent & content,
+                  const rcss::rcg::ShowInfoT & show,
+                  const DispHolder & holder,
+                  const Options & options );
+
+/*!
+  \struct PlacedText
+  \brief a text of an overlay where the HUD writes it
+*/
+struct PlacedText {
+    QPoint baseline; //!< the left of its baseline (logical pixels)
+    QString text;
+    QColor color;
+};
+
+/*!
+  \brief where to write the texts of the overlays on the screen: 10 pixels
+  right of and 2 pixels below their points, as the 2D view; one that would
+  cover another goes a line down (from afar, a player's tackle text and its
+  kick's are close). The texts of points behind the camera or off the
+  screen are left out.
+  \param texts the texts (SceneContent::texts)
+  \param view_projection the camera's matrix (CameraPose::projection() * view())
+  \param size the size of the screen (logical pixels)
+  \param metrics of the font that writes them (the 2D player font)
+*/
+std::vector< PlacedText > placeTexts( const std::vector< OverlayText > & texts,
+                                      const QMatrix4x4 & view_projection,
+                                      const QSize & size,
+                                      const QFontMetrics & metrics );
 
 }
 
