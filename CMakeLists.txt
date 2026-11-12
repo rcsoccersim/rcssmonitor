@@ -27,8 +27,15 @@ check_include_file_cxx("arpa/inet.h" HAVE_ARPA_INET_H)
 #endif()
 
 # check Qt: Qt6 if it is found, else Qt5. -DQT_VERSION_MAJOR=5 selects Qt5.
+# Not find_package(QT NAMES Qt6 Qt5): it takes the one that it finds first
+# in the directory, which is not always Qt6.
 if(NOT QT_VERSION_MAJOR)
-  find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core)
+  find_package(Qt6 6.2 QUIET COMPONENTS Core)
+  if(Qt6_FOUND)
+    set(QT_VERSION_MAJOR 6 CACHE STRING "The major version of Qt: 5 or 6")
+  else()
+    set(QT_VERSION_MAJOR 5 CACHE STRING "The major version of Qt: 5 or 6")
+  endif()
 endif()
 if(QT_VERSION_MAJOR EQUAL 6)
   set(QT_MIN_VERSION 6.2)
