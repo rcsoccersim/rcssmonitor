@@ -333,7 +333,7 @@ Read the corresponding web version file and build with the same values and the s
 
 ### 5.6 Input
 
-- Mouse: in the free camera, left-drag orbits, Shift (or Ctrl) + left-drag pans, the wheel and the middle button zoom (the web version uses three.js OrbitControls; write the same operations ourselves). Dragging in any other camera switches to free. In the close-up cameras, the wheel changes the distance, which is kept in the settings. Right-click is the referee menu.
+- Mouse: in the free camera, left-drag orbits, Shift (or Ctrl) + left-drag pans, the wheel and the middle button zoom (the web version uses three.js OrbitControls; write the same operations ourselves). Dragging in any other camera switches to free. In the close-up cameras, the wheel changes the distance, which is kept in the settings. Right-click is the referee menu. → 4-4: in 2D the wheel steps the frames, so a 3D camera that does not take the wheel (the top camera) steps the frames as before.
 - Keys (the web version's `docs/parity.md` §8 and `src/ui/shortcuts.ts`):
 
 | Key | Function | rcssmonitor now |
@@ -353,7 +353,7 @@ Add to `Options` and save to `~/.rcssmonitor.conf`. The names follow the web ver
 | Name | Default | Values |
 |---|---|---|
 | `view_3d` | off | Start in 3D (on the command line `--view-3d`, as the other options; 4-1 of Phase 4) |
-| `camera_3d` | broadcast | free / broadcast / closeup-ball / closeup-player / top / goal-left / goal-right / player |
+| `camera_3d` | broadcast | free / broadcast / closeup-ball / closeup-player / top / goal-left / goal-right / player (`--camera-3d` on the command line; in 4-4, the five without the close-ups and the player camera; an unknown name is not read) |
 | `closeup_distance_3d`, `closeup_elevation_3d` | 12, 20 | 3–60 m, 5–85° |
 | `player_camera_position` | shoulder | eye / shoulder |
 | `player_camera_direction` | head | head / body / middle |
@@ -505,7 +505,7 @@ Each phase proceeds on a feature branch and is merged into develop when it is do
 - `FieldView3D` and switching with 2D (D key, menu, toolbar). `ENABLE_3D` and the handling when GL is unavailable.
 - Time and interpolation (§5.2). The one-cycle delay for live.
 - Ground image, goals, players (cylinders: state colors, cards, direction markers, foot circles and direction lines, view cones), ball (height and shadow). → The cards are drawn in 4-5 with the number labels, and the direction lines in the foot circles and the view cones in Phase 5 with the drawing of lines (4-3, §14).
-- Cameras: free, broadcast, top, and the two behind the goals. E key. Mouse operations.
+- Cameras: free, broadcast, top, and the two behind the goals. E key. Mouse operations. → Done in 4-4 (§14).
 - HUD (score board, logos).
 - Jersey number labels (upper size limit, placement in the top camera).
 
@@ -1066,4 +1066,34 @@ The five commits of 4-2 and 4-3 (81a8493 to c863113) were pushed, and the CI pas
 
 **Found**
 - The tarball that autotools makes with `make dist` lacks the files that only CMake builds (`src/view3d/`, `test/` etc.). The tarball of the 19.0.1 release was made with `make dist` (it has `configure` and `Makefile.in`, and no `.github`). Added to the work of Phase 9.
+
+#### 2026-11-12: Step 4-4, cameras (`feature/3d-view`)
+
+The two commits of 4-3b (2859390, d279615) were pushed, and the CI passed (with the shaders read from the resources, the Qt 6.2 job draws too).
+
+**Decided**
+- The kinds and names of the cameras (`CameraMode`) are in a GL-independent header, `src/camera_mode.h`, as the settings (`Options`) are also in the builds without 3D (autotools, `ENABLE_3D=OFF`). In 4-4 there are five: free, broadcast, top, and the two behind the goals. The two close-ups and the player camera are added in Phase 6 (E goes through them in the web version's order).
+- The poses (`Cameras3D`) and which camera, where it is now and how it follows (`CameraController`) are in the GL-independent `src/view3d/cameras_3d`, checked by unit tests. The values are the web version's (§4.3).
+- The mouse works as three.js's OrbitControls: left-drag orbits (a drag across the height of the view turns once round), Shift / Ctrl / Meta + left-drag pans (the ground at the target follows the mouse), middle-drag (5% per 100 px) and the wheel (5% per notch) zoom. Distance 3 to 400 m, down to 0.03 rad above the ground. Differences from the web version: (1) a following camera becomes free when the mouse moves it, not when the button is pressed. (2) It stops 0.01 rad short of straight above (the web version: 1e-6; straight above, the camera's up is along its view, and its direction is unstable).
+- In 3D the camera takes the wheel (as planned). The top camera does not take the mouse, so there the wheel steps the frames as in 2D.
+- E works in 2D too, choosing the camera for the next time the 3D view is shown (as the web version). The selector in the tool bar is shown with the 3D view only.
+
+**Made**
+- `src/camera_mode.h`: the list of the cameras (names in the settings and the menu), conversion from and to the names, the next camera.
+- `Options`: the setting `camera_3d` (group `MainWindow`), `--camera-3d` on the command line. An unknown name is not read.
+- `src/view3d/cameras_3d`: `fitView()` (the shortest distance that keeps the corners of the pitch and 2 m around it within 97% across and 85% up and down), `broadcast()`, `goal()`, `top()` (orthographic, the field's -y up as in 2D), `smoothToward()`, `orbit()`, `pan()`, `dolly()`. `CameraController`: a following camera jumps when the camera is changed and otherwise follows with a time constant of 0.35 s (at most 0.1 s per frame; it stops within 0.02 m). Moving a following camera with the mouse makes it free from there. The free camera starts from the whole pitch only when coming from the top camera.
+- `FieldView3D`: the camera (`setCameraMode()`, `cameraModeChanged` when the mouse made it free), the mouse and wheel, and the time between frames. It keeps drawing while the camera follows.
+- Main window: View > 3D Camera (the five cameras and Next 3D Camera), a selector in the tool bar, key E. Where 3D is not available, these are disabled too.
+
+**Tests**
+- Test `cameras_3d` (new): the names and the next camera; the corners within the view with one at the edge from 9 viewpoint directions and 2 aspect ratios; the side view equal to the web version's closed form; the broadcast distance, elevation, following and stopping at the edges; the pose behind the goals and its target; the top camera's extent and orientation; `smoothToward()` (1 - 1/e after the time constant, the same in two steps); orbit (distance and target unchanged, back after once round, never below the ground or straight above); pan (camera and target by the same amount, the height of the view for a drag across the height, the direction unchanged); dolly (stops at the limits); `CameraController` (jumps at first, follows, stops, only 0.1 s for a long gap, jumps on a change of camera, becomes free by the mouse and goes on from there, the top camera takes no mouse, free after top shows the whole pitch).
+- Added to test `view_switch`: View > 3D Camera has the camera of the settings checked; E goes to the next (menu, selector, status bar); after the last comes the first; the cameras are disabled where 3D is not available.
+- Added to test `scene_3d`: drawn with the top camera, the center line, both goals, and a player at the field's y = -20 drawn above the center.
+- Every test was confirmed to fail when what it checks is broken for a while (the top camera's up, the 85% vertically, the broadcast stopping at the edges, not going below the ground, the direction of panning, the 0.1 s limit, the top camera taking no mouse, the menu following E).
+- Clean builds pass the tests with Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`; 21 tests). `-DENABLE_3D=OFF` (14 tests) and autotools pass too.
+- Frame 3,000 of the full game log was drawn offscreen with the five cameras (the free one turned and moved closer) and looked at.
+
+**Found**
+- With Qt5, `cameras_3d.h` used `M_PI` without `<cmath>` (the Qt6 headers include it indirectly). Found in the Qt5 build and fixed.
+- In 2D, the wheel steps the frames (`MainWindow::wheelEvent()`).
 
