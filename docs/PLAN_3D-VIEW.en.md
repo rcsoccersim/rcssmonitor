@@ -293,6 +293,18 @@ OpenGL 3.3 core (requested with `QSurfaceFormat`; up to 4.1 core on macOS). Use 
 - The shadow map is not drawn in the top camera (the shadow plane is hidden too). It is not drawn when the shadow setting is off.
 - Draw order: opaque → ground layers (stacked by height) → translucent → sky → billboards (no depth test).
 
+The structure of the rendering infrastructure (4-3b, §14). Only the parts in `src/view3d/gl/` call GL directly, and `Scene3D` only lists which shapes to draw with which shader and in which way.
+
+| Part | Role |
+|---|---|
+| `shaders/*.vert`, `*.frag` (`view3d_shaders.qrc`) | The GLSL sources. `ShaderProgram` adds the `#version` line and the attribute locations (`A_POSITION` etc.) at the top |
+| `gl/attributes.h` | The locations of the vertex attributes, shared by the vertex buffers and the shaders |
+| `gl/shader_program` | Loads and links the shaders, and looks up the location of each uniform once and remembers it (`set( "uViewProj", m )`) |
+| `gl/instanced_mesh` | The vertex buffer of a shape and the buffer of the instances (matrix and color), all drawn with one draw call. The instance buffer is made again only when it grows |
+| `gl/texture_2d` | A texture of an image (mipmaps, anisotropic filtering) |
+| `gl/render_state` | How to draw (depth test and write, culling back faces, translucency). Every pass applies its whole state and does not depend on what the pass before left |
+| `meshes_3d` | The vertices of the shapes (GL-independent; unit tests check the winding of the triangles and the normals) |
+
 ### 5.4 Components
 
 Read the corresponding web version file and build with the same values and the same ideas. Values in §4.3.
@@ -525,7 +537,7 @@ Each phase proceeds on a feature branch and is merged into develop when it is do
 
 ### Phase 9: Documents and release
 
-**Work**: README (3D, keys, settings, Qt6 build), ChangeLog and NEWS (including the removal of qmake, D11), the version per D8. Delete master's `main.yml` and `utils/appimage/` (D10; done in the merge into master). Write in NEWS and the README that the AppImage was dropped, how to build from source, and a pointer to the browser version. The user merges into master and tags the release.
+**Work**: README (3D, keys, settings, Qt6 build), ChangeLog and NEWS (including the removal of qmake, D11), the version per D8. Put the files that only CMake builds (`src/view3d/`, `test/`, `data/` etc.; missing as of 2026-11-12) into the tarball that autotools makes with `make dist`, or change how the tarball is made (the 19.0.1 tarball was made with `make dist`). Delete master's `main.yml` and `utils/appimage/` (D10; done in the merge into master). Write in NEWS and the README that the AppImage was dropped, how to build from source, and a pointer to the browser version. The user merges into master and tags the release.
 
 **Done when**: it is released.
 
@@ -588,7 +600,7 @@ Port the GL-independent calculations, using the web version's unit tests as mode
 |---|---|
 | `field_view_3d.{h,cpp}` | QOpenGLWidget: input, time, draw calls, inspection state |
 | `scene_3d.{h,cpp}` | Scene assembly and drawing |
-| `gl_*.{h,cpp}`, `shaders/*.glsl` | Rendering infrastructure (shaders, buffers, textures, shadow map) |
+| `gl/*.{h,cpp}`, `shaders/*.vert`, `*.frag`, `meshes_3d.{h,cpp}` | Rendering infrastructure (shaders, buffers, textures, render states, shapes; §5.3; made in 4-3b; the shadow map in Phase 8) |
 | `cameras_3d.{h,cpp}`, `player_camera_3d.{h,cpp}`, `sight.{h,cpp}`, `interpolate.{h,cpp}`, `scene_math.{h,cpp}` | Calculations (no GL dependency) |
 | `overlay_math.{h,cpp}` | Overlay calculations shared by 2D and 3D (moved from the 2D painters). Created in `src/` in Phase 1, with the offside lines |
 | `play_mode_position.{h,cpp}` | The ball position for Change Playmode (Phase 1; also used by the 3D referee operations) |
@@ -1031,4 +1043,27 @@ After the five commits of 4-1 (1956f13 to 27f1100) were pushed and the CI passed
 - The 2D drawing is unchanged: seven frames of the full game log were drawn offscreen with HEAD and with the current build, and the pixels are the same.
 - Builds and passes the tests with Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`; 19 tests). `-DENABLE_3D=OFF` (14 tests) and autotools pass too.
 - Frame 1,000 of the full game log was drawn offscreen from the broadcast position, close to the ball, and near a goal, and looked at. Xvfb is not installed here, so the 3D view in the application's window (smoothness while playing, live) is checked by the user on the screen.
+
+#### 2026-11-12: Step 4-3b, tidying the rendering (`feature/3d-view`)
+
+The five commits of 4-2 and 4-3 (81a8493 to c863113) were pushed, and the CI passed (`scene_3d` in the Ubuntu 22.04 job also "passed", not "skipped": it really draws).
+
+**Decided (user)**
+- The OpenGL rendering code is hard to follow, so before 4-4 it is abstracted without changing how it looks. The choice is a thin layer of our own (the table in §5.3). Qt's `QOpenGLBuffer` etc. would help only partly, as they do not manage instance attributes or render states; Qt RHI is public API only from Qt 6.6, which does not fit D2; an external rendering engine is a large dependency. None of these is taken.
+- Efficiency: a frame is 10 to 20 draw calls and a few KB of uploads; the prototype measured CPU 0.3 ms and GPU 4.4 ms (§14). The abstraction adds a few microseconds per frame, which does not matter. The locations of the uniforms are remembered, so the lookups by name even go down.
+
+**Made**
+- The parts in `src/view3d/gl/`, `meshes_3d`, and the shader files (§5.3). `Instance3D` moved to `instance_3d.h`.
+- A vertex has one form (`Vertex3D`: position, normal, texture coordinates), and the ground is drawn with `InstancedMesh` like the other shapes (with one instance).
+- `Scene3D` went from about 540 lines to 177. `render()` only lists, pass by pass, "apply the render state, choose the shader, set the uniforms, draw the shapes".
+- The resources in a static library are registered with `Q_INIT_RESOURCE` before use (`ShaderProgram::load()` does it once, at the first time).
+- So that those who do not know OpenGL well can maintain it by hand, comments were added for each function and block (user). The GL parts, the shaders, `Scene3D`, `FieldView3D`, `CameraPose`, `Instance3D`, `Meshes3D` and `SceneBuilder` say what they do, explain the OpenGL terms (buffers, VAO, instanced drawing, uniforms, the depth buffer, culling, blending, mipmaps, matrices), and how to add something new to draw. The code without the comments is the same as before (compared with the comments removed).
+
+**Tests**
+- Test `meshes_3d` (new): every shape has triangles of some area, counterclockwise as seen from where their normals face, with unit normals. The extents and normal directions of the cylinder, sphere, cone, ring, quad and ground, the vertex counts, and the ground's texture coordinates. Confirmed to fail without the winding fix, with triangles of no area at the poles of the sphere, and with wrong texture coordinates of the ground. Breaking the name of an attribute in a shader prints the load error and fails the `scene_3d` test.
+- The look is unchanged: six images, two frames of the full game log from three cameras, drawn offscreen, are the same as before (HEAD) down to the bytes of the PNG files.
+- Clean builds pass the tests with Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`; 20 tests). `-DENABLE_3D=OFF` (14 tests) and autotools pass too.
+
+**Found**
+- The tarball that autotools makes with `make dist` lacks the files that only CMake builds (`src/view3d/`, `test/` etc.). The tarball of the 19.0.1 release was made with `make dist` (it has `configure` and `Makefile.in`, and no `.github`). Added to the work of Phase 9.
 
