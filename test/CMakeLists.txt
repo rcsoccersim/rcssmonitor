@@ -54,6 +54,7 @@ rcssmonitor_add_test(line_parser rcssrcg Qt${QT_VERSION_MAJOR}::Core)
 rcssmonitor_add_test(rcg_types rcssrcg Qt${QT_VERSION_MAJOR}::Core)
 
 if(HAVE_3D_VIEW)
+  rcssmonitor_add_test(cameras_3d rcssmonitor_core)
   rcssmonitor_add_test(ground_texture rcssmonitor_core)
   rcssmonitor_add_test(interpolate rcssmonitor_core)
   rcssmonitor_add_test(meshes_3d rcssmonitor_core)

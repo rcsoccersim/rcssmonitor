@@ -515,6 +515,32 @@ MainWindow::createActionsView()
              this, SLOT( toggleView3D( bool ) ) );
     this->addAction( M_toggle_view_3d_act );
 
+    // the cameras of the 3D view
+    M_camera_3d_act_group = new QActionGroup( this );
+    M_camera_3d_act_group->setExclusive( true );
+    for ( const CameraModeInfo & m : cameraModes() )
+    {
+        QAction * act = new QAction( tr( m.label ), this );
+        act->setCheckable( true );
+        act->setData( static_cast< int >( m.mode ) );
+        act->setStatusTip( tr( "Use this camera in the 3D view." ) );
+        act->setChecked( m.mode == Options::instance().camera3D() );
+        M_camera_3d_act_group->addAction( act );
+    }
+    connect( M_camera_3d_act_group, SIGNAL( triggered( QAction * ) ),
+             this, SLOT( selectCamera3D( QAction * ) ) );
+
+    M_next_camera_3d_act = new QAction( tr( "Next 3D Camera" ), this );
+    M_next_camera_3d_act->setShortcut( Qt::Key_E );
+    M_next_camera_3d_act->setStatusTip( tr( "Use the next camera in the 3D view. (" )
+                                        + M_next_camera_3d_act->shortcut().toString() + tr( ")" ) );
+    connect( M_next_camera_3d_act, SIGNAL( triggered() ),
+             this, SLOT( nextCamera3D() ) );
+    this->addAction( M_next_camera_3d_act );
+#ifndef HAVE_3D_VIEW
+    enableCamera3D( false );
+#endif
+
     // menu bar
     M_toggle_menu_bar_act = new QAction( tr( "Menu Bar" ), this );
     M_toggle_menu_bar_act->setShortcut( Qt::CTRL | Qt::Key_M );
@@ -719,6 +745,12 @@ MainWindow::createMenuView()
     menu->addSeparator();
 
     menu->addAction( M_toggle_view_3d_act );
+    {
+        QMenu * camera_menu = menu->addMenu( tr( "3D Camera" ) );
+        camera_menu->addActions( M_camera_3d_act_group->actions() );
+        camera_menu->addSeparator();
+        camera_menu->addAction( M_next_camera_3d_act );
+    }
 
     menu->addSeparator();
 
@@ -833,6 +865,25 @@ MainWindow::createToolBars()
         button->setToolButtonStyle( Qt::ToolButtonTextOnly );
         button->setDefaultAction( M_toggle_view_3d_act );
         button_layout->addWidget( button );
+    }
+    {
+        // the cameras of the 3D view, shown with it. It takes no focus, so
+        // that the keys stay with the view.
+        M_camera_3d_combo = new QComboBox();
+        M_camera_3d_combo->setFocusPolicy( Qt::NoFocus );
+        M_camera_3d_combo->setToolTip( tr( "The camera of the 3D view. (" )
+                                       + M_next_camera_3d_act->shortcut().toString() + tr( ": next)" ) );
+        for ( QAction * act : M_camera_3d_act_group->actions() )
+        {
+            M_camera_3d_combo->addItem( act->text(), act->data() );
+        }
+        M_camera_3d_combo->setCurrentIndex( M_camera_3d_combo->findData( static_cast< int >( Options::instance().camera3D() ) ) );
+        M_camera_3d_combo->setVisible( false );
+        connect( M_camera_3d_combo, QOverload< int >::of( &QComboBox::activated ),
+                 this, [this]( int index ) {
+                     setCamera3D( static_cast< CameraMode >( M_camera_3d_combo->itemData( index ).toInt() ) );
+                 } );
+        button_layout->addWidget( M_camera_3d_combo );
     }
 
     control_panel->setLayout( button_layout );
@@ -1908,21 +1959,27 @@ MainWindow::toggleView3D( bool on )
             M_toggle_view_3d_act->setEnabled( false );
             M_toggle_view_3d_act->setStatusTip( tr( "The 3D view is not available: " ) + reason );
             M_toggle_view_3d_act->setToolTip( M_toggle_view_3d_act->statusTip() );
+            enableCamera3D( false );
             this->statusBar()->showMessage( M_toggle_view_3d_act->statusTip(), 10000 );
             Options::instance().setView3D( false );
             return;
         }
 
         FieldView3D * view = new FieldView3D( M_disp_holder, *M_log_player );
+        view->setCameraMode( Options::instance().camera3D() );
         M_view_stack->addWidget( view );
         connect( this, SIGNAL( viewUpdated() ),
                  view, SLOT( update() ) );
+        // the mouse made the camera the free camera
+        connect( view, &FieldView3D::cameraModeChanged,
+                 this, [this]( CameraMode mode ) { setCamera3D( mode ); } );
         M_field_view_3d = view;
     }
 
     QWidget * shown = ( on ? M_field_view_3d : M_field_canvas );
     M_view_stack->setCurrentWidget( shown );
     shown->setFocus();
+    M_camera_3d_combo->setVisible( on );
     Options::instance().setView3D( on );
 #else
     Q_UNUSED( on );
@@ -1946,6 +2003,69 @@ MainWindow::changeStyle( bool checked )
     Q_ASSERT( style );
 
     QApplication::setStyle( style );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  View > 3D Camera
+ */
+void
+MainWindow::selectCamera3D( QAction * action )
+{
+    setCamera3D( static_cast< CameraMode >( action->data().toInt() ) );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  E: in 2D too, for the next time the 3D view is shown
+ */
+void
+MainWindow::nextCamera3D()
+{
+    setCamera3D( nextCameraMode( Options::instance().camera3D() ) );
+    for ( const CameraModeInfo & m : cameraModes() )
+    {
+        if ( m.mode == Options::instance().camera3D() )
+        {
+            this->statusBar()->showMessage( tr( "3D camera: " ) + tr( m.label ), 3000 );
+        }
+    }
+}
+
+/*-------------------------------------------------------------------*/
+void
+MainWindow::setCamera3D( const CameraMode mode )
+{
+    Options::instance().setCamera3D( mode );
+    for ( QAction * act : M_camera_3d_act_group->actions() )
+    {
+        if ( act->data().toInt() == static_cast< int >( mode ) )
+        {
+            act->setChecked( true );
+        }
+    }
+    if ( M_camera_3d_combo )
+    {
+        M_camera_3d_combo->setCurrentIndex( M_camera_3d_combo->findData( static_cast< int >( mode ) ) );
+    }
+#ifdef HAVE_3D_VIEW
+    if ( FieldView3D * view = qobject_cast< FieldView3D * >( M_field_view_3d ) )
+    {
+        view->setCameraMode( mode );
+    }
+#endif
+}
+
+/*-------------------------------------------------------------------*/
+void
+MainWindow::enableCamera3D( const bool on )
+{
+    M_camera_3d_act_group->setEnabled( on );
+    M_next_camera_3d_act->setEnabled( on );
+    if ( M_camera_3d_combo )
+    {
+        M_camera_3d_combo->setEnabled( on );
+    }
 }
 
 /*-------------------------------------------------------------------*/

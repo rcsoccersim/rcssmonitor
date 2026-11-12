@@ -36,7 +36,9 @@
 #include "options.h"
 
 #include <QAction>
+#include <QComboBox>
 #include <QKeySequence>
+#include <QMenu>
 #include <QStackedWidget>
 #include <QStatusBar>
 
@@ -51,13 +53,35 @@
 namespace {
 
 QAction *
-view3DAction( const MainWindow & window )
+actionOfKey( const MainWindow & window,
+             const int key )
 {
     for ( QAction * act : window.findChildren< QAction * >() )
     {
-        if ( act->shortcut() == QKeySequence( Qt::Key_D ) ) return act;
+        if ( act->shortcut() == QKeySequence( key ) ) return act;
     }
     return nullptr;
+}
+
+QAction *
+view3DAction( const MainWindow & window )
+{
+    return actionOfKey( window, Qt::Key_D );
+}
+
+//! the checked action of View > 3D Camera
+QString
+checkedCamera( const MainWindow & window )
+{
+    for ( QMenu * menu : window.findChildren< QMenu * >() )
+    {
+        if ( menu->title() != "3D Camera" ) continue;
+        for ( QAction * act : menu->actions() )
+        {
+            if ( act->isChecked() ) return act->text();
+        }
+    }
+    return QString();
 }
 
 }
@@ -73,6 +97,7 @@ private slots:
 
     void unavailableHere();
     void fallBackTo2D();
+    void cameraMenu();
 };
 
 /*-------------------------------------------------------------------*/
@@ -113,6 +138,46 @@ TestViewSwitch::fallBackTo2D()
     QCOMPARE( stack->count(), 1 );
     QVERIFY( ! Options::instance().view3D() );
     QCOMPARE( Options::instance().selectedNumber(), -7 );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  View > 3D Camera has the cameras, with the one of the options checked. E
+  goes to the next one, in 2D too (for the next time the 3D view is shown),
+  and the menu and the tool bar follow. Where the 3D view is not available,
+  they are disabled.
+*/
+void
+TestViewSwitch::cameraMenu()
+{
+    Options::instance().setView3D( false );
+    Options::instance().setCamera3D( CameraMode::Top );
+
+    MainWindow window;
+    QCOMPARE( checkedCamera( window ), QString( "Top" ) );
+    QComboBox * combo = window.findChild< QComboBox * >();
+    QVERIFY( combo );
+    QCOMPARE( combo->currentText(), QString( "Top" ) );
+    QVERIFY( ! combo->isVisibleTo( &window ) ); // with the 3D view only
+
+    QAction * next = actionOfKey( window, Qt::Key_E );
+    QVERIFY( next );
+    QVERIFY( next->isEnabled() );
+    next->trigger();
+    QCOMPARE( Options::instance().camera3D(), CameraMode::GoalLeft );
+    QCOMPARE( checkedCamera( window ), QString( "Behind the Left Goal" ) );
+    QCOMPARE( combo->currentText(), QString( "Behind the Left Goal" ) );
+    QVERIFY( window.statusBar()->currentMessage().contains( "Behind the Left Goal" ) );
+
+    // after the last, the first
+    next->trigger();
+    next->trigger();
+    QCOMPARE( Options::instance().camera3D(), CameraMode::Free );
+
+    // the 3D view is not available here: the cameras are disabled with it
+    view3DAction( window )->trigger();
+    QVERIFY( ! next->isEnabled() );
+    QVERIFY( ! combo->isEnabled() );
 }
 
 QTEST_MAIN( TestViewSwitch )

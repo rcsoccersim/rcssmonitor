@@ -41,6 +41,8 @@
 #include <QBrush>
 #include <QFont>
 
+#include "camera_mode.h"
+
 #include <rcss/rcg/types.h>
 
 #include <string>
@@ -174,6 +176,7 @@ private:
 
     bool M_show_menu_bar;
     bool M_view_3d; //!< show the 3D view instead of the 2D view
+    CameraMode M_camera_3d; //!< the camera of the 3D view
     bool M_show_tool_bar;
     bool M_show_status_bar;
 
@@ -363,6 +366,8 @@ public:
     bool showMenuBar() const { return M_show_menu_bar; }
     bool view3D() const { return M_view_3d; }
     void setView3D( const bool on ) { M_view_3d = on; }
+    CameraMode camera3D() const { return M_camera_3d; }
+    void setCamera3D( const CameraMode mode ) { M_camera_3d = mode; }
     bool showToolBar() const { return M_show_tool_bar; }
     bool showStatusBar() const { return M_show_status_bar; }
 

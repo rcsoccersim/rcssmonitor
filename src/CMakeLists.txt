@@ -52,6 +52,7 @@ target_link_libraries(rcssmonitor_core
 if(HAVE_3D_VIEW)
   target_sources(rcssmonitor_core
     PRIVATE
+    view3d/cameras_3d.cpp
     view3d/field_view_3d.cpp
     view3d/ground_texture.cpp
     view3d/interpolate.cpp

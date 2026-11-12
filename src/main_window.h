@@ -39,9 +39,11 @@
 #include <utility>
 #include <vector>
 
+#include "camera_mode.h"
 #include "disp_holder.h"
 
 class QActionGroup;
+class QComboBox;
 class QLabel;
 
 class ConfigDialog;
@@ -108,6 +110,9 @@ private:
     QAction * M_toggle_tool_bar_act;
     QAction * M_toggle_status_bar_act;
     QAction * M_toggle_view_3d_act;
+    QActionGroup * M_camera_3d_act_group = nullptr; //!< the cameras of the 3D view (View > 3D Camera)
+    QAction * M_next_camera_3d_act = nullptr; //!< E
+    QComboBox * M_camera_3d_combo = nullptr; //!< the cameras in the tool bar, shown with the 3D view
     QAction * M_full_screen_act;
     QAction * M_show_player_type_dialog_act;
     QActionGroup * M_style_act_group;
@@ -174,6 +179,12 @@ private:
     void openGameLogFile( const QString & filepath );
     bool openGameLogFileImpl( const QString & filepath );
 
+    //! use the camera of the 3D view: in the options, the menu, the tool bar and the view
+    void setCamera3D( const CameraMode mode );
+
+    //! enable or disable the camera actions with the 3D view
+    void enableCamera3D( const bool on );
+
     void connectMonitorTo( const char * hostname );
 
 private slots:
@@ -198,6 +209,8 @@ private slots:
     void toggleToolBar( bool checked );
     void toggleStatusBar( bool checked );
     void toggleView3D( bool on );
+    void selectCamera3D( QAction * action );
+    void nextCamera3D();
     void toggleFullScreen();
     void showPlayerTypeDialog();
     void changeStyle( bool checked );

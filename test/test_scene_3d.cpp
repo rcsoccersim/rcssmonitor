@@ -30,6 +30,7 @@
 
 #include <QtTest>
 
+#include "cameras_3d.h"
 #include "disp_holder.h"
 #include "field_painter.h"
 #include "field_view_3d.h"
@@ -78,6 +79,7 @@ private slots:
     void initTestCase();
     void ground();
     void content();
+    void topCamera();
     void cleanupTestCase();
 };
 
@@ -207,6 +209,66 @@ TestScene3D::content()
     // the grass far from them
     const QColor grass = first.pixelColor( w / 2 - int( 3 * px_per_m ), h / 4 );
     QVERIFY2( distance( grass, field ) < 12, qPrintable( grass.name() ) );
+
+    scene.release();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  The top camera, without perspective, as the 2D view: the center line
+  across the middle, the goals at the left and the right, and a player at
+  the field's y = -20 above the center (the field's -y up on the screen).
+*/
+void
+TestScene3D::topCamera()
+{
+    DispHolder holder;
+    FieldPainter painter( holder );
+    Scene3D scene;
+    QVERIFY( scene.initialize() );
+    scene.setGround( GroundTexture::draw( painter ) );
+
+    const int w = 400, h = 300;
+    QOpenGLFramebufferObjectFormat fbo_format;
+    fbo_format.setAttachment( QOpenGLFramebufferObject::Depth );
+    QOpenGLFramebufferObject fbo( w, h, fbo_format );
+
+    rcss::rcg::ShowInfoT show;
+    rcss::rcg::PlayerT & p = show.player_[0];
+    p.side_ = 'l';
+    p.unum_ = 1;
+    p.state_ = rcss::rcg::STAND;
+    p.x_ = 0.0f;
+    p.y_ = -20.0f;
+    show.ball_.x_ = 100.0f; // out of the view
+    SceneContent content;
+    SceneBuilder::addGoals( content );
+    SceneBuilder::addShow( content, show, holder, Options::instance() );
+
+    const CameraPose camera = Cameras3D::top( float( w ) / h );
+    scene.render( fbo.handle(), w, h, camera, content );
+    const QImage image = fbo.toImage();
+
+    const double px_per_m = h / 2.0 / camera.ortho_half_height;
+    const QColor field = Options::instance().fieldBrush().color();
+    auto at = [&]( const double x, const double y ) {
+        return image.pixelColor( int( std::lround( w / 2 + x * px_per_m ) ), int( std::lround( h / 2 + y * px_per_m ) ) );
+    };
+
+    // the center line, from top to bottom through the middle: thinner than a
+    // pixel here (12.5 cm), so lighter than the grass rather than white
+    QVERIFY2( at( 0.0, 10.0 ).lightness() > field.lightness() + 15, qPrintable( at( 0.0, 10.0 ).name() ) );
+    QVERIFY2( at( 0.0, -30.0 ).lightness() > field.lightness() + 15, qPrintable( at( 0.0, -30.0 ).name() ) );
+    QVERIFY2( distance( at( 10.0, 10.0 ), field ) < 12, qPrintable( at( 10.0, 10.0 ).name() ) );
+    // the goals, left and right of the pitch: the dark floor under the white
+    // roof of the net, grayer than the grass
+    const double goal_x = Options::PITCH_HALF_LENGTH + Options::GOAL_DEPTH / 2;
+    QVERIFY2( distance( at( -goal_x, 0.0 ), field ) > 40, qPrintable( at( -goal_x, 0.0 ).name() ) );
+    QVERIFY2( distance( at( goal_x, 0.0 ), field ) > 40, qPrintable( at( goal_x, 0.0 ).name() ) );
+    QVERIFY2( distance( at( -goal_x, 10.0 ), field ) < 12, qPrintable( at( -goal_x, 10.0 ).name() ) );
+    // the player above the center, not below
+    QVERIFY2( distance( at( 0.4, -20.0 ), field ) > 20, qPrintable( at( 0.4, -20.0 ).name() ) );
+    QVERIFY2( distance( at( 0.4, 20.0 ), field ) < 12, qPrintable( at( 0.4, 20.0 ).name() ) );
 
     scene.release();
 }

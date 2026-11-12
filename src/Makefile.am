@@ -45,6 +45,7 @@ nodist_rcssmonitor_SOURCES = \
 noinst_HEADERS = \
 	angle_deg.h \
 	ball_painter.h \
+	camera_mode.h \
 	circle_2d.h \
 	config_dialog.h \
 	disp_holder.h \

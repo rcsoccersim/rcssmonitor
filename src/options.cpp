@@ -229,6 +229,7 @@ Options::Options()
     M_canvas_height( -1 ),
     M_show_menu_bar( true ),
     M_view_3d( false ),
+    M_camera_3d( DEFAULT_CAMERA_MODE ),
     M_show_tool_bar( false ),
     M_show_status_bar( false ),
     // view options
@@ -382,6 +383,10 @@ Options::readSettings()
 
     val = settings.value( "view_3d" );
     if ( val.isValid() ) M_view_3d = val.toBool();
+
+    // an unknown name (of a later version) is not read
+    val = settings.value( "camera_3d" );
+    if ( val.isValid() ) cameraModeFromName( val.toString(), &M_camera_3d );
 
     val = settings.value( "show_tool_bar" );
     if ( val.isValid() ) M_show_tool_bar = val.toBool();
@@ -720,6 +725,7 @@ Options::writeSettings( bool all )
         settings.setValue( "full_screen", M_full_screen );
         settings.setValue( "show_menu_bar", M_show_menu_bar );
         settings.setValue( "view_3d", M_view_3d );
+        settings.setValue( "camera_3d", cameraModeName( M_camera_3d ) );
         settings.setValue( "show_tool_bar", M_show_tool_bar );
         settings.setValue( "show_status_bar", M_show_status_bar );
         settings.endGroup();
@@ -933,6 +939,14 @@ Options::parseCmdLine( int argc,
                                     "bool",
                                     to_onoff( M_view_3d ) );
     parser.addOption( opt_view_3d );
+    QStringList camera_names;
+    for ( const CameraModeInfo & m : cameraModes() ) camera_names << m.name;
+    QCommandLineOption opt_camera_3d( "camera-3d",
+                                      "The camera of the 3D view: " + camera_names.join( ", " )
+                                      + ". (Default=" + cameraModeName( M_camera_3d ) + ")",
+                                      "camera",
+                                      cameraModeName( M_camera_3d ) );
+    parser.addOption( opt_camera_3d );
     // view options
     QCommandLineOption opt_anti_aliasing( "anti-aliasing",
                                           "Paint objects with the anti-aliase mode. (Default=" + to_onoff( M_anti_aliasing ) + ")",
@@ -1093,6 +1107,11 @@ Options::parseCmdLine( int argc,
     if ( parser.isSet( opt_full_screen ) ) M_full_screen = true;
     if ( parser.isSet( opt_show_menu_bar ) ) M_show_menu_bar = to_bool( parser.value( opt_show_menu_bar ), M_show_menu_bar );
     if ( parser.isSet( opt_view_3d ) ) M_view_3d = to_bool( parser.value( opt_view_3d ), M_view_3d );
+    if ( parser.isSet( opt_camera_3d )
+         && ! cameraModeFromName( parser.value( opt_camera_3d ), &M_camera_3d ) )
+    {
+        std::cerr << "Unknown camera of the 3D view: " << parser.value( opt_camera_3d ).toStdString() << std::endl;
+    }
     if ( parser.isSet( opt_show_tool_bar ) ) M_show_tool_bar = to_bool( parser.value( opt_show_tool_bar ), M_show_tool_bar );
     if ( parser.isSet( opt_show_status_bar ) ) M_show_status_bar = to_bool( parser.value( opt_show_status_bar ), M_show_status_bar );
     // view options

@@ -33,11 +33,13 @@
 #ifndef RCSSMONITOR_FIELD_VIEW_3D_H
 #define RCSSMONITOR_FIELD_VIEW_3D_H
 
+#include "cameras_3d.h"
 #include "scene_3d.h"
 #include "scene_builder.h"
 
 #include <QElapsedTimer>
 #include <QOpenGLWidget>
+#include <QPoint>
 #include <QString>
 #include <QSurfaceFormat>
 
@@ -69,6 +71,12 @@ struct DispInfoT;
     into its framebuffer, which Qt then shows in the window.
   Outside them, makeCurrent() and doneCurrent() make the context current
   and not (the destructor).
+
+  The mouse moves the camera (CameraController): the left button turns it
+  around what it looks at, with Shift, Ctrl or Meta moves it, and the
+  middle button and the wheel bring it nearer or farther. Doing so on a
+  camera that follows the ball makes it the free camera. The top camera
+  does not take the mouse, and the wheel steps the frames as in 2D.
 */
 class FieldView3D
     : public QOpenGLWidget {
@@ -95,6 +103,17 @@ public:
     */
     static QString unavailableReason();
 
+    //! the camera
+    CameraMode cameraMode() const { return M_camera.mode(); }
+
+    //! change the camera
+    void setCameraMode( const CameraMode mode );
+
+signals:
+
+    //! the mouse made the camera the free camera
+    void cameraModeChanged( CameraMode mode );
+
 protected:
 
     //! make the GPU's resources (QOpenGLWidget calls it with the context current)
@@ -102,6 +121,11 @@ protected:
 
     //! draw a frame (QOpenGLWidget calls it with the context current)
     void paintGL() override;
+
+    // the mouse moves the camera
+    void mousePressEvent( QMouseEvent * event ) override;
+    void mouseMoveEvent( QMouseEvent * event ) override;
+    void wheelEvent( QWheelEvent * event ) override;
 
 private:
 
@@ -116,6 +140,10 @@ private:
     const rcss::rcg::DispInfoT * M_newest; //!< the newest frame when it was last drawn
     QElapsedTimer M_newest_clock; //!< since the newest frame came
     bool M_moving; //!< to be drawn again in the next frame
+
+    CameraController M_camera; //!< which camera, and where it is
+    QElapsedTimer M_frame_clock; //!< since the last frame was drawn, for the camera to glide
+    QPoint M_last_mouse; //!< where the mouse was at the last press or move
 
 private slots:
     //! after a frame is shown: draw the next one while things move

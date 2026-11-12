@@ -45,9 +45,11 @@
 #include "options.h"
 
 #include <QGuiApplication>
+#include <QMouseEvent>
 #include <QOffscreenSurface>
 #include <QOpenGLContext>
 #include <QOpenGLFunctions_3_3_Core>
+#include <QWheelEvent>
 
 #include <cmath>
 #include <iostream>
@@ -190,22 +192,28 @@ FieldView3D::paintGL()
     // between the two frames
     M_content.clear();
     SceneBuilder::addGoals( M_content );
+    float ball_x = 0.0f, ball_y = 0.0f;
     if ( ! frames.empty() )
     {
         const rcss::rcg::ShowInfoT show = Interpolate::show( *frames[at.index],
                                                              ( at.next != at.index ? frames[at.next].get() : nullptr ),
                                                              at.alpha );
         SceneBuilder::addShow( M_content, show, M_disp_holder, Options::instance() );
+        ball_x = show.ball_.x_;
+        ball_y = show.ball_.y_;
     }
-    // draw again after this frame (drawNext()) while playing a log, or live
-    // until the newest frame is reached
-    M_moving = ( M_log_player.isPlaying() || ( live && since_newest < 1.0 ) );
 
-    // the camera of a broadcast at the center, until the cameras come (4-4)
-    CameraPose camera;
-    const float elevation = 32.0f * float( M_PI ) / 180.0f;
-    camera.target = QVector3D( 0.0f, 0.0f, 0.0f );
-    camera.position = QVector3D( 0.0f, 72.0f * std::sin( elevation ), 72.0f * std::cos( elevation ) );
+    // the camera, after the ball for the time since the last frame
+    const double dt = ( M_frame_clock.isValid() ? M_frame_clock.restart() * 1.0e-3 : 0.0 );
+    if ( ! M_frame_clock.isValid() ) M_frame_clock.start();
+    const float aspect = float( width() ) / float( std::max( 1, height() ) );
+    const CameraPose camera = M_camera.update( dt, aspect, ball_x, ball_y );
+
+    // draw again after this frame (drawNext()) while playing a log, live
+    // until the newest frame is reached, and while the camera glides
+    M_moving = ( M_log_player.isPlaying()
+                 || ( live && since_newest < 1.0 )
+                 || ! M_camera.settled() );
 
     // draw into the widget's framebuffer, in physical pixels: on a screen
     // scaled by 1.5, a widget of 100 logical pixels has 150 of them
@@ -215,6 +223,84 @@ FieldView3D::paintGL()
                     static_cast< int >( std::lround( height() * dpr ) ),
                     camera,
                     M_content );
+}
+
+/*-------------------------------------------------------------------*/
+void
+FieldView3D::setCameraMode( const CameraMode mode )
+{
+    M_camera.setMode( mode );
+    update();
+}
+
+/*-------------------------------------------------------------------*/
+void
+FieldView3D::mousePressEvent( QMouseEvent * event )
+{
+    // where a drag starts (the right button is left for the menu, Phase 5)
+    M_last_mouse = event->pos();
+    QOpenGLWidget::mousePressEvent( event );
+}
+
+/*-------------------------------------------------------------------*/
+void
+FieldView3D::mouseMoveEvent( QMouseEvent * event )
+{
+    // the drag since the last move, in logical pixels as the height
+    const QPoint delta = event->pos() - M_last_mouse;
+    M_last_mouse = event->pos();
+    const float dx = float( delta.x() ), dy = float( delta.y() ), h = float( height() );
+
+    bool changed = false;
+    if ( event->buttons() & Qt::LeftButton )
+    {
+        // turn around what the camera looks at, or with a modifier move it
+        if ( event->modifiers() & ( Qt::ShiftModifier | Qt::ControlModifier | Qt::MetaModifier ) )
+        {
+            changed = M_camera.pan( dx, dy, h );
+        }
+        else
+        {
+            changed = M_camera.orbit( dx, dy, h );
+        }
+    }
+    else if ( event->buttons() & Qt::MiddleButton )
+    {
+        // down: farther, up: nearer, 5% per 100 pixels (as OrbitControls)
+        changed = M_camera.dolly( float( std::pow( Cameras3D::WHEEL_ZOOM, -dy * 0.01 ) ) );
+    }
+    else
+    {
+        QOpenGLWidget::mouseMoveEvent( event );
+        return;
+    }
+
+    if ( changed )
+    {
+        emit cameraModeChanged( M_camera.mode() );
+    }
+    update();
+}
+
+/*-------------------------------------------------------------------*/
+void
+FieldView3D::wheelEvent( QWheelEvent * event )
+{
+    // a notch (120) away from the user: 5% nearer. The top camera does not
+    // take it: as in 2D, it steps the frames (MainWindow::wheelEvent()).
+    const double notches = event->angleDelta().y() / 120.0;
+    if ( notches == 0.0
+         || ! M_camera.takesMouse() )
+    {
+        QOpenGLWidget::wheelEvent( event );
+        return;
+    }
+    if ( M_camera.dolly( float( std::pow( Cameras3D::WHEEL_ZOOM, notches ) ) ) )
+    {
+        emit cameraModeChanged( M_camera.mode() );
+    }
+    event->accept();
+    update();
 }
 
 /*-------------------------------------------------------------------*/
