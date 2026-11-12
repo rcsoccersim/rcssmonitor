@@ -38,6 +38,8 @@
 
 #include "player_painter.h"
 
+#include "player_style.h"
+
 #include "disp_holder.h"
 #include "options.h"
 #include "overlay_math.h"
@@ -200,98 +202,10 @@ PlayerPainter::drawBody( QPainter & painter,
                          const PlayerPainter::Param & param ) const
 {
     const Options & opt = Options::instance();
+    const PlayerStyle style = playerStyle( param.player_, param.player_type_, M_disp_holder.serverParam(), opt );
 
-    // decide base color
-    if ( opt.selectedPlayer( param.player_.side(), param.player_.unum_ ) )
-    {
-        painter.setPen( opt.selectedPlayerPen() );
-    }
-    else
-    {
-        painter.setPen( opt.playerPen() );
-    }
-
-    switch ( param.player_.side() ) {
-    case rcss::rcg::LEFT:
-        if ( param.player_.isGoalie() )
-        {
-            painter.setBrush( opt.leftGoalieBrush() );
-        }
-        else
-        {
-            painter.setBrush( opt.leftTeamBrush() );
-        }
-        break;
-    case rcss::rcg::RIGHT:
-        if ( param.player_.isGoalie() )
-        {
-            painter.setBrush( opt.rightGoalieBrush() );
-        }
-        else
-        {
-            painter.setBrush( opt.rightTeamBrush() );
-        }
-        break;
-    case rcss::rcg::NEUTRAL:
-        //std::cerr << "drawBody neutral unum=" << param.player_.unum_ << std::endl;
-        painter.setBrush( Qt::black );
-        break;
-    default:
-        painter.setBrush( Qt::black );
-        break;
-    }
-
-
-    // decide status color
-    if ( ! param.player_.isAlive() )
-    {
-        painter.setBrush( Qt::black );
-    }
-
-    if ( param.player_.isIllegalDefenseState()
-         && opt.showIllegalDefense() )
-    {
-        painter.setPen( opt.illegalDefensePen() );
-    }
-    if ( param.player_.isKicking() )
-    {
-        painter.setPen( opt.kickPen() );
-    }
-    if ( param.player_.isKickingFault() )
-    {
-        painter.setBrush( opt.kickFaultBrush() );
-    }
-    if ( param.player_.isCatching() )
-    {
-        painter.setBrush( opt.catchBrush() );
-    }
-    if ( param.player_.isCatchingFault() )
-    {
-        painter.setBrush( opt.catchFaultBrush() );
-    }
-    if ( param.player_.isTackling() )
-    {
-        painter.setPen( opt.tacklePen() );
-        painter.setBrush( opt.tackleBrush() );
-    }
-    if ( param.player_.isTacklingFault() )
-    {
-        painter.setPen( opt.tacklePen() );
-        painter.setBrush( opt.tackleFaultBrush() );
-    }
-    if ( param.player_.isFoulCharged() )
-    {
-        painter.setBrush( opt.foulChargedBrush() );
-    }
-    if ( param.player_.isCollidedBall() )
-    {
-        painter.setBrush( opt.ballCollideBrush() );
-    }
-    if ( param.player_.isCollidedPlayer() )
-    {
-        painter.setBrush( opt.playerCollideBrush() );
-    }
-
+    painter.setPen( style.pen );
+    painter.setBrush( style.brush );
     painter.drawEllipse( param.x_ - param.draw_radius_ ,
                          param.y_ - param.draw_radius_ ,
                          param.draw_radius_ * 2 ,
@@ -300,39 +214,17 @@ PlayerPainter::drawBody( QPainter & painter,
     // draw stamina status if effort or recovery is decayed.
     if ( param.player_.hasStamina() )
     {
-        double stamina_rate = param.player_.stamina_ / M_disp_holder.serverParam().stamina_max_;
-        int dark_rate = 200 - static_cast< int >( rint( 200 * rint( stamina_rate / 0.125 ) * 0.125 ) );
-        dark_rate = std::max( 0, dark_rate - 50 );
-
         painter.setPen( Qt::NoPen );
-        if ( dark_rate == 0 )
-        {
-            painter.setBrush( painter.brush() );
-        }
-        else
-        {
-            painter.setBrush( painter.brush().color().darker( 100 + dark_rate ) );
-        }
+        painter.setBrush( style.body );
         painter.drawEllipse( param.x_ - param.body_radius_,
                              param.y_ - param.body_radius_,
                              param.body_radius_ * 2 ,
                              param.body_radius_ * 2  );
 
-        if ( ! param.player_.hasFullEffort( param.player_type_.effort_max_ ) )
-        {
-            // std::cerr << "no full effort. max=" << param.player_type_.effort_max_
-            //           << "  val=" << param.player_.effort_
-            //           << "  ptype=" << param.player_.type_
-            //           << std::endl;
-            int r = param.draw_radius_ + 2;
-            painter.setPen( opt.effortDecayedPen() );
-            painter.setBrush( Qt::NoBrush );
-            painter.drawEllipse( param.x_ - r, param.y_ - r, r * 2, r * 2 );
-        }
-        else if ( ! param.player_.hasFullRecovery() )
+        if ( style.decayed() )
         {
             int r = param.draw_radius_ + 2;
-            painter.setPen( opt.recoveryDecayedPen() );
+            painter.setPen( style.decay );
             painter.setBrush( Qt::NoBrush );
             painter.drawEllipse( param.x_ - r, param.y_ - r, r * 2, r * 2 );
         }
