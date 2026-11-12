@@ -104,6 +104,16 @@ textHeight( const Billboard3D & label )
     return label.size.y() * LabelAtlas::LABEL_FONT / LabelAtlas::LABEL_HEIGHT;
 }
 
+//! set an option of the Show tab, which Options only toggles
+void
+setShow( bool ( Options::*shown )() const,
+         void ( Options::*toggle )(),
+         const bool on )
+{
+    Options & opt = Options::instance();
+    if ( ( opt.*shown )() != on ) ( opt.*toggle )();
+}
+
 QVector4D
 rgba( const QColor & c )
 {
@@ -123,7 +133,16 @@ private slots:
 
     void init()
       {
+          // each test from the same options, whatever the one before left
           Options::instance().unselectPlayer();
+          setShow( &Options::showPlayer, &Options::toggleShowPlayer, true );
+          setShow( &Options::showBall, &Options::toggleShowBall, true );
+          setShow( &Options::showPlayerNumber, &Options::toggleShowPlayerNumber, true );
+          setShow( &Options::showPlayerType, &Options::toggleShowPlayerType, false );
+          setShow( &Options::showCard, &Options::toggleShowCard, true );
+          setShow( &Options::showIllegalDefense, &Options::toggleShowIllegalDefense, false );
+          setShow( &Options::showStamina, &Options::toggleShowStamina, false );
+          setShow( &Options::showStaminaCapacity, &Options::toggleShowStaminaCapacity, false );
       }
 
     void goals()
@@ -418,6 +437,122 @@ private slots:
           SceneBuilder::addLabels( c, show, M_holder, opt, atlas, view );
           opt.toggleShowCard();
           QCOMPARE( c.labels.size(), size_t( rcss::rcg::MAX_PLAYER * 2 ) );
+      }
+
+    void staminaRates()
+      {
+          const rcss::rcg::ServerParamT & sp = M_holder.serverParam();
+          rcss::rcg::PlayerT p = makeShow().player_[0];
+          p.stamina_ = float( sp.stamina_max_ / 4 );
+          QVERIFY( near( float( SceneBuilder::staminaRate( p, sp ) ), 0.25f ) );
+          p.stamina_ = float( sp.stamina_max_ * 2 );
+          QCOMPARE( SceneBuilder::staminaRate( p, sp ), 1.0 );
+
+          // without the capacity (old logs): none
+          QCOMPARE( SceneBuilder::capacityRate( p, sp ), -1.0 );
+          p.stamina_capacity_ = float( sp.stamina_capacity_ / 2 );
+          QVERIFY( near( float( SceneBuilder::capacityRate( p, sp ) ), 0.5f ) );
+
+          // red at or below the thresholds of the recovery and the effort, green when full
+          const double threshold = std::max( sp.recover_dec_thr_, sp.effort_dec_thr_ );
+          QCOMPARE( SceneBuilder::staminaHue( threshold, sp ), 0.0 );
+          QCOMPARE( SceneBuilder::staminaHue( threshold / 2, sp ), 0.0 );
+          QCOMPARE( SceneBuilder::staminaHue( 1.0, sp ), 120.0 );
+          QVERIFY( near( float( SceneBuilder::staminaHue( ( 1.0 + threshold ) / 2, sp ) ), 60.0f ) );
+
+          // the higher of the two thresholds, whichever
+          rcss::rcg::ServerParamT other;
+          other.recover_dec_thr_ = 0.3;
+          other.effort_dec_thr_ = 0.5;
+          QCOMPARE( SceneBuilder::staminaHue( 0.5, other ), 0.0 );
+          std::swap( other.recover_dec_thr_, other.effort_dec_thr_ );
+          QCOMPARE( SceneBuilder::staminaHue( 0.5, other ), 0.0 );
+          QVERIFY( near( float( SceneBuilder::staminaHue( 0.75, other ) ), 60.0f ) );
+      }
+
+    void staminaBars()
+      {
+          Options & opt = Options::instance();
+          const rcss::rcg::ServerParamT & sp = M_holder.serverParam();
+          LabelAtlas atlas;
+          SceneContent c;
+          rcss::rcg::ShowInfoT show = makeShow();
+          for ( auto & p : show.player_ ) p.side_ = 'n';
+          rcss::rcg::PlayerT & p = show.player_[0];
+          p.side_ = 'l';
+          p.stamina_ = float( sp.stamina_max_ * 0.75 );
+          p.stamina_capacity_ = float( sp.stamina_capacity_ * 0.5 );
+
+          // none asked: the number only, at its height
+          const SceneBuilder::LabelView view = labelView( QVector3D( 0, 40, 60 ), QVector3D( 0, 0, 0 ) );
+          SceneBuilder::addLabels( c, show, M_holder, opt, atlas, view );
+          QCOMPARE( c.labels.size(), size_t( 1 ) );
+          QCOMPARE( c.labels[0].center.y(), SceneBuilder::NUMBER_HEIGHT );
+
+          // both: the number up by BAR_LIFT, and under it two bars, each a background and a fill
+          c.clear();
+          opt.toggleShowStamina();
+          opt.toggleShowStaminaCapacity();
+          SceneBuilder::addLabels( c, show, M_holder, opt, atlas, view );
+          QCOMPARE( c.labels.size(), size_t( 5 ) );
+          const Billboard3D & number = c.labels[0];
+          QVERIFY( near( number.center.y(), SceneBuilder::NUMBER_HEIGHT + SceneBuilder::BAR_LIFT ) );
+          const Billboard3D & back = c.labels[1];
+          const Billboard3D & fill = c.labels[2];
+          const Billboard3D & capacity_back = c.labels[3];
+          const Billboard3D & capacity_fill = c.labels[4];
+          for ( const Billboard3D & b : c.labels ) QCOMPARE( b.center, number.center );
+          // the stamina bar under the text: dark, and the fill from the left end
+          const float text_half = textHeight( number ) / 2.0f;
+          QVERIFY( near( back.offset.y(), -( text_half + SceneBuilder::BAR_GAP + SceneBuilder::BAR_STAMINA / 2.0f ) ) );
+          QVERIFY( near( back.size.x(), SceneBuilder::BAR_WIDTH + 2.0f * SceneBuilder::BAR_FRAME ) );
+          QCOMPARE( back.color, QVector4D( 0, 0, 0, SceneBuilder::BAR_BACK_OPACITY ) );
+          QVERIFY( near( fill.size.x(), SceneBuilder::BAR_WIDTH * 0.75f ) );
+          QVERIFY( near( fill.offset.x(), -0.25f * SceneBuilder::BAR_WIDTH / 2.0f ) );
+          QVERIFY( near( fill.offset.y(), back.offset.y() ) );
+          const QColor hue = QColor::fromHslF( SceneBuilder::staminaHue( 0.75, sp ) / 360.0, 0.85, 0.5 );
+          QCOMPARE( fill.color, rgba( hue ) );
+          // the capacity bar under it, thinner, blue
+          QVERIFY( near( capacity_back.offset.y(), -( text_half + SceneBuilder::BAR_GAP + SceneBuilder::BAR_STAMINA
+                                                      + SceneBuilder::BAR_GAP + SceneBuilder::BAR_CAPACITY / 2.0f ) ) );
+          QVERIFY( near( capacity_fill.size.x(), SceneBuilder::BAR_WIDTH * 0.5f ) );
+          QVERIFY( near( capacity_fill.size.y(), SceneBuilder::BAR_CAPACITY ) );
+          QCOMPARE( capacity_fill.color, rgba( SceneBuilder::CAPACITY_COLOR ) );
+
+          // no stamina left: the background only; no stamina in the show: no bar
+          c.clear();
+          p.stamina_ = 0.0f;
+          opt.toggleShowStaminaCapacity();
+          SceneBuilder::addLabels( c, show, M_holder, opt, atlas, view );
+          QCOMPARE( c.labels.size(), size_t( 2 ) );
+          c.clear();
+          p.stamina_ = rcss::rcg::SHOWINFO_SCALE2F;
+          SceneBuilder::addLabels( c, show, M_holder, opt, atlas, view );
+          opt.toggleShowStamina();
+          QCOMPARE( c.labels.size(), size_t( 1 ) );
+          QCOMPARE( c.labels[0].center.y(), SceneBuilder::NUMBER_HEIGHT );
+      }
+
+    void staminaBarsTop()
+      {
+          // from the top camera: from the left end of the number, as the 2D view writes them
+          Options & opt = Options::instance();
+          LabelAtlas atlas;
+          SceneContent c;
+          rcss::rcg::ShowInfoT show = makeShow();
+          for ( auto & p : show.player_ ) p.side_ = 'n';
+          show.player_[0].side_ = 'l';
+          show.player_[0].stamina_ = float( M_holder.serverParam().stamina_max_ );
+          SceneBuilder::LabelView view = labelView( QVector3D(), QVector3D() );
+          view.camera = Cameras3D::top( 16.0f / 9.0f );
+          opt.toggleShowStamina();
+          SceneBuilder::addLabels( c, show, M_holder, opt, atlas, view );
+          opt.toggleShowStamina();
+          QCOMPARE( c.labels.size(), size_t( 3 ) );
+          const float k = c.labels[0].size.y() / float( LabelAtlas::LABEL_SCALE );
+          const float number_left = c.labels[0].center.x() - float( atlas.textWidth( 0 ) ) * k / 2.0f;
+          const float bar_left = c.labels[0].center.x() + c.labels[1].offset.x() - c.labels[1].size.x() / 2.0f;
+          QVERIFY( near( bar_left, number_left ) );
       }
 
     void hidden()

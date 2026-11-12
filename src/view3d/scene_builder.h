@@ -48,6 +48,8 @@ class Options;
 namespace rcss {
 namespace rcg {
 struct BallT;
+struct PlayerT;
+struct ServerParamT;
 struct ShowInfoT;
 }
 }
@@ -124,6 +126,32 @@ constexpr float CARD_WIDTH = 0.42f; //!< a card (m), to the right of the number
 constexpr float CARD_HEIGHT = 0.6f;
 constexpr float CARD_GAP = 0.08f; //!< between the number's text and the card (m)
 
+// the stamina bars under the number (rcssmonitor-web render3d.ts BAR), in meters at the label's size
+constexpr float BAR_WIDTH = 1.4f;
+constexpr float BAR_STAMINA = 0.2f; //!< the height of the stamina bar
+constexpr float BAR_CAPACITY = 0.15f; //!< the height of the capacity bar, under it (thicker than the web version's 0.1, to be seen)
+constexpr float BAR_GAP = 0.08f; //!< between the number's text and the bars, and between the bars
+constexpr float BAR_FRAME = 0.03f; //!< the dark background around the fill
+constexpr float BAR_LIFT = 0.45f; //!< the number goes up as much with the bars, so that they are above the head from the side
+constexpr float BAR_BACK_OPACITY = 0.6f; //!< of the background
+const QColor CAPACITY_COLOR( 0x4a, 0xa3, 0xff ); //!< the fill of the capacity bar
+
+//! the stamina left, of stamina_max (0 to 1): the length of the stamina bar
+double staminaRate( const rcss::rcg::PlayerT & player,
+                    const rcss::rcg::ServerParamT & param );
+
+//! the stamina capacity left, of stamina_capacity (0 to 1); -1 without it (old logs)
+double capacityRate( const rcss::rcg::PlayerT & player,
+                     const rcss::rcg::ServerParamT & param );
+
+/*!
+  \brief the hue of the stamina bar (degree): red at or below the stamina
+  where the recovery or the effort starts to fall (recover_dec_thr,
+  effort_dec_thr of stamina_max), to green when full
+*/
+double staminaHue( const double rate,
+                   const rcss::rcg::ServerParamT & param );
+
 constexpr float DISC_OPACITY = 0.45f;
 constexpr float NET_OPACITY = 0.3f;
 constexpr float GOAL_FLOOR_OPACITY = 0.35f;
@@ -172,6 +200,10 @@ struct LabelView {
   font. From the other cameras, it is above the head, in meters, but at most
   LABEL_MAX_FONT times the font high on the screen: a nearer label shrinks
   toward the head. A yellow or red card is to the right of the number.
+  The stamina and the stamina capacity, when the Show tab asks for them
+  (S), are bars under the number along the camera's down (the number goes
+  up by BAR_LIFT with them); from the top camera, from the left end of the
+  number as the 2D view writes them.
   \param content where to add them
   \param show the show (interpolated)
   \param holder the server parameters and the player types

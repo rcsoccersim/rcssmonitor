@@ -70,6 +70,13 @@ ground_radius( const rcss::rcg::PlayerTypeT & type,
                   : type.player_size_ + type.kickable_margin_ + sp.ball_size_ );
 }
 
+//! a value within 0 and 1
+double
+clamp01( const double v )
+{
+    return std::min( 1.0, std::max( 0.0, v ) );
+}
+
 //! the label of a player: its number and its type, as the 2D view writes them (not the stamina)
 QString
 label_text( const rcss::rcg::PlayerT & p,
@@ -118,6 +125,36 @@ SceneContent::clear()
 }
 
 namespace SceneBuilder {
+
+/*-------------------------------------------------------------------*/
+double
+staminaRate( const rcss::rcg::PlayerT & player,
+             const rcss::rcg::ServerParamT & sp )
+{
+    return sp.stamina_max_ > 0.0 ? clamp01( player.stamina_ / sp.stamina_max_ ) : 0.0;
+}
+
+/*-------------------------------------------------------------------*/
+double
+capacityRate( const rcss::rcg::PlayerT & player,
+              const rcss::rcg::ServerParamT & sp )
+{
+    if ( ! player.hasStaminaCapacity()
+         || sp.stamina_capacity_ <= 0.0 )
+    {
+        return -1.0;
+    }
+    return clamp01( player.stamina_capacity_ / sp.stamina_capacity_ );
+}
+
+/*-------------------------------------------------------------------*/
+double
+staminaHue( const double rate,
+            const rcss::rcg::ServerParamT & sp )
+{
+    const double threshold = std::max( sp.recover_dec_thr_, sp.effort_dec_thr_ );
+    return threshold >= 1.0 ? 0.0 : 120.0 * clamp01( ( rate - threshold ) / ( 1.0 - threshold ) );
+}
 
 /*-------------------------------------------------------------------*/
 double
@@ -353,7 +390,11 @@ addLabels( SceneContent & content,
         const QString text = label_text( p, opt );
         const bool shown = ! text.isEmpty();
         const bool carded = ( opt.showCard() && ( p.hasRedCard() || p.hasYellowCard() ) );
-        if ( ! shown && ! carded )
+        // the bars: the rates, -1 for none
+        const double stamina = ( opt.showStamina() && p.hasStamina() ? staminaRate( p, sp ) : -1.0 );
+        const double capacity = ( opt.showStaminaCapacity() ? capacityRate( p, sp ) : -1.0 );
+        const bool barred = ( stamina >= 0.0 || capacity >= 0.0 );
+        if ( ! shown && ! carded && ! barred )
         {
             continue;
         }
@@ -363,9 +404,12 @@ addLabels( SceneContent & content,
         }
         const float text_width = ( shown ? float( atlas.textWidth( slot ) ) : 0.0f );
 
-        // where the number is (its center), and k: how many times its size in meters
-        QVector3D at( p.x_, NUMBER_HEIGHT, p.y_ );
+        // where the number is (its center), and k: how many times its size in
+        // meters. With the bars, the number goes up so that they are above the head.
+        const float height = NUMBER_HEIGHT + ( barred ? BAR_LIFT : 0.0f );
+        QVector3D at( p.x_, height, p.y_ );
         float k = 1.0f;
+        float bars_x = 0.0f; // from the number's center to the bars' (m)
         float depth = 0.0f;
         if ( top )
         {
@@ -375,7 +419,9 @@ addLabels( SceneContent & content,
                 / top_pixels_per_meter / label_scale;
             const float ground_r = ground_radius( holder.playerType( p.type_ ), sp, opt );
             const float left = p.x_ + ground_r + LABEL_GAP * k;
-            at = QVector3D( left + text_width * k / 2.0f, NUMBER_HEIGHT, p.y_ - text_height * k / 2.0f );
+            at = QVector3D( left + text_width * k / 2.0f, height, p.y_ - text_height * k / 2.0f );
+            // the bars from the same left end as the number
+            bars_x = ( BAR_WIDTH / 2.0f + BAR_FRAME - text_width / 2.0f ) * k;
         }
         else
         {
@@ -387,7 +433,7 @@ addLabels( SceneContent & content,
             {
                 k = most_pixels / full_pixels;
             }
-            at.setY( LABEL_BASE + k * ( NUMBER_HEIGHT - LABEL_BASE ) );
+            at.setY( LABEL_BASE + k * ( height - LABEL_BASE ) );
         }
 
         Labels labels;
@@ -412,6 +458,32 @@ addLabels( SceneContent & content,
                                                       white,
                                                       rgba( color ) } );
         }
+
+        // the bars under the number's text, along the camera's down: each a
+        // dark background and the fill from its left end
+        float from = ( text_height / 2.0f + BAR_GAP ) * k; // from the number's center to the top of the next bar
+        auto add_bar = [&]( const float bar_height, const double rate, const QColor & fill ) {
+            const float w = BAR_WIDTH * k, h = bar_height * k, f = BAR_FRAME * k;
+            const float y = -( from + h / 2.0f );
+            labels.billboards.push_back( Billboard3D{ at, QVector2D( w + 2.0f * f, h + 2.0f * f ), QVector2D( bars_x, y ),
+                                                      white, QVector4D( 0.0f, 0.0f, 0.0f, BAR_BACK_OPACITY ) } );
+            if ( rate > 0.0 )
+            {
+                labels.billboards.push_back( Billboard3D{ at, QVector2D( w * float( rate ), h ),
+                                                          QVector2D( bars_x - float( 1.0 - rate ) * w / 2.0f, y ),
+                                                          white, rgba( fill ) } );
+            }
+            from += h + BAR_GAP * k;
+        };
+        if ( stamina >= 0.0 )
+        {
+            add_bar( BAR_STAMINA, stamina, QColor::fromHslF( staminaHue( stamina, sp ) / 360.0, 0.85, 0.5 ) );
+        }
+        if ( capacity >= 0.0 )
+        {
+            add_bar( BAR_CAPACITY, capacity, CAPACITY_COLOR );
+        }
+
         all.push_back( labels );
     }
 

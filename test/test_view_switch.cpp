@@ -99,6 +99,7 @@ private slots:
     void fallBackTo2D();
     void cameraMenu();
     void zoomKeys2D();
+    void staminaKey();
 };
 
 /*-------------------------------------------------------------------*/
@@ -201,6 +202,29 @@ TestViewSwitch::zoomKeys2D()
     actionOfKey( window, Qt::Key_Z )->trigger();
     actionOfKey( window, Qt::Key_I )->trigger();
     QVERIFY( ! Options::instance().zoomed() );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  S goes through none, the stamina, the capacity and both, for 2D and 3D
+  alike (the 3D bars follow the same options)
+*/
+void
+TestViewSwitch::staminaKey()
+{
+    MainWindow window;
+    Options & opt = Options::instance();
+    while ( opt.showStamina() || opt.showStaminaCapacity() )
+    {
+        actionOfKey( window, Qt::Key_S )->trigger();
+    }
+    const std::pair< bool, bool > cycle[] = { { true, false }, { false, true }, { true, true }, { false, false } };
+    for ( const auto & shown : cycle )
+    {
+        actionOfKey( window, Qt::Key_S )->trigger();
+        QCOMPARE( opt.showStamina(), shown.first );
+        QCOMPARE( opt.showStaminaCapacity(), shown.second );
+    }
 }
 
 QTEST_MAIN( TestViewSwitch )
