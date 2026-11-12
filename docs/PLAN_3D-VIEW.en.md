@@ -7,7 +7,7 @@
 | Reference implementation | rcssmonitor-web 20.0.0-beta.2 (tag `v20.0.0-beta.2`, ed36941). Its working tree is `../rcssmonitor-web`, next to this repository |
 | Server referred to | The asio version of rcssserver 19.x. Its working tree is `../rcssserver` (branch `feature/asio-migration`), next to this repository |
 | Japanese version | [PLAN_3D-VIEW.md](PLAN_3D-VIEW.md) (same content; §0.1) |
-| Status | Phase 4 (started 2026-11-12, `feature/3d-view`). Steps 4-1 to 4-5 (§14) |
+| Status | Phase 4 done (2026-11-12, `feature/3d-view`; steps 4-1 to 4-5, §14). Next: Phase 5 |
 
 ## 0. How to use this plan
 
@@ -293,7 +293,10 @@ OpenGL 3.3 core (requested with `QSurfaceFormat`; up to 4.1 core on macOS). Use 
 - The shadow map is not drawn in the top camera (the shadow plane is hidden too). It is not drawn when the shadow setting is off.
 - Draw order: opaque → ground layers (stacked by height) → translucent → sky → billboards (no depth test).
 
-The structure of the rendering infrastructure (4-3b, §14). Only the parts in `src/view3d/gl/` call GL directly, and `Scene3D` only lists which shapes to draw with which shader and in which way.
+The structure of the rendering infrastructure (4-3b, §14).
+
+- **Policy (user, 2026-11-12)**: OpenGL is hidden in the parts in `src/view3d/gl/`. Only the code in `gl/` uses the OpenGL functions (`glXxx()`) and constants (`GL_XXX`) directly; the usual code (`Scene3D`, `FieldView3D` etc.) uses the parts in `gl/`. `Scene3D` only lists which shapes to draw with which shader and in which way. When a new way of drawing is needed, add a part to `gl/`, or a function to a part.
+- Test `gl_isolation` reads the C++ sources in `src/` (except `src/view3d/gl/`) without their comments and strings, looks for calls of OpenGL functions and OpenGL constants, and fails if there are any. Qt's types and functions (`GLuint`, `QOpenGLWidget`, `initializeOpenGLFunctions()`) are fine. The test code is not checked (it uses OpenGL directly to set up offscreen drawing).
 
 | Part | Role |
 |---|---|
@@ -302,7 +305,9 @@ The structure of the rendering infrastructure (4-3b, §14). Only the parts in `s
 | `gl/shader_program` | Loads and links the shaders, and looks up the location of each uniform once and remembers it (`set( "uViewProj", m )`) |
 | `gl/instanced_mesh` | The vertex buffer of a shape and the buffer of the instances (matrix and color), all drawn with one draw call. The instance buffer is made again only when it grows |
 | `gl/texture_2d` | A texture of an image (mipmaps, anisotropic filtering) |
+| `gl/billboard_mesh` | Instanced drawing of rectangles that face the camera (billboards): the numbers and the cards (4-5) |
 | `gl/render_state` | How to draw (depth test and write, culling back faces, translucency). Every pass applies its whole state and does not depend on what the pass before left |
+| `gl/frame` | The start and the end of a frame (`GLFrame::begin()`, `end()`): the framebuffer to draw into and clearing it, resetting the state that QPainter (the HUD) may leave, and the state handed to QPainter (4-5) |
 | `meshes_3d` | The vertices of the shapes (GL-independent; unit tests check the winding of the triangles and the normals) |
 
 ### 5.4 Components
@@ -506,8 +511,8 @@ Each phase proceeds on a feature branch and is merged into develop when it is do
 - Time and interpolation (§5.2). The one-cycle delay for live.
 - Ground image, goals, players (cylinders: state colors, cards, direction markers, foot circles and direction lines, view cones), ball (height and shadow). → The cards are drawn in 4-5 with the number labels, and the direction lines in the foot circles and the view cones in Phase 5 with the drawing of lines (4-3, §14).
 - Cameras: free, broadcast, top, and the two behind the goals. E key. Mouse operations. → Done in 4-4 (§14).
-- HUD (score board, logos).
-- Jersey number labels (upper size limit, placement in the top camera).
+- HUD (score board, logos). → Done in 4-5 (§14).
+- Jersey number labels (upper size limit, placement in the top camera). → Done in 4-5 (with the cards).
 
 **Done when**: switching between 2D and 3D keeps the frame and the selection. With a show that has `ball.z` (made for testing), the ball is drawn in the air and its shadow appears on the ground. The unit tests for each camera's pose pass.
 
@@ -548,6 +553,7 @@ Each phase proceeds on a feature branch and is merged into develop when it is do
 Port the GL-independent calculations, using the web version's unit tests as models.
 
 - Tests are added with `rcssmonitor_add_test(<name> <libraries>...)` in `test/CMakeLists.txt` (it builds `test_<name>.cpp` and registers it as `<name>`). Tests that use the application's classes link `rcssmonitor_core`.
+- `gl_isolation` checks that OpenGL is not used outside `src/view3d/gl/` (§5.3).
 - CTest runs every test with `HOME` in the build tree (`test/home`) and `QT_QPA_PLATFORM=offscreen`. `Options` reads `~/.rcssmonitor.conf` when it is created (writing it if missing) and writes it on exit, so this keeps the user's settings file safe.
 
 | Web version test | What it checks |
@@ -1096,4 +1102,33 @@ The two commits of 4-3b (2859390, d279615) were pushed, and the CI passed (with 
 **Found**
 - With Qt5, `cameras_3d.h` used `M_PI` without `<cmath>` (the Qt6 headers include it indirectly). Found in the Qt5 build and fixed.
 - In 2D, the wheel steps the frames (`MainWindow::wheelEvent()`).
+
+#### 2026-11-12: Step 4-5, number labels, cards, HUD (`feature/3d-view`)
+
+The two commits of 4-4 (e05064b, fdc2a96) were pushed, and the CI passed. The user checked them on the screen.
+
+**Decided**
+- The numbers and the cards are drawn as rectangles that face the camera (billboards), as in the web version. The texts of all the players are laid out in one image (`LabelAtlas`), drawn with one texture and one draw call. A text is drawn again only when it changes.
+- A card is to the right of the number, as in the web version (in 2D, to its left).
+- The HUD is drawn over the 3D view with QPainter by the 2D painters (`ScoreBoardPainter`, `TeamGraphicPainter`) (§5.5). The compass, the minimap and the numbers of the ranges come in Phases 5 and 6.
+- The user pointed out that calls of OpenGL functions had come back into `scene_3d.cpp` (clearing and resetting the state at the start of a frame, unbinding the texture at its end). User's decision: OpenGL is hidden in `gl/`, and the usual code uses the abstraction layer (written as the policy in §5.3). The start and the end of a frame moved to `gl/frame` (`GLFrame`), and test `gl_isolation` was added to check the policy.
+
+**Made**
+- `src/view3d/label_atlas`: an image with slots for the 22 players and a white one for the cards (a slot is 192 x 64 px, the text 40 px, white with a black outline of 6 px). The text is centered and squeezed horizontally if wider than the slot. It returns the width of the text (m).
+- `SceneBuilder::addLabels()` (the web version's `fitLabels()`, `labelPlace()`): the text is the number and the player type (Show tab; the stamina comes as bars in Phase 5), in the color of illegal defense. From the top camera, to the right of the circle on the ground as in 2D, the text as high as the 2D player font. From the other cameras, above the head (2.4 m) in meters, shrinking toward the head when it would be more than twice the player font high on the screen. A card (0.42 x 0.6 m) to the right of the number. Sorted from far to near (a nearer text over a farther one).
+- `gl/billboard_mesh` and the shaders `billboard.vert`, `billboard.frag`: the rectangle is spread along the camera's right and up, facing it. Drawn as the fourth pass of `Scene3D`, over everything without the depth test (`RenderState::overlay()`).
+- `FieldView3D`: builds the labels, and sends the image to the GPU when a text changed. Over the 3D view, QPainter draws the score board and the teams' logos. The right logo is placed by the canvas size in the options, so the 3D view's size is set there (the same size as 2D).
+- `gl/frame` (`GLFrame::begin()`, `end()`): at the start of a frame, the scissor and stencil tests are turned off, and the color and depth writes and the depth comparison set back, before clearing. QPainter (the HUD of the last frame) may leave them changed, and clearing obeys them. At the end, the shader, the shape and the texture are unbound and the render state is what QPainter expects. `Scene3D::render()` only calls this and the other parts in `gl/`.
+- Test `gl_isolation` (§5.3).
+
+**Tests**
+- Test `label_atlas` (new): the slots are in the image and do not overlap; the white slot; a text in its own slot, white with a black outline, centered; not drawn again for the same text; drawn again for another text or font; the width of the text; a wide text fits its slot.
+- Added to test `scene_builder`: the label of a far player (above the head, 1.3 m, white, its slot); the order from far to near; a label 5 m in front shrinking to 24 px on the screen (twice the font of 12 px) toward the head; from the top camera, to the right of the circle with the text as high as the font; a wider text with the player type; no labels without the number and the type; the color of illegal defense; the colors, places and sizes of yellow and red cards; the options without cards and without players.
+- Added to test `scene_3d`: from the top camera, a label drawn to the right of the player in white and black, upright and not mirrored (the bar of a "7" at the top, its foot at the left); nothing on the other side; the same under the ground (over everything). Drawn from the state QPainter may leave (scissor, color and depth writes off, depth comparison), the same image as before.
+- Test `gl_isolation` (new): no calls of OpenGL functions or OpenGL constants in the C++ sources in `src/` (except `gl/`). It also checks the detection itself (finds calls and constants, ignores comments, strings and names that only contain `gl`, gives the line numbers). Confirmed to fail with a call put back into `scene_3d.cpp`, and not with a call in a comment. Five images drawn offscreen are the same down to the bytes before and after the move to `gl/frame`.
+- Every test was confirmed to fail when what it checks is broken for a while (the text upside down and mirrored, drawing over everything, the limit on the screen, the shrinking toward the head, the size from the top camera, the order from far to near, the place and color of a card, not drawing again, the horizontal squeeze, resetting the state before clearing). At first, breaking "over everything" passed, so the check under the ground was added.
+- Clean builds pass the tests with Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`; 23 tests). `-DENABLE_3D=OFF` (15 tests) and autotools pass too.
+- Frame 3,000 of the full game log was drawn offscreen with the five cameras, with the HUD drawn over it by the 2D painters, and looked at (numbers, cards, the score board, the left team's logo).
+
+**Phase 4's conditions**: switching between 2D and 3D keeps the frame and the selection (4-1, checked by the user). With a show that has `ball.z`, the ball is drawn in the air and its shadow on the ground (tests `scene_builder`, `scene_3d`). Unit tests of each camera's pose (test `cameras_3d`). The user checked 4-5 on the screen (no problems). Phase 4's conditions are met.
 
