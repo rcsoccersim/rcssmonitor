@@ -93,7 +93,35 @@ LogPlayer::clear()
 void
 LogPlayer::handleTimer()
 {
+    M_step_clock.start();
     stepForwardImpl();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+bool
+LogPlayer::isPlaying() const
+{
+    return M_timer->isActive();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+double
+LogPlayer::alpha() const
+{
+    if ( ! M_timer->isActive()
+         || ! M_step_clock.isValid()
+         || M_timer->interval() <= 0 )
+    {
+        return 0.0;
+    }
+    const double a = M_step_clock.nsecsElapsed() * 1.0e-6 / M_timer->interval();
+    return a < 1.0 ? a : 1.0;
 }
 
 /*-------------------------------------------------------------------*/
@@ -218,6 +246,7 @@ LogPlayer::playBackward()
          || M_timer->interval() != Options::instance().timerInterval() )
     {
         M_timer->start( Options::instance().timerInterval() );
+        M_step_clock.start();
     }
 }
 
@@ -234,6 +263,7 @@ LogPlayer::playForward()
          || M_timer->interval() != Options::instance().timerInterval() )
     {
         M_timer->start( Options::instance().timerInterval() );
+        M_step_clock.start();
     }
 }
 
@@ -335,6 +365,7 @@ LogPlayer::decelerate()
     {
         const int interval = std::min( 5000, M_timer->interval() * 2 );
         M_timer->start( interval );
+        M_step_clock.start();
     }
 }
 
@@ -349,6 +380,7 @@ LogPlayer::accelerate()
     {
         const int interval = std::max( 5, M_timer->interval() / 2 );
         M_timer->start( interval );
+        M_step_clock.start();
     }
 }
 
@@ -440,5 +472,6 @@ LogPlayer::startTimer()
          && ! M_timer->isActive() )
     {
         M_timer->start( Options::instance().timerInterval() );
+        M_step_clock.start();
     }
 }

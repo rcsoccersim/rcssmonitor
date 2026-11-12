@@ -53,6 +53,7 @@ if(HAVE_3D_VIEW)
     PRIVATE
     view3d/field_view_3d.cpp
     view3d/ground_texture.cpp
+    view3d/interpolate.cpp
     view3d/scene_3d.cpp
     )
   target_include_directories(rcssmonitor_core PUBLIC ${PROJECT_SOURCE_DIR}/src/view3d)

@@ -33,6 +33,7 @@
 #ifndef RCSSMONITOR_LOG_PLAYER_H
 #define RCSSMONITOR_LOG_PLAYER_H
 
+#include <QElapsedTimer>
 #include <QObject>
 
 class QTimer;
@@ -52,6 +53,9 @@ private:
 
     bool M_live_mode;
 
+    //! since the last step while playing
+    QElapsedTimer M_step_clock;
+
     // not used
     LogPlayer() = delete;
     LogPlayer( const LogPlayer & ) = delete;
@@ -65,6 +69,16 @@ public:
     void clear();
 
     bool isLiveMode() const { return M_live_mode; }
+
+    //! playing the log by the timer
+    bool isPlaying() const;
+
+    /*!
+      \brief while playing, the fraction (0 to 1) of the interval since the
+      last step: how far the 3D view is between the current frame and the
+      next (docs/PLAN_3D-VIEW.md §5.2). 0 when stopped.
+    */
+    double alpha() const;
 
     void startTimer();
 
