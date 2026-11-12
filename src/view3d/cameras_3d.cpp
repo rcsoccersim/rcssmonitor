@@ -251,7 +251,8 @@ CameraController::CameraController()
       M_fitted( false ),
       M_snap( true ),
       M_settled( false ),
-      M_aspect( 16.0f / 9.0f )
+      M_aspect( 16.0f / 9.0f ),
+      M_zoom( 1.0f )
 {
     M_pose = Cameras3D::fitView( 90.0f, Cameras3D::ELEVATION, M_aspect );
 }
@@ -273,6 +274,7 @@ CameraController::setMode( const CameraMode mode )
     M_mode = mode;
     M_snap = true;
     M_settled = false;
+    M_zoom = 1.0f;
 }
 
 /*-------------------------------------------------------------------*/
@@ -301,10 +303,21 @@ CameraController::update( const double dt,
         return M_pose;
     }
 
-    // the top camera: fixed for the shape of the view
+    // the top camera: fixed for the shape of the view; zoomed in, around
+    // the ball, but within the ground image (as the 2D view with its focus on the ball)
     if ( M_mode == CameraMode::Top )
     {
         M_pose = Cameras3D::top( aspect );
+        M_pose.ortho_half_height *= M_zoom;
+        if ( M_zoom < 1.0f )
+        {
+            const float half_height = M_pose.ortho_half_height;
+            const float room_x = std::max( 0.0f, AREA_HALF_LENGTH - half_height * aspect );
+            const float room_z = std::max( 0.0f, AREA_HALF_WIDTH - half_height );
+            const QVector3D center( clamp( ball_x, -room_x, room_x ), 0.0f, clamp( ball_y, -room_z, room_z ) );
+            M_pose.target = center;
+            M_pose.position = center + QVector3D( 0.0f, 300.0f, 0.0f );
+        }
         M_snap = false;
         M_settled = true;
         return M_pose;
@@ -322,6 +335,11 @@ CameraController::update( const double dt,
     default:
         goal_pose = Cameras3D::broadcast( aspect, ball_x, ball_y );
         break;
+    }
+    // at the zoomed distance from what it looks at
+    if ( M_zoom != 1.0f )
+    {
+        Cameras3D::dolly( goal_pose, M_zoom );
     }
 
     // jump after a change of the camera, glide after the ball otherwise
@@ -345,6 +363,33 @@ CameraController::update( const double dt,
         M_pose.target = target;
     }
     return M_pose;
+}
+
+/*-------------------------------------------------------------------*/
+void
+CameraController::zoom( const float factor )
+{
+    if ( M_mode == CameraMode::Free )
+    {
+        Cameras3D::dolly( M_pose, factor );
+    }
+    else
+    {
+        M_zoom = clamp( M_zoom * factor, Cameras3D::MIN_ZOOM, Cameras3D::MAX_ZOOM );
+    }
+    M_settled = false;
+}
+
+/*-------------------------------------------------------------------*/
+void
+CameraController::resetZoom()
+{
+    if ( M_mode == CameraMode::Free )
+    {
+        M_pose = Cameras3D::fitView( 90.0f, Cameras3D::ELEVATION, M_aspect );
+    }
+    M_zoom = 1.0f;
+    M_settled = false;
 }
 
 /*-------------------------------------------------------------------*/

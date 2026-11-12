@@ -363,6 +363,75 @@ private slots:
           QCOMPARE( pose.up, QVector3D( 0.0f, 1.0f, 0.0f ) );
       }
 
+    void controllerZoom()
+      {
+          // a following camera: nearer by the zoom, still after the ball
+          CameraController camera;
+          const CameraPose start = camera.update( 0.0, ASPECT, 0.0f, 0.0f );
+          const float distance = ( start.position - start.target ).length();
+          camera.zoom( 1.0f / 1.5f );
+          QVERIFY( ! camera.settled() );
+          CameraPose pose = start;
+          for ( int i = 0; i < 200 && ! camera.settled(); ++i )
+          {
+              pose = camera.update( 0.05, ASPECT, 10.0f, 0.0f );
+          }
+          QVERIFY( camera.settled() );
+          QVERIFY( std::fabs( ( pose.position - pose.target ).length() - distance / 1.5f ) < 1.0e-3f );
+          QVERIFY( near( pose.target, QVector3D( 10.0f, 0.0f, 0.0f ) ) );
+          QCOMPARE( camera.mode(), CameraMode::Broadcast );
+
+          // within its limits
+          camera.zoom( 0.0001f );
+          QCOMPARE( camera.zoomFactor(), Cameras3D::MIN_ZOOM );
+          camera.zoom( 100000.0f );
+          QCOMPARE( camera.zoomFactor(), Cameras3D::MAX_ZOOM );
+
+          // back to its own distance, and with another camera
+          camera.resetZoom();
+          QCOMPARE( camera.zoomFactor(), 1.0f );
+          camera.zoom( 0.5f );
+          camera.setMode( CameraMode::GoalRight );
+          QCOMPARE( camera.zoomFactor(), 1.0f );
+      }
+
+    void topZoom()
+      {
+          CameraController camera;
+          camera.setMode( CameraMode::Top );
+          const CameraPose whole = camera.update( 0.0, ASPECT, 20.0f, 10.0f );
+          QVERIFY( near( whole.target, QVector3D() ) );
+
+          // half the height, around the ball
+          camera.zoom( 0.5f );
+          CameraPose pose = camera.update( 0.0, ASPECT, 10.0f, 5.0f );
+          QVERIFY( std::fabs( pose.ortho_half_height - whole.ortho_half_height / 2.0f ) < 1.0e-4f );
+          QVERIFY( near( pose.target, QVector3D( 10.0f, 0.0f, 5.0f ) ) );
+          QVERIFY( near( pose.position - pose.target, QVector3D( 0.0f, 300.0f, 0.0f ) ) );
+
+          // near a corner: within the ground image
+          pose = camera.update( 0.0, ASPECT, 52.0f, 33.0f );
+          const float hx = float( Options::PITCH_HALF_LENGTH + Options::PITCH_MARGIN );
+          const float hz = float( Options::PITCH_HALF_WIDTH + Options::PITCH_MARGIN );
+          QVERIFY( std::fabs( pose.target.x() + pose.ortho_half_height * ASPECT - hx ) < 1.0e-3f );
+          QVERIFY( std::fabs( pose.target.z() + pose.ortho_half_height - hz ) < 1.0e-3f );
+      }
+
+    void freeZoom()
+      {
+          // the free camera: toward what it looks at
+          CameraController camera;
+          camera.setMode( CameraMode::Free );
+          const CameraPose start = camera.update( 0.0, ASPECT, 0.0f, 0.0f );
+          camera.zoom( 0.5f );
+          const CameraPose pose = camera.update( 0.0, ASPECT, 0.0f, 0.0f );
+          QVERIFY( near( pose.target, start.target ) );
+          QVERIFY( std::fabs( ( pose.position - pose.target ).length() - 0.5f * ( start.position - start.target ).length() ) < 1.0e-3f );
+          // back: the whole pitch
+          camera.resetZoom();
+          QVERIFY( near( camera.update( 0.0, ASPECT, 0.0f, 0.0f ).position, start.position ) );
+      }
+
     void controllerFirstFree()
       {
           // the free camera from the start: the whole pitch in the shape of the view

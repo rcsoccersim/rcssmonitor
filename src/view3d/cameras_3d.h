@@ -65,7 +65,11 @@ constexpr float MIN_DISTANCE = 3.0f; //!< from what it turns around (m)
 constexpr float MAX_DISTANCE = 400.0f;
 constexpr float MIN_POLAR = 0.01f; //!< from straight above (radian): not quite, where the camera's up would be along its view
 constexpr float MAX_POLAR = float( M_PI / 2.0 ) - 0.03f; //!< from straight above (radian): stays above the ground
-constexpr float WHEEL_ZOOM = 0.95f; //!< the distance by a notch of the wheel toward
+constexpr float DRAG_ZOOM = 0.95f; //!< the distance by 100 pixels of a drag with the middle button up
+
+// the zoom of the keys (Z, X), as the 2D view's
+constexpr float MIN_ZOOM = 0.04f; //!< the nearest: 1 / 25 of the distance (or of the height of the top camera's view)
+constexpr float MAX_ZOOM = 4.0f; //!< the farthest
 
 /*!
   \brief the camera that sees the whole pitch and 2 m around it, as close as
@@ -157,6 +161,12 @@ void dolly( CameraPose & pose,
   camera stays where the mouse put it. Moving the mouse on a following
   camera makes it the free camera, from where it was. The top camera does
   not take the mouse.
+
+  The keys of the 2D view's zoom (Z, X; zoom()) bring any camera nearer or
+  farther: the following ones keep following at the distance times the
+  zoom, the top one shows the height of its view times the zoom (around the
+  ball when nearer), and the free one moves toward what it looks at. A
+  change of the camera sets the zoom back.
 */
 class CameraController {
 public:
@@ -194,6 +204,18 @@ public:
     bool pan( const float dx, const float dy, const float height );
     bool dolly( const float scale );
 
+    /*!
+      \brief zoom by the keys, as the 2D view (see the class).
+      \param factor less than 1: nearer; more than 1: farther
+    */
+    void zoom( const float factor );
+
+    //! back to the camera's own distance (the free camera: the whole pitch)
+    void resetZoom();
+
+    //! the zoom of the following and the top cameras (1: their own distance)
+    float zoomFactor() const { return M_zoom; }
+
 private:
     CameraMode M_mode;
     CameraPose M_pose; //!< where the camera is now
@@ -201,6 +223,7 @@ private:
     bool M_snap; //!< jump to the next place instead of gliding
     bool M_settled;
     float M_aspect; //!< of the last update
+    float M_zoom; //!< of the following and the top cameras (zoom())
 
     //! before a move by the mouse: false if the camera does not take it
     bool takeMouse( bool * changed );

@@ -1041,7 +1041,7 @@ MainWindow::createConfigDialog()
         act->setStatusTip( tr( "Zoom in." ) );
         this->addAction( act );
         connect( act, SIGNAL( triggered() ),
-                 M_config_dialog, SLOT( zoomIn() ) );
+                 this, SLOT( zoomIn() ) );
     }
     {
         // x
@@ -1050,7 +1050,7 @@ MainWindow::createConfigDialog()
         act->setStatusTip( tr( "Zoom out." ) );
         this->addAction( act );
         connect( act, SIGNAL( triggered() ),
-                 M_config_dialog, SLOT( zoomOut() ) );
+                 this, SLOT( zoomOut() ) );
     }
     {
         // Ctrl + z
@@ -1059,7 +1059,7 @@ MainWindow::createConfigDialog()
         act->setStatusTip( tr( "Zoom out." ) );
         this->addAction( act );
         connect( act, SIGNAL( triggered() ),
-                 M_config_dialog, SLOT( zoomOut() ) );
+                 this, SLOT( zoomOut() ) );
     }
     {
         // i
@@ -1068,7 +1068,7 @@ MainWindow::createConfigDialog()
         act->setStatusTip( tr( "Fit field size to the screen." ) );
         this->addAction( act );
         connect( act, SIGNAL( triggered() ),
-                 M_config_dialog, SLOT( fitToScreen() ) );
+                 this, SLOT( fitToScreen() ) );
     }
 
     // field style
@@ -2003,6 +2003,74 @@ MainWindow::changeStyle( bool checked )
     Q_ASSERT( style );
 
     QApplication::setStyle( style );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  the 3D view if it is shown
+ */
+FieldView3D *
+MainWindow::shownView3D() const
+{
+#ifdef HAVE_3D_VIEW
+    if ( M_field_view_3d
+         && M_view_stack->currentWidget() == M_field_view_3d )
+    {
+        return qobject_cast< FieldView3D * >( M_field_view_3d );
+    }
+#endif
+    return nullptr;
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  Z: the 2D field, or the 3D camera nearer by as much
+ */
+void
+MainWindow::zoomIn()
+{
+#ifdef HAVE_3D_VIEW
+    if ( FieldView3D * view = shownView3D() )
+    {
+        view->zoomCamera( 1.0 / Options::ZOOM_RATIO );
+        return;
+    }
+#endif
+    M_config_dialog->zoomIn();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  X, Ctrl+Z: the 2D field, or the 3D camera farther by as much
+ */
+void
+MainWindow::zoomOut()
+{
+#ifdef HAVE_3D_VIEW
+    if ( FieldView3D * view = shownView3D() )
+    {
+        view->zoomCamera( Options::ZOOM_RATIO );
+        return;
+    }
+#endif
+    M_config_dialog->zoomOut();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  I: the 2D field fit to the screen, or the 3D camera back to its own distance
+ */
+void
+MainWindow::fitToScreen()
+{
+#ifdef HAVE_3D_VIEW
+    if ( FieldView3D * view = shownView3D() )
+    {
+        view->zoomCamera( 0.0 );
+        return;
+    }
+#endif
+    M_config_dialog->fitToScreen();
 }
 
 /*-------------------------------------------------------------------*/

@@ -55,7 +55,6 @@
 #include <QOpenGLContext>
 #include <QOpenGLFunctions_3_3_Core>
 #include <QPainter>
-#include <QWheelEvent>
 
 #include <cmath>
 #include <iostream>
@@ -278,6 +277,21 @@ FieldView3D::setCameraMode( const CameraMode mode )
 
 /*-------------------------------------------------------------------*/
 void
+FieldView3D::zoomCamera( const double factor )
+{
+    if ( factor <= 0.0 )
+    {
+        M_camera.resetZoom();
+    }
+    else
+    {
+        M_camera.zoom( float( factor ) );
+    }
+    update();
+}
+
+/*-------------------------------------------------------------------*/
+void
 FieldView3D::mousePressEvent( QMouseEvent * event )
 {
     // where a drag starts (the right button is left for the menu, Phase 5)
@@ -310,7 +324,7 @@ FieldView3D::mouseMoveEvent( QMouseEvent * event )
     else if ( event->buttons() & Qt::MiddleButton )
     {
         // down: farther, up: nearer, 5% per 100 pixels (as OrbitControls)
-        changed = M_camera.dolly( float( std::pow( Cameras3D::WHEEL_ZOOM, -dy * 0.01 ) ) );
+        changed = M_camera.dolly( float( std::pow( Cameras3D::DRAG_ZOOM, -dy * 0.01 ) ) );
     }
     else
     {
@@ -322,27 +336,6 @@ FieldView3D::mouseMoveEvent( QMouseEvent * event )
     {
         emit cameraModeChanged( M_camera.mode() );
     }
-    update();
-}
-
-/*-------------------------------------------------------------------*/
-void
-FieldView3D::wheelEvent( QWheelEvent * event )
-{
-    // a notch (120) away from the user: 5% nearer. The top camera does not
-    // take it: as in 2D, it steps the frames (MainWindow::wheelEvent()).
-    const double notches = event->angleDelta().y() / 120.0;
-    if ( notches == 0.0
-         || ! M_camera.takesMouse() )
-    {
-        QOpenGLWidget::wheelEvent( event );
-        return;
-    }
-    if ( M_camera.dolly( float( std::pow( Cameras3D::WHEEL_ZOOM, notches ) ) ) )
-    {
-        emit cameraModeChanged( M_camera.mode() );
-    }
-    event->accept();
     update();
 }
 

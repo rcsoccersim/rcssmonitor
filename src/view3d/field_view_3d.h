@@ -80,9 +80,10 @@ struct DispInfoT;
 
   The mouse moves the camera (CameraController): the left button turns it
   around what it looks at, with Shift, Ctrl or Meta moves it, and the
-  middle button and the wheel bring it nearer or farther. Doing so on a
-  camera that follows the ball makes it the free camera. The top camera
-  does not take the mouse, and the wheel steps the frames as in 2D.
+  middle button brings it nearer or farther. Doing so on a camera that
+  follows the ball makes it the free camera. The top camera does not take
+  the mouse. As in 2D, the wheel steps the frames (MainWindow), and the
+  keys of the zoom (Z, X, I) zoom the camera (zoomCamera()).
 */
 class FieldView3D
     : public QOpenGLWidget {
@@ -115,6 +116,12 @@ public:
     //! change the camera
     void setCameraMode( const CameraMode mode );
 
+    /*!
+      \brief zoom the camera, as the 2D view's keys (CameraController::zoom())
+      \param factor less than 1: nearer; more than 1: farther; 0: back to the camera's own distance
+    */
+    void zoomCamera( const double factor );
+
 signals:
 
     //! the mouse made the camera the free camera
@@ -131,7 +138,6 @@ protected:
     // the mouse moves the camera
     void mousePressEvent( QMouseEvent * event ) override;
     void mouseMoveEvent( QMouseEvent * event ) override;
-    void wheelEvent( QWheelEvent * event ) override;
 
 private:
 

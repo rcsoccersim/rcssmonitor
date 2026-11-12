@@ -48,6 +48,7 @@ class QLabel;
 
 class ConfigDialog;
 class FieldCanvas;
+class FieldView3D;
 class QStackedWidget;
 class LogPlayer;
 class LogPlayerSlider;
@@ -185,6 +186,9 @@ private:
     //! enable or disable the camera actions with the 3D view
     void enableCamera3D( const bool on );
 
+    //! the 3D view if it is shown, or null
+    FieldView3D * shownView3D() const;
+
     void connectMonitorTo( const char * hostname );
 
 private slots:
@@ -211,6 +215,11 @@ private slots:
     void toggleView3D( bool on );
     void selectCamera3D( QAction * action );
     void nextCamera3D();
+
+    // the zoom of the 2D field, or of the 3D camera when it is shown (Z, X, I)
+    void zoomIn();
+    void zoomOut();
+    void fitToScreen();
     void toggleFullScreen();
     void showPlayerTypeDialog();
     void changeStyle( bool checked );

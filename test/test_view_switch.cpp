@@ -98,6 +98,7 @@ private slots:
     void unavailableHere();
     void fallBackTo2D();
     void cameraMenu();
+    void zoomKeys2D();
 };
 
 /*-------------------------------------------------------------------*/
@@ -178,6 +179,28 @@ TestViewSwitch::cameraMenu()
     view3DAction( window )->trigger();
     QVERIFY( ! next->isEnabled() );
     QVERIFY( ! combo->isEnabled() );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  Z, X and I zoom the 2D field while the 2D view is shown (in 3D, the
+  camera; FieldView3D::zoomCamera(), not shown here)
+*/
+void
+TestViewSwitch::zoomKeys2D()
+{
+    Options::instance().setView3D( false );
+    MainWindow window;
+    Options::instance().fitToScreen();
+    const double fit = Options::instance().fieldScale();
+
+    actionOfKey( window, Qt::Key_Z )->trigger();
+    QVERIFY( Options::instance().fieldScale() > fit * 1.4 );
+    actionOfKey( window, Qt::Key_X )->trigger();
+    QVERIFY( std::fabs( Options::instance().fieldScale() - fit ) < 0.02 );
+    actionOfKey( window, Qt::Key_Z )->trigger();
+    actionOfKey( window, Qt::Key_I )->trigger();
+    QVERIFY( ! Options::instance().zoomed() );
 }
 
 QTEST_MAIN( TestViewSwitch )
