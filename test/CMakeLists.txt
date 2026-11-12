@@ -29,9 +29,12 @@ function(rcssmonitor_add_test name)
     )
 
   add_test(NAME ${name} COMMAND test_${name})
+  # a test that Qt Test skips (QSKIP, e.g. without OpenGL) is reported as
+  # skipped, not as passed
   set_tests_properties(${name}
     PROPERTIES
     ENVIRONMENT "HOME=${TEST_HOME};QT_QPA_PLATFORM=offscreen"
+    SKIP_REGULAR_EXPRESSION "\nSKIP   : "
     )
 endfunction()
 
