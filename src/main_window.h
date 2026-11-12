@@ -46,6 +46,7 @@ class QLabel;
 
 class ConfigDialog;
 class FieldCanvas;
+class QStackedWidget;
 class LogPlayer;
 class LogPlayerSlider;
 class MonitorClient;
@@ -67,6 +68,8 @@ private:
     PlayerTypeDialog * M_player_type_dialog;
     ConfigDialog * M_config_dialog;
     FieldCanvas * M_field_canvas;
+    QStackedWidget * M_view_stack; //!< the 2D view and the 3D view
+    QWidget * M_field_view_3d; //!< the 3D view (FieldView3D), made when it is first shown
     MonitorClient * M_monitor_client;
     LogPlayer * M_log_player;
     //LogPlayerSlider * M_log_player_slider;
@@ -104,6 +107,7 @@ private:
     QAction * M_toggle_menu_bar_act;
     QAction * M_toggle_tool_bar_act;
     QAction * M_toggle_status_bar_act;
+    QAction * M_toggle_view_3d_act;
     QAction * M_full_screen_act;
     QAction * M_show_player_type_dialog_act;
     QActionGroup * M_style_act_group;
@@ -193,6 +197,7 @@ private slots:
     void toggleMenuBar( bool checked );
     void toggleToolBar( bool checked );
     void toggleStatusBar( bool checked );
+    void toggleView3D( bool on );
     void toggleFullScreen();
     void showPlayerTypeDialog();
     void changeStyle( bool checked );

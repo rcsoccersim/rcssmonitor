@@ -173,6 +173,7 @@ private:
     int M_canvas_height;
 
     bool M_show_menu_bar;
+    bool M_view_3d; //!< show the 3D view instead of the 2D view
     bool M_show_tool_bar;
     bool M_show_status_bar;
 
@@ -360,6 +361,8 @@ public:
     int canvasHeight() const { return M_canvas_height; }
 
     bool showMenuBar() const { return M_show_menu_bar; }
+    bool view3D() const { return M_view_3d; }
+    void setView3D( const bool on ) { M_view_3d = on; }
     bool showToolBar() const { return M_show_tool_bar; }
     bool showStatusBar() const { return M_show_status_bar; }
 

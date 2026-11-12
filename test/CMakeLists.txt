@@ -52,6 +52,7 @@ rcssmonitor_add_test(rcg_types rcssrcg Qt${QT_VERSION_MAJOR}::Core)
 if(HAVE_3D_VIEW)
   rcssmonitor_add_test(ground_texture rcssmonitor_core)
   rcssmonitor_add_test(scene_3d rcssmonitor_core)
+  rcssmonitor_add_test(view_switch rcssmonitor_core)
 endif()
 
 # A benchmark of loading game logs (test/bench_load.cpp). CTest does not run it.

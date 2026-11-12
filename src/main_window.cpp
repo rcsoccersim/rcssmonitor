@@ -49,6 +49,9 @@
 #include "options.h"
 #include "rcg_handler.h"
 #include "tool_icon.h"
+#ifdef HAVE_3D_VIEW
+#include "field_view_3d.h"
+#endif
 
 #include <rcss/rcg/util.h>
 #include <rcss/rcg/parser.h>
@@ -90,6 +93,8 @@ MainWindow::MainWindow()
       M_player_type_dialog( static_cast< PlayerTypeDialog * >( 0 ) ),
       M_config_dialog( static_cast< ConfigDialog * >( 0 ) ),
       M_field_canvas( static_cast< FieldCanvas * >( 0 ) ),
+      M_view_stack( nullptr ),
+      M_field_view_3d( nullptr ),
       M_monitor_client( static_cast< MonitorClient * >( 0 ) ),
       M_log_player( new LogPlayer( M_disp_holder, this ) )
 {
@@ -170,6 +175,10 @@ MainWindow::init()
 
     toggleMenuBar( Options::instance().showMenuBar() );
     toggleStatusBar( Options::instance().showStatusBar() );
+    if ( Options::instance().view3D() )
+    {
+        M_toggle_view_3d_act->setChecked( true );
+    }
 
 
     if ( ! Options::instance().gameLogFile().empty() )
@@ -489,6 +498,23 @@ MainWindow::createActionsReferee()
 void
 MainWindow::createActionsView()
 {
+    // 2D or 3D
+    M_toggle_view_3d_act = new QAction( tr( "3D View" ), this );
+    M_toggle_view_3d_act->setIconText( tr( "3D" ) );
+    M_toggle_view_3d_act->setShortcut( Qt::Key_D );
+    M_toggle_view_3d_act->setCheckable( true );
+#ifdef HAVE_3D_VIEW
+    M_toggle_view_3d_act->setStatusTip( tr( "Show the 3D view or the 2D view. (" )
+                                        + M_toggle_view_3d_act->shortcut().toString() + tr( ")" ) );
+#else
+    M_toggle_view_3d_act->setEnabled( false );
+    M_toggle_view_3d_act->setStatusTip( tr( "This rcssmonitor is built without the 3D view." ) );
+#endif
+    M_toggle_view_3d_act->setToolTip( M_toggle_view_3d_act->statusTip() );
+    connect( M_toggle_view_3d_act, SIGNAL( toggled( bool ) ),
+             this, SLOT( toggleView3D( bool ) ) );
+    this->addAction( M_toggle_view_3d_act );
+
     // menu bar
     M_toggle_menu_bar_act = new QAction( tr( "Menu Bar" ), this );
     M_toggle_menu_bar_act->setShortcut( Qt::CTRL | Qt::Key_M );
@@ -692,6 +718,10 @@ MainWindow::createMenuView()
 
     menu->addSeparator();
 
+    menu->addAction( M_toggle_view_3d_act );
+
+    menu->addSeparator();
+
     menu->addAction( M_show_player_type_dialog_act );
 
     menu->addSeparator();
@@ -798,6 +828,12 @@ MainWindow::createToolBars()
         button->setDefaultAction( M_log_player_next_score_act );
         button_layout->addWidget( button );
     }
+    {
+        QToolButton * button = new QToolButton();
+        button->setToolButtonStyle( Qt::ToolButtonTextOnly );
+        button->setDefaultAction( M_toggle_view_3d_act );
+        button_layout->addWidget( button );
+    }
 
     control_panel->setLayout( button_layout );
     M_log_player_tool_bar->addWidget( control_panel );
@@ -860,7 +896,10 @@ MainWindow::createFieldCanvas()
     popup_menu->addAction( M_red_card_act );
 
 
-    this->setCentralWidget( M_field_canvas );
+    // the 2D view, and the 3D view when it is first shown
+    M_view_stack = new QStackedWidget();
+    M_view_stack->addWidget( M_field_canvas );
+    this->setCentralWidget( M_view_stack );
     M_field_canvas->setFocus();
 
     connect( this, SIGNAL( viewUpdated() ),
@@ -1844,6 +1883,50 @@ void
 MainWindow::toggleStatusBar( bool checked )
 {
     this->statusBar()->setVisible( checked );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  Show the 3D view or the 2D view. They share the frames and the options,
+  so the frame and the selected player stay as they are. The 3D view is
+  made when it is first shown; where OpenGL 3.3 is not available, the
+  action is disabled, with the reason in the status bar.
+ */
+void
+MainWindow::toggleView3D( bool on )
+{
+#ifdef HAVE_3D_VIEW
+    if ( on && ! M_field_view_3d )
+    {
+        const QString reason = FieldView3D::unavailableReason();
+        if ( ! reason.isEmpty() )
+        {
+            std::cerr << "The 3D view is not available: " << reason.toStdString() << std::endl;
+            M_toggle_view_3d_act->blockSignals( true );
+            M_toggle_view_3d_act->setChecked( false );
+            M_toggle_view_3d_act->blockSignals( false );
+            M_toggle_view_3d_act->setEnabled( false );
+            M_toggle_view_3d_act->setStatusTip( tr( "The 3D view is not available: " ) + reason );
+            M_toggle_view_3d_act->setToolTip( M_toggle_view_3d_act->statusTip() );
+            this->statusBar()->showMessage( M_toggle_view_3d_act->statusTip(), 10000 );
+            Options::instance().setView3D( false );
+            return;
+        }
+
+        FieldView3D * view = new FieldView3D( M_disp_holder );
+        M_view_stack->addWidget( view );
+        connect( this, SIGNAL( viewUpdated() ),
+                 view, SLOT( update() ) );
+        M_field_view_3d = view;
+    }
+
+    QWidget * shown = ( on ? M_field_view_3d : M_field_canvas );
+    M_view_stack->setCurrentWidget( shown );
+    shown->setFocus();
+    Options::instance().setView3D( on );
+#else
+    Q_UNUSED( on );
+#endif
 }
 
 /*-------------------------------------------------------------------*/
