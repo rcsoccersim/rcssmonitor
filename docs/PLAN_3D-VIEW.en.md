@@ -1193,3 +1193,30 @@ The four commits of 5-1 and of the fix of the automatic selection (f4153d0 to 21
 - Every test was confirmed to fail when what it checks is broken for a while (the distance of a following camera, the top camera's height, keeping within the ground image, setting back on a change of camera, the range, sending the keys to 2D). At first the ball of the top camera's test was outside what a zoom of 0.5 can show, and the test failed (the behavior was right; the test's values were fixed).
 - Clean builds pass the tests with Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`; 25 tests). `-DENABLE_3D=OFF` (16 tests) and autotools pass too.
 
+#### 2026-11-12: Step 5-2, the overlays of 2D and the area values (`feature/3d-view`)
+
+The two commits of 5-1b (3954aae, 96af529) were pushed, and the CI passed. The user checked them on the screen.
+
+**Decided**
+- The calculations of the overlays (focus point, catch area, the chances and the text of a tackle, the kick acceleration area) move from the 2D `PlayerPainter` to `OverlayMath`, shared by 2D and 3D, as planned. They use the geometry classes (`Vector2D`, `AngleDeg`, `Circle2D`) as they were, so the numbers of 2D do not change. The drawing (screen coordinates, pens, the direction of Qt's arc angles) stays in 2D.
+- The ball's path is not shared. 2D stops where the screen pixel stops changing (which depends on the size of the screen). 3D stops when the ball moves less than 0.01 m in a cycle, as the web version (`OverlayMath::ballPath()`).
+- The texts of the areas are written by the HUD in the player font, as the web version: 10 px right of and 2 px below the point on the screen, a line down while they would cover another. The pointing mark is a cross of +-0.4 m, as the web version (2D: +-2 px). Players not connected have none (as the web version; 2D draws them).
+
+**Made**
+- `OverlayMath`: `focusPoint()`, `catchArea()`, `tackleChances()`, `tackleText()`, `kickAccel()` (the largest acceleration, the next place, and two arcs when the two circles cross, or a circle when they do not), `ballPath()`.
+- `PlayerPainter`: computes the focus point, the catch area, the tackle area and the kick acceleration area with `OverlayMath`.
+- `OverlayBuilder::addOverlays()` (by the Show tab): the selected player's focus point (a line and a circle), the goalies' catch areas (the circle, and two dotted circles of the stretched range), the tackle area (a box turned with the body, and the text of the chances), the selected player's kick acceleration area (a line to the next place, the arcs, the text of the largest acceleration), the pointing (a line and a cross), the offside lines (across the pitch in the team colors), the ball's path (a line and a dot per cycle). `OverlayBuilder::placeTexts()`: puts the texts on the screen without overlapping; none for points behind the camera or off the screen.
+- `SceneContent::texts`. `FieldView3D` writes the texts after the HUD (score board and logos).
+
+**Found**
+- A weakness of the tests: `Options` writes the settings file when the program ends, and all the tests use the same test HOME. A test that failed half way with an option toggled left it for all the later runs (a weakness since Phase 1; it showed when breaking code for a while in 5-2: the `overlay_builder` test kept failing from the next run on, and crashed). Fix: every test removes the settings file of the test HOME before `main()` and starts from the defaults (`test/fresh_settings.cpp`). It removes it only when `RCSSMONITOR_TEST_HOME`, given by CTest, equals HOME, so a test run by hand with the user's HOME does not remove the user's file (checked without the variable, with another value, and with HOME). Also, the `overlay_builder` test sets the overlay options to known values before each function, and checks that a list is not empty before reading it.
+
+**Tests**
+- 2D unchanged: with all the overlays and the automatic selection, 200 frames of the full game log (every 31st, 9 of them with the kick acceleration area and 86 with tackle areas) drawn with HEAD and the current build are the same down to the pixels.
+- Added to test `overlay_math`: the focus point; the catch area (the largest and smallest when stretched); the chances of a tackle and a foul (ahead, too far, behind, where only a foul may succeed); the format of the texts; not kickable; the two arcs (their ends at the crossings of the two circles, the arc of the speed on the side of the next place); the circle when they do not cross; the ball's path (the decay, where it stops, at most 100 cycles).
+- Added to test `overlay_builder`: nothing without any; the focus point (selected only); the catch area (goalies only, color); the tackle area (the corners of the box and the text, out of reach); the kick acceleration area (selected only, the places of the line and the text); the pointing and the offside lines; the ball's path; placing the texts (shifted right and down, a line down when overlapping, none off the screen or right behind the camera).
+- Every test was confirmed to fail when what it checks is broken for a while (the direction of the arcs, where the path stops, the stretched range, the foul's check, the turn of the box, avoiding overlaps, selected only, behind the camera, the colors of the offside lines). At first, breaking the foul's check and the check behind the camera passed, so a place where only a foul may succeed and a point right behind the camera were added. A wrong expected rounding in a test (Qt's format makes 0.8125 into 0.813) was fixed.
+- Clean builds pass the tests with Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`; 25 tests). `-DENABLE_3D=OFF` (16 tests) and autotools pass too.
+- Frames 2,047 and 3,000 of the full game log were drawn offscreen with all the overlays and looked at.
+- The user checked them on the screen (except the focus point). The focus point is checked later, as no convenient game log showing it was found.
+
