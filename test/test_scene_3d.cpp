@@ -63,6 +63,62 @@ distance( const QColor & a,
     return std::abs( a.red() - b.red() ) + std::abs( a.green() - b.green() ) + std::abs( a.blue() - b.blue() );
 }
 
+/*!
+  \brief how white each cell of a grid over a rectangle of an image is
+  (the fraction of its pixels lighter than 230), row by row
+*/
+std::vector< double >
+whiteGrid( const QImage & image,
+           const QRectF & rect,
+           const int columns,
+           const int rows )
+{
+    std::vector< double > grid( std::size_t( columns * rows ), 0.0 );
+    std::vector< int > count( grid.size(), 0 );
+    for ( int y = int( std::ceil( rect.top() ) ); y < int( rect.bottom() ); ++y )
+    {
+        for ( int x = int( std::ceil( rect.left() ) ); x < int( rect.right() ); ++x )
+        {
+            const int c = std::min( columns - 1, int( ( x - rect.left() ) / rect.width() * columns ) );
+            const int r = std::min( rows - 1, int( ( y - rect.top() ) / rect.height() * rows ) );
+            const std::size_t i = std::size_t( r * columns + c );
+            ++count[i];
+            if ( image.pixelColor( x, y ).lightness() > 230 && image.pixelColor( x, y ).alpha() > 200 ) grid[i] += 1.0;
+        }
+    }
+    for ( std::size_t i = 0; i < grid.size(); ++i ) grid[i] /= std::max( 1, count[i] );
+    return grid;
+}
+
+//! the correlation of two grids, b read upside down or mirrored if asked
+double
+correlation( const std::vector< double > & a,
+             const std::vector< double > & b,
+             const int columns,
+             const int rows,
+             const bool flip_rows,
+             const bool flip_columns )
+{
+    double ma = 0.0, mb = 0.0;
+    for ( std::size_t i = 0; i < a.size(); ++i ) { ma += a[i]; mb += b[i]; }
+    ma /= a.size();
+    mb /= b.size();
+    double ab = 0.0, aa = 0.0, bb = 0.0;
+    for ( int r = 0; r < rows; ++r )
+    {
+        for ( int c = 0; c < columns; ++c )
+        {
+            const double va = a[std::size_t( r * columns + c )] - ma;
+            const int rb = ( flip_rows ? rows - 1 - r : r ), cb = ( flip_columns ? columns - 1 - c : c );
+            const double vb = b[std::size_t( rb * columns + cb )] - mb;
+            ab += va * vb;
+            aa += va * va;
+            bb += vb * vb;
+        }
+    }
+    return ab / std::sqrt( std::max( 1.0e-12, aa * bb ) );
+}
+
 }
 
 /*!
@@ -293,8 +349,9 @@ TestScene3D::topCamera()
 /*!
   The number label of a player from the top camera, over the ground to the
   right of the player, white in a black outline, upright and not mirrored
-  (a 7: its bar at the top, its foot at the left); nothing to its left. The
-  same in every frame.
+  (as its image in the atlas, whatever the font; "7,t0" with the player
+  type, which no font makes symmetric); nothing to its left. The same in
+  every frame.
 */
 void
 TestScene3D::labels()
@@ -315,16 +372,19 @@ TestScene3D::labels()
     p.side_ = 'l';
     p.unum_ = 7;
     p.state_ = rcss::rcg::STAND;
-    p.x_ = 0.0f;
-    p.y_ = 10.0f;
+    // away from the lines: the label's width depends on the font of the machine
+    p.x_ = 20.0f;
+    p.y_ = 20.0f;
     show.ball_.x_ = 100.0f; // out of the view
 
     const CameraPose camera = Cameras3D::top( float( w ) / h );
     LabelAtlas atlas;
     SceneContent content;
     SceneBuilder::addShow( content, show, holder, Options::instance() );
+    Options::instance().toggleShowPlayerType();
     SceneBuilder::addLabels( content, show, holder, Options::instance(), atlas,
                              SceneBuilder::LabelView{ camera, float( h ), 30.0 } );
+    Options::instance().toggleShowPlayerType();
     QCOMPARE( content.labels.size(), size_t( 1 ) );
     scene.setLabels( atlas.image() );
 
@@ -341,30 +401,36 @@ TestScene3D::labels()
     const int cx = int( std::lround( w / 2 + label.center.x() * px_per_m ) );
     const int cy = int( std::lround( h / 2 + label.center.z() * px_per_m ) );
     int white = 0, black = 0;
-    int top = 0, bottom = 0, bottom_left = 0, bottom_right = 0; // white pixels
     for ( int y = int( cy - text_h / 2 ); y <= int( cy + text_h / 2 ); ++y )
     {
         for ( int x = int( cx - text_w / 2 ); x <= int( cx + text_w / 2 ); ++x )
         {
             const QColor c = image.pixelColor( x, y );
             if ( c.lightness() < 25 ) ++black;
-            if ( c.lightness() <= 230 ) continue;
-            ++white;
-            if ( y < cy - text_h / 4 ) ++top;
-            if ( y > cy + text_h / 4 )
-            {
-                ++bottom;
-                ( x < cx ? bottom_left : bottom_right ) += 1;
-            }
+            if ( c.lightness() > 230 ) ++white;
         }
     }
     QVERIFY2( white > 10 && black > 10, qPrintable( QString( "white %1 black %2" ).arg( white ).arg( black ) ) );
-    QVERIFY2( top > bottom, qPrintable( QString( "top %1 bottom %2" ).arg( top ).arg( bottom ) ) );
-    QVERIFY2( bottom_left > bottom_right, qPrintable( QString( "left %1 right %2" ).arg( bottom_left ).arg( bottom_right ) ) );
+
+    // upright and not mirrored: the white of the label on the screen is
+    // like that of its image in the atlas, more than upside down or mirrored
+    const int columns = 24, rows = 8;
+    const QRectF on_screen( cx - label.size.x() * px_per_m / 2, cy - label.size.y() * px_per_m / 2,
+                            label.size.x() * px_per_m, label.size.y() * px_per_m );
+    const QRectF uv = atlas.uv( 6 );
+    const QRectF in_atlas( uv.left() * atlas.image().width(), uv.top() * atlas.image().height(),
+                           uv.width() * atlas.image().width(), uv.height() * atlas.image().height() );
+    const std::vector< double > drawn = whiteGrid( image, on_screen, columns, rows );
+    const std::vector< double > source = whiteGrid( atlas.image(), in_atlas, columns, rows );
+    const double upright = correlation( drawn, source, columns, rows, false, false );
+    const double upside_down = correlation( drawn, source, columns, rows, true, false );
+    const double mirrored = correlation( drawn, source, columns, rows, false, true );
+    QVERIFY2( upright > 0.5 && upright > upside_down + 0.1 && upright > mirrored + 0.1,
+              qPrintable( QString( "upright %1, upside down %2, mirrored %3" ).arg( upright ).arg( upside_down ).arg( mirrored ) ) );
 
     // nothing on the other side of the player
     const QColor field = Options::instance().fieldBrush().color();
-    const int mirror = int( std::lround( w / 2 - label.center.x() * px_per_m ) );
+    const int mirror = int( std::lround( w / 2 + ( 2.0 * p.x_ - label.center.x() ) * px_per_m ) );
     QVERIFY2( distance( image.pixelColor( mirror, cy ), field ) < 12, qPrintable( image.pixelColor( mirror, cy ).name() ) );
 
     // over everything: the same under the ground (the top camera has no perspective)
