@@ -7,7 +7,7 @@
 | Reference implementation | rcssmonitor-web 20.0.0-beta.2 (tag `v20.0.0-beta.2`, ed36941). Its working tree is `../rcssmonitor-web`, next to this repository |
 | Server referred to | The asio version of rcssserver 19.x. Its working tree is `../rcssserver` (branch `feature/asio-migration`), next to this repository |
 | Japanese version | [PLAN_3D-VIEW.md](PLAN_3D-VIEW.md) (same content; §0.1) |
-| Status | Phase 3 (started 2026-11-12). The 3D prototype of Phase 0 is discussed later |
+| Status | The 3D prototype of Phase 0 is done, and D1 is decided (2026-11-12). Next is Phase 4 (`feature/3d-view`) |
 
 ## 0. How to use this plan
 
@@ -59,11 +59,11 @@ Out of scope: §13.
 
 Confirm with the user in Phase 0 before proceeding. The recommendations are assumed by the following sections of this plan.
 
-State on 2026-11-11: the user decided D7, D10, and D11 ("Decided" in the table; D11 is a problem found in Phase 0). D1 is decided by the result of the Phase 0 prototype. D2–D6, D8, and D9 proceed with the recommendations.
+State on 2026-11-11: the user decided D7, D10, and D11 ("Decided" in the table; D11 is a problem found in Phase 0). D1 is decided by the result of the Phase 0 prototype. D2–D6, D8, and D9 proceed with the recommendations. 2026-11-12: D1 was decided as the recommendation by the result of the prototype (§14).
 
 | # | Item | Recommendation | Alternatives | Reason |
 |---|---|---|---|---|
-| D1 | 3D rendering technology | `QOpenGLWidget` with our own rendering (OpenGL 3.3 core, our own shaders) | Qt Quick 3D (embedded with `QQuickWidget`) | §2.3 below |
+| D1 | 3D rendering technology | **Decided**: `QOpenGLWidget` with our own rendering (OpenGL 3.3 core, our own shaders; 2026-11-12, by the result of the prototype; §14) | Qt Quick 3D (embedded with `QQuickWidget`) | §2.3 below |
 | D2 | Supported Qt versions | Both Qt 5.15 and Qt 6.2 or later (one source, switched) | Qt6 only | Ubuntu 22.04 has both Qt 5.15 and Qt 6.2. After a period of supporting both, Qt5 can be dropped in the next version |
 | D3 | Build systems | CMake is the main one. Qt6 is supported by CMake only; autotools stays on Qt5 (3D is built by CMake only). qmake (`.pro`) is dropped by D11 | Make all three support Qt6 / drop autotools and qmake | Maintaining three is a lot of work. autotools' `AX_HAVE_QT` finds Qt through qmake, which makes Qt6 support hard |
 | D4 | Is 3D optional in the build | CMake option `ENABLE_3D` (default ON). Where OpenGL 3.3 is unavailable, 3D is disabled at run time and the program works in 2D only | Make it mandatory | Keep 2D monitoring usable as before on old GPUs and virtual machines |
@@ -83,7 +83,7 @@ State on 2026-11-11: the user decided D7, D10, and D11 ("Decided" in the table; 
 | Qt Quick 3D | Materials, shadows, fog, skinned meshes, instancing, and picking are all there | Requires Qt6 (skeletal animation and instancing are Qt 6 features). The scene is written in QML, and C++ passes data to it. For skinned glTF, the documented path is build-time conversion (Balsam); whether run-time loading (RuntimeLoader) handles skeletal animation has not been confirmed. Whether moving the bones ourselves every frame (§5.8) works naturally also needs testing |
 | Qt 3D | Has a C++ API | Deprecated in Qt 6.8 and removed from the standard release. Not for new use |
 
-Decide after confirming with the recommended option, in the Phase 0 prototype (§9), "22 figures with shadows at 1920×1080 at 60 fps".
+Decide after confirming with the recommended option, in the Phase 0 prototype (§9), "22 figures with shadows at 1920×1080 at 60 fps". → On 2026-11-12, both options were prototyped and measured, and the recommendation was decided (§14).
 
 ### 2.4 Replacement options for D10 (AppImage)
 
@@ -151,6 +151,8 @@ Option B (drop it) was decided on 2026-11-11. Option A was tried in Phase 0 and 
 - `master` (42848cd, 19.0.1): develop plus the AppImage workflow of PR #59, `utils/appimage/`, and `.gitignore` (§3.2). Otherwise the same as develop.
 - `feature/support-tcp-ws` (45bca98): develop (01f880a) plus 5 commits for the TCP / WebSocket support. Not merged (D7). Has the plan `docs/TRANSPORT_PLAN.md` (not in the repository).
 - `feature/ci`: the first branch of this plan (§9.1). Created from develop (01f880a) on 2026-11-11.
+- `proto/3d-gl`: the 3D prototype (not merged). Created from develop (95965dc) on 2026-11-12 (§14).
+- `fix/qt-selection`: the fix of how CMake selects Qt, and the record of the prototype. Created from develop (95965dc) on 2026-11-12 (§14).
 - `origin/feature/json-reformat` (2024-03): 2 commits that adapt the old parser `rcss/rcg/parser_json.cpp` and `parser.cpp` to the new JSON format. The current develop uses `parser_simdjson.cpp`, so check the content and decide whether to take it into the §7 work or discard it. → Not taken (Phase 2, §14).
 - `origin/develop_observation` (2022-11) and `origin/fix/qt-asprintf` (merged into master) are unrelated to this plan.
 
@@ -462,10 +464,10 @@ Each phase proceeds on a feature branch and is merged into develop when it is do
 - Set up CI (GitHub Actions). On Ubuntu 26.04 (`runs-on: ubuntu-26.04`, as in the web version's CI), build with Qt5 and run the unit tests. The Qt6 job is added in Phase 3, when the Qt6 build passes. Use action versions that run on Node.js 24 (as in the web version: checkout@v5, upload-artifact@v7, etc.).
 - Set up the test infrastructure (Qt Test, CTest) on develop, in the same shape as `feature/support-tcp-ws` (§3.5).
 - Try option A of D10 (§2.4) (during the trial, it runs on pushes to `feature/ci`). → It was tried and worked, but D10 was decided as option B (drop it).
-- 3D prototype (checking D1): with `QOpenGLWidget`, draw 22 skinned figures (walking with blended clips), a 4096 px shadow map, and instanced cylinders, and measure whether 60 fps holds at 1920×1080. Run it on both Qt 5.15 and Qt 6. Record the result in §14 and decide D1.
-- Prepare the figure model as in D6.
+- 3D prototype (checking D1): with `QOpenGLWidget`, draw 22 skinned figures (walking with blended clips), a 4096 px shadow map, and instanced cylinders, and measure whether 60 fps holds at 1920×1080. Run it on both Qt 5.15 and Qt 6. Record the result in §14 and decide D1. → Done. Qt Quick 3D was also prototyped and compared (§14).
+- Prepare the figure model as in D6. → Done (`resources/models/` of `proto/3d-gl`; §14).
 
-**Done when**: everything in §2.2 is decided. CI passes. The prototype confirms 60 fps (if D1 is the recommendation). Whether to adopt option A of D10 is decided (decided: not adopted; option B).
+**Done when**: everything in §2.2 is decided. CI passes. The prototype confirms 60 fps (if D1 is the recommendation). Whether to adopt option A of D10 is decided (decided: not adopted; option B). → Met (2026-11-12).
 
 ### Phase 1: Bug fixes
 
@@ -598,8 +600,8 @@ Port the GL-independent calculations, using the web version's unit tests as mode
 | `figures_3d`, `pose`, `gltf_model` | Figures |
 | `hud_3d`, `guides` | HUD, compass strip, minimap |
 | The 3D tab and the Player Camera tab of `config_dialog` | Settings |
-| `third_party/cgltf/cgltf.h` | glTF loading (MIT) |
-| `resources/models/Mannequin.glb`, `.qrc` | Figure model (CC0) and its source |
+| `third_party/cgltf/cgltf.h` | glTF loading (MIT). v1.15 is in the prototype branch (§14) |
+| `resources/models/Mannequin.glb`, `.qrc` | Figure model (CC0) and its source. The one without compression is in the prototype branch (§14) |
 | `test/test_*.cpp` | Unit tests and rendering tests |
 | `.github/workflows/ci.yml` | CI |
 | `data/rcssmonitor.desktop`, `icons/rcssmonitor.png` | The desktop file and the icon, installed by CMake's `install()` (added in Phase 0 for the AppImage trial; kept after dropping the AppImage, because a normal installation also shows the app in the application menu) |
@@ -920,3 +922,55 @@ The user created `feature/qt6` from develop (a6f2456) on GitHub.
 - With the same canvas size, the window size differs between Qt5 and Qt6, and so does the size of the team graphic. Cause: the work machine's screen is 3840×2160 at 124 dpi (GNOME on Wayland; Qt5 and Qt6 both run on XWayland). Qt6 always scales by the screen's ratio (124 / 96 = 1.29), while Qt5 did not scale pixels and made only the text larger for 124 dpi. Qt6 draws consistently; with Qt5, the team graphic and the lines were small compared with the text. Decided (user): Qt5 also scales as Qt6 does (Q9).
 - With a dark desktop theme, the Qt6 window is dark too (background #323232; Qt5 stays light), and the toolbar icons are hard to see. Decided (user): the icons follow the palette (Q10).
 - With Qt6, loading takes over 800 ms for JSON and over 70 ms for text. Cause: the user's build directory had `CMAKE_BUILD_TYPE=Debug` (simdjson is not optimized). A Debug build with Qt6 was confirmed to take 692–868 ms for JSON and 73 ms for text. In Release, Qt6 and Qt5 take the same: JSON 70 ms, text 60 ms. The user's machine has no `libdeflate-dev` either (zlib only).
+
+#### 2026-11-12: Merge
+
+- PR #66 (`feature/qt6`) was merged into develop with a merge commit (95965dc). The CI of develop passed too. The completion criteria of Phase 3 (builds with both Qt 5.15 and Qt 6, no deprecation warnings, CI, the user's checks) are met.
+
+#### 2026-11-12: The bug of selecting Qt (`fix/qt-selection`)
+
+- While building the 3D prototype (below), configuring without `-DQT_VERSION_MAJOR` selected Qt5 on the work machine, which has both Qt5 and Qt6 (in Phase 3, Qt6 was selected). Cause: `find_package(QT NAMES Qt6 Qt5)` finds them not in the order of the names but in the order in which it reads the directories in `/usr/lib/x86_64-linux-gnu/cmake/`. Installing the Qt Quick 3D packages added directories and changed the order. "Qt6 if it is found" in the README was not guaranteed. CI gives the version explicitly, so it is not affected.
+- Fixed: without the option, look for Qt6 (6.2 or later) first, and use Qt5 if it is not found. The version is kept in the cache (`QT_VERSION_MAJOR`), and does not change when configuring again. Confirmed that no option, `5`, `6`, and not looking for Qt6 (`-DCMAKE_DISABLE_FIND_PACKAGE_Qt6=ON`) give Qt 6.4.2, 5.15.13, 6.4.2, and 5.15.13.
+
+### Phase 0 (continued)
+
+#### 2026-11-12: The 3D prototype and D1 (`proto/3d-gl`)
+
+With Phases 1–3 merged, the 3D prototype started.
+
+**Decided (user)**
+- The prototype is made on `proto/3d-gl`, created from develop (95965dc), and not merged (§9.1). Its useful parts are brought into `feature/3d-view` later, cleaned up. The record goes into the plan on develop (this one through `fix/qt-selection`).
+- Make both the recommendation (`QOpenGLWidget` with our own rendering) and Qt Quick 3D, and compare them.
+
+**Made (bf554fe, e9a9b65, c54d791 on `proto/3d-gl`)**
+- `resources/models/Mannequin.glb`: the model of the web version written again without EXT_meshopt_compression and KHR_mesh_quantization, with glTF-Transform 4.5.1 and meshoptimizer (346 kB to 684 kB; D6), with the script that wrote it (`decompress.mjs`) and a README of its source. One mesh (materials M_Main and M_Joints), 65 joints, 4 clips (the translation, rotation and scale of each joint).
+- `third_party/cgltf/`: cgltf 1.15 (MIT; D5).
+- `proto/3d-gl/` (CMake's `BUILD_PROTO_3D`, default OFF): two prototypes draw the same scene (the ground and lines, 22 human figures, the ball, the shadows of the sun) from the same log (`1-json.rcg.gz`). The poses are computed from the log every frame by shared code (`gltf_rig`, `proto_log`) (§5.8: idle, walk, run and sprint mixed by the speed, each at the time of the distance walked over the speed of the clip).
+  - `proto_gl`: OpenGL 3.3 core, `QOpenGLWidget`, our own shaders. Qt5 and Qt6. The skin matrices are in an RGBA32F texture, and the 22 figures are drawn with one instanced call per material. A 4096 px shadow map with a 5 x 5 PCF. The drawing (`SceneGL`) is separate from the widget, so it can also draw without a display, with `QOffscreenSurface` and an FBO (`--offscreen`).
+  - `proto_quick3d`: Qt Quick 3D, `QQuickWidget` (`QQuickView` with `--window`). Qt6 only. The model is converted to QML by balsam at build time, without the `Timeline`s of the clips (`make_quick3d_model.py`). The joint nodes are found by their QML ids, and their `position`, `rotation` and `scale` are written every frame.
+  - `run_bench.sh`: measures both, one after the other, at 1920×1080 for 10 s each.
+
+**Measured (the user's machine: the integrated GPU of a Ryzen 9 9950X3D (radeonsi, raphael), Mesa 25.2.8, OpenGL 4.6 core; 1920×1080, 10 s)**
+
+| | fps (vsync) | fps (no vsync) | CPU / frame | GPU / frame |
+|---|---|---|---|---|
+| OpenGL (Qt6), figures, 4096 px shadows | 59.9 | 60.0 (note below) | 0.29 ms (poses 0.26 ms) | 4.44 ms |
+| OpenGL (Qt6), figures, no shadows | — | 60.0 | 0.25 ms | 1.02 ms |
+| OpenGL (Qt6), cylinders, shadows | — | 60.0 | 0.03 ms | 3.81 ms |
+| OpenGL (Qt5), figures, 4096 px shadows | — | 158 | 0.27 ms | 4.42 ms |
+| Qt Quick 3D (`QQuickWidget`), figures, shadows | 59.9 | 128.6 | 5.3–5.9 ms (p99 9.7 ms) | not measurable |
+| Qt Quick 3D, only the rotations of the joints written | — | 128.6 | 4.2 ms | — |
+| Qt Quick 3D (`QQuickView`) | — | 128.9 | 5.4 ms | — |
+| Qt Quick 3D, no shadows | — | 161 | 5.2 ms | — |
+| Qt Quick 3D, cylinders | — | 181 | 0.01 ms | — |
+
+**Found**
+- Both keep 60 fps on the integrated GPU. OpenGL takes 4.4 ms of GPU (3.4 ms of it for the shadows; 1.0 ms without them) and 0.3 ms of CPU: about four times the headroom.
+- Qt Quick 3D takes 5–6 ms of CPU every frame (about 10 ms at p99) to write the joints through properties (22 figures x 65 joints x 3; 4.2 ms even with the rotations only): 30–60% of a frame at 60 fps (16.7 ms).
+- In Qt Quick 3D 6.4, the skinned models cast almost no shadows (the cylinders do; it may select the shadow casters by the bounds of the bind pose, for example; not checked with a newer Qt). The values of Qt Quick 3D in the table are without the shadows of the figures.
+- Qt6's `QOpenGLWidget` stays at 60 fps even with a `swapInterval` of 0 (likely because the window is composed through RHI; 158 fps with Qt5). The headroom is measured with the GPU time (timer queries; §10.3).
+- Where Qt Quick 3D got stuck: on Ubuntu 24.04, `qt6-quick3d-dev` does not depend on `qt6-shadertools-dev` (and `qt6-shader-baker`, which has `qsb`), which must be installed separately. Most of balsam's output (5,332 lines) is the `Timeline`s of the clips. Qt 6.4's `QQuickWidget` has no `setInitialProperties`. The `lookAt` of a light (`Node`) cannot be called from C++ (that of a camera can). `QQuick3D::idealSurfaceFormat()` cannot be called before the application is created. The best shadow map of Qt 6.4 is VeryHigh.
+- Without a display (`QT_QPA_PLATFORM=offscreen`), neither `QOpenGLWidget` nor a Qt Quick window can use OpenGL (Qt Quick falls back to the software renderer). The prototypes were checked by drawing with `QOffscreenSurface` and an FBO (`proto_gl`) and with `QQuickRenderControl` (`proto_quick3d`; `QT_QUICK_BACKEND=rhi`). The rendering tests of §10.2 take this form too, with the drawing separate from the widget.
+- With software rendering (llvmpipe, 1280×720), `proto_gl` takes about 36 ms a frame with the figures and the shadows (0.2 ms for the poses), and `proto_quick3d` about 75–80 ms.
+
+**D1 decided (user)**: the recommendation (`QOpenGLWidget` with our own rendering, OpenGL 3.3 core). Reasons: 60 fps with headroom even on the integrated GPU (GPU 4.4 ms, CPU 0.3 ms). The same code works with both Qt5 and Qt6 (D2). Deciding the poses from the log every frame (§5.8) is cheap to write. Few dependencies (Qt's OpenGL and cgltf). Phase 4 brings in, cleaned up, the prototype's `gltf_rig` (glTF loading and poses), the separation of `SceneGL`, the shadow map, and the instanced skinned drawing.

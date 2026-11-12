@@ -7,7 +7,7 @@
 | 参照実装 | rcssmonitor-web 20.0.0-beta.2 (タグ `v20.0.0-beta.2`、ed36941)。作業ツリーは、このリポジトリと並べて置いた `../rcssmonitor-web` |
 | 参照したサーバ | asio 版 rcssserver 19.x。作業ツリーは、このリポジトリと並べて置いた `../rcssserver` (`feature/asio-migration` ブランチ) |
 | 英語版 | [PLAN_3D-VIEW.en.md](PLAN_3D-VIEW.en.md) (内容は同じ。§0.1) |
-| 状態 | Phase 3 (2026-11-12 着手)。Phase 0 の 3D の試作は後で相談する |
+| 状態 | Phase 0 の 3D の試作を終え、D1 を決めた (2026-11-12)。次は Phase 4 (`feature/3d-view`) |
 
 ## 0. この計画書の使い方
 
@@ -59,11 +59,11 @@
 
 Phase 0 でユーザに確かめてから進める。推奨案は、この計画の以下の節の前提にしている。
 
-2026-11-11 の状態: D7、D10、D11 はユーザが決めた (表の「決定」。D11 は Phase 0 で見つけた問題)。D1 は Phase 0 の試作の結果で決める。D2〜D6、D8、D9 は推奨案で進める。
+2026-11-11 の状態: D7、D10、D11 はユーザが決めた (表の「決定」。D11 は Phase 0 で見つけた問題)。D1 は Phase 0 の試作の結果で決める。D2〜D6、D8、D9 は推奨案で進める。2026-11-12: D1 は試作の結果で推奨案に決めた (§14)。
 
 | # | 項目 | 推奨 | 代わりの案 | 理由 |
 |---|---|---|---|---|
-| D1 | 3D の描画の技術 | `QOpenGLWidget` と自前の描画 (OpenGL 3.3 core、シェーダを自分で書く) | Qt Quick 3D (`QQuickWidget` で埋め込む) | 下の §2.3 |
+| D1 | 3D の描画の技術 | **決定**: `QOpenGLWidget` と自前の描画 (OpenGL 3.3 core、シェーダを自分で書く。2026-11-12、試作の結果。§14) | Qt Quick 3D (`QQuickWidget` で埋め込む) | 下の §2.3 |
 | D2 | 対応する Qt の版 | Qt 5.15 と Qt 6.2 以降の両方 (1 つのソースで切り替える) | Qt6 だけにする | Ubuntu 22.04 には Qt 5.15 と Qt 6.2 の両方がある。両対応の期間を経て、次の版で Qt5 をやめられる |
 | D3 | ビルドの仕組み | CMake を主にする。Qt6 は CMake だけで対応し、autotools は Qt5 のまま残す (3D は CMake でだけビルドする)。qmake (`.pro`) は D11 で廃止 | 3 つとも Qt6 に対応させる / autotools と qmake をやめる | 3 つを保守する手間が大きい。autotools の `AX_HAVE_QT` は qmake を通して Qt を探すので、Qt6 への対応が難しい |
 | D4 | 3D をビルドの任意にするか | CMake の `ENABLE_3D` (既定 ON)。OpenGL 3.3 が使えない環境では、実行時に 3D を無効にして 2D だけで動く | 必須にする | 古い GPU や仮想マシンでも、2D の監視は今までどおり使えるようにする |
@@ -83,7 +83,7 @@ Phase 0 でユーザに確かめてから進める。推奨案は、この計画
 | Qt Quick 3D | 材質、影、霧、骨つきメッシュ、インスタンス描画、ピッキングがそろっている | Qt6 が前提 (骨のアニメーションやインスタンス描画は Qt 6 の機能)。シーンは QML で書き、C++ からはデータを渡す形になる。骨つきの glTF は、ビルド時の変換 (Balsam) を通す道が案内されていて、実行時の読み込み (RuntimeLoader) で骨のアニメーションを扱えるかは確かめられていない。骨を毎フレーム自分で動かす使い方 (§5.8) が素直にできるかも、試す必要がある |
 | Qt 3D | C++ の API がある | Qt 6.8 で非推奨になり、標準のリリースから外れた。新しく使わない |
 
-Phase 0 の試作 (§9) で、推奨案で「人型 22 体と影を 1920×1080 で 60 fps」を確かめてから決める。
+Phase 0 の試作 (§9) で、推奨案で「人型 22 体と影を 1920×1080 で 60 fps」を確かめてから決める。 → 2026-11-12 に両方の案を試作して測り、推奨案に決めた (§14)。
 
 ### 2.4 D10 (AppImage) の置き換え先の案
 
@@ -151,6 +151,8 @@ Phase 0 の試作 (§9) で、推奨案で「人型 22 体と影を 1920×1080 �
 - `master` (42848cd、19.0.1): develop に、PR #59 の AppImage のワークフローと `utils/appimage/`、`.gitignore` を足したもの (§3.2)。それ以外は develop と同じ。
 - `feature/support-tcp-ws` (45bca98): develop (01f880a) に TCP / WebSocket 対応の 5 コミット。未取り込み (D7)。計画書 `docs/TRANSPORT_PLAN.md` (リポジトリ未登録) がある。
 - `feature/ci`: この計画の最初のブランチ (§9.1)。develop (01f880a) から 2026-11-11 に作った。
+- `proto/3d-gl`: 3D の試作 (取り込まない)。develop (95965dc) から 2026-11-12 に作った (§14)。
+- `fix/qt-selection`: CMake の Qt の選び方の修正と、試作の記録。develop (95965dc) から 2026-11-12 に作った (§14)。
 - `origin/feature/json-reformat` (2024-03): 旧パーサ `rcss/rcg/parser_json.cpp` と `parser.cpp` を新しい JSON 形式に合わせた 2 コミット。今の develop は `parser_simdjson.cpp` を使っているので、内容を確かめて、§7 の作業に取り込むか捨てるかを決める。 → 取り込まない (Phase 2、§14)。
 - `origin/develop_observation` (2022-11)、`origin/fix/qt-asprintf` (master に取り込み済み) は、この計画と関係しない。
 
@@ -462,10 +464,10 @@ web 版の `docs/parity.md` §7。行番号は 2026-11-11 の develop (01f880a) 
 - CI (GitHub Actions) を用意する。Ubuntu 26.04 (`runs-on: ubuntu-26.04`。web 版の CI と同じ) で、Qt5 のビルドと単体テスト。Qt6 のジョブは、Qt6 でビルドが通るようになる Phase 3 で足す。アクションは Node.js 24 で動く版 (web 版と同じく checkout@v5、upload-artifact@v7 など) を使う。
 - テストの仕組み (Qt Test、CTest) を develop の上に作る。形は §3.5 のとおり `feature/support-tcp-ws` にそろえる。
 - D10 の案 A (§2.4) を試す (試すあいだは `feature/ci` への push で動かす)。→ 試して動いたが、D10 は案 B (廃止) に決めた。
-- 3D の試作 (D1 の確認): `QOpenGLWidget` で、骨つきの人型 22 体 (クリップを混ぜて歩かせる) と、4096 px の影の地図と、インスタンス描画の円柱を描き、1920×1080 で 60 fps を保てるかを測る。Qt 5.15 と Qt 6 の両方で動かす。結果を §14 に記録し、D1 を決める。
-- 人型のモデルを D6 のとおりに用意する。
+- 3D の試作 (D1 の確認): `QOpenGLWidget` で、骨つきの人型 22 体 (クリップを混ぜて歩かせる) と、4096 px の影の地図と、インスタンス描画の円柱を描き、1920×1080 で 60 fps を保てるかを測る。Qt 5.15 と Qt 6 の両方で動かす。結果を §14 に記録し、D1 を決める。 → 済。Qt Quick 3D も試作して比べた (§14)。
+- 人型のモデルを D6 のとおりに用意する。 → 済 (`proto/3d-gl` の `resources/models/`。§14)。
 
-**完了条件**: §2.2 がすべて決まる。CI が通る。試作で 60 fps を確かめる (D1 が推奨案のとき)。D10 の案 A を採用するかが決まる (決まった: 採用せず、案 B)。
+**完了条件**: §2.2 がすべて決まる。CI が通る。試作で 60 fps を確かめる (D1 が推奨案のとき)。D10 の案 A を採用するかが決まる (決まった: 採用せず、案 B)。 → 満たした (2026-11-12)。
 
 ### Phase 1: 不具合の修正
 
@@ -598,8 +600,8 @@ GL に依存しない計算を、web 版の単体テストを手本に移す。
 | `figures_3d`、`pose`、`gltf_model` | 人型 |
 | `hud_3d`、`guides` | HUD、方位の帯、ミニマップ |
 | `config_dialog` の 3D タブ、Player Camera タブ | 設定 |
-| `third_party/cgltf/cgltf.h` | glTF の読み込み (MIT) |
-| `resources/models/Mannequin.glb`、`.qrc` | 人型のモデル (CC0) と出典 |
+| `third_party/cgltf/cgltf.h` | glTF の読み込み (MIT)。v1.15 を試作のブランチに入れた (§14) |
+| `resources/models/Mannequin.glb`、`.qrc` | 人型のモデル (CC0) と出典。圧縮を外したものを試作のブランチに入れた (§14) |
 | `test/test_*.cpp` | 単体テストと描画のテスト |
 | `.github/workflows/ci.yml` | CI |
 | `data/rcssmonitor.desktop`、`icons/rcssmonitor.png` | デスクトップのファイルとアイコン。CMake の `install()` で入れる (Phase 0 で AppImage の試行のために足した。普通のインストールでもアプリのメニューに出るので、AppImage をやめた後も残す) |
@@ -920,3 +922,55 @@ libdeflate の 2 コミット (e0e21ef、6328ac9) をプッシュした後、§7
 - Qt5 と Qt6 で、同じキャンバスの大きさでもウィンドウの大きさが違い、チームグラフィックの大きさも違う。原因: 作業マシンの画面は 3840×2160、DPI 124 (Wayland の GNOME。Qt5 と Qt6 はどちらも XWayland で動く)。Qt6 は常に画面の倍率 (124 / 96 = 1.29) で拡大して描き、Qt5 は画素を拡大せずに文字だけを DPI 124 で大きくしていた。Qt6 が一貫した描き方で、Qt5 では文字に比べてチームグラフィックや線が小さかった。ユーザの決定: Qt5 も Qt6 と同じく拡大する (Q9)。
 - デスクトップが暗い配色のとき、Qt6 のウィンドウも暗くなり (背景 #323232。Qt5 は明るいまま)、ツールバーのアイコンが見えにくい。ユーザの決定: アイコンを配色に合わせる (Q10)。
 - Qt6 で JSON の読み込みが 800 ms 以上、テキストが 70 ms 以上かかる。原因: ユーザのビルドのディレクトリが `CMAKE_BUILD_TYPE=Debug` だった (simdjson が最適化されない)。Qt6 の Debug のビルドで、JSON 692〜868 ms、テキスト 73 ms になることを確かめた。Release では Qt6 も Qt5 も JSON 70 ms、テキスト 60 ms で同じ。ユーザのマシンには `libdeflate-dev` もない (zlib だけ)。
+
+#### 2026-11-12: 取り込み
+
+- PR #66 (`feature/qt6`) を Merge Commit で develop に取り込んだ (95965dc)。develop の CI も通った。Phase 3 の完了条件 (Qt 5.15 と Qt 6 の両方でのビルド、非推奨の警告なし、CI、ユーザの確認) を満たした。
+
+#### 2026-11-12: Qt の選び方の不具合 (`fix/qt-selection`)
+
+- 3D の試作 (下) をビルドしたとき、`-DQT_VERSION_MAJOR` を付けずに構成すると、Qt5 と Qt6 の両方が入った作業マシンで Qt5 が選ばれることに気づいた (Phase 3 のときは Qt6 が選ばれていた)。原因: `find_package(QT NAMES Qt6 Qt5)` は、名前を並べた順ではなく、`/usr/lib/x86_64-linux-gnu/cmake/` の中のディレクトリを読み出した順で見つける。Qt Quick 3D のパッケージを入れてディレクトリが増え、順が変わった。README の「Qt6 があれば Qt6」が保証されていなかった。CI は版を明示しているので影響しない。
+- 直したこと: 指定がなければ、まず Qt6 (6.2 以降) を探し、見つからなければ Qt5 にする。決まった版はキャッシュ (`QT_VERSION_MAJOR`) に残し、構成し直しても変わらない。指定なし、`5`、`6`、Qt6 を探さないとき (`-DCMAKE_DISABLE_FIND_PACKAGE_Qt6=ON`) で、それぞれ Qt 6.4.2、5.15.13、6.4.2、5.15.13 になることを確かめた。
+
+### Phase 0 (続き)
+
+#### 2026-11-12: 3D の試作と D1 (`proto/3d-gl`)
+
+Phase 1〜3 を取り込んだので、3D の試作に入った。
+
+**決めたこと (ユーザ)**
+- 試作は develop (95965dc) から作った `proto/3d-gl` で行い、取り込まない (§9.1)。使える部分は、後で `feature/3d-view` に整えて持っていく。記録は develop の計画書に入れる (この区切りは `fix/qt-selection` で入れた)。
+- 推奨案 (`QOpenGLWidget` と自前の描画) と Qt Quick 3D の両方を作って比べる。
+
+**作ったもの (`proto/3d-gl` の bf554fe、e9a9b65、c54d791)**
+- `resources/models/Mannequin.glb`: web 版のモデルを、glTF-Transform 4.5.1 と meshoptimizer で、EXT_meshopt_compression と KHR_mesh_quantization を外して書き出し直した (346 kB → 684 kB。D6)。書き出したスクリプト `decompress.mjs` と出典の README を添えた。メッシュ 1 つ (材質 M_Main と M_Joints)、骨 65 本、クリップ 4 つ (骨ごとに位置、回転、拡大)。
+- `third_party/cgltf/`: cgltf 1.15 (MIT。D5)。
+- `proto/3d-gl/` (CMake の `BUILD_PROTO_3D`、既定 OFF): 2 つの試作が、同じログ (`1-json.rcg.gz`) で、同じ場面 (地面とライン、人型 22 体、ボール、太陽の影) を描く。姿勢は共通のコード (`gltf_rig`、`proto_log`) で、ログから毎フレーム求める (§5.8。速さで待機・歩き・走り・全力疾走を混ぜ、それぞれ歩いた距離 / そのクリップの速さの時刻)。
+  - `proto_gl`: OpenGL 3.3 core、`QOpenGLWidget`、自前のシェーダ。Qt5 と Qt6。骨の行列を RGBA32F のテクスチャに入れ、材質ごとに 1 回のインスタンス描画で 22 体を描く。影の地図は 4096 px、5×5 の PCF。描画の本体 (`SceneGL`) をウィジェットから分けたので、画面のない環境でも `QOffscreenSurface` と FBO で描ける (`--offscreen`)。
+  - `proto_quick3d`: Qt Quick 3D、`QQuickWidget` (`--window` で `QQuickView`)。Qt6 だけ。モデルはビルド時に balsam で QML に変換し、クリップの `Timeline` を除く (`make_quick3d_model.py`)。骨のノードを QML の id で見つけ、毎フレーム `position`、`rotation`、`scale` を書き込む。
+  - `run_bench.sh`: 2 つを順に、1920×1080 で 10 秒ずつ測る。
+
+**計測 (ユーザのマシン。GPU は Ryzen 9 9950X3D の内蔵 GPU (radeonsi、raphael)、Mesa 25.2.8、OpenGL 4.6 core。1920×1080、10 秒)**
+
+| | fps (垂直同期あり) | fps (なし) | CPU / フレーム | GPU / フレーム |
+|---|---|---|---|---|
+| OpenGL (Qt6)、人型、影 4096 px | 59.9 | 60.0 (下の注) | 0.29 ms (姿勢 0.26 ms) | 4.44 ms |
+| OpenGL (Qt6)、人型、影なし | — | 60.0 | 0.25 ms | 1.02 ms |
+| OpenGL (Qt6)、円柱、影あり | — | 60.0 | 0.03 ms | 3.81 ms |
+| OpenGL (Qt5)、人型、影 4096 px | — | 158 | 0.27 ms | 4.42 ms |
+| Qt Quick 3D (`QQuickWidget`)、人型、影 | 59.9 | 128.6 | 5.3〜5.9 ms (p99 9.7 ms) | 測れない |
+| Qt Quick 3D、骨の回転だけを書く | — | 128.6 | 4.2 ms | — |
+| Qt Quick 3D (`QQuickView`) | — | 128.9 | 5.4 ms | — |
+| Qt Quick 3D、影なし | — | 161 | 5.2 ms | — |
+| Qt Quick 3D、円柱 | — | 181 | 0.01 ms | — |
+
+**わかったこと**
+- どちらも内蔵 GPU で 60 fps を保つ。OpenGL は GPU 4.4 ms (うち影 3.4 ms。影なしで 1.0 ms)、CPU 0.3 ms で、約 4 倍の余裕がある。
+- Qt Quick 3D は、骨をプロパティで書くのに、CPU を毎フレーム 5〜6 ms (p99 で約 10 ms) 使う (22 体 × 65 本 × 3 つ。回転だけでも 4.2 ms)。60 fps の 1 フレーム (16.7 ms) の 3〜6 割にあたる。
+- Qt Quick 3D 6.4 では、骨つきのモデルが影をほとんど落とさない (円柱は落とす。元の姿勢の範囲で影の対象を絞っているなどが考えられる。新しい Qt では確かめていない)。表の Qt Quick 3D の値は、人型の影を描かずに出た値。
+- Qt6 の `QOpenGLWidget` は、`swapInterval` を 0 にしても 60 fps に止まる (窓の合成が RHI を通るためと見られる。Qt5 では 158 fps)。余裕は GPU の時間 (タイマーのクエリ) で測る (§10.3)。
+- Qt Quick 3D の準備で詰まった所: Ubuntu 24.04 の `qt6-quick3d-dev` は `qt6-shadertools-dev` (と `qsb` の入った `qt6-shader-baker`) に依存していないので、別に入れる。balsam の出力 (5,332 行) の大半はクリップの `Timeline`。Qt 6.4 の `QQuickWidget` には `setInitialProperties` がない。光源 (`Node`) の `lookAt` は C++ から呼べない (カメラは呼べる)。`QQuick3D::idealSurfaceFormat()` は、アプリケーションを作る前には呼べない。Qt 6.4 の影の地図の最高は VeryHigh。
+- 画面のない環境 (`QT_QPA_PLATFORM=offscreen`) では、`QOpenGLWidget` も Qt Quick の窓も OpenGL を使えない (Qt Quick はソフトウェアの描画に切り替わる)。試作では、`QOffscreenSurface` と FBO (`proto_gl`)、`QQuickRenderControl` (`proto_quick3d`。`QT_QUICK_BACKEND=rhi`) で描いて確かめた。§10.2 の描画のテストも、描画の本体をウィジェットから分けて、この形にする。
+- ソフトウェアの描画 (llvmpipe、1280×720) では、`proto_gl` の人型と影が 1 フレーム約 36 ms (姿勢の計算は 0.2 ms)、`proto_quick3d` が約 75〜80 ms。
+
+**D1 の決定 (ユーザ)**: 推奨案 (`QOpenGLWidget` と自前の描画、OpenGL 3.3 core) に決めた。理由: 内蔵 GPU でも余裕を持って 60 fps (GPU 4.4 ms、CPU 0.3 ms)。Qt5 と Qt6 の両方で同じコードが動く (D2)。ログから毎フレーム姿勢を決める作り (§5.8) が安く書ける。依存が少ない (Qt の OpenGL と cgltf だけ)。Phase 4 では、試作の `gltf_rig` (glTF の読み込みと姿勢)、`SceneGL` の分け方、影の地図、骨つきのインスタンス描画を、整えて持っていく。
