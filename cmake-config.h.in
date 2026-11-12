@@ -7,6 +7,8 @@
 
 #cmakedefine HAVE_LIBDEFLATE
 
+#cmakedefine HAVE_3D_VIEW
+
 #cmakedefine HAVE_WINDOWS_H
 
 #cmakedefine HAVE_ARPA_INET_H

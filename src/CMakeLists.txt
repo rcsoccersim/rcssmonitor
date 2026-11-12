@@ -48,6 +48,17 @@ target_link_libraries(rcssmonitor_core
   ZLIB::ZLIB
   )
 
+if(HAVE_3D_VIEW)
+  target_sources(rcssmonitor_core
+    PRIVATE
+    view3d/field_view_3d.cpp
+    view3d/ground_texture.cpp
+    view3d/scene_3d.cpp
+    )
+  target_include_directories(rcssmonitor_core PUBLIC ${PROJECT_SOURCE_DIR}/src/view3d)
+  target_link_libraries(rcssmonitor_core PUBLIC ${QT_3D_VIEW_LIBRARIES})
+endif()
+
 if(HAVE_LIBDEFLATE)
   target_include_directories(rcssmonitor_core PRIVATE ${LIBDEFLATE_INCLUDE_DIR})
   target_link_libraries(rcssmonitor_core PRIVATE ${LIBDEFLATE_LIBRARY})

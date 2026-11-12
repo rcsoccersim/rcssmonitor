@@ -53,6 +53,28 @@ find_package(Qt${QT_VERSION_MAJOR} ${QT_MIN_VERSION} REQUIRED COMPONENTS Core Gu
 message(STATUS "Qt: ${Qt${QT_VERSION_MAJOR}_VERSION}")
 add_compile_definitions(QT_DISABLE_DEPRECATED_BEFORE=${QT_DISABLE_DEPRECATED_BEFORE})
 
+# the 3D view (D4): OpenGL 3.3 core in a QOpenGLWidget. Without OpenGL 3.3
+# at run time, it is disabled and the 2D view works as before.
+option(ENABLE_3D "Build the 3D view" ON)
+if(ENABLE_3D)
+  if(QT_VERSION_MAJOR EQUAL 6)
+    find_package(Qt6 QUIET COMPONENTS OpenGL OpenGLWidgets)
+    if(Qt6OpenGL_FOUND AND Qt6OpenGLWidgets_FOUND)
+      set(HAVE_3D_VIEW TRUE)
+      set(QT_3D_VIEW_LIBRARIES Qt6::OpenGL Qt6::OpenGLWidgets)
+    else()
+      message(STATUS "Qt6 OpenGL or OpenGLWidgets not found. The 3D view is not built.")
+    endif()
+  else()
+    # QOpenGLWidget is in Qt5 Widgets, and QOpenGLFunctions_3_3_Core in Gui
+    set(HAVE_3D_VIEW TRUE)
+    set(QT_3D_VIEW_LIBRARIES)
+  endif()
+endif()
+if(HAVE_3D_VIEW)
+  message(STATUS "The 3D view is built")
+endif()
+
 set(CMAKE_AUTOMOC ON)
 
 # check zlib
