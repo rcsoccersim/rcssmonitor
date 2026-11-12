@@ -60,6 +60,15 @@ struct DispInfoT;
   (DispHolder) and the options with the 2D view. Between two frames, it
   draws the positions on the way (docs/PLAN_3D-VIEW.md §5.2), and while they
   move, it draws again as soon as a frame is shown.
+
+  QOpenGLWidget gives the widget an OpenGL context and a framebuffer, and
+  calls, with the context current:
+  - initializeGL() once, before the first paint (and again if the widget
+    moves to another window): makes the GPU's resources (Scene3D::initialize()).
+  - paintGL() whenever the widget is drawn (after update()): draws a frame
+    into its framebuffer, which Qt then shows in the window.
+  Outside them, makeCurrent() and doneCurrent() make the context current
+  and not (the destructor).
 */
 class FieldView3D
     : public QOpenGLWidget {
@@ -74,7 +83,10 @@ public:
                  QWidget * parent = nullptr );
     ~FieldView3D() override;
 
-    //! OpenGL 3.3 core with 4x multisampling
+    /*!
+      \brief what the 3D view asks of OpenGL: version 3.3 "core" (without the
+      old functions), a depth buffer, and 4x multisampling (smooth edges)
+    */
     static QSurfaceFormat surfaceFormat();
 
     /*!
@@ -85,24 +97,28 @@ public:
 
 protected:
 
+    //! make the GPU's resources (QOpenGLWidget calls it with the context current)
     void initializeGL() override;
+
+    //! draw a frame (QOpenGLWidget calls it with the context current)
     void paintGL() override;
 
 private:
 
-    DispHolder & M_disp_holder;
-    const LogPlayer & M_log_player;
-    std::unique_ptr< FieldPainter > M_field_painter;
-    Scene3D M_scene;
-    SceneContent M_content; //!< reused in every frame
-    bool M_ready;
-    QString M_ground_key; //!< what the ground was drawn with
+    DispHolder & M_disp_holder; //!< the frames, shared with the 2D view
+    const LogPlayer & M_log_player; //!< whether a log is playing, and how far to the next frame
+    std::unique_ptr< FieldPainter > M_field_painter; //!< the 2D field painter, which draws the ground image
+    Scene3D M_scene; //!< the OpenGL drawing
+    SceneContent M_content; //!< what to draw, reused in every frame
+    bool M_ready; //!< Scene3D could be initialized
+    QString M_ground_key; //!< what the ground was drawn with (GroundTexture::key())
 
     const rcss::rcg::DispInfoT * M_newest; //!< the newest frame when it was last drawn
     QElapsedTimer M_newest_clock; //!< since the newest frame came
     bool M_moving; //!< to be drawn again in the next frame
 
 private slots:
+    //! after a frame is shown: draw the next one while things move
     void drawNext();
 };
 

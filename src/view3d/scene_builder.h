@@ -33,8 +33,7 @@
 #ifndef RCSSMONITOR_SCENE_BUILDER_H
 #define RCSSMONITOR_SCENE_BUILDER_H
 
-#include <QMatrix4x4>
-#include <QVector4D>
+#include "instance_3d.h"
 
 #include <vector>
 
@@ -47,16 +46,6 @@ struct BallT;
 struct ShowInfoT;
 }
 }
-
-/*!
-  \struct Instance3D
-  \brief one instance of a shape: its model matrix, and its color with the
-  opacity in w
-*/
-struct Instance3D {
-    QMatrix4x4 model;
-    QVector4D color;
-};
 
 /*!
   \struct SceneContent

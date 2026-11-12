@@ -35,20 +35,42 @@
 
 #include "camera_3d.h"
 #include "scene_builder.h"
+#include "gl/instanced_mesh.h"
+#include "gl/shader_program.h"
+#include "gl/texture_2d.h"
 
 #include <QImage>
 #include <QOpenGLFunctions_3_3_Core>
 
-#include <memory>
 #include <vector>
-
-class QOpenGLShaderProgram;
 
 /*!
   \class Scene3D
   \brief the scene of the 3D view, drawn with OpenGL 3.3 core and our own
   shaders (D1) into a framebuffer: that of a QOpenGLWidget, or an offscreen
   one for the tests. It knows nothing of the widget.
+
+  How a frame is drawn:
+  - SceneBuilder decides what to draw where (SceneContent: lists of
+    instances by shape). It knows nothing of OpenGL.
+  - render() draws in "passes". A pass applies a RenderState (how to draw:
+    depth, culling, translucency), binds a ShaderProgram (what the GPU
+    computes for each vertex and pixel), sets its uniforms (the camera, the
+    sun), and draws the lists of instances, one InstancedMesh per shape.
+
+  The OpenGL calls are in the parts in src/view3d/gl; this class only
+  combines them. To draw something new: add its shape (Meshes3D) and an
+  InstancedMesh here, its list to SceneContent, where it goes to
+  SceneBuilder, and its draw() to the pass of the right shader and render
+  state in render() (or a new pass with a new shader in src/view3d/shaders).
+
+  OpenGL works on the "current context", which belongs to one window or
+  offscreen surface: initialize(), release(), setGround() and render() must
+  be called with it current (QOpenGLWidget makes it current around
+  initializeGL() and paintGL()).
+
+  It inherits QOpenGLFunctions_3_3_Core, Qt's table of the OpenGL 3.3
+  functions, and passes itself to the parts as "gl".
 */
 class Scene3D
     : protected QOpenGLFunctions_3_3_Core {
@@ -61,23 +83,25 @@ public:
     Scene3D & operator=( const Scene3D & ) = delete;
 
     /*!
-      \brief create the resources in the current context.
-      \return false if OpenGL 3.3 core is not available
+      \brief compile the shaders and send the shapes to the GPU, in the
+      current context.
+      \return false if OpenGL 3.3 core is not available or a shader fails
     */
     bool initialize();
 
-    //! delete the resources, in the current context
+    //! delete what initialize() made, in the current context
     void release();
 
-    //! the image of the ground (GroundTexture::draw())
+    //! send the image of the ground (GroundTexture::draw()) to the GPU
     void setGround( const QImage & image );
 
     /*!
       \brief draw the scene.
-      \param fbo the framebuffer to draw into
-      \param width, height its size in device pixels
+      \param fbo the framebuffer to draw into: OpenGL's number of the
+      widget's (QOpenGLWidget::defaultFramebufferObject()) or of an offscreen one
+      \param width, height its size in device pixels (physical pixels of the screen)
       \param camera the camera
-      \param content the players, the ball and the goals
+      \param content what to draw where (SceneBuilder)
     */
     void render( GLuint fbo,
                  int width,
@@ -86,42 +110,25 @@ public:
                  const SceneContent & content );
 
 private:
-
-    /*!
-      \struct Mesh
-      \brief a shape of unit size, drawn in instances
-    */
-    struct Mesh {
-        GLuint vao = 0;
-        GLuint vbo = 0; //!< the vertices: position and normal
-        GLuint instance_vbo = 0; //!< the instances: the model matrix and the color
-        GLsizei vertex_count = 0;
-        std::size_t capacity = 0; //!< the instances that instance_vbo holds
-    };
-
     bool M_initialized = false;
-    std::unique_ptr< QOpenGLShaderProgram > M_lit_program;
-    std::unique_ptr< QOpenGLShaderProgram > M_flat_program;
-    Mesh M_cylinder;
-    Mesh M_sphere;
-    Mesh M_cone;
-    Mesh M_disc;
-    Mesh M_ring;
-    Mesh M_decay_ring;
-    Mesh M_quad;
-    std::vector< float > M_instance_data; //!< reused to upload the instances
 
-    std::unique_ptr< QOpenGLShaderProgram > M_ground_program;
-    GLuint M_ground_vao = 0;
-    GLuint M_ground_vbo = 0;
-    GLuint M_ground_texture = 0;
+    // the shader programs (src/view3d/shaders/<name>.vert and .frag)
+    ShaderProgram M_ground_program; //!< "ground": the image of the ground, unlit
+    ShaderProgram M_lit_program; //!< "lit": the solids, lit by the sun
+    ShaderProgram M_flat_program; //!< "flat": the flat colors, translucent
 
-    void createGround();
-    void createMesh( Mesh & mesh,
-                     const std::vector< float > & vertices );
-    void releaseMesh( Mesh & mesh );
-    void drawInstances( Mesh & mesh,
-                        const std::vector< Instance3D > & instances );
+    // the shapes (Meshes3D), each drawn in instances
+    InstancedMesh M_ground; //!< the area of the ground image
+    InstancedMesh M_cylinder; //!< the bodies, the goal posts and crossbars
+    InstancedMesh M_sphere; //!< the heads, the ball
+    InstancedMesh M_cone; //!< the body and face directions
+    InstancedMesh M_disc; //!< the circles under the players, the ball's shadow
+    InstancedMesh M_ring; //!< the outline of a highlighted player
+    InstancedMesh M_decay_ring; //!< the decay of effort or recovery
+    InstancedMesh M_quad; //!< the nets, the floors of the goals
+
+    Texture2D M_ground_texture; //!< the image of the ground
+    const std::vector< Instance3D > M_ground_instance; //!< one instance of the ground, where it is (no move)
 };
 
 #endif

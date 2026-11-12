@@ -55,9 +55,17 @@ if(HAVE_3D_VIEW)
     view3d/field_view_3d.cpp
     view3d/ground_texture.cpp
     view3d/interpolate.cpp
+    view3d/meshes_3d.cpp
     view3d/scene_builder.cpp
     view3d/scene_3d.cpp
+    view3d/gl/instanced_mesh.cpp
+    view3d/gl/render_state.cpp
+    view3d/gl/shader_program.cpp
+    view3d/gl/texture_2d.cpp
+    view3d/shaders/view3d_shaders.qrc
     )
+  # the shaders in the resources (ShaderProgram)
+  set_target_properties(rcssmonitor_core PROPERTIES AUTORCC ON)
   target_include_directories(rcssmonitor_core PUBLIC ${PROJECT_SOURCE_DIR}/src/view3d)
   target_link_libraries(rcssmonitor_core PUBLIC ${QT_3D_VIEW_LIBRARIES})
 endif()

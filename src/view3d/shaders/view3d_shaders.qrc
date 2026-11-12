@@ -1,0 +1,14 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+  <!-- The shaders of the 3D view, compiled into the program as Qt's
+       resources and loaded by ShaderProgram::load() as :/shaders/<file>.
+       A new shader file must be listed here. -->
+  <qresource prefix="/shaders">
+    <file>ground.vert</file>
+    <file>ground.frag</file>
+    <file>lit.vert</file>
+    <file>lit.frag</file>
+    <file>flat.vert</file>
+    <file>flat.frag</file>
+  </qresource>
+</RCC>

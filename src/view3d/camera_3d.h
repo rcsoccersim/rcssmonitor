@@ -40,19 +40,29 @@
   \struct CameraPose
   \brief where a camera of the 3D view is, where it looks, and how it
   projects. The world has x along the field's x, z along the field's y, and
-  y up (rcssmonitor-web scene-math.ts).
+  y up (rcssmonitor-web scene-math.ts), in meters.
+
+  A point of the world reaches the screen through two matrices:
+  - view(): moves the world so that the camera is at the origin, looking
+    down -z with up along +y (as if the camera stayed and the world moved).
+  - projection(): makes far things smaller (perspective) and squeezes what
+    the camera sees into a cube from -1 to 1, which OpenGL then maps to the
+    pixels of the framebuffer. What is nearer than NEAR or farther than FAR
+    is not drawn.
+  The shaders get projection() * view() as one matrix ("uViewProj").
 */
 struct CameraPose {
-    QVector3D position;
-    QVector3D target;
-    QVector3D up = QVector3D( 0.0f, 1.0f, 0.0f );
+    QVector3D position; //!< where the camera is
+    QVector3D target; //!< the point it looks at, at the center of the screen
+    QVector3D up = QVector3D( 0.0f, 1.0f, 0.0f ); //!< the direction that is up on the screen
     float fov_y = 35.0f; //!< the vertical field of view (degree) of a perspective camera
-    float ortho_half_height = 0.0f; //!< > 0: an orthographic camera that shows this half height (m)
+    float ortho_half_height = 0.0f; //!< > 0: an orthographic camera (no perspective: the top view) that shows this half height (m)
 
-    //! the near and far planes (m)
+    //! the near and far planes (m). The depth buffer is finer near NEAR, so NEAR is not too small
     static constexpr float NEAR = 0.5f;
     static constexpr float FAR = 4000.0f;
 
+    //! the world to the camera's space
     QMatrix4x4 view() const
       {
           QMatrix4x4 m;
@@ -60,6 +70,10 @@ struct CameraPose {
           return m;
       }
 
+    /*!
+      \brief the camera's space to the screen
+      \param aspect the width of the screen divided by its height
+    */
     QMatrix4x4 projection( const float aspect ) const
       {
           QMatrix4x4 m;

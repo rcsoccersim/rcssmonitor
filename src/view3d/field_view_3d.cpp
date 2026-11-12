@@ -67,7 +67,9 @@ FieldView3D::FieldView3D( DispHolder & disp_holder,
     setFormat( surfaceFormat() );
     setFocusPolicy( Qt::WheelFocus );
 
-    // paced by the display: the next frame after this one is shown
+    // While things move, a frame is drawn as soon as the one before is
+    // shown: paced by the display (60 times a second on most screens),
+    // without a timer of our own.
     connect( this, SIGNAL( frameSwapped() ),
              this, SLOT( drawNext() ) );
 }
@@ -75,6 +77,7 @@ FieldView3D::FieldView3D( DispHolder & disp_holder,
 /*-------------------------------------------------------------------*/
 FieldView3D::~FieldView3D()
 {
+    // the GPU's resources are deleted in their context
     makeCurrent();
     M_scene.release();
     doneCurrent();
@@ -97,6 +100,10 @@ FieldView3D::surfaceFormat()
 QString
 FieldView3D::unavailableReason()
 {
+    // Try what the widget will need, before it is made: a context of OpenGL
+    // 3.3 core with its functions. Without a GPU or with an old driver, it
+    // fails here, and the 2D view stays (MainWindow::toggleView3D()).
+
     // these platforms show no OpenGL widgets
     const QString platform = QGuiApplication::platformName();
     if ( platform == "offscreen"
@@ -153,6 +160,7 @@ FieldView3D::paintGL()
         return;
     }
 
+    // the ground image: drawn again only when its colors or options changed
     const QString key = GroundTexture::key( M_disp_holder.serverParam() );
     if ( key != M_ground_key )
     {
@@ -160,7 +168,8 @@ FieldView3D::paintGL()
         M_ground_key = key;
     }
 
-    // the frames to draw, and how far between them (§5.2)
+    // The frames to draw, and how far between them (§5.2). Live, the
+    // fraction is the time since the newest frame came, in simulation steps.
     const DispCont & frames = M_disp_holder.dispCont();
     const rcss::rcg::DispInfoT * newest = ( frames.empty() ? nullptr : frames.back().get() );
     if ( newest != M_newest )
@@ -177,6 +186,8 @@ FieldView3D::paintGL()
                                                             M_log_player.alpha(),
                                                             since_newest );
 
+    // what to draw where: the goals, and the players and the ball on the way
+    // between the two frames
     M_content.clear();
     SceneBuilder::addGoals( M_content );
     if ( ! frames.empty() )
@@ -186,6 +197,8 @@ FieldView3D::paintGL()
                                                              at.alpha );
         SceneBuilder::addShow( M_content, show, M_disp_holder, Options::instance() );
     }
+    // draw again after this frame (drawNext()) while playing a log, or live
+    // until the newest frame is reached
     M_moving = ( M_log_player.isPlaying() || ( live && since_newest < 1.0 ) );
 
     // the camera of a broadcast at the center, until the cameras come (4-4)
@@ -194,6 +207,8 @@ FieldView3D::paintGL()
     camera.target = QVector3D( 0.0f, 0.0f, 0.0f );
     camera.position = QVector3D( 0.0f, 72.0f * std::sin( elevation ), 72.0f * std::cos( elevation ) );
 
+    // draw into the widget's framebuffer, in physical pixels: on a screen
+    // scaled by 1.5, a widget of 100 logical pixels has 150 of them
     const qreal dpr = devicePixelRatioF();
     M_scene.render( defaultFramebufferObject(),
                     static_cast< int >( std::lround( width() * dpr ) ),

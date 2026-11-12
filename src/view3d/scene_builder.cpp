@@ -46,6 +46,7 @@
 
 namespace {
 
+//! a Qt color as the shaders take it: red, green, blue and opacity, 0 to 1
 QVector4D
 rgba( const QColor & c,
       const float opacity = 1.0f )
@@ -53,6 +54,7 @@ rgba( const QColor & c,
     return QVector4D( float( c.redF() ), float( c.greenF() ), float( c.blueF() ), opacity );
 }
 
+//! add an instance of a shape to its list
 void
 add( std::vector< Instance3D > & list,
      const QMatrix4x4 & model,
@@ -111,7 +113,9 @@ addGoals( SceneContent & content )
         const float back_x = line_x + side * depth;
         const float mid_x = ( line_x + back_x ) / 2.0f;
 
-        // the posts and the crossbar
+        // The posts and the crossbar, of the unit cylinder (radius 1,
+        // height 1 along y, centered). The calls of QMatrix4x4 apply to the
+        // shape from the last to the first: scaled to the post, then moved.
         for ( const float z : { -half_width, half_width } )
         {
             QMatrix4x4 m;
@@ -120,6 +124,8 @@ addGoals( SceneContent & content )
             add( content.cylinders, m, white );
         }
         {
+            // the crossbar: scaled along y to the width, laid down along z
+            // (90 degrees about x), and moved to the top of the posts
             QMatrix4x4 m;
             m.translate( line_x, GOAL_HEIGHT, 0.0f );
             m.rotate( 90.0f, 1.0f, 0.0f, 0.0f );
@@ -127,7 +133,9 @@ addGoals( SceneContent & content )
             add( content.cylinders, m, white );
         }
 
-        // the net: the back, the sides and the roof
+        // The net, of the unit quad (1 x 1 on the xy plane, facing z): the
+        // back turned to face x (90 degrees about y), the sides as they are,
+        // the roof laid flat (90 degrees about x)
         {
             QMatrix4x4 m;
             m.translate( back_x, GOAL_HEIGHT / 2.0f, 0.0f );
@@ -150,7 +158,8 @@ addGoals( SceneContent & content )
             add( content.quads, m, net );
         }
 
-        // a dark floor, as the 2D view draws the goal
+        // a dark floor, as the 2D view draws the goal: the quad laid flat,
+        // facing up, just above the ground (under the circles of the players)
         {
             QMatrix4x4 m;
             m.translate( mid_x, 0.01f, 0.0f );
@@ -186,11 +195,14 @@ addShow( SceneContent & content,
                                           : type.player_size_ + type.kickable_margin_ + sp.ball_size_ );
             const QVector4D body = rgba( style.body.color() );
 
+            // the body: the unit cylinder scaled to the player and standing
+            // on the ground (its center at half the height)
             QMatrix4x4 m;
             m.translate( p.x_, BODY_HEIGHT / 2.0f, p.y_ );
             m.scale( body_r, BODY_HEIGHT, body_r );
             add( content.cylinders, m, body );
 
+            // the head on it
             m.setToIdentity();
             m.translate( p.x_, HEAD_HEIGHT, p.y_ );
             m.scale( HEAD_RADIUS );
@@ -202,6 +214,8 @@ addShow( SceneContent & content,
             m.scale( ground_r, 1.0f, ground_r );
             add( content.discs, m, rgba( style.brush.color(), DISC_OPACITY ) );
 
+            // the rings around the circle: highlighted (kick, tackle,
+            // selected, ...) and decayed (effort, recovery), as in 2D
             m.setToIdentity();
             m.translate( p.x_, RING_Y, p.y_ );
             m.scale( ground_r, 1.0f, ground_r );
@@ -214,7 +228,11 @@ addShow( SceneContent & content,
                 add( content.decay_rings, m, rgba( style.decay.color() ) );
             }
 
-            // the body direction at the chest, the face direction at the head
+            // The body direction at the chest, the face direction at the head:
+            // the unit cone (pointing +x) made small, moved out of the body
+            // along +x, turned about y to the direction, and moved to the
+            // player. yaw() turns the field's angle (from +x toward +y) into
+            // a rotation about the world's y.
             m.setToIdentity();
             m.translate( p.x_, BODY_HEIGHT * 0.7f, p.y_ );
             m.rotate( yaw( p.body_ ), 0.0f, 1.0f, 0.0f );
