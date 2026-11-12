@@ -57,6 +57,7 @@ if(HAVE_3D_VIEW)
   rcssmonitor_add_test(ground_texture rcssmonitor_core)
   rcssmonitor_add_test(interpolate rcssmonitor_core)
   rcssmonitor_add_test(scene_3d rcssmonitor_core)
+  rcssmonitor_add_test(scene_builder rcssmonitor_core)
   rcssmonitor_add_test(view_switch rcssmonitor_core)
 endif()
 

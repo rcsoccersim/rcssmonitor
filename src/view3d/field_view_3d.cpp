@@ -37,9 +37,12 @@
 #include "field_view_3d.h"
 
 #include "ground_texture.h"
+#include "interpolate.h"
 
 #include "disp_holder.h"
 #include "field_painter.h"
+#include "log_player.h"
+#include "options.h"
 
 #include <QGuiApplication>
 #include <QOffscreenSurface>
@@ -51,14 +54,22 @@
 
 /*-------------------------------------------------------------------*/
 FieldView3D::FieldView3D( DispHolder & disp_holder,
+                          const LogPlayer & log_player,
                           QWidget * parent )
     : QOpenGLWidget( parent ),
       M_disp_holder( disp_holder ),
+      M_log_player( log_player ),
       M_field_painter( new FieldPainter( disp_holder ) ),
-      M_ready( false )
+      M_ready( false ),
+      M_newest( nullptr ),
+      M_moving( false )
 {
     setFormat( surfaceFormat() );
     setFocusPolicy( Qt::WheelFocus );
+
+    // paced by the display: the next frame after this one is shown
+    connect( this, SIGNAL( frameSwapped() ),
+             this, SLOT( drawNext() ) );
 }
 
 /*-------------------------------------------------------------------*/
@@ -149,6 +160,34 @@ FieldView3D::paintGL()
         M_ground_key = key;
     }
 
+    // the frames to draw, and how far between them (§5.2)
+    const DispCont & frames = M_disp_holder.dispCont();
+    const rcss::rcg::DispInfoT * newest = ( frames.empty() ? nullptr : frames.back().get() );
+    if ( newest != M_newest )
+    {
+        M_newest = newest;
+        M_newest_clock.start();
+    }
+    const bool live = M_log_player.isLiveMode();
+    const double step = std::max( 1, M_disp_holder.serverParam().simulator_step_ );
+    const double since_newest = ( M_newest_clock.isValid() ? M_newest_clock.nsecsElapsed() * 1.0e-6 / step : 1.0 );
+    const Interpolate::Position at = Interpolate::position( frames.size(),
+                                                            M_disp_holder.currentIndex(),
+                                                            live,
+                                                            M_log_player.alpha(),
+                                                            since_newest );
+
+    M_content.clear();
+    SceneBuilder::addGoals( M_content );
+    if ( ! frames.empty() )
+    {
+        const rcss::rcg::ShowInfoT show = Interpolate::show( *frames[at.index],
+                                                             ( at.next != at.index ? frames[at.next].get() : nullptr ),
+                                                             at.alpha );
+        SceneBuilder::addShow( M_content, show, M_disp_holder, Options::instance() );
+    }
+    M_moving = ( M_log_player.isPlaying() || ( live && since_newest < 1.0 ) );
+
     // the camera of a broadcast at the center, until the cameras come (4-4)
     CameraPose camera;
     const float elevation = 32.0f * float( M_PI ) / 180.0f;
@@ -159,5 +198,16 @@ FieldView3D::paintGL()
     M_scene.render( defaultFramebufferObject(),
                     static_cast< int >( std::lround( width() * dpr ) ),
                     static_cast< int >( std::lround( height() * dpr ) ),
-                    camera );
+                    camera,
+                    M_content );
+}
+
+/*-------------------------------------------------------------------*/
+void
+FieldView3D::drawNext()
+{
+    if ( M_moving )
+    {
+        update();
+    }
 }

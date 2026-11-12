@@ -36,6 +36,7 @@
 #include "ground_texture.h"
 #include "options.h"
 #include "scene_3d.h"
+#include "scene_builder.h"
 
 #include <QOffscreenSurface>
 #include <QOpenGLContext>
@@ -76,6 +77,7 @@ private slots:
 
     void initTestCase();
     void ground();
+    void content();
     void cleanupTestCase();
 };
 
@@ -121,9 +123,9 @@ TestScene3D::ground()
     camera.target = QVector3D( 0.0f, 0.0f, 0.0f );
     camera.up = QVector3D( 0.0f, 0.0f, -1.0f ); // the field's -y is up on the screen
 
-    scene.render( fbo.handle(), w, h, camera );
+    scene.render( fbo.handle(), w, h, camera, SceneContent() );
     const QImage first = fbo.toImage();
-    scene.render( fbo.handle(), w, h, camera );
+    scene.render( fbo.handle(), w, h, camera, SceneContent() );
     const QImage second = fbo.toImage();
     QCOMPARE( first, second );
 
@@ -135,6 +137,76 @@ TestScene3D::ground()
     const int px_per_m = int( h / ( 2 * 10 * std::tan( 17.5 * M_PI / 180 ) ) );
     QVERIFY2( distance( first.pixelColor( w / 2 + 3 * px_per_m, h / 8 ), field ) < 12,
               qPrintable( first.pixelColor( w / 2 + 3 * px_per_m, h / 8 ).name() ) );
+
+    scene.release();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  A player and the ball seen from straight above: the head of the player at
+  the center, and the ball to the right in its color, with its shadow on
+  the grass; the same in every frame.
+*/
+void
+TestScene3D::content()
+{
+    DispHolder holder;
+    FieldPainter painter( holder );
+    Scene3D scene;
+    QVERIFY( scene.initialize() );
+    scene.setGround( GroundTexture::draw( painter ) );
+
+    const int w = 400, h = 300;
+    QOpenGLFramebufferObjectFormat fbo_format;
+    fbo_format.setAttachment( QOpenGLFramebufferObject::Depth );
+    QOpenGLFramebufferObject fbo( w, h, fbo_format );
+
+    rcss::rcg::ShowInfoT show;
+    rcss::rcg::PlayerT & p = show.player_[0];
+    p.side_ = 'l';
+    p.unum_ = 1;
+    p.state_ = rcss::rcg::STAND;
+    p.x_ = 0.0f;
+    p.y_ = 0.0f;
+    p.body_ = 90.0f; // the nose downward on the screen, away from the ball
+    show.ball_.x_ = 3.0f;
+    show.ball_.y_ = 0.0f;
+    show.ball_.z_ = 2.0f; // in the air: the shadow is not hidden by the ball
+    SceneContent content;
+    SceneBuilder::addGoals( content );
+    SceneBuilder::addShow( content, show, holder, Options::instance() );
+
+    // 10 m above the center spot, as in ground()
+    CameraPose camera;
+    camera.position = QVector3D( 0.0f, 10.0f, 0.0f );
+    camera.target = QVector3D( 0.0f, 0.0f, 0.0f );
+    camera.up = QVector3D( 0.0f, 0.0f, -1.0f );
+
+    scene.render( fbo.handle(), w, h, camera, content );
+    const QImage first = fbo.toImage();
+    scene.render( fbo.handle(), w, h, camera, content );
+    QCOMPARE( first, fbo.toImage() );
+
+    const QColor field = Options::instance().fieldBrush().color();
+    const QColor team = Options::instance().leftTeamBrush().color();
+    const QColor ball = Options::instance().ballBrush().color();
+    // the top of the head, lit from above
+    const QColor head = first.pixelColor( w / 2, h / 2 );
+    QVERIFY2( distance( head, team ) < 100, qPrintable( head.name() ) );
+    // the ball, 3 m to the right and 2 m up, nearer to the camera
+    const double px_per_m = h / ( 2 * 10 * std::tan( 17.5 * M_PI / 180 ) ); // on the ground
+    const double ball_y = 2.0 + SceneBuilder::ballRadius( Options::instance(), holder.serverParam().ball_size_ );
+    const QColor ball_px = first.pixelColor( w / 2 + int( 3 * px_per_m * 10.0 / ( 10.0 - ball_y ) ), h / 2 );
+    QVERIFY2( distance( ball_px, ball ) < 120, qPrintable( ball_px.name() ) );
+    // the circle under the player, and the shadow of the ball: darker or
+    // tinted grass, not the bare grass
+    const QColor disc = first.pixelColor( w / 2 - int( 0.7 * px_per_m ), h / 2 );
+    QVERIFY2( distance( disc, field ) > 20, qPrintable( disc.name() ) );
+    const QColor shadow = first.pixelColor( w / 2 + int( 2.9 * px_per_m ), h / 2 );
+    QVERIFY2( shadow.lightness() < field.lightness() - 10, qPrintable( shadow.name() ) );
+    // the grass far from them
+    const QColor grass = first.pixelColor( w / 2 - int( 3 * px_per_m ), h / 4 );
+    QVERIFY2( distance( grass, field ) < 12, qPrintable( grass.name() ) );
 
     scene.release();
 }

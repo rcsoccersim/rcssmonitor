@@ -1913,7 +1913,7 @@ MainWindow::toggleView3D( bool on )
             return;
         }
 
-        FieldView3D * view = new FieldView3D( M_disp_holder );
+        FieldView3D * view = new FieldView3D( M_disp_holder, *M_log_player );
         M_view_stack->addWidget( view );
         connect( this, SIGNAL( viewUpdated() ),
                  view, SLOT( update() ) );

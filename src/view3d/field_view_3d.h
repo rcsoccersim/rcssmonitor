@@ -34,7 +34,9 @@
 #define RCSSMONITOR_FIELD_VIEW_3D_H
 
 #include "scene_3d.h"
+#include "scene_builder.h"
 
+#include <QElapsedTimer>
 #include <QOpenGLWidget>
 #include <QString>
 #include <QSurfaceFormat>
@@ -43,12 +45,21 @@
 
 class DispHolder;
 class FieldPainter;
+class LogPlayer;
+
+namespace rcss {
+namespace rcg {
+struct DispInfoT;
+}
+}
 
 /*!
   \class FieldView3D
   \brief the 3D view (docs/PLAN_3D-VIEW.md §5.1): the widget, which draws
   the scene of Scene3D and handles the input. It shares the frames
-  (DispHolder) and the options with the 2D view.
+  (DispHolder) and the options with the 2D view. Between two frames, it
+  draws the positions on the way (docs/PLAN_3D-VIEW.md §5.2), and while they
+  move, it draws again as soon as a frame is shown.
 */
 class FieldView3D
     : public QOpenGLWidget {
@@ -59,6 +70,7 @@ public:
 
     explicit
     FieldView3D( DispHolder & disp_holder,
+                 const LogPlayer & log_player,
                  QWidget * parent = nullptr );
     ~FieldView3D() override;
 
@@ -79,10 +91,19 @@ protected:
 private:
 
     DispHolder & M_disp_holder;
+    const LogPlayer & M_log_player;
     std::unique_ptr< FieldPainter > M_field_painter;
     Scene3D M_scene;
+    SceneContent M_content; //!< reused in every frame
     bool M_ready;
     QString M_ground_key; //!< what the ground was drawn with
+
+    const rcss::rcg::DispInfoT * M_newest; //!< the newest frame when it was last drawn
+    QElapsedTimer M_newest_clock; //!< since the newest frame came
+    bool M_moving; //!< to be drawn again in the next frame
+
+private slots:
+    void drawNext();
 };
 
 #endif

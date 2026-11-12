@@ -34,11 +34,13 @@
 #define RCSSMONITOR_SCENE_3D_H
 
 #include "camera_3d.h"
+#include "scene_builder.h"
 
 #include <QImage>
 #include <QOpenGLFunctions_3_3_Core>
 
 #include <memory>
+#include <vector>
 
 class QOpenGLShaderProgram;
 
@@ -75,20 +77,51 @@ public:
       \param fbo the framebuffer to draw into
       \param width, height its size in device pixels
       \param camera the camera
+      \param content the players, the ball and the goals
     */
     void render( GLuint fbo,
                  int width,
                  int height,
-                 const CameraPose & camera );
+                 const CameraPose & camera,
+                 const SceneContent & content );
 
 private:
+
+    /*!
+      \struct Mesh
+      \brief a shape of unit size, drawn in instances
+    */
+    struct Mesh {
+        GLuint vao = 0;
+        GLuint vbo = 0; //!< the vertices: position and normal
+        GLuint instance_vbo = 0; //!< the instances: the model matrix and the color
+        GLsizei vertex_count = 0;
+        std::size_t capacity = 0; //!< the instances that instance_vbo holds
+    };
+
     bool M_initialized = false;
+    std::unique_ptr< QOpenGLShaderProgram > M_lit_program;
+    std::unique_ptr< QOpenGLShaderProgram > M_flat_program;
+    Mesh M_cylinder;
+    Mesh M_sphere;
+    Mesh M_cone;
+    Mesh M_disc;
+    Mesh M_ring;
+    Mesh M_decay_ring;
+    Mesh M_quad;
+    std::vector< float > M_instance_data; //!< reused to upload the instances
+
     std::unique_ptr< QOpenGLShaderProgram > M_ground_program;
     GLuint M_ground_vao = 0;
     GLuint M_ground_vbo = 0;
     GLuint M_ground_texture = 0;
 
     void createGround();
+    void createMesh( Mesh & mesh,
+                     const std::vector< float > & vertices );
+    void releaseMesh( Mesh & mesh );
+    void drawInstances( Mesh & mesh,
+                        const std::vector< Instance3D > & instances );
 };
 
 #endif
