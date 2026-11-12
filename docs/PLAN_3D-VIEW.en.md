@@ -38,6 +38,7 @@ This plan is loaded to drive the development of rcssmonitor. The design and hist
 
 What this plan decided that the web version (rcssmonitor-web) should also get later. Mark an item when the web version has it.
 
+- [ ] **A thicker stamina capacity bar** (5-3, 2026-11-12, user): the web version's capacity bar (`BAR.capacity` in `render3d.ts`, 0.1 m) is too thin to see well. Make it 0.15 m, as rcssmonitor.
 - [ ] **The same operations as 2D** (§5.6, 5-1b, 2026-11-12, user): in 3D too, the wheel steps the frames, and Z and X (and Ctrl+Z) bring the camera nearer / farther. In the web version the wheel moves the 3D camera (three.js OrbitControls' zoom, and the distance of the close-up cameras `closeupWheel`); make it follow 2D (the web version's 2D wheel and keys) as rcssmonitor does. Also follow rcssmonitor in that a following camera keeps following at the new distance, the top camera shows around the ball when nearer, a change of the camera sets the zoom back, and I sets it back.
 
 ## 1. Goals and scope
@@ -1219,4 +1220,24 @@ The two commits of 5-1b (3954aae, 96af529) were pushed, and the CI passed. The u
 - Clean builds pass the tests with Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`; 25 tests). `-DENABLE_3D=OFF` (16 tests) and autotools pass too.
 - Frames 2,047 and 3,000 of the full game log were drawn offscreen with all the overlays and looked at.
 - The user checked them on the screen (except the focus point). The focus point is checked later, as no convenient game log showing it was found.
+
+#### 2026-11-12: Step 5-3, the stamina bars (`feature/3d-view`)
+
+The four commits of 5-2 (b4193af to 587456b) were pushed, and the CI passed.
+
+**Decided**
+- The S key already cycles none → stamina → capacity → both in 2D (`ConfigDialog::toggleShowStamina()`), and that state is in `Options`, shared by 2D and 3D. 3D draws the bars by it, so the key is left as it is. 2D writes the stamina as numbers beside the number; 3D shows bars, as the web version.
+- The bars are billboards like the numbers and the cards (the white slot of the atlas, tinted). No new GL part is needed.
+- The capacity bar is 0.15 m, thicker than the web version's 0.1 m (user: on the screen it was too thin to see well). The web version will follow (§0.2).
+
+**Made**
+- `SceneBuilder::staminaRate()`, `capacityRate()` (-1 in old logs without the capacity), `staminaHue()` (red when the stamina left is below the higher of `recover_dec_thr` and `effort_dec_thr`, green when full).
+- Bars in `SceneBuilder::addLabels()` (the web version's `updateBars()`): under the number's text, along the camera's down, the stamina bar (0.2 m high) and the capacity bar (0.15 m). Each is a black background of opacity 0.6 (a frame of 0.03 m) with the fill from the left end by the rate left. The stamina in HSL (hue, 0.85, 0.5), the capacity #4aa3ff. 1.4 m wide, 0.08 m apart. With the bars, the number goes up by 0.45 m, so that from the side they are above the head (shrinking from there when near). From the top camera, from the same left end as the number, as 2D. No stamina bar for a show without the stamina (old logs).
+
+**Tests**
+- Added to test `scene_builder`: the rates (at most 1), without the capacity, the hue (red at or below the threshold, green when full, halfway, the higher of the two thresholds), the bars (the number only when not asked, the number up with both, the size, place and color of the backgrounds and fills, the place of the capacity bar, the background only when nothing is left, no bar for a show without the stamina), and from the top camera the left end of the bars at the left end of the number.
+- Added to test `view_switch`: S cycles stamina → capacity → both → none.
+- Every test was confirmed to fail when what it checks is broken for a while (lifting the number, the direction of the fill, the gap between the bars, the left end from the top camera, a show without the stamina, nothing left, the higher threshold). At first, using one of the thresholds instead of the higher passed (both default to 0.3), so a case with two different values was added. Also, one test function failing half way left an option toggled for the next, so the `scene_builder` test sets its options to known values before each function too.
+- Clean builds pass the tests with Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`; 25 tests). `-DENABLE_3D=OFF` (16 tests) and autotools pass too.
+- Frame 5,000 of the full game log was drawn offscreen with the stamina and the capacity, and looked at.
 
