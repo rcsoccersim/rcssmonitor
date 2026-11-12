@@ -44,6 +44,7 @@
 #include "field_painter.h"
 #include "log_player.h"
 #include "options.h"
+#include "player_selection.h"
 #include "score_board_painter.h"
 #include "team_graphic_painter.h"
 
@@ -199,6 +200,12 @@ FieldView3D::paintGL()
 
     // what to draw where: the goals, and the players and the ball on the way
     // between the two frames
+    // the automatic selection of a player, as the 2D view does when it is drawn
+    if ( const DispConstPtr current = M_disp_holder.currentDisp() )
+    {
+        selectPlayerNearestBall( current->show_, Options::instance() );
+    }
+
     M_content.clear();
     SceneBuilder::addGoals( M_content );
     rcss::rcg::ShowInfoT show;

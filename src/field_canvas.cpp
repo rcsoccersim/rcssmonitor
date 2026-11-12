@@ -48,6 +48,7 @@
 #include "draw_info_painter.h"
 
 #include "options.h"
+#include "player_selection.h"
 
 #include <iostream>
 #include <cmath>
@@ -292,44 +293,7 @@ FieldCanvas::updateFocus()
     }
 
     // if auto select mode, update the ball nearest player
-    if ( Options::instance().playerAutoSelect() )
-    {
-        const rcss::rcg::ShowInfoT & show = disp->show_;
-
-        Options::PlayerSelectType old_type = Options::instance().playerSelectType();
-
-        float min_dist2 = 40000.0f;
-
-        rcss::rcg::Side side = rcss::rcg::NEUTRAL;
-        int unum = 0;
-
-        const int first = ( old_type == Options::SELECT_AUTO_RIGHT
-                            ? 11
-                            : 0 );
-        const int last = ( old_type == Options::SELECT_AUTO_LEFT
-                           ? 11
-                           : 22 );
-        for ( int i = first; i < last; ++i )
-        {
-            if ( show.player_[i].state_ != 0 )
-            {
-                float d2
-                    = std::pow( show.ball_.x_ - show.player_[i].x_, 2 )
-                    + std::pow( show.ball_.y_ - show.player_[i].y_, 2 );
-                if ( d2 < min_dist2 )
-                {
-                    min_dist2 = d2;
-                    side = show.player_[i].side();
-                    unum = show.player_[i].unum_;
-                }
-            }
-        }
-
-        if ( unum != 0 )
-        {
-            Options::instance().setSelectedNumber( side, unum );
-        }
-    }
+    selectPlayerNearestBall( disp->show_, Options::instance() );
 
     // update focus point
     if ( Options::instance().focusType() == Options::FOCUS_BALL )
