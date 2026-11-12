@@ -7,7 +7,7 @@
 | 参照実装 | rcssmonitor-web 20.0.0-beta.2 (タグ `v20.0.0-beta.2`、ed36941)。作業ツリーは、このリポジトリと並べて置いた `../rcssmonitor-web` |
 | 参照したサーバ | asio 版 rcssserver 19.x。作業ツリーは、このリポジトリと並べて置いた `../rcssserver` (`feature/asio-migration` ブランチ) |
 | 英語版 | [PLAN_3D-VIEW.en.md](PLAN_3D-VIEW.en.md) (内容は同じ。§0.1) |
-| 状態 | Phase 0 の 3D の試作を終え、D1 を決めた (2026-11-12)。次は Phase 4 (`feature/3d-view`) |
+| 状態 | Phase 4 (2026-11-12 着手、`feature/3d-view`)。区切り 4-1〜4-5 (§14) |
 
 ## 0. この計画書の使い方
 
@@ -340,7 +340,7 @@ Shift を使うショートカットは作らない。関係のある別の操�
 
 | 名前 | 既定 | 値 |
 |---|---|---|
-| `view_3d` | off | 3D で始める |
+| `view_3d` | off | 3D で始める (コマンドラインは、今のオプションに合わせて `--view-3d`。Phase 4 の 4-1) |
 | `camera_3d` | broadcast | free / broadcast / closeup-ball / closeup-player / top / goal-left / goal-right / player |
 | `closeup_distance_3d`、`closeup_elevation_3d` | 12、20 | 3〜60 m、5〜85° |
 | `player_camera_position` | shoulder | eye / shoulder |
@@ -974,3 +974,31 @@ Phase 1〜3 を取り込んだので、3D の試作に入った。
 - ソフトウェアの描画 (llvmpipe、1280×720) では、`proto_gl` の人型と影が 1 フレーム約 36 ms (姿勢の計算は 0.2 ms)、`proto_quick3d` が約 75〜80 ms。
 
 **D1 の決定 (ユーザ)**: 推奨案 (`QOpenGLWidget` と自前の描画、OpenGL 3.3 core) に決めた。理由: 内蔵 GPU でも余裕を持って 60 fps (GPU 4.4 ms、CPU 0.3 ms)。Qt5 と Qt6 の両方で同じコードが動く (D2)。ログから毎フレーム姿勢を決める作り (§5.8) が安く書ける。依存が少ない (Qt の OpenGL と cgltf だけ)。Phase 4 では、試作の `gltf_rig` (glTF の読み込みと姿勢)、`SceneGL` の分け方、影の地図、骨つきのインスタンス描画を、整えて持っていく。
+
+### Phase 4
+
+#### 2026-11-12: 区切り 4-1、3D の土台 (`feature/3d-view`)
+
+PR #67 (`fix/qt-selection`) を Merge Commit で develop に取り込んだ (2a88791)。ユーザが develop から `feature/3d-view` を作った。
+
+**決めたこと**
+- Phase 4 を 5 つの区切りに分ける: 4-1 土台 (`ENABLE_3D`、`FieldView3D`、地面、2D と 3D の切り替え)、4-2 時間と補間、4-3 選手、ボール、ゴール、4-4 カメラ、4-5 HUD と背番号のラベル。区切りごとにユーザに確かめる。
+- 3D のコードは `src/view3d/` に置き、CMake でだけビルドする (D3)。`ENABLE_3D` (既定 ON。Qt6 では `OpenGL` と `OpenGLWidgets` が見つかったときだけ) で `config.h` に `HAVE_3D_VIEW` を定義する。autotools と `-DENABLE_3D=OFF` では、3D なしでビルドする。
+- 描画の本体 (`Scene3D`) をウィジェット (`FieldView3D`) から分ける (試作の `SceneGL` と同じ)。描き先のフレームバッファを受け取るので、テストでは画面外の FBO に描ける (§10.2)。
+- 3D の表示は、初めて 3D にするときに作る (2D だけを使う人の窓に、OpenGL の部品を入れない)。
+
+**作ったもの**
+- `FieldPainter::drawGround()`: ゴールを除いた地面を、ペンの太さを何倍かにして描く。`Options::fieldTransform()` / `setFieldTransform()`: フィールドの倍率と中心を一時的に差し替える (ズームの状態は変えない)。
+- `src/view3d/ground_texture`: 2D の `FieldPainter` で、ピッチと余白 (115 m × 78 m) を 1 m = 24 px、ペン 3 倍 (12.5 cm) の画像に描く (web 版 `field-texture.ts`)。色、旗、グリッド、keepaway の設定が変わったときだけ描き直す (`key()`)。
+- `src/view3d/camera_3d.h`: カメラの位置、見る点、上、画角 (または正射影の高さ) と、視野と射影の行列。GL に依存しない (4-4 のカメラの計算でも使う)。
+- `src/view3d/scene_3d`: OpenGL 3.3 core の描画。今は地面 (光の当たらないテクスチャ、異方性フィルタ 8 倍まで) と空の色だけ。
+- `src/view3d/field_view_3d`: `QOpenGLWidget` (OpenGL 3.3 core、マルチサンプリング 4 倍)。今のカメラは、中央を中継の位置 (72 m、仰角 32°) から見る固定のもの (4-4 で置き換える)。`unavailableReason()`: OpenGL 3.3 の文脈を作れるかと、プラットフォームが OpenGL のウィジェットを出せるか (offscreen、minimal、vnc、linuxfb は出せない) を確かめる。
+- メインウィンドウ: 中央を `QStackedWidget` にし、2D の表示と 3D の表示を入れ替える。View > 3D View、ツールバーの「3D」、キー D (チェックつきのアクション)。3D を使えないときは、アクションを無効にし、理由をステータスバーとツールチップに出して 2D のままにする。設定 `view_3d` (`MainWindow` のグループ) とコマンドラインの `--view-3d` で、3D で始める。
+- CI: Qt6 のジョブに `libqt6opengl6-dev` を足し、3D がビルドされたことを `config.h` で確かめる。テストは Xvfb と Mesa のソフトウェアの OpenGL (`LIBGL_ALWAYS_SOFTWARE=1`) で動かす。
+
+**試験**
+- テスト `ground_texture` (新): 画像の大きさ、芝・センターライン・ゴールのあった所の色、センターラインの太さ (約 3 px)、2D の倍率と中心が戻ること、鍵が色と keepaway で変わること。ペンの倍率を 1 にしたときと、ゴールも描いたときに失敗することを確かめた。
+- テスト `scene_3d` (新): 画面外の OpenGL 3.3 の文脈と FBO で地面を真上から描き、センターラインと芝の色、2 回描いて同じになること。OpenGL 3.3 の文脈を作れない環境では飛ばす。
+- テスト `view_switch` (新): 画面外のプラットフォームでは 3D を使えないので、D でアクションが無効になり、理由が出て、2D のまま、選手の選択も変わらないこと。実際の切り替えは、ユーザが画面で確かめる。
+- 4-1 のどの段階も、きれいなコピーで、Qt 6.4.2 と Qt 5.15.13 (`-Werror=deprecated-declarations`) でビルドとテストが通る (テスト 16 個)。`-DENABLE_3D=OFF` (13 個) と autotools も通る。
+- 画面外で、中継の位置からの地面を描いて見た (2D と同じライン、ペナルティエリア、センターサークル)。

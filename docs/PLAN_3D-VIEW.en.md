@@ -7,7 +7,7 @@
 | Reference implementation | rcssmonitor-web 20.0.0-beta.2 (tag `v20.0.0-beta.2`, ed36941). Its working tree is `../rcssmonitor-web`, next to this repository |
 | Server referred to | The asio version of rcssserver 19.x. Its working tree is `../rcssserver` (branch `feature/asio-migration`), next to this repository |
 | Japanese version | [PLAN_3D-VIEW.md](PLAN_3D-VIEW.md) (same content; §0.1) |
-| Status | The 3D prototype of Phase 0 is done, and D1 is decided (2026-11-12). Next is Phase 4 (`feature/3d-view`) |
+| Status | Phase 4 (started 2026-11-12, `feature/3d-view`). Steps 4-1 to 4-5 (§14) |
 
 ## 0. How to use this plan
 
@@ -340,7 +340,7 @@ Add to `Options` and save to `~/.rcssmonitor.conf`. The names follow the web ver
 
 | Name | Default | Values |
 |---|---|---|
-| `view_3d` | off | Start in 3D |
+| `view_3d` | off | Start in 3D (on the command line `--view-3d`, as the other options; 4-1 of Phase 4) |
 | `camera_3d` | broadcast | free / broadcast / closeup-ball / closeup-player / top / goal-left / goal-right / player |
 | `closeup_distance_3d`, `closeup_elevation_3d` | 12, 20 | 3–60 m, 5–85° |
 | `player_camera_position` | shoulder | eye / shoulder |
@@ -974,3 +974,31 @@ With Phases 1–3 merged, the 3D prototype started.
 - With software rendering (llvmpipe, 1280×720), `proto_gl` takes about 36 ms a frame with the figures and the shadows (0.2 ms for the poses), and `proto_quick3d` about 75–80 ms.
 
 **D1 decided (user)**: the recommendation (`QOpenGLWidget` with our own rendering, OpenGL 3.3 core). Reasons: 60 fps with headroom even on the integrated GPU (GPU 4.4 ms, CPU 0.3 ms). The same code works with both Qt5 and Qt6 (D2). Deciding the poses from the log every frame (§5.8) is cheap to write. Few dependencies (Qt's OpenGL and cgltf). Phase 4 brings in, cleaned up, the prototype's `gltf_rig` (glTF loading and poses), the separation of `SceneGL`, the shadow map, and the instanced skinned drawing.
+
+### Phase 4
+
+#### 2026-11-12: Step 4-1, the foundation of the 3D view (`feature/3d-view`)
+
+PR #67 (`fix/qt-selection`) was merged into develop with a merge commit (2a88791). The user created `feature/3d-view` from develop.
+
+**Decided**
+- Phase 4 is split into five steps: 4-1 the foundation (`ENABLE_3D`, `FieldView3D`, the ground, switching between 2D and 3D), 4-2 time and interpolation, 4-3 players, ball, goals, 4-4 cameras, 4-5 HUD and number labels. The user checks each step.
+- The 3D code is in `src/view3d/`, built with CMake only (D3). `ENABLE_3D` (default ON; with Qt6 only when `OpenGL` and `OpenGLWidgets` are found) defines `HAVE_3D_VIEW` in `config.h`. autotools and `-DENABLE_3D=OFF` build without 3D.
+- The drawing (`Scene3D`) is separate from the widget (`FieldView3D`), as `SceneGL` of the prototype. It takes the framebuffer to draw into, so the tests can draw into an offscreen FBO (§10.2).
+- The 3D view is made when it is first shown (no OpenGL parts in the window of those who use 2D only).
+
+**Made**
+- `FieldPainter::drawGround()`: draws the ground without the goals, with the pens some times wider. `Options::fieldTransform()` / `setFieldTransform()`: change the scale and the center of the field for a while (without changing the zoom).
+- `src/view3d/ground_texture`: the 2D `FieldPainter` draws the pitch and its margins (115 m x 78 m) into an image at 24 px/m with 3 times wider pens (12.5 cm) (the web version's `field-texture.ts`). It is drawn again only when the colors, the flags, the grid or the keepaway settings change (`key()`).
+- `src/view3d/camera_3d.h`: the camera's position, target, up, field of view (or orthographic height), and its view and projection matrices. GL-independent (also for the cameras of 4-4).
+- `src/view3d/scene_3d`: drawing with OpenGL 3.3 core. For now only the ground (an unlit texture, anisotropic filtering up to 8x) and the sky color.
+- `src/view3d/field_view_3d`: a `QOpenGLWidget` (OpenGL 3.3 core, 4x multisampling). The camera for now is a fixed one, looking at the center from a broadcast position (72 m, 32° up) (replaced in 4-4). `unavailableReason()`: checks whether an OpenGL 3.3 context can be made and whether the platform shows OpenGL widgets (offscreen, minimal, vnc, linuxfb do not).
+- Main window: the center is a `QStackedWidget` that switches the 2D view and the 3D view. View > 3D View, the "3D" button of the toolbar, key D (a checkable action). Where 3D is not available, the action is disabled with the reason in the status bar and the tooltip, and the 2D view stays. The setting `view_3d` (group `MainWindow`) and `--view-3d` on the command line start with the 3D view.
+- CI: the Qt6 jobs install `libqt6opengl6-dev` and check in `config.h` that the 3D view is built. The tests run under Xvfb with Mesa's software OpenGL (`LIBGL_ALWAYS_SOFTWARE=1`).
+
+**Tests**
+- Test `ground_texture` (new): the size of the image, the colors of the grass, the center line and where the goal was, the width of the center line (about 3 px), the scale and the center of 2D set back, the key changing with the colors and keepaway. Confirmed to fail with a pen scale of 1 and with the goals drawn.
+- Test `scene_3d` (new): draws the ground from straight above into an offscreen OpenGL 3.3 context and FBO, and checks the colors of the center line and the grass, and that two frames are the same. Skipped where an OpenGL 3.3 context cannot be made.
+- Test `view_switch` (new): on the offscreen platform 3D is not available, so D disables the action, shows the reason, and keeps the 2D view and the selected player. The real switching is checked by the user on the screen.
+- Every step of 4-1 builds and passes the tests from a clean copy with Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`; 16 tests). `-DENABLE_3D=OFF` (13 tests) and autotools pass too.
+- The ground from the broadcast position was drawn offscreen and looked at (the same lines, penalty areas and center circle as 2D).
