@@ -492,7 +492,7 @@ Each phase proceeds on a feature branch and is merged into develop when it is do
 **Work**
 - `FieldView3D` and switching with 2D (D key, menu, toolbar). `ENABLE_3D` and the handling when GL is unavailable.
 - Time and interpolation (§5.2). The one-cycle delay for live.
-- Ground image, goals, players (cylinders: state colors, cards, direction markers, foot circles and direction lines, view cones), ball (height and shadow).
+- Ground image, goals, players (cylinders: state colors, cards, direction markers, foot circles and direction lines, view cones), ball (height and shadow). → The cards are drawn in 4-5 with the number labels, and the direction lines in the foot circles and the view cones in Phase 5 with the drawing of lines (4-3, §14).
 - Cameras: free, broadcast, top, and the two behind the goals. E key. Mouse operations.
 - HUD (score board, logos).
 - Jersey number labels (upper size limit, placement in the top camera).
@@ -1002,3 +1002,33 @@ PR #67 (`fix/qt-selection`) was merged into develop with a merge commit (2a88791
 - Test `view_switch` (new): on the offscreen platform 3D is not available, so D disables the action, shows the reason, and keeps the 2D view and the selected player. The real switching is checked by the user on the screen.
 - Every step of 4-1 builds and passes the tests from a clean copy with Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`; 16 tests). `-DENABLE_3D=OFF` (13 tests) and autotools pass too.
 - The ground from the broadcast position was drawn offscreen and looked at (the same lines, penalty areas and center circle as 2D).
+
+#### 2026-11-12: Steps 4-2 and 4-3, time and interpolation, players, ball, goals (`feature/3d-view`)
+
+After the five commits of 4-1 (1956f13 to 27f1100) were pushed and the CI passed, the user checked them on the screen. 4-2 (time and interpolation) alone shows little on the screen, so the user checks it together with 4-3 (players, ball, goals).
+
+**Decided**
+- What is drawn where (the matrices and colors of the instances) is decided by the GL-independent `SceneBuilder` and checked by unit tests. `Scene3D` only draws them, one instanced draw call per shape.
+- How a player is colored (the 2D `PlayerPainter::drawBody`) is extracted into a function `playerStyle()`, shared by 2D and 3D.
+- The cards are drawn in 4-5 with the billboards (the number labels). The direction lines in the foot circles and the view cones need the drawing of lines, so they are drawn with the overlays of Phase 5.
+- The lighting is not a copy of the three.js values but a simple formula: Lambert with the sun (the direction of §4.3) and a light from the sky (tuned by looking at it; the shadows come in Phase 8).
+
+**Made**
+- Tests: a test that Qt Test skips (`QSKIP`, e.g. when an OpenGL 3.3 context cannot be made) is reported by CTest as skipped, not as passed (`SKIP_REGULAR_EXPRESSION`). In the CI of 4-1, `scene_3d` passed in 0.22 s in the Ubuntu 22.04 job, and it was not clear whether it really drew.
+- `LogPlayer::alpha()`: while playing, the time since the last step divided by the interval (0 to 1); 0 when stopped. `isPlaying()`.
+- `src/view3d/interpolate`: the interpolation between frames (the web version's `interpolate.ts`). Positions and velocities are linear, the body direction turns the short way round, and the neck, an angle relative to the body, is linear. No interpolation across a play mode change, when the ball moved more than 4 m or a player more than 3 m, and for a player who is not connected or was replaced. `position()`: the frames to draw and the fraction between them. A log goes from the current frame to the next; live goes from the frame before the newest to the newest, by the time since the newest came divided by `simulator_step` (one cycle late).
+- `src/player_style`: `playerStyle()`. The outline of the outer circle (width 2 for the selected player, a kick, a tackle, illegal defense), the fill (the team and state colors), the body (darker by steps of 1/8 of the stamina), and the decay ring (effort, recovery). `drawBody` uses it now.
+- `src/view3d/scene_builder`: the goals (posts and crossbar, translucent nets, a dark floor), the players (a cylinder body, a sphere head, the foot circle (the kickable area or Player Size, opacity 0.45), the highlight ring, the decay ring, a black cone for the body direction, a red cone for the face direction), and the ball (in the air when the show has `z`, with a shadow right below that fades with the height). The values are the web version's (§4.3). All 22 players are drawn (one who is not connected in black, as in 2D).
+- `Scene3D`: lit instanced drawing (cylinders, spheres, cones) and translucent instanced drawing (circles, rings, nets; no depth writes, both sides). The instance buffers are made again only when they grow, and are reused with `glBufferSubData` otherwise (§5.3).
+- `FieldView3D`: takes the fraction of playing from `LogPlayer` and draws the interpolated show. It remembers when the newest frame came, for the fraction of live. While playing, and while waiting for the next frame live, it draws the next frame as soon as one is shown (`frameSwapped`). When nothing moves, it does not draw.
+
+**Tests**
+- Test `player_style` (new): the colors of the team and the goalie, a player who is not connected, the selected player, the order in which the state colors override (the tackle after the kick), the darkness by the stamina, the decay ring (effort first).
+- Test `interpolate` (new): the short way round of angles, the position and direction halfway, the fractions at the ends and out of range, a play mode change, jumps, a player who is not connected or was replaced, `position()` for a log and live.
+- Test `scene_builder` (new): the positions of the goal posts, crossbar and nets, the players' body, head, and the size and color of the foot circle, the Player Size option, the directions of the cones, the highlight and decay rings, the ball's height and the darkness of its shadow, and the options that hide the players and the ball.
+- Added to test `scene_3d`: a player and a ball in the air drawn from straight above, with the pixel colors of the head, the ball, the foot circle, the ball's shadow and the grass, and two frames the same.
+- Every test was confirmed to fail when what it checks is broken for a while (the sign of the direction, the size of the foot circle, the ball's height, the way round of angles, the play mode change, the steps of darkness, the order of the states, not drawing the spheres or the circles).
+- The 2D drawing is unchanged: seven frames of the full game log were drawn offscreen with HEAD and with the current build, and the pixels are the same.
+- Builds and passes the tests with Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`; 19 tests). `-DENABLE_3D=OFF` (14 tests) and autotools pass too.
+- Frame 1,000 of the full game log was drawn offscreen from the broadcast position, close to the ball, and near a goal, and looked at. Xvfb is not installed here, so the 3D view in the application's window (smoothness while playing, live) is checked by the user on the screen.
+
