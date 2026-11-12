@@ -62,6 +62,18 @@ struct Instance3D {
 };
 
 /*!
+  \struct ColorVertex3D
+  \brief a vertex with its own color, of the lines, points and triangles
+  that are made again in every frame (the overlays on the ground, the view
+  areas; VertexBatch), in the world's coordinates
+*/
+struct ColorVertex3D {
+    QVector3D position; //!< where it is in the world
+    QVector4D color; //!< red, green, blue, opacity: 0 to 1
+    float distance; //!< of a dotted line: how far along it from its start (m), for the dashes; 0 otherwise
+};
+
+/*!
   \struct Billboard3D
   \brief a "billboard": a rectangle that always faces the camera, with a
   part of a texture on it (the number labels and the cards, LabelAtlas).

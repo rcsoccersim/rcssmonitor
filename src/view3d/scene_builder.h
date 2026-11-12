@@ -68,6 +68,12 @@ struct SceneContent {
     std::vector< Instance3D > decay_rings; //!< 1.1 to 1.22 on the xz plane: the decay of effort or recovery
     std::vector< Instance3D > quads; //!< 1 x 1 on the xy plane, centered, both sides: the nets and the floors of the goals
 
+    // made again in every frame, translucent too (OverlayBuilder)
+    std::vector< ColorVertex3D > sectors; //!< triangles: the view areas
+    std::vector< ColorVertex3D > lines; //!< each two vertices, a line: the overlays on the ground
+    std::vector< ColorVertex3D > dotted_lines; //!< each two vertices, a dotted line
+    std::vector< ColorVertex3D > points; //!< dots
+
     // over everything, facing the camera, from far to near
     std::vector< Billboard3D > labels; //!< the numbers and the cards (LabelAtlas)
 

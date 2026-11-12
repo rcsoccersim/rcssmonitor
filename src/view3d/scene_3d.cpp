@@ -47,6 +47,10 @@
 
 namespace {
 
+// the dashes and the gaps of a dotted line (m), and the size of a dot (pixels), as rcssmonitor-web
+constexpr float DASH = 0.3f;
+constexpr float POINT_SIZE = 4.0f;
+
 // the color of the background: the sky, until it is drawn (Phase 8)
 const QColor SKY = QColor::fromRgbF( 0.55, 0.72, 0.88 );
 
@@ -84,12 +88,14 @@ Scene3D::initialize()
     if ( ! M_ground_program.load( "ground" )
          || ! M_lit_program.load( "lit" )
          || ! M_flat_program.load( "flat" )
-         || ! M_billboard_program.load( "billboard" ) )
+         || ! M_billboard_program.load( "billboard" )
+         || ! M_colored_program.load( "colored" ) )
     {
         M_ground_program.destroy();
         M_lit_program.destroy();
         M_flat_program.destroy();
         M_billboard_program.destroy();
+        M_colored_program.destroy();
         return false;
     }
 
@@ -104,6 +110,10 @@ Scene3D::initialize()
     M_decay_ring.create( *this, Meshes3D::ring( 1.1f, 1.22f, 40 ) );
     M_quad.create( *this, Meshes3D::quad() );
     M_billboards.create( *this );
+    for ( VertexBatch * b : { &M_sector_batch, &M_line_batch, &M_dotted_batch, &M_point_batch } )
+    {
+        b->create( *this );
+    }
     M_initialized = true;
     return true;
 }
@@ -121,12 +131,17 @@ Scene3D::release()
         m->destroy( *this );
     }
     M_billboards.destroy( *this );
+    for ( VertexBatch * b : { &M_sector_batch, &M_line_batch, &M_dotted_batch, &M_point_batch } )
+    {
+        b->destroy( *this );
+    }
     M_ground_texture.destroy( *this );
     M_label_texture.destroy( *this );
     M_ground_program.destroy();
     M_lit_program.destroy();
     M_flat_program.destroy();
     M_billboard_program.destroy();
+    M_colored_program.destroy();
     M_initialized = false;
 }
 
@@ -186,8 +201,8 @@ Scene3D::render( GLuint fbo,
     //
     // pass 3: the translucent ones, after the solids, which hide them where
     // nearer. They do not write the depth, so the order among them decides
-    // which is over which: the layers on the ground from low to high, then
-    // the nets.
+    // which is over which: the layers on the ground from low to high (the
+    // circles, the rings, the view areas, the lines and dots), then the nets.
     //
     RenderState::translucent().apply( *this );
     M_flat_program.bind();
@@ -195,6 +210,18 @@ Scene3D::render( GLuint fbo,
     M_disc.draw( *this, content.discs );
     M_ring.draw( *this, content.rings );
     M_decay_ring.draw( *this, content.decay_rings );
+
+    M_colored_program.bind();
+    M_colored_program.set( "uViewProj", view_proj );
+    M_colored_program.set( "uPointSize", POINT_SIZE );
+    M_colored_program.set( "uDash", 0.0f );
+    M_sector_batch.draw( *this, content.sectors, VertexBatch::Primitive::Triangles );
+    M_line_batch.draw( *this, content.lines, VertexBatch::Primitive::Lines );
+    M_point_batch.draw( *this, content.points, VertexBatch::Primitive::Points );
+    M_colored_program.set( "uDash", DASH );
+    M_dotted_batch.draw( *this, content.dotted_lines, VertexBatch::Primitive::Lines );
+
+    M_flat_program.bind();
     M_quad.draw( *this, content.quads );
 
     //

@@ -12,5 +12,7 @@
     <file>flat.frag</file>
     <file>billboard.vert</file>
     <file>billboard.frag</file>
+    <file>colored.vert</file>
+    <file>colored.frag</file>
   </qresource>
 </RCC>

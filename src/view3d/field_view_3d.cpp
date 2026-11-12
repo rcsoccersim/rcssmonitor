@@ -38,6 +38,7 @@
 
 #include "ground_texture.h"
 #include "interpolate.h"
+#include "overlay_builder.h"
 
 #include "disp_holder.h"
 #include "field_painter.h"
@@ -207,6 +208,8 @@ FieldView3D::paintGL()
                                   ( at.next != at.index ? frames[at.next].get() : nullptr ),
                                   at.alpha );
         SceneBuilder::addShow( M_content, show, M_disp_holder, Options::instance() );
+        OverlayBuilder::addDirections( M_content, show, M_disp_holder, Options::instance() );
+        OverlayBuilder::addViewAreas( M_content, show, M_disp_holder, Options::instance() );
     }
     const float ball_x = show.ball_.x_, ball_y = show.ball_.y_;
 

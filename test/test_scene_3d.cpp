@@ -36,6 +36,7 @@
 #include "field_view_3d.h"
 #include "ground_texture.h"
 #include "label_atlas.h"
+#include "overlay_builder.h"
 #include "options.h"
 #include "scene_3d.h"
 #include "scene_builder.h"
@@ -139,6 +140,7 @@ private slots:
     void content();
     void topCamera();
     void labels();
+    void batches();
     void cleanupTestCase();
 };
 
@@ -438,6 +440,87 @@ TestScene3D::labels()
     buried.labels[0].center.setY( -5.0f );
     scene.render( fbo.handle(), w, h, camera, buried );
     QCOMPARE( fbo.toImage(), image );
+
+    scene.release();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  The vertices made in every frame (VertexBatch), from 10 m above: a solid
+  line drawn all along, a dotted one in dashes, two dots, and a translucent
+  triangle over the grass. The same in every frame.
+*/
+void
+TestScene3D::batches()
+{
+    DispHolder holder;
+    FieldPainter painter( holder );
+    Scene3D scene;
+    QVERIFY( scene.initialize() );
+    scene.setGround( GroundTexture::draw( painter ) );
+
+    const int w = 400, h = 300;
+    QOpenGLFramebufferObjectFormat fbo_format;
+    fbo_format.setAttachment( QOpenGLFramebufferObject::Depth );
+    QOpenGLFramebufferObject fbo( w, h, fbo_format );
+
+    // away from the lines of the field: around (20, 20)
+    const QPointF o( 20.0, 20.0 );
+    SceneContent content;
+    OverlayBuilder::addLine( content.lines, o + QPointF( -4, -2 ), o + QPointF( 4, -2 ), Qt::red );
+    OverlayBuilder::addLine( content.dotted_lines, o + QPointF( -4, 2 ), o + QPointF( 4, 2 ), Qt::blue );
+    for ( const double x : { -3.0, 3.0 } )
+    {
+        content.points.push_back( ColorVertex3D{ QVector3D( float( o.x() + x ), OverlayBuilder::LINE_Y, float( o.y() ) ), QVector4D( 1, 1, 0, 1 ), 0.0f } );
+    }
+    for ( const QPointF & p : { QPointF( -1.5, 0.6 ), QPointF( 0.5, 0.6 ), QPointF( -0.5, 1.6 ) } )
+    {
+        content.sectors.push_back( ColorVertex3D{ QVector3D( float( o.x() + p.x() ), OverlayBuilder::SECTOR_Y, float( o.y() + p.y() ) ), QVector4D( 1, 0, 1, 0.5f ), 0.0f } );
+    }
+
+    CameraPose camera;
+    camera.position = QVector3D( float( o.x() ), 10.0f, float( o.y() ) );
+    camera.target = QVector3D( float( o.x() ), 0.0f, float( o.y() ) );
+    camera.up = QVector3D( 0.0f, 0.0f, -1.0f );
+    scene.render( fbo.handle(), w, h, camera, content );
+    const QImage image = fbo.toImage();
+    scene.render( fbo.handle(), w, h, camera, content );
+    QCOMPARE( image, fbo.toImage() );
+
+    const double px_per_m = h / ( 2 * 10 * std::tan( 17.5 * M_PI / 180 ) ); // at the ground
+    auto screen = [&]( const double x, const double y ) {
+        return QPoint( int( std::lround( w / 2 + x * px_per_m ) ), int( std::lround( h / 2 + y * px_per_m ) ) );
+    };
+    // whether a pixel near the point (2 pixels up or down) has the color
+    auto drawn = [&]( const double x, const double y, const QColor & color ) {
+        const QPoint s = screen( x, y );
+        for ( int dy = -2; dy <= 2; ++dy )
+        {
+            if ( distance( image.pixelColor( s.x(), s.y() + dy ), color ) < 60 ) return true;
+        }
+        return false;
+    };
+
+    int solid = 0, dotted = 0, columns = 0;
+    for ( double x = -3.0; x <= 3.0; x += 1.0 / px_per_m, ++columns )
+    {
+        solid += ( drawn( x, -2.0, Qt::red ) ? 1 : 0 );
+        dotted += ( drawn( x, 2.0, Qt::blue ) ? 1 : 0 );
+    }
+    QVERIFY2( solid == columns, qPrintable( QString( "solid %1 of %2" ).arg( solid ).arg( columns ) ) );
+    // 0.3 m dashes and 0.3 m gaps: about half
+    QVERIFY2( dotted > columns * 0.35 && dotted < columns * 0.65, qPrintable( QString( "dotted %1 of %2" ).arg( dotted ).arg( columns ) ) );
+    QVERIFY( drawn( -3.0, 0.0, Qt::yellow ) );
+    QVERIFY( drawn( 3.0, 0.0, Qt::yellow ) );
+    QVERIFY( ! drawn( 0.0, 0.0, Qt::yellow ) );
+
+    // the triangle: the grass tinted, not covered (the view is 3.1 m from its center to its top and bottom)
+    const QColor field = Options::instance().fieldBrush().color();
+    const QPoint inside = screen( -0.5, 0.95 ), outside = screen( 2.0, 1.0 );
+    QVERIFY( image.rect().contains( inside ) && image.rect().contains( outside ) );
+    const QColor tinted = image.pixelColor( inside );
+    QVERIFY2( distance( tinted, field ) > 60 && distance( tinted, QColor( Qt::magenta ) ) > 60, qPrintable( tinted.name() ) );
+    QVERIFY2( distance( image.pixelColor( outside ), field ) < 12, qPrintable( image.pixelColor( outside ).name() ) );
 
     scene.release();
 }

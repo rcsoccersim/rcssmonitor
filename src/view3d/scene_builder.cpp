@@ -103,6 +103,10 @@ void
 SceneContent::clear()
 {
     labels.clear();
+    sectors.clear();
+    lines.clear();
+    dotted_lines.clear();
+    points.clear();
     cylinders.clear();
     spheres.clear();
     cones.clear();

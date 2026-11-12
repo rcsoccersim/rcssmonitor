@@ -59,7 +59,8 @@
 
   The billboards (BillboardMesh, Billboard3D) have other attributes of an
   instance. They are read by other shaders from other buffers, so they
-  reuse the locations of MODEL.
+  reuse the locations of MODEL. The vertices of a batch (VertexBatch,
+  ColorVertex3D) have no instances: each vertex has its own COLOR.
 */
 namespace GLAttribute {
 
@@ -71,6 +72,9 @@ constexpr unsigned int UV = 2; //!< vec2: where in a texture image the vertex is
 // of an instance (Instance3D)
 constexpr unsigned int MODEL = 3; //!< mat4: where to put the shape. A mat4 takes 4 locations, 3 to 6, one per column
 constexpr unsigned int COLOR = 7; //!< vec4: the color, with the opacity in w
+
+// of a vertex of a batch (ColorVertex3D): POSITION, COLOR (one per vertex there), and
+constexpr unsigned int DISTANCE = 8; //!< float: along a dotted line (m)
 
 // of a billboard (Billboard3D), in place of MODEL
 constexpr unsigned int BILLBOARD_CENTER = 3; //!< vec3: where it is in the world

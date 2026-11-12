@@ -39,6 +39,7 @@
 #include "gl/instanced_mesh.h"
 #include "gl/shader_program.h"
 #include "gl/texture_2d.h"
+#include "gl/vertex_batch.h"
 
 #include <QImage>
 #include <QOpenGLFunctions_3_3_Core>
@@ -121,6 +122,7 @@ private:
     ShaderProgram M_lit_program; //!< "lit": the solids, lit by the sun
     ShaderProgram M_flat_program; //!< "flat": the flat colors, translucent
     ShaderProgram M_billboard_program; //!< "billboard": the labels, facing the camera
+    ShaderProgram M_colored_program; //!< "colored": the lines, dots and view areas, each vertex its color
 
     // the shapes (Meshes3D), each drawn in instances
     InstancedMesh M_ground; //!< the area of the ground image
@@ -132,6 +134,12 @@ private:
     InstancedMesh M_decay_ring; //!< the decay of effort or recovery
     InstancedMesh M_quad; //!< the nets, the floors of the goals
     BillboardMesh M_billboards; //!< the numbers and the cards
+
+    // made again in every frame (OverlayBuilder)
+    VertexBatch M_sector_batch; //!< the view areas
+    VertexBatch M_line_batch; //!< the lines on the ground
+    VertexBatch M_dotted_batch; //!< the dotted lines on the ground
+    VertexBatch M_point_batch; //!< the dots on the ground
 
     Texture2D M_ground_texture; //!< the image of the ground
     Texture2D M_label_texture; //!< the images of the labels

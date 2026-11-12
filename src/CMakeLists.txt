@@ -58,6 +58,7 @@ if(HAVE_3D_VIEW)
     view3d/interpolate.cpp
     view3d/label_atlas.cpp
     view3d/meshes_3d.cpp
+    view3d/overlay_builder.cpp
     view3d/scene_builder.cpp
     view3d/scene_3d.cpp
     view3d/gl/billboard_mesh.cpp
@@ -66,6 +67,7 @@ if(HAVE_3D_VIEW)
     view3d/gl/render_state.cpp
     view3d/gl/shader_program.cpp
     view3d/gl/texture_2d.cpp
+    view3d/gl/vertex_batch.cpp
     view3d/shaders/view3d_shaders.qrc
     )
   # the shaders in the resources (ShaderProgram)
