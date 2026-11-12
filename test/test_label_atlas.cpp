@@ -83,7 +83,7 @@ private slots:
       {
           LabelAtlas atlas;
           // every slot is in the image, of the size of a label, and none overlaps another
-          for ( int i = 0; i <= LabelAtlas::WHITE_SLOT; ++i )
+          for ( int i = 0; i < LabelAtlas::WHITE_SLOT; ++i )
           {
               const QRectF a = atlas.uv( i );
               QVERIFY( a.left() >= 0.0 && a.top() >= 0.0 && a.right() <= 1.0 && a.bottom() <= 1.0 );
@@ -99,9 +99,32 @@ private slots:
     void whiteSlot()
       {
           LabelAtlas atlas;
+          // what the cards read: white, inside the slot of a label's size, apart from the others
+          const QRectF uv = atlas.uv( LabelAtlas::WHITE_SLOT );
           int white = 0, opaque = 0;
           countPixels( slotImage( atlas, LabelAtlas::WHITE_SLOT ), &white, &opaque );
-          QCOMPARE( white, LabelAtlas::LABEL_WIDTH * LabelAtlas::LABEL_HEIGHT );
+          QCOMPARE( white, opaque );
+          QCOMPARE( white, int( uv.width() * atlas.image().width() + 0.5 ) * int( uv.height() * atlas.image().height() + 0.5 ) );
+          QVERIFY( uv.width() * atlas.image().width() > 0.5 * LabelAtlas::LABEL_WIDTH );
+          for ( int i = 0; i < LabelAtlas::WHITE_SLOT; ++i )
+          {
+              QVERIFY( ! uv.intersects( atlas.uv( i ) ) );
+          }
+
+          // nothing at the edges of any slot: reading one does not mix in its neighbor
+          const QImage & image = atlas.image();
+          for ( int y = 0; y < image.height(); ++y )
+          {
+              for ( int x = 0; x < image.width(); ++x )
+              {
+                  const int sx = x % LabelAtlas::LABEL_WIDTH, sy = y % LabelAtlas::LABEL_HEIGHT;
+                  const bool edge = ( sx < 4 || sx >= LabelAtlas::LABEL_WIDTH - 4 || sy < 4 || sy >= LabelAtlas::LABEL_HEIGHT - 4 );
+                  if ( edge && image.pixelColor( x, y ).alpha() != 0 )
+                  {
+                      QFAIL( qPrintable( QString( "not transparent at %1, %2" ).arg( x ).arg( y ) ) );
+                  }
+              }
+          }
           // the others are empty at first
           countPixels( slotImage( atlas, 0 ), &white, &opaque );
           QCOMPARE( opaque, 0 );

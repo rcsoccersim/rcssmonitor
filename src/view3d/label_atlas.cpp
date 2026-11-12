@@ -46,6 +46,16 @@ namespace {
 
 //! the room left at each side of a slot (pixels), so that a text does not touch its neighbor
 constexpr int MARGIN = 4;
+/*!
+  the room left around the white of the cards' slot (pixels), and the
+  inside of the white that the cards read (pixels from the slot's edge).
+  Reading a texture mixes a pixel with its neighbors (and its smaller
+  copies, the mipmaps, with more of them): without the room, the white
+  would show at the edge of the next slot's label, and with the white read
+  to its edge, the cards' edges would be soft.
+*/
+constexpr int WHITE_MARGIN = 8;
+constexpr int WHITE_READ = 16;
 //! where the middle of the text is from the top of a slot (pixels)
 constexpr double TEXT_MIDDLE = 34.0;
 //! the black outline around the white text (pixels)
@@ -62,7 +72,7 @@ LabelAtlas::LabelAtlas()
     M_widths.fill( 0.0 );
     // the slot of the cards: white, tinted by their color (SceneBuilder)
     QPainter painter( &M_image );
-    painter.fillRect( slotRect( WHITE_SLOT ), Qt::white );
+    painter.fillRect( slotRect( WHITE_SLOT ).adjusted( WHITE_MARGIN, WHITE_MARGIN, -WHITE_MARGIN, -WHITE_MARGIN ), Qt::white );
 }
 
 /*-------------------------------------------------------------------*/
@@ -126,7 +136,9 @@ LabelAtlas::setText( const int slot,
 QRectF
 LabelAtlas::uv( const int slot ) const
 {
-    const QRect r = slotRect( slot );
+    const QRect r = ( slot == WHITE_SLOT
+                      ? slotRect( slot ).adjusted( WHITE_READ, WHITE_READ, -WHITE_READ, -WHITE_READ )
+                      : slotRect( slot ) );
     return QRectF( double( r.left() ) / M_image.width(),
                    double( r.top() ) / M_image.height(),
                    double( r.width() ) / M_image.width(),

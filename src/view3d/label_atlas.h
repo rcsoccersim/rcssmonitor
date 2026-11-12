@@ -48,7 +48,8 @@
   LABEL_WIDTH x LABEL_HEIGHT pixels with its text, white with a black
   outline, centered; one more slot is plain white, for the cards. A slot is
   drawn again only when its text or the font changes. It knows nothing of
-  OpenGL: Scene3D sends image() to the GPU when it changed.
+  OpenGL: Scene3D sends image() to the GPU when it changed. No slot is
+  drawn to its edge, so that reading one does not mix in its neighbor.
 */
 class LabelAtlas {
 public:
@@ -58,7 +59,7 @@ public:
     static constexpr int LABEL_FONT = 40; //!< the text's size in a slot (pixels)
     static constexpr double LABEL_SCALE = 1.3; //!< a slot's height in the world (m), before SceneBuilder fits it
     static constexpr int PLAYER_SLOTS = 22; //!< one per player: the left 0-10, the right 11-21
-    static constexpr int WHITE_SLOT = PLAYER_SLOTS; //!< plain white, for the cards
+    static constexpr int WHITE_SLOT = PLAYER_SLOTS; //!< plain white inside, for the cards
 
     LabelAtlas();
 
@@ -70,7 +71,7 @@ public:
                   const QString & text,
                   const QFont & font );
 
-    //! where a slot is in the image (0 to 1, y down as the image's rows)
+    //! where a slot is in the image (0 to 1, y down as the image's rows); of WHITE_SLOT, the inside of its white
     QRectF uv( const int slot ) const;
 
     //! how wide the text of a slot is in the world at the label's size (m)
