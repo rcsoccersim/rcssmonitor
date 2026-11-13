@@ -623,6 +623,8 @@ Port the GL-independent calculations, using the web version's unit tests as mode
 | `overlay_math.{h,cpp}` | Overlay calculations shared by 2D and 3D (moved from the 2D painters). Created in `src/` in Phase 1, with the offside lines |
 | `play_mode_position.{h,cpp}` | The ball position for Change Playmode (Phase 1; also used by the 3D referee operations) |
 | `player_type_sort_proxy.h` | Sorting of the player type list (Phase 1) |
+| `referee_menu.{h,cpp}`, `referee_target.h` | The menu of a right click (the referee's operations) and what it aims at (a point and a player), shared by 2D and 3D (5-4) |
+| `view3d/picking.{h,cpp}` | What a right click in 3D hits (the camera's ray, the players' bodies and heads, the ground; no GL; 5-4) |
 | `game_log_file.{h,cpp}` | Reading a log file into one buffer and parsing it. With libdeflate, gzip is decompressed with it (Phase 2) |
 | `rcss/rcg/line_parser.{h,cpp}` | Parsing the lines of a log in parallel and passing them to the handler in order (Phase 2) |
 | `test/bench_load.cpp` | Measuring the loading speed (Phase 2; not run in CI) |
@@ -1262,3 +1264,30 @@ The 2 commits of 5-3 (6a13654, b66d88d) were pushed, and the CI passed.
 - Without the limit (old logs), 2D draws with the same calculation as before (the radii of the same formula, and the same integer circles).
 - Builds and tests pass with Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`; 25 tests). `-DENABLE_3D=OFF` (16 tests) and autotools pass too.
 - Both goalies at frame 3,000 of the full game log (a server from 17, ±90) were drawn offscreen in 2D and 3D, and looked at. With the parameters at ±180, the same circles as before.
+
+#### 2026-11-13: Step 5-4, hit testing for the referee's operations (`feature/3d-view`)
+
+The 2 commits of the catch area (d77a892, edad319) were pushed, and the CI passed. The user checked on the screen (the three outlines as before are fine).
+
+**Decided**
+- The main window has the one menu of a right click (`RefereeMenu`), and the 2D and 3D views only tell what the right click aims at (`RefereeTarget`: a point on the field, and in 3D a player). Before, the 2D `FieldCanvas` had the menu and sent screen coordinates, which the main window turned into field coordinates. The main window's functions of the referee's operations now take field coordinates.
+- Hit testing in 3D is as in the web version (`playerAt()`, `targetAt()`): a ray from the camera through the point of the screen; if it hits the body (a cylinder from the ground to BODY_HEIGHT) or the head (a sphere) of a player drawn, the nearest, that player and its feet. Otherwise, where it meets the ground, if within the area of the ground image (the pitch and 5 m around). Above the horizon or beyond the area, "no point". Without a point, Drop Ball and the free kicks are disabled with the reason in the tool tip (the web version's text). Change Playmode then starts from the ball, as in the Referee menu of the menu bar.
+- The dialog that chooses the player of a card opens with the player chosen when a player was aimed at in 3D (empty from 2D and the Referee menu, as before). The web version chooses the player nearest to the point in 2D too; rcssmonitor's 2D is not changed.
+- Making the hit test of the figures (Phase 7) 1.2 times larger is left to Phase 7.
+
+**Made**
+- `src/referee_target.h`, `src/referee_menu.{h,cpp}`: the items and signals of Drop Ball, Free Kick Left and Right, the cards, and Change Playmode. The list of the modes Change Playmode offers is `changePlayModeModes()` (`play_mode_position`), shared by the Referee menu of the menu bar and the menu of a right click (the same list was in two places before).
+- `FieldCanvas`: no more menu, nor the slots and signals that sent points; it tells the point where the right button was pressed with `refereeMenuRequested()`.
+- `src/view3d/picking.{h,cpp}`: `rayAt()` (the inverse of the camera's matrices takes a point of the screen back to points on the near and far planes; it works for the orthographic top camera too), `groundAt()`, `playerAt()` (the side and the top of a cylinder, a sphere), `targetAt()`. `SceneContent::picks` holds the players drawn (the team, the number, the place, the radius of the body).
+- `FieldView3D`: keeps the camera of the last frame drawn, and on a right click tells the result of `targetAt()` with `refereeMenuRequested()`. Before a frame is drawn, no point.
+- `Options::setServerPort()` (for the tests).
+
+**Tests**
+- Test `picking` (new): the ray goes through the point of the world drawn at the point of the screen (perspective and orthographic); the top camera's rays are parallel and straight down; where it meets the ground, and above the horizon; the body at three heights and the head are hit, not above the head, beside the body nor the ground in front; the nearer of two players on the ray, whatever their order; from straight above, the top of the body; what it aims at (a player's feet, the ground of the margin, beyond the area, above the horizon).
+- Test `referee_menu` (new, replacing `play_mode_actions`): the order of the items; Change Playmode offers the same modes as the menu bar; without a point, disabled with the reason in the tool tip, and no signal even if triggered; the cards and Change Playmode pass the target; a right click in 2D tells the point pressed (not the menu key); the main window opens the menu when the 2D view asks.
+- Test `referee_commands` (new): the main window connects to a fake server (UDP on the local host), and the commands sent from the items of the menu are checked. Drop Ball and the free kicks with a player aimed at in 3D (`(dispfoul 168 -52 0)` and so on); the card's dialog has that player chosen, and `(dispcard -1 7 yellow)` and so on are sent; Change Playmode at the point (`(move (ball) 20 -10 0 0 0)` and `(change_mode play_on)`; a kick in to the touch line); nothing is sent without a point. The server sends the coach mode parameter.
+- Added to test `scene_builder`: only the players drawn are in `picks`.
+- Every test was confirmed to fail when what it checks is broken for a while (13 ways: the top, the nearer one, the area, up and down of the screen, the head, the height of the body, the point pressed in 2D, the guard without a point, disabling, the player of the dialog, the point of Change Playmode, `picks`, the list of the modes). The guard without a point could not be checked at first, because Qt does not run a disabled item by `trigger()`; the test emits the signal directly.
+- Builds and tests pass with Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`; 27 tests). `-DENABLE_3D=OFF` (17 tests) and autotools pass too.
+- The user checks the connection to a real server and right clicks on the screen.
+

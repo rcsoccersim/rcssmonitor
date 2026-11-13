@@ -623,6 +623,8 @@ GL に依存しない計算を、web 版の単体テストを手本に移す。
 | `overlay_math.{h,cpp}` | 2D と 3D で共有する重ね描きの計算 (2D の painter から移す)。Phase 1 で `src/` に作り、オフサイドラインを移した |
 | `play_mode_position.{h,cpp}` | Change Playmode のボールの位置 (Phase 1。3D の審判操作でも使う) |
 | `player_type_sort_proxy.h` | 選手タイプ一覧の並べ替え (Phase 1) |
+| `referee_menu.{h,cpp}`、`referee_target.h` | 右クリックのメニュー (審判操作) と、狙った先 (点と選手)。2D と 3D で共有する (5-4) |
+| `view3d/picking.{h,cpp}` | 3D の右クリックの当たり判定 (カメラの光線と、選手の胴と頭、地面。GL に依存しない。5-4) |
 | `game_log_file.{h,cpp}` | ログのファイルを 1 つのバッファに読み、解析する。libdeflate があれば、gzip をそれで展開する (Phase 2) |
 | `rcss/rcg/line_parser.{h,cpp}` | ログの行を並列に解析し、順に Handler に渡す (Phase 2) |
 | `test/bench_load.cpp` | 読み込みの速さを測る (Phase 2。CI では動かさない) |
@@ -1262,3 +1264,30 @@ PR #67 (`fix/qt-selection`) を Merge Commit で develop に取り込んだ (2a8
 - 制限のないとき (古いログ) の 2D は、前と同じ計算 (同じ式の半径と、同じ整数の円) で描く。
 - Qt 6.4.2 と Qt 5.15.13 (`-Werror=deprecated-declarations`) で、ビルドとテストが通る (テスト 25 個)。`-DENABLE_3D=OFF` (16 個) と autotools も通る。
 - 画面外で、全試合のログ (サーバ 17 以降、±90) の 3,000 フレーム目の両キーパーを、2D と 3D で描いて見た。パラメータを ±180 にしたときは前と同じ円になる。
+
+#### 2026-11-13: 区切り 5-4、審判操作の当たり判定 (`feature/3d-view`)
+
+キャッチ範囲の 2 コミット (d77a892、edad319) をプッシュし、CI が通った。ユーザが画面で確かめた (描く外形は前と同じ 3 つでよい)。
+
+**決めたこと**
+- 右クリックのメニューは、メインウィンドウが 1 つだけ持ち (`RefereeMenu`)、2D と 3D の表示は、右クリックで狙った先 (`RefereeTarget`: フィールドの点と、3D では選手) を知らせるだけにする。前は 2D の `FieldCanvas` がメニューを持ち、画面の座標を送って、メインウィンドウがフィールドの座標に直していた。メインウィンドウの審判操作の関数は、フィールドの座標を受け取るようにした。
+- 3D の当たり判定は web 版 (`playerAt()`、`targetAt()`) と同じ: 画面の点からカメラの光線を出し、描いた選手の胴 (地面から BODY_HEIGHT までの円柱) と頭 (球) のうち最も近いものに当たれば、その選手とその足元。当たらなければ、地面との交点が地面の絵の範囲 (ピッチと周り 5 m) にあればその点。地平線より上や、範囲の外は「位置なし」。位置なしでは、Drop Ball と Free Kick を無効にし、理由をツールチップに出す (web 版と同じ文)。Change Playmode は、メニューバーの Referee と同じくボールの位置から行う。
+- カードの選手を選ぶダイアログは、3D で選手を狙ったときは、その選手を選んだ状態で開く (2D と、メニューバーの Referee からは、前と同じく空)。web 版は 2D でも点に最も近い選手を選んでおくが、rcssmonitor の 2D は変えていない。
+- 人型 (Phase 7) の当たり判定を 1.2 倍にするのは、Phase 7 で行う。
+
+**作ったもの**
+- `src/referee_target.h`、`src/referee_menu.{h,cpp}`: Drop Ball、Free Kick Left と Right、カード、Change Playmode の項目と信号。Change Playmode で選べるモードの一覧は `changePlayModeModes()` (`play_mode_position`) にまとめ、メニューバーの Referee と右クリックのメニューで共有する (前は同じ一覧が 2 か所にあった)。
+- `FieldCanvas`: メニューと、点を送るスロットと信号をやめ、右ボタンを押した点を `refereeMenuRequested()` で知らせる。
+- `src/view3d/picking.{h,cpp}`: `rayAt()` (カメラの行列の逆で、画面の点を近い面と遠い面の点に戻す。真上の正射影のカメラでも使える)、`groundAt()`、`playerAt()` (円柱の側面と上面、球)、`targetAt()`。`SceneContent::picks` に、描いた選手 (チーム、背番号、位置、胴の半径) を入れる。
+- `FieldView3D`: 最後に描いたカメラを覚え、右クリックで `targetAt()` の結果を `refereeMenuRequested()` で知らせる。描く前は位置なし。
+- `Options::setServerPort()` (テスト用)。
+
+**試験**
+- テスト `picking` (新): 光線が、画面の点に描かれた世界の点を通ること (透視と正射影)、真上のカメラの光線が平行で真下、地面との交点と地平線より上、選手の胴の 3 つの高さと頭に当たり、頭の上・胴の横・前の地面には当たらないこと、光線の上の 2 人のうち近いほう (並びの順によらない)、真上から胴の上面に当たること、狙った先 (選手の足元、余白の地面、範囲の外、地平線より上)。
+- テスト `referee_menu` (新、`play_mode_actions` を置き換えた): 項目の並び、Change Playmode のモードがメニューバーと同じこと、点がないときに無効で理由のツールチップが出て、押しても信号を出さないこと、カードと Change Playmode が狙った先を渡すこと、2D の右クリックが押した点を知らせること (メニューのキーでは知らせない)、メインウィンドウが 2D の求めでメニューを開くこと。
+- テスト `referee_commands` (新): 擬似サーバ (ローカルの UDP) に、メインウィンドウをつなぎ、右クリックのメニューの項目から送られるコマンドを確かめる。3D で選手を狙ったときの Drop Ball と Free Kick (`(dispfoul 168 -52 0)` など)、カードのダイアログがその選手を選んでいて、`(dispcard -1 7 yellow)` などが送られること、Change Playmode の点 (`(move (ball) 20 -10 0 0 0)` と `(change_mode play_on)`、kick_in でタッチラインへ)、位置なしでは何も送らないこと。サーバはコーチモードのパラメータを送る。
+- テスト `scene_builder` に足した: 描いた選手だけが `picks` に入ること。
+- どのテストも、確かめる箇所を一時的に壊すと失敗することを確かめた (13 通り: 上面、近いほう、範囲、画面の上下、頭、胴の高さ、2D の押した点、位置なしの守り、無効にすること、ダイアログの選手、Change Playmode の点、`picks`、モードの一覧)。位置なしの守りは、無効な項目を Qt が `trigger()` で動かさないので初めは確かめられず、信号を直に出して確かめるようにした。
+- Qt 6.4.2 と Qt 5.15.13 (`-Werror=deprecated-declarations`) で、ビルドとテストが通る (テスト 27 個)。`-DENABLE_3D=OFF` (17 個) と autotools も通る。
+- 実際のサーバとの接続と、画面での右クリックは、ユーザが確かめる。
+
