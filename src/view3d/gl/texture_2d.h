@@ -56,9 +56,14 @@ public:
     Texture2D( const Texture2D & ) = delete;
     Texture2D & operator=( const Texture2D & ) = delete;
 
-    //! send the image to the GPU (the texture is made at the first time)
+    /*!
+      \brief send the image to the GPU (the texture is made at the first time)
+      \param repeat outside 0 to 1, the image again (the boards) instead of
+      the color of its edge
+    */
     void upload( QOpenGLFunctions_3_3_Core & gl,
-                 const QImage & image );
+                 const QImage & image,
+                 const bool repeat = false );
 
     //! put it on the texture unit (0, 1, ...) for the draw calls that follow
     void bind( QOpenGLFunctions_3_3_Core & gl,

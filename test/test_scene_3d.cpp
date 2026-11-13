@@ -40,6 +40,7 @@
 #include "options.h"
 #include "scene_3d.h"
 #include "scene_builder.h"
+#include "stadium_3d.h"
 
 #include <QOffscreenSurface>
 #include <QOpenGLContext>
@@ -141,6 +142,7 @@ private slots:
     void topCamera();
     void labels();
     void batches();
+    void panels();
     void cleanupTestCase();
 };
 
@@ -521,6 +523,72 @@ TestScene3D::batches()
     const QColor tinted = image.pixelColor( inside );
     QVERIFY2( distance( tinted, field ) > 60 && distance( tinted, QColor( Qt::magenta ) ) > 60, qPrintable( tinted.name() ) );
     QVERIFY2( distance( image.pixelColor( outside ), field ) < 12, qPrintable( image.pixelColor( outside ).name() ) );
+
+    scene.release();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  A panel (Stadium3D): its image on the front, upright (the image's top at
+  the top) and repeated once in every BOARD_TILE m of a board; its back
+  plain in the instance's color; both drawn (no face left out)
+*/
+void
+TestScene3D::panels()
+{
+    DispHolder holder;
+    FieldPainter painter( holder );
+    Scene3D scene;
+    QVERIFY( scene.initialize() );
+    scene.setGround( GroundTexture::draw( painter ) );
+
+    // the board of the left end: red on the upper half, blue on the lower,
+    // and on the right half of each tile a green stripe
+    QImage board( 100, 20, QImage::Format_RGB32 );
+    board.fill( Qt::blue );
+    for ( int y = 0; y < 10; ++y ) for ( int x = 0; x < 100; ++x ) board.setPixelColor( x, y, Qt::red );
+    for ( int y = 0; y < 20; ++y ) for ( int x = 60; x < 80; ++x ) board.setPixelColor( x, y, Qt::green );
+    QImage banner( 10, 10, QImage::Format_RGB32 );
+    banner.fill( Qt::white );
+    scene.setStadium( 0, board, banner );
+
+    const int w = 400, h = 200;
+    QOpenGLFramebufferObjectFormat fbo_format;
+    fbo_format.setAttachment( QOpenGLFramebufferObject::Depth );
+    QOpenGLFramebufferObject fbo( w, h, fbo_format );
+
+    // a board 20 m wide and 4 m high, standing 10 m in front of the camera,
+    // facing it (+z); the camera 30 m away, so that it fills the middle
+    SceneContent content;
+    QMatrix4x4 m;
+    m.translate( 0.0f, 2.0f, 0.0f );
+    m.scale( 2.0f * Stadium3D::BOARD_TILE, 4.0f, 1.0f );
+    content.boards[0].push_back( Instance3D{ m, QVector4D( 1.0f, 1.0f, 0.0f, 1.0f ) } );
+    CameraPose camera;
+    camera.position = QVector3D( 0.0f, 2.0f, 30.0f );
+    camera.target = QVector3D( 0.0f, 2.0f, 0.0f );
+    scene.render( fbo.handle(), w, h, camera, content );
+    QImage front = fbo.toImage();
+
+    // where a point of the board is on the screen
+    const QMatrix4x4 vp = camera.projection( float( w ) / h ) * camera.view();
+    const auto at = [&]( const float x, const float y ) {
+        const QVector3D ndc = vp.map( QVector3D( x, y, 0.0f ) );
+        return QPoint( int( ( ndc.x() + 1.0f ) / 2.0f * w ), int( ( 1.0f - ndc.y() ) / 2.0f * h ) );
+    };
+    // the top red, the bottom blue (not upside down), at the first tile's left
+    QCOMPARE( front.pixelColor( at( -9.0f, 3.0f ) ), QColor( Qt::red ) );
+    QCOMPARE( front.pixelColor( at( -9.0f, 1.0f ) ), QColor( Qt::blue ) );
+    // the green stripe at 6 to 8 m of each tile: in both tiles
+    QCOMPARE( front.pixelColor( at( -10.0f + 7.0f, 2.0f ) ), QColor( Qt::green ) );
+    QCOMPARE( front.pixelColor( at( 7.0f, 2.0f ) ), QColor( Qt::green ) );
+    QCOMPARE( front.pixelColor( at( 3.0f, 3.0f ) ), QColor( Qt::red ) );
+
+    // from behind: the plain back (yellow), not the image
+    camera.position = QVector3D( 0.0f, 2.0f, -30.0f );
+    scene.render( fbo.handle(), w, h, camera, content );
+    const QImage back = fbo.toImage();
+    QCOMPARE( back.pixelColor( w / 2, h / 2 ), QColor( Qt::yellow ) );
 
     scene.release();
 }

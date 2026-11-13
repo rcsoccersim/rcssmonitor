@@ -41,6 +41,7 @@
 #include <QString>
 #include <QVector3D>
 
+#include <array>
 #include <vector>
 
 /*!
@@ -91,6 +92,11 @@ struct SceneContent {
     std::vector< Instance3D > decay_rings; //!< 1.1 to 1.22 on the xz plane: the decay of effort or recovery
     std::vector< Instance3D > quads; //!< 1 x 1 on the xy plane, centered, both sides: the nets and the floors of the goals
 
+    // unlit panels of the unit quad, by the end (0: left, 1: right): its
+    // image on the front (+z), the back plain in the instance's color
+    std::array< std::vector< Instance3D >, 2 > boards; //!< the boards around the pitch, the image once in every Stadium3D::BOARD_TILE m
+    std::array< std::vector< Instance3D >, 2 > banners; //!< the banners behind the goals, the image once across
+
     // made again in every frame, translucent too (OverlayBuilder)
     std::vector< ColorVertex3D > sectors; //!< triangles: the view areas
     std::vector< ColorVertex3D > lines; //!< each two vertices, a line: the overlays on the ground
@@ -116,6 +122,8 @@ struct SceneContent {
           rings.clear();
           decay_rings.clear();
           quads.clear();
+          for ( auto & b : boards ) b.clear();
+          for ( auto & b : banners ) b.clear();
           sectors.clear();
           lines.clear();
           dotted_lines.clear();

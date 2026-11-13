@@ -181,6 +181,8 @@ private:
     double M_closeup_distance_3d; //!< the close-up cameras: how far from what they follow (m)
     double M_closeup_elevation_3d; //!< the close-up cameras: how high above it (degree)
     PlayerCameraOptions M_player_camera; //!< the styles of the selected player's camera
+    bool M_boards_3d; //!< the boards around the pitch in the team colors
+    bool M_banners_3d; //!< the banners behind the goals in the team colors
     bool M_show_tool_bar;
     bool M_show_status_bar;
 
@@ -393,6 +395,13 @@ public:
     const PlayerCameraOptions & playerCamera() const { return M_player_camera; }
     //! the numbers are kept within their ranges (PlayerCameraStyle)
     void setPlayerCamera( const PlayerCameraOptions & options );
+
+    //! the 3D view: the boards around the pitch, in the team colors
+    bool boards3D() const { return M_boards_3d; }
+    void setBoards3D( const bool on ) { M_boards_3d = on; }
+    //! the 3D view: the banners high behind the goals, with the team names and logos
+    bool banners3D() const { return M_banners_3d; }
+    void setBanners3D( const bool on ) { M_banners_3d = on; }
     bool showToolBar() const { return M_show_tool_bar; }
     bool showStatusBar() const { return M_show_status_bar; }
 

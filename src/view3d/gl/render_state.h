@@ -66,6 +66,9 @@ struct RenderState {
     //! the solids: the ground, the players, the ball, the goal posts
     static RenderState opaque() { return { true, true, true, false }; }
 
+    //! the panels (the boards, the banners): solid, both faces (the shader paints the back)
+    static RenderState opaqueTwoSided() { return { true, true, false, false }; }
+
     //! the layers on the ground and the nets: hidden by the solids, hiding nothing, seen from both sides
     static RenderState translucent() { return { true, false, false, true }; }
 

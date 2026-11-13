@@ -118,8 +118,14 @@ double ballRadius( const Options & options,
 //! the opacity of the ball's shadow, fainter as the ball goes up
 double ballShadowOpacity( const rcss::rcg::BallT & ball );
 
-//! the goals, which do not move
-void addGoals( SceneContent & content );
+/*!
+  \brief the goals, which do not move, with the nets in the colors of the
+  teams that keep them (rcssserver does not change ends: the left team
+  keeps the left goal for the whole game), to tell the ends apart
+*/
+void addGoals( SceneContent & content,
+               const QColor & left_net = QColor( Qt::white ),
+               const QColor & right_net = QColor( Qt::white ) );
 
 /*!
   \brief the players and the ball of a show

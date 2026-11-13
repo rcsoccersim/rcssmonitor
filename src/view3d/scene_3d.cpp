@@ -38,6 +38,7 @@
 
 #include "ground_texture.h"
 #include "meshes_3d.h"
+#include "stadium_3d.h"
 #include "gl/frame.h"
 #include "gl/render_state.h"
 
@@ -89,13 +90,15 @@ Scene3D::initialize()
          || ! M_lit_program.load( "lit" )
          || ! M_flat_program.load( "flat" )
          || ! M_billboard_program.load( "billboard" )
-         || ! M_colored_program.load( "colored" ) )
+         || ! M_colored_program.load( "colored" )
+         || ! M_panel_program.load( "panel" ) )
     {
         M_ground_program.destroy();
         M_lit_program.destroy();
         M_flat_program.destroy();
         M_billboard_program.destroy();
         M_colored_program.destroy();
+        M_panel_program.destroy();
         return false;
     }
 
@@ -109,6 +112,7 @@ Scene3D::initialize()
     M_ring.create( *this, Meshes3D::ring( 0.92f, 1.08f, 40 ) );
     M_decay_ring.create( *this, Meshes3D::ring( 1.1f, 1.22f, 40 ) );
     M_quad.create( *this, Meshes3D::quad() );
+    M_panel.create( *this, Meshes3D::quad() );
     M_billboards.create( *this );
     for ( VertexBatch * b : { &M_sector_batch, &M_line_batch, &M_dotted_batch, &M_point_batch } )
     {
@@ -126,7 +130,7 @@ Scene3D::release()
     {
         return;
     }
-    for ( InstancedMesh * m : { &M_ground, &M_cylinder, &M_sphere, &M_cone, &M_disc, &M_ring, &M_decay_ring, &M_quad } )
+    for ( InstancedMesh * m : { &M_ground, &M_cylinder, &M_sphere, &M_cone, &M_disc, &M_ring, &M_decay_ring, &M_quad, &M_panel } )
     {
         m->destroy( *this );
     }
@@ -137,11 +141,17 @@ Scene3D::release()
     }
     M_ground_texture.destroy( *this );
     M_label_texture.destroy( *this );
+    for ( int end = 0; end < 2; ++end )
+    {
+        M_board_textures[end].destroy( *this );
+        M_banner_textures[end].destroy( *this );
+    }
     M_ground_program.destroy();
     M_lit_program.destroy();
     M_flat_program.destroy();
     M_billboard_program.destroy();
     M_colored_program.destroy();
+    M_panel_program.destroy();
     M_initialized = false;
 }
 
@@ -157,6 +167,16 @@ void
 Scene3D::setLabels( const QImage & image )
 {
     M_label_texture.upload( *this, image );
+}
+
+/*-------------------------------------------------------------------*/
+void
+Scene3D::setStadium( const int end,
+                     const QImage & board,
+                     const QImage & banner )
+{
+    M_board_textures[end].upload( *this, board, true ); // repeated along the boards
+    M_banner_textures[end].upload( *this, banner );
 }
 
 /*-------------------------------------------------------------------*/
@@ -197,6 +217,30 @@ Scene3D::render( GLuint fbo,
     M_cylinder.draw( *this, content.cylinders );
     M_sphere.draw( *this, content.spheres );
     M_cone.draw( *this, content.cones );
+
+    //
+    // pass 2b: the boards and the banners, solid and unlit, both faces (the
+    // shader paints the back plain), with each end's images on texture unit 0
+    //
+    RenderState::opaqueTwoSided().apply( *this );
+    M_panel_program.bind();
+    M_panel_program.set( "uViewProj", view_proj );
+    M_panel_program.set( "uTexture", 0 );
+    for ( int end = 0; end < 2; ++end )
+    {
+        if ( ! content.boards[end].empty() )
+        {
+            M_panel_program.set( "uTile", Stadium3D::BOARD_TILE );
+            M_board_textures[end].bind( *this, 0 );
+            M_panel.draw( *this, content.boards[end] );
+        }
+        if ( ! content.banners[end].empty() )
+        {
+            M_panel_program.set( "uTile", Stadium3D::BANNER_WIDTH );
+            M_banner_textures[end].bind( *this, 0 );
+            M_panel.draw( *this, content.banners[end] );
+        }
+    }
 
     //
     // pass 3: the translucent ones, after the solids, which hide them where

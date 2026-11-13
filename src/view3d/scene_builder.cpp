@@ -155,20 +155,22 @@ ballShadowOpacity( const rcss::rcg::BallT & ball )
 
 /*-------------------------------------------------------------------*/
 void
-addGoals( SceneContent & content )
+addGoals( SceneContent & content,
+          const QColor & left_net,
+          const QColor & right_net )
 {
     const float r = float( std::max( Options::GOAL_POST_RADIUS, 0.06 ) );
     const float half_width = float( Options::GOAL_HALF_WIDTH );
     const float width = float( Options::GOAL_WIDTH );
     const float depth = float( Options::GOAL_DEPTH );
     const QVector4D white( 1.0f, 1.0f, 1.0f, 1.0f );
-    const QVector4D net( 1.0f, 1.0f, 1.0f, NET_OPACITY );
 
     for ( const float side : { -1.0f, 1.0f } )
     {
         const float line_x = side * float( Options::PITCH_HALF_LENGTH );
         const float back_x = line_x + side * depth;
         const float mid_x = ( line_x + back_x ) / 2.0f;
+        const QVector4D net = rgba( side < 0.0f ? left_net : right_net, NET_OPACITY );
 
         // The posts and the crossbar, of the unit cylinder (radius 1,
         // height 1 along y, centered). The calls of QMatrix4x4 apply to the

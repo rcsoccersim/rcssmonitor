@@ -53,7 +53,8 @@ constexpr float MAX_ANISOTROPY = 8.0f;
 /*-------------------------------------------------------------------*/
 void
 Texture2D::upload( QOpenGLFunctions_3_3_Core & gl,
-                   const QImage & image )
+                   const QImage & image,
+                   const bool repeat )
 {
     if ( M_id == 0 )
     {
@@ -73,8 +74,8 @@ Texture2D::upload( QOpenGLFunctions_3_3_Core & gl,
     gl.glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR );
     gl.glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
 
-    // outside 0 to 1, the color of the edge (not the image repeated)
-    gl.glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
+    // outside 0 to 1 across, the image again, or the color of the edge
+    gl.glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, repeat ? GL_REPEAT : GL_CLAMP_TO_EDGE );
     gl.glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
 
     // anisotropic filtering: the ground seen at a low angle stays sharp

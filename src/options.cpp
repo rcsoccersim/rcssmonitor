@@ -243,6 +243,8 @@ Options::Options()
     M_camera_3d( DEFAULT_CAMERA_MODE ),
     M_closeup_distance_3d( CLOSEUP_DISTANCE_3D ),
     M_closeup_elevation_3d( CLOSEUP_ELEVATION_3D ),
+    M_boards_3d( true ),
+    M_banners_3d( true ),
     M_show_tool_bar( false ),
     M_show_status_bar( false ),
     // view options
@@ -733,6 +735,12 @@ Options::readSettings()
         M_closeup_elevation_3d = val.toDouble();
     }
 
+    val = settings.value( "boards_3d" );
+    if ( val.isValid() ) M_boards_3d = val.toBool();
+
+    val = settings.value( "banners_3d" );
+    if ( val.isValid() ) M_banners_3d = val.toBool();
+
     // the player camera: an unknown name (of a later version) is not read
     {
         using namespace PlayerCameraStyle;
@@ -906,6 +914,8 @@ Options::writeSettings( bool all )
     settings.beginGroup( "View3D" );
     settings.setValue( "closeup_distance_3d", M_closeup_distance_3d );
     settings.setValue( "closeup_elevation_3d", M_closeup_elevation_3d );
+    settings.setValue( "boards_3d", M_boards_3d );
+    settings.setValue( "banners_3d", M_banners_3d );
     {
         using namespace PlayerCameraStyle;
         const PlayerCameraOptions & pc = M_player_camera;
@@ -1066,6 +1076,14 @@ Options::parseCmdLine( int argc,
                                                  "degrees",
                                                  to_string( M_closeup_elevation_3d ) );
     parser.addOption( opt_closeup_elevation_3d );
+    QCommandLineOption opt_boards_3d( "boards-3d",
+                                      "The 3D view: the boards around the pitch in the team colors. (Default=" + to_onoff( M_boards_3d ) + ")",
+                                      "bool", to_onoff( M_boards_3d ) );
+    parser.addOption( opt_boards_3d );
+    QCommandLineOption opt_banners_3d( "banners-3d",
+                                       "The 3D view: the banners behind the goals with the team names and logos. (Default=" + to_onoff( M_banners_3d ) + ")",
+                                       "bool", to_onoff( M_banners_3d ) );
+    parser.addOption( opt_banners_3d );
     // the player camera: the names of a style's values
     const auto names_of = []( const auto & list )
         {
@@ -1299,6 +1317,8 @@ Options::parseCmdLine( int argc,
         if ( in_range( e, MIN_CLOSEUP_ELEVATION_3D, MAX_CLOSEUP_ELEVATION_3D ) ) M_closeup_elevation_3d = e;
         else std::cerr << "Out of range: closeup-elevation-3d " << parser.value( opt_closeup_elevation_3d ).toStdString() << std::endl;
     }
+    if ( parser.isSet( opt_boards_3d ) ) M_boards_3d = to_bool( parser.value( opt_boards_3d ), M_boards_3d );
+    if ( parser.isSet( opt_banners_3d ) ) M_banners_3d = to_bool( parser.value( opt_banners_3d ), M_banners_3d );
     {
         PlayerCameraOptions & pc = M_player_camera;
         const auto unknown = []( const QCommandLineOption & opt, const QString & value )

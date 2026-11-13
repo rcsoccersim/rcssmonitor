@@ -166,6 +166,21 @@ private slots:
           // the back of the net behind the goal line
           QVERIFY( near( at( c.quads[0] ), QVector3D( -x - float( Options::GOAL_DEPTH ), SceneBuilder::GOAL_HEIGHT / 2, 0 ) ) );
           QCOMPARE( c.quads[0].color.w(), SceneBuilder::NET_OPACITY );
+
+          // the nets in the colors of the teams that keep the goals: the
+          // left team the left goal (x < 0); the floors stay dark
+          c.clear();
+          SceneBuilder::addGoals( c, QColor( 255, 0, 0 ), QColor( 0, 0, 255 ) );
+          int left_nets = 0, right_nets = 0;
+          for ( const Instance3D & q : c.quads )
+          {
+              if ( q.color.w() != SceneBuilder::NET_OPACITY ) continue;
+              const bool left = ( at( q ).x() < 0.0f );
+              QCOMPARE( q.color.toVector3D(), left ? QVector3D( 1, 0, 0 ) : QVector3D( 0, 0, 1 ) );
+              ++( left ? left_nets : right_nets );
+          }
+          QCOMPARE( left_nets, 4 );
+          QCOMPARE( right_nets, 4 );
       }
 
     void players()

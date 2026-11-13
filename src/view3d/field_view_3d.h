@@ -178,6 +178,7 @@ private:
     SceneContent M_content; //!< what to draw, reused in every frame
     bool M_ready; //!< Scene3D could be initialized
     QString M_ground_key; //!< what the ground was drawn with (GroundTexture::key())
+    QString M_stadium_keys[2]; //!< what each end's boards and banner were drawn with (Stadium3D::TeamLook::key())
 
     const rcss::rcg::DispInfoT * M_newest; //!< the newest frame when it was last drawn
     QElapsedTimer M_newest_clock; //!< since the newest frame came

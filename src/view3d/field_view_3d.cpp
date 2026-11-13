@@ -40,6 +40,7 @@
 #include "interpolate.h"
 #include "overlay_builder.h"
 #include "picking.h"
+#include "stadium_3d.h"
 #include "scene_builder.h"
 
 #include "disp_holder.h"
@@ -161,6 +162,8 @@ FieldView3D::initializeGL()
         std::cerr << "(FieldView3D) OpenGL 3.3 core is not available" << std::endl;
     }
     M_ground_key.clear();
+    M_stadium_keys[0].clear();
+    M_stadium_keys[1].clear();
     // the new context has no texture of the labels yet
     M_label_atlas = LabelAtlas();
 }
@@ -208,8 +211,33 @@ FieldView3D::paintGL()
         selectPlayerNearestBall( current->show_, Options::instance() );
     }
 
+    // The ends in the team colors: the nets, and the boards and the banners
+    // with the team names and logos, drawn again when they change
+    const Options & opt = Options::instance();
+    const QColor team_colors[2] = { opt.leftTeamBrush().color(), opt.rightTeamBrush().color() };
+    {
+        const DispConstPtr current = M_disp_holder.currentDisp();
+        for ( int end = 0; end < 2; ++end )
+        {
+            Stadium3D::TeamLook look;
+            look.color = team_colors[end];
+            look.name = ( current ? QString::fromStdString( current->team_[end].name_ ) : QString() );
+            if ( opt.showTeamGraphic() )
+            {
+                look.logo = M_team_graphic_painter->pixmap( end == 0 ).toImage();
+            }
+            const QString key = look.key();
+            if ( key != M_stadium_keys[end] )
+            {
+                M_scene.setStadium( end, Stadium3D::boardImage( look ), Stadium3D::bannerImage( look ) );
+                M_stadium_keys[end] = key;
+            }
+        }
+    }
+
     M_content.clear();
-    SceneBuilder::addGoals( M_content );
+    SceneBuilder::addGoals( M_content, team_colors[0], team_colors[1] );
+    Stadium3D::addPanels( M_content, opt.boards3D(), opt.banners3D(), team_colors[0], team_colors[1] );
     rcss::rcg::ShowInfoT show;
     if ( ! frames.empty() )
     {

@@ -101,6 +101,14 @@ public:
     void setLabels( const QImage & image );
 
     /*!
+      \brief send the images of an end's boards and banner (Stadium3D) to the GPU
+      \param end 0: left, 1: right
+    */
+    void setStadium( const int end,
+                     const QImage & board,
+                     const QImage & banner );
+
+    /*!
       \brief draw the scene.
       \param fbo the framebuffer to draw into: OpenGL's number of the
       widget's (QOpenGLWidget::defaultFramebufferObject()) or of an offscreen one
@@ -123,6 +131,7 @@ private:
     ShaderProgram M_flat_program; //!< "flat": the flat colors, translucent
     ShaderProgram M_billboard_program; //!< "billboard": the labels, facing the camera
     ShaderProgram M_colored_program; //!< "colored": the lines, dots and view areas, each vertex its color
+    ShaderProgram M_panel_program; //!< "panel": the boards and the banners, an image on the front, unlit
 
     // the shapes (Meshes3D), each drawn in instances
     InstancedMesh M_ground; //!< the area of the ground image
@@ -133,6 +142,7 @@ private:
     InstancedMesh M_ring; //!< the outline of a highlighted player
     InstancedMesh M_decay_ring; //!< the decay of effort or recovery
     InstancedMesh M_quad; //!< the nets, the floors of the goals
+    InstancedMesh M_panel; //!< the boards and the banners
     BillboardMesh M_billboards; //!< the numbers and the cards
 
     // made again in every frame (OverlayBuilder)
@@ -143,6 +153,8 @@ private:
 
     Texture2D M_ground_texture; //!< the image of the ground
     Texture2D M_label_texture; //!< the images of the labels
+    Texture2D M_board_textures[2]; //!< a tile of the boards of each end (repeated)
+    Texture2D M_banner_textures[2]; //!< the banner of each end
     const std::vector< Instance3D > M_ground_instance; //!< one instance of the ground, where it is (no move)
 };
 

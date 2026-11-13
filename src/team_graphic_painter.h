@@ -65,6 +65,16 @@ public:
 
     void draw( QPainter & painter ) override;
 
+    /*!
+      \brief the team graphic of a team as the last draw() made it (null
+      before it arrives, or when the Team Graphic option is off)
+      \param left the left team, or the right
+    */
+    const QPixmap & pixmap( const bool left ) const
+      {
+          return ( left ? M_team_graphic_pixmap_left : M_team_graphic_pixmap_right );
+      }
+
 private:
 
     void copyTeamGraphic( QPixmap & dst_pixmap,
