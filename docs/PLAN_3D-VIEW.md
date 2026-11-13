@@ -371,14 +371,14 @@ Shift を使うショートカットは作らない。関係のある別の操�
 | 名前 | 既定 | 値 |
 |---|---|---|
 | `view_3d` | off | 3D で始める (コマンドラインは、今のオプションに合わせて `--view-3d`。Phase 4 の 4-1) |
-| `camera_3d` | broadcast | free / broadcast / closeup-ball / closeup-player / top / goal-left / goal-right / player (コマンドラインは `--camera-3d`。4-4 では寄りと選手視点を除く 5 つ、6-1 で寄りの 2 つを足した。知らない名前は読まない) |
+| `camera_3d` | broadcast | free / broadcast / closeup-ball / closeup-player / top / goal-left / goal-right / player (コマンドラインは `--camera-3d`。4-4 では寄りと選手視点を除く 5 つ、6-1 で寄りの 2 つ、6-3 で選手視点を足した。知らない名前は読まない) |
 | `closeup_distance_3d`、`closeup_elevation_3d` | 12、20 | 3〜60 m、5〜85° (設定ファイルのグループ `View3D`。コマンドラインは `--closeup-distance-3d`、`--closeup-elevation-3d`。6-1) |
 | `player_camera_position` | shoulder | eye / shoulder |
 | `player_camera_direction` | head | head / body / middle |
 | `player_camera_motion` | smooth | instant / smooth |
 | `player_camera_fov` | fixed | view / eased / fixed |
 | `player_camera_sight` | server | all / view / server |
-| `player_camera_time_constant`、`player_camera_max_turn`、`player_camera_fixed_fov` | 0.5、90、120 | 0〜5 s、1〜3600 °/s、20〜120° |
+| `player_camera_time_constant`、`player_camera_max_turn`、`player_camera_fixed_fov` | 0.5、90、120 | 0〜5 s、1〜3600 °/s、20〜120° (選手視点の 8 つは、グループ `View3D`。コマンドラインは `--player-camera-position` などの同じ名前。6-3) |
 | `compass_3d`、`minimap_3d` | off | off / player / all |
 | `boards_3d`、`banners_3d` | on | |
 | `player_model_3d` | simple | simple / figure |
@@ -625,6 +625,7 @@ GL に依存しない計算を、web 版の単体テストを手本に移す。
 | `play_mode_position.{h,cpp}` | Change Playmode のボールの位置 (Phase 1。3D の審判操作でも使う) |
 | `player_type_sort_proxy.h` | 選手タイプ一覧の並べ替え (Phase 1) |
 | `referee_menu.{h,cpp}`、`referee_target.h` | 右クリックのメニュー (審判操作) と、狙った先 (点と選手)。2D と 3D で共有する (5-4) |
+| `player_camera_options.h` | 選手視点のスタイルの種類と名前と範囲 (GL に依存しない。設定が使う。6-3) |
 | `view3d/picking.{h,cpp}` | 3D の右クリックの当たり判定 (カメラの光線と、選手の胴と頭、地面。GL に依存しない。5-4) |
 | `game_log_file.{h,cpp}` | ログのファイルを 1 つのバッファに読み、解析する。libdeflate があれば、gzip をそれで展開する (Phase 2) |
 | `rcss/rcg/line_parser.{h,cpp}` | ログの行を並列に解析し、順に Handler に渡す (Phase 2) |
@@ -1374,4 +1375,35 @@ CI の直しと SceneContent の分離の 3 コミット (fb41ec9〜b281ba2) を
 - どのテストも、確かめる箇所を一時的に壊すと失敗することを確かめた (8 通り: free にすること、視点に置くこと、倍率を戻すこと、視点の仰角、Ctrl+I の順、2D でカメラを変えないこと、ボタンを無効にすること、メニューの Ctrl+I)。
 - Qt 6.4.2 と Qt 5.15.13 (`-Werror=deprecated-declarations`) で、ビルドとテストが通る (テスト 27 個)。`-DENABLE_3D=OFF` (17 個) と autotools も通る。
 - 3D での I、Ctrl+I、ツールバーのボタンは、画面のないテストの環境では動かせないので、ユーザが画面で確かめる。
+
+#### 2026-11-13: 区切り 6-3、選手視点と知覚 (`feature/3d-view`)
+
+6-2 の 2 コミット (dc172be、c7b493c) をプッシュし、ユーザが CI を確かめた (通った)。ユーザの指示で 6-3 から再開した。
+
+**決めたこと**
+- 選手視点は web 版と同じ (`player-camera.ts`、§4.3): 位置 (目の高さ 1.65 m / 肩越し: 6 m 後ろ、3 m 上から 15 m 先の高さ 1 m を見る)、向き (頭 = 体 + 首 / 体 / その中間)、動き (即時 / 滑らか: 時定数で近づき、角速度の上限を超えない)、画角 (視野の幅 (40〜120°。わからなければ 90°) / それになめらかに近づく / 一定)。既定は肩越し、頭、滑らか、一定の 120°、サーバの規則、時定数 0.5 s、最大 90°/s (ユーザが web 版で決めた値。§11 の 13)。別の選手になったとき、1 サイクルに動ける距離 (3 m) より大きく跳んだとき、スタイルを変えたときは、なめらかにせずにすぐその向きにする。
+- 選手が選ばれていないときは、中継風のカメラ (web 版と同じ)。選手視点はマウスを受けない (web 版と同じ)。E で回る順の最後。
+- 知覚は web 版と同じ (`sight.ts`、§4.3): すべて / 視野の中だけ / サーバの規則 (視野の中は観測の距離まで。背番号は `unum_far_length`〜`unum_too_far_length` で薄れ、背番号がなければ向きもない。チームは `team_far_length`〜`team_too_far_length` で灰色 (#9a9a9a) に近づく。視野の外は `visible_distance` の中だけ、何かがあることだけ)。決めるのはサイクルのフレームで、補間したフレームではない。サーバと違って本当の距離で決め、毎サイクル決める。
+- 知覚の当て方も web 版と同じ: 見えない選手とボールは描かない。チームがわからない選手は灰色に寄せ、強調の輪とカードを出さない。向きがわからない選手は向きの円錐と、足元の向きの線、視野、Show タブの重ね描きを出さない。背番号はわかる確からしさを不透明度にする。スタミナのバーは自分のものだけ (サーバはほかの選手のスタミナを伝えない)。目の高さでは、選手自身を描かない (向きの線などは残る)。ボールが見えなければ予測軌道も出さない。
+- 知覚の計算の名前空間は `PlayerSight` にした (選手視点のスタイルの `PlayerCameraStyle::Sight` と同じ名前にすると、両方を使う所で名前がぶつかるため)。
+- Z と X は、選手視点では何もしない (選手がいないときの中継風のカメラは寄る)。
+
+**作ったもの**
+- `src/player_camera_options.h`: スタイルの種類 (`PlayerCameraStyle::Position`、`Direction`、`Motion`、`Fov`、`Sight`)、設定の名前、数値の範囲、`PlayerCameraOptions` (既定値)。設定 (`Options`) が使うので、GL に依存しない所に置く。
+- `Options`: 選手視点の 8 つの設定 (グループ `View3D`、範囲の外と知らない名前は読まない) とコマンドラインのオプション。`setPlayerCamera()` は数値を範囲に収める。
+- `CameraMode::Player` (`player`、「Selected Player」)。
+- `src/view3d/player_camera_3d`: `referenceDirection()`、`viewFov()`、`turnToward()`、`easeToward()`、`pose()`、`PlayerCameraState` (フレームからフレームへ向きと画角を持つ)。
+- `CameraController`: 選手視点 (`setPlayerCamera()`、`CameraSubject::player`)。マウスを受けない (`takeMouse()` が `takesMouse()` を見るようにした。前は真上のカメラだけを見ていて、テストで選手視点が free になることを見つけた)。
+- `src/view3d/sight`: `PlayerSight::omitProbability()`、`perceivePlayer()`、`perceiveBall()`、`Perceptions` (ショーの選手ごとの知覚、ボール、描かない選手)、`fadeTeam()`。
+- `SceneBuilder::addShow()`、`addLabels()`、`OverlayBuilder::addDirections()`、`addViewAreas()`、`addOverlays()` に、知覚 (`const Perceptions *`、なければすべて) を渡すようにした。
+- `FieldView3D`: 選手視点で選手が選ばれているとき、サイクルのフレームで知覚を決めて組み立てに渡し、選手視点のスタイルをカメラに渡す。
+
+**試験**
+- テスト `player_camera` (新): 向き (頭、体、中間、首のないとき)、視野の幅の画角 (40〜120、わからなければ 90)、`turnToward()` (時定数なしならすぐ、短い回り方向で 180° を越える、時定数で 1 - 1/e、首を 180° 回しても 1 フレームに上限を超えない)、`easeToward()`、位置 (目の高さ、肩越し、16:9 での縦の画角)、状態 (最初はすぐ、滑らかは上限を超えずに向いて止まる、即時、画角のなめらかな変化と視野の幅、別の選手と跳んだときはすぐ、跳ばない一歩はなめらか、`reset()` の後はすぐ)、コントローラ (マウスを受けない、スタイルどおりの位置と画角、なめらかに回っている途中でスタイルを変えるとすぐその向き、選手がいなければ中継風)、設定 (範囲に収める、名前の変換、既定値)。
+- テスト `sight` (新): 省かれる確からしさ、すべてと視野の中 (顔の向きで決まる、視野の端、狭い視野)、サーバの規則 (背番号が薄れる、チームが薄れる、チームが先に薄れるときは背番号も同じだけ、観測の距離の外、後ろの感じる距離、ボール、視野の幅がないときはサーバの `visible_angle`)、ショーの知覚 (自分はどちらを向いていても全部、目の高さでは描かないが重ね描きのための知覚は残る、すべてのときは描かない選手だけ)、灰色への寄せ方。
+- テスト `scene_builder`、`overlay_builder` に足した: 知覚のあるときの描かない選手とボール、灰色、強調の輪、向きの円錐、当たり判定の選手、背番号の不透明度、カード、自分のバーだけ、向きの線・視野・重ね描き・ボールの予測軌道、目の高さでの自分の線。
+- テスト `cameras_3d`、`view_switch`: E の順の最後に選手視点。
+- どのテストも、確かめる箇所を一時的に壊すと失敗することを確かめた (22 通り: 背番号とチームの掛け合わせ、向き、顔の向き、感じる距離、自分の知覚、灰色、強調の輪、向きの円錐、ボール、背番号の不透明度、カード、自分のバー、重ね描きの向き、予測軌道、角速度の上限、短い回り方向、跳んだとき、別の選手、画角のなめらかな変化、スタイルの変化でのやり直し、マウス、画角の範囲)。自分の知覚は、選手が +x を向いているときは壊しても変わらなかったので、反対を向いたときを足した。
+- Qt 6.4.2 と Qt 5.15.13 (`-Werror=deprecated-declarations`) で、ビルドとテストが通る (テスト 29 個)。`-DENABLE_3D=OFF` (17 個) と autotools も通る。
+- 画面外で、全試合のログの 3,000 フレーム目を、左の 9 番の選手視点 (肩越しのすべてとサーバの規則、目の高さのサーバの規則と視野の中) で描いて見た。設定ダイアログのタブは 6-6 で作る (それまでは設定ファイルとコマンドラインで変える)。
 

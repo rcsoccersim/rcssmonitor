@@ -371,14 +371,14 @@ Add to `Options` and save to `~/.rcssmonitor.conf`. The names follow the web ver
 | Name | Default | Values |
 |---|---|---|
 | `view_3d` | off | Start in 3D (on the command line `--view-3d`, as the other options; 4-1 of Phase 4) |
-| `camera_3d` | broadcast | free / broadcast / closeup-ball / closeup-player / top / goal-left / goal-right / player (`--camera-3d` on the command line; in 4-4, the five without the close-ups and the player camera; 6-1 added the two close-ups; an unknown name is not read) |
+| `camera_3d` | broadcast | free / broadcast / closeup-ball / closeup-player / top / goal-left / goal-right / player (`--camera-3d` on the command line; in 4-4, the five without the close-ups and the player camera; 6-1 added the two close-ups, 6-3 the player camera; an unknown name is not read) |
 | `closeup_distance_3d`, `closeup_elevation_3d` | 12, 20 | 3–60 m, 5–85° (the group `View3D` of the settings file; `--closeup-distance-3d`, `--closeup-elevation-3d` on the command line; 6-1) |
 | `player_camera_position` | shoulder | eye / shoulder |
 | `player_camera_direction` | head | head / body / middle |
 | `player_camera_motion` | smooth | instant / smooth |
 | `player_camera_fov` | fixed | view / eased / fixed |
 | `player_camera_sight` | server | all / view / server |
-| `player_camera_time_constant`, `player_camera_max_turn`, `player_camera_fixed_fov` | 0.5, 90, 120 | 0–5 s, 1–3600 °/s, 20–120° |
+| `player_camera_time_constant`, `player_camera_max_turn`, `player_camera_fixed_fov` | 0.5, 90, 120 | 0–5 s, 1–3600 °/s, 20–120° (the eight of the player camera in the group `View3D`; on the command line by the same names, `--player-camera-position` and so on; 6-3) |
 | `compass_3d`, `minimap_3d` | off | off / player / all |
 | `boards_3d`, `banners_3d` | on | |
 | `player_model_3d` | simple | simple / figure |
@@ -625,6 +625,7 @@ Port the GL-independent calculations, using the web version's unit tests as mode
 | `play_mode_position.{h,cpp}` | The ball position for Change Playmode (Phase 1; also used by the 3D referee operations) |
 | `player_type_sort_proxy.h` | Sorting of the player type list (Phase 1) |
 | `referee_menu.{h,cpp}`, `referee_target.h` | The menu of a right click (the referee's operations) and what it aims at (a point and a player), shared by 2D and 3D (5-4) |
+| `player_camera_options.h` | The kinds, names and ranges of the player camera's styles (no GL; the options use it; 6-3) |
 | `view3d/picking.{h,cpp}` | What a right click in 3D hits (the camera's ray, the players' bodies and heads, the ground; no GL; 5-4) |
 | `game_log_file.{h,cpp}` | Reading a log file into one buffer and parsing it. With libdeflate, gzip is decompressed with it (Phase 2) |
 | `rcss/rcg/line_parser.{h,cpp}` | Parsing the lines of a log in parallel and passing them to the handler in order (Phase 2) |
@@ -1374,4 +1375,35 @@ The 2 commits of 6-1 (b70c4c1, 2fbdde9) were pushed, and the CI passed. The user
 - Every test was confirmed to fail when what it checks is broken for a while (8 ways: making it free, placing it at the viewpoint, setting the zoom back, a viewpoint's elevation, the order of Ctrl+I, not changing the camera in 2D, disabling the button, Ctrl+I in the menu).
 - Builds and tests pass with Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`; 27 tests). `-DENABLE_3D=OFF` (17 tests) and autotools pass too.
 - I, Ctrl+I and the button of the tool bar in 3D cannot be run in the tests without a display; the user checks them on the screen.
+
+#### 2026-11-13: Step 6-3, the player camera and perception (`feature/3d-view`)
+
+The 2 commits of 6-2 (dc172be, c7b493c) were pushed, and the user checked the CI (it passed). Work resumed at 6-3 at the user's word.
+
+**Decided**
+- The player camera is as in the web version (`player-camera.ts`, §4.3): the position (at the eyes, 1.65 m / over the shoulder: 6 m behind and 3 m up, looking at a point 15 m ahead and 1 m high), the direction (the head = body + neck / the body / halfway), the motion (instant / smooth: toward it with a time constant, never faster than the largest angular speed), and the field of view (the view width (40 to 120°; 90° when unknown) / easing toward it / fixed). The defaults are over the shoulder, the head, smooth, fixed at 120°, the server's rules, a time constant of 0.5 s and at most 90°/s (the values the user chose in the web version; §11, 13). For another player, a jump farther than a player moves in a cycle (3 m), or a change of the styles, it turns to the direction at once, without smoothing.
+- Without a selected player, the broadcast camera (as the web version). The player camera does not take the mouse (as the web version). It is the last in the order of E.
+- Perception is as in the web version (`sight.ts`, §4.3): everything / inside the view only / the server's rules (inside the view up to the observation length; the number fades from `unum_far_length` to `unum_too_far_length`, and without the number there are no directions; the team fades to gray (#9a9a9a) from `team_far_length` to `team_too_far_length`; outside the view only within `visible_distance`, only that something is there). It is decided on the frame of the cycle, not the interpolated one. Unlike the server, it uses the true distances and decides every cycle.
+- Perception is applied as in the web version: players and the ball not seen are not drawn. A player whose team may not be known goes toward the gray, without the highlight ring and the cards. A player whose directions are not known has no direction cones, direction lines, view area or overlays of the Show tab. The number's opacity is how likely it is known. The stamina bars are its own only (the server does not tell the others' stamina). At the eyes, the player itself is not drawn (its direction lines and so on stay). Without the ball seen, no ball path either.
+- The namespace of the perception's calculations is `PlayerSight` (with the same name as the style `PlayerCameraStyle::Sight`, the names clash where both are used).
+- Z and X do nothing in the player camera (the broadcast camera without a player zooms).
+
+**Made**
+- `src/player_camera_options.h`: the kinds of the styles (`PlayerCameraStyle::Position`, `Direction`, `Motion`, `Fov`, `Sight`), their names in the settings, the ranges of the numbers, `PlayerCameraOptions` (the defaults). Without GL, as the options (`Options`) use it.
+- `Options`: the eight settings of the player camera (in the group `View3D`; values out of range and unknown names are not read) and the command line options. `setPlayerCamera()` keeps the numbers in their ranges.
+- `CameraMode::Player` (`player`, "Selected Player").
+- `src/view3d/player_camera_3d`: `referenceDirection()`, `viewFov()`, `turnToward()`, `easeToward()`, `pose()`, `PlayerCameraState` (keeps the direction and the field of view from frame to frame).
+- `CameraController`: the player camera (`setPlayerCamera()`, `CameraSubject::player`). It does not take the mouse (`takeMouse()` now looks at `takesMouse()`; it looked only at the top camera, and the tests found the player camera becoming free).
+- `src/view3d/sight`: `PlayerSight::omitProbability()`, `perceivePlayer()`, `perceiveBall()`, `Perceptions` (the perception of each player of a show, the ball, a player not drawn), `fadeTeam()`.
+- `SceneBuilder::addShow()`, `addLabels()`, `OverlayBuilder::addDirections()`, `addViewAreas()`, `addOverlays()` take the perceptions (`const Perceptions *`; everything without).
+- `FieldView3D`: with the player camera and a selected player, decides the perceptions on the frame of the cycle for the builders, and gives the camera the player camera's styles.
+
+**Tests**
+- Test `player_camera` (new): the direction (head, body, middle, without the neck); the view width as the field of view (40 to 120, 90 when unknown); `turnToward()` (at once without a time constant, the short way through 180°, 1 - 1/e with the time constant, never over the limit in a frame with the neck turned by 180°); `easeToward()`; the place (the eyes, over the shoulder, the vertical field of view at 16:9); the state (at once at first, smooth turns within the limit and settles, instant, the field of view easing and the view width, at once for another player and a jump, smooth for a step without a jump, at once after `reset()`); the controller (no mouse, the place and the field of view by the styles, at once in the new styles in the middle of a smooth turn, the broadcast camera without a player); the options (kept in range, the names both ways, the defaults).
+- Test `sight` (new): the probability of leaving out; everything and the view (decided by the face's direction, the edge of the view, a narrow view); the server's rules (the number fades, the team fades, the number as likely as the team when the team fades first, beyond the observation length, felt behind, the ball, the server's `visible_angle` without a view width); the perceptions of a show (its own fully whichever way it faces, not drawn at the eyes but still perceived for the overlays, only the hidden one for everything); the fading to gray.
+- Added to tests `scene_builder` and `overlay_builder`: with perceptions, the players and the ball not drawn, the gray, the highlight ring, the direction cones, the players to aim at, the number's opacity, the cards, the bars of its own only, the direction lines, view areas, overlays and the ball's path, and its own lines at the eyes.
+- Tests `cameras_3d` and `view_switch`: the player camera last in the order of E.
+- Every test was confirmed to fail when what it checks is broken for a while (22 ways: the number times the team, the directions, the face's direction, the felt distance, its own perception, the gray, the highlight ring, the direction cones, the ball, the number's opacity, the cards, its own bars, the overlays' directions, the ball's path, the limit of the angular speed, the short way round, a jump, another player, the field of view easing, starting again on a change of the styles, the mouse, the range of the field of view). Its own perception did not change when broken with the player facing +x, so a case facing the other way was added.
+- Builds and tests pass with Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`; 29 tests). `-DENABLE_3D=OFF` (17 tests) and autotools pass too.
+- Frame 3,000 of the full game log was drawn offscreen with the player camera of the left 9 (over the shoulder with everything and with the server's rules; at the eyes with the server's rules and with the view) and looked at. The tab of the settings dialog comes in 6-6 (until then, the settings file and the command line change them).
 
