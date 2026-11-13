@@ -196,6 +196,20 @@ private slots:
           const QColor team = Options::instance().leftTeamBrush().color();
           QCOMPARE( c.discs[0].color, QVector4D( team.redF(), team.greenF(), team.blueF(), SceneBuilder::DISC_OPACITY ) );
           QCOMPARE( c.cylinders[0].color.toVector3D(), QVector3D( team.redF(), team.greenF(), team.blueF() ) );
+
+          // the players drawn, for a right click to aim at (Picking)
+          QCOMPARE( c.picks.size(), n );
+          QCOMPARE( c.picks[0].side, rcss::rcg::LEFT );
+          QCOMPARE( c.picks[0].unum, 1 );
+          QCOMPARE( c.picks[0].x, -10.0f );
+          QCOMPARE( c.picks[0].y, -30.0f );
+          QCOMPARE( c.picks[0].radius, float( type.player_size_ ) );
+          // the one not in the show is skipped
+          QCOMPARE( c.picks[3].unum, 5 );
+          QCOMPARE( c.picks.back().side, rcss::rcg::RIGHT );
+          QCOMPARE( c.picks.back().unum, 11 );
+          c.clear();
+          QVERIFY( c.picks.empty() );
       }
 
     void playerSizeOption()
@@ -565,6 +579,7 @@ private slots:
           opt.toggleShowPlayer();
           QCOMPARE( c.cylinders.size(), size_t( 0 ) );
           QCOMPARE( c.spheres.size(), size_t( 1 ) );
+          QCOMPARE( c.picks.size(), size_t( 0 ) ); // not drawn: not aimed at
 
           c.clear();
           opt.toggleShowBall();

@@ -39,6 +39,7 @@
 #include "ground_texture.h"
 #include "interpolate.h"
 #include "overlay_builder.h"
+#include "picking.h"
 
 #include "disp_holder.h"
 #include "field_painter.h"
@@ -48,6 +49,7 @@
 #include "score_board_painter.h"
 #include "team_graphic_painter.h"
 
+#include <QContextMenuEvent>
 #include <QFontInfo>
 #include <QGuiApplication>
 #include <QMouseEvent>
@@ -225,6 +227,8 @@ FieldView3D::paintGL()
     if ( ! M_frame_clock.isValid() ) M_frame_clock.start();
     const float aspect = float( width() ) / float( std::max( 1, height() ) );
     const CameraPose camera = M_camera.update( dt, aspect, ball_x, ball_y );
+    M_drawn_camera = camera;
+    M_drawn = true;
 
     // draw again after this frame (drawNext()) while playing a log, live
     // until the newest frame is reached, and while the camera glides
@@ -351,6 +355,28 @@ FieldView3D::mouseMoveEvent( QMouseEvent * event )
         emit cameraModeChanged( M_camera.mode() );
     }
     update();
+}
+
+/*-------------------------------------------------------------------*/
+RefereeTarget
+FieldView3D::targetAt( const QPoint & point ) const
+{
+    if ( ! M_drawn )
+    {
+        return RefereeTarget();
+    }
+    return Picking::targetAt( M_drawn_camera, QSizeF( size() ), QPointF( point ), M_content.picks );
+}
+
+/*-------------------------------------------------------------------*/
+void
+FieldView3D::contextMenuEvent( QContextMenuEvent * event )
+{
+    // only a right click, as the 2D view (not the menu key)
+    if ( event->reason() == QContextMenuEvent::Mouse )
+    {
+        emit refereeMenuRequested( targetAt( event->pos() ), event->globalPos() );
+    }
 }
 
 /*-------------------------------------------------------------------*/

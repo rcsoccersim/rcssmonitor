@@ -1931,6 +1931,9 @@ MainWindow::toggleView3D( bool on )
         // the mouse made the camera the free camera
         connect( view, &FieldView3D::cameraModeChanged,
                  this, [this]( CameraMode mode ) { setCamera3D( mode ); } );
+        // the referee's menu of a right click, at the player or the ground aimed at
+        connect( view, &FieldView3D::refereeMenuRequested,
+                 M_referee_menu, &RefereeMenu::exec );
         M_field_view_3d = view;
     }
 

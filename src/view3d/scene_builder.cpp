@@ -122,6 +122,7 @@ SceneContent::clear()
     rings.clear();
     decay_rings.clear();
     quads.clear();
+    picks.clear();
 }
 
 namespace SceneBuilder {
@@ -275,6 +276,7 @@ addShow( SceneContent & content,
             m.translate( p.x_, BODY_HEIGHT / 2.0f, p.y_ );
             m.scale( body_r, BODY_HEIGHT, body_r );
             add( content.cylinders, m, body );
+            content.picks.push_back( { p.side(), p.unum_, p.x_, p.y_, body_r } );
 
             // the head on it
             m.setToIdentity();

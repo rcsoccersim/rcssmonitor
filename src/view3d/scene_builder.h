@@ -36,6 +36,8 @@
 #include "camera_3d.h"
 #include "instance_3d.h"
 
+#include <rcss/rcg/types.h>
+
 #include <QColor>
 #include <QString>
 
@@ -64,6 +66,20 @@ struct OverlayText {
     QVector3D at; //!< the point in the world
     QString text;
     QColor color;
+};
+
+/*!
+  \struct PlayerPick
+  \brief a player as drawn, for a click to find it (Picking): the body is a
+  cylinder of the radius from the ground to BODY_HEIGHT, the head a sphere
+  of HEAD_RADIUS at HEAD_HEIGHT (SceneBuilder)
+*/
+struct PlayerPick {
+    rcss::rcg::Side side;
+    int unum;
+    float x; //!< on the field (m)
+    float y;
+    float radius; //!< of the body (m)
 };
 
 /*!
@@ -96,6 +112,10 @@ struct SceneContent {
 
     // over everything, facing the camera, from far to near
     std::vector< Billboard3D > labels; //!< the numbers and the cards (LabelAtlas)
+
+    // not drawn
+    std::vector< PlayerPick > picks; //!< the players drawn, which a right click can aim at
+
 
     void clear();
 };

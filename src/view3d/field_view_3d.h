@@ -35,6 +35,7 @@
 
 #include "cameras_3d.h"
 #include "label_atlas.h"
+#include "referee_target.h"
 #include "scene_3d.h"
 #include "scene_builder.h"
 
@@ -84,6 +85,10 @@ struct DispInfoT;
   follows the ball makes it the free camera. The top camera does not take
   the mouse. As in 2D, the wheel steps the frames (MainWindow), and the
   keys of the zoom (Z, X, I) zoom the camera (zoomCamera()).
+
+  A right click asks for the referee's menu (refereeMenuRequested()), at
+  the player or the point of the ground under the mouse, as last drawn
+  (targetAt()).
 */
 class FieldView3D
     : public QOpenGLWidget {
@@ -122,10 +127,25 @@ public:
     */
     void zoomCamera( const double factor );
 
+    /*!
+      \brief what a right click at a point of the view aims at, as last
+      drawn (Picking::targetAt()): nothing before the first frame is drawn
+      \param point the point in the view (logical pixels)
+    */
+    RefereeTarget targetAt( const QPoint & point ) const;
+
 signals:
 
     //! the mouse made the camera the free camera
     void cameraModeChanged( CameraMode mode );
+
+    /*!
+      \brief a right click asks for the referee's menu (RefereeMenu)
+      \param target the player or the point aimed at (targetAt())
+      \param global_pos where to show the menu on the screen
+    */
+    void refereeMenuRequested( const RefereeTarget & target,
+                               const QPoint & global_pos );
 
 protected:
 
@@ -138,6 +158,9 @@ protected:
     // the mouse moves the camera
     void mousePressEvent( QMouseEvent * event ) override;
     void mouseMoveEvent( QMouseEvent * event ) override;
+
+    //! the right button: the referee's menu
+    void contextMenuEvent( QContextMenuEvent * event ) override;
 
 private:
 
@@ -157,6 +180,8 @@ private:
     bool M_moving; //!< to be drawn again in the next frame
 
     CameraController M_camera; //!< which camera, and where it is
+    CameraPose M_drawn_camera; //!< the camera of the last frame drawn, for a click to aim with
+    bool M_drawn = false; //!< a frame has been drawn (M_drawn_camera and M_content.picks are set)
     QElapsedTimer M_frame_clock; //!< since the last frame was drawn, for the camera to glide
     QPoint M_last_mouse; //!< where the mouse was at the last press or move
 
