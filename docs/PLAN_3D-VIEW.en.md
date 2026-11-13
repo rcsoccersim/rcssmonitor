@@ -7,7 +7,7 @@
 | Reference implementation | rcssmonitor-web 20.0.0-beta.2 (tag `v20.0.0-beta.2`, ed36941). Its working tree is `../rcssmonitor-web`, next to this repository |
 | Server referred to | The asio version of rcssserver 19.x. Its working tree is `../rcssserver` (branch `feature/asio-migration`), next to this repository |
 | Japanese version | [PLAN_3D-VIEW.md](PLAN_3D-VIEW.md) (same content; §0.1) |
-| Status | Phase 5 (started 2026-11-12, `feature/3d-view`). Steps 5-1 to 5-5 (§14). Phase 4 done |
+| Status | Phase 6 (started 2026-11-13, `feature/3d-view`). Steps 6-1 to 6-6 (§14). Phase 5 done |
 
 ## 0. How to use this plan
 
@@ -41,6 +41,7 @@ What this plan decided that the web version (rcssmonitor-web) should also get la
 - [ ] **A thicker stamina capacity bar** (5-3, 2026-11-12, user): the web version's capacity bar (`BAR.capacity` in `render3d.ts`, 0.1 m) is too thin to see well. Make it 0.15 m, as rcssmonitor.
 - [ ] **The limit of the catch directions in the goalie's catch area** (2026-11-13, user): from rcssserver 17.0.0, a catch direction is within `min_catch_angle` to `max_catch_angle` (-90 to +90 by default), and a goalie cannot catch behind it. The web version (`catchAreaRadii()` in `overlay-math.ts`) draws circles, as rcssmonitor did. Draw the same shape as rcssmonitor (`OverlayMath::catchOutline()`). Read a log without the two parameters (a server before 17) as ±180 (no limit) (the web version's `param-defaults.ts` has 19.0.0's ±90).
 - [ ] **The same operations as 2D** (§5.6, 5-1b, 2026-11-12, user): in 3D too, the wheel steps the frames, and Z and X (and Ctrl+Z) bring the camera nearer / farther. In the web version the wheel moves the 3D camera (three.js OrbitControls' zoom, and the distance of the close-up cameras `closeupWheel`); make it follow 2D (the web version's 2D wheel and keys) as rcssmonitor does. Also follow rcssmonitor in that a following camera keeps following at the new distance, the top camera shows around the ball when nearer, a change of the camera sets the zoom back, and I sets it back.
+- [ ] **The look of the focus point** (5-5, 2026-11-13, user): the web version's focus point is only a line from the player and a circle, as rcssmonitor's was. As in rcssmonitor, in 2D and 3D, add the lines of the same noise (ellipses with the player and the focus point as the foci, cut to the view; `OverlayMath::focusNoiseLines()`), the reticle and the spot (`OverlayMath::FocusLook`, `focusTicks()`), the line from the eyes in 3D, and the option of all players' focus points (`show_all_focus_points`).
 
 ## 1. Goals and scope
 
@@ -370,8 +371,8 @@ Add to `Options` and save to `~/.rcssmonitor.conf`. The names follow the web ver
 | Name | Default | Values |
 |---|---|---|
 | `view_3d` | off | Start in 3D (on the command line `--view-3d`, as the other options; 4-1 of Phase 4) |
-| `camera_3d` | broadcast | free / broadcast / closeup-ball / closeup-player / top / goal-left / goal-right / player (`--camera-3d` on the command line; in 4-4, the five without the close-ups and the player camera; an unknown name is not read) |
-| `closeup_distance_3d`, `closeup_elevation_3d` | 12, 20 | 3–60 m, 5–85° |
+| `camera_3d` | broadcast | free / broadcast / closeup-ball / closeup-player / top / goal-left / goal-right / player (`--camera-3d` on the command line; in 4-4, the five without the close-ups and the player camera; 6-1 added the two close-ups; an unknown name is not read) |
+| `closeup_distance_3d`, `closeup_elevation_3d` | 12, 20 | 3–60 m, 5–85° (the group `View3D` of the settings file; `--closeup-distance-3d`, `--closeup-elevation-3d` on the command line; 6-1) |
 | `player_camera_position` | shoulder | eye / shoulder |
 | `player_camera_direction` | head | head / body / middle |
 | `player_camera_motion` | smooth | instant / smooth |
@@ -536,7 +537,7 @@ Each phase proceeds on a feature branch and is merged into develop when it is do
 
 ### Phase 6: Player view and the other cameras
 
-**Work**: the 4 player view styles and perception (§4.3, `player-camera.ts`, `sight.ts`), the two close-up cameras (distance by the wheel), the 9 whole-pitch viewpoints (I, Ctrl+I, menu, toolbar), compass strip and minimap, team colors at both ends (nets, boards, banners), the 3D tab and the Player Camera tab of the settings dialog.
+**Work**: the 4 player view styles and perception (§4.3, `player-camera.ts`, `sight.ts`), the two close-up cameras (distance by the wheel), the 9 whole-pitch viewpoints (I, Ctrl+I, menu, toolbar), compass strip and minimap, team colors at both ends (nets, boards, banners), the 3D tab and the Player Camera tab of the settings dialog. → Steps: 6-1 the two close-up cameras (distance by Z and X as in 2D; §5.6). 6-2 the 9 whole-pitch viewpoints. 6-3 the player view and perception. 6-4 the team colors at both ends. 6-5 the compass strip and the minimap. 6-6 the 3D tab and the Player Camera tab of the settings dialog (the settings and command line options come with each step).
 
 **Done when**: every combination of the 4 player view items can be selected. `smooth` does not exceed the angular speed limit (unit test). `view` and `server` draw differently (unit test). The corners of the pitch fit on screen in every viewpoint (unit test).
 
@@ -1327,4 +1328,28 @@ The 3 commits of the CI fix and the split of SceneContent (fb41ec9 to b281ba2) w
 - Every test was confirmed to fail when what it checks is broken for a while (13 ways: the center of the rays, the value of the lines, the cut by the view, the direction of one side of the view, joining a closed line, half the view width, the direction of the ticks, the height of the eyes, the other players' color, the option of all, the order of the opacities, and the two places that enable and disable the check box).
 - No player moves its focus point in the two full game logs at hand, so players were given focus points in a frame of a log, and 2D and 3D were drawn offscreen and looked at.
 - Builds and tests pass with Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`; 27 tests). `-DENABLE_3D=OFF` (17 tests) and autotools pass too.
+
+### Phase 6
+
+#### 2026-11-13: Step 6-1, the close-up cameras (`feature/3d-view`)
+
+The 2 commits of 5-5 (220e3b7, 72594bc) were pushed, and the CI passed. Phase 5 is done.
+
+**Decided**
+- Phase 6 in 6 steps (the user agreed): 6-1 the two close-up cameras, 6-2 the 9 whole-pitch viewpoints, 6-3 the player view and perception, 6-4 the team colors at both ends, 6-5 the compass strip and the minimap, 6-6 the 3D tab and the Player Camera tab of the settings dialog. The settings and the command line options come with each step; the tabs of the dialog are made together in 6-6.
+- The close-up cameras (the ball, the selected player) are as in the web version: from the side of the near touch line as the broadcast camera, 12 m from what they look at (the ball on the ground, a player 1 m high), 20° above it. What they look at stays over the ground image. Without a selected, connected player, the ball's. The time constant of following is proportional to the distance (0.0089 s/m, 0.05 to 0.35 s). In the order of E, after the broadcast camera, as in the web version.
+- As in 2D (§5.6), the distance changes by 1.5 times with Z and X (and Ctrl+Z), not the wheel (3 to 60 m). The distance of the close-up cameras is a setting: it stays when the camera changes and goes into the settings file (as the web version's wheel). I sets it back to the default 12 m (until 6-2 makes I the whole-pitch viewpoint).
+- The settings of the 3D view go into a new group `View3D` of the settings file. A value out of its range is read neither from the settings file nor from the command line.
+
+**Made**
+- `CameraMode::CloseupBall`, `CloseupPlayer` (`closeup-ball`, `closeup-player`), `isCloseup()`. The menu, the selector of the tool bar and E are made from the list of the cameras, so the two join them as they are.
+- `Cameras3D::closeup()`, `closeupTimeConstant()`. `CameraController`: what it follows (`CameraSubject`: the ball and the selected player), `setCloseup()` (a new distance or elevation glides there), `zoom()` and `resetZoom()` on the close-up cameras.
+- `Options`: `closeup_distance_3d`, `closeup_elevation_3d` (setters that keep them in their ranges). `--closeup-distance-3d`, `--closeup-elevation-3d` on the command line.
+- `FieldView3D`: in each frame, finds the selected player in the interpolated show for the camera, and gives it the distance and the elevation of the settings. When Z and X change the distance of a close-up camera, writes it back to the settings.
+
+**Tests**
+- Added to test `cameras_3d`: the order of E (the two close-ups after the broadcast camera); the place of a close-up camera (the distance, the elevation, from the near touch line, kept over the ground image) and its time constant; the controller (jumps at first, follows the ball with the close-up's time constant, the player's at the player 1 m high, goes to the ball without a player, Z and X change the distance within its range without the zoom, the distance stays with another camera and I sets it back to the default, glides to a new distance and elevation); the ranges of the settings.
+- Every test was confirmed to fail when what it checks is broken for a while (8 ways: the side of the touch line, the close-up's time constant, without a player, Z and X changing the distance, I setting it back, keeping it over the ground image, starting to move on a new distance and elevation, the ranges of the settings).
+- Builds and tests pass with Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`; 27 tests). `-DENABLE_3D=OFF` (17 tests) and autotools pass too.
+- Frame 3,000 of the full game log was drawn offscreen with the close-up cameras (the ball at 12 m and 5 m, a player at 12 m) and looked at.
 

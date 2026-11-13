@@ -7,7 +7,7 @@
 | 参照実装 | rcssmonitor-web 20.0.0-beta.2 (タグ `v20.0.0-beta.2`、ed36941)。作業ツリーは、このリポジトリと並べて置いた `../rcssmonitor-web` |
 | 参照したサーバ | asio 版 rcssserver 19.x。作業ツリーは、このリポジトリと並べて置いた `../rcssserver` (`feature/asio-migration` ブランチ) |
 | 英語版 | [PLAN_3D-VIEW.en.md](PLAN_3D-VIEW.en.md) (内容は同じ。§0.1) |
-| 状態 | Phase 5 (2026-11-12 着手、`feature/3d-view`)。区切り 5-1〜5-5 (§14)。Phase 4 は済 |
+| 状態 | Phase 6 (2026-11-13 着手、`feature/3d-view`)。区切り 6-1〜6-6 (§14)。Phase 5 は済 |
 
 ## 0. この計画書の使い方
 
@@ -41,6 +41,7 @@
 - [ ] **スタミナ容量のバーを太くする** (5-3、2026-11-12、ユーザ): web 版の容量のバー (`render3d.ts` の `BAR.capacity`、0.1 m) は細くて見にくい。rcssmonitor と同じ 0.15 m にする。
 - [ ] **キーパーのキャッチ範囲に、キャッチの向きの制限を反映する** (2026-11-13、ユーザ): rcssserver 17.0.0 から、キャッチの向きは `min_catch_angle`〜`max_catch_angle` (既定 -90〜+90) に限られ、キーパーは後ろにはキャッチできない。web 版 (`overlay-math.ts` の `catchAreaRadii()`) は、rcssmonitor の前と同じく円を描く。rcssmonitor と同じ形 (`OverlayMath::catchOutline()`) にする。2 つのパラメータがないログ (サーバ 17 より前) は ±180 (制限なし) として読む (web 版の `param-defaults.ts` は 19.0.0 の ±90)。
 - [ ] **操作を 2D にそろえる** (§5.6、5-1b、2026-11-12、ユーザ): 3D でもホイールはフレームを進め戻し、Z と X (と Ctrl+Z) でカメラを寄せる・離す。web 版は 3D でホイールがカメラを寄せる (three.js の OrbitControls の zoom と、寄りのカメラの距離 `closeupWheel`) ので、rcssmonitor と同じく 2D (web 版の 2D のホイールとキー) にそろえる。追うカメラは追ったまま距離が変わる、真上のカメラは寄るとボールのまわり、カメラを変えると倍率が戻る、I で戻す、も rcssmonitor に合わせる。
+- [ ] **フォーカス点の表示** (5-5、2026-11-13、ユーザ): web 版のフォーカス点は、rcssmonitor の前と同じく、選手からの線と円だけ。rcssmonitor と同じく、2D と 3D で、誤差が同じになる線 (選手とフォーカス点を焦点とする楕円を視野で切ったもの。`OverlayMath::focusNoiseLines()`)、照準とスポットライト (`OverlayMath::FocusLook`、`focusTicks()`)、3D の目の高さからの線、全員のフォーカス点の設定 (`show_all_focus_points`) を入れる。
 
 ## 1. 目的と範囲
 
@@ -370,8 +371,8 @@ Shift を使うショートカットは作らない。関係のある別の操�
 | 名前 | 既定 | 値 |
 |---|---|---|
 | `view_3d` | off | 3D で始める (コマンドラインは、今のオプションに合わせて `--view-3d`。Phase 4 の 4-1) |
-| `camera_3d` | broadcast | free / broadcast / closeup-ball / closeup-player / top / goal-left / goal-right / player (コマンドラインは `--camera-3d`。4-4 では寄りと選手視点を除く 5 つ。知らない名前は読まない) |
-| `closeup_distance_3d`、`closeup_elevation_3d` | 12、20 | 3〜60 m、5〜85° |
+| `camera_3d` | broadcast | free / broadcast / closeup-ball / closeup-player / top / goal-left / goal-right / player (コマンドラインは `--camera-3d`。4-4 では寄りと選手視点を除く 5 つ、6-1 で寄りの 2 つを足した。知らない名前は読まない) |
+| `closeup_distance_3d`、`closeup_elevation_3d` | 12、20 | 3〜60 m、5〜85° (設定ファイルのグループ `View3D`。コマンドラインは `--closeup-distance-3d`、`--closeup-elevation-3d`。6-1) |
 | `player_camera_position` | shoulder | eye / shoulder |
 | `player_camera_direction` | head | head / body / middle |
 | `player_camera_motion` | smooth | instant / smooth |
@@ -536,7 +537,7 @@ web 版の `docs/parity.md` §7。行番号は 2026-11-11 の develop (01f880a) 
 
 ### Phase 6: 選手視点と、ほかのカメラ
 
-**作業**: 選手視点の 4 つのスタイルと知覚 (§4.3、`player-camera.ts`、`sight.ts`)、寄りのカメラ 2 つ (ホイールで距離)、ピッチ全体の視点 9 個 (I、Ctrl+I、メニュー、ツールバー)、方位の帯とミニマップ、両端のチームの色 (ネット、広告板、看板)、設定ダイアログの 3D タブと Player Camera タブ。
+**作業**: 選手視点の 4 つのスタイルと知覚 (§4.3、`player-camera.ts`、`sight.ts`)、寄りのカメラ 2 つ (ホイールで距離)、ピッチ全体の視点 9 個 (I、Ctrl+I、メニュー、ツールバー)、方位の帯とミニマップ、両端のチームの色 (ネット、広告板、看板)、設定ダイアログの 3D タブと Player Camera タブ。 → 区切り: 6-1 寄りのカメラ 2 つ (距離は 2D と同じく Z と X。§5.6)。6-2 ピッチ全体の視点 9 個。6-3 選手視点と知覚。6-4 両端のチームの色。6-5 方位の帯とミニマップ。6-6 設定ダイアログの 3D タブと Player Camera タブ (設定とコマンドラインのオプションは各区切りで足す)。
 
 **完了条件**: 選手視点の 4 つの項目のすべての組み合わせを選べる。`smooth` が角速度の上限を超えない (単体テスト)。`view` と `server` の描き分け (単体テスト)。どの視点でもピッチの四隅が画面に収まる (単体テスト)。
 
@@ -1327,4 +1328,28 @@ CI の直しと SceneContent の分離の 3 コミット (fb41ec9〜b281ba2) を
 - どのテストも、確かめる箇所を一時的に壊すと失敗することを確かめた (13 通り: 光線の中心、線の値、視野で切ること、視野の片側の向き、閉じた線のつなぎ、視野の幅の半分、目盛りの向き、目の高さ、ほかの選手の色、全員の設定、線の濃さの順、チェックボックスの有効・無効の 2 か所)。
 - 手元の全試合のログ 2 本にはフォーカス点を動かした選手がいないので、ログの 1 フレームで選手にフォーカス点を与えて、画面外で 2D と 3D を描いて見た。
 - Qt 6.4.2 と Qt 5.15.13 (`-Werror=deprecated-declarations`) で、ビルドとテストが通る (テスト 27 個)。`-DENABLE_3D=OFF` (17 個) と autotools も通る。
+
+### Phase 6
+
+#### 2026-11-13: 区切り 6-1、寄りのカメラ (`feature/3d-view`)
+
+5-5 の 2 コミット (220e3b7、72594bc) をプッシュし、CI が通った。Phase 5 を終えた。
+
+**決めたこと**
+- Phase 6 を 6 つの区切りに分ける (ユーザが了承): 6-1 寄りのカメラ 2 つ、6-2 ピッチ全体の視点 9 個、6-3 選手視点と知覚、6-4 両端のチームの色、6-5 方位の帯とミニマップ、6-6 設定ダイアログの 3D タブと Player Camera タブ。設定とコマンドラインのオプションは各区切りで足し、ダイアログのタブは 6-6 でまとめる。
+- 寄りのカメラ (ボール、選んだ選手) は web 版と同じ: 中継風と同じくタッチライン側から、見る点 (ボールの地面上、選手は高さ 1 m) から距離 12 m、仰角 20°。見る点は地面の絵の範囲の中。選手が選ばれていないか、接続していなければ、ボールのもの。追う時定数は距離に比例 (0.0089 s/m、0.05〜0.35 s)。E の順は web 版と同じく、中継風の次。
+- 距離は、2D にそろえて (§5.6)、ホイールではなく Z と X (と Ctrl+Z) で 1.5 倍ずつ変える (3〜60 m)。寄りのカメラの距離は設定なので、カメラを変えても保ち、設定ファイルに残す (web 版のホイールと同じ)。I は既定の 12 m に戻す (6-2 で I をピッチ全体の視点に置き換えるまで)。
+- 3D の設定は、設定ファイルの新しいグループ `View3D` に書く。範囲の外の値は、設定ファイルからもコマンドラインからも読まない。
+
+**作ったもの**
+- `CameraMode::CloseupBall`、`CloseupPlayer` (`closeup-ball`、`closeup-player`)、`isCloseup()`。メニュー、ツールバーの選択欄、E は、カメラの一覧から作るので、そのまま 2 つが加わる。
+- `Cameras3D::closeup()`、`closeupTimeConstant()`。`CameraController`: 追う先 (`CameraSubject`: ボールと選んだ選手)、`setCloseup()` (距離と仰角が変わればなめらかに移る)、寄りのカメラでの `zoom()` と `resetZoom()`。
+- `Options`: `closeup_distance_3d`、`closeup_elevation_3d` (範囲に収める setter)。コマンドラインの `--closeup-distance-3d`、`--closeup-elevation-3d`。
+- `FieldView3D`: 描くたびに、補間した show から選んだ選手を探してカメラに渡し、設定の距離と仰角を渡す。Z と X で寄りのカメラの距離が変わったら、設定に書き戻す。
+
+**試験**
+- テスト `cameras_3d` に足した: E の順 (中継風の次に寄りの 2 つ)、寄りのカメラの位置 (距離、仰角、タッチライン側、地面の絵の中に収める) と時定数、コントローラ (最初は跳び、ボールを寄りの時定数で追う、選手のものはその選手の高さ 1 m、選手がいなければボールへ移る、Z と X で距離が変わり範囲に収まり倍率は変わらない、カメラを変えても距離を保ち、I で既定に戻る、新しい距離と仰角へなめらかに移る)、設定の範囲。
+- どのテストも、確かめる箇所を一時的に壊すと失敗することを確かめた (8 通り: タッチライン側、寄りの時定数、選手がいないとき、Z と X で距離を変えること、I で戻すこと、地面の絵の中に収めること、距離と仰角の変化で動き出すこと、設定の範囲)。
+- Qt 6.4.2 と Qt 5.15.13 (`-Werror=deprecated-declarations`) で、ビルドとテストが通る (テスト 27 個)。`-DENABLE_3D=OFF` (17 個) と autotools も通る。
+- 画面外で、全試合のログの 3,000 フレーム目を、寄りのカメラ (ボール 12 m と 5 m、選手 12 m) で描いて見た。
 
