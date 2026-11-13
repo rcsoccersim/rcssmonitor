@@ -380,7 +380,7 @@ Add to `Options` and save to `~/.rcssmonitor.conf`. The names follow the web ver
 | `player_camera_sight` | server | all / view / server |
 | `player_camera_time_constant`, `player_camera_max_turn`, `player_camera_fixed_fov` | 0.5, 90, 120 | 0–5 s, 1–3600 °/s, 20–120° (the eight of the player camera in the group `View3D`; on the command line by the same names, `--player-camera-position` and so on; 6-3) |
 | `compass_3d`, `minimap_3d` | off | off / player / all |
-| `boards_3d`, `banners_3d` | on | |
+| `boards_3d`, `banners_3d` | on | (the group `View3D`; `--boards-3d`, `--banners-3d` on the command line; 6-4) |
 | `player_model_3d` | simple | simple / figure |
 | `shadows_3d`, `grass_stripes_3d`, `sky_3d`, `stands_3d`, `ball_pattern_3d` | on | |
 | `ball_ring_3d`, `ball_ring_radius_3d` | on, 0.7 | 0.1–5 m |
@@ -626,6 +626,7 @@ Port the GL-independent calculations, using the web version's unit tests as mode
 | `player_type_sort_proxy.h` | Sorting of the player type list (Phase 1) |
 | `referee_menu.{h,cpp}`, `referee_target.h` | The menu of a right click (the referee's operations) and what it aims at (a point and a player), shared by 2D and 3D (5-4) |
 | `player_camera_options.h` | The kinds, names and ranges of the player camera's styles (no GL; the options use it; 6-3) |
+| `view3d/stadium_3d.{h,cpp}`, `shaders/panel.*` | The team colors at the ends besides the nets: the images and places of the boards and banners (no GL), the panels' shader (6-4) |
 | `view3d/picking.{h,cpp}` | What a right click in 3D hits (the camera's ray, the players' bodies and heads, the ground; no GL; 5-4) |
 | `game_log_file.{h,cpp}` | Reading a log file into one buffer and parsing it. With libdeflate, gzip is decompressed with it (Phase 2) |
 | `rcss/rcg/line_parser.{h,cpp}` | Parsing the lines of a log in parallel and passing them to the handler in order (Phase 2) |
@@ -1406,4 +1407,31 @@ The 2 commits of 6-2 (dc172be, c7b493c) were pushed, and the user checked the CI
 - Every test was confirmed to fail when what it checks is broken for a while (22 ways: the number times the team, the directions, the face's direction, the felt distance, its own perception, the gray, the highlight ring, the direction cones, the ball, the number's opacity, the cards, its own bars, the overlays' directions, the ball's path, the limit of the angular speed, the short way round, a jump, another player, the field of view easing, starting again on a change of the styles, the mouse, the range of the field of view). Its own perception did not change when broken with the player facing +x, so a case facing the other way was added.
 - Builds and tests pass with Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`; 29 tests). `-DENABLE_3D=OFF` (17 tests) and autotools pass too.
 - Frame 3,000 of the full game log was drawn offscreen with the player camera of the left 9 (over the shoulder with everything and with the server's rules; at the eyes with the server's rules and with the view) and looked at. The tab of the settings dialog comes in 6-6 (until then, the settings file and the command line change them).
+
+#### 2026-11-13: Step 6-4, the team colors at both ends (`feature/3d-view`)
+
+The 3 commits of 6-3 (389213e to bd55734) were pushed, and the CI passed.
+
+**Decided**
+- As in the web version (`stadium.ts`, §4.3): the goal nets in the color of the team that keeps the goal (rcssserver does not change ends, so the left team keeps the left goal for the whole game). The boards around the pitch (5.5 m from the touch lines and the goal lines, 1 m high; along the touch lines they change color at the halfway line; the team name every 10 m) and the banner floating 22 m behind each goal, 12 to 20 m high (50 m wide; the logo and the team name), are a dark shade of 0.32 times the team color, with the edges, the name and the logo in the team color. The banner's logo only with Team Graphic on (in whole multiples, as 2D). Unlit.
+- The backs of the panels are filled with the dark shade, as in the web version (the image is not shown from behind). One panel is drawn with both faces, and the shader paints the image on the front (`gl_FrontFacing`) and the instance's color on the back.
+- The boards' image repeats every 10 m along the board (a repeating texture; the shader takes the count from the length of the model matrix's x axis).
+- The boards and the banners can be hidden by the options (`boards_3d`, `banners_3d`, on by default). The dialog comes in 6-6.
+- The ground image ends 5 m beyond the lines, so the boards stand on nothing beyond it. The ground outside comes in Phase 8 (the sky and the haze).
+
+**Made**
+- `SceneBuilder::addGoals()`: takes the colors of the nets (the left and the right team colors).
+- `src/view3d/stadium_3d`: `TeamLook` (the team color, name and logo, and `key()` to decide when to draw again), `shade()`, `boardImage()`, `bannerImage()` (drawn with QPainter), `addPanels()` (where the panels go and which way they face). No GL.
+- `SceneContent::boards`, `banners` (by the end). A repeat option of `Texture2D::upload()`. `RenderState::opaqueTwoSided()`. The shaders `panel.vert` and `panel.frag`. `Scene3D::setStadium()`, and a pass for the panels after the lit solids.
+- `TeamGraphicPainter::pixmap()`: the banners use the team logos that the HUD makes.
+- `FieldView3D`: draws the panels' images again and sends them to the GPU only when the team colors, names or logos change, and builds the nets and the panels.
+- `Options`: `boards_3d`, `banners_3d` (in the group `View3D`) and `--boards-3d`, `--banners-3d` on the command line.
+
+**Tests**
+- Test `stadium_3d` (new): `shade()`; `key()` (changes with the color, the name, the logo and its pixels); the board's image (the size, the dark shade, the top and bottom edges, the name in the middle, no letters without a name); the banner's image (the size, the frame, the logo in whole multiples, the name to its right, the name in the middle without a logo); the panels (3 boards and 1 banner per end, all facing the center of the pitch, standing on the ground, the backs' color, along the touch lines from the halfway line to the corner, the width behind the goal line, the banner's place and height); hiding each; the options' defaults.
+- Added to test `scene_builder`: the nets in the color of the team that keeps the goal (the left goal the left team's), the floors dark as before.
+- Added to test `scene_3d`: drawn offscreen, a panel's front has its image upright, repeated every 10 m, and from behind its back color shows.
+- Every test was confirmed to fail when what it checks is broken for a while (11 ways: the image upside down, the repeat, the width of the repeat, the back color, both faces, the nets' sides, the facing of the boards behind the goal lines, the facing of the boards along the touch lines, the name, the logo's multiple, a change of the logo's pixels).
+- Builds and tests pass with Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`; 30 tests). `-DENABLE_3D=OFF` (17 tests) and autotools pass too.
+- Frame 3,000 of the full game log was drawn offscreen from the broadcast camera, behind the right goal, and the whole-pitch viewpoint of the far left corner, and looked at.
 
