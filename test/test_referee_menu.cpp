@@ -53,6 +53,15 @@
 
 namespace {
 
+//! the submenu that an item opens, or null (QAction::menu() is deprecated in Qt 6.0 to 6.2)
+QMenu *
+submenu( const QAction * act )
+{
+    // a submenu's item belongs to the submenu
+    QMenu * menu = ( act ? qobject_cast< QMenu * >( act->parent() ) : nullptr );
+    return ( menu && menu->menuAction() == act ? menu : nullptr );
+}
+
 //! the item of a menu by its text
 QAction *
 item( const QMenu * menu,
@@ -135,8 +144,8 @@ private slots:
                     << "Yellow Card" << "Red Card" << "-" << "Change Playmode" );
 
           QAction * change = item( menu.menu(), "Change Playmode" );
-          QVERIFY( change && change->menu() );
-          QCOMPARE( texts( change->menu() ), modeNames() );
+          QVERIFY( submenu( change ) );
+          QCOMPARE( texts( submenu( change ) ), modeNames() );
           QVERIFY( modeNames().contains( "back_pass_l" ) );
           QVERIFY( ! modeNames().contains( "foul_push_l" ) );
       }
@@ -150,13 +159,13 @@ private slots:
           {
               if ( act->text() == "&Referee" )
               {
-                  referee = act->menu();
+                  referee = submenu( act );
               }
           }
           QVERIFY( referee );
           QAction * change = item( referee, "Change Playmode" );
-          QVERIFY( change && change->menu() );
-          QCOMPARE( texts( change->menu() ), modeNames() );
+          QVERIFY( submenu( change ) );
+          QCOMPARE( texts( submenu( change ) ), modeNames() );
       }
 
     //! the items that need a point: enabled with one, disabled with the reason without
@@ -219,7 +228,7 @@ private slots:
 
           // still with no point: from the ball (MainWindow)
           menu.setTarget( RefereeTarget() );
-          QMenu * change = item( menu.menu(), "Change Playmode" )->menu();
+          QMenu * change = submenu( item( menu.menu(), "Change Playmode" ) );
           item( change, "back_pass_l" )->trigger();
           QCOMPARE( emitted.calls.last(), QString( "mode %1" ).arg( int( rcss::rcg::PM_Back_Pass_Left ) ) );
           QVERIFY( ! emitted.target.has_point_ );

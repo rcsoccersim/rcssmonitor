@@ -133,6 +133,15 @@ private:
       }
 };
 
+//! the submenu that an item opens, or null (QAction::menu() is deprecated in Qt 6.0 to 6.2)
+QMenu *
+submenu( const QAction * act )
+{
+    // a submenu's item belongs to the submenu
+    QMenu * menu = ( act ? qobject_cast< QMenu * >( act->parent() ) : nullptr );
+    return ( menu && menu->menuAction() == act ? menu : nullptr );
+}
+
 //! the item of a menu (or of its submenus) by its text
 QAction *
 item( const QMenu * menu,
@@ -144,9 +153,9 @@ item( const QMenu * menu,
         {
             return act;
         }
-        if ( act->menu() )
+        if ( const QMenu * sub = submenu( act ) )
         {
-            if ( QAction * found = item( act->menu(), text ) )
+            if ( QAction * found = item( sub, text ) )
             {
                 return found;
             }
