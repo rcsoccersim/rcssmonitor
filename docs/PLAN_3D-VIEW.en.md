@@ -349,7 +349,7 @@ Read the corresponding web version file and build with the same values and the s
 ### 5.6 Input
 
 - Mouse: in the free camera, left-drag orbits, Shift (or Ctrl) + left-drag pans, the wheel and the middle button zoom (the web version uses three.js OrbitControls; write the same operations ourselves). Dragging in any other camera switches to free. In the close-up cameras, the wheel changes the distance, which is kept in the settings. Right-click is the referee menu. → 4-4: in 2D the wheel steps the frames, so a 3D camera that does not take the wheel (the top camera) steps the frames as before.
-- **The same operations as 2D (user, 2026-11-12, 5-1b)**: with the wheel moving the camera in 3D, the operations differ from 2D (the wheel steps the frames, Z and X zoom) and confuse. They follow 2D, even if they differ from usual 3D viewers. In 3D too, the wheel steps the frames. Z brings the camera nearer, X and Ctrl+Z farther (by 1.5, as 2D). A following camera keeps following at the new distance; the top camera shows a different height, and when nearer, shows around the ball (within the ground image); the free camera moves toward what it looks at. A change of the camera sets the zoom back. I sets the zoom back (replaced by the viewpoint of the whole pitch in Phase 6). The distance of the close-up cameras (Phase 6) is changed with Z and X too, not the wheel. Mouse drags (turn, move, middle button to zoom) stay. The web version will follow the same operations later (§0.2).
+- **The same operations as 2D (user, 2026-11-12, 5-1b)**: with the wheel moving the camera in 3D, the operations differ from 2D (the wheel steps the frames, Z and X zoom) and confuse. They follow 2D, even if they differ from usual 3D viewers. In 3D too, the wheel steps the frames. Z brings the camera nearer, X and Ctrl+Z farther (by 1.5, as 2D). A following camera keeps following at the new distance; the top camera shows a different height, and when nearer, shows around the ball (within the ground image); the free camera moves toward what it looks at. A change of the camera sets the zoom back. I sets the zoom back (replaced by the viewpoint of the whole pitch in 6-2). The distance of the close-up cameras (Phase 6) is changed with Z and X too, not the wheel. Mouse drags (turn, move, middle button to zoom) stay. The web version will follow the same operations later (§0.2).
 - Keys (the web version's `docs/parity.md` §8 and `src/ui/shortcuts.ts`):
 
 | Key | Function | rcssmonitor now |
@@ -357,7 +357,7 @@ Read the corresponding web version file and build with the same values and the s
 | D | Switch 2D / 3D | Free |
 | E | Next camera | Free |
 | Z, X, Ctrl+Z | In 3D, the camera nearer / farther. In 2D, as before (5-1b) | Zoom In, Zoom Out |
-| I | In 3D, the viewpoint from the side of the pitch (free). In 2D, as before (from 5-1b until Phase 6, in 3D it sets the zoom back) | Fit Field Size |
+| I | In 3D, the viewpoint from the side of the pitch (free). In 2D, as before (from 5-1b to 6-1, in 3D it set the zoom back; 6-2 replaced it with the viewpoint) | Fit Field Size |
 | Wheel | Steps the frames, in both 2D and 3D (5-1b) | Same (2D) |
 | Ctrl+I | In 3D, the next viewpoint. In 2D, tells that it is for 3D | Free |
 | S | Cycle the stamina display none → stamina → capacity → both (also affects the 3D bars) | Same (2D) |
@@ -1352,4 +1352,26 @@ The 2 commits of 5-5 (220e3b7, 72594bc) were pushed, and the CI passed. Phase 5 
 - Every test was confirmed to fail when what it checks is broken for a while (8 ways: the side of the touch line, the close-up's time constant, without a player, Z and X changing the distance, I setting it back, keeping it over the ground image, starting to move on a new distance and elevation, the ranges of the settings).
 - Builds and tests pass with Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`; 27 tests). `-DENABLE_3D=OFF` (17 tests) and autotools pass too.
 - Frame 3,000 of the full game log was drawn offscreen with the close-up cameras (the ball at 12 m and 5 m, a player at 12 m) and looked at.
+
+#### 2026-11-13: Step 6-2, the viewpoints of the whole pitch (`feature/3d-view`)
+
+The 2 commits of 6-1 (b70c4c1, 2fbdde9) were pushed, and the CI passed. The user checked on the screen. Bringing the look of the focus point into the web version was added to §0.2 (user).
+
+**Decided**
+- The 9 viewpoints of the web version (azimuths and elevations in §4.3; in the order of Ctrl+I). Choosing one puts the free camera there, from where the mouse moves it; it does not follow the ball. The free camera starts at the first (from the side of the pitch).
+- I in 3D no longer sets the zoom back (as since 5-1b) but gives the viewpoint from the side of the pitch (§5.6). Ctrl+I gives the viewpoint after the last one chosen (the first at first). In 2D, I fits the field as before, and Ctrl+I only says in the status bar that it is for 3D (as the web version). The viewpoints of the menu and the tool bar also only say so in 2D.
+- The place of a viewpoint is decided in the shape of the view at the next drawing after it is chosen (`CameraController::viewFrom()`).
+- One key cannot be the shortcut of two actions (in Qt, neither then works), so I stays the action "Fit Field Size", which in 3D chooses the viewpoint. The first viewpoint of the menu shows only the text "I".
+
+**Made**
+- `Viewpoint`, `viewpoints()`, `viewpointInfo()`, `nextViewpoint()` (`src/camera_mode.h`; without GL, as the menu is made in a build without the 3D view too).
+- `Cameras3D::viewpoint()` (`fitView()` with the viewpoint's azimuth and elevation), `CameraController::viewFrom()` (makes the camera free, sets the zoom back to 1, and places it at the next `update()`), `FieldView3D::viewFrom()`.
+- Main window: under View > 3D Camera, the 9 viewpoints and "Next Viewpoint" (Ctrl+I). A "Whole Pitch" button in the tool bar (the list of the viewpoints when pressed; shown with the 3D view only). They are disabled where the 3D view is not available. Choosing a viewpoint makes the camera of the options, the menu and the selector free, and shows the viewpoint's name in the status bar.
+
+**Tests**
+- Added to test `cameras_3d`: the list of the viewpoints (9, the first from the side at the broadcast camera's elevation, no name twice, going round in the order of Ctrl+I, a viewpoint's camera is `fitView()` with its azimuth and elevation); the check that the corners fit, extended to all the viewpoints and three shapes (16:9, 4:3, 21:9); the controller (becomes free with the zoom set back, placed at the viewpoint in the shape of the next drawing, stays without following the ball, moved by the mouse, also from the top camera).
+- Added to test `view_switch`: the menu has the 9 viewpoints (the text I on the first) and Ctrl+I; the button of the tool bar has the same viewpoints and is not shown in 2D; Ctrl+I and the button's viewpoints in 2D only say so, without changing the camera; they are disabled where the 3D view is not available.
+- Every test was confirmed to fail when what it checks is broken for a while (8 ways: making it free, placing it at the viewpoint, setting the zoom back, a viewpoint's elevation, the order of Ctrl+I, not changing the camera in 2D, disabling the button, Ctrl+I in the menu).
+- Builds and tests pass with Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`; 27 tests). `-DENABLE_3D=OFF` (17 tests) and autotools pass too.
+- I, Ctrl+I and the button of the tool bar in 3D cannot be run in the tests without a display; the user checks them on the screen.
 
