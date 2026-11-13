@@ -79,6 +79,18 @@ bool focusPoint( const rcss::rcg::PlayerT & player,
                  Vector2D * point );
 
 /*!
+  \struct Arc
+  \brief an arc: around center, from start (a field direction, degree) by
+  span degrees toward larger directions (clockwise on the 2D screen)
+*/
+struct Arc {
+    Vector2D center_;
+    double radius_;
+    double start_;
+    double span_; //!< 0 to 360
+};
+
+/*!
   \struct CatchArea
   \brief the goalie's catchable area: the radius reaching the far corners of
   the catch box, and with a stretch of the catch box over 1, the largest and
@@ -89,10 +101,54 @@ struct CatchArea {
     bool stretched_; //!< the stretch makes it larger
     double max_; //!< the largest radius by the stretch, if stretched_
     double min_; //!< the smallest radius by the stretch, if stretched_
+    double catchable_length_; //!< the length of the catch box without the stretch
+    double max_length_; //!< the length of the catch box for max_
+    double min_length_; //!< the length of the catch box for min_
 };
 
 CatchArea catchArea( const rcss::rcg::ServerParamT & param,
                      const rcss::rcg::PlayerTypeT & type );
+
+/*!
+  \struct CatchOutline
+  \brief the outline of where a goalie can catch the ball with a catch box
+  of a length.
+
+  The goalie turns the catch box (the length ahead, catchable_area_w wide)
+  to its body direction plus the catch direction, which the server keeps
+  within min_catch_angle and max_catch_angle (from rcssserver 17.0.0, -90
+  and +90 by default: not behind the goalie). The far corners of the boxes
+  draw the arc; the sides of the boxes at the two ends of the directions
+  close the outline behind the goalie.
+
+  The outline goes round: arcs_[0], between_ (only with two arcs), arcs_[1],
+  then edges_ back to the start of arcs_[0].
+*/
+struct CatchOutline {
+    bool circle_; //!< the goalie can catch all around: arcs_ is one full circle, and the others are empty
+    /*!
+      the far edge, from the far corner at the smallest direction. When the
+      directions are so close that the far corners leave a gap in the
+      middle (less than twice the angle of a far corner apart), two arcs,
+      and the far sides of the two boxes at the ends join them
+    */
+    std::vector< Arc > arcs_;
+    std::vector< Vector2D > between_; //!< from the end of arcs_[0] to the start of arcs_[1], if two
+    /*!
+      the rest of the outline, from the end of the last arc (the far corner
+      at the largest direction) round behind the goalie to the start of
+      arcs_[0]
+    */
+    std::vector< Vector2D > edges_;
+};
+
+/*!
+  \brief the outline of where the goalie can catch with a catch box of the
+  length (one of CatchArea's lengths)
+*/
+CatchOutline catchOutline( const rcss::rcg::ServerParamT & param,
+                           const rcss::rcg::PlayerT & player,
+                           const double length );
 
 /*!
   \struct TackleChances
@@ -121,18 +177,6 @@ TackleChances tackleChances( const rcss::rcg::ServerParamT & param,
   "T=0.5,F=0.8", "Tackle=0.5" or "Foul=0.8"
 */
 QString tackleText( const TackleChances & chances );
-
-/*!
-  \struct Arc
-  \brief an arc: around center, from start (a field direction, degree) by
-  span degrees toward larger directions (clockwise on the 2D screen)
-*/
-struct Arc {
-    Vector2D center_;
-    double radius_;
-    double start_;
-    double span_; //!< 0 to 360
-};
 
 /*!
   \struct KickAccel

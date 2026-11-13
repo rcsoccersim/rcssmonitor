@@ -219,6 +219,49 @@ point_of( const Vector2D & v )
     return QPointF( v.x, v.y );
 }
 
+//! add the points as lines whose distances go on from the distance
+float
+add_polyline( std::vector< ColorVertex3D > & list,
+              const std::vector< Vector2D > & points,
+              const QVector4D & color,
+              float distance )
+{
+    for ( size_t i = 1; i < points.size(); ++i )
+    {
+        list.push_back( ColorVertex3D{ on_ground( point_of( points[i - 1] ), LINE_Y ), color, distance } );
+        distance += float( points[i - 1].dist( points[i] ) );
+        list.push_back( ColorVertex3D{ on_ground( point_of( points[i] ), LINE_Y ), color, distance } );
+    }
+    return distance;
+}
+
+//! the outline of a goalie's catchable area, in its order round, the
+//! distances going on all the way (for the dashes)
+void
+add_catch_outline( std::vector< ColorVertex3D > & list,
+                   const OverlayMath::CatchOutline & outline,
+                   const QColor & color )
+{
+    const QVector4D c = rgba( color );
+    float distance = 0.0f;
+    for ( size_t i = 0; i < outline.arcs_.size(); ++i )
+    {
+        const OverlayMath::Arc & arc = outline.arcs_[i];
+        const size_t first = list.size();
+        addArc( list, point_of( arc.center_ ), arc.radius_, color, arc.start_, arc.span_ );
+        for ( size_t v = first; v < list.size(); ++v )
+        {
+            list[v].distance += distance;
+        }
+        distance += float( arc.radius_ * arc.span_ * DEG2RAD );
+        if ( i == 0 )
+        {
+            distance = add_polyline( list, outline.between_, c, distance );
+        }
+    }
+    add_polyline( list, outline.edges_, c, distance );
+}
+
 }
 
 /*-------------------------------------------------------------------*/
@@ -262,13 +305,14 @@ addOverlays( SceneContent & content,
             {
                 const bool left = ( p.side() == rcss::rcg::LEFT );
                 const OverlayMath::CatchArea area = OverlayMath::catchArea( sp, type );
-                addArc( content.lines, center, area.catchable_,
-                        ( left ? opt.leftGoaliePen() : opt.rightGoaliePen() ).color() );
+                add_catch_outline( content.lines,
+                                   OverlayMath::catchOutline( sp, p, area.catchable_length_ ),
+                                   ( left ? opt.leftGoaliePen() : opt.rightGoaliePen() ).color() );
                 if ( area.stretched_ )
                 {
                     const QColor stretch = ( left ? opt.leftGoalieStretchPen() : opt.rightGoalieStretchPen() ).color();
-                    addArc( content.dotted_lines, center, area.max_, stretch );
-                    addArc( content.dotted_lines, center, area.min_, stretch );
+                    add_catch_outline( content.dotted_lines, OverlayMath::catchOutline( sp, p, area.max_length_ ), stretch );
+                    add_catch_outline( content.dotted_lines, OverlayMath::catchOutline( sp, p, area.min_length_ ), stretch );
                 }
             }
 

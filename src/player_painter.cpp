@@ -407,37 +407,60 @@ PlayerPainter::drawCatchArea( QPainter & painter,
                               const PlayerPainter::Param & param ) const
 {
     //
-    // goalie's catchable area
+    // goalie's catchable area: the outline of where the catch box reaches.
+    // Since rcssserver 17.0.0, the goalie cannot catch behind it
+    // (min_catch_angle and max_catch_angle).
     //
     const Options & opt = Options::instance();
-    const OverlayMath::CatchArea area = OverlayMath::catchArea( M_disp_holder.serverParam(), param.player_type_ );
+    const rcss::rcg::ServerParamT & SP = M_disp_holder.serverParam();
+    const OverlayMath::CatchArea area = OverlayMath::catchArea( SP, param.player_type_ );
 
-    const int catchable = opt.scale( area.catchable_ );
+    auto draw_polyline = [&]( const std::vector< Vector2D > & points ) {
+        QPolygon polygon;
+        for ( const Vector2D & p : points )
+        {
+            polygon << QPoint( opt.screenX( p.x ), opt.screenY( p.y ) );
+        }
+        painter.drawPolyline( polygon );
+    };
+    auto draw_outline = [&]( const double length ) {
+        const OverlayMath::CatchOutline outline = OverlayMath::catchOutline( SP, param.player_, length );
+        for ( const OverlayMath::Arc & arc : outline.arcs_ )
+        {
+            const int r = opt.scale( arc.radius_ );
+            if ( outline.circle_ )
+            {
+                painter.drawEllipse( param.x_ - r,
+                                     param.y_ - r,
+                                     r * 2,
+                                     r * 2 );
+                return;
+            }
+            // Qt's angles go counterclockwise on the screen, the field's clockwise.
+            painter.drawArc( param.x_ - r,
+                             param.y_ - r,
+                             r * 2,
+                             r * 2,
+                             static_cast< int >( rint( - arc.start_ * 16 ) ),
+                             static_cast< int >( rint( - arc.span_ * 16 ) ) );
+        }
+        draw_polyline( outline.between_ );
+        draw_polyline( outline.edges_ );
+    };
+
     painter.setPen( ( param.player_.side() == rcss::rcg::LEFT )
                     ? opt.leftGoaliePen()
                     : opt.rightGoaliePen() );
     painter.setBrush( Qt::NoBrush );
-    painter.drawEllipse( param.x_ - catchable,
-                         param.y_ - catchable,
-                         catchable * 2,
-                         catchable * 2 );
+    draw_outline( area.catchable_length_ );
 
-    const int max_r = opt.scale( area.max_ );
-    if ( max_r > catchable )
+    if ( opt.scale( area.max_ ) > opt.scale( area.catchable_ ) )
     {
         painter.setPen( ( param.player_.side() == rcss::rcg::LEFT )
                         ? opt.leftGoalieStretchPen()
                         : opt.rightGoalieStretchPen() );
-        painter.drawEllipse( param.x_ - max_r,
-                             param.y_ - max_r,
-                             max_r * 2,
-                             max_r * 2 );
-
-        const int min_r = opt.scale( area.min_ );
-        painter.drawEllipse( param.x_ - min_r,
-                             param.y_ - min_r,
-                             min_r * 2,
-                             min_r * 2 );
+        draw_outline( area.max_length_ );
+        draw_outline( area.min_length_ );
     }
 }
 

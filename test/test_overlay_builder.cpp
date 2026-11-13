@@ -311,6 +311,73 @@ private slots:
           QVERIFY( c.dotted_lines.empty() ); // the default type has no stretch
       }
 
+    /*
+      From rcssserver 17.0.0, the goalie cannot catch behind it (catch
+      angles -90 to +90): the arc in front, closed by a side half the catch
+      box's width behind; the outlines of a stretched type dotted, their
+      dashes going on from the arc to the side
+    */
+    void catchAreaLimited()
+      {
+          Options & opt = Options::instance();
+          rcss::rcg::ServerParamT sp;
+          sp.max_catch_angle_ = 90.0;
+          sp.min_catch_angle_ = -90.0;
+          DispHolder holder;
+          holder.handleServerParam( sp );
+          rcss::rcg::PlayerTypeT type;
+          type.id_ = 0;
+          type.catchable_area_l_stretch_ = 1.3;
+          holder.handlePlayerType( type );
+
+          rcss::rcg::ShowInfoT show = makeShow( -50, 0, 0.0f ); // facing +x
+          show.player_[0].state_ |= rcss::rcg::GOALIE;
+          SceneContent c;
+          opt.toggleShowCatchArea();
+          OverlayBuilder::addOverlays( c, show, holder, opt );
+          opt.toggleShowCatchArea();
+
+          const double half_width = sp.catchable_area_w_ * 0.5;
+          auto check = [&]( const std::vector< ColorVertex3D > & list,
+                            const double length ) {
+              QVERIFY( list.size() >= 8 );
+              // closed: the side ends where the arc starts
+              QVERIFY( near( field( list.back() ), field( list.front() ) ) );
+              // nothing further behind than half the width; the side there
+              const ColorVertex3D & a = list[list.size() - 2];
+              const ColorVertex3D & b = list.back();
+              QVERIFY( std::fabs( a.position.x() - ( -50 - half_width ) ) < 1.0e-4 );
+              QVERIFY( std::fabs( b.position.x() - ( -50 - half_width ) ) < 1.0e-4 );
+              QVERIFY( std::fabs( a.position.z() - length ) < 1.0e-4 );
+              QVERIFY( std::fabs( b.position.z() + length ) < 1.0e-4 );
+              for ( const ColorVertex3D & v : list )
+              {
+                  QVERIFY( v.position.x() > -50 - half_width - 1.0e-4 );
+              }
+              // the dashes go on from the arc
+              QVERIFY( std::fabs( a.distance - list[list.size() - 3].distance ) < 1.0e-4f );
+              QVERIFY( std::fabs( b.distance - a.distance - 2.0 * length ) < 1.0e-4 );
+          };
+          const OverlayMath::CatchArea area = OverlayMath::catchArea( sp, type );
+          check( c.lines, area.catchable_length_ );
+          QCOMPARE( c.lines[0].color, rgba( opt.leftGoaliePen().color() ) );
+
+          // the largest and the smallest, one after the other: the second
+          // starts its dashes again
+          size_t second = 1;
+          while ( second < c.dotted_lines.size()
+                  && c.dotted_lines[second].distance != 0.0f )
+          {
+              ++second;
+          }
+          QVERIFY( second < c.dotted_lines.size() );
+          check( std::vector< ColorVertex3D >( c.dotted_lines.begin(), c.dotted_lines.begin() + second ),
+                 area.max_length_ );
+          check( std::vector< ColorVertex3D >( c.dotted_lines.begin() + second, c.dotted_lines.end() ),
+                 area.min_length_ );
+          QCOMPARE( c.dotted_lines[0].color, rgba( opt.leftGoalieStretchPen().color() ) );
+      }
+
     void tackleArea()
       {
           Options & opt = Options::instance();

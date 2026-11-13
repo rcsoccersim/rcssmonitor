@@ -148,7 +148,85 @@ catchArea( const rcss::rcg::ServerParamT & SP,
                            + std::pow( min_catchable_area_l, 2.0 ) );
 
     area.stretched_ = ( area.max_ > area.catchable_ );
+    area.catchable_length_ = SP.catchable_area_l_;
+    area.max_length_ = max_catchable_area_l;
+    area.min_length_ = min_catchable_area_l;
     return area;
+}
+
+/*-------------------------------------------------------------------*/
+CatchOutline
+catchOutline( const rcss::rcg::ServerParamT & SP,
+              const rcss::rcg::PlayerT & player,
+              const double length )
+{
+    const Vector2D center( player.x(), player.y() );
+    const double half_width = SP.catchable_area_w_ * 0.5;
+    const double radius = std::sqrt( std::pow( half_width, 2.0 ) + std::pow( length, 2.0 ) );
+    // the far corners are this much off the direction of the box
+    const double diagonal = AngleDeg::atan2_deg( half_width, length );
+
+    // the server keeps the catch direction within [min, max] (bound())
+    const double min_dir = SP.min_catch_angle_;
+    const double span = std::max( 0.0, SP.max_catch_angle_ - min_dir );
+    const double body = player.body_;
+
+    CatchOutline outline;
+    outline.circle_ = ( span + diagonal * 2.0 >= 360.0 );
+    if ( outline.circle_ )
+    {
+        outline.arcs_.push_back( Arc{ center, radius, 0.0, 360.0 } );
+        return outline;
+    }
+
+    const AngleDeg max_angle = body + min_dir + span;
+    const AngleDeg min_angle = body + min_dir;
+    const Vector2D far_max = center + Vector2D::from_polar( radius, max_angle + diagonal );
+    const Vector2D far_min = center + Vector2D::from_polar( radius, min_angle - diagonal );
+
+    if ( span >= diagonal * 2.0 )
+    {
+        outline.arcs_.push_back( Arc{ center, radius, body + min_dir - diagonal, span + diagonal * 2.0 } );
+    }
+    else
+    {
+        // the corners on one side of the boxes, and those on the other; the
+        // far sides of the boxes at the two ends cross between them, on the
+        // middle direction
+        outline.arcs_.push_back( Arc{ center, radius, body + min_dir - diagonal, span } );
+        outline.arcs_.push_back( Arc{ center, radius, body + min_dir + diagonal, span } );
+        outline.between_.push_back( center + Vector2D::from_polar( radius, max_angle - diagonal ) );
+        outline.between_.push_back( center + Vector2D::from_polar( length / std::cos( span * 0.5 * M_PI / 180.0 ),
+                                                                   min_angle + span * 0.5 ) );
+        outline.between_.push_back( center + Vector2D::from_polar( radius, min_angle + diagonal ) );
+    }
+
+    outline.edges_.push_back( far_max );
+    if ( span < 180.0 - 1.0e-6 )
+    {
+        // the boxes leave a gap behind the goalie: the sides of the two
+        // boxes at the ends go back to their near corners, which meet at
+        // the goalie
+        outline.edges_.push_back( center + Vector2D::from_polar( half_width, max_angle + 90.0 ) );
+        outline.edges_.push_back( center );
+        outline.edges_.push_back( center + Vector2D::from_polar( half_width, min_angle - 90.0 ) );
+    }
+    else
+    {
+        // the sides of the two boxes at the ends cross behind the goalie
+        // (on one line when the directions are 180 degrees apart)
+        const Vector2D u_max = Vector2D::from_polar( 1.0, max_angle );
+        const Vector2D u_min = Vector2D::from_polar( 1.0, min_angle );
+        const double cross = u_max.outerProduct( u_min );
+        if ( std::fabs( cross ) > 1.0e-6 )
+        {
+            // far_max + t * u_max == far_min + s * u_min
+            const double t = ( far_min - far_max ).outerProduct( u_min ) / cross;
+            outline.edges_.push_back( far_max + u_max * t );
+        }
+    }
+    outline.edges_.push_back( far_min );
+    return outline;
 }
 
 /*-------------------------------------------------------------------*/

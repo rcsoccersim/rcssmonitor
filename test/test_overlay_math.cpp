@@ -34,6 +34,7 @@
 
 #include "overlay_math.h"
 
+#include <algorithm>
 #include <cmath>
 
 #include <vector>
@@ -77,6 +78,92 @@ makeShow( const std::vector< float > & left_x,
     return show;
 }
 
+//! the server's catch: a direction within [min, max] of the body puts the
+//! point in the catch box of the length (rcssserver Player::goalieCatch)
+bool
+serverCanCatch( const rcss::rcg::ServerParamT & sp,
+                const rcss::rcg::PlayerT & p,
+                const double length,
+                const Vector2D & point )
+{
+    const Vector2D rel = point - Vector2D( p.x(), p.y() );
+    for ( double dir = sp.min_catch_angle_; dir <= sp.max_catch_angle_ + 1.0e-9; dir += 0.05 )
+    {
+        Vector2D v = rel;
+        v.rotate( - ( p.body_ + dir ) );
+        if ( 0.0 <= v.x && v.x <= length
+             && std::fabs( v.y ) <= sp.catchable_area_w_ * 0.5 )
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+//! the outline as a closed polygon: the arc in fine steps, then the edges
+std::vector< Vector2D >
+outlinePolygon( const OverlayMath::CatchOutline & outline )
+{
+    std::vector< Vector2D > poly;
+    for ( size_t a = 0; a < outline.arcs_.size(); ++a )
+    {
+        const OverlayMath::Arc & arc = outline.arcs_[a];
+        for ( int i = 0; i <= 720; ++i )
+        {
+            poly.push_back( arc.center_ + Vector2D::from_polar( arc.radius_, arc.start_ + arc.span_ * i / 720.0 ) );
+        }
+        if ( a == 0 )
+        {
+            poly.insert( poly.end(), outline.between_.begin(), outline.between_.end() );
+        }
+    }
+    poly.insert( poly.end(), outline.edges_.begin(), outline.edges_.end() );
+    return poly;
+}
+
+//! the point is within the polygon (even-odd)
+bool
+inPolygon( const std::vector< Vector2D > & poly,
+           const Vector2D & point )
+{
+    bool in = false;
+    for ( size_t i = 0, j = poly.size() - 1; i < poly.size(); j = i++ )
+    {
+        const Vector2D & a = poly[i];
+        const Vector2D & b = poly[j];
+        if ( ( a.y > point.y ) != ( b.y > point.y )
+             && point.x < ( b.x - a.x ) * ( point.y - a.y ) / ( b.y - a.y ) + a.x )
+        {
+            in = ! in;
+        }
+    }
+    return in;
+}
+
+//! the distance from the point to the polygon's sides
+double
+distToPolygon( const std::vector< Vector2D > & poly,
+               const Vector2D & point )
+{
+    double d = 1.0e9;
+    for ( size_t i = 0, j = poly.size() - 1; i < poly.size(); j = i++ )
+    {
+        const Vector2D ab = poly[i] - poly[j];
+        const double len2 = ab.innerProduct( ab );
+        double t = ( len2 > 0.0 ? ( point - poly[j] ).innerProduct( ab ) / len2 : 0.0 );
+        t = std::min( 1.0, std::max( 0.0, t ) );
+        d = std::min( d, point.dist( poly[j] + ab * t ) );
+    }
+    return d;
+}
+
+bool
+nearPoint( const Vector2D & a,
+           const Vector2D & b )
+{
+    return a.dist( b ) < 1.0e-6;
+}
+
 }
 
 /*!
@@ -95,6 +182,11 @@ private slots:
     void offsideIgnoresDisconnected();
     void focusPoint();
     void catchArea();
+    void catchOutlineAllAround();
+    void catchOutlineHalf();
+    void catchOutlineNarrow();
+    void catchOutlineWide();
+    void catchOutlineMatchesServer();
     void tackleChances();
     void tackleText();
     void kickAccelNotKickable();
@@ -259,6 +351,164 @@ TestOverlayMath::catchArea()
     QVERIFY( area.stretched_ );
     QVERIFY( std::fabs( area.max_ - std::hypot( sp.catchable_area_w_ / 2, sp.catchable_area_l_ * 1.3 ) ) < 1.0e-9 );
     QVERIFY( std::fabs( area.min_ - std::hypot( sp.catchable_area_w_ / 2, sp.catchable_area_l_ * 0.7 ) ) < 1.0e-9 );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  Before rcssserver 17.0.0 (and by default, when a log has no catch
+  angles), the goalie catches all around: a circle
+*/
+void
+TestOverlayMath::catchOutlineAllAround()
+{
+    rcss::rcg::ServerParamT sp;
+    const rcss::rcg::PlayerT p = makePlayer( 1.0f, 2.0f, 30.0f );
+    const OverlayMath::CatchOutline o = OverlayMath::catchOutline( sp, p, sp.catchable_area_l_ );
+    QVERIFY( o.circle_ );
+    QCOMPARE( o.arcs_.size(), size_t( 1 ) );
+    QVERIFY( o.edges_.empty() && o.between_.empty() );
+    QVERIFY( nearPoint( o.arcs_[0].center_, Vector2D( 1.0, 2.0 ) ) );
+    QVERIFY( std::fabs( o.arcs_[0].radius_ - std::hypot( 0.5, 1.2 ) ) < 1.0e-9 );
+    QCOMPARE( o.arcs_[0].span_, 360.0 );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  From rcssserver 17.0.0 (-90 to +90): the arc in front, and a straight
+  side half the catch box's width behind the goalie
+*/
+void
+TestOverlayMath::catchOutlineHalf()
+{
+    rcss::rcg::ServerParamT sp;
+    sp.max_catch_angle_ = 90.0;
+    sp.min_catch_angle_ = -90.0;
+    const rcss::rcg::PlayerT p = makePlayer( 1.0f, 2.0f, 30.0f );
+    const double l = 1.4;
+    const OverlayMath::CatchOutline o = OverlayMath::catchOutline( sp, p, l );
+    QVERIFY( ! o.circle_ );
+    QCOMPARE( o.arcs_.size(), size_t( 1 ) );
+    QVERIFY( o.between_.empty() );
+    const double diagonal = std::atan2( 0.5, l ) * 180.0 / M_PI;
+    QVERIFY( std::fabs( o.arcs_[0].radius_ - std::hypot( 0.5, l ) ) < 1.0e-9 );
+    QVERIFY( std::fabs( o.arcs_[0].start_ - ( 30.0 - 90.0 - diagonal ) ) < 1.0e-9 );
+    QVERIFY( std::fabs( o.arcs_[0].span_ - ( 180.0 + diagonal * 2.0 ) ) < 1.0e-9 );
+
+    // from the arc's end to its start: the far corners of the boxes at +90
+    // and -90, both half the width behind
+    const Vector2D c( 1.0, 2.0 );
+    QCOMPARE( o.edges_.size(), size_t( 2 ) );
+    QVERIFY( nearPoint( o.edges_.front(), c + Vector2D::from_polar( l, 120.0 ) + Vector2D::from_polar( 0.5, 210.0 ) ) );
+    QVERIFY( nearPoint( o.edges_.back(), c + Vector2D::from_polar( l, -60.0 ) + Vector2D::from_polar( 0.5, -150.0 ) ) );
+    QVERIFY( nearPoint( o.edges_.front(), c + Vector2D::from_polar( o.arcs_[0].radius_, o.arcs_[0].start_ + o.arcs_[0].span_ ) ) );
+    QVERIFY( nearPoint( o.edges_.back(), c + Vector2D::from_polar( o.arcs_[0].radius_, o.arcs_[0].start_ ) ) );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  Directions less than 180 degrees apart leave a gap behind the goalie:
+  the sides go to the near corners and meet at the goalie
+*/
+void
+TestOverlayMath::catchOutlineNarrow()
+{
+    rcss::rcg::ServerParamT sp;
+    sp.max_catch_angle_ = 45.0;
+    sp.min_catch_angle_ = -45.0;
+    const rcss::rcg::PlayerT p = makePlayer( 0.0f, 0.0f, 0.0f );
+    const OverlayMath::CatchOutline o = OverlayMath::catchOutline( sp, p, 1.2 );
+    QCOMPARE( o.edges_.size(), size_t( 5 ) );
+    QVERIFY( nearPoint( o.edges_[1], Vector2D::from_polar( 0.5, 135.0 ) ) );
+    QVERIFY( nearPoint( o.edges_[2], Vector2D( 0.0, 0.0 ) ) );
+    QVERIFY( nearPoint( o.edges_[3], Vector2D::from_polar( 0.5, -135.0 ) ) );
+
+    // closer than twice the angle of a far corner (22.6 degrees): two arcs
+    // of the corners on each side, joined by the far sides of the boxes at
+    // the ends, which cross on the body direction
+    sp.max_catch_angle_ = 10.0;
+    sp.min_catch_angle_ = -10.0;
+    const OverlayMath::CatchOutline two = OverlayMath::catchOutline( sp, p, 1.2 );
+    QCOMPARE( two.arcs_.size(), size_t( 2 ) );
+    QVERIFY( std::fabs( two.arcs_[0].span_ - 20.0 ) < 1.0e-9 );
+    QCOMPARE( two.between_.size(), size_t( 3 ) );
+    QVERIFY( nearPoint( two.between_[1], Vector2D( 1.2 / std::cos( 10.0 * M_PI / 180.0 ), 0.0 ) ) );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  Directions more than 180 degrees apart: the sides of the boxes at the
+  ends cross behind the goalie
+*/
+void
+TestOverlayMath::catchOutlineWide()
+{
+    rcss::rcg::ServerParamT sp;
+    sp.max_catch_angle_ = 135.0;
+    sp.min_catch_angle_ = -135.0;
+    const rcss::rcg::PlayerT p = makePlayer( 0.0f, 0.0f, 0.0f );
+    const OverlayMath::CatchOutline o = OverlayMath::catchOutline( sp, p, 1.2 );
+    QCOMPARE( o.edges_.size(), size_t( 3 ) );
+    const Vector2D & x = o.edges_[1];
+    QVERIFY( std::fabs( x.y ) < 1.0e-6 ); // on the line of the body, behind
+    QVERIFY( x.x < 0.0 );
+    // on the side of the box at +135
+    QVERIFY( std::fabs( ( x - o.edges_[0] ).outerProduct( Vector2D::from_polar( 1.0, 135.0 ) ) ) < 1.0e-6 );
+
+    // the arc closes: a circle
+    sp.max_catch_angle_ = 170.0;
+    sp.min_catch_angle_ = -170.0;
+    QVERIFY( OverlayMath::catchOutline( sp, p, 1.2 ).circle_ );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  Within the outline exactly where the server can catch (a grid of points,
+  except those within 2 cm of the outline), for several catch angles,
+  bodies and lengths
+*/
+void
+TestOverlayMath::catchOutlineMatchesServer()
+{
+    struct Case { double min_; double max_; float body_; double length_; };
+    const Case cases[] = {
+        { -90.0, 90.0, 30.0f, 1.2 },
+        { -45.0, 45.0, -100.0f, 1.2 },
+        { -135.0, 135.0, 170.0f, 1.5 },
+        { -30.0, 100.0, 60.0f, 1.0 },
+        { -120.0, 100.0, -20.0f, 1.2 },
+        { -150.0, 150.0, 0.0f, 2.0 },
+        { 0.0, 0.0, 45.0f, 1.2 },
+        { -5.0, 25.0, -60.0f, 1.2 },
+    };
+    for ( const Case & k : cases )
+    {
+        rcss::rcg::ServerParamT sp;
+        sp.min_catch_angle_ = k.min_;
+        sp.max_catch_angle_ = k.max_;
+        const rcss::rcg::PlayerT p = makePlayer( 3.0f, -2.0f, k.body_ );
+        const OverlayMath::CatchOutline o = OverlayMath::catchOutline( sp, p, k.length_ );
+        QVERIFY( ! o.circle_ );
+        const std::vector< Vector2D > poly = outlinePolygon( o );
+        int checked = 0;
+        for ( double x = -2.6; x <= 2.6; x += 0.1 )
+        {
+            for ( double y = -2.6; y <= 2.6; y += 0.1 )
+            {
+                const Vector2D point( 3.0 + x, -2.0 + y );
+                if ( distToPolygon( poly, point ) < 0.02 )
+                {
+                    continue;
+                }
+                ++checked;
+                if ( inPolygon( poly, point ) != serverCanCatch( sp, p, k.length_, point ) )
+                {
+                    QFAIL( qPrintable( QString( "min %1 max %2 body %3: (%4, %5)" )
+                                       .arg( k.min_ ).arg( k.max_ ).arg( k.body_ ).arg( x ).arg( y ) ) );
+                }
+            }
+        }
+        QVERIFY( checked > 2000 );
+    }
 }
 
 /*-------------------------------------------------------------------*/

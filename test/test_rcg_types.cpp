@@ -58,7 +58,9 @@ private slots:
 /*-------------------------------------------------------------------*/
 /*!
   The defaults are those of rcssserver 19.0.0 (B7), used when a log or a
-  server does not have a parameter. Some of those that changed.
+  server does not have a parameter. Some of those that changed. The catch
+  angles are those of the servers before 17.0.0, which had no such
+  parameters (and no limit).
 */
 void
 TestRcgTypes::serverParamDefaults()
@@ -76,8 +78,8 @@ TestRcgTypes::serverParamDefaults()
     QCOMPARE( param.min_dash_power_, 0.0 );
     QCOMPARE( param.tackle_width_, 1.25 );
     QCOMPARE( param.tackle_back_dist_, 0.0 );
-    QCOMPARE( param.max_catch_angle_, 90.0 );
-    QCOMPARE( param.min_catch_angle_, -90.0 );
+    QCOMPARE( param.max_catch_angle_, 180.0 );
+    QCOMPARE( param.min_catch_angle_, -180.0 );
     QCOMPARE( param.drop_ball_time_, 100 );
     QCOMPARE( param.extra_half_time_, 100 );
     QCOMPARE( param.game_log_version_, 6 );
