@@ -7,7 +7,7 @@
 | Reference implementation | rcssmonitor-web 20.0.0-beta.2 (tag `v20.0.0-beta.2`, ed36941). Its working tree is `../rcssmonitor-web`, next to this repository |
 | Server referred to | The asio version of rcssserver 19.x. Its working tree is `../rcssserver` (branch `feature/asio-migration`), next to this repository |
 | Japanese version | [PLAN_3D-VIEW.md](PLAN_3D-VIEW.md) (same content; §0.1) |
-| Status | Phase 5 (started 2026-11-12, `feature/3d-view`). Steps 5-1 to 5-4 (§14). Phase 4 done |
+| Status | Phase 5 (started 2026-11-12, `feature/3d-view`). Steps 5-1 to 5-5 (§14). Phase 4 done |
 
 ## 0. How to use this plan
 
@@ -530,7 +530,7 @@ Each phase proceeds on a feature branch and is merged into develop when it is do
 
 ### Phase 5: Same information as 2D, and referee operations
 
-**Work**: overlays (§5.4; extract the calculations from the 2D painters and share them), area values in the HUD, stamina bars and the S key, the illegal defense color, hit testing for referee operations (§5.4). → Steps: 5-1 the part that draws lines, the direction lines in the foot circles, the view areas (moved from Phase 4). 5-2 the overlays of 2D and the area values in the HUD. 5-3 the stamina bars and the S key. 5-4 hit testing for referee operations. The illegal defense color was done with the numbers in 4-5.
+**Work**: overlays (§5.4; extract the calculations from the 2D painters and share them), area values in the HUD, stamina bars and the S key, the illegal defense color, hit testing for referee operations (§5.4). → Steps: 5-1 the part that draws lines, the direction lines in the foot circles, the view areas (moved from Phase 4). 5-2 the overlays of 2D and the area values in the HUD. 5-3 the stamina bars and the S key. 5-4 hit testing for referee operations. 5-5 the look of the focus point (2D and 3D; added by the user). The illegal defense color was done with the numbers in 4-5.
 
 **Done when**: the Show tab switches work in 3D too. Referee commands are sent for players and ground points right-clicked in 3D (checked with a fake server; the web version's `tools/replay-server` is a reference).
 
@@ -1300,4 +1300,31 @@ The 3 commits of 5-4 (aa9868a to a4cf9c1) were pushed. In the CI, only the Ubunt
 
 **Tests**
 - Nothing works differently. Two tests that relied on headers read through others (`picking`, `overlay_builder`) got the headers they need. Builds and tests pass with Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`; 27 tests).
+
+#### 2026-11-13: Step 5-5, the look of the focus point (`feature/3d-view`)
+
+The 3 commits of the CI fix and the split of SceneContent (fb41ec9 to b281ba2) were pushed, and the CI passed (the Ubuntu 22.04 job too).
+
+**User's check**: connected to rcssserver, the user checked that the right click in 3D sends the referee's commands, and how Focus Point works. The completion criteria of Phase 5 are met. But the look of Focus Point (only a line from the player and a circle around the focus point) was hard to read.
+
+**Decided (user)**
+- Make the focus point easier to read, keeping the cost of drawing low, as step 5-5 before Phase 6. The ideas taken (both 2D and 3D):
+  1. The lines of the same noise: rcssserver's focus point sets the noise of what a player sees (in 19.0.0's gaussian model, the deviation = the distance from the player × `dist_noise_rate` + the distance from the focus point × `focus_dist_noise_rate`; the two rates are the same by default). The points of the same noise make, with the same rates, an ellipse with the player and the focus point as its foci. Lines are drawn where the noise is larger than the smallest by the mean of the two rates × 10, 20 and 40 m (with the same rates, where the way from the player through the point to the focus point is 10, 20 and 40 m longer than the straight way). Inside, the player sees better. Nothing outside the view is seen, so the lines are cut to the view angle.
+  2. A reticle as the mark: a circle of the focus point size (Focus Point Size) and four ticks of a cross, one toward the player, over three translucent discs, darker to the center (a spot).
+  3. In 3D, the line from the player starts at the height of the eyes (the center of the head), to read as the line of sight.
+  4. All players' focus points as small reticles (0.6 times) in their team colors, by an option (the Show tab's "All Focus Points", `show_all_focus_points`, `--show-all-focus-points`), which works only with Focus Point on.
+
+**Made**
+- `OverlayMath::focusNoiseLines()`: from the point where the noise is smallest (the focus point unless its rate is smaller, else the player), 96 rays; on each, bisection finds where the weighted sum of the distances reaches the line's value, making a closed polygon (the sum is convex, so each ray crosses once). It is cut by the half planes on both sides of the view, and the parts within the view become polylines. A line the view cuts may be in two (when the player is outside the line). The rates are the player type's.
+- `OverlayMath::focusTicks()`, `OverlayMath::FocusLook` (the reticle, the spot, the opacities of the lines (0.8, 0.55, 0.3 from inside), the size of the other players' reticles). 2D and 3D draw with the same values.
+- 2D (`PlayerPainter::drawFocusPoint()`) and 3D (`OverlayBuilder::addOverlays()`). The spot in 3D uses the instanced discs of the circles under the players, with no more draw calls. The lines are a few hundred vertices a frame.
+- `Options::showAllFocusPoints()`, and the check box of the config dialog.
+
+**Tests**
+- Added to test `overlay_math`: the places of the ticks; no lines (no focus point, no view, rates 0); the ellipses with the same rates (every point's sum of the distances matches, only in front with a view of 180°, the ends at the sides of the view, the place of the far end); a narrow view cuts both sides; with the player outside, a line stays closed (view 90°) or splits in two (view 20°); the weighted sum with different rates.
+- Test `overlay_builder`: the selected player's spot (place, size, opacity), the line from the eyes, the lines on their ellipses within the view, fainter outward, and the circle and ticks of the reticle. With the option of all, the other players' reticles in their team colors, with no spot and no lines.
+- Test `config_dialog`: the check box sets the option, and is disabled with Focus Point off (also when the key of Focus Point toggles it).
+- Every test was confirmed to fail when what it checks is broken for a while (13 ways: the center of the rays, the value of the lines, the cut by the view, the direction of one side of the view, joining a closed line, half the view width, the direction of the ticks, the height of the eyes, the other players' color, the option of all, the order of the opacities, and the two places that enable and disable the check box).
+- No player moves its focus point in the two full game logs at hand, so players were given focus points in a frame of a log, and 2D and 3D were drawn offscreen and looked at.
+- Builds and tests pass with Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`; 27 tests). `-DENABLE_3D=OFF` (17 tests) and autotools pass too.
 
