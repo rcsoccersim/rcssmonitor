@@ -39,11 +39,13 @@
 #include "disp_holder.h"
 #include "options.h"
 #include "overlay_math.h"
+#include "scene_builder.h"
 
 #include <rcss/rcg/types.h>
 
 #include <algorithm>
 #include <cmath>
+#include <iterator>
 
 namespace {
 
@@ -262,6 +264,87 @@ add_catch_outline( std::vector< ColorVertex3D > & list,
     add_polyline( list, outline.edges_, c, distance );
 }
 
+//! the ticks of the focus point's reticle (OverlayMath::focusTicks())
+void
+add_ticks( std::vector< ColorVertex3D > & list,
+           const Vector2D & focus,
+           const double radius,
+           const double direction,
+           const QColor & color )
+{
+    const std::vector< Vector2D > ends = OverlayMath::focusTicks( focus, radius, direction );
+    for ( size_t i = 0; i + 1 < ends.size(); i += 2 )
+    {
+        OverlayBuilder::addLine( list, point_of( ends[i] ), point_of( ends[i + 1] ), color );
+    }
+}
+
+/*!
+  the focus point of a player (OverlayMath::FocusLook): the selected
+  player's with the soft spot, the lines of the same noise, the line from
+  the eyes and the reticle; another player's a smaller reticle in its team
+  color
+*/
+void
+add_focus_point( SceneContent & content,
+                 const rcss::rcg::PlayerT & player,
+                 const rcss::rcg::PlayerTypeT & type,
+                 const Vector2D & focus,
+                 const bool selected,
+                 const Options & opt )
+{
+    using OverlayMath::FocusLook;
+    const Vector2D pos( player.x(), player.y() );
+    const double direction = ( focus - pos ).th().degree();
+
+    if ( ! selected )
+    {
+        const double radius = opt.focusPointSize() * FocusLook::OTHER_SCALE;
+        const QColor color = ( player.side() == rcss::rcg::LEFT
+                               ? opt.leftTeamBrush() : opt.rightTeamBrush() ).color();
+        OverlayBuilder::addArc( content.lines, point_of( focus ), radius, color );
+        add_ticks( content.lines, focus, radius, direction, color );
+        return;
+    }
+
+    const QColor color = opt.focusPointPen().color();
+
+    // the soft spot: discs on the ground, darker to the center where they overlap
+    for ( const double k : FocusLook::SPOT_RADII )
+    {
+        const float r = float( opt.focusPointSize() * k );
+        QMatrix4x4 m;
+        m.translate( float( focus.x ), SceneBuilder::DISC_Y, float( focus.y ) );
+        m.scale( r, 1.0f, r );
+        content.discs.push_back( Instance3D{ m, rgba( color, float( FocusLook::SPOT_OPACITY ) ) } );
+    }
+
+    // the lines of the same noise, fainter outward
+    const std::vector< std::vector< std::vector< Vector2D > > > lines = OverlayMath::focusNoiseLines( type, player );
+    for ( size_t i = 0; i < lines.size(); ++i )
+    {
+        const size_t k = std::min( i, std::size( FocusLook::NOISE_OPACITY ) - 1 );
+        const QVector4D c = rgba( color, float( FocusLook::NOISE_OPACITY[k] ) );
+        for ( const std::vector< Vector2D > & line : lines[i] )
+        {
+            add_polyline( content.lines, line, c, 0.0f );
+        }
+    }
+
+    // the line of sight, from the eyes (the center of the head) down to the focus point
+    {
+        const QVector4D c = rgba( color );
+        const QVector3D eye( float( pos.x ), SceneBuilder::HEAD_HEIGHT, float( pos.y ) );
+        const QVector3D at = on_ground( point_of( focus ), OverlayBuilder::LINE_Y );
+        content.lines.push_back( ColorVertex3D{ eye, c, 0.0f } );
+        content.lines.push_back( ColorVertex3D{ at, c, ( at - eye ).length() } );
+    }
+
+    // the reticle
+    OverlayBuilder::addArc( content.lines, point_of( focus ), opt.focusPointSize(), color );
+    add_ticks( content.lines, focus, opt.focusPointSize(), direction, color );
+}
+
 }
 
 /*-------------------------------------------------------------------*/
@@ -287,16 +370,14 @@ addOverlays( SceneContent & content,
             const QPointF center( p.x_, p.y_ );
             const bool selected = opt.selectedPlayer( p.side(), p.unum_ );
 
-            // the focus point of the selected player
+            // the focus point of the selected player, or with the option of all players
             Vector2D focus;
             if ( opt.showFocusPoint()
-                 && selected
+                 && ( selected || opt.showAllFocusPoints() )
                  && p.hasNeck() && p.hasView()
                  && OverlayMath::focusPoint( p, &focus ) )
             {
-                const QColor color = opt.focusPointPen().color();
-                addLine( content.lines, center, point_of( focus ), color );
-                addArc( content.lines, point_of( focus ), opt.focusPointSize(), color );
+                add_focus_point( content, p, type, focus, selected, opt );
             }
 
             // the catch areas of a goalie

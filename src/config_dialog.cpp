@@ -611,6 +611,17 @@ ConfigDialog::createPlayerInfoControls()
                  this, SLOT( clickShowFocusPoint( bool ) ) );
         layout->addWidget( M_focus_point_cb );
 
+        // the other players' focus points too, with Focus Point
+        M_all_focus_points_cb = new QCheckBox( tr( "All Focus Points" ) );
+        M_all_focus_points_cb->setToolTip( tr( "With Focus Point, show the focus points of all players,\n"
+                                               "smaller and in their team colors. The selected player's\n"
+                                               "focus point has the line and the lines of the same noise." ) );
+        M_all_focus_points_cb->setChecked( Options::instance().showAllFocusPoints() );
+        M_all_focus_points_cb->setEnabled( Options::instance().showFocusPoint() );
+        connect( M_all_focus_points_cb, SIGNAL( clicked( bool ) ),
+                 this, SLOT( clickShowAllFocusPoints( bool ) ) );
+        layout->addWidget( M_all_focus_points_cb );
+
         top_layout->addLayout( layout );
     }
 
@@ -1325,6 +1336,8 @@ ConfigDialog::updateAll()
     M_stamina_cb->setChecked( opt.showStamina() );
     M_view_area_cb->setChecked( opt.showViewArea() );
     M_focus_point_cb->setChecked( opt.showFocusPoint() );
+    M_all_focus_points_cb->setChecked( opt.showAllFocusPoints() );
+    M_all_focus_points_cb->setEnabled( opt.showFocusPoint() );
     M_catch_area_cb->setChecked( opt.showCatchArea() );
     M_tackle_area_cb->setChecked( opt.showTackleArea() );
     M_kick_accel_area_cb->setChecked( opt.showKickAccelArea() );
@@ -1935,6 +1948,21 @@ ConfigDialog::clickShowFocusPoint( bool checked )
     if ( Options::instance().showFocusPoint() != checked )
     {
         Options::instance().toggleShowFocusPoint();
+        M_all_focus_points_cb->setEnabled( checked );
+        emit configured();
+    }
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+void
+ConfigDialog::clickShowAllFocusPoints( bool checked )
+{
+    if ( Options::instance().showAllFocusPoints() != checked )
+    {
+        Options::instance().toggleShowAllFocusPoints();
         emit configured();
     }
 }
@@ -1948,6 +1976,7 @@ ConfigDialog::toggleShowFocusPoint()
 {
     Options::instance().toggleShowFocusPoint();
     M_focus_point_cb->setChecked( Options::instance().showFocusPoint() );
+    M_all_focus_points_cb->setEnabled( Options::instance().showFocusPoint() );
 
     emit configured();
 }

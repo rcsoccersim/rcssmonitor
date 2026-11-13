@@ -131,6 +131,143 @@ focusPoint( const rcss::rcg::PlayerT & player,
 }
 
 /*-------------------------------------------------------------------*/
+std::vector< Vector2D >
+focusTicks( const Vector2D & center,
+            const double radius,
+            const double direction )
+{
+    std::vector< Vector2D > ends;
+    for ( int i = 0; i < 4; ++i )
+    {
+        const double dir = direction + 90.0 * i;
+        ends.push_back( center + Vector2D::from_polar( radius * FocusLook::TICK_IN, dir ) );
+        ends.push_back( center + Vector2D::from_polar( radius * FocusLook::TICK_OUT, dir ) );
+    }
+    return ends;
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  The line of a step is found along rays from the point where the noise is
+  smallest (the focus point when its rate is not smaller, else the player):
+  the weighted sum f(q) is convex, so it grows along each ray from its
+  smallest, and crosses the level once. The closed polygon of the rays is
+  then cut to the view angle: a half plane on each side of the face
+  direction, as the view is never wider than 180 degrees.
+*/
+std::vector< std::vector< std::vector< Vector2D > > >
+focusNoiseLines( const rcss::rcg::PlayerTypeT & type,
+                 const rcss::rcg::PlayerT & player )
+{
+    std::vector< std::vector< std::vector< Vector2D > > > result;
+
+    Vector2D focus;
+    const double a = std::max( 0.0, type.dist_noise_rate_ );
+    const double b = std::max( 0.0, type.focus_dist_noise_rate_ );
+    if ( ! player.hasNeck()
+         || ! player.hasView()
+         || ! focusPoint( player, &focus )
+         || a + b <= 0.0 )
+    {
+        return result;
+    }
+
+    const Vector2D pos( player.x(), player.y() );
+    const double d = pos.dist( focus );
+    const auto noise = [&]( const Vector2D & q ) { return a * q.dist( pos ) + b * q.dist( focus ); };
+    const Vector2D center = ( a <= b ? focus : pos );
+    const double smallest = std::min( a, b ) * d; // noise( center )
+
+    // the sides of the view: inside when left of the right side and right of the left side
+    const double face = player.body_ + player.neck_;
+    const double half_width = std::min( 90.0, player.viewWidth() * 0.5 );
+    const Vector2D right_side = Vector2D::from_polar( 1.0, face - half_width );
+    const Vector2D left_side = Vector2D::from_polar( 1.0, face + half_width );
+    // > 0 inside each side (linear in q)
+    const auto side_value = [&]( const Vector2D & side, const double sign, const Vector2D & q )
+        { return sign * side.outerProduct( q - pos ); };
+
+    constexpr int RAYS = 96;
+    for ( const double step : FOCUS_NOISE_STEPS )
+    {
+        const double level = smallest + ( a + b ) * 0.5 * step;
+
+        // the closed polygon of the line
+        std::vector< Vector2D > ring;
+        ring.reserve( RAYS + 1 );
+        for ( int i = 0; i < RAYS; ++i )
+        {
+            const Vector2D u = Vector2D::from_polar( 1.0, 360.0 * i / RAYS );
+            // noise( center + r u ) >= ( a + b ) r - smallest, so it is over the level here
+            double lo = 0.0, hi = ( level + smallest ) / ( a + b );
+            for ( int k = 0; k < 30; ++k )
+            {
+                const double mid = ( lo + hi ) * 0.5;
+                ( noise( center + u * mid ) < level ? lo : hi ) = mid;
+            }
+            ring.push_back( center + u * hi );
+        }
+        ring.push_back( ring.front() );
+
+        // cut it to the view, keeping the runs inside
+        std::vector< std::vector< Vector2D > > lines;
+        std::vector< Vector2D > run;
+        for ( size_t i = 1; i < ring.size(); ++i )
+        {
+            const Vector2D & p0 = ring[i - 1];
+            const Vector2D & p1 = ring[i];
+            double t0 = 0.0, t1 = 1.0;
+            for ( const std::pair< Vector2D, double > & s : { std::make_pair( right_side, 1.0 ),
+                                                              std::make_pair( left_side, -1.0 ) } )
+            {
+                const double v0 = side_value( s.first, s.second, p0 );
+                const double v1 = side_value( s.first, s.second, p1 );
+                if ( v0 < 0.0 && v1 < 0.0 ) { t0 = 1.0; t1 = 0.0; break; }
+                if ( v0 < 0.0 ) t0 = std::max( t0, v0 / ( v0 - v1 ) );
+                else if ( v1 < 0.0 ) t1 = std::min( t1, v0 / ( v0 - v1 ) );
+            }
+            if ( t0 >= t1 )
+            {
+                if ( run.size() >= 2 ) lines.push_back( run );
+                run.clear();
+                continue;
+            }
+            const Vector2D q0 = p0 + ( p1 - p0 ) * t0;
+            const Vector2D q1 = p0 + ( p1 - p0 ) * t1;
+            if ( run.empty() || t0 > 0.0 )
+            {
+                if ( run.size() >= 2 ) lines.push_back( run );
+                run.clear();
+                run.push_back( q0 );
+            }
+            run.push_back( q1 );
+            if ( t1 < 1.0 )
+            {
+                lines.push_back( run );
+                run.clear();
+            }
+        }
+        if ( run.size() >= 2 )
+        {
+            // join the last run to the first when the ring went on through its start
+            if ( ! lines.empty()
+                 && lines.front().front().dist( run.back() ) < 1.0e-9 )
+            {
+                run.insert( run.end(), lines.front().begin() + 1, lines.front().end() );
+                lines.front().swap( run );
+            }
+            else
+            {
+                lines.push_back( run );
+            }
+        }
+        result.push_back( lines );
+    }
+
+    return result;
+}
+
+/*-------------------------------------------------------------------*/
 CatchArea
 catchArea( const rcss::rcg::ServerParamT & SP,
            const rcss::rcg::PlayerTypeT & type )

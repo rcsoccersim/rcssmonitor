@@ -172,6 +172,7 @@ private:
     QCheckBox * M_stamina_capacity_cb;
     QCheckBox * M_view_area_cb;
     QCheckBox * M_focus_point_cb;
+    QCheckBox * M_all_focus_points_cb;
     QCheckBox * M_catch_area_cb;
     QCheckBox * M_tackle_area_cb;
     QCheckBox * M_kick_accel_area_cb;
@@ -262,6 +263,7 @@ private slots:
     void clickShowStaminaCapacity( bool checked );
     void clickShowViewArea( bool checked );
     void clickShowFocusPoint( bool checked );
+    void clickShowAllFocusPoints( bool checked );
     void clickShowCatchArea( bool checked );
     void clickShowTackleArea( bool checked );
     void clickShowKickAccelArea( bool checked );

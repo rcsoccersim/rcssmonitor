@@ -51,6 +51,7 @@
 #include <cstring>
 #include <cstdio>
 #include <cmath>
+#include <iterator>
 
 namespace {
 const double DEG2RAD = M_PI / 180.0;
@@ -159,11 +160,13 @@ PlayerPainter::drawAll( QPainter & painter,
             drawViewArea( painter, param );
         }
 
+        // the selected player's, or with the option all players'
+        const bool selected = opt.selectedPlayer( player.side(), player.unum_ );
         if ( opt.showFocusPoint()
              && player.focusDist() > 1.0e-5
-             && opt.selectedPlayer( player.side(), player.unum_ ) )
+             && ( selected || opt.showAllFocusPoints() ) )
         {
-            drawFocusPoint( painter, param );
+            drawFocusPoint( painter, param, selected );
         }
     }
 
@@ -374,9 +377,11 @@ PlayerPainter::drawViewArea( QPainter & painter,
  */
 void
 PlayerPainter::drawFocusPoint( QPainter & painter,
-                               const PlayerPainter::Param & param ) const
+                               const PlayerPainter::Param & param,
+                               const bool selected ) const
 {
     const Options & opt = Options::instance();
+    using OverlayMath::FocusLook;
 
     Vector2D focus_point;
     if ( ! OverlayMath::focusPoint( param.player_, &focus_point ) )
@@ -384,18 +389,76 @@ PlayerPainter::drawFocusPoint( QPainter & painter,
         return;
     }
 
-    const int ix = opt.screenX( focus_point.x );
-    const int iy = opt.screenY( focus_point.y );
-    const int r = opt.scale( opt.focusPointSize() );
+    const QPointF focus( opt.screenX( focus_point.x ), opt.screenY( focus_point.y ) );
+    const double direction = ( focus_point - Vector2D( param.player_.x(), param.player_.y() ) ).th().degree();
+    const auto screen = [&opt]( const Vector2D & p ) { return QPointF( opt.screenX( p.x ), opt.screenY( p.y ) ); };
 
-    painter.setPen( opt.focusPointPen());
     painter.setBrush( Qt::NoBrush );
-    painter.drawLine( param.x_, param.y_, ix, iy );
-    painter.drawEllipse( ix - r,
-                         iy - r,
-                         r * 2,
-                         r * 2 );
 
+    if ( ! selected )
+    {
+        // another player's: a smaller reticle in its team color
+        const double radius = opt.focusPointSize() * FocusLook::OTHER_SCALE;
+        const QColor color = ( param.player_.side() == rcss::rcg::LEFT
+                               ? opt.leftTeamBrush() : opt.rightTeamBrush() ).color();
+        painter.setPen( QPen( color, 0 ) );
+        const double r = opt.scale( radius );
+        painter.drawEllipse( focus, r, r );
+        const std::vector< Vector2D > ticks = OverlayMath::focusTicks( focus_point, radius, direction );
+        for ( size_t i = 0; i + 1 < ticks.size(); i += 2 )
+        {
+            painter.drawLine( screen( ticks[i] ), screen( ticks[i + 1] ) );
+        }
+        return;
+    }
+
+    const QColor color = opt.focusPointPen().color();
+
+    // the soft spot under the reticle
+    {
+        QColor fill = color;
+        fill.setAlphaF( FocusLook::SPOT_OPACITY );
+        painter.setPen( Qt::NoPen );
+        painter.setBrush( fill );
+        for ( const double k : FocusLook::SPOT_RADII )
+        {
+            const double r = opt.scale( opt.focusPointSize() * k );
+            painter.drawEllipse( focus, r, r );
+        }
+        painter.setBrush( Qt::NoBrush );
+    }
+
+    // the lines of the same noise, fainter outward
+    {
+        const std::vector< std::vector< std::vector< Vector2D > > > lines
+            = OverlayMath::focusNoiseLines( param.player_type_, param.player_ );
+        for ( size_t i = 0; i < lines.size(); ++i )
+        {
+            QColor c = color;
+            c.setAlphaF( FocusLook::NOISE_OPACITY[std::min( i, std::size( FocusLook::NOISE_OPACITY ) - 1 )] );
+            painter.setPen( QPen( c, 0 ) );
+            for ( const std::vector< Vector2D > & line : lines[i] )
+            {
+                QPolygonF polygon;
+                for ( const Vector2D & p : line )
+                {
+                    polygon << screen( p );
+                }
+                painter.drawPolyline( polygon );
+            }
+        }
+    }
+
+    // the line from the player, and the reticle
+    painter.setPen( opt.focusPointPen() );
+    painter.drawLine( QPointF( param.x_, param.y_ ), focus );
+    const double r = opt.scale( opt.focusPointSize() );
+    painter.drawEllipse( focus, r, r );
+    const std::vector< Vector2D > ticks = OverlayMath::focusTicks( focus_point, opt.focusPointSize(), direction );
+    for ( size_t i = 0; i + 1 < ticks.size(); i += 2 )
+    {
+        painter.drawLine( screen( ticks[i] ), screen( ticks[i + 1] ) );
+    }
 }
 
 /*-------------------------------------------------------------------*/

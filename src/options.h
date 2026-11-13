@@ -198,6 +198,7 @@ private:
     bool M_show_player_type;
     bool M_show_view_area;
     bool M_show_focus_point;
+    bool M_show_all_focus_points; //!< the focus points of all players, not only of the selected one
     bool M_show_illegal_defense;
     bool M_show_catch_area;
     bool M_show_tackle_area;
@@ -408,6 +409,10 @@ public:
 
     bool showFocusPoint() const { return M_show_focus_point; }
     void toggleShowFocusPoint() { M_show_focus_point = ! M_show_focus_point; }
+
+    //! with showFocusPoint(), the other players' focus points too (smaller, in their team colors)
+    bool showAllFocusPoints() const { return M_show_all_focus_points; }
+    void toggleShowAllFocusPoints() { M_show_all_focus_points = ! M_show_all_focus_points; }
 
     bool showIllegalDefense() const { return M_show_illegal_defense; }
     void toggleShowIllegalDefense() { M_show_illegal_defense = ! M_show_illegal_defense; }

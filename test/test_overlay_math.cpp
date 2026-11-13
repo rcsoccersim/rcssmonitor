@@ -36,6 +36,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <iterator>
 
 #include <vector>
 
@@ -181,6 +182,11 @@ private slots:
     void offsideWithinPitch();
     void offsideIgnoresDisconnected();
     void focusPoint();
+    void focusTicks();
+    void focusNoiseNone();
+    void focusNoiseEllipses();
+    void focusNoiseNarrowView();
+    void focusNoiseRates();
     void catchArea();
     void catchOutlineAllAround();
     void catchOutlineHalf();
@@ -330,6 +336,188 @@ TestOverlayMath::focusPoint()
     QVERIFY( OverlayMath::focusPoint( p, &point ) );
     QVERIFY( std::fabs( point.x - 1.0 ) < 1.0e-5 );
     QVERIFY( std::fabs( point.y - 6.0 ) < 1.0e-5 );
+}
+
+/*-------------------------------------------------------------------*/
+//! the ticks of the reticle: one along the direction, through the circle
+void
+TestOverlayMath::focusTicks()
+{
+    const std::vector< Vector2D > ends = OverlayMath::focusTicks( Vector2D( 10, 5 ), 2.0, 90.0 );
+    QCOMPARE( ends.size(), size_t( 8 ) );
+    // along the direction (+y), from half to 1.5 times the radius
+    QVERIFY( ends[0].dist( Vector2D( 10, 6 ) ) < 1.0e-9 );
+    QVERIFY( ends[1].dist( Vector2D( 10, 8 ) ) < 1.0e-9 );
+    // then turned by 90 degrees each
+    QVERIFY( ends[3].dist( Vector2D( 7, 5 ) ) < 1.0e-9 );
+    QVERIFY( ends[5].dist( Vector2D( 10, 2 ) ) < 1.0e-9 );
+    QVERIFY( ends[7].dist( Vector2D( 13, 5 ) ) < 1.0e-9 );
+}
+
+namespace {
+
+//! the player at the origin facing +x with a view, its focus point 10 m ahead
+rcss::rcg::PlayerT
+focusPlayer( const float view_width )
+{
+    rcss::rcg::PlayerT p = makePlayer( 0.0f, 0.0f, 0.0f );
+    p.neck_ = 0.0f;
+    p.view_width_ = view_width;
+    p.focus_dist_ = 10.0f;
+    p.focus_dir_ = 0.0f;
+    return p;
+}
+
+//! the angle of a point from the player at the origin (degree)
+double
+angleOf( const Vector2D & q )
+{
+    return std::atan2( q.y, q.x ) * 180.0 / M_PI;
+}
+
+}
+
+/*-------------------------------------------------------------------*/
+//! no lines without a focus point or a view, or with both rates 0
+void
+TestOverlayMath::focusNoiseNone()
+{
+    rcss::rcg::PlayerTypeT type;
+    rcss::rcg::PlayerT p = focusPlayer( 90.0f );
+    QCOMPARE( OverlayMath::focusNoiseLines( type, p ).size(), std::size( OverlayMath::FOCUS_NOISE_STEPS ) );
+
+    p.focus_dist_ = 0.0f;
+    QVERIFY( OverlayMath::focusNoiseLines( type, p ).empty() );
+    p = focusPlayer( rcss::rcg::SHOWINFO_SCALE2F ); // no view
+    QVERIFY( OverlayMath::focusNoiseLines( type, p ).empty() );
+    p = focusPlayer( 90.0f );
+    type.dist_noise_rate_ = 0.0;
+    type.focus_dist_noise_rate_ = 0.0;
+    QVERIFY( OverlayMath::focusNoiseLines( type, p ).empty() );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  With the same rates (the default), the lines are ellipses with the player
+  and the focus point as the foci, where the way through the point is
+  longer than the straight way by each step; cut to the view: the half
+  plane in front with a view of 180 degrees.
+*/
+void
+TestOverlayMath::focusNoiseEllipses()
+{
+    const rcss::rcg::PlayerTypeT type;
+    const rcss::rcg::PlayerT p = focusPlayer( 180.0f );
+    const Vector2D player( 0, 0 ), focus( 10, 0 );
+    const auto lines = OverlayMath::focusNoiseLines( type, p );
+    QCOMPARE( lines.size(), size_t( 3 ) );
+
+    for ( size_t i = 0; i < lines.size(); ++i )
+    {
+        const double sum = 10.0 + OverlayMath::FOCUS_NOISE_STEPS[i];
+        // each ellipse goes behind the player, and the cut leaves one line
+        QCOMPARE( lines[i].size(), size_t( 1 ) );
+        const std::vector< Vector2D > & line = lines[i][0];
+        QVERIFY( line.size() > 40 );
+        for ( const Vector2D & q : line )
+        {
+            QVERIFY2( std::fabs( q.dist( player ) + q.dist( focus ) - sum ) < 0.05,
+                      qPrintable( QString( "%1 %2" ).arg( q.x ).arg( q.y ) ) );
+            QVERIFY( q.x > -1.0e-6 ); // in front
+        }
+        // the ends on the side of the view, where y + hypot( 10, y ) = sum
+        const double y = ( sum * sum - 100.0 ) / ( 2.0 * sum );
+        QVERIFY( std::fabs( line.front().x ) < 1.0e-6 );
+        QVERIFY( std::fabs( line.back().x ) < 1.0e-6 );
+        QVERIFY( std::fabs( std::fabs( line.front().y ) - y ) < 0.05 );
+        QVERIFY( std::fabs( line.front().y + line.back().y ) < 0.1 );
+        // the far end ahead of the focus point, by half the step
+        double far = 0.0;
+        for ( const Vector2D & q : line ) far = std::max( far, q.x );
+        QVERIFY( std::fabs( far - ( 5.0 + sum / 2.0 ) ) < 0.05 );
+    }
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  A narrow view cuts the lines on both sides; a line that the view does not
+  cut stays closed
+*/
+void
+TestOverlayMath::focusNoiseNarrowView()
+{
+    const rcss::rcg::PlayerTypeT type;
+    const rcss::rcg::PlayerT p = focusPlayer( 60.0f );
+    const auto lines = OverlayMath::focusNoiseLines( type, p );
+    QCOMPARE( lines.size(), size_t( 3 ) );
+    for ( const auto & step : lines )
+    {
+        QCOMPARE( step.size(), size_t( 1 ) );
+        for ( const Vector2D & q : step[0] )
+        {
+            QVERIFY2( std::fabs( angleOf( q ) ) < 30.0 + 1.0e-6,
+                      qPrintable( QString( "%1 %2" ).arg( q.x ).arg( q.y ) ) );
+        }
+        // from one side of the view to the other
+        QVERIFY( std::fabs( std::fabs( angleOf( step[0].front() ) ) - 30.0 ) < 1.0e-6 );
+        QVERIFY( std::fabs( std::fabs( angleOf( step[0].back() ) ) - 30.0 ) < 1.0e-6 );
+    }
+
+    /*
+      The rate of the focus distance much larger: the lines are nearly
+      circles around the focus point 20 m ahead, and the player is outside.
+      A view of 90 degrees has the first one whole (closed); a view of 20
+      degrees cuts it into the near and the far sides.
+    */
+    rcss::rcg::PlayerTypeT focused;
+    focused.dist_noise_rate_ = 0.001;
+    focused.focus_dist_noise_rate_ = 0.05;
+    rcss::rcg::PlayerT far = focusPlayer( 90.0f );
+    far.focus_dist_ = 20.0f;
+    auto first = OverlayMath::focusNoiseLines( focused, far )[0];
+    QCOMPARE( first.size(), size_t( 1 ) );
+    QVERIFY( first[0].front().dist( first[0].back() ) < 1.0e-9 );
+
+    far.view_width_ = 20.0f;
+    first = OverlayMath::focusNoiseLines( focused, far )[0];
+    QCOMPARE( first.size(), size_t( 2 ) );
+    for ( const auto & line : first )
+    {
+        QVERIFY( line.size() >= 2 );
+        for ( const Vector2D & q : line )
+        {
+            QVERIFY( std::fabs( angleOf( q ) ) < 10.0 + 1.0e-6 );
+        }
+    }
+    // one nearer than the focus point, the other farther
+    QVERIFY( ( first[0][0].x - 20.0 ) * ( first[1][0].x - 20.0 ) < 0.0 );
+}
+
+/*-------------------------------------------------------------------*/
+//! with different rates, the lines of the weighted sum
+void
+TestOverlayMath::focusNoiseRates()
+{
+    rcss::rcg::PlayerTypeT type;
+    type.dist_noise_rate_ = 0.02;
+    type.focus_dist_noise_rate_ = 0.01;
+    const rcss::rcg::PlayerT p = focusPlayer( 180.0f );
+    const Vector2D player( 0, 0 ), focus( 10, 0 );
+    const auto lines = OverlayMath::focusNoiseLines( type, p );
+    QCOMPARE( lines.size(), size_t( 3 ) );
+    for ( size_t i = 0; i < lines.size(); ++i )
+    {
+        // the smallest is 0.01 * 10 at the player; the step weighted by the mean rate
+        const double level = 0.1 + 0.015 * OverlayMath::FOCUS_NOISE_STEPS[i];
+        QVERIFY( ! lines[i].empty() );
+        for ( const auto & line : lines[i] )
+        {
+            for ( const Vector2D & q : line )
+            {
+                QVERIFY( std::fabs( 0.02 * q.dist( player ) + 0.01 * q.dist( focus ) - level ) < 0.001 );
+            }
+        }
+    }
 }
 
 /*-------------------------------------------------------------------*/

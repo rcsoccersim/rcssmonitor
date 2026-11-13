@@ -244,6 +244,7 @@ Options::Options()
     M_show_player_type( false ),
     M_show_view_area( false ),
     M_show_focus_point( false ),
+    M_show_all_focus_points( false ),
     M_show_illegal_defense( false ),
     M_show_catch_area( false ),
     M_show_tackle_area( false ),
@@ -472,6 +473,9 @@ Options::readSettings()
 
     val = settings.value( "show_focus_point" );
     if ( val.isValid() ) M_show_focus_point = val.toBool();
+
+    val = settings.value( "show_all_focus_points" );
+    if ( val.isValid() ) M_show_all_focus_points = val.toBool();
 
     val = settings.value( "show_illegal_defense" );
     if ( val.isValid() ) M_show_illegal_defense = val.toBool();
@@ -763,6 +767,7 @@ Options::writeSettings( bool all )
     settings.setValue( "show_view_area", M_show_view_area );
     settings.setValue( "show_illegal_defense", M_show_illegal_defense );
     settings.setValue( "show_focus_point", M_show_focus_point );
+    settings.setValue( "show_all_focus_points", M_show_all_focus_points );
     settings.setValue( "show_catch_area", M_show_catch_area );
     settings.setValue( "show_tackle_area", M_show_tackle_area );
     settings.setValue( "show_kick_accel_area", M_show_kick_accel_area );
@@ -1003,6 +1008,11 @@ Options::parseCmdLine( int argc,
                                            "bool",
                                            to_onoff( M_show_focus_point ) );
     parser.addOption( opt_show_focus_point );
+    QCommandLineOption opt_show_all_focus_points( "show-all-focus-points",
+                                                  "Show the focus points of all players, with show-focus-point. (Default=" + to_onoff( M_show_all_focus_points ) + ")",
+                                                  "bool",
+                                                  to_onoff( M_show_all_focus_points ) );
+    parser.addOption( opt_show_all_focus_points );
     QCommandLineOption opt_show_illegal_defense( "show-illegal-defense",
                                                  "show player's illegal defense state. (Default=" + to_onoff( M_show_illegal_defense ) + ")",
                                                  "bool",
@@ -1126,6 +1136,7 @@ Options::parseCmdLine( int argc,
     if ( parser.isSet( opt_show_player_type ) ) M_show_player_type = to_bool( parser.value( opt_show_player_type ), M_show_player_type );
     if ( parser.isSet( opt_show_view_area ) ) M_show_view_area = to_bool( parser.value( opt_show_view_area ), M_show_view_area );
     if ( parser.isSet( opt_show_focus_point ) ) M_show_focus_point = to_bool( parser.value( opt_show_focus_point ), M_show_focus_point );
+    if ( parser.isSet( opt_show_all_focus_points ) ) M_show_all_focus_points = to_bool( parser.value( opt_show_all_focus_points ), M_show_all_focus_points );
     if ( parser.isSet( opt_show_illegal_defense ) ) M_show_illegal_defense = to_bool( parser.value( opt_show_illegal_defense ), M_show_illegal_defense );
     if ( parser.isSet( opt_show_catch_area ) ) M_show_catch_area = to_bool( parser.value( opt_show_catch_area ), M_show_catch_area );
     if ( parser.isSet( opt_show_tackle_area ) ) M_show_tackle_area = to_bool( parser.value( opt_show_tackle_area ), M_show_tackle_area );
@@ -1243,6 +1254,9 @@ Options::parseCmdLine( int argc,
         ( "show-focus-point",
           po::value< bool >( &M_show_focus_point )->default_value( M_show_focus_point, to_onoff( M_show_focus_point ) ),
           "show player\'s focus point." )
+        ( "show-all-focus-points",
+          po::value< bool >( &M_show_all_focus_points )->default_value( M_show_all_focus_points, to_onoff( M_show_all_focus_points ) ),
+          "show the focus points of all players, with show-focus-point." )
         ( "show-illegal-defense",
           po::value< bool >( &M_show_illegal_defense )->default_value( M_show_illegal_defense, to_onoff( M_show_illegal_defense ) ),
           "show player\'s illegal defense state." )

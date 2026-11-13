@@ -36,6 +36,8 @@
 #include "disp_holder.h"
 #include "options.h"
 
+#include <QCheckBox>
+
 /*
   Options reads and writes ~/.rcssmonitor.conf; CTest runs this test with
   HOME in the build tree (test/CMakeLists.txt).
@@ -52,6 +54,7 @@ private slots:
 
     void selectFix();
     void illegalDefenseColor();
+    void allFocusPoints();
 };
 
 /*-------------------------------------------------------------------*/
@@ -107,6 +110,47 @@ TestConfigDialog::illegalDefenseColor()
 
     QVERIFY( item );
     QCOMPARE( item->newColor(), illegal_defense );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  "All Focus Points" sets its option, and works only with "Focus Point"
+*/
+void
+TestConfigDialog::allFocusPoints()
+{
+    Options & opt = Options::instance();
+    if ( opt.showFocusPoint() ) opt.toggleShowFocusPoint();
+    if ( opt.showAllFocusPoints() ) opt.toggleShowAllFocusPoints();
+
+    DispHolder holder;
+    ConfigDialog dialog( nullptr, holder );
+    QCheckBox * focus = nullptr;
+    QCheckBox * all = nullptr;
+    for ( QCheckBox * cb : dialog.findChildren< QCheckBox * >() )
+    {
+        if ( cb->text() == "Focus Point" ) focus = cb;
+        if ( cb->text() == "All Focus Points" ) all = cb;
+    }
+    QVERIFY( focus );
+    QVERIFY( all );
+    QVERIFY( ! all->isEnabled() );
+
+    focus->click();
+    QVERIFY( opt.showFocusPoint() );
+    QVERIFY( all->isEnabled() );
+    QSignalSpy spy( &dialog, SIGNAL( configured() ) );
+    all->click();
+    QVERIFY( opt.showAllFocusPoints() );
+    QCOMPARE( spy.count(), 1 );
+
+    // the key of Focus Point (toggleShowFocusPoint()) too
+    QVERIFY( QMetaObject::invokeMethod( &dialog, "toggleShowFocusPoint" ) );
+    QVERIFY( ! opt.showFocusPoint() );
+    QVERIFY( ! all->isEnabled() );
+    QVERIFY( all->isChecked() ); // kept for the next time
+
+    opt.toggleShowAllFocusPoints();
 }
 
 QTEST_MAIN( TestConfigDialog )

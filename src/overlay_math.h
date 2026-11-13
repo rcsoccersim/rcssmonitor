@@ -79,6 +79,68 @@ bool focusPoint( const rcss::rcg::PlayerT & player,
                  Vector2D * point );
 
 /*!
+  \struct FocusLook
+  \brief how the focus point is drawn, the same in 2D and 3D: a reticle (a
+  circle of the focus point size with four ticks, one toward the player)
+  over a soft spot (discs of the focus color, darker to the center), the
+  line from the player, and the lines of the same noise (focusNoiseLines(),
+  fainter outward). The other players' focus points (the option) are
+  smaller reticles in their team colors.
+*/
+struct FocusLook {
+    static constexpr double TICK_IN = 0.5; //!< the ticks of the reticle from, times its radius
+    static constexpr double TICK_OUT = 1.5; //!< to
+    static constexpr double SPOT_RADII[] = { 1.0, 0.66, 0.33 }; //!< the discs of the spot, times the radius
+    static constexpr double SPOT_OPACITY = 0.12; //!< of each disc
+    static constexpr double NOISE_OPACITY[] = { 0.8, 0.55, 0.3 }; //!< of the lines of the same noise, inward first
+    static constexpr double OTHER_SCALE = 0.6; //!< the other players' reticles, times the radius
+};
+
+/*!
+  \brief the four ticks of the focus point's reticle (FocusLook), one
+  pointing along the direction
+  \param center the focus point
+  \param radius the radius of the reticle
+  \param direction the direction from the player to the focus point (degree)
+  \return the ends of the ticks, two for each
+*/
+std::vector< Vector2D > focusTicks( const Vector2D & center,
+                                    const double radius,
+                                    const double direction );
+
+/*!
+  \brief how much farther than the shortest the lines of the same noise
+  around the focus point go (m): FocusNoiseLines
+*/
+constexpr double FOCUS_NOISE_STEPS[] = { 10.0, 20.0, 40.0 };
+
+/*!
+  \brief the lines of the same observation noise around the focus point,
+  within the view of the player.
+
+  The noise of a distance that the player sees grows with the distance
+  from the player and that from the focus point (rcssserver 18 and later;
+  in 19's gaussian model, its deviation is dist_noise_rate times the first
+  plus focus_dist_noise_rate times the second, of the player type). The
+  points of the same noise, where a |q - player| + b |q - focus| is the
+  same, make an ellipse with the player and the focus point as its foci
+  when the rates are the same (the default). A line goes where that sum is
+  larger than its smallest by (a + b) / 2 times a step of
+  FOCUS_NOISE_STEPS: with the same rates, where the way from the player
+  through the point to the focus point is that much longer than the
+  straight way. Inside, the player sees better. Only the parts within the
+  view angle are kept, as nothing outside is seen.
+
+  \param type the player type (the rates)
+  \param player the player, with its focus point (focusPoint())
+  \return for each step, the polylines of its line (none without a focus
+  point or a view, or with both rates 0)
+*/
+std::vector< std::vector< std::vector< Vector2D > > >
+focusNoiseLines( const rcss::rcg::PlayerTypeT & type,
+                 const rcss::rcg::PlayerT & player );
+
+/*!
   \struct Arc
   \brief an arc: around center, from start (a field direction, degree) by
   span degrees toward larger directions (clockwise on the 2D screen)

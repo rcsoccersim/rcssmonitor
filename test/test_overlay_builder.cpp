@@ -37,10 +37,12 @@
 #include "options.h"
 #include "overlay_builder.h"
 #include "overlay_math.h"
+#include "scene_builder.h"
 
 #include <rcss/rcg/types.h>
 
 #include <cmath>
+#include <iterator>
 
 namespace {
 
@@ -125,6 +127,7 @@ private slots:
           setShow( &Options::showBall, &Options::toggleShowBall, true );
           setShow( &Options::showViewArea, &Options::toggleShowViewArea, false );
           setShow( &Options::showFocusPoint, &Options::toggleShowFocusPoint, false );
+          setShow( &Options::showAllFocusPoints, &Options::toggleShowAllFocusPoints, false );
           setShow( &Options::showCatchArea, &Options::toggleShowCatchArea, false );
           setShow( &Options::showTackleArea, &Options::toggleShowTackleArea, false );
           setShow( &Options::showKickAccelArea, &Options::toggleShowKickAccelArea, false );
@@ -275,8 +278,14 @@ private slots:
           QVERIFY( c.lines.empty() && c.dotted_lines.empty() && c.points.empty() && c.texts.empty() );
       }
 
+    /*!
+      The selected player's focus point (OverlayMath::FocusLook): the soft
+      spot, the lines of the same noise, the line from the eyes, and the
+      reticle
+    */
     void focusPoint()
       {
+          using OverlayMath::FocusLook;
           Options & opt = Options::instance();
           rcss::rcg::ShowInfoT show = makeShow( 0, 0, 0.0f, 0.0f, 90.0f );
           show.player_[0].focus_dist_ = 5.0f;
@@ -284,13 +293,128 @@ private slots:
           opt.toggleShowFocusPoint();
           OverlayBuilder::addOverlays( c, show, M_holder, opt ); // not selected
           QVERIFY( c.lines.empty() );
+          QVERIFY( c.discs.empty() );
           opt.setSelectedNumber( rcss::rcg::LEFT, 1 );
           OverlayBuilder::addOverlays( c, show, M_holder, opt );
           opt.toggleShowFocusPoint();
-          // a line to it, and a circle around it
-          QCOMPARE( c.lines.size(), size_t( 2 + OverlayBuilder::CIRCLE_SEGMENTS * 2 ) );
-          QVERIFY( near( field( c.lines[1] ), QPointF( 5, 0 ) ) );
-          QCOMPARE( c.lines[0].color, rgba( opt.focusPointPen().color() ) );
+
+          const QColor color = opt.focusPointPen().color();
+          const double size = opt.focusPointSize();
+
+          // the spot: discs of the focus color at the focus point
+          QCOMPARE( c.discs.size(), std::size( FocusLook::SPOT_RADII ) );
+          for ( size_t i = 0; i < c.discs.size(); ++i )
+          {
+              const QVector3D center = c.discs[i].model.map( QVector3D() );
+              const QVector3D edge = c.discs[i].model.map( QVector3D( 1, 0, 0 ) );
+              QVERIFY( near( QPointF( center.x(), center.z() ), QPointF( 5, 0 ) ) );
+              QVERIFY( std::fabs( ( edge - center ).length() - size * FocusLook::SPOT_RADII[i] ) < 1.0e-4 );
+              QCOMPARE( c.discs[i].color, rgba( color, float( FocusLook::SPOT_OPACITY ) ) );
+          }
+
+          // the line of sight from the eyes down to the focus point
+          bool sight = false;
+          for ( size_t i = 0; i + 1 < c.lines.size(); i += 2 )
+          {
+              if ( c.lines[i].position == QVector3D( 0, SceneBuilder::HEAD_HEIGHT, 0 )
+                   && near( field( c.lines[i + 1] ), QPointF( 5, 0 ) )
+                   && c.lines[i + 1].position.y() == OverlayBuilder::LINE_Y )
+              {
+                  sight = true;
+              }
+          }
+          QVERIFY( sight );
+
+          // the lines of the same noise, fainter outward, on their ellipses within the view
+          std::vector< size_t > noise( std::size( FocusLook::NOISE_OPACITY ), 0 );
+          size_t solid = 0;
+          for ( const ColorVertex3D & v : c.lines )
+          {
+              if ( v.color.w() == 1.0f )
+              {
+                  ++solid;
+                  continue;
+              }
+              for ( size_t k = 0; k < noise.size(); ++k )
+              {
+                  if ( v.color == rgba( color, float( FocusLook::NOISE_OPACITY[k] ) ) )
+                  {
+                      ++noise[k];
+                      const QPointF q = field( v );
+                      const double sum = std::hypot( q.x(), q.y() ) + std::hypot( q.x() - 5, q.y() );
+                      QVERIFY( std::fabs( sum - ( 5 + OverlayMath::FOCUS_NOISE_STEPS[k] ) ) < 0.05 );
+                      QVERIFY( std::fabs( std::atan2( q.y(), q.x() ) ) < 45.0 * DEG2RAD + 1.0e-4 );
+                  }
+              }
+          }
+          for ( const size_t n : noise )
+          {
+              QVERIFY( n > 20 );
+          }
+          // the line of sight, the circle and the four ticks
+          QCOMPARE( solid, size_t( 2 + OverlayBuilder::CIRCLE_SEGMENTS * 2 + 8 ) );
+          QCOMPARE( noise[0] + noise[1] + noise[2] + solid, c.lines.size() );
+
+          // a tick toward the far side, through the circle
+          bool tick = false;
+          for ( size_t i = 0; i + 1 < c.lines.size(); i += 2 )
+          {
+              if ( near( field( c.lines[i] ), QPointF( 5 + size * FocusLook::TICK_IN, 0 ) )
+                   && near( field( c.lines[i + 1] ), QPointF( 5 + size * FocusLook::TICK_OUT, 0 ) ) )
+              {
+                  tick = true;
+              }
+          }
+          QVERIFY( tick );
+      }
+
+    //! with the option, the other players' focus points: smaller reticles in their team colors
+    void allFocusPoints()
+      {
+          using OverlayMath::FocusLook;
+          Options & opt = Options::instance();
+          rcss::rcg::ShowInfoT show = makeShow( 0, 0, 0.0f, 0.0f, 90.0f );
+          show.player_[0].focus_dist_ = 5.0f;
+          rcss::rcg::PlayerT & other = show.player_[rcss::rcg::MAX_PLAYER];
+          other = show.player_[0];
+          other.side_ = 'r';
+          other.x_ = 10.0f;
+          other.y_ = 10.0f;
+          other.body_ = 90.0f; // the focus point at (10, 15)
+
+          opt.toggleShowFocusPoint();
+          SceneContent c;
+          OverlayBuilder::addOverlays( c, show, M_holder, opt ); // none selected, and not all
+          QVERIFY( c.lines.empty() );
+
+          opt.toggleShowAllFocusPoints();
+          OverlayBuilder::addOverlays( c, show, M_holder, opt );
+          opt.toggleShowAllFocusPoints();
+          opt.toggleShowFocusPoint();
+
+          // only reticles: no spot, no lines from the players, nor of the noise
+          QVERIFY( c.discs.empty() );
+          QCOMPARE( c.lines.size(), size_t( 2 * ( OverlayBuilder::CIRCLE_SEGMENTS * 2 + 8 ) ) );
+          const double r = opt.focusPointSize() * FocusLook::OTHER_SCALE;
+          const QVector4D left = rgba( opt.leftTeamBrush().color() );
+          const QVector4D right = rgba( opt.rightTeamBrush().color() );
+          size_t n_left = 0, n_right = 0;
+          for ( const ColorVertex3D & v : c.lines )
+          {
+              const QPointF q = field( v );
+              if ( v.color == left )
+              {
+                  ++n_left;
+                  QVERIFY( std::hypot( q.x() - 5, q.y() ) < r * FocusLook::TICK_OUT + 1.0e-4 );
+              }
+              else
+              {
+                  QCOMPARE( v.color, right );
+                  ++n_right;
+                  QVERIFY( std::hypot( q.x() - 10, q.y() - 15 ) < r * FocusLook::TICK_OUT + 1.0e-4 );
+              }
+          }
+          QCOMPARE( n_left, n_right );
       }
 
     void catchArea()
