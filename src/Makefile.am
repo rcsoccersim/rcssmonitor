@@ -70,6 +70,7 @@ noinst_HEADERS = \
 	player_selection.h \
 	player_style.h \
 	player_type_dialog.h \
+	player_camera_options.h \
 	player_type_sort_proxy.h \
 	rcg_handler.h \
 	referee_menu.h \

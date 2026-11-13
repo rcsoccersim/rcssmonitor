@@ -319,6 +319,18 @@ CameraController::setMode( const CameraMode mode )
 
 /*-------------------------------------------------------------------*/
 void
+CameraController::setPlayerCamera( const PlayerCameraOptions & options )
+{
+    if ( options != M_player_options )
+    {
+        M_player_options = options;
+        M_player_camera.reset();
+        M_settled = false;
+    }
+}
+
+/*-------------------------------------------------------------------*/
+void
 CameraController::viewFrom( const Viewpoint viewpoint )
 {
     M_mode = CameraMode::Free;
@@ -396,6 +408,25 @@ CameraController::update( const double dt,
         M_settled = true;
         return M_pose;
     }
+
+    // the player camera: the selected player's place interpolates already;
+    // the direction and the field of view follow its styles. Without a
+    // selected player, the broadcast camera (below).
+    if ( M_mode == CameraMode::Player
+         && subject.player )
+    {
+        if ( M_snap )
+        {
+            M_player_camera.reset();
+            M_snap = false;
+        }
+        bool settled = false;
+        M_pose = M_player_camera.update( *subject.player, aspect, M_player_options,
+                                         std::min( std::max( 0.0, dt ), Cameras3D::MAX_STEP ), &settled );
+        M_settled = settled;
+        return M_pose;
+    }
+    M_player_camera.reset();
 
     // the following cameras: where they go now
     CameraPose goal_pose;
@@ -496,7 +527,7 @@ bool
 CameraController::takeMouse( bool * changed )
 {
     *changed = false;
-    if ( M_mode == CameraMode::Top )
+    if ( ! takesMouse() )
     {
         return false;
     }

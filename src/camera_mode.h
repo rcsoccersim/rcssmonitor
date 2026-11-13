@@ -41,8 +41,7 @@
   \enum CameraMode
   \brief the cameras of the 3D view (docs/PLAN_3D-VIEW.md §4.1), in the
   order that E goes through them. Here, with no OpenGL, so that the options
-  (camera_3d) know them in a build without the 3D view too. The player's
-  camera comes later in Phase 6.
+  (camera_3d) know them in a build without the 3D view too.
 */
 enum class CameraMode {
     Free, //!< moved by the mouse (Cameras3D::orbit(), pan(), dolly())
@@ -52,6 +51,7 @@ enum class CameraMode {
     Top, //!< straight above, the whole field as in 2D, no perspective
     GoalLeft, //!< behind the left goal, looking at the ball
     GoalRight, //!< behind the right goal, looking at the ball
+    Player, //!< the selected player's camera (Options::playerCamera()), the broadcast camera without one
 };
 
 /*!
@@ -67,10 +67,10 @@ struct CameraModeInfo {
 
 //! the cameras in the order of E
 inline
-const std::array< CameraModeInfo, 7 > &
+const std::array< CameraModeInfo, 8 > &
 cameraModes()
 {
-    static const std::array< CameraModeInfo, 7 > modes = { {
+    static const std::array< CameraModeInfo, 8 > modes = { {
             { CameraMode::Free, "free", "Free" },
             { CameraMode::Broadcast, "broadcast", "Broadcast" },
             { CameraMode::CloseupBall, "closeup-ball", "Close-up: Ball" },
@@ -78,6 +78,7 @@ cameraModes()
             { CameraMode::Top, "top", "Top" },
             { CameraMode::GoalLeft, "goal-left", "Behind the Left Goal" },
             { CameraMode::GoalRight, "goal-right", "Behind the Right Goal" },
+            { CameraMode::Player, "player", "Selected Player" },
         } };
     return modes;
 }
@@ -124,7 +125,7 @@ inline
 CameraMode
 nextCameraMode( const CameraMode mode )
 {
-    const std::array< CameraModeInfo, 7 > & modes = cameraModes();
+    const std::array< CameraModeInfo, 8 > & modes = cameraModes();
     for ( std::size_t i = 0; i < modes.size(); ++i )
     {
         if ( modes[i].mode == mode ) return modes[( i + 1 ) % modes.size()].mode;

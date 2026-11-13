@@ -42,6 +42,7 @@
 #include <QFont>
 
 #include "camera_mode.h"
+#include "player_camera_options.h"
 
 #include <rcss/rcg/types.h>
 
@@ -179,6 +180,7 @@ private:
     CameraMode M_camera_3d; //!< the camera of the 3D view
     double M_closeup_distance_3d; //!< the close-up cameras: how far from what they follow (m)
     double M_closeup_elevation_3d; //!< the close-up cameras: how high above it (degree)
+    PlayerCameraOptions M_player_camera; //!< the styles of the selected player's camera
     bool M_show_tool_bar;
     bool M_show_status_bar;
 
@@ -386,6 +388,11 @@ public:
     double closeupElevation3D() const { return M_closeup_elevation_3d; }
     //! within MIN_CLOSEUP_ELEVATION_3D and MAX_CLOSEUP_ELEVATION_3D
     void setCloseupElevation3D( const double elevation );
+
+    //! the styles of the selected player's camera of the 3D view
+    const PlayerCameraOptions & playerCamera() const { return M_player_camera; }
+    //! the numbers are kept within their ranges (PlayerCameraStyle)
+    void setPlayerCamera( const PlayerCameraOptions & options );
     bool showToolBar() const { return M_show_tool_bar; }
     bool showStatusBar() const { return M_show_status_bar; }
 

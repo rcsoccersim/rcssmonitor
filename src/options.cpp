@@ -51,6 +51,7 @@
 #  endif
 #endif
 
+#include <algorithm>
 #include <iostream>
 #include <sstream>
 #include <cmath>
@@ -732,6 +733,28 @@ Options::readSettings()
         M_closeup_elevation_3d = val.toDouble();
     }
 
+    // the player camera: an unknown name (of a later version) is not read
+    {
+        using namespace PlayerCameraStyle;
+        PlayerCameraOptions & pc = M_player_camera;
+        val = settings.value( "player_camera_position" );
+        if ( val.isValid() ) fromName( positions(), val.toString(), &pc.position );
+        val = settings.value( "player_camera_direction" );
+        if ( val.isValid() ) fromName( directions(), val.toString(), &pc.direction );
+        val = settings.value( "player_camera_motion" );
+        if ( val.isValid() ) fromName( motions(), val.toString(), &pc.motion );
+        val = settings.value( "player_camera_fov" );
+        if ( val.isValid() ) fromName( fovs(), val.toString(), &pc.fov );
+        val = settings.value( "player_camera_sight" );
+        if ( val.isValid() ) fromName( sights(), val.toString(), &pc.sight );
+        val = settings.value( "player_camera_time_constant" );
+        if ( val.isValid() && in_range( val.toDouble(), MIN_TIME_CONSTANT, MAX_TIME_CONSTANT ) ) pc.time_constant = val.toDouble();
+        val = settings.value( "player_camera_max_turn" );
+        if ( val.isValid() && in_range( val.toDouble(), MIN_MAX_TURN, MAX_MAX_TURN ) ) pc.max_turn = val.toDouble();
+        val = settings.value( "player_camera_fixed_fov" );
+        if ( val.isValid() && in_range( val.toDouble(), MIN_FIXED_FOV, MAX_FIXED_FOV ) ) pc.fixed_fov = val.toDouble();
+    }
+
     settings.endGroup();
 }
 
@@ -883,7 +906,30 @@ Options::writeSettings( bool all )
     settings.beginGroup( "View3D" );
     settings.setValue( "closeup_distance_3d", M_closeup_distance_3d );
     settings.setValue( "closeup_elevation_3d", M_closeup_elevation_3d );
+    {
+        using namespace PlayerCameraStyle;
+        const PlayerCameraOptions & pc = M_player_camera;
+        settings.setValue( "player_camera_position", nameOf( positions(), pc.position ) );
+        settings.setValue( "player_camera_direction", nameOf( directions(), pc.direction ) );
+        settings.setValue( "player_camera_motion", nameOf( motions(), pc.motion ) );
+        settings.setValue( "player_camera_fov", nameOf( fovs(), pc.fov ) );
+        settings.setValue( "player_camera_sight", nameOf( sights(), pc.sight ) );
+        settings.setValue( "player_camera_time_constant", pc.time_constant );
+        settings.setValue( "player_camera_max_turn", pc.max_turn );
+        settings.setValue( "player_camera_fixed_fov", pc.fixed_fov );
+    }
     settings.endGroup();
+}
+
+/*-------------------------------------------------------------------*/
+void
+Options::setPlayerCamera( const PlayerCameraOptions & options )
+{
+    using namespace PlayerCameraStyle;
+    M_player_camera = options;
+    M_player_camera.time_constant = std::min( MAX_TIME_CONSTANT, std::max( MIN_TIME_CONSTANT, options.time_constant ) );
+    M_player_camera.max_turn = std::min( MAX_MAX_TURN, std::max( MIN_MAX_TURN, options.max_turn ) );
+    M_player_camera.fixed_fov = std::min( MAX_FIXED_FOV, std::max( MIN_FIXED_FOV, options.fixed_fov ) );
 }
 
 /*-------------------------------------------------------------------*/
@@ -1020,6 +1066,57 @@ Options::parseCmdLine( int argc,
                                                  "degrees",
                                                  to_string( M_closeup_elevation_3d ) );
     parser.addOption( opt_closeup_elevation_3d );
+    // the player camera: the names of a style's values
+    const auto names_of = []( const auto & list )
+        {
+            QStringList names;
+            for ( const auto & i : list ) names << i.name;
+            return names.join( ", " );
+        };
+    using namespace PlayerCameraStyle;
+    QCommandLineOption opt_player_camera_position( "player-camera-position",
+                                                   "The player camera of the 3D view: where it stands, " + names_of( positions() )
+                                                   + ". (Default=" + nameOf( positions(), M_player_camera.position ) + ")",
+                                                   "position", nameOf( positions(), M_player_camera.position ) );
+    parser.addOption( opt_player_camera_position );
+    QCommandLineOption opt_player_camera_direction( "player-camera-direction",
+                                                    "The player camera: the direction it follows, " + names_of( directions() )
+                                                    + ". (Default=" + nameOf( directions(), M_player_camera.direction ) + ")",
+                                                    "direction", nameOf( directions(), M_player_camera.direction ) );
+    parser.addOption( opt_player_camera_direction );
+    QCommandLineOption opt_player_camera_motion( "player-camera-motion",
+                                                 "The player camera: how it turns, " + names_of( motions() )
+                                                 + ". (Default=" + nameOf( motions(), M_player_camera.motion ) + ")",
+                                                 "motion", nameOf( motions(), M_player_camera.motion ) );
+    parser.addOption( opt_player_camera_motion );
+    QCommandLineOption opt_player_camera_fov( "player-camera-fov",
+                                              "The player camera: how wide it sees, " + names_of( fovs() )
+                                              + ". (Default=" + nameOf( fovs(), M_player_camera.fov ) + ")",
+                                              "fov", nameOf( fovs(), M_player_camera.fov ) );
+    parser.addOption( opt_player_camera_fov );
+    QCommandLineOption opt_player_camera_sight( "player-camera-sight",
+                                                "The player camera: what it draws, " + names_of( sights() )
+                                                + ". (Default=" + nameOf( sights(), M_player_camera.sight ) + ")",
+                                                "sight", nameOf( sights(), M_player_camera.sight ) );
+    parser.addOption( opt_player_camera_sight );
+    QCommandLineOption opt_player_camera_time_constant( "player-camera-time-constant",
+                                                        "The player camera: the time constant of smooth and eased, "
+                                                        + to_string( MIN_TIME_CONSTANT ) + " to " + to_string( MAX_TIME_CONSTANT )
+                                                        + " s. (Default=" + to_string( M_player_camera.time_constant ) + ")",
+                                                        "seconds", to_string( M_player_camera.time_constant ) );
+    parser.addOption( opt_player_camera_time_constant );
+    QCommandLineOption opt_player_camera_max_turn( "player-camera-max-turn",
+                                                   "The player camera: the largest turn of smooth, "
+                                                   + to_string( MIN_MAX_TURN ) + " to " + to_string( MAX_MAX_TURN )
+                                                   + " degrees per second. (Default=" + to_string( M_player_camera.max_turn ) + ")",
+                                                   "degrees", to_string( M_player_camera.max_turn ) );
+    parser.addOption( opt_player_camera_max_turn );
+    QCommandLineOption opt_player_camera_fixed_fov( "player-camera-fixed-fov",
+                                                    "The player camera: the horizontal field of view of fixed, "
+                                                    + to_string( MIN_FIXED_FOV ) + " to " + to_string( MAX_FIXED_FOV )
+                                                    + " degrees. (Default=" + to_string( M_player_camera.fixed_fov ) + ")",
+                                                    "degrees", to_string( M_player_camera.fixed_fov ) );
+    parser.addOption( opt_player_camera_fixed_fov );
     // view options
     QCommandLineOption opt_anti_aliasing( "anti-aliasing",
                                           "Paint objects with the anti-aliase mode. (Default=" + to_onoff( M_anti_aliasing ) + ")",
@@ -1201,6 +1298,33 @@ Options::parseCmdLine( int argc,
         const double e = parser.value( opt_closeup_elevation_3d ).toDouble();
         if ( in_range( e, MIN_CLOSEUP_ELEVATION_3D, MAX_CLOSEUP_ELEVATION_3D ) ) M_closeup_elevation_3d = e;
         else std::cerr << "Out of range: closeup-elevation-3d " << parser.value( opt_closeup_elevation_3d ).toStdString() << std::endl;
+    }
+    {
+        PlayerCameraOptions & pc = M_player_camera;
+        const auto unknown = []( const QCommandLineOption & opt, const QString & value )
+            {
+                std::cerr << "Unknown value of " << opt.names().front().toStdString() << ": " << value.toStdString() << std::endl;
+            };
+        if ( parser.isSet( opt_player_camera_position ) && ! fromName( positions(), parser.value( opt_player_camera_position ), &pc.position ) )
+            unknown( opt_player_camera_position, parser.value( opt_player_camera_position ) );
+        if ( parser.isSet( opt_player_camera_direction ) && ! fromName( directions(), parser.value( opt_player_camera_direction ), &pc.direction ) )
+            unknown( opt_player_camera_direction, parser.value( opt_player_camera_direction ) );
+        if ( parser.isSet( opt_player_camera_motion ) && ! fromName( motions(), parser.value( opt_player_camera_motion ), &pc.motion ) )
+            unknown( opt_player_camera_motion, parser.value( opt_player_camera_motion ) );
+        if ( parser.isSet( opt_player_camera_fov ) && ! fromName( fovs(), parser.value( opt_player_camera_fov ), &pc.fov ) )
+            unknown( opt_player_camera_fov, parser.value( opt_player_camera_fov ) );
+        if ( parser.isSet( opt_player_camera_sight ) && ! fromName( sights(), parser.value( opt_player_camera_sight ), &pc.sight ) )
+            unknown( opt_player_camera_sight, parser.value( opt_player_camera_sight ) );
+        const auto read_number = [&]( const QCommandLineOption & opt, const double lo, const double hi, double * value )
+            {
+                if ( ! parser.isSet( opt ) ) return;
+                const double v = parser.value( opt ).toDouble();
+                if ( in_range( v, lo, hi ) ) *value = v;
+                else std::cerr << "Out of range: " << opt.names().front().toStdString() << " " << parser.value( opt ).toStdString() << std::endl;
+            };
+        read_number( opt_player_camera_time_constant, MIN_TIME_CONSTANT, MAX_TIME_CONSTANT, &pc.time_constant );
+        read_number( opt_player_camera_max_turn, MIN_MAX_TURN, MAX_MAX_TURN, &pc.max_turn );
+        read_number( opt_player_camera_fixed_fov, MIN_FIXED_FOV, MAX_FIXED_FOV, &pc.fixed_fov );
     }
     if ( parser.isSet( opt_show_tool_bar ) ) M_show_tool_bar = to_bool( parser.value( opt_show_tool_bar ), M_show_tool_bar );
     if ( parser.isSet( opt_show_status_bar ) ) M_show_status_bar = to_bool( parser.value( opt_show_status_bar ), M_show_status_bar );

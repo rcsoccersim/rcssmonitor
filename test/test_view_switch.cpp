@@ -173,8 +173,11 @@ TestViewSwitch::cameraMenu()
     QCOMPARE( combo->currentText(), QString( "Behind the Left Goal" ) );
     QVERIFY( window.statusBar()->currentMessage().contains( "Behind the Left Goal" ) );
 
-    // after the last, the first
+    // the selected player's camera is the last; after it, the first
     next->trigger();
+    next->trigger();
+    QCOMPARE( Options::instance().camera3D(), CameraMode::Player );
+    QCOMPARE( checkedCamera( window ), QString( "Selected Player" ) );
     next->trigger();
     QCOMPARE( Options::instance().camera3D(), CameraMode::Free );
 

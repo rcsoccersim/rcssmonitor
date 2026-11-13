@@ -62,6 +62,7 @@ if(HAVE_3D_VIEW)
     view3d/meshes_3d.cpp
     view3d/overlay_builder.cpp
     view3d/picking.cpp
+    view3d/player_camera_3d.cpp
     view3d/scene_builder.cpp
     view3d/scene_3d.cpp
     view3d/gl/billboard_mesh.cpp

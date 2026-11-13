@@ -216,19 +216,17 @@ FieldView3D::paintGL()
         show = Interpolate::show( *frames[at.index],
                                   ( at.next != at.index ? frames[at.next].get() : nullptr ),
                                   at.alpha );
-        SceneBuilder::addShow( M_content, show, M_disp_holder, Options::instance() );
-        OverlayBuilder::addDirections( M_content, show, M_disp_holder, Options::instance() );
-        OverlayBuilder::addViewAreas( M_content, show, M_disp_holder, Options::instance() );
-        OverlayBuilder::addOverlays( M_content, show, M_disp_holder, Options::instance() );
     }
+
     // what the cameras follow: the ball, and the selected player in the show
     CameraSubject subject;
     subject.ball_x = show.ball_.x_;
     subject.ball_y = show.ball_.y_;
     if ( ! frames.empty() )
     {
-        for ( const rcss::rcg::PlayerT & p : show.player_ )
+        for ( int i = 0; i < rcss::rcg::MAX_PLAYER * 2; ++i )
         {
+            const rcss::rcg::PlayerT & p = show.player_[i];
             if ( p.side() != rcss::rcg::NEUTRAL
                  && p.isAlive()
                  && Options::instance().selectedPlayer( p.side(), p.unum_ ) )
@@ -236,8 +234,19 @@ FieldView3D::paintGL()
                 subject.has_player = true;
                 subject.player_x = p.x_;
                 subject.player_y = p.y_;
+                subject.player = &show.player_[i];
             }
         }
+    }
+
+    const PlayerCameraOptions & player_camera = Options::instance().playerCamera();
+
+    if ( ! frames.empty() )
+    {
+        SceneBuilder::addShow( M_content, show, M_disp_holder, Options::instance() );
+        OverlayBuilder::addDirections( M_content, show, M_disp_holder, Options::instance() );
+        OverlayBuilder::addViewAreas( M_content, show, M_disp_holder, Options::instance() );
+        OverlayBuilder::addOverlays( M_content, show, M_disp_holder, Options::instance() );
     }
 
     // the camera, after the ball for the time since the last frame
@@ -246,6 +255,7 @@ FieldView3D::paintGL()
     const float aspect = float( width() ) / float( std::max( 1, height() ) );
     M_camera.setCloseup( float( Options::instance().closeupDistance3D() ),
                          float( Options::instance().closeupElevation3D() ) );
+    M_camera.setPlayerCamera( player_camera );
     const CameraPose camera = M_camera.update( dt, aspect, subject );
     M_drawn_camera = camera;
     M_drawn = true;

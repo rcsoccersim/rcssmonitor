@@ -96,7 +96,7 @@ private slots:
           }
           // an unknown name (of a later version) leaves the camera as it was
           CameraMode mode = CameraMode::Top;
-          QVERIFY( ! cameraModeFromName( "player", &mode ) );
+          QVERIFY( ! cameraModeFromName( "spectator", &mode ) );
           QCOMPARE( mode, CameraMode::Top );
 
           // E goes through all of them and back

@@ -35,6 +35,8 @@
 
 #include "camera_3d.h"
 #include "camera_mode.h"
+#include "player_camera_3d.h"
+#include "player_camera_options.h"
 
 #include <QVector3D>
 
@@ -198,6 +200,7 @@ struct CameraSubject {
     bool has_player = false; //!< a player is selected and in the show
     float player_x = 0.0f;
     float player_y = 0.0f;
+    const rcss::rcg::PlayerT * player = nullptr; //!< that player (interpolated), for the player camera
 };
 
 /*!
@@ -222,6 +225,10 @@ struct CameraSubject {
   change of the camera sets the zoom back. The close-up cameras instead
   change their distance (setCloseup()), which is a setting that stays: the
   caller keeps it in the options (closeupDistance()).
+
+  The player camera follows the selected player in its styles
+  (setPlayerCamera(), PlayerCameraState); without a selected player, it is
+  the broadcast camera. It does not take the mouse.
 */
 class CameraController {
 public:
@@ -278,8 +285,14 @@ public:
     //! the camera does not move unless the ball does (it has arrived)
     bool settled() const { return M_settled; }
 
-    //! the mouse moves the camera (all but the top camera)
-    bool takesMouse() const { return M_mode != CameraMode::Top; }
+    //! the mouse moves the camera (all but the top camera and the player camera)
+    bool takesMouse() const { return M_mode != CameraMode::Top && M_mode != CameraMode::Player; }
+
+    //! the styles of the player camera (the options); a change starts it again at once
+    void setPlayerCamera( const PlayerCameraOptions & options );
+
+    //! the player camera's direction and field of view, for the tests
+    const PlayerCameraState & playerCameraState() const { return M_player_camera; }
 
     /*!
       \brief turn, move or zoom by the mouse (Cameras3D::orbit(), pan(), dolly()).
@@ -311,6 +324,8 @@ private:
     float M_zoom; //!< of the following and the top cameras (zoom())
     float M_closeup_distance; //!< of the close-up cameras (m)
     float M_closeup_elevation; //!< of the close-up cameras (degree)
+    PlayerCameraOptions M_player_options; //!< the styles of the player camera
+    PlayerCameraState M_player_camera; //!< where the player camera turns and how wide it sees
     bool M_has_viewpoint; //!< viewFrom() asked for M_viewpoint, placed at the next update()
     Viewpoint M_viewpoint;
 
