@@ -71,6 +71,12 @@ constexpr float DRAG_ZOOM = 0.95f; //!< the distance by 100 pixels of a drag wit
 constexpr float MIN_ZOOM = 0.04f; //!< the nearest: 1 / 25 of the distance (or of the height of the top camera's view)
 constexpr float MAX_ZOOM = 4.0f; //!< the farthest
 
+// the close-up cameras (their distance and elevation are in the options)
+constexpr float CLOSEUP_PLAYER_HEIGHT = 1.0f; //!< what the close-up camera of a player looks at: its middle (m)
+constexpr float CLOSEUP_LAG = 0.0089f; //!< the time constant per meter of the distance (s/m): closeupTimeConstant()
+constexpr float CLOSEUP_MIN_TIME_CONSTANT = 0.05f;
+constexpr float CLOSEUP_MAX_TIME_CONSTANT = 0.35f;
+
 /*!
   \brief the camera that sees the whole pitch and 2 m around it, as close as
   it can, from azimuth and elevation, looking at the center. Horizontally
@@ -93,6 +99,30 @@ CameraPose fitView( const float azimuth,
 CameraPose broadcast( const float aspect,
                       const float ball_x,
                       const float ball_y );
+
+/*!
+  \brief a close-up camera: as the broadcast camera, from the side of the
+  near touch line, but distance meters from a point height above the
+  ground, and elevation degrees above it. What it looks at stays over the
+  ground image.
+  \param at_x, at_y the point on the field (the ball, a player)
+  \param height what it looks at above the point (m)
+  \param distance from what it looks at (m)
+  \param elevation how high above it (degree)
+*/
+CameraPose closeup( const float at_x,
+                    const float at_y,
+                    const float height,
+                    const float distance,
+                    const float elevation );
+
+/*!
+  \brief how closely a close-up camera follows (the time constant of
+  smoothToward(), s): nearer, closer, as its view is narrower. The lag behind
+  something at speed v is v times it; with CLOSEUP_LAG, a fast ball (25 m/s)
+  stays within 40% of half the width of a 16:9 view behind.
+*/
+float closeupTimeConstant( const float distance );
 
 /*!
   \brief behind a goal, 18 m behind the goal line and 10 m high, looking
@@ -151,13 +181,29 @@ void dolly( CameraPose & pose,
 }
 
 /*!
+  \struct CameraSubject
+  \brief what the cameras follow: the ball on the ground, and the selected
+  player (for the close-up camera of the selected player)
+*/
+struct CameraSubject {
+    float ball_x = 0.0f;
+    float ball_y = 0.0f;
+    bool has_player = false; //!< a player is selected and in the show
+    float player_x = 0.0f;
+    float player_y = 0.0f;
+};
+
+/*!
   \class CameraController
   \brief the camera of the 3D view: which one, where it is now, and how it
   moves from frame to frame. FieldView3D calls update() in every frame, and
   the mouse functions on input.
 
-  The following cameras (broadcast, behind the goals) glide after the ball;
-  when the mode changes, the camera jumps to the new place at once. The free
+  The following cameras (broadcast, close-up, behind the goals) glide after
+  the ball (the close-up camera of the selected player after the player,
+  the ball's without one), the close-up ones closer behind
+  (Cameras3D::closeupTimeConstant()); when the mode changes, the camera
+  jumps to the new place at once. The free
   camera stays where the mouse put it. Moving the mouse on a following
   camera makes it the free camera, from where it was. The top camera does
   not take the mouse.
@@ -166,7 +212,9 @@ void dolly( CameraPose & pose,
   farther: the following ones keep following at the distance times the
   zoom, the top one shows the height of its view times the zoom (around the
   ball when nearer), and the free one moves toward what it looks at. A
-  change of the camera sets the zoom back.
+  change of the camera sets the zoom back. The close-up cameras instead
+  change their distance (setCloseup()), which is a setting that stays: the
+  caller keeps it in the options (closeupDistance()).
 */
 class CameraController {
 public:
@@ -187,8 +235,31 @@ public:
     */
     CameraPose update( const double dt,
                        const float aspect,
+                       const CameraSubject & subject );
+
+    //! update() with only the ball
+    CameraPose update( const double dt,
+                       const float aspect,
                        const float ball_x,
-                       const float ball_y );
+                       const float ball_y )
+      {
+          CameraSubject subject;
+          subject.ball_x = ball_x;
+          subject.ball_y = ball_y;
+          return update( dt, aspect, subject );
+      }
+
+    /*!
+      \brief how far from what they follow and how high the close-up cameras
+      are (the options); they glide there
+      \param distance (m), within the options' range
+      \param elevation (degree), within the options' range
+    */
+    void setCloseup( const float distance,
+                     const float elevation );
+
+    //! the distance of the close-up cameras (zoom() changes it)
+    float closeupDistance() const { return M_closeup_distance; }
 
     //! the camera does not move unless the ball does (it has arrived)
     bool settled() const { return M_settled; }
@@ -210,7 +281,7 @@ public:
     */
     void zoom( const float factor );
 
-    //! back to the camera's own distance (the free camera: the whole pitch)
+    //! back to the camera's own distance (the free camera: the whole pitch; the close-up ones: the default distance)
     void resetZoom();
 
     //! the zoom of the following and the top cameras (1: their own distance)
@@ -224,6 +295,8 @@ private:
     bool M_settled;
     float M_aspect; //!< of the last update
     float M_zoom; //!< of the following and the top cameras (zoom())
+    float M_closeup_distance; //!< of the close-up cameras (m)
+    float M_closeup_elevation; //!< of the close-up cameras (degree)
 
     //! before a move by the mouse: false if the camera does not take it
     bool takeMouse( bool * changed );

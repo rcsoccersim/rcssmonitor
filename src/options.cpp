@@ -133,6 +133,16 @@ const QColor Options::ILLEGAL_DEFENSE_COLOR( 255, 0, 0 );
 
 namespace {
 
+//! a value within its range (a setting out of it is not read)
+inline
+bool
+in_range( const double val,
+          const double min,
+          const double max )
+{
+    return min <= val && val <= max;
+}
+
 #ifdef USE_Q_COMMAND_LINE_PARSER
 
 inline
@@ -230,6 +240,8 @@ Options::Options()
     M_show_menu_bar( true ),
     M_view_3d( false ),
     M_camera_3d( DEFAULT_CAMERA_MODE ),
+    M_closeup_distance_3d( CLOSEUP_DISTANCE_3D ),
+    M_closeup_elevation_3d( CLOSEUP_ELEVATION_3D ),
     M_show_tool_bar( false ),
     M_show_status_bar( false ),
     // view options
@@ -701,6 +713,26 @@ Options::readSettings()
     if ( val.isValid() ) M_measure_font.fromString( val.toString() );
 
     settings.endGroup();
+
+    //
+    // the 3D view; a value out of its range is not read
+    //
+
+    settings.beginGroup( "View3D" );
+
+    val = settings.value( "closeup_distance_3d" );
+    if ( val.isValid() && in_range( val.toDouble(), MIN_CLOSEUP_DISTANCE_3D, MAX_CLOSEUP_DISTANCE_3D ) )
+    {
+        M_closeup_distance_3d = val.toDouble();
+    }
+
+    val = settings.value( "closeup_elevation_3d" );
+    if ( val.isValid() && in_range( val.toDouble(), MIN_CLOSEUP_ELEVATION_3D, MAX_CLOSEUP_ELEVATION_3D ) )
+    {
+        M_closeup_elevation_3d = val.toDouble();
+    }
+
+    settings.endGroup();
 }
 
 /*-----------------------------------------------------------------*/
@@ -844,6 +876,28 @@ Options::writeSettings( bool all )
     settings.setValue( "player_font", M_player_font.toString() );
     settings.setValue( "measure_font", M_measure_font.toString() );
     settings.endGroup();
+
+    //
+    // the 3D view
+    //
+    settings.beginGroup( "View3D" );
+    settings.setValue( "closeup_distance_3d", M_closeup_distance_3d );
+    settings.setValue( "closeup_elevation_3d", M_closeup_elevation_3d );
+    settings.endGroup();
+}
+
+/*-------------------------------------------------------------------*/
+void
+Options::setCloseupDistance3D( const double distance )
+{
+    M_closeup_distance_3d = std::min( MAX_CLOSEUP_DISTANCE_3D, std::max( MIN_CLOSEUP_DISTANCE_3D, distance ) );
+}
+
+/*-------------------------------------------------------------------*/
+void
+Options::setCloseupElevation3D( const double elevation )
+{
+    M_closeup_elevation_3d = std::min( MAX_CLOSEUP_ELEVATION_3D, std::max( MIN_CLOSEUP_ELEVATION_3D, elevation ) );
 }
 
 /*-------------------------------------------------------------------*/
@@ -952,6 +1006,20 @@ Options::parseCmdLine( int argc,
                                       "camera",
                                       cameraModeName( M_camera_3d ) );
     parser.addOption( opt_camera_3d );
+    QCommandLineOption opt_closeup_distance_3d( "closeup-distance-3d",
+                                                "The close-up cameras of the 3D view: how far from what they follow, "
+                                                + to_string( MIN_CLOSEUP_DISTANCE_3D ) + " to " + to_string( MAX_CLOSEUP_DISTANCE_3D )
+                                                + " m. (Default=" + to_string( M_closeup_distance_3d ) + ")",
+                                                "meters",
+                                                to_string( M_closeup_distance_3d ) );
+    parser.addOption( opt_closeup_distance_3d );
+    QCommandLineOption opt_closeup_elevation_3d( "closeup-elevation-3d",
+                                                 "The close-up cameras of the 3D view: how high above it, "
+                                                 + to_string( MIN_CLOSEUP_ELEVATION_3D ) + " to " + to_string( MAX_CLOSEUP_ELEVATION_3D )
+                                                 + " degrees. (Default=" + to_string( M_closeup_elevation_3d ) + ")",
+                                                 "degrees",
+                                                 to_string( M_closeup_elevation_3d ) );
+    parser.addOption( opt_closeup_elevation_3d );
     // view options
     QCommandLineOption opt_anti_aliasing( "anti-aliasing",
                                           "Paint objects with the anti-aliase mode. (Default=" + to_onoff( M_anti_aliasing ) + ")",
@@ -1121,6 +1189,18 @@ Options::parseCmdLine( int argc,
          && ! cameraModeFromName( parser.value( opt_camera_3d ), &M_camera_3d ) )
     {
         std::cerr << "Unknown camera of the 3D view: " << parser.value( opt_camera_3d ).toStdString() << std::endl;
+    }
+    if ( parser.isSet( opt_closeup_distance_3d ) )
+    {
+        const double d = parser.value( opt_closeup_distance_3d ).toDouble();
+        if ( in_range( d, MIN_CLOSEUP_DISTANCE_3D, MAX_CLOSEUP_DISTANCE_3D ) ) M_closeup_distance_3d = d;
+        else std::cerr << "Out of range: closeup-distance-3d " << parser.value( opt_closeup_distance_3d ).toStdString() << std::endl;
+    }
+    if ( parser.isSet( opt_closeup_elevation_3d ) )
+    {
+        const double e = parser.value( opt_closeup_elevation_3d ).toDouble();
+        if ( in_range( e, MIN_CLOSEUP_ELEVATION_3D, MAX_CLOSEUP_ELEVATION_3D ) ) M_closeup_elevation_3d = e;
+        else std::cerr << "Out of range: closeup-elevation-3d " << parser.value( opt_closeup_elevation_3d ).toStdString() << std::endl;
     }
     if ( parser.isSet( opt_show_tool_bar ) ) M_show_tool_bar = to_bool( parser.value( opt_show_tool_bar ), M_show_tool_bar );
     if ( parser.isSet( opt_show_status_bar ) ) M_show_status_bar = to_bool( parser.value( opt_show_status_bar ), M_show_status_bar );

@@ -221,13 +221,32 @@ FieldView3D::paintGL()
         OverlayBuilder::addViewAreas( M_content, show, M_disp_holder, Options::instance() );
         OverlayBuilder::addOverlays( M_content, show, M_disp_holder, Options::instance() );
     }
-    const float ball_x = show.ball_.x_, ball_y = show.ball_.y_;
+    // what the cameras follow: the ball, and the selected player in the show
+    CameraSubject subject;
+    subject.ball_x = show.ball_.x_;
+    subject.ball_y = show.ball_.y_;
+    if ( ! frames.empty() )
+    {
+        for ( const rcss::rcg::PlayerT & p : show.player_ )
+        {
+            if ( p.side() != rcss::rcg::NEUTRAL
+                 && p.isAlive()
+                 && Options::instance().selectedPlayer( p.side(), p.unum_ ) )
+            {
+                subject.has_player = true;
+                subject.player_x = p.x_;
+                subject.player_y = p.y_;
+            }
+        }
+    }
 
     // the camera, after the ball for the time since the last frame
     const double dt = ( M_frame_clock.isValid() ? M_frame_clock.restart() * 1.0e-3 : 0.0 );
     if ( ! M_frame_clock.isValid() ) M_frame_clock.start();
     const float aspect = float( width() ) / float( std::max( 1, height() ) );
-    const CameraPose camera = M_camera.update( dt, aspect, ball_x, ball_y );
+    M_camera.setCloseup( float( Options::instance().closeupDistance3D() ),
+                         float( Options::instance().closeupElevation3D() ) );
+    const CameraPose camera = M_camera.update( dt, aspect, subject );
     M_drawn_camera = camera;
     M_drawn = true;
 
@@ -305,6 +324,11 @@ FieldView3D::zoomCamera( const double factor )
     else
     {
         M_camera.zoom( float( factor ) );
+    }
+    // the close-up cameras' distance is a setting, which stays
+    if ( isCloseup( M_camera.mode() ) )
+    {
+        Options::instance().setCloseupDistance3D( M_camera.closeupDistance() );
     }
     update();
 }

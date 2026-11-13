@@ -141,6 +141,33 @@ broadcast( const float aspect,
 
 /*-------------------------------------------------------------------*/
 CameraPose
+closeup( const float at_x,
+         const float at_y,
+         const float height,
+         const float distance,
+         const float elevation )
+{
+    const float e = elevation * DEG2RAD;
+    const QVector3D target( clamp( at_x, -AREA_HALF_LENGTH, AREA_HALF_LENGTH ),
+                            height,
+                            clamp( at_y, -AREA_HALF_WIDTH, AREA_HALF_WIDTH ) );
+    CameraPose pose;
+    pose.target = target;
+    // toward +z: the side of the near touch line (below in 2D)
+    pose.position = target + QVector3D( 0.0f, distance * std::sin( e ), distance * std::cos( e ) );
+    pose.fov_y = FOV;
+    return pose;
+}
+
+/*-------------------------------------------------------------------*/
+float
+closeupTimeConstant( const float distance )
+{
+    return clamp( CLOSEUP_LAG * distance, CLOSEUP_MIN_TIME_CONSTANT, CLOSEUP_MAX_TIME_CONSTANT );
+}
+
+/*-------------------------------------------------------------------*/
+CameraPose
 goal( const int side,
       const float ball_x,
       const float ball_y )
@@ -252,7 +279,9 @@ CameraController::CameraController()
       M_snap( true ),
       M_settled( false ),
       M_aspect( 16.0f / 9.0f ),
-      M_zoom( 1.0f )
+      M_zoom( 1.0f ),
+      M_closeup_distance( float( Options::CLOSEUP_DISTANCE_3D ) ),
+      M_closeup_elevation( float( Options::CLOSEUP_ELEVATION_3D ) )
 {
     M_pose = Cameras3D::fitView( 90.0f, Cameras3D::ELEVATION, M_aspect );
 }
@@ -278,12 +307,27 @@ CameraController::setMode( const CameraMode mode )
 }
 
 /*-------------------------------------------------------------------*/
+void
+CameraController::setCloseup( const float distance,
+                              const float elevation )
+{
+    if ( distance != M_closeup_distance
+         || elevation != M_closeup_elevation )
+    {
+        M_closeup_distance = distance;
+        M_closeup_elevation = elevation;
+        M_settled = false;
+    }
+}
+
+/*-------------------------------------------------------------------*/
 CameraPose
 CameraController::update( const double dt,
                           const float aspect,
-                          const float ball_x,
-                          const float ball_y )
+                          const CameraSubject & subject )
 {
+    const float ball_x = subject.ball_x;
+    const float ball_y = subject.ball_y;
     M_aspect = aspect;
     // the first free camera sees the whole pitch, in the shape of the view
     if ( ! M_fitted )
@@ -332,12 +376,23 @@ CameraController::update( const double dt,
     case CameraMode::GoalRight:
         goal_pose = Cameras3D::goal( 1, ball_x, ball_y );
         break;
+    case CameraMode::CloseupPlayer:
+        // the selected player's middle, or the ball without one
+        goal_pose = ( subject.has_player
+                      ? Cameras3D::closeup( subject.player_x, subject.player_y, Cameras3D::CLOSEUP_PLAYER_HEIGHT,
+                                            M_closeup_distance, M_closeup_elevation )
+                      : Cameras3D::closeup( ball_x, ball_y, 0.0f, M_closeup_distance, M_closeup_elevation ) );
+        break;
+    case CameraMode::CloseupBall:
+        goal_pose = Cameras3D::closeup( ball_x, ball_y, 0.0f, M_closeup_distance, M_closeup_elevation );
+        break;
     default:
         goal_pose = Cameras3D::broadcast( aspect, ball_x, ball_y );
         break;
     }
-    // at the zoomed distance from what it looks at
-    if ( M_zoom != 1.0f )
+    // at the zoomed distance from what it looks at (the close-up cameras have their own distance)
+    if ( M_zoom != 1.0f
+         && ! isCloseup( M_mode ) )
     {
         Cameras3D::dolly( goal_pose, M_zoom );
     }
@@ -350,9 +405,13 @@ CameraController::update( const double dt,
         M_settled = true;
         return M_pose;
     }
+    // the close-up ones closer behind
     const double step = std::min( std::max( 0.0, dt ), Cameras3D::MAX_STEP );
-    const QVector3D position = Cameras3D::smoothToward( M_pose.position, goal_pose.position, step );
-    const QVector3D target = Cameras3D::smoothToward( M_pose.target, goal_pose.target, step );
+    const float tau = ( isCloseup( M_mode )
+                        ? Cameras3D::closeupTimeConstant( M_closeup_distance )
+                        : Cameras3D::TIME_CONSTANT );
+    const QVector3D position = Cameras3D::smoothToward( M_pose.position, goal_pose.position, step, tau );
+    const QVector3D target = Cameras3D::smoothToward( M_pose.target, goal_pose.target, step, tau );
     M_settled = ( ( position - goal_pose.position ).length() < Cameras3D::SETTLED
                   && ( target - goal_pose.target ).length() < Cameras3D::SETTLED );
     // once still, exactly where it goes
@@ -373,6 +432,12 @@ CameraController::zoom( const float factor )
     {
         Cameras3D::dolly( M_pose, factor );
     }
+    else if ( isCloseup( M_mode ) )
+    {
+        M_closeup_distance = clamp( M_closeup_distance * factor,
+                                    float( Options::MIN_CLOSEUP_DISTANCE_3D ),
+                                    float( Options::MAX_CLOSEUP_DISTANCE_3D ) );
+    }
     else
     {
         M_zoom = clamp( M_zoom * factor, Cameras3D::MIN_ZOOM, Cameras3D::MAX_ZOOM );
@@ -387,6 +452,10 @@ CameraController::resetZoom()
     if ( M_mode == CameraMode::Free )
     {
         M_pose = Cameras3D::fitView( 90.0f, Cameras3D::ELEVATION, M_aspect );
+    }
+    else if ( isCloseup( M_mode ) )
+    {
+        M_closeup_distance = float( Options::CLOSEUP_DISTANCE_3D );
     }
     M_zoom = 1.0f;
     M_settled = false;

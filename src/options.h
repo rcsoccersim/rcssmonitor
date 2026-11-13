@@ -177,6 +177,8 @@ private:
     bool M_show_menu_bar;
     bool M_view_3d; //!< show the 3D view instead of the 2D view
     CameraMode M_camera_3d; //!< the camera of the 3D view
+    double M_closeup_distance_3d; //!< the close-up cameras: how far from what they follow (m)
+    double M_closeup_elevation_3d; //!< the close-up cameras: how high above it (degree)
     bool M_show_tool_bar;
     bool M_show_status_bar;
 
@@ -370,6 +372,20 @@ public:
     void setView3D( const bool on ) { M_view_3d = on; }
     CameraMode camera3D() const { return M_camera_3d; }
     void setCamera3D( const CameraMode mode ) { M_camera_3d = mode; }
+
+    // the close-up cameras of the 3D view (rcssmonitor-web cameras.ts CLOSEUP_RANGE)
+    static constexpr double CLOSEUP_DISTANCE_3D = 12.0; //!< the default (m)
+    static constexpr double MIN_CLOSEUP_DISTANCE_3D = 3.0;
+    static constexpr double MAX_CLOSEUP_DISTANCE_3D = 60.0;
+    static constexpr double CLOSEUP_ELEVATION_3D = 20.0; //!< the default (degree)
+    static constexpr double MIN_CLOSEUP_ELEVATION_3D = 5.0;
+    static constexpr double MAX_CLOSEUP_ELEVATION_3D = 85.0;
+    double closeupDistance3D() const { return M_closeup_distance_3d; }
+    //! within MIN_CLOSEUP_DISTANCE_3D and MAX_CLOSEUP_DISTANCE_3D
+    void setCloseupDistance3D( const double distance );
+    double closeupElevation3D() const { return M_closeup_elevation_3d; }
+    //! within MIN_CLOSEUP_ELEVATION_3D and MAX_CLOSEUP_ELEVATION_3D
+    void setCloseupElevation3D( const double elevation );
     bool showToolBar() const { return M_show_tool_bar; }
     bool showStatusBar() const { return M_show_status_bar; }
 

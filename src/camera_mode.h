@@ -41,12 +41,14 @@
   \enum CameraMode
   \brief the cameras of the 3D view (docs/PLAN_3D-VIEW.md §4.1), in the
   order that E goes through them. Here, with no OpenGL, so that the options
-  (camera_3d) know them in a build without the 3D view too. The close-up
-  cameras and the player's camera come in Phase 6.
+  (camera_3d) know them in a build without the 3D view too. The player's
+  camera comes later in Phase 6.
 */
 enum class CameraMode {
     Free, //!< moved by the mouse (Cameras3D::orbit(), pan(), dolly())
     Broadcast, //!< from beyond the near touch line, after the ball
+    CloseupBall, //!< near the ball, from the side of the near touch line (Options::closeupDistance3D())
+    CloseupPlayer, //!< near the selected player, the ball's without one
     Top, //!< straight above, the whole field as in 2D, no perspective
     GoalLeft, //!< behind the left goal, looking at the ball
     GoalRight, //!< behind the right goal, looking at the ball
@@ -65,12 +67,14 @@ struct CameraModeInfo {
 
 //! the cameras in the order of E
 inline
-const std::array< CameraModeInfo, 5 > &
+const std::array< CameraModeInfo, 7 > &
 cameraModes()
 {
-    static const std::array< CameraModeInfo, 5 > modes = { {
+    static const std::array< CameraModeInfo, 7 > modes = { {
             { CameraMode::Free, "free", "Free" },
             { CameraMode::Broadcast, "broadcast", "Broadcast" },
+            { CameraMode::CloseupBall, "closeup-ball", "Close-up: Ball" },
+            { CameraMode::CloseupPlayer, "closeup-player", "Close-up: Selected Player" },
             { CameraMode::Top, "top", "Top" },
             { CameraMode::GoalLeft, "goal-left", "Behind the Left Goal" },
             { CameraMode::GoalRight, "goal-right", "Behind the Right Goal" },
@@ -120,12 +124,20 @@ inline
 CameraMode
 nextCameraMode( const CameraMode mode )
 {
-    const std::array< CameraModeInfo, 5 > & modes = cameraModes();
+    const std::array< CameraModeInfo, 7 > & modes = cameraModes();
     for ( std::size_t i = 0; i < modes.size(); ++i )
     {
         if ( modes[i].mode == mode ) return modes[( i + 1 ) % modes.size()].mode;
     }
     return modes[0].mode;
+}
+
+//! a close-up camera (CameraMode::CloseupBall, CloseupPlayer)
+inline
+bool
+isCloseup( const CameraMode mode )
+{
+    return mode == CameraMode::CloseupBall || mode == CameraMode::CloseupPlayer;
 }
 
 #endif

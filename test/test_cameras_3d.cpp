@@ -96,7 +96,7 @@ private slots:
           }
           // an unknown name (of a later version) leaves the camera as it was
           CameraMode mode = CameraMode::Top;
-          QVERIFY( ! cameraModeFromName( "closeup-ball", &mode ) );
+          QVERIFY( ! cameraModeFromName( "player", &mode ) );
           QCOMPARE( mode, CameraMode::Top );
 
           // E goes through all of them and back
@@ -108,6 +108,131 @@ private slots:
           }
           QCOMPARE( nextCameraMode( mode ), CameraMode::Free );
           QCOMPARE( DEFAULT_CAMERA_MODE, CameraMode::Broadcast );
+
+          // the close-up ones after the broadcast camera, as in the web version
+          QCOMPARE( nextCameraMode( CameraMode::Broadcast ), CameraMode::CloseupBall );
+          QCOMPARE( nextCameraMode( CameraMode::CloseupBall ), CameraMode::CloseupPlayer );
+          QCOMPARE( nextCameraMode( CameraMode::CloseupPlayer ), CameraMode::Top );
+          QVERIFY( isCloseup( CameraMode::CloseupBall ) );
+          QVERIFY( isCloseup( CameraMode::CloseupPlayer ) );
+          QVERIFY( ! isCloseup( CameraMode::Broadcast ) );
+      }
+
+    //! the close-up camera: the distance and the elevation from what it looks at, within the ground image
+    void closeup()
+      {
+          const CameraPose pose = Cameras3D::closeup( 10.0f, -5.0f, 1.0f, 12.0f, 20.0f );
+          QVERIFY( near( pose.target, QVector3D( 10.0f, 1.0f, -5.0f ) ) );
+          QVERIFY( std::fabs( ( pose.position - pose.target ).length() - 12.0f ) < 1.0e-4f );
+          QVERIFY( std::fabs( elevation( pose ) - 20.0f * float( M_PI ) / 180.0f ) < 1.0e-5f );
+          // from the side of the near touch line (+y of the field)
+          QCOMPARE( pose.position.x(), pose.target.x() );
+          QVERIFY( pose.position.z() > pose.target.z() );
+          QCOMPARE( pose.fov_y, Cameras3D::FOV );
+          QCOMPARE( pose.ortho_half_height, 0.0f );
+
+          // what it looks at stays over the ground image
+          const CameraPose out = Cameras3D::closeup( 80.0f, -60.0f, 0.0f, 12.0f, 20.0f );
+          QCOMPARE( out.target.x(), float( Options::PITCH_HALF_LENGTH + Options::PITCH_MARGIN ) );
+          QCOMPARE( out.target.z(), -float( Options::PITCH_HALF_WIDTH + Options::PITCH_MARGIN ) );
+
+          // nearer, closer behind
+          QVERIFY( std::fabs( Cameras3D::closeupTimeConstant( 12.0f ) - 0.0089f * 12.0f ) < 1.0e-6f );
+          QCOMPARE( Cameras3D::closeupTimeConstant( 3.0f ), Cameras3D::CLOSEUP_MIN_TIME_CONSTANT );
+          QCOMPARE( Cameras3D::closeupTimeConstant( 60.0f ), Cameras3D::CLOSEUP_MAX_TIME_CONSTANT );
+      }
+
+    //! the close-up cameras follow the ball or the selected player, closer behind
+    void controllerCloseup()
+      {
+          CameraController camera;
+          camera.setMode( CameraMode::CloseupBall );
+          const float d = float( Options::CLOSEUP_DISTANCE_3D );
+          const float e = float( Options::CLOSEUP_ELEVATION_3D );
+          QCOMPARE( camera.closeupDistance(), d );
+
+          CameraSubject subject;
+          subject.ball_x = 5.0f;
+          subject.ball_y = 2.0f;
+          subject.has_player = true;
+          subject.player_x = -20.0f;
+          subject.player_y = 10.0f;
+          CameraPose pose = camera.update( 0.0, ASPECT, subject );
+          QVERIFY( near( pose.position, Cameras3D::closeup( 5.0f, 2.0f, 0.0f, d, e ).position ) );
+
+          // after the ball, by the close-up's time constant
+          subject.ball_x = 15.0f;
+          pose = camera.update( 0.05, ASPECT, subject );
+          const float k = 1.0f - std::exp( -0.05f / Cameras3D::closeupTimeConstant( d ) );
+          QVERIFY( std::fabs( pose.target.x() - ( 5.0f + 10.0f * k ) ) < 1.0e-3f );
+
+          // the selected player's: at once to its middle; the ball's without one
+          camera.setMode( CameraMode::CloseupPlayer );
+          pose = camera.update( 0.016, ASPECT, subject );
+          QVERIFY( near( pose.target, QVector3D( -20.0f, Cameras3D::CLOSEUP_PLAYER_HEIGHT, 10.0f ) ) );
+          subject.has_player = false;
+          pose = camera.update( 0.05, ASPECT, subject ); // on the way
+          QVERIFY( ! camera.settled() );
+          for ( int i = 0; i < 200 && ! camera.settled(); ++i )
+          {
+              pose = camera.update( 0.05, ASPECT, subject );
+          }
+          QVERIFY( camera.settled() );
+          QVERIFY( near( pose.target, QVector3D( 15.0f, 0.0f, 2.0f ) ) );
+
+          // the keys change its distance, within the range, not the zoom
+          camera.zoom( 1.0f / 1.5f );
+          QVERIFY( std::fabs( camera.closeupDistance() - d / 1.5f ) < 1.0e-5f );
+          QCOMPARE( camera.zoomFactor(), 1.0f );
+          QVERIFY( ! camera.settled() );
+          for ( int i = 0; i < 200 && ! camera.settled(); ++i )
+          {
+              pose = camera.update( 0.05, ASPECT, subject );
+          }
+          QVERIFY( std::fabs( ( pose.position - pose.target ).length() - d / 1.5f ) < 1.0e-3f );
+          camera.zoom( 0.0001f );
+          QCOMPARE( camera.closeupDistance(), float( Options::MIN_CLOSEUP_DISTANCE_3D ) );
+          camera.zoom( 100000.0f );
+          QCOMPARE( camera.closeupDistance(), float( Options::MAX_CLOSEUP_DISTANCE_3D ) );
+
+          // a setting: it stays with another camera, and I sets it back to the default
+          camera.setMode( CameraMode::Broadcast );
+          camera.setMode( CameraMode::CloseupBall );
+          QCOMPARE( camera.closeupDistance(), float( Options::MAX_CLOSEUP_DISTANCE_3D ) );
+          camera.resetZoom();
+          QCOMPARE( camera.closeupDistance(), d );
+
+          // a new distance and elevation glide there
+          for ( int i = 0; i < 200 && ! camera.settled(); ++i )
+          {
+              pose = camera.update( 0.05, ASPECT, subject );
+          }
+          camera.setCloseup( 30.0f, 60.0f );
+          QVERIFY( ! camera.settled() );
+          for ( int i = 0; i < 200 && ! camera.settled(); ++i )
+          {
+              pose = camera.update( 0.05, ASPECT, subject );
+          }
+          QVERIFY( std::fabs( ( pose.position - pose.target ).length() - 30.0f ) < 1.0e-3f );
+          QVERIFY( std::fabs( elevation( pose ) - 60.0f * float( M_PI ) / 180.0f ) < 1.0e-4f );
+      }
+
+    //! the options keep the close-up settings within their ranges
+    void closeupOptions()
+      {
+          Options & opt = Options::instance();
+          opt.setCloseupDistance3D( 1.0 );
+          QCOMPARE( opt.closeupDistance3D(), Options::MIN_CLOSEUP_DISTANCE_3D );
+          opt.setCloseupDistance3D( 100.0 );
+          QCOMPARE( opt.closeupDistance3D(), Options::MAX_CLOSEUP_DISTANCE_3D );
+          opt.setCloseupDistance3D( 20.0 );
+          QCOMPARE( opt.closeupDistance3D(), 20.0 );
+          opt.setCloseupElevation3D( 0.0 );
+          QCOMPARE( opt.closeupElevation3D(), Options::MIN_CLOSEUP_ELEVATION_3D );
+          opt.setCloseupElevation3D( 90.0 );
+          QCOMPARE( opt.closeupElevation3D(), Options::MAX_CLOSEUP_ELEVATION_3D );
+          opt.setCloseupDistance3D( Options::CLOSEUP_DISTANCE_3D );
+          opt.setCloseupElevation3D( Options::CLOSEUP_ELEVATION_3D );
       }
 
     void fitView_data()
