@@ -379,7 +379,7 @@ Add to `Options` and save to `~/.rcssmonitor.conf`. The names follow the web ver
 | `player_camera_fov` | fixed | view / eased / fixed |
 | `player_camera_sight` | server | all / view / server |
 | `player_camera_time_constant`, `player_camera_max_turn`, `player_camera_fixed_fov` | 0.5, 90, 120 | 0–5 s, 1–3600 °/s, 20–120° (the eight of the player camera in the group `View3D`; on the command line by the same names, `--player-camera-position` and so on; 6-3) |
-| `compass_3d`, `minimap_3d` | off | off / player / all |
+| `compass_3d`, `minimap_3d` | off | off / player / all (the group `View3D`; `--compass-3d`, `--minimap-3d` on the command line; 6-5) |
 | `boards_3d`, `banners_3d` | on | (the group `View3D`; `--boards-3d`, `--banners-3d` on the command line; 6-4) |
 | `player_model_3d` | simple | simple / figure |
 | `shadows_3d`, `grass_stripes_3d`, `sky_3d`, `stands_3d`, `ball_pattern_3d` | on | |
@@ -626,6 +626,7 @@ Port the GL-independent calculations, using the web version's unit tests as mode
 | `player_type_sort_proxy.h` | Sorting of the player type list (Phase 1) |
 | `referee_menu.{h,cpp}`, `referee_target.h` | The menu of a right click (the referee's operations) and what it aims at (a point and a player), shared by 2D and 3D (5-4) |
 | `player_camera_options.h` | The kinds, names and ranges of the player camera's styles (no GL; the options use it; 6-3) |
+| `view3d/guides_3d.{h,cpp}` | The compass and the minimap of the HUD (drawn with QPainter; no GL; 6-5) |
 | `view3d/stadium_3d.{h,cpp}`, `shaders/panel.*` | The team colors at the ends besides the nets: the images and places of the boards and banners (no GL), the panels' shader (6-4) |
 | `view3d/picking.{h,cpp}` | What a right click in 3D hits (the camera's ray, the players' bodies and heads, the ground; no GL; 5-4) |
 | `game_log_file.{h,cpp}` | Reading a log file into one buffer and parsing it. With libdeflate, gzip is decompressed with it (Phase 2) |
@@ -1434,4 +1435,25 @@ The 3 commits of 6-3 (389213e to bd55734) were pushed, and the CI passed.
 - Every test was confirmed to fail when what it checks is broken for a while (11 ways: the image upside down, the repeat, the width of the repeat, the back color, both faces, the nets' sides, the facing of the boards behind the goal lines, the facing of the boards along the touch lines, the name, the logo's multiple, a change of the logo's pixels).
 - Builds and tests pass with Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`; 30 tests). `-DENABLE_3D=OFF` (17 tests) and autotools pass too.
 - Frame 3,000 of the full game log was drawn offscreen from the broadcast camera, behind the right goal, and the whole-pitch viewpoint of the far left corner, and looked at.
+
+#### 2026-11-14: Step 6-5, the compass and the minimap (`feature/3d-view`)
+
+The 2 commits of 6-4 (06b5555, 2a7b07f) were pushed, and the CI passed.
+
+**Decided**
+- As in the web version (`hud/guides.ts`, §5.5): the compass at the top in the middle (60% of the view wide, at most 480 px, 22 px high), the 360° around the camera's direction with clockwise to the right, ticks every 15° (longer at 45° and 90°), the horizontal field of view brighter, the directions of the goals (circles in the team colors with L and R) and of the ball. The minimap at the bottom right (24% of the view wide, 140 to 300 px), with the pitch and its margins drawn by the 2D field painter, the players (in the team and goalie colors, the selected one ringed in white), the ball, and where the camera is and the sector it sees. The minimap shows everything whatever the player camera's perception (it is the map of the game). The compass leaves out the ball when the player camera does not see it.
+- Each by an option: off / with the player camera / with all cameras (`compass_3d`, `minimap_3d`, off by default). Never with the top camera (it is a map itself). The dialog comes in 6-6.
+- The minimap's pitch is drawn as the ground image, again at the minimap's size and the screen's scale (`GroundTexture::draw()` now takes a scale and a pen thickness), and only when the ground's key or the size changes.
+
+**Made**
+- `GuideMode`, `guideModes()`, `guideModeName()`, `guideModeFromName()` (`src/camera_mode.h`; without GL, as the options use them).
+- `Options`: `compass_3d`, `minimap_3d` (in the group `View3D`; unknown names are not read) and `--compass-3d`, `--minimap-3d` on the command line.
+- `src/view3d/guides_3d`: `shown()`, `guideOf()` (the camera's place, direction and horizontal field of view), `bearing()`, `compassOffset()`, `compassRect()`, `minimapRect()`, `minimapPoint()`, `drawCompass()`, `drawMinimap()` (drawn with QPainter; no GL).
+- `FieldView3D`: after the score board, the logos and the area values of the HUD, draws the compass and the minimap by the options and the camera.
+
+**Tests**
+- Test `guides_3d` (new): with which cameras they show (off, the player camera only, all, never the top one); the options' names and defaults; the camera's direction and horizontal field of view; the bearings (the short way round); where the compass and the minimap are and how large; the compass marks (the goal ahead in the middle, the goal behind at an end, a ball 90° clockwise at the right quarter, the colors, no mark without the ball); the minimap (the player and goalie colors, the ball, the camera, the ring of the selected player, the sector seen brighter and not outside it, nothing drawn beyond the minimap).
+- Every test was confirmed to fail when what it checks is broken for a while (9 ways: the top camera, the player camera only, the horizontal field of view, the short way round, the sector's direction, the goalie color, the ring of the selected player, the compass's ball, clipping to the minimap). At first the check of the ring relied on the brightness of the sector behind it, and the check beyond the minimap looked where the sector did not reach; they now compare with the unselected drawing and look above the minimap, where the camera looks.
+- Builds and tests pass with Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`; 31 tests). `-DENABLE_3D=OFF` (17 tests) and autotools pass too.
+- The player camera of the left 9 at frame 3,000 of the full game log was drawn offscreen with the compass and the minimap over it, and looked at.
 

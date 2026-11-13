@@ -379,7 +379,7 @@ Shift を使うショートカットは作らない。関係のある別の操�
 | `player_camera_fov` | fixed | view / eased / fixed |
 | `player_camera_sight` | server | all / view / server |
 | `player_camera_time_constant`、`player_camera_max_turn`、`player_camera_fixed_fov` | 0.5、90、120 | 0〜5 s、1〜3600 °/s、20〜120° (選手視点の 8 つは、グループ `View3D`。コマンドラインは `--player-camera-position` などの同じ名前。6-3) |
-| `compass_3d`、`minimap_3d` | off | off / player / all |
+| `compass_3d`、`minimap_3d` | off | off / player / all (グループ `View3D`。コマンドラインは `--compass-3d`、`--minimap-3d`。6-5) |
 | `boards_3d`、`banners_3d` | on | (グループ `View3D`。コマンドラインは `--boards-3d`、`--banners-3d`。6-4) |
 | `player_model_3d` | simple | simple / figure |
 | `shadows_3d`、`grass_stripes_3d`、`sky_3d`、`stands_3d`、`ball_pattern_3d` | on | |
@@ -626,6 +626,7 @@ GL に依存しない計算を、web 版の単体テストを手本に移す。
 | `player_type_sort_proxy.h` | 選手タイプ一覧の並べ替え (Phase 1) |
 | `referee_menu.{h,cpp}`、`referee_target.h` | 右クリックのメニュー (審判操作) と、狙った先 (点と選手)。2D と 3D で共有する (5-4) |
 | `player_camera_options.h` | 選手視点のスタイルの種類と名前と範囲 (GL に依存しない。設定が使う。6-3) |
+| `view3d/guides_3d.{h,cpp}` | HUD の方位の帯とミニマップ (QPainter で描く。GL に依存しない。6-5) |
 | `view3d/stadium_3d.{h,cpp}`、`shaders/panel.*` | ネット以外の両端のチームの色: 広告板と看板の画像と配置 (GL に依存しない)、板のシェーダ (6-4) |
 | `view3d/picking.{h,cpp}` | 3D の右クリックの当たり判定 (カメラの光線と、選手の胴と頭、地面。GL に依存しない。5-4) |
 | `game_log_file.{h,cpp}` | ログのファイルを 1 つのバッファに読み、解析する。libdeflate があれば、gzip をそれで展開する (Phase 2) |
@@ -1434,4 +1435,25 @@ CI の直しと SceneContent の分離の 3 コミット (fb41ec9〜b281ba2) を
 - どのテストも、確かめる箇所を一時的に壊すと失敗することを確かめた (11 通り: 画像の上下、繰り返し、繰り返しの幅、裏の色、両面、ネットの左右、ゴールラインの後ろの板の向き、タッチライン沿いの板の向き、名前、ロゴの倍率、ロゴの画素の変化)。
 - Qt 6.4.2 と Qt 5.15.13 (`-Werror=deprecated-declarations`) で、ビルドとテストが通る (テスト 30 個)。`-DENABLE_3D=OFF` (17 個) と autotools も通る。
 - 画面外で、全試合のログの 3,000 フレーム目を、中継風、右のゴール裏、ピッチ全体の視点 (遠い左の角) から描いて見た。
+
+#### 2026-11-14: 区切り 6-5、方位の帯とミニマップ (`feature/3d-view`)
+
+6-4 の 2 コミット (06b5555、2a7b07f) をプッシュし、CI が通った。
+
+**決めたこと**
+- web 版と同じ (`hud/guides.ts`、§5.5): 方位の帯は画面の上の中央 (幅は画面の 60%、480 px まで、高さ 22 px)。カメラの向きを中央に、時計回りを右に 360° を並べ、15° ごとの目盛り (45° と 90° で長く)、見えている横の画角を明るく、両ゴールの向き (チームの色の丸に L、R)、ボールの向きを出す。ミニマップは右下 (幅は画面の 24%、140〜300 px) に、2D の field painter で描いたピッチと余白、選手 (チームとキーパーの色、選んだ選手に白い輪)、ボール、カメラの位置と見えている扇形を出す。ミニマップは選手視点の知覚によらずすべてを出す (試合の地図)。方位の帯のボールは、選手視点で見えていなければ出さない。
+- どちらも設定で「オフ / 選手視点だけ / すべてのカメラ」(`compass_3d`、`minimap_3d`、既定はオフ)。真上のカメラでは出さない (地図そのもの)。ダイアログは 6-6。
+- ミニマップのピッチは、地面の絵と同じ描き方を、ミニマップの大きさと画面の倍率で描き直す (`GroundTexture::draw()` に倍率とペンの太さを渡せるようにした)。地面の鍵と大きさが変わったときだけ描き直す。
+
+**作ったもの**
+- `GuideMode`、`guideModes()`、`guideModeName()`、`guideModeFromName()` (`src/camera_mode.h`。設定が使うので GL に依存しない所に置く)。
+- `Options`: `compass_3d`、`minimap_3d` (グループ `View3D`、知らない名前は読まない) とコマンドラインの `--compass-3d`、`--minimap-3d`。
+- `src/view3d/guides_3d`: `shown()`、`guideOf()` (カメラの位置、向き、横の画角)、`bearing()`、`compassOffset()`、`compassRect()`、`minimapRect()`、`minimapPoint()`、`drawCompass()`、`drawMinimap()` (QPainter で描く。GL に依存しない)。
+- `FieldView3D`: HUD のスコアボード、ロゴ、範囲の数値の後に、設定とカメラに従って方位の帯とミニマップを描く。
+
+**試験**
+- テスト `guides_3d` (新): 出すカメラ (オフ、選手視点だけ、すべて、真上は出さない)、設定の名前と既定、カメラの向きと横の画角、方位の計算 (短い回り方向)、帯とミニマップの位置と大きさ、帯の印 (前のゴールが中央、後ろのゴールが端、時計回り 90° のボールが右の 4 分の 1、色、ボールがなければ印なし)、ミニマップ (選手とキーパーの色、ボール、カメラ、選んだ選手の輪、見えている扇形が明るく外は明るくない、ミニマップの外に描かない)。
+- どのテストも、確かめる箇所を一時的に壊すと失敗することを確かめた (9 通り: 真上のカメラ、選手視点だけ、横の画角、短い回り方向、扇形の向き、キーパーの色、選んだ選手の輪、帯のボール、ミニマップの外を切ること)。初めは、選んだ選手の輪の確認が後ろの扇形の明るさに頼っていて、ミニマップの外の確認は扇形が届かない所を見ていたので、選ばないときと比べる確認と、カメラが向く上を見る確認に直した。
+- Qt 6.4.2 と Qt 5.15.13 (`-Werror=deprecated-declarations`) で、ビルドとテストが通る (テスト 31 個)。`-DENABLE_3D=OFF` (17 個) と autotools も通る。
+- 画面外で、全試合のログの 3,000 フレーム目の左の 9 番の選手視点に、方位の帯とミニマップを重ねて描いて見た。
 
