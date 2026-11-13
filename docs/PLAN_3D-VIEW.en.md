@@ -39,6 +39,7 @@ This plan is loaded to drive the development of rcssmonitor. The design and hist
 What this plan decided that the web version (rcssmonitor-web) should also get later. Mark an item when the web version has it.
 
 - [ ] **A thicker stamina capacity bar** (5-3, 2026-11-12, user): the web version's capacity bar (`BAR.capacity` in `render3d.ts`, 0.1 m) is too thin to see well. Make it 0.15 m, as rcssmonitor.
+- [ ] **The limit of the catch directions in the goalie's catch area** (2026-11-13, user): from rcssserver 17.0.0, a catch direction is within `min_catch_angle` to `max_catch_angle` (-90 to +90 by default), and a goalie cannot catch behind it. The web version (`catchAreaRadii()` in `overlay-math.ts`) draws circles, as rcssmonitor did. Draw the same shape as rcssmonitor (`OverlayMath::catchOutline()`). Read a log without the two parameters (a server before 17) as ±180 (no limit) (the web version's `param-defaults.ts` has 19.0.0's ±90).
 - [ ] **The same operations as 2D** (§5.6, 5-1b, 2026-11-12, user): in 3D too, the wheel steps the frames, and Z and X (and Ctrl+Z) bring the camera nearer / farther. In the web version the wheel moves the 3D camera (three.js OrbitControls' zoom, and the distance of the close-up cameras `closeupWheel`); make it follow 2D (the web version's 2D wheel and keys) as rcssmonitor does. Also follow rcssmonitor in that a following camera keeps following at the new distance, the top camera shows around the ball when nearer, a change of the camera sets the zoom back, and I sets it back.
 
 ## 1. Goals and scope
@@ -1241,3 +1242,23 @@ The four commits of 5-2 (b4193af to 587456b) were pushed, and the CI passed.
 - Clean builds pass the tests with Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`; 25 tests). `-DENABLE_3D=OFF` (16 tests) and autotools pass too.
 - Frame 5,000 of the full game log was drawn offscreen with the stamina and the capacity, and looked at.
 
+#### 2026-11-13: The limit of the directions in the goalie's catch area (`feature/3d-view`)
+
+The 2 commits of 5-3 (6a13654, b66d88d) were pushed, and the CI passed.
+
+**Decided (user)**
+- From rcssserver 17.0.0, the server cuts a catch direction to `min_catch_angle` to `max_catch_angle` (-90 to +90 by default; `NormalizeCatchAngle()` in `Player::goalieCatch()`). A goalie cannot catch behind it, so the catchable area is not a circle. Show this in the catch area of the 2D and 3D overlays (with soccerwindow2's `PlayerPainter::drawCatchableArea()` as a reference).
+
+**Made**
+- `OverlayMath::catchOutline()`: the outline of the catch box (the length, `catchable_area_w` wide) turned to the body direction plus a catch direction, joined over the range of the directions. The arc the far corners draw (from the body direction + min - the angle of a far corner, by the range + twice that angle), then the sides of the boxes at the two ends close it behind the goalie. Directions 180° apart give one line half the width behind (the default ±90). Narrower than 180°, the sides go through the near corners of the boxes at the ends and meet at the goalie. Wider than 180°, the sides of the boxes at the ends cross behind. When the arc closes, a circle. Directions narrower than twice the angle of a far corner leave a gap in the middle of the far corners, so the arc splits in two, joined by the far sides of the boxes at the ends (soccerwindow2 draws the right shape for symmetric directions 180° apart; this handles the general case too). `CatchArea` got the lengths of the box for its three radii.
+- 2D (`PlayerPainter::drawCatchArea()`) and 3D (`OverlayBuilder::addOverlays()`) draw the three outlines (the length without the stretch, and the largest and the smallest by the stretch) with it. In 3D, the dashes of the dotted ones go on from the arc to the sides. Which radii are drawn (solid without the stretch, dotted for the largest and the smallest) is as before. soccerwindow2 draws two: the length of a sure catch (the smallest) and the largest.
+- Default parameters: rcssserver 17.0.0 added `max_catch_angle` and `min_catch_angle`. The logs of the older servers have neither, and their goalies could catch all around. The defaults changed from 19.0.0's ±90 (B7) to ±180. The logs and the live data of servers from 17.0.0 always have the two (checked with the two full game logs).
+
+**Tests**
+- Added to test `overlay_math`: no limit (a circle); ±90 (the start and the range of the arc, the two ends of the line behind, joined with the ends of the arc); ±45 (through the near corners and the goalie); ±10 (two arcs, the far sides crossing on the body direction); ±135 (the crossing behind is on the line of the body and on the side of a box); ±170 (a circle). Being within the outline matches the server's judgement (trying directions every 0.05° for the ball in a box) for 8 sets of the range of the directions, the body and the length, with points every 0.1 m except those within 2 cm of the outline.
+- Added to test `overlay_builder`: with ±90, the outline closes, does not go further behind than half the width, and the line behind has the right ends. The same for the two dotted ones of a stretched type, the dashes going on from the arc to the sides.
+- Test `rcg_types`: the two defaults changed to ±180.
+- Every test was confirmed to fail when what it checks is broken for a while (the direction of a near corner, splitting the arc in two, the crossing behind, the way narrower than 180°, the dashes, 3D ignoring the limit, the range of the directions).
+- Without the limit (old logs), 2D draws with the same calculation as before (the radii of the same formula, and the same integer circles).
+- Builds and tests pass with Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`; 25 tests). `-DENABLE_3D=OFF` (16 tests) and autotools pass too.
+- Both goalies at frame 3,000 of the full game log (a server from 17, ±90) were drawn offscreen in 2D and 3D, and looked at. With the parameters at ±180, the same circles as before.
