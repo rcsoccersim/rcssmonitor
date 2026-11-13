@@ -34,6 +34,7 @@
 #define RCSSMONITOR_OVERLAY_BUILDER_H
 
 #include "scene_content.h"
+#include "sight.h"
 
 #include <QColor>
 #include <QFontMetrics>
@@ -102,24 +103,28 @@ void addArc( std::vector< ColorVertex3D > & list,
   \brief the body and face directions of the players, from the center to
   the edge of the kickable area, as the 2D view draws them
   (PlayerPainter::drawDir): the body in the player pen's color, the face in
-  the neck's unless the view areas show it
+  the neck's unless the view areas show it. With the player camera's sight
+  (perceptions), only of the players whose directions its player knows.
 */
 void addDirections( SceneContent & content,
                     const rcss::rcg::ShowInfoT & show,
                     const DispHolder & holder,
-                    const Options & options );
+                    const Options & options,
+                    const Perceptions * perceptions = nullptr );
 
 /*!
   \brief the view areas, when the Show tab asks for them: translucent
   sectors to visible_distance around the face direction, and for the
   selected player the lines of its large view (the arcs at 20, 40 and 60 m,
   the edges to 60 m, the circle of visible_distance), as
-  PlayerPainter::drawViewArea
+  PlayerPainter::drawViewArea. With the player camera's sight, only of the
+  players whose directions its player knows.
 */
 void addViewAreas( SceneContent & content,
                    const rcss::rcg::ShowInfoT & show,
                    const DispHolder & holder,
-                   const Options & options );
+                   const Options & options,
+                   const Perceptions * perceptions = nullptr );
 
 /*!
   \brief the overlays that the Show tab asks for, as the 2D view
@@ -136,11 +141,17 @@ void addViewAreas( SceneContent & content,
   - the offside lines across the pitch, in the team colors
   - the ball's path without noise (Ball Vel Cycle): a line and dots
   The players not connected have none.
+
+  With the player camera's sight (perceptions), the overlays of a player
+  whose directions its player does not know are not drawn (as the
+  direction lines and the view areas), nor the ball's path when it does not
+  see the ball.
 */
 void addOverlays( SceneContent & content,
                   const rcss::rcg::ShowInfoT & show,
                   const DispHolder & holder,
-                  const Options & options );
+                  const Options & options,
+                  const Perceptions * perceptions = nullptr );
 
 /*!
   \struct PlacedText

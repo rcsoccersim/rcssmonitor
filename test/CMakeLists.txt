@@ -72,6 +72,7 @@ if(HAVE_3D_VIEW)
   rcssmonitor_add_test(player_camera rcssmonitor_core)
   rcssmonitor_add_test(scene_3d rcssmonitor_core)
   rcssmonitor_add_test(scene_builder rcssmonitor_core)
+  rcssmonitor_add_test(sight rcssmonitor_core)
   rcssmonitor_add_test(view_switch rcssmonitor_core)
 endif()
 

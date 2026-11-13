@@ -222,6 +222,7 @@ FieldView3D::paintGL()
     CameraSubject subject;
     subject.ball_x = show.ball_.x_;
     subject.ball_y = show.ball_.y_;
+    int selected = -1;
     if ( ! frames.empty() )
     {
         for ( int i = 0; i < rcss::rcg::MAX_PLAYER * 2; ++i )
@@ -231,6 +232,7 @@ FieldView3D::paintGL()
                  && p.isAlive()
                  && Options::instance().selectedPlayer( p.side(), p.unum_ ) )
             {
+                selected = i;
                 subject.has_player = true;
                 subject.player_x = p.x_;
                 subject.player_y = p.y_;
@@ -239,14 +241,31 @@ FieldView3D::paintGL()
         }
     }
 
+    // The player camera draws what its player perceives (its sight),
+    // decided on the frame of the cycle, not between frames; at its eyes,
+    // not the player itself.
     const PlayerCameraOptions & player_camera = Options::instance().playerCamera();
+    Perceptions perceptions;
+    const Perceptions * seen = nullptr;
+    if ( M_camera.mode() == CameraMode::Player
+         && selected >= 0 )
+    {
+        const rcss::rcg::ShowInfoT & cycle = frames[at.index]->show_;
+        perceptions = Perceptions::perceive( player_camera.sight,
+                                             cycle,
+                                             selected,
+                                             M_disp_holder.playerType( cycle.player_[selected].type_ ),
+                                             M_disp_holder.serverParam(),
+                                             player_camera.position == PlayerCameraStyle::Position::Eye );
+        seen = &perceptions;
+    }
 
     if ( ! frames.empty() )
     {
-        SceneBuilder::addShow( M_content, show, M_disp_holder, Options::instance() );
-        OverlayBuilder::addDirections( M_content, show, M_disp_holder, Options::instance() );
-        OverlayBuilder::addViewAreas( M_content, show, M_disp_holder, Options::instance() );
-        OverlayBuilder::addOverlays( M_content, show, M_disp_holder, Options::instance() );
+        SceneBuilder::addShow( M_content, show, M_disp_holder, Options::instance(), seen );
+        OverlayBuilder::addDirections( M_content, show, M_disp_holder, Options::instance(), seen );
+        OverlayBuilder::addViewAreas( M_content, show, M_disp_holder, Options::instance(), seen );
+        OverlayBuilder::addOverlays( M_content, show, M_disp_holder, Options::instance(), seen );
     }
 
     // the camera, after the ball for the time since the last frame
@@ -274,7 +293,7 @@ FieldView3D::paintGL()
             float( height() ),
             double( QFontInfo( Options::instance().playerFont() ).pixelSize() ),
         };
-        SceneBuilder::addLabels( M_content, show, M_disp_holder, Options::instance(), M_label_atlas, label_view );
+        SceneBuilder::addLabels( M_content, show, M_disp_holder, Options::instance(), M_label_atlas, label_view, seen );
     }
     if ( M_label_atlas.takeChanged() )
     {

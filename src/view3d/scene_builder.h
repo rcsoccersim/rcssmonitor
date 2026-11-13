@@ -35,6 +35,7 @@
 
 #include "camera_3d.h"
 #include "scene_content.h"
+#include "sight.h"
 
 #include <QColor>
 
@@ -126,11 +127,16 @@ void addGoals( SceneContent & content );
   \param show the show (interpolated)
   \param holder the server parameters and the player types
   \param options what to draw, the sizes and the colors
+  \param perceptions what the player camera draws (null: everything): the
+  players its player does not see are not drawn, nor the ball; a player
+  whose team it may not know fades to gray, without the highlights; one
+  whose directions it does not know has no direction marks
 */
 void addShow( SceneContent & content,
               const rcss::rcg::ShowInfoT & show,
               const DispHolder & holder,
-              const Options & options );
+              const Options & options,
+              const Perceptions * perceptions = nullptr );
 
 /*!
   \struct LabelView
@@ -161,13 +167,18 @@ struct LabelView {
   \param options what to draw, the sizes and the colors
   \param atlas the texts of the labels, drawn again when they change
   \param view the camera and the screen
+  \param perceptions what the player camera draws (null: everything): the
+  number as likely as its player knows it (its opacity), the cards of the
+  players whose team it may know, and the bars of its own only (the server
+  does not tell the others' stamina)
 */
 void addLabels( SceneContent & content,
                 const rcss::rcg::ShowInfoT & show,
                 const DispHolder & holder,
                 const Options & options,
                 LabelAtlas & atlas,
-                const LabelView & view );
+                const LabelView & view,
+                const Perceptions * perceptions = nullptr );
 
 }
 

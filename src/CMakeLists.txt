@@ -65,6 +65,7 @@ if(HAVE_3D_VIEW)
     view3d/player_camera_3d.cpp
     view3d/scene_builder.cpp
     view3d/scene_3d.cpp
+    view3d/sight.cpp
     view3d/gl/billboard_mesh.cpp
     view3d/gl/frame.cpp
     view3d/gl/instanced_mesh.cpp

@@ -36,6 +36,7 @@
 #include "disp_holder.h"
 #include "label_atlas.h"
 #include "options.h"
+#include "player_style.h"
 #include "scene_builder.h"
 
 #include <rcss/rcg/types.h>
@@ -567,6 +568,116 @@ private slots:
           const float number_left = c.labels[0].center.x() - float( atlas.textWidth( 0 ) ) * k / 2.0f;
           const float bar_left = c.labels[0].center.x() + c.labels[1].offset.x() - c.labels[1].size.x() / 2.0f;
           QVERIFY( near( bar_left, number_left ) );
+      }
+
+    /*!
+      With the player camera's sight: the players its player does not see
+      are not drawn, nor the ball; one whose team it may not know fades to
+      gray, without the highlights; one whose directions it does not know
+      has no direction marks; its own is not drawn at its eyes
+    */
+    void perceptions()
+      {
+          Options & opt = Options::instance();
+          rcss::rcg::ShowInfoT show = makeShow();
+          Perceptions seen;
+          seen.active = true;
+          seen.players.fill( PlayerSight::FULL );
+          seen.players[1] = PlayerSight::UNSEEN;
+          seen.players[2] = Perception{ true, 0.5f, 0.0f, false };
+          seen.players[3] = PlayerSight::FELT;
+          seen.ball = false;
+          seen.hidden = 4;
+          opt.setSelectedNumber( rcss::rcg::LEFT, 4 ); // the 4th (index 3): selected, but felt only
+
+          SceneContent c;
+          SceneBuilder::addShow( c, show, M_holder, opt, &seen );
+          opt.unselectPlayer();
+          const size_t n = rcss::rcg::MAX_PLAYER * 2 - 2; // without the unseen and the hidden
+          QCOMPARE( c.cylinders.size(), n );
+          QCOMPARE( c.spheres.size(), n ); // no ball
+          QCOMPARE( c.discs.size(), n ); // nor its shadow
+          QCOMPARE( c.cones.size(), ( n - 2 ) * 2 ); // not of the two without directions
+          QCOMPARE( c.rings.size(), size_t( 0 ) ); // the selected one's team is not known
+          QCOMPARE( c.picks.size(), n );
+          for ( const PlayerPick & p : c.picks )
+          {
+              QVERIFY( p.side != rcss::rcg::LEFT || ( p.unum != 2 && p.unum != 5 ) ); // index 1 and the hidden index 4
+          }
+
+          // the colors: the team half known halfway to the gray, unknown the gray
+          const rcss::rcg::PlayerTypeT & type = M_holder.playerType( 0 );
+          const PlayerStyle full = playerStyle( show.player_[0], type, M_holder.serverParam(), opt );
+          QCOMPARE( c.cylinders[0].color, rgba( full.body.color() ) );
+          const PlayerStyle half = playerStyle( show.player_[2], type, M_holder.serverParam(), opt );
+          QCOMPARE( c.cylinders[1].color, rgba( fadeTeam( half.body.color(), 0.5f ) ) );
+          QCOMPARE( c.cylinders[2].color.toVector3D(), rgba( QColor( 0x9a, 0x9a, 0x9a ) ).toVector3D() );
+
+          // a highlight when the team is known
+          opt.setSelectedNumber( rcss::rcg::LEFT, 3 ); // index 2, half known
+          c.clear();
+          SceneBuilder::addShow( c, show, M_holder, opt, &seen );
+          opt.unselectPlayer();
+          QCOMPARE( c.rings.size(), size_t( 1 ) );
+
+          // only its own hidden, everything else drawn (the sight is everything)
+          Perceptions eyes;
+          eyes.hidden = 0;
+          c.clear();
+          SceneBuilder::addShow( c, show, M_holder, opt, &eyes );
+          QCOMPARE( c.cylinders.size(), size_t( rcss::rcg::MAX_PLAYER * 2 - 1 ) );
+          QCOMPARE( c.spheres.size(), size_t( rcss::rcg::MAX_PLAYER * 2 ) ); // with the ball
+      }
+
+    /*!
+      The labels with the player camera's sight: the number as likely as its
+      player knows it, the cards of the players whose team it may know, and
+      the bars of its own only
+    */
+    void perceptionLabels()
+      {
+          Options & opt = Options::instance();
+          setShow( &Options::showStamina, &Options::toggleShowStamina, true );
+          LabelAtlas atlas;
+          SceneContent c;
+          const SceneBuilder::LabelView view = labelView( QVector3D( 0, 40, 60 ), QVector3D( 0, 0, 0 ) );
+          rcss::rcg::ShowInfoT show = makeShow();
+          for ( auto & p : show.player_ ) p.side_ = 'n';
+          for ( int i = 0; i < 4; ++i )
+          {
+              show.player_[i].side_ = 'l';
+              show.player_[i].state_ |= rcss::rcg::YELLOW_CARD;
+              show.player_[i].stamina_ = float( M_holder.serverParam().stamina_max_ );
+          }
+          Perceptions seen;
+          seen.active = true;
+          seen.players.fill( PlayerSight::FULL );
+          seen.players[1] = Perception{ true, 1.0f, 0.5f, true };
+          seen.players[2] = Perception{ true, 0.5f, 0.0f, false };
+          seen.players[3] = PlayerSight::FELT;
+          opt.setSelectedNumber( rcss::rcg::LEFT, 1 );
+          SceneBuilder::addLabels( c, show, M_holder, opt, atlas, view, &seen );
+          opt.unselectPlayer();
+          setShow( &Options::showStamina, &Options::toggleShowStamina, false );
+
+          const QRectF white = atlas.uv( LabelAtlas::WHITE_SLOT );
+          std::vector< float > numbers; // the opacities of the numbers
+          int cards = 0, bars = 0;
+          for ( const Billboard3D & b : c.labels )
+          {
+              if ( b.uv != white ) numbers.push_back( b.color.w() );
+              else if ( b.color.toVector3D() == QVector3D( 1, 1, 0 ) ) ++cards;
+              else ++bars;
+          }
+          // the numbers of the first two: one known, one half
+          std::sort( numbers.begin(), numbers.end() );
+          QCOMPARE( numbers.size(), size_t( 2 ) );
+          QCOMPARE( numbers[0], 0.5f );
+          QCOMPARE( numbers[1], 1.0f );
+          // the cards of the three whose team is known at all
+          QCOMPARE( cards, 3 );
+          // the bars (a background and a fill) of the selected one only
+          QCOMPARE( bars, 2 );
       }
 
     void hidden()

@@ -76,6 +76,20 @@ toward( const QPointF & center,
                     center.y() + radius * std::sin( direction * DEG2RAD ) );
 }
 
+/*!
+  the player camera's player knows the directions of a player (or the
+  sight is not in use). Its own are known, also when it is not drawn (at
+  its eyes).
+*/
+bool
+knows_facing( const Perceptions * perceptions,
+              const int index )
+{
+    return ! perceptions
+        || ! perceptions->active
+        || perceptions->players[index].facing;
+}
+
 //! the reach of a player: its kickable area
 double
 kickable_reach( const rcss::rcg::PlayerTypeT & type,
@@ -130,7 +144,8 @@ void
 addDirections( SceneContent & content,
                const rcss::rcg::ShowInfoT & show,
                const DispHolder & holder,
-               const Options & opt )
+               const Options & opt,
+               const Perceptions * perceptions )
 {
     if ( ! opt.showPlayer() )
     {
@@ -138,10 +153,12 @@ addDirections( SceneContent & content,
     }
 
     const rcss::rcg::ServerParamT & sp = holder.serverParam();
-    for ( const rcss::rcg::PlayerT & p : show.player_ )
+    for ( int i = 0; i < rcss::rcg::MAX_PLAYER * 2; ++i )
     {
+        const rcss::rcg::PlayerT & p = show.player_[i];
         if ( p.side() == rcss::rcg::NEUTRAL
-             || ! p.isAlive() )
+             || ! p.isAlive()
+             || ! knows_facing( perceptions, i ) )
         {
             continue;
         }
@@ -161,7 +178,8 @@ void
 addViewAreas( SceneContent & content,
               const rcss::rcg::ShowInfoT & show,
               const DispHolder & holder,
-              const Options & opt )
+              const Options & opt,
+              const Perceptions * perceptions )
 {
     if ( ! opt.showPlayer()
          || ! opt.showViewArea() )
@@ -170,12 +188,14 @@ addViewAreas( SceneContent & content,
     }
 
     const rcss::rcg::ServerParamT & sp = holder.serverParam();
-    for ( const rcss::rcg::PlayerT & p : show.player_ )
+    for ( int i = 0; i < rcss::rcg::MAX_PLAYER * 2; ++i )
     {
+        const rcss::rcg::PlayerT & p = show.player_[i];
         if ( p.side() == rcss::rcg::NEUTRAL
              || ! p.isAlive()
              || ! p.hasNeck()
-             || ! p.hasView() )
+             || ! p.hasView()
+             || ! knows_facing( perceptions, i ) )
         {
             continue;
         }
@@ -352,17 +372,20 @@ void
 addOverlays( SceneContent & content,
              const rcss::rcg::ShowInfoT & show,
              const DispHolder & holder,
-             const Options & opt )
+             const Options & opt,
+             const Perceptions * perceptions )
 {
     const rcss::rcg::ServerParamT & sp = holder.serverParam();
     const rcss::rcg::BallT & ball = show.ball_;
 
     if ( opt.showPlayer() )
     {
-        for ( const rcss::rcg::PlayerT & p : show.player_ )
+        for ( int i = 0; i < rcss::rcg::MAX_PLAYER * 2; ++i )
         {
+            const rcss::rcg::PlayerT & p = show.player_[i];
             if ( p.side() == rcss::rcg::NEUTRAL
-                 || ! p.isAlive() )
+                 || ! p.isAlive()
+                 || ! knows_facing( perceptions, i ) )
             {
                 continue;
             }
@@ -466,7 +489,8 @@ addOverlays( SceneContent & content,
 
     // the ball's path without noise: a line to its end and a dot at each cycle
     if ( opt.showBall()
-         && opt.ballVelCycle() > 0 )
+         && opt.ballVelCycle() > 0
+         && ( ! perceptions || perceptions->ball ) )
     {
         const std::vector< Vector2D > path = OverlayMath::ballPath( sp, ball, opt.ballVelCycle(), BALL_PATH_MIN_STEP );
         if ( ! path.empty() )

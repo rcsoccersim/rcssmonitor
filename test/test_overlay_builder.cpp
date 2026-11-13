@@ -602,6 +602,72 @@ private slots:
           QCOMPARE( c.points[0].color, rgba( opt.ballVelPen().color() ) );
       }
 
+    /*!
+      With the player camera's sight: no overlays of a player whose
+      directions its player does not know, no ball's path when it does not
+      see the ball; its own (not drawn at its eyes) still has them
+    */
+    void perceptions()
+      {
+          Options & opt = Options::instance();
+          rcss::rcg::ShowInfoT show = makeShow( -10, 5, 90.0f, -90.0f, 90.0f );
+          Perceptions seen;
+          seen.active = true;
+          seen.players.fill( PlayerSight::FULL );
+
+          SceneContent c;
+          OverlayBuilder::addDirections( c, show, M_holder, opt, &seen );
+          QCOMPARE( c.lines.size(), size_t( 4 ) );
+
+          seen.players[0] = Perception{ true, 1.0f, 0.0f, false };
+          c.clear();
+          OverlayBuilder::addDirections( c, show, M_holder, opt, &seen );
+          QVERIFY( c.lines.empty() );
+
+          // the view area too
+          opt.toggleShowViewArea();
+          c.clear();
+          OverlayBuilder::addViewAreas( c, show, M_holder, opt, &seen );
+          QVERIFY( c.sectors.empty() );
+          seen.players[0] = PlayerSight::FULL;
+          OverlayBuilder::addViewAreas( c, show, M_holder, opt, &seen );
+          opt.toggleShowViewArea();
+          QVERIFY( ! c.sectors.empty() );
+
+          // its own at its eyes: not drawn, but its overlays are
+          seen.hidden = 0;
+          c.clear();
+          OverlayBuilder::addDirections( c, show, M_holder, opt, &seen );
+          QCOMPARE( c.lines.size(), size_t( 4 ) );
+
+          // the overlays of the Show tab follow the directions too (the focus point here)
+          show.player_[0].focus_dist_ = 5.0f;
+          opt.toggleShowFocusPoint();
+          opt.setSelectedNumber( rcss::rcg::LEFT, 1 );
+          seen.players[0] = Perception{ true, 1.0f, 0.0f, false };
+          c.clear();
+          OverlayBuilder::addOverlays( c, show, M_holder, opt, &seen );
+          QVERIFY( c.lines.empty() );
+          seen.players[0] = PlayerSight::FULL;
+          OverlayBuilder::addOverlays( c, show, M_holder, opt, &seen );
+          opt.toggleShowFocusPoint();
+          opt.unselectPlayer();
+          QVERIFY( ! c.lines.empty() );
+
+          // the ball's path only when the ball is seen
+          const int vel = opt.ballVelCycle();
+          opt.setBallVelCycle( 5 );
+          show.ball_.vx_ = 2.0f;
+          seen.ball = false;
+          c.clear();
+          OverlayBuilder::addOverlays( c, show, M_holder, opt, &seen );
+          QVERIFY( c.points.empty() );
+          seen.ball = true;
+          OverlayBuilder::addOverlays( c, show, M_holder, opt, &seen );
+          opt.setBallVelCycle( vel );
+          QCOMPARE( c.points.size(), size_t( 5 ) );
+      }
+
     void placeTexts()
       {
           // a camera straight above the origin, without perspective: 1 m = 10 pixels

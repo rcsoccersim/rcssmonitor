@@ -232,15 +232,20 @@ void
 addShow( SceneContent & content,
          const rcss::rcg::ShowInfoT & show,
          const DispHolder & holder,
-         const Options & opt )
+         const Options & opt,
+         const Perceptions * perceptions )
 {
     const rcss::rcg::ServerParamT & sp = holder.serverParam();
 
     if ( opt.showPlayer() )
     {
-        for ( const rcss::rcg::PlayerT & p : show.player_ )
+        for ( int i = 0; i < rcss::rcg::MAX_PLAYER * 2; ++i )
         {
-            if ( p.side() == rcss::rcg::NEUTRAL )
+            const rcss::rcg::PlayerT & p = show.player_[i];
+            // as the player camera's player perceives it
+            const Perception seen = ( perceptions ? perceptions->of( i ) : PlayerSight::FULL );
+            if ( p.side() == rcss::rcg::NEUTRAL
+                 || ! seen.seen )
             {
                 continue;
             }
@@ -248,7 +253,7 @@ addShow( SceneContent & content,
             const PlayerStyle style = playerStyle( p, type, sp, opt );
             const float body_r = float( type.player_size_ );
             const float ground_r = ground_radius( type, sp, opt );
-            const QVector4D body = rgba( style.body.color() );
+            const QVector4D body = rgba( fadeTeam( style.body.color(), seen.team ) );
 
             // the body: the unit cylinder scaled to the player and standing
             // on the ground (its center at half the height)
@@ -268,20 +273,25 @@ addShow( SceneContent & content,
             m.setToIdentity();
             m.translate( p.x_, DISC_Y, p.y_ );
             m.scale( ground_r, 1.0f, ground_r );
-            add( content.discs, m, rgba( style.brush.color(), DISC_OPACITY ) );
+            add( content.discs, m, rgba( fadeTeam( style.brush.color(), seen.team ), DISC_OPACITY ) );
 
             // the rings around the circle: highlighted (kick, tackle,
             // selected, ...) and decayed (effort, recovery), as in 2D
             m.setToIdentity();
             m.translate( p.x_, RING_Y, p.y_ );
             m.scale( ground_r, 1.0f, ground_r );
-            if ( style.highlighted() )
+            if ( style.highlighted() && seen.known() )
             {
                 add( content.rings, m, rgba( style.pen.color() ) );
             }
-            if ( style.decayed() )
+            if ( style.decayed() && seen.known() )
             {
                 add( content.decay_rings, m, rgba( style.decay.color() ) );
+            }
+
+            if ( ! seen.facing )
+            {
+                continue;
             }
 
             // The body direction at the chest, the face direction at the head:
@@ -306,7 +316,8 @@ addShow( SceneContent & content,
         }
     }
 
-    if ( opt.showBall() )
+    if ( opt.showBall()
+         && ( ! perceptions || perceptions->ball ) )
     {
         const rcss::rcg::BallT & ball = show.ball_;
         const float r = float( ballRadius( opt, sp.ball_size_ ) );
@@ -331,7 +342,8 @@ addLabels( SceneContent & content,
            const DispHolder & holder,
            const Options & opt,
            LabelAtlas & atlas,
-           const LabelView & view )
+           const LabelView & view,
+           const Perceptions * perceptions )
 {
     if ( ! opt.showPlayer() )
     {
@@ -361,20 +373,27 @@ addLabels( SceneContent & content,
     };
     std::vector< Labels > all;
 
-    for ( const rcss::rcg::PlayerT & p : show.player_ )
+    for ( int i = 0; i < rcss::rcg::MAX_PLAYER * 2; ++i )
     {
+        const rcss::rcg::PlayerT & p = show.player_[i];
+        const Perception seen = ( perceptions ? perceptions->of( i ) : PlayerSight::FULL );
         if ( p.side() == rcss::rcg::NEUTRAL
-             || p.unum_ < 1 || rcss::rcg::MAX_PLAYER < p.unum_ )
+             || p.unum_ < 1 || rcss::rcg::MAX_PLAYER < p.unum_
+             || ! seen.seen )
         {
             continue;
         }
         const int slot = ( p.side() == rcss::rcg::RIGHT ? rcss::rcg::MAX_PLAYER : 0 ) + p.unum_ - 1;
         const QString text = label_text( p, opt );
-        const bool shown = ! text.isEmpty();
-        const bool carded = ( opt.showCard() && ( p.hasRedCard() || p.hasYellowCard() ) );
-        // the bars: the rates, -1 for none
-        const double stamina = ( opt.showStamina() && p.hasStamina() ? staminaRate( p, sp ) : -1.0 );
-        const double capacity = ( opt.showStaminaCapacity() ? capacityRate( p, sp ) : -1.0 );
+        // the number as likely as the player camera's player knows it
+        const bool shown = ( ! text.isEmpty() && seen.unum > 0.0f );
+        const bool carded = ( opt.showCard() && ( p.hasRedCard() || p.hasYellowCard() ) && seen.known() );
+        // the bars: the rates, -1 for none. The server does not tell the
+        // others' stamina: with the player camera's sight, its own only.
+        const bool own_bars = ( ! perceptions || ! perceptions->active
+                                || opt.selectedPlayer( p.side(), p.unum_ ) );
+        const double stamina = ( opt.showStamina() && p.hasStamina() && own_bars ? staminaRate( p, sp ) : -1.0 );
+        const double capacity = ( opt.showStaminaCapacity() && own_bars ? capacityRate( p, sp ) : -1.0 );
         const bool barred = ( stamina >= 0.0 || capacity >= 0.0 );
         if ( ! shown && ! carded && ! barred )
         {
@@ -429,7 +448,7 @@ addLabels( SceneContent & content,
                                                       QVector2D( label_scale * aspect * k, label_scale * k ),
                                                       QVector2D( 0.0f, 0.0f ),
                                                       atlas.uv( slot ),
-                                                      rgba( color ) } );
+                                                      rgba( color, seen.unum ) } );
         }
         if ( carded )
         {
