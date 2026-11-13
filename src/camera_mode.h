@@ -36,6 +36,7 @@
 #include <QString>
 
 #include <array>
+#include <utility>
 
 /*!
   \enum CameraMode
@@ -205,6 +206,63 @@ nextViewpoint( const Viewpoint viewpoint )
         if ( list[i].viewpoint == viewpoint ) return list[( i + 1 ) % list.size()].viewpoint;
     }
     return list[0].viewpoint;
+}
+
+/*!
+  \enum GuideMode
+  \brief when a guide over the 3D view (the compass, the minimap) shows:
+  never, with the player camera, or with every camera but the top one
+  (which is a map already)
+*/
+enum class GuideMode {
+    Off,
+    Player,
+    All,
+};
+
+//! the guide modes, with their names in the options and the menu
+inline
+const std::array< std::pair< GuideMode, const char * >, 3 > &
+guideModes()
+{
+    static const std::array< std::pair< GuideMode, const char * >, 3 > list = { {
+            { GuideMode::Off, "off" },
+            { GuideMode::Player, "player" },
+            { GuideMode::All, "all" },
+        } };
+    return list;
+}
+
+//! the name of a guide mode in the options
+inline
+QString
+guideModeName( const GuideMode mode )
+{
+    for ( const auto & m : guideModes() )
+    {
+        if ( m.first == mode ) return QString::fromLatin1( m.second );
+    }
+    return QString();
+}
+
+/*!
+  \brief the guide mode of a name in the options
+  \return false if the name is unknown (mode is left as it was)
+*/
+inline
+bool
+guideModeFromName( const QString & name,
+                   GuideMode * mode )
+{
+    for ( const auto & m : guideModes() )
+    {
+        if ( name == QLatin1String( m.second ) )
+        {
+            *mode = m.first;
+            return true;
+        }
+    }
+    return false;
 }
 
 //! a close-up camera (CameraMode::CloseupBall, CloseupPlayer)

@@ -183,6 +183,8 @@ private:
     PlayerCameraOptions M_player_camera; //!< the styles of the selected player's camera
     bool M_boards_3d; //!< the boards around the pitch in the team colors
     bool M_banners_3d; //!< the banners behind the goals in the team colors
+    GuideMode M_compass_3d; //!< when the compass shows over the 3D view
+    GuideMode M_minimap_3d; //!< when the minimap shows over the 3D view
     bool M_show_tool_bar;
     bool M_show_status_bar;
 
@@ -402,6 +404,12 @@ public:
     //! the 3D view: the banners high behind the goals, with the team names and logos
     bool banners3D() const { return M_banners_3d; }
     void setBanners3D( const bool on ) { M_banners_3d = on; }
+    //! the 3D view: when the compass (a strip of the directions around the camera) shows
+    GuideMode compass3D() const { return M_compass_3d; }
+    void setCompass3D( const GuideMode mode ) { M_compass_3d = mode; }
+    //! the 3D view: when the minimap (the pitch with the camera's view) shows
+    GuideMode minimap3D() const { return M_minimap_3d; }
+    void setMinimap3D( const GuideMode mode ) { M_minimap_3d = mode; }
     bool showToolBar() const { return M_show_tool_bar; }
     bool showStatusBar() const { return M_show_status_bar; }
 

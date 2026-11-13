@@ -57,6 +57,7 @@ if(HAVE_3D_VIEW)
     view3d/cameras_3d.cpp
     view3d/field_view_3d.cpp
     view3d/ground_texture.cpp
+    view3d/guides_3d.cpp
     view3d/interpolate.cpp
     view3d/label_atlas.cpp
     view3d/meshes_3d.cpp

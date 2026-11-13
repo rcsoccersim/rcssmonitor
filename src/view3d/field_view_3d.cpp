@@ -37,6 +37,7 @@
 #include "field_view_3d.h"
 
 #include "ground_texture.h"
+#include "guides_3d.h"
 #include "interpolate.h"
 #include "overlay_builder.h"
 #include "picking.h"
@@ -357,6 +358,35 @@ FieldView3D::paintGL()
             {
                 painter.setPen( t.color );
                 painter.drawText( t.baseline, t.text );
+            }
+        }
+
+        // the guides: the compass at the top, the minimap at the bottom right
+        const bool compass = Guides3D::shown( opt.compass3D(), M_camera.mode() );
+        const bool minimap = Guides3D::shown( opt.minimap3D(), M_camera.mode() );
+        if ( compass || minimap )
+        {
+            const Guides3D::CameraGuide guide = Guides3D::guideOf( camera, aspect );
+            if ( compass )
+            {
+                const QPointF ball( show.ball_.x_, show.ball_.y_ );
+                // the ball as the camera's player perceives it
+                const bool ball_seen = ( ! seen || seen->ball );
+                Guides3D::drawCompass( painter, Guides3D::compassRect( width() ), guide,
+                                       ball_seen ? &ball : nullptr, opt );
+            }
+            if ( minimap )
+            {
+                double scale = 1.0;
+                const QRectF rect = Guides3D::minimapRect( width(), height(), &scale );
+                // the pitch, drawn again only when the ground or the size changes, in device pixels
+                const QString key = M_ground_key + '|' + QString::number( rect.width() ) + '|' + QString::number( dpr );
+                if ( key != M_minimap_key )
+                {
+                    M_minimap_field = GroundTexture::draw( *M_field_painter, scale * dpr, 1.0 );
+                    M_minimap_key = key;
+                }
+                Guides3D::drawMinimap( painter, rect, scale, guide, &show, M_minimap_field, opt );
             }
         }
     }

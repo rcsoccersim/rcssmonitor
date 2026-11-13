@@ -44,6 +44,7 @@
 #include <QPainter>
 #include <QStringList>
 
+#include <algorithm>
 #include <cmath>
 
 namespace GroundTexture {
@@ -66,8 +67,17 @@ width()
 QImage
 draw( FieldPainter & painter )
 {
-    const int w = static_cast< int >( std::lround( length() * SCALE ) );
-    const int h = static_cast< int >( std::lround( width() * SCALE ) );
+    return draw( painter, SCALE, PEN_SCALE );
+}
+
+/*-------------------------------------------------------------------*/
+QImage
+draw( FieldPainter & painter,
+      const double scale,
+      const double pen_scale )
+{
+    const int w = std::max( 1, static_cast< int >( std::lround( length() * scale ) ) );
+    const int h = std::max( 1, static_cast< int >( std::lround( width() * scale ) ) );
     QImage image( w, h, QImage::Format_RGBA8888 );
     image.fill( Options::instance().fieldBrush().color() );
 
@@ -75,11 +85,11 @@ draw( FieldPainter & painter )
     // image for a while
     Options & opt = Options::instance();
     const Options::FieldTransform saved = opt.fieldTransform();
-    opt.setFieldTransform( Options::FieldTransform{ SCALE, QPoint( w / 2, h / 2 ) } );
+    opt.setFieldTransform( Options::FieldTransform{ scale, QPoint( w / 2, h / 2 ) } );
     {
         QPainter p( &image );
         p.setRenderHint( QPainter::Antialiasing );
-        painter.drawGround( p, PEN_SCALE );
+        painter.drawGround( p, pen_scale );
     }
     opt.setFieldTransform( saved );
 

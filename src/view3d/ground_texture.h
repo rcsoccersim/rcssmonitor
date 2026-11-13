@@ -68,6 +68,14 @@ constexpr double PEN_SCALE = 3.0;
 QImage draw( FieldPainter & painter );
 
 /*!
+  \brief draw the same area at another size: scale pixels per meter, the
+  pens pen_scale times as thick (the minimap of the HUD)
+*/
+QImage draw( FieldPainter & painter,
+             const double scale,
+             const double pen_scale );
+
+/*!
   \brief what the image depends on (colors, options): the image is drawn
   again when this changes.
 */

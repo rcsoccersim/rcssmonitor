@@ -179,6 +179,8 @@ private:
     bool M_ready; //!< Scene3D could be initialized
     QString M_ground_key; //!< what the ground was drawn with (GroundTexture::key())
     QString M_stadium_keys[2]; //!< what each end's boards and banner were drawn with (Stadium3D::TeamLook::key())
+    QImage M_minimap_field; //!< the pitch of the minimap (the HUD), drawn by the 2D field painter
+    QString M_minimap_key; //!< what it was drawn with: the ground's key, its size and the screen's scale
 
     const rcss::rcg::DispInfoT * M_newest; //!< the newest frame when it was last drawn
     QElapsedTimer M_newest_clock; //!< since the newest frame came
