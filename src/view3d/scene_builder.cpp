@@ -105,26 +105,6 @@ add( std::vector< Instance3D > & list,
 
 }
 
-/*-------------------------------------------------------------------*/
-void
-SceneContent::clear()
-{
-    labels.clear();
-    sectors.clear();
-    lines.clear();
-    dotted_lines.clear();
-    points.clear();
-    texts.clear();
-    cylinders.clear();
-    spheres.clear();
-    cones.clear();
-    discs.clear();
-    rings.clear();
-    decay_rings.clear();
-    quads.clear();
-    picks.clear();
-}
-
 namespace SceneBuilder {
 
 /*-------------------------------------------------------------------*/

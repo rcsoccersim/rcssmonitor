@@ -34,14 +34,9 @@
 #define RCSSMONITOR_SCENE_BUILDER_H
 
 #include "camera_3d.h"
-#include "instance_3d.h"
-
-#include <rcss/rcg/types.h>
+#include "scene_content.h"
 
 #include <QColor>
-#include <QString>
-
-#include <vector>
 
 class DispHolder;
 class LabelAtlas;
@@ -55,70 +50,6 @@ struct ServerParamT;
 struct ShowInfoT;
 }
 }
-
-/*!
-  \struct OverlayText
-  \brief a text of an overlay (the chance of a tackle, the largest
-  acceleration of a kick), at a point on the ground, which the HUD writes
-  beside it in the 2D player font, as the 2D view does
-*/
-struct OverlayText {
-    QVector3D at; //!< the point in the world
-    QString text;
-    QColor color;
-};
-
-/*!
-  \struct PlayerPick
-  \brief a player as drawn, for a click to find it (Picking): the body is a
-  cylinder of the radius from the ground to BODY_HEIGHT, the head a sphere
-  of HEAD_RADIUS at HEAD_HEIGHT (SceneBuilder)
-*/
-struct PlayerPick {
-    rcss::rcg::Side side;
-    int unum;
-    float x; //!< on the field (m)
-    float y;
-    float radius; //!< of the body (m)
-};
-
-/*!
-  \struct SceneContent
-  \brief what the 3D view draws in a frame, by the shape (Scene3D draws each
-  list with one instanced draw call). The shapes have unit sizes, and the
-  model matrices place and scale them. It knows nothing of OpenGL, so that
-  the tests can check it (docs/PLAN_3D-VIEW.md §5.1).
-*/
-struct SceneContent {
-    // lit by the sun
-    std::vector< Instance3D > cylinders; //!< radius 1, height 1 along y, centered: the bodies, the goal posts and crossbars
-    std::vector< Instance3D > spheres; //!< radius 1: the heads and the ball
-    std::vector< Instance3D > cones; //!< base of radius 1 at the origin, tip at x = 1: the body and face directions
-
-    // flat and translucent, in this order (the layers on the ground, low to high)
-    std::vector< Instance3D > discs; //!< radius 1 on the xz plane: the circles under the players, the ball's shadow
-    std::vector< Instance3D > rings; //!< 0.92 to 1.08 on the xz plane: the outline of a highlighted player
-    std::vector< Instance3D > decay_rings; //!< 1.1 to 1.22 on the xz plane: the decay of effort or recovery
-    std::vector< Instance3D > quads; //!< 1 x 1 on the xy plane, centered, both sides: the nets and the floors of the goals
-
-    // made again in every frame, translucent too (OverlayBuilder)
-    std::vector< ColorVertex3D > sectors; //!< triangles: the view areas
-    std::vector< ColorVertex3D > lines; //!< each two vertices, a line: the overlays on the ground
-    std::vector< ColorVertex3D > dotted_lines; //!< each two vertices, a dotted line
-    std::vector< ColorVertex3D > points; //!< dots
-
-    // written by the HUD (QPainter), not by OpenGL
-    std::vector< OverlayText > texts; //!< the texts of the overlays
-
-    // over everything, facing the camera, from far to near
-    std::vector< Billboard3D > labels; //!< the numbers and the cards (LabelAtlas)
-
-    // not drawn
-    std::vector< PlayerPick > picks; //!< the players drawn, which a right click can aim at
-
-
-    void clear();
-};
 
 /*!
   \brief the placement of the players, the ball and the goals of the 3D view

@@ -37,7 +37,7 @@
 #include "label_atlas.h"
 #include "referee_target.h"
 #include "scene_3d.h"
-#include "scene_builder.h"
+#include "scene_content.h"
 
 #include <QElapsedTimer>
 #include <QOpenGLWidget>

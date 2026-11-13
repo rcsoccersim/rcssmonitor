@@ -35,7 +35,7 @@
 #define RCSSMONITOR_PICKING_H
 
 #include "camera_3d.h"
-#include "scene_builder.h"
+#include "scene_content.h"
 
 #include "referee_target.h"
 

@@ -36,6 +36,7 @@
 #include "picking.h"
 
 #include "ground_texture.h"
+#include "scene_builder.h"
 
 #include <QMatrix4x4>
 #include <QVector4D>

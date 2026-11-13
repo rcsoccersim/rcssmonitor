@@ -34,7 +34,7 @@
 #define RCSSMONITOR_SCENE_3D_H
 
 #include "camera_3d.h"
-#include "scene_builder.h"
+#include "scene_content.h"
 #include "gl/billboard_mesh.h"
 #include "gl/instanced_mesh.h"
 #include "gl/shader_program.h"

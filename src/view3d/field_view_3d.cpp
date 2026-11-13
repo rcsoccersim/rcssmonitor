@@ -40,6 +40,7 @@
 #include "interpolate.h"
 #include "overlay_builder.h"
 #include "picking.h"
+#include "scene_builder.h"
 
 #include "disp_holder.h"
 #include "field_painter.h"

@@ -33,7 +33,7 @@
 #ifndef RCSSMONITOR_OVERLAY_BUILDER_H
 #define RCSSMONITOR_OVERLAY_BUILDER_H
 
-#include "scene_builder.h"
+#include "scene_content.h"
 
 #include <QColor>
 #include <QFontMetrics>

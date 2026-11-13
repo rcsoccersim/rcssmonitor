@@ -32,6 +32,7 @@
 
 #include <QtTest>
 
+#include "camera_3d.h"
 #include "disp_holder.h"
 #include "options.h"
 #include "overlay_builder.h"
