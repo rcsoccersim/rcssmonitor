@@ -334,6 +334,7 @@ public:
     void setServerHost( const std::string & host ) { M_server_host = host; }
 
     int serverPort() const { return M_server_port; }
+    void setServerPort( const int port ) { M_server_port = port; }
     int clientVersion() const { return M_client_version; }
 
     bool autoQuitMode() const { return M_auto_quit_mode; }

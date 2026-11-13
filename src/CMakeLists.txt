@@ -23,6 +23,7 @@ add_library(rcssmonitor_core STATIC
   player_style.cpp
   player_type_dialog.cpp
   rcg_handler.cpp
+  referee_menu.cpp
   score_board_painter.cpp
   team_graphic.cpp
   team_graphic_painter.cpp

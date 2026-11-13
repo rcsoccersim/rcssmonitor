@@ -59,8 +59,7 @@
 */
 FieldCanvas::FieldCanvas( DispHolder & disp_holder )
     : QWidget( /* parent, flags */ ),
-      M_disp_holder( disp_holder ),
-      M_monitor_menu( static_cast< QMenu * >( 0 ) )
+      M_disp_holder( disp_holder )
 {
     M_focus_move_mouse = &M_mouse_state[0];
     M_measure_mouse = &M_mouse_state[1];
@@ -79,25 +78,6 @@ FieldCanvas::FieldCanvas( DispHolder & disp_holder )
 FieldCanvas::~FieldCanvas()
 {
 
-}
-
-/*-------------------------------------------------------------------*/
-/*!
-
-*/
-QMenu *
-FieldCanvas::createPopupMenu()
-{
-    // create & set context menus
-    M_monitor_menu = new QMenu( this );
-    M_monitor_menu->addAction( tr( "Drop Ball" ),
-                               this, SLOT( dropBall() ) );
-    M_monitor_menu->addAction( tr( "Free Kick Left" ),
-                               this, SLOT( freeKickLeft() ) );
-    M_monitor_menu->addAction( tr( "Free Kick Right" ),
-                               this, SLOT( freeKickRight() ) );
-
-    return M_monitor_menu;
 }
 
 /*-------------------------------------------------------------------*/
@@ -254,10 +234,11 @@ FieldCanvas::contextMenuEvent( QContextMenuEvent * event )
     if ( event->reason() == QContextMenuEvent::Mouse )
     {
         M_mouse_state[2].released();
-        if ( M_monitor_menu )
-        {
-            M_monitor_menu->exec( event->globalPos() );
-        }
+        // the point where the right button was pressed
+        const QPoint & pos = M_menu_mouse->pressedPoint();
+        emit refereeMenuRequested( RefereeTarget::point( Options::instance().fieldX( pos.x() ),
+                                                         Options::instance().fieldY( pos.y() ) ),
+                                   event->globalPos() );
     }
 }
 
@@ -438,44 +419,4 @@ FieldCanvas::drawMouseMeasure( QPainter & painter )
     painter.drawText( end_point.x(),
                       end_point.y() + dist_add_y,
                       QString::fromLatin1( buf ) );
-}
-
-/*-------------------------------------------------------------------*/
-/*!
-
-*/
-void
-FieldCanvas::dropBall()
-{
-    emit dropBall( M_menu_mouse->pressedPoint() );
-}
-
-/*-------------------------------------------------------------------*/
-/*!
-
-*/
-void
-FieldCanvas::freeKickLeft()
-{
-    emit freeKickLeft( M_menu_mouse->pressedPoint() );
-}
-
-/*-------------------------------------------------------------------*/
-/*!
-
-*/
-void
-FieldCanvas::freeKickRight()
-{
-    emit freeKickRight( M_menu_mouse->pressedPoint() );
-}
-
-/*-------------------------------------------------------------------*/
-/*!
-
-*/
-void
-FieldCanvas::changePlayMode( int mode )
-{
-    emit playModeChanged( mode, M_menu_mouse->pressedPoint() );
 }

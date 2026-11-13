@@ -39,10 +39,9 @@
 #include <QFont>
 
 #include "mouse_state.h"
+#include "referee_target.h"
 
 #include <memory>
-
-class QMenu;
 
 class DispHolder;
 class FieldPainter;
@@ -56,8 +55,6 @@ class FieldCanvas
 private:
 
     DispHolder & M_disp_holder;
-
-    QMenu * M_monitor_menu;
 
     std::shared_ptr< FieldPainter > M_field_painter;
     std::vector< std::shared_ptr< PainterInterface > > M_painters;
@@ -79,8 +76,6 @@ public:
     explicit
     FieldCanvas( DispHolder & disp_holder );
     ~FieldCanvas();
-
-    QMenu * createPopupMenu();
 
 private:
 
@@ -105,20 +100,15 @@ private:
     void draw( QPainter & painter );
     void drawMouseMeasure( QPainter & painter );
 
-public slots:
-
-    void dropBall();
-    void freeKickLeft();
-    void freeKickRight();
-    void changePlayMode( int mode );
-
 signals:
 
-    void dropBall( const QPoint & pos );
-    void freeKickLeft( const QPoint & pos );
-    void freeKickRight( const QPoint & pos );
-    void playModeChanged( int mode,
-                          const QPoint & pos );
+    /*!
+      \brief a right click asks for the referee's menu (RefereeMenu)
+      \param target the point on the field where the right button was pressed
+      \param global_pos where to show the menu on the screen
+    */
+    void refereeMenuRequested( const RefereeTarget & target,
+                               const QPoint & global_pos );
 
 //     void playerMoved( const QPoint & point );
 //     void playerSelected( int number );

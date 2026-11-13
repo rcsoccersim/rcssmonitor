@@ -41,6 +41,7 @@
 
 #include "camera_mode.h"
 #include "disp_holder.h"
+#include "referee_target.h"
 
 class QActionGroup;
 class QComboBox;
@@ -54,6 +55,7 @@ class LogPlayer;
 class LogPlayerSlider;
 class MonitorClient;
 class PlayerTypeDialog;
+class RefereeMenu;
 
 class MainWindow
     : public QMainWindow {
@@ -92,7 +94,7 @@ private:
     QAction * M_kick_off_act;
     QAction * M_yellow_card_act;
     QAction * M_red_card_act;
-    QActionGroup * M_playmode_change_act_group;
+    RefereeMenu * M_referee_menu = nullptr; //!< the menu of a right click on the field, in 2D and 3D
 
     // logplayer actions
     QAction * M_live_mode_act;
@@ -191,6 +193,22 @@ private:
 
     void connectMonitorTo( const char * hostname );
 
+    /*!
+      \brief ask which player gets a card
+      \param title the title of the dialog
+      \param initial the player chosen first, if the target has one
+      \param side set to 'l' or 'r'
+      \param unum set to the uniform number
+      \return false if canceled or none was chosen
+    */
+    bool choosePlayer( const QString & title,
+                       const RefereeTarget & initial,
+                       char * side,
+                       int * unum );
+
+    //! the menu of a right click on the field
+    void createRefereeMenu();
+
 private slots:
 
     void about();
@@ -226,19 +244,28 @@ private slots:
     void showConfigDialog();
     void setFocusPoint( const QPoint & point );
 
-    // context menu action slots
-    void dropBall( const QPoint & pos );
-    void freeKickLeft( const QPoint & pos );
-    void freeKickRight( const QPoint & pos );
+    // the referee's actions, at points on the field (m)
+    void dropBall( const double x,
+                   const double y );
+    void freeKickLeft( const double x,
+                       const double y );
+    void freeKickRight( const double x,
+                        const double y );
     void yellowCard( const char side,
                      const int unum );
     void redCard( const char side,
                   const int unum );
+    // the cards from the Referee menu: the dialog asks which player
     void yellowCard();
     void redCard();
+    // the cards from the menu of the field: the dialog has the player aimed at chosen first
+    void yellowCard( const RefereeTarget & target );
+    void redCard( const RefereeTarget & target );
+    // Change Playmode: from the ball (the Referee menu), or at a point
     void changePlayMode( const int mode );
     void changePlayMode( const int mode,
-                         const QPoint & point );
+                         const double x,
+                         const double y );
 
     //
     void receiveMonitorPacket();

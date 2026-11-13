@@ -45,6 +45,35 @@
 /*!
 
  */
+std::vector< rcss::rcg::PlayMode >
+changePlayModeModes()
+{
+    using namespace rcss::rcg;
+    // foul_push_l / _r are not offered
+    return {
+        PM_BeforeKickOff,
+        PM_PlayOn,
+        PM_KickIn_Left,
+        PM_KickIn_Right,
+        PM_CornerKick_Left,
+        PM_CornerKick_Right,
+        PM_GoalKick_Left,
+        PM_GoalKick_Right,
+        PM_Foul_Charge_Left,
+        PM_Foul_Charge_Right,
+        PM_Back_Pass_Left,
+        PM_Back_Pass_Right,
+        PM_IndFreeKick_Left,
+        PM_IndFreeKick_Right,
+        PM_Illegal_Defense_Left,
+        PM_Illegal_Defense_Right,
+    };
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
 bool
 playModeBallPosition( const rcss::rcg::PlayMode mode,
                       double * x_ptr,

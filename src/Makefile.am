@@ -27,6 +27,7 @@ rcssmonitor_SOURCES = \
 	player_style.cpp \
 	player_type_dialog.cpp \
 	rcg_handler.cpp \
+	referee_menu.cpp \
 	score_board_painter.cpp \
 	team_graphic.cpp \
 	team_graphic_painter.cpp \
@@ -41,7 +42,8 @@ nodist_rcssmonitor_SOURCES = \
 	moc_log_player_slider.cpp \
 	moc_main_window.cpp \
 	moc_monitor_client.cpp \
-	moc_player_type_dialog.cpp
+	moc_player_type_dialog.cpp \
+	moc_referee_menu.cpp
 
 noinst_HEADERS = \
 	angle_deg.h \
@@ -70,6 +72,8 @@ noinst_HEADERS = \
 	player_type_dialog.h \
 	player_type_sort_proxy.h \
 	rcg_handler.h \
+	referee_menu.h \
+	referee_target.h \
 	score_board_painter.h \
 	team_graphic.h \
 	team_graphic_painter.h \

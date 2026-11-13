@@ -46,6 +46,7 @@
 #include "monitor_client.h"
 #include "play_mode_position.h"
 #include "player_type_dialog.h"
+#include "referee_menu.h"
 #include "options.h"
 #include "rcg_handler.h"
 #include "tool_icon.h"
@@ -486,9 +487,6 @@ MainWindow::createActionsReferee()
     connect( M_red_card_act, SIGNAL( triggered() ),
              this, SLOT( redCard() ) );
     this->addAction( M_red_card_act );
-
-    // playmode change
-    M_playmode_change_act_group = new QActionGroup( this );
 }
 
 /*-------------------------------------------------------------------*/
@@ -698,33 +696,11 @@ MainWindow::createMenuReferee()
         QMenu * submenu = menu->addMenu( tr( "Change Playmode" ) );
 
         const char * playmode_strings[] = PLAYMODE_STRINGS;
-
-        for ( int mode = 0; mode < rcss::rcg::PM_MAX; ++mode )
+        for ( const rcss::rcg::PlayMode mode : changePlayModeModes() )
         {
-            if ( mode == rcss::rcg::PM_BeforeKickOff
-                 || mode == rcss::rcg::PM_PlayOn
-                 || mode == rcss::rcg::PM_KickIn_Left
-                 || mode == rcss::rcg::PM_KickIn_Right
-                 || mode == rcss::rcg::PM_CornerKick_Left
-                 || mode == rcss::rcg::PM_CornerKick_Right
-                 || mode == rcss::rcg::PM_GoalKick_Left
-                 || mode == rcss::rcg::PM_GoalKick_Right
-                 || mode == rcss::rcg::PM_Foul_Charge_Left
-                 || mode == rcss::rcg::PM_Foul_Charge_Right
-                 //|| mode == rcss::rcg::PM_Foul_Push_Left
-                 //|| mode == rcss::rcg::PM_Foul_Push_Right
-                 || mode == rcss::rcg::PM_Back_Pass_Left
-                 || mode == rcss::rcg::PM_Back_Pass_Right
-                 || mode == rcss::rcg::PM_GoalKick_Right
-                 || mode == rcss::rcg::PM_IndFreeKick_Left
-                 || mode == rcss::rcg::PM_IndFreeKick_Right
-                 || mode == rcss::rcg::PM_Illegal_Defense_Left
-                 || mode == rcss::rcg::PM_Illegal_Defense_Right )
-            {
-                QAction * act = submenu->addAction( QString::fromLatin1( playmode_strings[mode] ) );
-                connect( act, &QAction::triggered,
-                         this, [this, mode]() { changePlayMode( mode ); } );
-            }
+            QAction * act = submenu->addAction( QString::fromLatin1( playmode_strings[mode] ) );
+            connect( act, &QAction::triggered,
+                     this, [this, mode]() { changePlayMode( mode ); } );
         }
     }
 }
@@ -941,11 +917,9 @@ MainWindow::createFieldCanvas()
 {
     M_field_canvas = new FieldCanvas( M_disp_holder );
 
-    QMenu * popup_menu = M_field_canvas->createPopupMenu();
-    popup_menu->addSeparator();
-    popup_menu->addAction( M_yellow_card_act );
-    popup_menu->addAction( M_red_card_act );
-
+    createRefereeMenu();
+    connect( M_field_canvas, &FieldCanvas::refereeMenuRequested,
+             M_referee_menu, &RefereeMenu::exec );
 
     // the 2D view, and the 3D view when it is first shown
     M_view_stack = new QStackedWidget();
@@ -958,57 +932,41 @@ MainWindow::createFieldCanvas()
 
     connect( M_field_canvas, SIGNAL( mouseMoved( const QPoint & ) ),
              this, SLOT( updatePositionLabel( const QPoint & ) ) );
+}
 
-    connect( M_field_canvas, SIGNAL( dropBall( const QPoint & ) ),
-             this, SLOT( dropBall( const QPoint & ) ) );
-    connect( M_field_canvas, SIGNAL( freeKickLeft( const QPoint & ) ),
-             this, SLOT( freeKickLeft( const QPoint & ) ) );
-    connect( M_field_canvas, SIGNAL( freeKickRight( const QPoint & ) ),
-             this, SLOT( freeKickRight( const QPoint & ) ) );
+/*-------------------------------------------------------------------*/
+/*!
+  The menu of a right click on the field. The 2D view and the 3D view tell
+  where the click aims at, and the items send the commands from there.
+ */
+void
+MainWindow::createRefereeMenu()
+{
+    M_referee_menu = new RefereeMenu( this );
 
-    connect( M_field_canvas, SIGNAL( playModeChanged( int, const QPoint & ) ),
-             this, SLOT( changePlayMode( int, const QPoint & ) ) );
-
-    {
-        const char * playmode_strings[] = PLAYMODE_STRINGS;
-
-        for ( int mode = 0; mode < rcss::rcg::PM_MAX; ++mode )
-        {
-            if ( mode == rcss::rcg::PM_BeforeKickOff
-                 || mode == rcss::rcg::PM_PlayOn
-                 || mode == rcss::rcg::PM_KickIn_Left
-                 || mode == rcss::rcg::PM_KickIn_Right
-                 || mode == rcss::rcg::PM_CornerKick_Left
-                 || mode == rcss::rcg::PM_CornerKick_Right
-                 || mode == rcss::rcg::PM_GoalKick_Left
-                 || mode == rcss::rcg::PM_GoalKick_Right
-                 || mode == rcss::rcg::PM_Foul_Charge_Left
-                 || mode == rcss::rcg::PM_Foul_Charge_Right
-                 //|| mode == rcss::rcg::PM_Foul_Push_Left
-                 //|| mode == rcss::rcg::PM_Foul_Push_Right
-                 || mode == rcss::rcg::PM_Back_Pass_Left
-                 || mode == rcss::rcg::PM_Back_Pass_Right
-                 || mode == rcss::rcg::PM_GoalKick_Right
-                 || mode == rcss::rcg::PM_IndFreeKick_Left
-                 || mode == rcss::rcg::PM_IndFreeKick_Right
-                 || mode == rcss::rcg::PM_Illegal_Defense_Left
-                 || mode == rcss::rcg::PM_Illegal_Defense_Right )
-            {
-                QAction * act = new QAction( M_playmode_change_act_group );
-                act->setText( QString::fromLatin1( playmode_strings[mode] ) );
-                connect( act, &QAction::triggered,
-                         M_field_canvas, [this, mode]() { M_field_canvas->changePlayMode( mode ); } );
-            }
-        }
-
-        popup_menu->addSeparator();
-        QMenu * submenu = popup_menu->addMenu( tr( "Change Playmode" ) );
-        Q_FOREACH ( QAction * act, M_playmode_change_act_group->actions() )
-        {
-            submenu->addAction( act );
-        }
-    }
-
+    connect( M_referee_menu, &RefereeMenu::dropBall,
+             this, [this]( double x, double y ) { dropBall( x, y ); } );
+    connect( M_referee_menu, &RefereeMenu::freeKickLeft,
+             this, [this]( double x, double y ) { freeKickLeft( x, y ); } );
+    connect( M_referee_menu, &RefereeMenu::freeKickRight,
+             this, [this]( double x, double y ) { freeKickRight( x, y ); } );
+    connect( M_referee_menu, &RefereeMenu::yellowCard,
+             this, [this]( const RefereeTarget & target ) { yellowCard( target ); } );
+    connect( M_referee_menu, &RefereeMenu::redCard,
+             this, [this]( const RefereeTarget & target ) { redCard( target ); } );
+    connect( M_referee_menu, &RefereeMenu::playModeChanged,
+             this, [this]( int mode, const RefereeTarget & target )
+                   {
+                       // without a point (3D: above the horizon), from the ball
+                       if ( target.has_point_ )
+                       {
+                           changePlayMode( mode, target.x_, target.y_ );
+                       }
+                       else
+                       {
+                           changePlayMode( mode );
+                       }
+                   } );
 }
 
 /*-------------------------------------------------------------------*/
@@ -2203,26 +2161,16 @@ MainWindow::setFocusPoint( const QPoint & point )
 
  */
 void
-MainWindow::dropBall( const QPoint & point )
+MainWindow::dropBall( const double x,
+                      const double y )
 {
-    {
-        double x = Options::instance().fieldX( point.x() );
-        double y = Options::instance().fieldY( point.y() );
-
-        std::cerr << "drop ball to ("
-                  << x << ", " << y << ")"
-                  << std::endl;
-    }
+    std::cerr << "drop ball to ("
+              << x << ", " << y << ")"
+              << std::endl;
 
     if ( M_monitor_client
          && M_monitor_client->isConnected() )
     {
-        double x = Options::instance().fieldX( point.x() );
-        double y = Options::instance().fieldY( point.y() );
-
-        std::cerr << "drop ball to ("
-                  << x << ", " << y << ")"
-                  << std::endl;
         this->statusBar()->showMessage( tr( "Drop ball at (%1, %2)" ).arg( x ).arg( y ),
                                         1000 );
         M_monitor_client->sendDropBall( x, y );
@@ -2234,14 +2182,12 @@ MainWindow::dropBall( const QPoint & point )
 
  */
 void
-MainWindow::freeKickLeft( const QPoint & point )
+MainWindow::freeKickLeft( const double x,
+                          const double y )
 {
     if ( M_monitor_client
          && M_monitor_client->isConnected() )
     {
-        double x = Options::instance().fieldX( point.x() );
-        double y = Options::instance().fieldY( point.y() );
-
         std::cerr << "free kick left at ("
                   << x << ", " << y << ")"
                   << std::endl;
@@ -2256,14 +2202,12 @@ MainWindow::freeKickLeft( const QPoint & point )
 
  */
 void
-MainWindow::freeKickRight( const QPoint & point )
+MainWindow::freeKickRight( const double x,
+                           const double y )
 {
     if ( M_monitor_client
          && M_monitor_client->isConnected() )
     {
-        double x = Options::instance().fieldX( point.x() );
-        double y = Options::instance().fieldY( point.y() );
-
         std::cerr << "free kick right at ("
                   << x << ", " << y << ")"
                   << std::endl;
@@ -2327,19 +2271,15 @@ MainWindow::redCard( const char side,
 
 /*-------------------------------------------------------------------*/
 /*!
-
+  The dialog lists the players, with the player of initial chosen first if
+  it has one (the menu of the field in 3D), or none.
  */
-void
-MainWindow::yellowCard()
+bool
+MainWindow::choosePlayer( const QString & title,
+                          const RefereeTarget & initial,
+                          char * side,
+                          int * unum )
 {
-//     int selected_unum = Options::instance().selectedNumber();
-//     if ( selected_unum != 0 )
-//     {
-//         yellowCard( ( selected_unum > 0 ? 'l' : 'r' ),
-//                     qAbs( selected_unum ) );
-//         return;
-//     }
-
     QStringList players;
     players << tr( "" );
     for ( int i = 1; i <= 11; ++i )
@@ -2351,32 +2291,48 @@ MainWindow::yellowCard()
         players << tr( "Right %1" ).arg( i );
     }
 
+    int current = 0;
+    if ( initial.hasPlayer()
+         && 1 <= initial.unum_ && initial.unum_ <= 11 )
+    {
+        current = initial.unum_ + ( initial.side_ == rcss::rcg::LEFT ? 0 : 11 );
+    }
+
     bool ok = false;
     QString str = QInputDialog::getItem( this,
-                                         tr( "Yellow Card" ),
+                                         title,
                                          tr( "Select Player" ),
                                          players,
-                                         0, // current
+                                         current,
                                          false, // editable
                                          &ok );
     if ( ! ok )
     {
-        return;
+        return false;
     }
 
     char side_str[8];
-    int unum = 0;
-    if ( std::sscanf( str.toLatin1().data(), " %s %d ", side_str, &unum ) != 2 )
+    if ( std::sscanf( str.toLatin1().data(), " %7s %d ", side_str, unum ) != 2 )
     {
-        return;
+        return false;
     }
 
-    yellowCard( ( side_str[0] == 'L'
-                  ?  'l'
-                  : side_str[0] == 'R'
-                  ? 'r'
-                  : '?' ),
-                unum );
+    *side = ( side_str[0] == 'L'
+              ?  'l'
+              : side_str[0] == 'R'
+              ? 'r'
+              : '?' );
+    return true;
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+void
+MainWindow::yellowCard()
+{
+    yellowCard( RefereeTarget() );
 }
 
 /*-------------------------------------------------------------------*/
@@ -2386,56 +2342,42 @@ MainWindow::yellowCard()
 void
 MainWindow::redCard()
 {
-//     int selected_unum = Options::instance().selectedNumber();
-//     if ( selected_unum != 0 )
-//     {
-//         redCard( ( selected_unum > 0 ? 'l' : 'r' ),
-//                  qAbs( selected_unum ) );
-//         return;
-//     }
-
-    QStringList players;
-    players << tr( "" );
-    for ( int i = 1; i <= 11; ++i )
-    {
-        players << tr( "Left %1" ).arg( i );
-    }
-    for ( int i = 1; i <= 11; ++i )
-    {
-        players << tr( "Right %1" ).arg( i );
-    }
-
-    bool ok = false;
-    QString str = QInputDialog::getItem( this,
-                                         tr( "Red Card" ),
-                                         tr( "Select Player" ),
-                                         players,
-                                         0, // current
-                                         false, // editable
-                                         &ok );
-    if ( ! ok )
-    {
-        return;
-    }
-
-    char side_str[8];
-    int unum = 0;
-    if ( std::sscanf( str.toLatin1().data(), " %s %d ", side_str, &unum ) != 2 )
-    {
-        return;
-    }
-
-    redCard( ( side_str[0] == 'L'
-               ?  'l'
-               : side_str[0] == 'R'
-               ? 'r'
-               : '?' ),
-             unum );
+    redCard( RefereeTarget() );
 }
 
 /*-------------------------------------------------------------------*/
 /*!
 
+ */
+void
+MainWindow::yellowCard( const RefereeTarget & target )
+{
+    char side = '?';
+    int unum = 0;
+    if ( choosePlayer( tr( "Yellow Card" ), target, &side, &unum ) )
+    {
+        yellowCard( side, unum );
+    }
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+void
+MainWindow::redCard( const RefereeTarget & target )
+{
+    char side = '?';
+    int unum = 0;
+    if ( choosePlayer( tr( "Red Card" ), target, &side, &unum ) )
+    {
+        redCard( side, unum );
+    }
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  Change Playmode of the Referee menu: from the ball
  */
 void
 MainWindow::changePlayMode( int mode )
@@ -2446,20 +2388,17 @@ MainWindow::changePlayMode( int mode )
         return;
     }
 
-    QPoint point;
-    point.setX( Options::instance().screenX( disp->show_.ball_.x_ ) );
-    point.setY( Options::instance().screenY( disp->show_.ball_.y_ ) );
-
-    changePlayMode( mode, point );
+    changePlayMode( mode, disp->show_.ball_.x_, disp->show_.ball_.y_ );
 }
 
 /*-------------------------------------------------------------------*/
 /*!
-
+  Change Playmode at a point on the field (m)
  */
 void
 MainWindow::changePlayMode( int mode,
-                            const QPoint & point )
+                            const double point_x,
+                            const double point_y )
 {
     if ( ! M_monitor_client
          || ! M_monitor_client->isConnected() )
@@ -2480,8 +2419,8 @@ MainWindow::changePlayMode( int mode,
 
     rcss::rcg::PlayMode pmode = static_cast< rcss::rcg::PlayMode >( mode );
 
-    double x = Options::instance().fieldX( point.x() );
-    double y = Options::instance().fieldY( point.y() );
+    double x = point_x;
+    double y = point_y;
 
     // Every mode that Change Playmode offers sends both the ball move and
     // the mode change. back_pass_l / _r used to compute the position and

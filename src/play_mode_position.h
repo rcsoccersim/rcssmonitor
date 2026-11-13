@@ -35,6 +35,14 @@
 
 #include <rcss/rcg/types.h>
 
+#include <vector>
+
+/*!
+  \brief the play modes that Change Playmode offers (the Referee menu and
+  the menu of the field), in the order of the modes
+*/
+std::vector< rcss::rcg::PlayMode > changePlayModeModes();
+
 /*!
   \brief get where Change Playmode moves the ball for a play mode.
   \param mode the new play mode
