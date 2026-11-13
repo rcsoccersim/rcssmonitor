@@ -132,6 +132,80 @@ nextCameraMode( const CameraMode mode )
     return modes[0].mode;
 }
 
+/*!
+  \enum Viewpoint
+  \brief the viewpoints of the whole pitch (rcssmonitor-web cameras.ts
+  VIEWPOINTS): fixed places of the free camera, each with the whole pitch in
+  view (Cameras3D::fitView()). Choosing one puts the free camera there
+  (View > 3D Camera, the tool bar, I for the first, Ctrl+I for the next).
+*/
+enum class Viewpoint {
+    Side,
+    FarSide,
+    LeftEnd,
+    RightEnd,
+    High,
+    NearLeft,
+    NearRight,
+    FarLeft,
+    FarRight,
+};
+
+/*!
+  \struct ViewpointInfo
+  \brief a viewpoint: its name in the menu, and where it looks from
+*/
+struct ViewpointInfo {
+    Viewpoint viewpoint;
+    const char * label;
+    float azimuth; //!< the field direction (degree) from the center of the pitch: 90 the near touch line (+y, below in 2D), 0 behind the right goal
+    float elevation; //!< how high (degree)
+};
+
+//! the viewpoints in the order of Ctrl+I; the first is where the free camera starts
+inline
+const std::array< ViewpointInfo, 9 > &
+viewpoints()
+{
+    static const std::array< ViewpointInfo, 9 > list = { {
+            { Viewpoint::Side, "Whole Pitch", 90.0f, 32.0f },
+            { Viewpoint::FarSide, "Whole Pitch, Far Side", -90.0f, 32.0f },
+            { Viewpoint::LeftEnd, "Whole Pitch, Behind the Left Goal", 180.0f, 35.0f },
+            { Viewpoint::RightEnd, "Whole Pitch, Behind the Right Goal", 0.0f, 35.0f },
+            { Viewpoint::High, "Whole Pitch, High Above", 90.0f, 62.0f },
+            { Viewpoint::NearLeft, "Whole Pitch, Near Left Corner", 135.0f, 35.0f },
+            { Viewpoint::NearRight, "Whole Pitch, Near Right Corner", 45.0f, 35.0f },
+            { Viewpoint::FarLeft, "Whole Pitch, Far Left Corner", -135.0f, 35.0f },
+            { Viewpoint::FarRight, "Whole Pitch, Far Right Corner", -45.0f, 35.0f },
+        } };
+    return list;
+}
+
+//! a viewpoint's information
+inline
+const ViewpointInfo &
+viewpointInfo( const Viewpoint viewpoint )
+{
+    for ( const ViewpointInfo & v : viewpoints() )
+    {
+        if ( v.viewpoint == viewpoint ) return v;
+    }
+    return viewpoints()[0];
+}
+
+//! the viewpoint after a viewpoint (Ctrl+I), back to the first after the last
+inline
+Viewpoint
+nextViewpoint( const Viewpoint viewpoint )
+{
+    const std::array< ViewpointInfo, 9 > & list = viewpoints();
+    for ( std::size_t i = 0; i < list.size(); ++i )
+    {
+        if ( list[i].viewpoint == viewpoint ) return list[( i + 1 ) % list.size()].viewpoint;
+    }
+    return list[0].viewpoint;
+}
+
 //! a close-up camera (CameraMode::CloseupBall, CloseupPlayer)
 inline
 bool

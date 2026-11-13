@@ -141,6 +141,15 @@ broadcast( const float aspect,
 
 /*-------------------------------------------------------------------*/
 CameraPose
+viewpoint( const Viewpoint viewpoint,
+           const float aspect )
+{
+    const ViewpointInfo & info = viewpointInfo( viewpoint );
+    return fitView( info.azimuth, info.elevation, aspect );
+}
+
+/*-------------------------------------------------------------------*/
+CameraPose
 closeup( const float at_x,
          const float at_y,
          const float height,
@@ -281,7 +290,9 @@ CameraController::CameraController()
       M_aspect( 16.0f / 9.0f ),
       M_zoom( 1.0f ),
       M_closeup_distance( float( Options::CLOSEUP_DISTANCE_3D ) ),
-      M_closeup_elevation( float( Options::CLOSEUP_ELEVATION_3D ) )
+      M_closeup_elevation( float( Options::CLOSEUP_ELEVATION_3D ) ),
+      M_has_viewpoint( false ),
+      M_viewpoint( Viewpoint::Side )
 {
     M_pose = Cameras3D::fitView( 90.0f, Cameras3D::ELEVATION, M_aspect );
 }
@@ -304,6 +315,17 @@ CameraController::setMode( const CameraMode mode )
     M_snap = true;
     M_settled = false;
     M_zoom = 1.0f;
+}
+
+/*-------------------------------------------------------------------*/
+void
+CameraController::viewFrom( const Viewpoint viewpoint )
+{
+    M_mode = CameraMode::Free;
+    M_zoom = 1.0f;
+    M_has_viewpoint = true;
+    M_viewpoint = viewpoint;
+    M_settled = false;
 }
 
 /*-------------------------------------------------------------------*/
@@ -334,6 +356,14 @@ CameraController::update( const double dt,
     {
         M_fitted = true;
         M_pose = Cameras3D::fitView( 90.0f, Cameras3D::ELEVATION, aspect );
+    }
+
+    // a viewpoint asked for, in the shape of the view now
+    if ( M_has_viewpoint )
+    {
+        M_has_viewpoint = false;
+        M_fitted = true;
+        M_pose = Cameras3D::viewpoint( M_viewpoint, aspect );
     }
 
     // the free camera: where the mouse put it, with the usual field of view

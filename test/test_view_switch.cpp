@@ -41,6 +41,7 @@
 #include <QMenu>
 #include <QStackedWidget>
 #include <QStatusBar>
+#include <QToolButton>
 
 /*
   Options reads and writes ~/.rcssmonitor.conf; CTest runs this test with
@@ -99,6 +100,7 @@ private slots:
     void fallBackTo2D();
     void cameraMenu();
     void zoomKeys2D();
+    void viewpointMenu();
     void staminaKey();
 };
 
@@ -202,6 +204,68 @@ TestViewSwitch::zoomKeys2D()
     actionOfKey( window, Qt::Key_Z )->trigger();
     actionOfKey( window, Qt::Key_I )->trigger();
     QVERIFY( ! Options::instance().zoomed() );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  View > 3D Camera and the tool bar have the viewpoints of the whole pitch,
+  with I on the first and Ctrl+I for the next. They are for the 3D view: in
+  2D, Ctrl+I only says so (and I fits the 2D field, zoomKeys2D()). Where the
+  3D view is not available, they are disabled.
+*/
+void
+TestViewSwitch::viewpointMenu()
+{
+    Options::instance().setView3D( false );
+    Options::instance().setCamera3D( CameraMode::Broadcast );
+    MainWindow window;
+
+    QMenu * camera_menu = nullptr;
+    for ( QMenu * menu : window.findChildren< QMenu * >() )
+    {
+        if ( menu->title() == "3D Camera" ) camera_menu = menu;
+    }
+    QVERIFY( camera_menu );
+    QStringList texts;
+    for ( const QAction * act : camera_menu->actions() ) texts << act->text();
+    for ( const ViewpointInfo & v : viewpoints() )
+    {
+        QVERIFY2( texts.contains( v.label ) || texts.contains( QString( v.label ) + "\tI" ), v.label );
+    }
+    QVERIFY( texts.contains( "Whole Pitch\tI" ) );
+
+    QAction * next = nullptr;
+    for ( QAction * act : window.findChildren< QAction * >() )
+    {
+        if ( act->shortcut() == QKeySequence( Qt::CTRL | Qt::Key_I ) ) next = act;
+    }
+    QVERIFY( next );
+    QVERIFY( camera_menu->actions().contains( next ) );
+
+    // the button of the tool bar: the same viewpoints, with the 3D view only
+    QToolButton * button = nullptr;
+    for ( QToolButton * b : window.findChildren< QToolButton * >() )
+    {
+        if ( b->text() == "Whole Pitch" ) button = b;
+    }
+    QVERIFY( button );
+    QVERIFY( button->menu() );
+    QCOMPARE( button->menu()->actions().size(), int( viewpoints().size() ) );
+    QVERIFY( ! button->isVisibleTo( &window ) );
+
+    // in 2D, only a word about the 3D view; the camera stays
+    QVERIFY( next->isEnabled() );
+    next->trigger();
+    QVERIFY( window.statusBar()->currentMessage().contains( "for the 3D view" ) );
+    QCOMPARE( Options::instance().camera3D(), CameraMode::Broadcast );
+    button->menu()->actions().at( 4 )->trigger();
+    QCOMPARE( Options::instance().camera3D(), CameraMode::Broadcast );
+
+    // the 3D view is not available here: disabled with it
+    view3DAction( window )->trigger();
+    QVERIFY( ! next->isEnabled() );
+    QVERIFY( ! button->isEnabled() );
+    QVERIFY( ! button->menu()->actions().at( 0 )->isEnabled() );
 }
 
 /*-------------------------------------------------------------------*/

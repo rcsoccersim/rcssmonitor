@@ -84,7 +84,8 @@ struct DispInfoT;
   middle button brings it nearer or farther. Doing so on a camera that
   follows the ball makes it the free camera. The top camera does not take
   the mouse. As in 2D, the wheel steps the frames (MainWindow), and the
-  keys of the zoom (Z, X, I) zoom the camera (zoomCamera()).
+  keys of the zoom (Z, X) zoom the camera (zoomCamera()). I and Ctrl+I put
+  the free camera at a viewpoint of the whole pitch (viewFrom()).
 
   A right click asks for the referee's menu (refereeMenuRequested()), at
   the player or the point of the ground under the mouse, as last drawn
@@ -126,6 +127,9 @@ public:
       \param factor less than 1: nearer; more than 1: farther; 0: back to the camera's own distance
     */
     void zoomCamera( const double factor );
+
+    //! put the free camera at a viewpoint of the whole pitch (the camera becomes the free camera)
+    void viewFrom( const Viewpoint viewpoint );
 
     /*!
       \brief what a right click at a point of the view aims at, as last

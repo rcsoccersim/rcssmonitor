@@ -92,6 +92,13 @@ CameraPose fitView( const float azimuth,
                     const float aspect );
 
 /*!
+  \brief the free camera at a viewpoint of the whole pitch (fitView() from
+  the viewpoint's azimuth and elevation)
+*/
+CameraPose viewpoint( const Viewpoint viewpoint,
+                      const float aspect );
+
+/*!
   \brief the broadcast camera: from beyond the near touch line, ELEVATION
   degrees up, looking at the ball on the ground, which it follows; not so
   near the touch lines and the goal lines (10 m) that the pitch leaves the view
@@ -227,6 +234,13 @@ public:
     void setMode( const CameraMode mode );
 
     /*!
+      \brief put the free camera at a viewpoint of the whole pitch, in the
+      shape of the view at the next update(): the mode becomes free, from
+      where the mouse moves it on
+    */
+    void viewFrom( const Viewpoint viewpoint );
+
+    /*!
       \brief move the camera for a frame.
       \param dt the time since the last frame (s; MAX_STEP at most is used)
       \param aspect the width of the view divided by its height
@@ -297,6 +311,8 @@ private:
     float M_zoom; //!< of the following and the top cameras (zoom())
     float M_closeup_distance; //!< of the close-up cameras (m)
     float M_closeup_elevation; //!< of the close-up cameras (degree)
+    bool M_has_viewpoint; //!< viewFrom() asked for M_viewpoint, placed at the next update()
+    Viewpoint M_viewpoint;
 
     //! before a move by the mouse: false if the camera does not take it
     bool takeMouse( bool * changed );

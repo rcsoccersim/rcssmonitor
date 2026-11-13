@@ -240,16 +240,14 @@ private slots:
           QTest::addColumn< float >( "azimuth" );
           QTest::addColumn< float >( "elevation" );
           QTest::addColumn< float >( "aspect" );
-          // the viewpoints of the web version (Phase 6), in two shapes
-          for ( const float aspect : { 16.0f / 9.0f, 4.0f / 3.0f } )
+          // the viewpoints of the whole pitch, in three shapes
+          for ( const float aspect : { 16.0f / 9.0f, 4.0f / 3.0f, 21.0f / 9.0f } )
           {
-              const QByteArray shape = ( aspect > 1.5f ? "16:9 " : "4:3 " );
-              QTest::newRow( shape + "side" ) << 90.0f << 32.0f << aspect;
-              QTest::newRow( shape + "far side" ) << -90.0f << 32.0f << aspect;
-              QTest::newRow( shape + "left end" ) << 180.0f << 35.0f << aspect;
-              QTest::newRow( shape + "high" ) << 90.0f << 62.0f << aspect;
-              QTest::newRow( shape + "near right" ) << 45.0f << 35.0f << aspect;
-              QTest::newRow( shape + "far left" ) << -135.0f << 35.0f << aspect;
+              const QByteArray shape = QByteArray::number( aspect, 'f', 2 ) + " ";
+              for ( const ViewpointInfo & v : viewpoints() )
+              {
+                  QTest::newRow( shape + v.label ) << v.azimuth << v.elevation << aspect;
+              }
           }
       }
 
@@ -275,6 +273,71 @@ private slots:
               edge = std::max( { edge, std::fabs( s.x() ) / 0.97f, std::fabs( s.y() ) / 0.85f } );
           }
           QVERIFY2( std::fabs( edge - 1.0f ) < 1.0e-3f, qPrintable( QString::number( edge ) ) );
+      }
+
+    //! the viewpoints of the web version, in the order of Ctrl+I
+    void viewpointList()
+      {
+          QCOMPARE( viewpoints().size(), std::size_t( 9 ) );
+          QCOMPARE( viewpoints()[0].viewpoint, Viewpoint::Side );
+          // the first is where the free camera starts: from the side, as high as the broadcast camera
+          QCOMPARE( viewpoints()[0].azimuth, 90.0f );
+          QCOMPARE( viewpoints()[0].elevation, Cameras3D::ELEVATION );
+          QCOMPARE( viewpointInfo( Viewpoint::High ).elevation, 62.0f );
+          QCOMPARE( viewpointInfo( Viewpoint::FarRight ).azimuth, -45.0f );
+          QStringList labels;
+          for ( const ViewpointInfo & v : viewpoints() ) labels << v.label;
+          QCOMPARE( labels.removeDuplicates(), 0 );
+
+          // Ctrl+I goes through all of them and back
+          Viewpoint v = Viewpoint::Side;
+          for ( std::size_t i = 1; i < viewpoints().size(); ++i )
+          {
+              v = nextViewpoint( v );
+              QCOMPARE( v, viewpoints()[i].viewpoint );
+          }
+          QCOMPARE( nextViewpoint( v ), Viewpoint::Side );
+
+          // the camera of a viewpoint fits the pitch from its angles
+          const CameraPose pose = Cameras3D::viewpoint( Viewpoint::NearLeft, ASPECT );
+          QVERIFY( near( pose.position, Cameras3D::fitView( 135.0f, 35.0f, ASPECT ).position ) );
+      }
+
+    /*!
+      A viewpoint makes the camera the free camera, there in the shape of
+      the view at the next update, from where it stays and the mouse moves it
+    */
+    void controllerViewFrom()
+      {
+          CameraController camera;
+          camera.update( 0.0, ASPECT, 0.0f, 0.0f );
+          camera.zoom( 0.5f );
+          camera.viewFrom( Viewpoint::High );
+          QCOMPARE( camera.mode(), CameraMode::Free );
+          QCOMPARE( camera.zoomFactor(), 1.0f );
+
+          const float aspect = 4.0f / 3.0f;
+          CameraPose pose = camera.update( 0.016, aspect, 10.0f, 0.0f );
+          const CameraPose high = Cameras3D::viewpoint( Viewpoint::High, aspect );
+          QVERIFY( near( pose.position, high.position ) );
+          QVERIFY( near( pose.target, high.target ) );
+          QVERIFY( camera.settled() );
+          // it stays, whatever the ball does
+          QVERIFY( near( camera.update( 0.016, aspect, -30.0f, 20.0f ).position, high.position ) );
+          // the mouse moves it on, still the free camera
+          QVERIFY( ! camera.orbit( 40.0f, 0.0f, 600.0f ) );
+          pose = camera.update( 0.016, aspect, 0.0f, 0.0f );
+          QVERIFY( ! near( pose.position, high.position ) );
+          QVERIFY( near( pose.target, high.target ) );
+
+          // from the top camera too, and again
+          camera.setMode( CameraMode::Top );
+          camera.update( 0.016, aspect, 0.0f, 0.0f );
+          camera.viewFrom( Viewpoint::LeftEnd );
+          pose = camera.update( 0.016, aspect, 0.0f, 0.0f );
+          QCOMPARE( pose.ortho_half_height, 0.0f );
+          QVERIFY( near( pose.position, Cameras3D::viewpoint( Viewpoint::LeftEnd, aspect ).position ) );
+          QVERIFY( pose.position.x() < -60.0f ); // behind the left goal
       }
 
     void fitViewFromTheSide()

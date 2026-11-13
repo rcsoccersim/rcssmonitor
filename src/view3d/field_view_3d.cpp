@@ -383,6 +383,14 @@ FieldView3D::mouseMoveEvent( QMouseEvent * event )
 }
 
 /*-------------------------------------------------------------------*/
+void
+FieldView3D::viewFrom( const Viewpoint viewpoint )
+{
+    M_camera.viewFrom( viewpoint );
+    update();
+}
+
+/*-------------------------------------------------------------------*/
 RefereeTarget
 FieldView3D::targetAt( const QPoint & point ) const
 {

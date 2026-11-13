@@ -45,6 +45,7 @@
 
 class QActionGroup;
 class QComboBox;
+class QToolButton;
 class QLabel;
 
 class ConfigDialog;
@@ -116,6 +117,11 @@ private:
     QActionGroup * M_camera_3d_act_group = nullptr; //!< the cameras of the 3D view (View > 3D Camera)
     QAction * M_next_camera_3d_act = nullptr; //!< E
     QComboBox * M_camera_3d_combo = nullptr; //!< the cameras in the tool bar, shown with the 3D view
+    QActionGroup * M_viewpoint_act_group = nullptr; //!< the viewpoints of the whole pitch (View > 3D Camera)
+    QAction * M_next_viewpoint_act = nullptr; //!< Ctrl+I
+    QToolButton * M_viewpoint_button = nullptr; //!< the viewpoints in the tool bar, shown with the 3D view
+    bool M_viewpoint_shown = false; //!< a viewpoint has been chosen (M_viewpoint), for Ctrl+I
+    Viewpoint M_viewpoint = Viewpoint::Side;
     QAction * M_full_screen_act;
     QAction * M_show_player_type_dialog_act;
     QActionGroup * M_style_act_group;
@@ -191,6 +197,9 @@ private:
     //! the 3D view if it is shown, or null
     FieldView3D * shownView3D() const;
 
+    //! put the free camera of the 3D view at a viewpoint of the whole pitch (only says it is for 3D in 2D)
+    void viewFrom( const Viewpoint viewpoint );
+
     void connectMonitorTo( const char * hostname );
 
     /*!
@@ -233,6 +242,7 @@ private slots:
     void toggleView3D( bool on );
     void selectCamera3D( QAction * action );
     void nextCamera3D();
+    void nextViewpoint3D();
 
     // the zoom of the 2D field, or of the 3D camera when it is shown (Z, X, I)
     void zoomIn();

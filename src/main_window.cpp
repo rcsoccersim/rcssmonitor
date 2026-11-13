@@ -535,6 +535,30 @@ MainWindow::createActionsView()
     connect( M_next_camera_3d_act, SIGNAL( triggered() ),
              this, SLOT( nextCamera3D() ) );
     this->addAction( M_next_camera_3d_act );
+
+    // the viewpoints of the whole pitch, for the free camera of the 3D view
+    M_viewpoint_act_group = new QActionGroup( this );
+    M_viewpoint_act_group->setExclusive( false );
+    for ( const ViewpointInfo & v : viewpoints() )
+    {
+        QAction * act = new QAction( tr( v.label ), this );
+        act->setData( static_cast< int >( v.viewpoint ) );
+        act->setStatusTip( tr( "Put the free camera of the 3D view where it sees the whole pitch." ) );
+        M_viewpoint_act_group->addAction( act );
+    }
+    // I (the action of Fit Field Size): the text of the shortcut only, as
+    // one key cannot be the shortcut of two actions
+    M_viewpoint_act_group->actions().front()->setText( M_viewpoint_act_group->actions().front()->text() + "\tI" );
+    connect( M_viewpoint_act_group, &QActionGroup::triggered,
+             this, [this]( QAction * act ) { viewFrom( static_cast< Viewpoint >( act->data().toInt() ) ); } );
+
+    M_next_viewpoint_act = new QAction( tr( "Next Viewpoint" ), this );
+    M_next_viewpoint_act->setShortcut( Qt::CTRL | Qt::Key_I );
+    M_next_viewpoint_act->setStatusTip( tr( "Put the free camera of the 3D view at the next viewpoint of the whole pitch. (" )
+                                        + M_next_viewpoint_act->shortcut().toString() + tr( ")" ) );
+    connect( M_next_viewpoint_act, SIGNAL( triggered() ),
+             this, SLOT( nextViewpoint3D() ) );
+    this->addAction( M_next_viewpoint_act );
 #ifndef HAVE_3D_VIEW
     enableCamera3D( false );
 #endif
@@ -726,6 +750,9 @@ MainWindow::createMenuView()
         camera_menu->addActions( M_camera_3d_act_group->actions() );
         camera_menu->addSeparator();
         camera_menu->addAction( M_next_camera_3d_act );
+        camera_menu->addSeparator();
+        camera_menu->addActions( M_viewpoint_act_group->actions() );
+        camera_menu->addAction( M_next_viewpoint_act );
     }
 
     menu->addSeparator();
@@ -860,6 +887,21 @@ MainWindow::createToolBars()
                      setCamera3D( static_cast< CameraMode >( M_camera_3d_combo->itemData( index ).toInt() ) );
                  } );
         button_layout->addWidget( M_camera_3d_combo );
+    }
+    {
+        // the viewpoints of the whole pitch, shown with the 3D view
+        M_viewpoint_button = new QToolButton();
+        M_viewpoint_button->setText( tr( "Whole Pitch" ) );
+        M_viewpoint_button->setToolTip( tr( "Viewpoints of the whole pitch (I: from the side, " )
+                                        + M_next_viewpoint_act->shortcut().toString() + tr( ": the next)" ) );
+        M_viewpoint_button->setFocusPolicy( Qt::NoFocus );
+        M_viewpoint_button->setPopupMode( QToolButton::InstantPopup );
+        QMenu * menu = new QMenu( M_viewpoint_button );
+        menu->addActions( M_viewpoint_act_group->actions() );
+        M_viewpoint_button->setMenu( menu );
+        M_viewpoint_button->setVisible( false );
+        M_viewpoint_button->setEnabled( M_viewpoint_act_group->isEnabled() );
+        button_layout->addWidget( M_viewpoint_button );
     }
 
     control_panel->setLayout( button_layout );
@@ -1023,7 +1065,7 @@ MainWindow::createConfigDialog()
         // i
         QAction * act = new QAction( tr( "Fit Field Size" ), this );
         act->setShortcut( Qt::Key_I );
-        act->setStatusTip( tr( "Fit field size to the screen." ) );
+        act->setStatusTip( tr( "Fit field size to the screen. In 3D, the whole pitch from the side." ) );
         this->addAction( act );
         connect( act, SIGNAL( triggered() ),
                  this, SLOT( fitToScreen() ) );
@@ -1941,6 +1983,7 @@ MainWindow::toggleView3D( bool on )
     M_view_stack->setCurrentWidget( shown );
     shown->setFocus();
     M_camera_3d_combo->setVisible( on );
+    M_viewpoint_button->setVisible( on );
     Options::instance().setView3D( on );
 #else
     Q_UNUSED( on );
@@ -2025,13 +2068,49 @@ void
 MainWindow::fitToScreen()
 {
 #ifdef HAVE_3D_VIEW
-    if ( FieldView3D * view = shownView3D() )
+    // in 3D, the whole pitch from the side
+    if ( shownView3D() )
     {
-        view->zoomCamera( 0.0 );
+        viewFrom( Viewpoint::Side );
         return;
     }
 #endif
     M_config_dialog->fitToScreen();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  View > 3D Camera, the tool bar, I and Ctrl+I: the free camera at a
+  viewpoint of the whole pitch, from where the mouse moves it on
+ */
+void
+MainWindow::viewFrom( const Viewpoint viewpoint )
+{
+#ifdef HAVE_3D_VIEW
+    if ( FieldView3D * view = shownView3D() )
+    {
+        view->viewFrom( viewpoint );
+        M_viewpoint = viewpoint;
+        M_viewpoint_shown = true;
+        setCamera3D( CameraMode::Free );
+        this->statusBar()->showMessage( tr( "Viewpoint: " ) + tr( viewpointInfo( viewpoint ).label ), 2000 );
+        return;
+    }
+#endif
+    Q_UNUSED( viewpoint );
+    this->statusBar()->showMessage( tr( "The viewpoints are for the 3D view (" )
+                                    + M_toggle_view_3d_act->shortcut().toString() + tr( ")." ),
+                                    3000 );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  Ctrl+I: the viewpoint after the last one chosen (the first at first)
+ */
+void
+MainWindow::nextViewpoint3D()
+{
+    viewFrom( M_viewpoint_shown ? nextViewpoint( M_viewpoint ) : viewpoints()[0].viewpoint );
 }
 
 /*-------------------------------------------------------------------*/
@@ -2094,6 +2173,15 @@ MainWindow::enableCamera3D( const bool on )
     if ( M_camera_3d_combo )
     {
         M_camera_3d_combo->setEnabled( on );
+    }
+    if ( M_viewpoint_act_group )
+    {
+        M_viewpoint_act_group->setEnabled( on );
+        M_next_viewpoint_act->setEnabled( on );
+    }
+    if ( M_viewpoint_button )
+    {
+        M_viewpoint_button->setEnabled( on );
     }
 }
 
