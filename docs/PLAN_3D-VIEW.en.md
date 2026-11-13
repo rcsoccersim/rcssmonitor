@@ -1291,3 +1291,13 @@ The 2 commits of the catch area (d77a892, edad319) were pushed, and the CI passe
 - Builds and tests pass with Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`; 27 tests). `-DENABLE_3D=OFF` (17 tests) and autotools pass too.
 - The user checks the connection to a real server and right clicks on the screen.
 
+#### 2026-11-13: SceneContent in a header of its own (`feature/3d-view`)
+
+The 3 commits of 5-4 (aa9868a to a4cf9c1) were pushed. In the CI, only the Ubuntu 22.04 (Qt 6.2) job failed, compiling the new tests `referee_menu` and `referee_commands`. Cause: the tests got the submenu an item opens with `QAction::menu()`, which Qt 6.0 deprecated (not deprecated in Qt 6.4), so with `QT_DISABLE_DEPRECATED_BEFORE=0x060000` from CMake it is not there in Qt 6.2. A submenu owns its item (`QMenu::menuAction()`), so the tests get the submenu from the item's parent (works in both Qt 5.15 and Qt 6).
+
+**Decided (user)**
+- The list of what to draw, `SceneContent`, is only data, and the builders (`SceneBuilder`, `OverlayBuilder`, and those of the later steps) decide its contents. To make this division clear in the files too, `SceneContent` and its elements `OverlayText` and `PlayerPick` move from `scene_builder.h` to `src/view3d/scene_content.h`. The headers that use only the data (`Scene3D`, `OverlayBuilder`, `Picking`, `FieldView3D`) read it instead of `scene_builder.h`.
+
+**Tests**
+- Nothing works differently. Two tests that relied on headers read through others (`picking`, `overlay_builder`) got the headers they need. Builds and tests pass with Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`; 27 tests).
+

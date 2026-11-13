@@ -1291,3 +1291,13 @@ PR #67 (`fix/qt-selection`) を Merge Commit で develop に取り込んだ (2a8
 - Qt 6.4.2 と Qt 5.15.13 (`-Werror=deprecated-declarations`) で、ビルドとテストが通る (テスト 27 個)。`-DENABLE_3D=OFF` (17 個) と autotools も通る。
 - 実際のサーバとの接続と、画面での右クリックは、ユーザが確かめる。
 
+#### 2026-11-13: SceneContent を独立したヘッダに (`feature/3d-view`)
+
+5-4 の 3 コミット (aa9868a〜a4cf9c1) をプッシュした。CI は、Ubuntu 22.04 (Qt 6.2) のジョブだけが、新しいテスト `referee_menu` と `referee_commands` のコンパイルで失敗した。原因: テストで、項目が開くサブメニューを `QAction::menu()` で得ていた。これは Qt 6.0 で非推奨になり (Qt 6.4 では非推奨でない)、CMake が付ける `QT_DISABLE_DEPRECATED_BEFORE=0x060000` で Qt 6.2 では使えない。サブメニューの項目はサブメニューが持つ (`QMenu::menuAction()`) ので、項目の親からサブメニューを得るようにした (Qt 5.15 と Qt 6 の両方で使える)。
+
+**決めたこと (ユーザ)**
+- 描くもののリスト `SceneContent` はデータだけにし、中身は builder (`SceneBuilder`、`OverlayBuilder`、後の区切りで足すもの) が決める。この分け方をファイルの上でもはっきりさせるため、`SceneContent` と、その要素の `OverlayText`、`PlayerPick` を `scene_builder.h` から `src/view3d/scene_content.h` に移す。データだけを使う `Scene3D`、`OverlayBuilder`、`Picking`、`FieldView3D` のヘッダは、`scene_builder.h` ではなくこれを読む。
+
+**試験**
+- 動きは変わらない。読み込みの連鎖に頼っていたテスト 2 つ (`picking`、`overlay_builder`) に、要るヘッダを足した。Qt 6.4.2 と Qt 5.15.13 (`-Werror=deprecated-declarations`) で、ビルドとテストが通る (テスト 27 個)。
+
