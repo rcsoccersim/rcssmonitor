@@ -43,6 +43,7 @@
 #include "scene_3d.h"
 #include "scene_builder.h"
 #include "stadium_3d.h"
+#include "grass_3d.h"
 #include "scenery_3d.h"
 #include "sun_3d.h"
 
@@ -153,6 +154,7 @@ private slots:
     void shadows();
     void blobShadows();
     void sky();
+    void realisticGrass();
     void cleanupTestCase();
 };
 
@@ -162,7 +164,7 @@ TestScene3D::initTestCase()
 {
     // the ground plain: its color is the field color (the stripes are
     // checked by test ground_texture)
-    Options::instance().setGrassStripes3D( false );
+    Options::instance().setGrass3D( GrassMode::Plain );
 
     QSurfaceFormat format = FieldView3D::surfaceFormat();
     format.setSamples( 0 );
@@ -1155,6 +1157,99 @@ TestScene3D::sky()
     QVERIFY( distance( plain.pixelColor( w / 2, row( 8.0 ) ), Scenery3D::CLEAR ) <= 3 );
     QVERIFY2( distance( plain.pixelColor( w / 2, row( -at1000 ) ), far ) < 8,
               qPrintable( plain.pixelColor( w / 2, row( -at1000 ) ).name() ) );
+
+    scene.release();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  The realistic grass of the ground shader (the patches and the wear are
+  painted into the ground image: tests grass_3d, ground_texture): the
+  stripes by the way the camera looks (a point of an even stripe lighter
+  from the near side than from the far side, and of an odd one darker),
+  and the blades near the camera only.
+*/
+void
+TestScene3D::realisticGrass()
+{
+    DispHolder holder;
+    FieldPainter painter( holder );
+    Scene3D scene;
+    QVERIFY( scene.initialize() );
+    scene.setGround( GroundTexture::draw( painter ) ); // plain (initTestCase)
+
+    const int w = 400, h = 300;
+    QOpenGLFramebufferObjectFormat fbo_format;
+    fbo_format.setAttachment( QOpenGLFramebufferObject::Depth );
+    QOpenGLFramebufferObject fbo( w, h, fbo_format );
+
+    const auto shot = [&]( const CameraPose & camera, const bool realistic ) {
+        SceneContent content;
+        content.realistic_grass = realistic;
+        scene.render( fbo.handle(), w, h, camera, content );
+        return fbo.toImage();
+    };
+    const auto pixel = [&]( const CameraPose & camera, const QVector3D & q ) {
+        const QVector3D ndc = ( camera.projection( float( w ) / h ) * camera.view() ).map( q );
+        return QPoint( int( ( ndc.x() + 1.0f ) / 2.0f * w ), int( ( 1.0f - ndc.y() ) / 2.0f * h ) );
+    };
+    // the mean lightness around a point of the ground, realistic over plain
+    const auto ratio = [&]( const CameraPose & camera, const QVector3D & q ) {
+        const QImage real = shot( camera, true );
+        const QImage plain = shot( camera, false );
+        const QPoint at = pixel( camera, q );
+        double a = 0.0, b = 0.0;
+        for ( int dy = -1; dy <= 1; ++dy )
+        {
+            for ( int dx = -1; dx <= 1; ++dx )
+            {
+                a += real.pixelColor( at + QPoint( dx, dy ) ).lightness();
+                b += plain.pixelColor( at + QPoint( dx, dy ) ).lightness();
+            }
+        }
+        return a / b;
+    };
+
+    // the stripes: from the near side (+z) and the far side, mirrored
+    CameraPose near, far;
+    near.position = QVector3D( 0.0f, 30.0f, 60.0f );
+    far.position = QVector3D( 0.0f, 30.0f, -60.0f );
+    near.target = far.target = QVector3D( 0.0f, 0.0f, 0.0f );
+    const float sw = float( FieldPainter::GRASS_STRIPE_WIDTH );
+    const QVector3D even( 2.5f * sw, 0.0f, 0.0f ), odd( 3.5f * sw, 0.0f, 0.0f );
+    const double even_near = ratio( near, even ), even_far = ratio( far, even );
+    const double odd_near = ratio( near, odd ), odd_far = ratio( far, odd );
+    QVERIFY2( even_near > 1.03 && odd_near < 0.97, qPrintable( QString( "%1 %2" ).arg( even_near ).arg( odd_near ) ) );
+    QVERIFY2( even_far < 0.995 && odd_far > 1.005, qPrintable( QString( "%1 %2" ).arg( even_far ).arg( odd_far ) ) );
+
+    // the blades: within a stripe, seen straight down from near (8 m) they
+    // show, from far (40 m) they do not (the plain ground is one color)
+    const auto spread = [&]( const float height ) {
+        CameraPose above;
+        above.position = QVector3D( 4.5f * sw, height, -20.0f );
+        above.target = QVector3D( 4.5f * sw, 0.0f, -20.0f );
+        above.up = QVector3D( 0.0f, 0.0f, -1.0f );
+        const QImage image = shot( above, true );
+        double mean = 0.0, sq = 0.0;
+        int n = 0;
+        for ( int y = h / 2 - 30; y < h / 2 + 30; y += 2 )
+        {
+            for ( int x = w / 2 - 30; x < w / 2 + 30; x += 2 )
+            {
+                const double l = image.pixelColor( x, y ).lightness();
+                mean += l; sq += l * l; ++n;
+            }
+        }
+        mean /= n;
+        return std::sqrt( std::max( 0.0, sq / n - mean * mean ) );
+    };
+    const double near_spread = spread( 8.0f );
+    const double far_spread = spread( 40.0f );
+    QVERIFY2( near_spread > 1.5, qPrintable( QString::number( near_spread ) ) );
+    QVERIFY2( far_spread < 0.8, qPrintable( QString::number( far_spread ) ) );
+    // faded out toward BLADES_FAR, not cut there
+    const double fading_spread = spread( Grass3D::BLADES_FAR - 2.0f );
+    QVERIFY2( fading_spread < 0.8, qPrintable( QString::number( fading_spread ) ) );
 
     scene.release();
 }

@@ -195,6 +195,8 @@ struct SceneContent {
 
     //! the sky dome and the haze over the ground beyond (Scenery3D): the option sky_3d
     bool sky = false;
+    //! the realistic grass over the ground image (Grass3D): the option grass_3d realistic
+    bool realistic_grass = false;
     //! the color of the ground beyond the ground image (Scenery3D::farGroundColor())
     QVector4D far_ground = QVector4D( 0.1f, 0.54f, 0.1f, 1.0f );
 
@@ -241,6 +243,7 @@ struct SceneContent {
           figure_joints.clear();
           figure_bodies.clear();
           sky = false;
+          realistic_grass = false;
           shadows = false;
           blob_shadows.clear();
           discs.clear();

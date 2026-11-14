@@ -63,7 +63,7 @@ constexpr double PEN_SCALE = 3.0;
 /*!
   \brief draw the ground: the field without the goals, which the 3D view
   builds itself, with the grass mowed in stripes by the option
-  (grass_stripes_3d). The image is length() * SCALE by width() * SCALE
+  (grass_3d stripes; the realistic grass's are the ground shader's). The image is length() * SCALE by width() * SCALE
   pixels, with the center of the pitch at its center and +y down.
 */
 QImage draw( FieldPainter & painter );

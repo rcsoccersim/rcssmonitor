@@ -231,7 +231,8 @@ private:
     QLabel * M_shadows_3d_note = nullptr;
     QCheckBox * M_boards_3d_cb = nullptr;
     QCheckBox * M_banners_3d_cb = nullptr;
-    QCheckBox * M_grass_stripes_3d_cb = nullptr;
+    QButtonGroup * M_grass_3d = nullptr;
+    QLabel * M_grass_3d_note = nullptr;
     QCheckBox * M_sky_3d_cb = nullptr;
 
     // the Player Camera tab (only in a build with the 3D view; null otherwise)

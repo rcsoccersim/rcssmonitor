@@ -82,9 +82,9 @@ TestGroundTexture::image()
     Options & opt = Options::instance();
     const Options::FieldTransform before = opt.fieldTransform();
 
-    opt.setGrassStripes3D( false ); // the plain field color
+    opt.setGrass3D( GrassMode::Plain ); // the plain field color
     const QImage image = GroundTexture::draw( painter );
-    opt.setGrassStripes3D( Options::GRASS_STRIPES_3D );
+    opt.setGrass3D( Options::GRASS_3D );
     QCOMPARE( image.size(), QSize( 115 * 24, 78 * 24 ) );
 
     const Options::FieldTransform after = opt.fieldTransform();
@@ -126,7 +126,7 @@ TestGroundTexture::stripes()
     DispHolder holder;
     FieldPainter painter( holder );
     Options & opt = Options::instance();
-    QVERIFY( opt.grassStripes3D() ); // on by default
+    QCOMPARE( opt.grass3D(), GrassMode::Stripes ); // by default
     const QImage image = GroundTexture::draw( painter );
     const QColor field = opt.fieldBrush().color();
     const auto times = [&]( const double k ) {
@@ -160,10 +160,23 @@ TestGroundTexture::stripes()
     QVERIFY( distance( at( 0.0, -20.0 ), line ) < 60 );
     QVERIFY( distance( at( 3.0, -34.0 ), line ) < 60 );
 
-    // the option off: the plain field color
-    opt.setGrassStripes3D( false );
-    QVERIFY( distance( GroundTexture::draw( painter ).pixelColor( image.width() / 2 + int( 1.5 * w * 24 ), 10 ), field ) <= 3 );
-    opt.setGrassStripes3D( true );
+    // plain, and realistic (whose stripes the ground shader draws): the plain field color
+    for ( const GrassMode mode : { GrassMode::Plain, GrassMode::Realistic } )
+    {
+        opt.setGrass3D( mode );
+        QVERIFY( distance( GroundTexture::draw( painter ).pixelColor( image.width() / 2 + int( 1.5 * w * 24 ), 10 ), field ) <= 3 );
+    }
+    opt.setGrass3D( GrassMode::Stripes );
+    // realistic: the patches and the wear painted in (Grass3D::paintGround()):
+    // a goal mouth redder, the lines still light
+    opt.setGrass3D( GrassMode::Realistic );
+    const QImage real = GroundTexture::draw( painter );
+    opt.setGrass3D( GrassMode::Stripes );
+    const auto real_at = [&]( double x, double y ) {
+        return real.pixelColor( int( std::lround( real.width() / 2 + x * 24 ) ), int( std::lround( real.height() / 2 + y * 24 ) ) );
+    };
+    QVERIFY2( real_at( -49.5, 2.0 ).red() > field.red() + 15, qPrintable( real_at( -49.5, 2.0 ).name() ) );
+    QVERIFY( distance( real_at( 0.0, -20.0 ), line ) < 90 );
     // the minimap: no stripes
     const QImage minimap = GroundTexture::draw( painter, 4.0, 1.0 );
     QVERIFY( distance( minimap.pixelColor( minimap.width() / 2 + int( 1.5 * w * 4 ), 6 ), field ) <= 3 );
@@ -187,9 +200,12 @@ TestGroundTexture::key()
     opt.setLineColor( line );
     QCOMPARE( GroundTexture::key( param ), first );
 
-    opt.setGrassStripes3D( ! opt.grassStripes3D() );
-    QVERIFY( GroundTexture::key( param ) != first );
-    opt.setGrassStripes3D( ! opt.grassStripes3D() );
+    for ( const GrassMode mode : { GrassMode::Plain, GrassMode::Realistic } )
+    {
+        opt.setGrass3D( mode );
+        QVERIFY( GroundTexture::key( param ) != first );
+    }
+    opt.setGrass3D( Options::GRASS_3D );
     QCOMPARE( GroundTexture::key( param ), first );
 
     param.keepaway_mode_ = ! param.keepaway_mode_;

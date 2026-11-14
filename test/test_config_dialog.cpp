@@ -233,7 +233,7 @@ TestConfigDialog::tabs3D()
         QVERIFY( spin );
         QVERIFY2( spin->toolTip().contains( "Range: " ), name );
     }
-    for ( const char * name : { "compass_3d", "minimap_3d", "player_model_3d", "figure_bodies_3d", "shadows_3d", "player_camera_position",
+    for ( const char * name : { "compass_3d", "minimap_3d", "player_model_3d", "figure_bodies_3d", "shadows_3d", "grass_3d", "player_camera_position",
                                 "player_camera_direction", "player_camera_motion",
                                 "player_camera_fov", "player_camera_sight" } )
     {
@@ -246,9 +246,8 @@ TestConfigDialog::tabs3D()
     }
     QVERIFY( ! child< QCheckBox >( dialog, "boards_3d" )->toolTip().isEmpty() );
     QVERIFY( ! child< QCheckBox >( dialog, "banners_3d" )->toolTip().isEmpty() );
-    QVERIFY( ! child< QCheckBox >( dialog, "grass_stripes_3d" )->toolTip().isEmpty() );
     QVERIFY( ! child< QCheckBox >( dialog, "sky_3d" )->toolTip().isEmpty() );
-    QVERIFY( child< QPushButton >( dialog, "default_3d" )->toolTip().contains( "Grass Stripes On, Sky On" ) );
+    QVERIFY( child< QPushButton >( dialog, "default_3d" )->toolTip().contains( "Grass Stripes, Sky On" ) );
     QVERIFY( child< QPushButton >( dialog, "default_3d" )->toolTip().contains( "Close-up 12 m, 20" ) );
     QVERIFY( child< QPushButton >( dialog, "default_3d" )->toolTip().contains( "Model Simple, Figure Scale 1, Bodies Mixed, Shadows Simple," ) );
     QVERIFY( child< QPushButton >( dialog, "default_player_camera" )->toolTip()
@@ -286,9 +285,9 @@ TestConfigDialog::view3DTab()
     QButtonGroup * minimap = child< QButtonGroup >( dialog, "minimap_3d" );
     QCheckBox * boards = child< QCheckBox >( dialog, "boards_3d" );
     QCheckBox * banners = child< QCheckBox >( dialog, "banners_3d" );
-    QCheckBox * stripes = child< QCheckBox >( dialog, "grass_stripes_3d" );
+    QButtonGroup * grass = child< QButtonGroup >( dialog, "grass_3d" );
     QCheckBox * sky = child< QCheckBox >( dialog, "sky_3d" );
-    QVERIFY( stripes && sky );
+    QVERIFY( grass && sky );
     QPushButton * defaults = child< QPushButton >( dialog, "default_3d" );
     QButtonGroup * model = child< QButtonGroup >( dialog, "player_model_3d" );
     QDoubleSpinBox * scale = child< QDoubleSpinBox >( dialog, "figure_scale_3d" );
@@ -303,7 +302,8 @@ TestConfigDialog::view3DTab()
     QCOMPARE( minimap->checkedButton()->text(), QString( "Off" ) );
     QVERIFY( boards->isChecked() );
     QVERIFY( banners->isChecked() );
-    QVERIFY( stripes->isChecked() );
+    QCOMPARE( grass->buttons().size(), 3 );
+    QCOMPARE( grass->checkedButton()->text(), QString( "Stripes" ) );
     QVERIFY( sky->isChecked() );
     QCOMPARE( model->checkedButton()->text(), QString( "Simple" ) );
     QCOMPARE( scale->value(), Options::FIGURE_SCALE_3D );
@@ -361,18 +361,21 @@ TestConfigDialog::view3DTab()
     QCOMPARE( opt.shadows3D(), ShadowMode::Detailed );
     shadows->button( 0 )->click();
     QCOMPARE( opt.shadows3D(), ShadowMode::Off );
-    stripes->click();
-    QVERIFY( ! opt.grassStripes3D() );
+    QCOMPARE( grass->button( 2 )->text(), QString( "Realistic" ) );
+    grass->button( 2 )->click();
+    QCOMPARE( opt.grass3D(), GrassMode::Realistic );
+    grass->button( 0 )->click();
+    QCOMPARE( opt.grass3D(), GrassMode::Plain );
     sky->click();
     QVERIFY( ! opt.sky3D() );
-    QCOMPARE( spy.count(), 10 );
+    QCOMPARE( spy.count(), 11 );
 
     // Default: the options and the fields back
     defaults->click();
-    QCOMPARE( spy.count(), 11 );
-    QVERIFY( opt.grassStripes3D() );
+    QCOMPARE( spy.count(), 12 );
+    QCOMPARE( opt.grass3D(), GrassMode::Stripes );
     QVERIFY( opt.sky3D() );
-    QVERIFY( stripes->isChecked() );
+    QCOMPARE( grass->checkedId(), 1 );
     QVERIFY( sky->isChecked() );
     QCOMPARE( opt.closeupDistance3D(), Options::CLOSEUP_DISTANCE_3D );
     QCOMPARE( opt.closeupElevation3D(), Options::CLOSEUP_ELEVATION_3D );
@@ -396,7 +399,7 @@ TestConfigDialog::view3DTab()
     QCOMPARE( scale->value(), Options::FIGURE_SCALE_3D );
     QVERIFY( ! scale->isEnabled() );
     // the fields set back by Default do not set the options again
-    QCOMPARE( spy.count(), 11 );
+    QCOMPARE( spy.count(), 12 );
 #endif
 }
 

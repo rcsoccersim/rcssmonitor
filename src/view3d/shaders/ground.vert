@@ -18,10 +18,13 @@ layout( location = A_MODEL ) in mat4 iModel;
 uniform mat4 uViewProj;
 
 out vec2 vUV;
+out vec3 vWorld; // where in the world: for the realistic grass (ground.frag)
 
 void main()
 {
     vUV = aUV;
     // the shape's space -> the world (iModel) -> the screen (uViewProj)
-    gl_Position = uViewProj * iModel * vec4( aPos, 1.0 );
+    vec4 world = iModel * vec4( aPos, 1.0 );
+    vWorld = world.xyz;
+    gl_Position = uViewProj * world;
 }

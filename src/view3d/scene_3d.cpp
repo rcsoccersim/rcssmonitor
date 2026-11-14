@@ -36,8 +36,10 @@
 
 #include "scene_3d.h"
 
+#include "field_painter.h"
 #include "ground_texture.h"
 #include "meshes_3d.h"
+#include "grass_3d.h"
 #include "scenery_3d.h"
 #include "stadium_3d.h"
 #include "sun_3d.h"
@@ -61,8 +63,9 @@ rgb( const QColor & c )
 }
 
 // the texture unit of the shadow map (unit 0 has the ground's image or the
-// figures' skin matrices)
+// figures' skin matrices), and of the realistic grass's noise
 constexpr int SHADOW_UNIT = 1;
+constexpr int NOISE_UNIT = 2;
 
 QMatrix4x4
 shadow_plane_matrix()
@@ -146,6 +149,8 @@ Scene3D::initialize()
     M_far_ground.create( *this, Meshes3D::ground( 2.0f * Scenery3D::FAR_GROUND, 2.0f * Scenery3D::FAR_GROUND ) );
     // without a shadow map (a GPU that cannot draw into one), no shadows
     M_shadow_map.create( *this );
+    // the realistic grass's noise, made once
+    M_grass_noise.upload( *this, Grass3D::noiseImage(), true, true, false );
     M_billboards.create( *this );
     for ( VertexBatch * b : { &M_sector_batch, &M_line_batch, &M_dotted_batch, &M_point_batch } )
     {
@@ -176,6 +181,7 @@ Scene3D::release()
         b->destroy( *this );
     }
     M_ground_texture.destroy( *this );
+    M_grass_noise.destroy( *this );
     M_label_texture.destroy( *this );
     for ( int end = 0; end < 2; ++end )
     {
@@ -336,6 +342,18 @@ Scene3D::render( GLuint fbo,
     M_ground_program.set( "uViewProj", view_proj );
     M_ground_program.set( "uTexture", 0 ); // the texture unit
     M_ground_texture.bind( *this, 0 );
+    // the realistic grass over the image (Grass3D), its noise on NOISE_UNIT
+    M_ground_program.set( "uRealistic", content.realistic_grass ? 1 : 0 );
+    M_ground_program.set( "uNoise", NOISE_UNIT );
+    M_ground_program.set( "uCamera", camera.position );
+    M_ground_program.set( "uStripeWidth", float( FieldPainter::GRASS_STRIPE_WIDTH ) );
+    M_ground_program.set( "uStripeContrast", Grass3D::STRIPE_CONTRAST );
+    M_ground_program.set( "uStripeFixed", Grass3D::STRIPE_FIXED );
+    M_ground_program.set( "uDetailTile", Grass3D::DETAIL_TILE );
+    M_ground_program.set( "uDetailAmount", Grass3D::DETAIL_AMOUNT );
+    M_ground_program.set( "uBladesNear", Grass3D::BLADES_NEAR );
+    M_ground_program.set( "uBladesFar", Grass3D::BLADES_FAR );
+    M_grass_noise.bind( *this, NOISE_UNIT );
     M_ground.draw( *this, M_ground_instance );
 
     //

@@ -201,6 +201,7 @@ private:
     VertexBatch M_point_batch; //!< the dots on the ground
 
     Texture2D M_ground_texture; //!< the image of the ground
+    Texture2D M_grass_noise; //!< the noise of the realistic grass (Grass3D::noiseImage()), tiling both ways
     Texture2D M_label_texture; //!< the images of the labels
     Texture2D M_board_textures[2]; //!< a tile of the boards of each end (repeated)
     Texture2D M_banner_textures[2]; //!< the banner of each end

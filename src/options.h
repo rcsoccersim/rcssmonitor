@@ -182,7 +182,7 @@ private:
     double M_closeup_elevation_3d; //!< the close-up cameras: how high above it (degree)
     PlayerCameraOptions M_player_camera; //!< the styles of the selected player's camera
     bool M_boards_3d; //!< the boards around the pitch in the team colors
-    bool M_grass_stripes_3d; //!< the grass mowed in stripes
+    GrassMode M_grass_3d; //!< the grass: plain, mowed in stripes, or realistic
     bool M_sky_3d; //!< the sky, and the haze over the far ground
     bool M_banners_3d; //!< the banners behind the goals in the team colors
     GuideMode M_compass_3d; //!< when the compass shows over the 3D view
@@ -421,9 +421,9 @@ public:
     bool boards3D() const { return M_boards_3d; }
     void setBoards3D( const bool on ) { M_boards_3d = on; }
 
-    static constexpr bool GRASS_STRIPES_3D = true;
-    bool grassStripes3D() const { return M_grass_stripes_3d; }
-    void setGrassStripes3D( const bool on ) { M_grass_stripes_3d = on; }
+    static constexpr GrassMode GRASS_3D = GrassMode::Stripes;
+    GrassMode grass3D() const { return M_grass_3d; }
+    void setGrass3D( const GrassMode mode ) { M_grass_3d = mode; }
 
     static constexpr bool SKY_3D = true;
     bool sky3D() const { return M_sky_3d; }

@@ -54,7 +54,9 @@ constexpr float MAX_ANISOTROPY = 8.0f;
 void
 Texture2D::upload( QOpenGLFunctions_3_3_Core & gl,
                    const QImage & image,
-                   const bool repeat )
+                   const bool repeat,
+                   const bool repeat_down,
+                   const bool anisotropic )
 {
     if ( M_id == 0 )
     {
@@ -76,7 +78,7 @@ Texture2D::upload( QOpenGLFunctions_3_3_Core & gl,
 
     // outside 0 to 1 across, the image again, or the color of the edge
     gl.glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, repeat ? GL_REPEAT : GL_CLAMP_TO_EDGE );
-    gl.glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
+    gl.glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, repeat_down ? GL_REPEAT : GL_CLAMP_TO_EDGE );
 
     // anisotropic filtering: the ground seen at a low angle stays sharp
     // along the view, instead of blurring as the mipmaps alone would
@@ -84,7 +86,7 @@ Texture2D::upload( QOpenGLFunctions_3_3_Core & gl,
     gl.glGetFloatv( MAX_TEXTURE_MAX_ANISOTROPY, &max_anisotropy );
     if ( max_anisotropy > 1.0f )
     {
-        gl.glTexParameterf( GL_TEXTURE_2D, TEXTURE_MAX_ANISOTROPY, std::min( max_anisotropy, MAX_ANISOTROPY ) );
+        gl.glTexParameterf( GL_TEXTURE_2D, TEXTURE_MAX_ANISOTROPY, anisotropic ? std::min( max_anisotropy, MAX_ANISOTROPY ) : 1.0f );
     }
 
     // without the extension, the lines above leave errors: clear them, so

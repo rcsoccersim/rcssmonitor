@@ -385,6 +385,64 @@ figureBodiesFromName( const QString & name,
 }
 
 /*!
+  \enum GrassMode
+  \brief the grass of the 3D view (docs/PLAN_3D-VIEW.md 8-2, 8-2b): plain,
+  mowed in stripes (lighter and darker, the same from everywhere), or
+  realistic (the stripes by the way the camera looks, the blades and
+  patches of the grass, and the worn grass: Grass3D)
+*/
+enum class GrassMode {
+    Plain,
+    Stripes,
+    Realistic,
+};
+
+//! the grass's modes, with their names in the options
+inline
+const std::array< std::pair< GrassMode, const char * >, 3 > &
+grassModes()
+{
+    static const std::array< std::pair< GrassMode, const char * >, 3 > list = { {
+            { GrassMode::Plain, "plain" },
+            { GrassMode::Stripes, "stripes" },
+            { GrassMode::Realistic, "realistic" },
+        } };
+    return list;
+}
+
+//! the name of a mode of the grass in the options
+inline
+QString
+grassModeName( const GrassMode mode )
+{
+    for ( const auto & m : grassModes() )
+    {
+        if ( m.first == mode ) return QString::fromLatin1( m.second );
+    }
+    return QString();
+}
+
+/*!
+  \brief the mode of the grass of a name in the options
+  \return false if the name is unknown (mode is left as it was)
+*/
+inline
+bool
+grassModeFromName( const QString & name,
+                   GrassMode * mode )
+{
+    for ( const auto & m : grassModes() )
+    {
+        if ( name == QLatin1String( m.second ) )
+        {
+            *mode = m.first;
+            return true;
+        }
+    }
+    return false;
+}
+
+/*!
   \enum ShadowMode
   \brief the sun's shadows of the players in the 3D view (docs/PLAN_3D-VIEW.md
   §4.3, 8-1): none, simple ones (a soft ellipse on the ground for each

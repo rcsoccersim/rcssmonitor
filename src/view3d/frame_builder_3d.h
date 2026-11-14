@@ -94,6 +94,7 @@ struct View3DState {
     std::vector< int > figure_bodies; //!< the body of each figure (SceneContent::figure_bodies)
     bool shadows = false; //!< the sun cast the detailed shadows (SceneContent::shadows)
     bool sky = false; //!< the sky was drawn (SceneContent::sky)
+    bool realistic_grass = false; //!< the realistic grass was drawn (SceneContent::realistic_grass)
     int blob_shadows = 0; //!< the simple shadows drawn (SceneContent::blob_shadows)
 };
 

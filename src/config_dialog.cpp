@@ -1430,6 +1430,19 @@ const ChoiceText SHADOW_TEXTS[] = {
       "shadow map: about 1.5\u20132 ms more of an integrated GPU." },
 };
 
+const ChoiceText GRASS_TEXTS[] = {
+    { "Plain", "The field color, plain.", nullptr },
+    { "Stripes", "Mowed in stripes, lighter and darker: the same from everywhere.",
+      "The grass mowed in stripes across the pitch, 5.25 m wide (20 on the pitch),\n"
+      "a little lighter and darker than the field color: they help to judge\n"
+      "distances and speeds along the pitch." },
+    { "Realistic", "The stripes by the way you look, the blades of the grass, the worn grass.",
+      "The stripes light or dark by the way the camera looks at them, as the mower\n"
+      "bent the blades (from the other end they swap), the blades and patches of\n"
+      "the grass, and the grass worn in the goal mouths, at the penalty spots and\n"
+      "the center. About 0.1\u20130.3 ms more of an integrated GPU." },
+};
+
 const ChoiceText GUIDE_TEXTS[] = {
     { "Off", "Not shown.", nullptr },
     { "Player Camera", "Shown with the Player camera only.", nullptr },
@@ -1523,6 +1536,28 @@ bodiesLabel( const FigureBodies bodies )
         if ( figureBodiesList()[i].first == bodies ) return QString::fromUtf8( BODIES_TEXTS[i].label );
     }
     return QString();
+}
+
+//! the label of a mode of the grass
+QString
+grassLabel( const GrassMode mode )
+{
+    for ( std::size_t i = 0; i < grassModes().size(); ++i )
+    {
+        if ( grassModes()[i].first == mode ) return QString::fromUtf8( GRASS_TEXTS[i].label );
+    }
+    return QString();
+}
+
+//! the id of a mode of the grass in its radio buttons
+int
+grassIndex( const GrassMode mode )
+{
+    for ( std::size_t i = 0; i < grassModes().size(); ++i )
+    {
+        if ( grassModes()[i].first == mode ) return int( i );
+    }
+    return 0;
 }
 
 //! the label of a mode of the shadows
@@ -1907,17 +1942,6 @@ ConfigDialog::create3DTab()
                  } );
         layout->addWidget( M_banners_3d_cb );
 
-        M_grass_stripes_3d_cb = new QCheckBox( tr( "Grass Stripes" ) );
-        M_grass_stripes_3d_cb->setObjectName( "grass_stripes_3d" );
-        M_grass_stripes_3d_cb->setToolTip( tr( "The grass mowed in stripes across the pitch, 5.25 m wide (20 on the pitch),\n"
-                                               "a little lighter and darker than the field color: they help to judge\n"
-                                               "distances and speeds along the pitch." ) );
-        connect( M_grass_stripes_3d_cb, &QCheckBox::clicked,
-                 this, [this]( bool on ) {
-                     Options::instance().setGrassStripes3D( on );
-                     changed3D();
-                 } );
-        layout->addWidget( M_grass_stripes_3d_cb );
 
         M_sky_3d_cb = new QCheckBox( tr( "Sky" ) );
         M_sky_3d_cb->setObjectName( "sky_3d" );
@@ -1931,7 +1955,26 @@ ConfigDialog::create3DTab()
         layout->addWidget( M_sky_3d_cb );
         layout->addStretch();
 
+        std::vector< std::pair< QString, QString > > grass;
+        for ( const ChoiceText & t : GRASS_TEXTS )
+        {
+            grass.emplace_back( QString::fromUtf8( t.label ), QString::fromUtf8( t.summary ) );
+        }
+        QGridLayout * grass_layout = new QGridLayout();
+        grass_layout->setContentsMargins( 0, 0, 0, 0 );
+        M_grass_3d = addChoices( grass_layout, tr( "Grass:" ),
+                                 tr( "How the grass of the pitch looks." ),
+                                 grass, &M_grass_3d_note );
+        setChoiceTooltips( M_grass_3d, GRASS_TEXTS );
+        M_grass_3d->setObjectName( "grass_3d" );
+        connect( M_grass_3d, &QButtonGroup::idClicked,
+                 this, [this]( int id ) {
+                     Options::instance().setGrass3D( grassModes()[id].first );
+                     changed3D();
+                 } );
+
         box->addLayout( layout );
+        box->addLayout( grass_layout );
         box->addWidget( noteLabel( tr( "The boards and the banners are in the team colors, to tell the ends apart; "
                                        "the goal nets always are." ) ) );
         group_box->setLayout( box );
@@ -1944,7 +1987,7 @@ ConfigDialog::create3DTab()
         button->setObjectName( "default_3d" );
         button->setToolTip( tr( "Set the defaults: Close-up %1 m, %2\u00b0, Compass %3, Minimap %4,\n"
                                 "Model %5, Figure Scale %6, Bodies %9, Shadows %10, Boards %7, Banners %8,\n"
-                                "Grass Stripes %11, Sky %12" )
+                                "Grass %11, Sky %12" )
                             .arg( Options::CLOSEUP_DISTANCE_3D )
                             .arg( Options::CLOSEUP_ELEVATION_3D )
                             .arg( guideLabel( Options::COMPASS_3D ) )
@@ -1955,7 +1998,7 @@ ConfigDialog::create3DTab()
                             .arg( onOff( Options::BANNERS_3D ) )
                             .arg( bodiesLabel( Options::FIGURE_BODIES_3D ) )
                             .arg( shadowLabel( Options::SHADOWS_3D ) )
-                            .arg( onOff( Options::GRASS_STRIPES_3D ) )
+                            .arg( grassLabel( Options::GRASS_3D ) )
                             .arg( onOff( Options::SKY_3D ) ) );
         button->setAutoDefault( false );
         connect( button, &QPushButton::clicked,
@@ -2212,7 +2255,7 @@ ConfigDialog::update3D()
     set_choice( M_shadows_3d, shadowIndex( opt.shadows3D() ), M_shadows_3d_note );
     M_boards_3d_cb->setChecked( opt.boards3D() );
     M_banners_3d_cb->setChecked( opt.banners3D() );
-    M_grass_stripes_3d_cb->setChecked( opt.grassStripes3D() );
+    set_choice( M_grass_3d, grassIndex( opt.grass3D() ), M_grass_3d_note );
     M_sky_3d_cb->setChecked( opt.sky3D() );
 
     set_choice( M_player_camera_position, indexOf( positions(), pc.position ), M_player_camera_position_note );

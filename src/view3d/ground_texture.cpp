@@ -38,6 +38,7 @@
 
 #include "field_painter.h"
 #include "options.h"
+#include "grass_3d.h"
 
 #include <rcss/rcg/types.h>
 
@@ -67,7 +68,15 @@ width()
 QImage
 draw( FieldPainter & painter )
 {
-    return draw( painter, SCALE, PEN_SCALE, Options::instance().grassStripes3D() );
+    const GrassMode grass = Options::instance().grass3D();
+    QImage image = draw( painter, SCALE, PEN_SCALE, grass == GrassMode::Stripes );
+    // the realistic grass: its patches and wear into the image; its stripes
+    // and blades are the ground shader's (Grass3D)
+    if ( grass == GrassMode::Realistic )
+    {
+        Grass3D::paintGround( image, SCALE );
+    }
+    return image;
 }
 
 /*-------------------------------------------------------------------*/
@@ -112,7 +121,7 @@ key( const rcss::rcg::ServerParamT & param )
             QString::number( opt.showKeepawayArea() ),
             QString::number( opt.gridStep() ),
             QString::number( opt.showGridCoord() ),
-            QString::number( opt.grassStripes3D() ),
+            grassModeName( opt.grass3D() ),
         } ).join( ',' );
 }
 

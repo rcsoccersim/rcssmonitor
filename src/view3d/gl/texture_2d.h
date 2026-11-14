@@ -58,12 +58,18 @@ public:
 
     /*!
       \brief send the image to the GPU (the texture is made at the first time)
-      \param repeat outside 0 to 1, the image again (the boards) instead of
-      the color of its edge
+      \param repeat outside 0 to 1 across, the image again (the boards)
+      instead of the color of its edge
+      \param repeat_down the same down (the grass's noise, which tiles both ways)
+      \param anisotropic sharp along the view at a low angle (anisotropic
+      filtering): not for the grass's noise, which may blur into its mean
+      far away, at a part of the cost
     */
     void upload( QOpenGLFunctions_3_3_Core & gl,
                  const QImage & image,
-                 const bool repeat = false );
+                 const bool repeat = false,
+                 const bool repeat_down = false,
+                 const bool anisotropic = true );
 
     //! put it on the texture unit (0, 1, ...) for the draw calls that follow
     void bind( QOpenGLFunctions_3_3_Core & gl,

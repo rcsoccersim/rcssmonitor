@@ -244,7 +244,7 @@ Options::Options()
     M_closeup_distance_3d( CLOSEUP_DISTANCE_3D ),
     M_closeup_elevation_3d( CLOSEUP_ELEVATION_3D ),
     M_boards_3d( BOARDS_3D ),
-    M_grass_stripes_3d( GRASS_STRIPES_3D ),
+    M_grass_3d( GRASS_3D ),
     M_sky_3d( SKY_3D ),
     M_banners_3d( BANNERS_3D ),
     M_compass_3d( COMPASS_3D ),
@@ -746,8 +746,8 @@ Options::readSettings()
     val = settings.value( "boards_3d" );
     if ( val.isValid() ) M_boards_3d = val.toBool();
 
-    val = settings.value( "grass_stripes_3d" );
-    if ( val.isValid() ) M_grass_stripes_3d = val.toBool();
+    val = settings.value( "grass_3d" );
+    if ( val.isValid() ) grassModeFromName( val.toString(), &M_grass_3d );
 
     val = settings.value( "sky_3d" );
     if ( val.isValid() ) M_sky_3d = val.toBool();
@@ -951,7 +951,7 @@ Options::writeSettings( bool all )
     settings.setValue( "closeup_distance_3d", M_closeup_distance_3d );
     settings.setValue( "closeup_elevation_3d", M_closeup_elevation_3d );
     settings.setValue( "boards_3d", M_boards_3d );
-    settings.setValue( "grass_stripes_3d", M_grass_stripes_3d );
+    settings.setValue( "grass_3d", grassModeName( M_grass_3d ) );
     settings.setValue( "sky_3d", M_sky_3d );
     settings.setValue( "banners_3d", M_banners_3d );
     settings.setValue( "compass_3d", guideModeName( M_compass_3d ) );
@@ -1020,7 +1020,7 @@ Options::setView3DDefaults()
     M_figure_bodies_3d = FIGURE_BODIES_3D;
     M_shadows_3d = SHADOWS_3D;
     M_boards_3d = BOARDS_3D;
-    M_grass_stripes_3d = GRASS_STRIPES_3D;
+    M_grass_3d = GRASS_3D;
     M_sky_3d = SKY_3D;
     M_banners_3d = BANNERS_3D;
 }
@@ -1149,10 +1149,11 @@ Options::parseCmdLine( int argc,
                                       "The 3D view: the boards around the pitch in the team colors. (Default=" + to_onoff( M_boards_3d ) + ")",
                                       "bool", to_onoff( M_boards_3d ) );
     parser.addOption( opt_boards_3d );
-    QCommandLineOption opt_grass_stripes_3d( "grass-stripes-3d",
-                                             "The 3D view: the grass mowed in stripes. (Default=" + to_onoff( M_grass_stripes_3d ) + ")",
-                                             "bool", to_onoff( M_grass_stripes_3d ) );
-    parser.addOption( opt_grass_stripes_3d );
+    QCommandLineOption opt_grass_3d( "grass-3d",
+                                     "The 3D view: the grass, plain, stripes (mowed in stripes) or realistic (the stripes by the way the camera looks, the blades and the worn grass). (Default="
+                                     + grassModeName( M_grass_3d ) + ")",
+                                     "mode", grassModeName( M_grass_3d ) );
+    parser.addOption( opt_grass_3d );
     QCommandLineOption opt_sky_3d( "sky-3d",
                                    "The 3D view: the sky, and the haze over the far ground. (Default=" + to_onoff( M_sky_3d ) + ")",
                                    "bool", to_onoff( M_sky_3d ) );
@@ -1427,7 +1428,11 @@ Options::parseCmdLine( int argc,
         else std::cerr << "Out of range: closeup-elevation-3d " << parser.value( opt_closeup_elevation_3d ).toStdString() << std::endl;
     }
     if ( parser.isSet( opt_boards_3d ) ) M_boards_3d = to_bool( parser.value( opt_boards_3d ), M_boards_3d );
-    if ( parser.isSet( opt_grass_stripes_3d ) ) M_grass_stripes_3d = to_bool( parser.value( opt_grass_stripes_3d ), M_grass_stripes_3d );
+    if ( parser.isSet( opt_grass_3d )
+         && ! grassModeFromName( parser.value( opt_grass_3d ), &M_grass_3d ) )
+    {
+        std::cerr << "Unknown value of grass-3d: " << parser.value( opt_grass_3d ).toStdString() << std::endl;
+    }
     if ( parser.isSet( opt_sky_3d ) ) M_sky_3d = to_bool( parser.value( opt_sky_3d ), M_sky_3d );
     if ( parser.isSet( opt_banners_3d ) ) M_banners_3d = to_bool( parser.value( opt_banners_3d ), M_banners_3d );
     for ( const auto & g : { std::make_pair( &opt_compass_3d, &M_compass_3d ), std::make_pair( &opt_minimap_3d, &M_minimap_3d ) } )

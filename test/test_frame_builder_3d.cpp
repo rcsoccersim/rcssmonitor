@@ -290,8 +290,16 @@ private slots:
           SceneContent content;
           builder.build( M_holder, opt, at( M_holder, 10 ), CameraMode::Broadcast, content );
           QCOMPARE( content.far_ground, Scenery3D::farGroundColor( opt.fieldBrush().color() ) );
+          QVERIFY( ! content.realistic_grass ); // stripes by default
+          opt.setGrass3D( GrassMode::Realistic );
+          QVERIFY( build( builder, M_holder, at( M_holder, 10 ) ).realistic_grass );
+          opt.setGrass3D( GrassMode::Plain );
+          QVERIFY( ! build( builder, M_holder, at( M_holder, 10 ) ).realistic_grass );
+          opt.setGrass3D( Options::GRASS_3D );
+          content.realistic_grass = true;
           content.clear();
           QVERIFY( ! content.sky );
+          QVERIFY( ! content.realistic_grass );
       }
 
     /*!
