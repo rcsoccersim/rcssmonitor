@@ -33,11 +33,11 @@
 #ifndef RCSSMONITOR_GL_SKINNED_MESH_H
 #define RCSSMONITOR_GL_SKINNED_MESH_H
 
+#include "figure_uniform.h"
 #include "gltf_model.h"
 #include "shader_program.h"
 
 #include <QOpenGLFunctions_3_3_Core>
-#include <QStringList>
 #include <QVector4D>
 
 #include <vector>
@@ -57,17 +57,30 @@
   (gl_InstanceID) with texelFetch(), which reads a texel by its integer
   place, not filtered.
 
-  The mesh has parts in materials (SkinPrimitive): the jersey, in each
-  figure's color (an attribute of the instance); a body in a uniform of
-  that color (FigureUniform: the fragment shader paints it by the part of
-  the body and where the point is at rest, attributes of the vertex); and
-  the others in their own color. Each part is one instanced draw call for
-  all the figures.
+  The mesh has parts in materials (SkinPrimitive), each painted as told
+  (FigureUniform::Paint): in each figure's color (an attribute of the
+  instance); a body in a uniform of that color with the figure's skin
+  (FigureUniform: the fragment shader paints it by the part of the body
+  and where the point is at rest, attributes of the vertex); the eyebrows
+  and the hairstyles in the figure's hair color, a hairstyle only on the
+  figures wearing it (the vertex shader puts it out of sight on the
+  others); and the others in their own color. Each part is one instanced
+  draw call for all the figures.
 
   Every function needs the OpenGL context current.
 */
 class SkinnedMesh {
 public:
+
+    /*!
+      \struct Instance
+      \brief a figure's colors, the attributes of its instance
+    */
+    struct Instance {
+        QVector4D color; //!< the figure's color (COLOR)
+        QVector4D skin; //!< its skin (SKIN)
+        QVector4D hair; //!< its hair, with the hairstyles it wears in w (HAIR)
+    };
 
     SkinnedMesh() = default;
     SkinnedMesh( const SkinnedMesh & ) = delete;
@@ -77,13 +90,11 @@ public:
       \brief send the mesh to the GPU
       \param gl the OpenGL functions
       \param model the model: its vertices, triangles and parts
-      \param jersey the materials in each figure's color
-      \param uniform the materials in a uniform of each figure's color (the others in their own color)
+      \param paints how each part (model.primitives) is painted (missing: in its own color)
     */
     void create( QOpenGLFunctions_3_3_Core & gl,
                  const GltfModel & model,
-                 const QStringList & jersey,
-                 const QStringList & uniform = QStringList() );
+                 const std::vector< FigureUniform::Paint > & paints );
 
     //! delete the buffers, the VAO and the texture
     void destroy( QOpenGLFunctions_3_3_Core & gl );
@@ -97,15 +108,15 @@ public:
       "skinned" vertex shader) and the render state that is applied
       \param gl the OpenGL functions
       \param program the bound program: draw() sets its uniforms uJoints
-      (the texture unit of the skin matrices), uPaint (0: in uBaseColor, 1:
-      in the figure's color, 2: in the uniform) and uBaseColor; the caller
-      sets those of the uniform
-      \param colors each figure's jersey color
-      \param joints the skin matrices: jointCount() * 16 floats a figure, as many figures as colors
+      (the texture unit of the skin matrices), uPaint (FigureUniform::Paint::Kind),
+      uShow (the hairstyle of a part) and uBaseColor; the caller sets those
+      of the uniform
+      \param figures each figure's colors
+      \param joints the skin matrices: jointCount() * 16 floats a figure, as many figures
     */
     void draw( QOpenGLFunctions_3_3_Core & gl,
                ShaderProgram & program,
-               const std::vector< QVector4D > & colors,
+               const std::vector< Instance > & figures,
                const std::vector< float > & joints );
 
 private:
@@ -113,13 +124,14 @@ private:
         int first_index;
         int index_count;
         int paint; //!< uPaint
+        int show; //!< uShow
         QVector4D color;
     };
 
     GLuint M_vao = 0;
     GLuint M_vertex_buffer = 0;
     GLuint M_index_buffer = 0;
-    GLuint M_instance_buffer = 0; //!< the colors of the figures
+    GLuint M_instance_buffer = 0; //!< the colors of the figures (Instance)
     GLuint M_joint_texture = 0; //!< the skin matrices, a row a figure
     int M_joint_count = 0;
     std::size_t M_capacity = 0; //!< the figures that the instance buffer and the texture have room for

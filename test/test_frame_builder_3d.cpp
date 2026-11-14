@@ -229,6 +229,40 @@ private slots:
       }
 
     /*!
+      the human bodies: of the option, men and women mixed (both bodies
+      drawn) or one of them; the same poses however reached
+    */
+    void humanBodies()
+      {
+          Options & opt = Options::instance();
+          opt.setPlayerModel3D( PlayerModel::Human );
+          FrameBuilder3D builder;
+          for ( const FigureBodies bodies : { FigureBodies::Mixed, FigureBodies::Male, FigureBodies::Female } )
+          {
+              opt.setFigureBodies3D( bodies );
+              const View3DState s = build( builder, M_holder, at( M_holder, 30, 0.5 ) );
+              QCOMPARE( s.model, PlayerModel::Human );
+              QCOMPARE( s.figures, 22 );
+              QCOMPARE( int( s.figure_bodies.size() ), 22 );
+              int women = 0;
+              for ( const int b : s.figure_bodies ) if ( b == FigureLooks::FEMALE ) ++women;
+              if ( bodies == FigureBodies::Mixed ) QVERIFY( women > 0 && women < 22 );
+              if ( bodies == FigureBodies::Male ) QCOMPARE( women, 0 );
+              if ( bodies == FigureBodies::Female ) QCOMPARE( women, 22 );
+              // the knees where the players are
+              for ( const FigureProbe & p : s.probes )
+              {
+                  QVERIFY( p.left_knee.y() > 0.2f && p.left_knee.y() < 0.8f );
+              }
+          }
+          opt.setFigureBodies3D( FigureBodies::Mixed );
+          const View3DState first = build( builder, M_holder, at( M_holder, 38, 0.25 ) );
+          build( builder, M_holder, at( M_holder, 100 ) );
+          QCOMPARE( build( builder, M_holder, at( M_holder, 38, 0.25 ) ).figure_joints, first.figure_joints );
+          opt.setPlayerModel3D( PlayerModel::Mannequin );
+      }
+
+    /*!
       the actions counted: the kick around its moment, the tackle while its
       bit lasts, none long after
     */

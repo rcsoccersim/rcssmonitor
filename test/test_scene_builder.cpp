@@ -645,6 +645,60 @@ private slots:
       }
 
     /*!
+      the figures' looks (FigureLooks): each player's own by its team, its
+      side and its number, of the bodies of the option; as far as the
+      player camera's player knows who it is, toward the standard ones
+    */
+    void looks()
+      {
+          Options & opt = Options::instance();
+          rcss::rcg::ShowInfoT show = makeShow();
+          const DispConstPtr disp = M_holder.currentDisp();
+          const std::string names[2] = { ( disp ? disp->team_[0].name_ : std::string() ),
+                                         ( disp ? disp->team_[1].name_ : std::string() ) };
+          const std::string & team = names[0];
+          for ( const FigureBodies bodies : { FigureBodies::Mixed, FigureBodies::Male, FigureBodies::Female } )
+          {
+              opt.setFigureBodies3D( bodies );
+              SceneContent c;
+              SceneBuilder::addShow( c, show, M_holder, opt, nullptr, true );
+              QCOMPARE( c.figures.size(), size_t( rcss::rcg::MAX_PLAYER * 2 ) );
+              for ( const FigureInstance & f : c.figures )
+              {
+                  const rcss::rcg::PlayerT & p = show.player_[f.player];
+                  const FigureLook own = FigureLooks::of( p.side(), p.unum_, names[p.side() == rcss::rcg::LEFT ? 0 : 1], bodies );
+                  QCOMPARE( f.look.body, own.body );
+                  QCOMPARE( f.look.hair, own.hair );
+                  QCOMPARE( f.look.skin, own.skin );
+                  QCOMPARE( f.look.hair_color, own.hair_color );
+              }
+          }
+          opt.setFigureBodies3D( FigureBodies::Mixed );
+          // men and women
+          SceneContent c;
+          SceneBuilder::addShow( c, show, M_holder, opt, nullptr, true );
+          int women = 0;
+          for ( const FigureInstance & f : c.figures ) if ( f.look.body == FigureLooks::FEMALE ) ++women;
+          QVERIFY( women > 0 && women < int( c.figures.size() ) );
+
+          // the player camera half sure of a number: the colors half way, the standard body and hair
+          Perceptions seen;
+          seen.active = true;
+          seen.players.fill( PlayerSight::FULL );
+          seen.players[3] = Perception{ true, 1.0f, 0.5f, true };
+          c.clear();
+          SceneBuilder::addShow( c, show, M_holder, opt, &seen, true );
+          const FigureLook own = FigureLooks::of( show.player_[3].side(), show.player_[3].unum_, team, FigureBodies::Mixed );
+          const FigureLook plain = FigureLooks::standard( FigureBodies::Mixed );
+          const FigureInstance & f = c.figures[3];
+          QCOMPARE( f.look.body, plain.body );
+          QCOMPARE( f.look.hair, plain.hair );
+          QVERIFY( ( f.look.skin - ( own.skin + plain.skin ) * 0.5f ).length() < 1.0e-5f );
+          QVERIFY( ( f.look.hair_color - ( own.hair_color + plain.hair_color ) * 0.5f ).length() < 1.0e-5f );
+          QCOMPARE( c.figures[2].look.skin, FigureLooks::of( show.player_[2].side(), show.player_[2].unum_, team, FigureBodies::Mixed ).skin );
+      }
+
+    /*!
       the players' heights by their types (the reach, player_size +
       kickable_margin, of the default type's): the cylinder and its head,
       the direction marks, the picks, the label and the figure; of the
@@ -726,11 +780,18 @@ private slots:
           Perceptions seen;
           seen.active = true;
           seen.players.fill( PlayerSight::FULL );
-          seen.players[3] = Perception{ true, 1.0f, 0.99f, true }; // the team known, the number almost
+          // (the heights between the default one and the type's, by how sure it is)
+          seen.players[3] = Perception{ true, 1.0f, 0.5f, true }; // the team known, the number half
+          const float half = 1.0f + ( ratio - 1.0f ) * 0.5f;
           c.clear();
           SceneBuilder::addShow( c, show, holder, opt, &seen );
-          QVERIFY( near( at( c.cylinders[3], QVector3D( 0, 0.5f, 0 ) ).y(), SceneBuilder::BODY_HEIGHT ) );
-          QVERIFY( near( c.picks[3].head_height, SceneBuilder::HEAD_HEIGHT ) );
+          QVERIFY( near( at( c.cylinders[3], QVector3D( 0, 0.5f, 0 ) ).y(), SceneBuilder::BODY_HEIGHT * half ) );
+          QVERIFY( near( c.picks[3].head_height, SceneBuilder::BODY_HEIGHT * half + SceneBuilder::HEAD_GAP + SceneBuilder::HEAD_RADIUS ) );
+          c.clear();
+          SceneBuilder::addShow( c, show, holder, opt, &seen, true );
+          QVERIFY( near( c.figures[3].height, SceneBuilder::PERSON_HEIGHT * half * float( opt.figureScale3D() ) ) );
+          // not at all sure: of the default height
+          seen.players[3] = Perception{ true, 1.0f, 0.0f, true };
           c.clear();
           SceneBuilder::addShow( c, show, holder, opt, &seen, true );
           QVERIFY( near( c.figures[3].height, SceneBuilder::PERSON_HEIGHT * float( opt.figureScale3D() ) ) );

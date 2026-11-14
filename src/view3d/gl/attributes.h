@@ -84,8 +84,12 @@ constexpr unsigned int DISTANCE = 8; //!< float: along a dotted line (m)
 constexpr unsigned int JOINTS = 9; //!< uvec4: the joints (bones) that move the vertex
 constexpr unsigned int WEIGHTS = 10; //!< vec4: how much each of them moves it (summing to 1)
 constexpr unsigned int REST = 11; //!< vec3: where the rest pose puts it in the model, for the uniform's edges
-constexpr unsigned int PART = 12; //!< float: the part of the body it is on (FigureUniform::Part)
-// and of an instance (a figure): COLOR
+constexpr unsigned int PART = 12; //!< vec2: how much the arms' and the legs' bones move it (FigureUniform::paintParts())
+// and of an instance (a figure): COLOR, and its looks (FigureLook)
+constexpr unsigned int SKIN = 13; //!< vec4: the color of its skin
+constexpr unsigned int HAIR = 14; //!< vec4: the color of its hair, with the hairstyles it wears in w (FigureLooks::Hair bits)
+// and of a vertex of a skinned mesh again
+constexpr unsigned int SCALP = 15; //!< vec4: under each hairstyle of the model or not (SkinVertex::scalp)
 
 // of a billboard (Billboard3D), in place of MODEL
 constexpr unsigned int BILLBOARD_CENTER = 3; //!< vec3: where it is in the world

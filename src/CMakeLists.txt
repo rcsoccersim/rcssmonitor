@@ -57,6 +57,7 @@ if(HAVE_3D_VIEW)
     view3d/cameras_3d.cpp
     view3d/field_view_3d.cpp
     view3d/figure_actions.cpp
+    view3d/figure_looks.cpp
     view3d/figure_uniform.cpp
     view3d/frame_builder_3d.cpp
     view3d/figures_3d.cpp

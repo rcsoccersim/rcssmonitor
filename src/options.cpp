@@ -249,6 +249,7 @@ Options::Options()
     M_minimap_3d( MINIMAP_3D ),
     M_player_model_3d( PLAYER_MODEL_3D ),
     M_figure_scale_3d( FIGURE_SCALE_3D ),
+    M_figure_bodies_3d( FIGURE_BODIES_3D ),
     M_show_tool_bar( false ),
     M_show_status_bar( false ),
     // view options
@@ -761,6 +762,9 @@ Options::readSettings()
         M_figure_scale_3d = val.toDouble();
     }
 
+    val = settings.value( "figure_bodies_3d" );
+    if ( val.isValid() ) figureBodiesFromName( val.toString(), &M_figure_bodies_3d );
+
     // the player camera: an unknown name (of a later version) is not read
     {
         using namespace PlayerCameraStyle;
@@ -940,6 +944,7 @@ Options::writeSettings( bool all )
     settings.setValue( "minimap_3d", guideModeName( M_minimap_3d ) );
     settings.setValue( "player_model_3d", playerModelName( M_player_model_3d ) );
     settings.setValue( "figure_scale_3d", M_figure_scale_3d );
+    settings.setValue( "figure_bodies_3d", figureBodiesName( M_figure_bodies_3d ) );
     {
         using namespace PlayerCameraStyle;
         const PlayerCameraOptions & pc = M_player_camera;
@@ -997,6 +1002,7 @@ Options::setView3DDefaults()
     M_minimap_3d = MINIMAP_3D;
     M_player_model_3d = PLAYER_MODEL_3D;
     M_figure_scale_3d = FIGURE_SCALE_3D;
+    M_figure_bodies_3d = FIGURE_BODIES_3D;
     M_boards_3d = BOARDS_3D;
     M_banners_3d = BANNERS_3D;
 }
@@ -1151,6 +1157,11 @@ Options::parseCmdLine( int argc,
                                             "scale",
                                             to_string( M_figure_scale_3d ) );
     parser.addOption( opt_figure_scale_3d );
+    QCommandLineOption opt_figure_bodies_3d( "figure-bodies-3d",
+                                             "The 3D view: the human bodies (player-model-3d human) of men and women, mixed, male or female. (Default="
+                                             + figureBodiesName( M_figure_bodies_3d ) + ")",
+                                             "bodies", figureBodiesName( M_figure_bodies_3d ) );
+    parser.addOption( opt_figure_bodies_3d );
     // the player camera: the names of a style's values
     const auto names_of = []( const auto & list )
         {
@@ -1399,6 +1410,11 @@ Options::parseCmdLine( int argc,
         const double s = parser.value( opt_figure_scale_3d ).toDouble();
         if ( in_range( s, MIN_FIGURE_SCALE_3D, MAX_FIGURE_SCALE_3D ) ) M_figure_scale_3d = s;
         else std::cerr << "Out of range: figure-scale-3d " << parser.value( opt_figure_scale_3d ).toStdString() << std::endl;
+    }
+    if ( parser.isSet( opt_figure_bodies_3d )
+         && ! figureBodiesFromName( parser.value( opt_figure_bodies_3d ), &M_figure_bodies_3d ) )
+    {
+        std::cerr << "Unknown value of figure-bodies-3d: " << parser.value( opt_figure_bodies_3d ).toStdString() << std::endl;
     }
     if ( parser.isSet( opt_player_model_3d )
          && ! playerModelFromName( parser.value( opt_player_model_3d ), &M_player_model_3d ) )

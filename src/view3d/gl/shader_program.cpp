@@ -76,6 +76,9 @@ shader_header()
         + "#define A_WEIGHTS " + QByteArray::number( GLAttribute::WEIGHTS ) + "\n"
         + "#define A_REST " + QByteArray::number( GLAttribute::REST ) + "\n"
         + "#define A_PART " + QByteArray::number( GLAttribute::PART ) + "\n"
+        + "#define A_SKIN " + QByteArray::number( GLAttribute::SKIN ) + "\n"
+        + "#define A_HAIR " + QByteArray::number( GLAttribute::HAIR ) + "\n"
+        + "#define A_SCALP " + QByteArray::number( GLAttribute::SCALP ) + "\n"
         + "#define A_BILLBOARD_CENTER " + QByteArray::number( GLAttribute::BILLBOARD_CENTER ) + "\n"
         + "#define A_BILLBOARD_SIZE " + QByteArray::number( GLAttribute::BILLBOARD_SIZE ) + "\n"
         + "#define A_BILLBOARD_UV " + QByteArray::number( GLAttribute::BILLBOARD_UV ) + "\n";

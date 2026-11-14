@@ -137,7 +137,7 @@ Scene3D::release()
         m->destroy( *this );
     }
     M_billboards.destroy( *this );
-    M_figure.destroy( *this );
+    for ( SkinnedMesh & m : M_figures ) m.destroy( *this );
     M_gpu_timer.destroy( *this );
     for ( VertexBatch * b : { &M_sector_batch, &M_line_batch, &M_dotted_batch, &M_point_batch } )
     {
@@ -204,18 +204,23 @@ Scene3D::setTiming( const bool on )
 
 /*-------------------------------------------------------------------*/
 void
-Scene3D::setFigureModel( const GltfModel & model,
-                         const QStringList & jersey,
-                         const QStringList & uniform,
-                         const FigureUniform::Cuts & cuts )
+Scene3D::setFigureBody( const int body,
+                        const GltfModel & model,
+                        const std::vector< FigureUniform::Paint > & paints,
+                        const FigureUniform::Cuts & cuts )
 {
-    if ( ! M_initialized )
+    if ( ! M_initialized
+         || body < 0
+         || body >= FIGURE_BODIES )
     {
         return;
     }
-    M_figure.destroy( *this );
-    M_figure.create( *this, model, jersey, uniform );
-    M_figure_cuts = cuts;
+    for ( int k = body; k < FIGURE_BODIES; ++k )
+    {
+        M_figures[k].destroy( *this );
+    }
+    M_figures[body].create( *this, model, paints );
+    M_figure_cuts[body] = cuts;
 }
 
 /*-------------------------------------------------------------------*/
@@ -264,27 +269,50 @@ Scene3D::render( GLuint fbo,
     //
     if ( ! content.figures.empty() )
     {
-        M_figure_colors.clear();
-        for ( const FigureInstance & f : content.figures )
-        {
-            M_figure_colors.push_back( f.color );
-        }
         M_skinned_program.bind();
         M_skinned_program.set( "uViewProj", view_proj );
         M_skinned_program.set( "uSun", SUN );
-        // the uniform (FigureUniform)
-        static const char * const CUTS[FigureUniform::Cuts::COUNT] = {
-            "uCuts[0]", "uCuts[1]", "uCuts[2]", "uCuts[3]", "uCuts[4]",
-            "uCuts[5]", "uCuts[6]", "uCuts[7]", "uCuts[8]", "uCuts[9]",
-        };
-        for ( int i = 0; i < FigureUniform::Cuts::COUNT; ++i )
-        {
-            M_skinned_program.set( CUTS[i], M_figure_cuts.planes[i] );
-        }
-        M_skinned_program.set( "uSkinColor", FigureUniform::SKIN_COLOR );
         M_skinned_program.set( "uShoeColor", FigureUniform::SHOE_COLOR );
         M_skinned_program.set( "uShortsShade", FigureUniform::SHORTS_SHADE );
-        M_figure.draw( *this, M_skinned_program, M_figure_colors, content.figure_joints );
+        M_skinned_program.set( "uCollarSlope", FigureUniform::COLLAR_SLOPE );
+        static const char * const CUTS[FigureUniform::Cuts::COUNT] = {
+            "uCuts[0]", "uCuts[1]", "uCuts[2]", "uCuts[3]", "uCuts[4]",
+            "uCuts[5]", "uCuts[6]", "uCuts[7]", "uCuts[8]", "uCuts[9]", "uCuts[10]",
+            "uCuts[11]", "uCuts[12]",
+        };
+        // each body for its figures at once, with their colors and their skin matrices
+        for ( int body = 0; body < FIGURE_BODIES; ++body )
+        {
+            if ( ! M_figures[body].created() ) continue;
+            M_figure_instances.clear();
+            M_figure_joints.clear();
+            std::size_t offset = 0;
+            for ( std::size_t i = 0; i < content.figures.size(); ++i )
+            {
+                const int b = ( i < content.figure_bodies.size() ? content.figure_bodies[i] : 0 );
+                const std::size_t floats = std::size_t( M_figures[b >= 0 && b < FIGURE_BODIES ? b : 0].jointCount() ) * 16;
+                if ( b == body && offset + floats <= content.figure_joints.size() )
+                {
+                    const FigureInstance & f = content.figures[i];
+                    M_figure_instances.push_back( { f.color, f.look.skin,
+                                                    QVector4D( f.look.hair_color.toVector3D(), float( f.look.hair ) ) } );
+                    M_figure_joints.insert( M_figure_joints.end(),
+                                            content.figure_joints.begin() + offset,
+                                            content.figure_joints.begin() + offset + floats );
+                }
+                offset += floats;
+            }
+            if ( M_figure_instances.empty() ) continue;
+            // the uniform of the body (FigureUniform)
+            for ( int i = 0; i < FigureUniform::Cuts::COUNT; ++i )
+            {
+                M_skinned_program.set( CUTS[i], M_figure_cuts[body].planes[i] );
+            }
+            const std::array< std::uint32_t, FigureUniform::SCALP_HAIRS > & scalp = M_figure_cuts[body].scalp;
+            // (the bits as floats, exact to 2^24)
+            M_skinned_program.set( "uScalp", QVector4D( float( scalp[0] ), float( scalp[1] ), float( scalp[2] ), float( scalp[3] ) ) );
+            M_figures[body].draw( *this, M_skinned_program, M_figure_instances, M_figure_joints );
+        }
     }
 
     //

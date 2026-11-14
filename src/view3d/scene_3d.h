@@ -123,18 +123,22 @@ public:
                      const QImage & board,
                      const QImage & banner );
 
+    //! the bodies of the human figures at most (Figures3D: the man's and the woman's)
+    static constexpr int FIGURE_BODIES = 2;
+
     /*!
-      \brief send the human figure (Figures3D) to the GPU, for the figures
-      of a SceneContent
+      \brief send a body of the human figures (Figures3D) to the GPU, for
+      the figures of a SceneContent of that body (SceneContent::figure_bodies)
+      \param body its index (0 to FIGURE_BODIES - 1); the bodies after it are
+      deleted (send them in order)
       \param model the model
-      \param jersey its materials in each figure's color
-      \param uniform its materials in a uniform of each figure's color
-      \param cuts where the uniform ends on the model
+      \param paints how its parts are painted (Figures3D::paints())
+      \param cuts where its uniform ends
     */
-    void setFigureModel( const GltfModel & model,
-                         const QStringList & jersey,
-                         const QStringList & uniform = QStringList(),
-                         const FigureUniform::Cuts & cuts = FigureUniform::Cuts() );
+    void setFigureBody( const int body,
+                        const GltfModel & model,
+                        const std::vector< FigureUniform::Paint > & paints,
+                        const FigureUniform::Cuts & cuts = FigureUniform::Cuts() );
 
     /*!
       \brief draw the scene.
@@ -173,9 +177,10 @@ private:
     InstancedMesh M_quad; //!< the nets, the floors of the goals
     InstancedMesh M_panel; //!< the boards and the banners
     BillboardMesh M_billboards; //!< the numbers and the cards
-    SkinnedMesh M_figure; //!< the human figure of the players
-    FigureUniform::Cuts M_figure_cuts; //!< where its uniform ends
-    std::vector< QVector4D > M_figure_colors; //!< the jerseys of the figures of a frame
+    std::array< SkinnedMesh, FIGURE_BODIES > M_figures; //!< the bodies of the human figures of the players
+    std::array< FigureUniform::Cuts, FIGURE_BODIES > M_figure_cuts; //!< where their uniforms end
+    std::vector< SkinnedMesh::Instance > M_figure_instances; //!< the figures of a body in a frame
+    std::vector< float > M_figure_joints; //!< and their skin matrices
     GpuTimer M_gpu_timer; //!< the GPU's time of a frame, when timed
 
     // made again in every frame (OverlayBuilder)

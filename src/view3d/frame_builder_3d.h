@@ -91,6 +91,7 @@ struct View3DState {
     int catches = 0;
     std::vector< FigureProbe > probes; //!< of each figure, in the order drawn
     std::vector< float > figure_joints; //!< the skin matrices of the figures (SceneContent::figure_joints)
+    std::vector< int > figure_bodies; //!< the body of each figure (SceneContent::figure_bodies)
 };
 
 /*!

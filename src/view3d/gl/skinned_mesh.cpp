@@ -38,7 +38,6 @@
 
 #include "attributes.h"
 
-#include <QStringList>
 
 #include <algorithm>
 #include <cstddef>
@@ -61,17 +60,15 @@ constexpr int JOINT_UNIT = 0;
 void
 SkinnedMesh::create( QOpenGLFunctions_3_3_Core & gl,
                      const GltfModel & model,
-                     const QStringList & jersey,
-                     const QStringList & uniform )
+                     const std::vector< FigureUniform::Paint > & paints )
 {
     M_joint_count = model.jointCount();
     M_parts.clear();
-    for ( const SkinPrimitive & p : model.primitives )
+    for ( std::size_t i = 0; i < model.primitives.size(); ++i )
     {
-        const int paint = ( uniform.contains( p.material ) ? 2
-                            : jersey.contains( p.material ) ? 1
-                            : 0 );
-        M_parts.push_back( { p.first_index, p.index_count, paint, p.base_color } );
+        const SkinPrimitive & p = model.primitives[i];
+        const FigureUniform::Paint paint = ( i < paints.size() ? paints[i] : FigureUniform::Paint() );
+        M_parts.push_back( { p.first_index, p.index_count, paint.kind, int( paint.show ), p.base_color } );
     }
 
     gl.glGenVertexArrays( 1, &M_vao );
@@ -95,7 +92,9 @@ SkinnedMesh::create( QOpenGLFunctions_3_3_Core & gl,
     gl.glEnableVertexAttribArray( GLAttribute::REST );
     gl.glVertexAttribPointer( GLAttribute::REST, 3, GL_FLOAT, GL_FALSE, stride, offset( offsetof( SkinVertex, rest ) ) );
     gl.glEnableVertexAttribArray( GLAttribute::PART );
-    gl.glVertexAttribPointer( GLAttribute::PART, 1, GL_FLOAT, GL_FALSE, stride, offset( offsetof( SkinVertex, part ) ) );
+    gl.glVertexAttribPointer( GLAttribute::PART, 2, GL_FLOAT, GL_FALSE, stride, offset( offsetof( SkinVertex, part ) ) );
+    gl.glEnableVertexAttribArray( GLAttribute::SCALP );
+    gl.glVertexAttribPointer( GLAttribute::SCALP, 4, GL_FLOAT, GL_FALSE, stride, offset( offsetof( SkinVertex, scalp ) ) );
 
     // the triangles: indices into the vertices (the VAO remembers this buffer too)
     gl.glGenBuffers( 1, &M_index_buffer );
@@ -103,12 +102,19 @@ SkinnedMesh::create( QOpenGLFunctions_3_3_Core & gl,
     gl.glBufferData( GL_ELEMENT_ARRAY_BUFFER, GLsizeiptr( model.indices.size() * sizeof( std::uint32_t ) ),
                      model.indices.data(), GL_STATIC_DRAW );
 
-    // the color of each figure, an attribute of the instance (divisor 1)
+    // the colors of each figure, attributes of the instance (divisor 1)
     gl.glGenBuffers( 1, &M_instance_buffer );
     gl.glBindBuffer( GL_ARRAY_BUFFER, M_instance_buffer );
+    const GLsizei instance_stride = sizeof( Instance );
     gl.glEnableVertexAttribArray( GLAttribute::COLOR );
-    gl.glVertexAttribPointer( GLAttribute::COLOR, 4, GL_FLOAT, GL_FALSE, 4 * sizeof( float ), offset( 0 ) );
+    gl.glVertexAttribPointer( GLAttribute::COLOR, 4, GL_FLOAT, GL_FALSE, instance_stride, offset( offsetof( Instance, color ) ) );
     gl.glVertexAttribDivisor( GLAttribute::COLOR, 1 );
+    gl.glEnableVertexAttribArray( GLAttribute::SKIN );
+    gl.glVertexAttribPointer( GLAttribute::SKIN, 4, GL_FLOAT, GL_FALSE, instance_stride, offset( offsetof( Instance, skin ) ) );
+    gl.glVertexAttribDivisor( GLAttribute::SKIN, 1 );
+    gl.glEnableVertexAttribArray( GLAttribute::HAIR );
+    gl.glVertexAttribPointer( GLAttribute::HAIR, 4, GL_FLOAT, GL_FALSE, instance_stride, offset( offsetof( Instance, hair ) ) );
+    gl.glVertexAttribDivisor( GLAttribute::HAIR, 1 );
 
     gl.glBindVertexArray( 0 );
     gl.glBindBuffer( GL_ARRAY_BUFFER, 0 );
@@ -141,30 +147,30 @@ SkinnedMesh::destroy( QOpenGLFunctions_3_3_Core & gl )
 void
 SkinnedMesh::draw( QOpenGLFunctions_3_3_Core & gl,
                    ShaderProgram & program,
-                   const std::vector< QVector4D > & colors,
+                   const std::vector< Instance > & figures,
                    const std::vector< float > & joints )
 {
     const std::size_t floats = static_cast< std::size_t >( M_joint_count ) * 16;
     if ( ! created()
-         || colors.empty()
-         || joints.size() < colors.size() * floats )
+         || figures.empty()
+         || joints.size() < figures.size() * floats )
     {
         return;
     }
-    const GLsizei count = GLsizei( colors.size() );
+    const GLsizei count = GLsizei( figures.size() );
 
     // room for the figures: made larger (twice) only when too small
     // (docs/PLAN_3D-VIEW.md §5.3), then overwritten
     gl.glBindBuffer( GL_ARRAY_BUFFER, M_instance_buffer );
     gl.glBindTexture( GL_TEXTURE_2D, M_joint_texture );
-    if ( colors.size() > M_capacity )
+    if ( figures.size() > M_capacity )
     {
-        M_capacity = std::max< std::size_t >( 32, colors.size() * 2 );
-        gl.glBufferData( GL_ARRAY_BUFFER, GLsizeiptr( M_capacity * 4 * sizeof( float ) ), nullptr, GL_DYNAMIC_DRAW );
+        M_capacity = std::max< std::size_t >( 32, figures.size() * 2 );
+        gl.glBufferData( GL_ARRAY_BUFFER, GLsizeiptr( M_capacity * sizeof( Instance ) ), nullptr, GL_DYNAMIC_DRAW );
         gl.glTexImage2D( GL_TEXTURE_2D, 0, GL_RGBA32F, M_joint_count * 4, GLsizei( M_capacity ),
                          0, GL_RGBA, GL_FLOAT, nullptr );
     }
-    gl.glBufferSubData( GL_ARRAY_BUFFER, 0, GLsizeiptr( colors.size() * 4 * sizeof( float ) ), colors.data() );
+    gl.glBufferSubData( GL_ARRAY_BUFFER, 0, GLsizeiptr( figures.size() * sizeof( Instance ) ), figures.data() );
     gl.glBindBuffer( GL_ARRAY_BUFFER, 0 );
     // the rows of the figures: a joint's matrix is 4 texels of 4 floats, column by column
     gl.glPixelStorei( GL_UNPACK_ALIGNMENT, 4 );
@@ -179,6 +185,7 @@ SkinnedMesh::draw( QOpenGLFunctions_3_3_Core & gl,
     for ( const Part & p : M_parts )
     {
         program.set( "uPaint", p.paint );
+        program.set( "uShow", p.show );
         program.set( "uBaseColor", p.color );
         gl.glDrawElementsInstanced( GL_TRIANGLES, p.index_count, GL_UNSIGNED_INT,
                                     offset( std::size_t( p.first_index ) * sizeof( std::uint32_t ) ), count );

@@ -242,6 +242,13 @@ addShow( SceneContent & content,
 
     if ( opt.showPlayer() )
     {
+        // the teams' names, by which the figures' looks are drawn
+        std::string team_names[2];
+        if ( const DispConstPtr disp = holder.currentDisp() )
+        {
+            team_names[0] = disp->team_[0].name_;
+            team_names[1] = disp->team_[1].name_;
+        }
         for ( int i = 0; i < rcss::rcg::MAX_PLAYER * 2; ++i )
         {
             const rcss::rcg::PlayerT & p = show.player_[i];
@@ -258,9 +265,10 @@ addShow( SceneContent & content,
             const float ground_r = ground_radius( type, sp, opt );
             const QVector4D body = rgba( fadeTeam( style.body.color(), seen.team ) );
 
-            // How tall: by its type, but of the default height where the
-            // player camera's player does not know for sure who it is
-            const float ratio = ( seen.unum >= 1.0f ? heightRatio( type, sp ) : 1.0f );
+            // How tall: by its type, but toward the default height as far as
+            // the player camera's player is not sure who it is (the
+            // opacity of its number): the height would tell
+            const float ratio = 1.0f + ( heightRatio( type, sp ) - 1.0f ) * std::min( 1.0f, std::max( 0.0f, seen.unum ) );
             // a human figure, where its directions are known
             const bool figure = ( figures && seen.facing );
             QMatrix4x4 m;
@@ -271,6 +279,13 @@ addShow( SceneContent & content,
             {
                 const float height = figureHeight( ratio, opt );
                 content.figures.push_back( { i, p.x_, p.y_, p.body_, height, body } );
+                // its looks as a human body, as far as the player camera's
+                // player knows who it is, as the height
+                const std::string & team = team_names[p.side() == rcss::rcg::LEFT ? 0 : 1];
+                content.figures.back().look
+                    = FigureLooks::blend( FigureLooks::of( p.side(), p.unum_, team, opt.figureBodies3D() ),
+                                          FigureLooks::standard( opt.figureBodies3D() ),
+                                          seen.unum );
                 // picked as a cylinder and a head of its height, as wide as the figure
                 head_height = height - HEAD_RADIUS;
                 body_height = head_height - HEAD_RADIUS - HEAD_GAP;

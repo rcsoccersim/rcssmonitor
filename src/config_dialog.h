@@ -223,6 +223,8 @@ private:
     QButtonGroup * M_minimap_3d = nullptr;
     QButtonGroup * M_player_model_3d = nullptr;
     QLabel * M_player_model_3d_note = nullptr;
+    QButtonGroup * M_figure_bodies_3d = nullptr;
+    QLabel * M_figure_bodies_3d_label = nullptr;
     QDoubleSpinBox * M_figure_scale_3d = nullptr;
     QLabel * M_figure_scale_3d_label = nullptr;
     QCheckBox * M_boards_3d_cb = nullptr;

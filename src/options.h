@@ -187,6 +187,7 @@ private:
     GuideMode M_minimap_3d; //!< when the minimap shows over the 3D view
     PlayerModel M_player_model_3d; //!< how the 3D view draws the players
     double M_figure_scale_3d; //!< the human figures: how many times a person's height
+    FigureBodies M_figure_bodies_3d; //!< the human bodies: men and women, or one of them
     bool M_show_tool_bar;
     bool M_show_status_bar;
 
@@ -408,7 +409,7 @@ public:
     /*!
       \brief the settings of the 3D tab of the settings dialog back to their
       defaults: the close-up cameras, the compass, the minimap, the
-      players' model and the figures' scale, the boards and the banners
+      players' model, the figures' scale and bodies, the boards and the banners
       (the Default button)
     */
     void setView3DDefaults();
@@ -433,6 +434,10 @@ public:
     double figureScale3D() const { return M_figure_scale_3d; }
     //! within MIN_FIGURE_SCALE_3D and MAX_FIGURE_SCALE_3D
     void setFigureScale3D( const double scale );
+    //! the 3D view: the human bodies (PlayerModel::Human) of men and women mixed, or of one of them
+    static constexpr FigureBodies FIGURE_BODIES_3D = FigureBodies::Mixed;
+    FigureBodies figureBodies3D() const { return M_figure_bodies_3d; }
+    void setFigureBodies3D( const FigureBodies bodies ) { M_figure_bodies_3d = bodies; }
     //! the 3D view: when the minimap (the pitch with the camera's view) shows
     GuideMode minimap3D() const { return M_minimap_3d; }
     void setMinimap3D( const GuideMode mode ) { M_minimap_3d = mode; }

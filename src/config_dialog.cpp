@@ -1407,9 +1407,17 @@ const ChoiceText MODEL_TEXTS[] = {
       "down after a foul, catching and pointing as the log tells, the head turned\n"
       "by the neck." },
     { "Human",
-      "Human figures: a person in a uniform, moving as the log tells.",
-      "Human figures: a person in a uniform, the shirt and the socks in the team\n"
-      "color, the shorts darker; moving as the Mannequin does." },
+      "Human figures: people in uniforms, each of its own looks, moving as the log tells.",
+      "Human figures: people in uniforms, the shirt and the socks in the team\n"
+      "color, the shorts darker; each player of its own body, hairstyle, skin\n"
+      "and hair (the same in every game); moving as the Mannequin does." },
+};
+
+// the choices of the human figures' bodies, in the order of figureBodiesList()
+const ChoiceText BODIES_TEXTS[] = {
+    { "Mixed", "Men and women, about half and half.", nullptr },
+    { "Male", "Men only.", nullptr },
+    { "Female", "Women only.", nullptr },
 };
 
 const ChoiceText GUIDE_TEXTS[] = {
@@ -1495,6 +1503,16 @@ QString
 modelLabel( const PlayerModel model )
 {
     return QString::fromUtf8( MODEL_TEXTS[modelIndex( model )].label );
+}
+
+QString
+bodiesLabel( const FigureBodies bodies )
+{
+    for ( std::size_t i = 0; i < figureBodiesList().size(); ++i )
+    {
+        if ( figureBodiesList()[i].first == bodies ) return QString::fromUtf8( BODIES_TEXTS[i].label );
+    }
+    return QString();
 }
 
 //! the width of the notes, in average characters
@@ -1763,6 +1781,26 @@ ConfigDialog::create3DTab()
                      changed3D();
                  } );
 
+        std::vector< std::pair< QString, QString > > bodies;
+        for ( const ChoiceText & t : BODIES_TEXTS )
+        {
+            bodies.emplace_back( QString::fromUtf8( t.label ), QString::fromUtf8( t.summary ) );
+        }
+        const int bodies_row = layout->rowCount();
+        M_figure_bodies_3d = addChoices( layout, tr( "Bodies:" ),
+                                         tr( "The Human model's bodies: of men and women, or of one of them.\n"
+                                             "The Player camera sees a player's own body, hairstyle and colors only\n"
+                                             "as far as it knows who it is (its number); else the standard ones." ),
+                                         bodies, nullptr );
+        setChoiceTooltips( M_figure_bodies_3d, BODIES_TEXTS );
+        M_figure_bodies_3d->setObjectName( "figure_bodies_3d" );
+        M_figure_bodies_3d_label = qobject_cast< QLabel * >( layout->itemAtPosition( bodies_row, 0 )->widget() );
+        connect( M_figure_bodies_3d, &QButtonGroup::idClicked,
+                 this, [this]( int id ) {
+                     Options::instance().setFigureBodies3D( figureBodiesList()[id].first );
+                     changed3D();
+                 } );
+
         QGridLayout * numbers = new QGridLayout();
         numbers->setContentsMargins( 0, 0, 0, 0 );
         M_figure_scale_3d
@@ -1832,7 +1870,7 @@ ConfigDialog::create3DTab()
         QPushButton * button = new QPushButton( tr( "Default" ) );
         button->setObjectName( "default_3d" );
         button->setToolTip( tr( "Set the defaults: Close-up %1 m, %2\u00b0, Compass %3, Minimap %4,\n"
-                                "Model %5, Figure Scale %6, Boards %7, Banners %8" )
+                                "Model %5, Figure Scale %6, Bodies %9, Boards %7, Banners %8" )
                             .arg( Options::CLOSEUP_DISTANCE_3D )
                             .arg( Options::CLOSEUP_ELEVATION_3D )
                             .arg( guideLabel( Options::COMPASS_3D ) )
@@ -1840,7 +1878,8 @@ ConfigDialog::create3DTab()
                             .arg( modelLabel( Options::PLAYER_MODEL_3D ) )
                             .arg( Options::FIGURE_SCALE_3D )
                             .arg( onOff( Options::BOARDS_3D ) )
-                            .arg( onOff( Options::BANNERS_3D ) ) );
+                            .arg( onOff( Options::BANNERS_3D ) )
+                            .arg( bodiesLabel( Options::FIGURE_BODIES_3D ) ) );
         button->setAutoDefault( false );
         connect( button, &QPushButton::clicked,
                  this, [this]() {
@@ -2085,6 +2124,14 @@ ConfigDialog::update3D()
     const bool figures = ( opt.playerModel3D() != PlayerModel::Simple );
     M_figure_scale_3d->setEnabled( figures );
     M_figure_scale_3d_label->setEnabled( figures );
+    // the bodies of the human ones
+    for ( std::size_t i = 0; i < figureBodiesList().size(); ++i )
+    {
+        if ( figureBodiesList()[i].first == opt.figureBodies3D() ) set_choice( M_figure_bodies_3d, int( i ), nullptr );
+    }
+    const bool human = ( opt.playerModel3D() == PlayerModel::Human );
+    for ( QAbstractButton * b : M_figure_bodies_3d->buttons() ) b->setEnabled( human );
+    if ( M_figure_bodies_3d_label ) M_figure_bodies_3d_label->setEnabled( human );
     M_boards_3d_cb->setChecked( opt.boards3D() );
     M_banners_3d_cb->setChecked( opt.banners3D() );
 

@@ -269,12 +269,15 @@ FieldView3D::paintGL()
     // between the two frames, the overlays
     M_builder.build( M_disp_holder, opt, at, M_camera.mode(), M_content );
     const rcss::rcg::ShowInfoT & show = M_builder.show();
-    // the body of the figures to the GPU, when another is drawn
+    // the bodies of the figures to the GPU, when others are drawn
     if ( ! M_content.figures.empty()
          && M_builder.figures().bodyModel() != M_figure_model )
     {
         const Figures3D & figures = M_builder.figures();
-        M_scene.setFigureModel( figures.model(), figures.jerseyMaterials(), figures.uniformMaterials(), figures.uniformCuts() );
+        for ( int k = 0; k < figures.bodyCount(); ++k )
+        {
+            M_scene.setFigureBody( k, figures.model( k ), figures.paints( k ), figures.uniformCuts( k ) );
+        }
         M_figure_model = figures.bodyModel();
     }
     const Perceptions * seen = M_builder.seen();

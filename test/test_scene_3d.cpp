@@ -50,6 +50,7 @@
 #include <QOpenGLFunctions_3_3_Core>
 
 #include <cmath>
+#include <functional>
 #include <memory>
 
 /*
@@ -613,7 +614,7 @@ TestScene3D::figures()
     Scene3D scene;
     QVERIFY( scene.initialize() );
     scene.setGround( GroundTexture::draw( painter ) );
-    scene.setFigureModel( figures.model(), figures.jerseyMaterials() );
+    scene.setFigureBody( 0, figures.model(), figures.paints() );
 
     const int w = 300, h = 400;
     QOpenGLFramebufferObjectFormat fbo_format;
@@ -692,7 +693,7 @@ TestScene3D::humanFigure()
     Scene3D scene;
     QVERIFY( scene.initialize() );
     scene.setGround( GroundTexture::draw( painter ) );
-    scene.setFigureModel( figures.model(), figures.jerseyMaterials(), figures.uniformMaterials(), figures.uniformCuts() );
+    scene.setFigureBody( 0, figures.model(), figures.paints(), figures.uniformCuts() );
 
     const int w = 300, h = 400;
     QOpenGLFramebufferObjectFormat fbo_format;
@@ -710,10 +711,15 @@ TestScene3D::humanFigure()
     scene.render( fbo.handle(), w, h, camera, content );
     const QImage image = fbo.toImage();
     // the same body all in its color, lit the same, to compare with
-    scene.setFigureModel( figures.model(), figures.uniformMaterials() );
+    std::vector< FigureUniform::Paint > all_color = figures.paints();
+    for ( FigureUniform::Paint & p : all_color )
+    {
+        if ( p.kind == FigureUniform::Paint::Uniform ) p.kind = FigureUniform::Paint::Figure;
+    }
+    scene.setFigureBody( 0, figures.model(), all_color );
     scene.render( fbo.handle(), w, h, camera, content );
     const QImage plain = fbo.toImage();
-    scene.setFigureModel( figures.model(), figures.jerseyMaterials(), figures.uniformMaterials(), figures.uniformCuts() );
+    scene.setFigureBody( 0, figures.model(), figures.paints(), figures.uniformCuts() );
 
     // a point of the figure's bone, a little toward the camera: its pixel
     // in the uniform, and its brightness of the figure's color there
@@ -751,6 +757,119 @@ TestScene3D::humanFigure()
     QVERIFY2( red( lit ) && face.red() > face.green() && face.green() > face.blue() && face.green() > 70, describe( "face", face ) );
     const QColor arm = color( "lowerarm_l", "hand_l", 0.5f, side );
     QVERIFY2( red( lit ) && arm.red() > arm.green() && arm.green() > arm.blue() && arm.green() > 70, describe( "forearm", arm ) );
+
+    // from the front above: the shoulders' tops beside the neck in the
+    // shirt (not torn, 2026-11-14, user), under the chin the skin
+    {
+        CameraPose above;
+        above.position = QVector3D( 1.6f, 2.3f, 0.0f );
+        above.target = QVector3D( 0.0f, 1.45f, 0.0f );
+        above.fov_y = 30.0f;
+        scene.render( fbo.handle(), w, h, above, content );
+        const QImage uniform = fbo.toImage();
+        scene.setFigureBody( 0, figures.model(), all_color );
+        scene.render( fbo.handle(), w, h, above, content );
+        const QImage colored = fbo.toImage();
+        scene.setFigureBody( 0, figures.model(), figures.paints(), figures.uniformCuts() );
+        const QMatrix4x4 above_proj = above.projection( float( w ) / h ) * above.view();
+        const auto pixel = [&]( const QVector3D & p ) {
+            const QVector3D ndc = above_proj.map( p );
+            return QPoint( int( ( ndc.x() + 1.0f ) / 2.0f * w ), int( ( 1.0f - ndc.y() ) / 2.0f * h ) );
+        };
+        const auto joint = [&]( const char * name ) {
+            return world[figures.model().nodeIndex( name )].column( 3 ).toVector3D();
+        };
+        for ( const char * arm : { "upperarm_l", "upperarm_r" } )
+        {
+            const QPoint at = pixel( joint( "neck_01" ) + ( joint( arm ) - joint( "neck_01" ) ) * 0.7f + QVector3D( 0.0f, 0.05f, 0.0f ) );
+            const QColor c = uniform.pixelColor( at );
+            QVERIFY2( red( colored.pixelColor( at ) ) && std::abs( c.red() - colored.pixelColor( at ).red() ) <= 2 && c.green() < 20,
+                      qPrintable( QString( "%1's shoulder %2" ).arg( arm, c.name() ) ) );
+        }
+        const QPoint chin = pixel( joint( "Head" ) + QVector3D( 0.08f, -0.02f, 0.0f ) );
+        const QColor c = uniform.pixelColor( chin );
+        QVERIFY2( red( colored.pixelColor( chin ) ) && c.green() > 70, qPrintable( "chin " + c.name() ) );
+    }
+
+    // its looks: the skin of its own color; the hair in its color, the
+    // hairstyle it wears only
+    const auto count = [&]( const QImage & img, const std::function< bool ( const QColor & ) > & is ) {
+        int n = 0;
+        for ( int y = 0; y < h; ++y )
+            for ( int x = 0; x < w; ++x )
+                if ( is( img.pixelColor( x, y ) ) ) ++n;
+        return n;
+    };
+    const auto blue = []( const QColor & c ) { return c.blue() > c.red() + 60 && c.blue() > c.green() + 60; };
+    const auto green = []( const QColor & c ) { return c.green() > 60 && c.red() < 20 && c.blue() < 20; };
+    QCOMPARE( count( image, blue ), 0 );
+    FigureInstance & f = content.figures[0];
+    f.look.hair_color = QVector4D( 0.0f, 0.0f, 1.0f, 1.0f );
+    f.look.skin = QVector4D( 0.0f, 0.8f, 0.0f, 1.0f );
+    figures.pose( content, 0.0 );
+    scene.render( fbo.handle(), w, h, camera, content );
+    const QImage parted = fbo.toImage();
+    const int parted_hair = count( parted, blue );
+    QVERIFY2( parted_hair > 150, qPrintable( QString::number( parted_hair ) ) );
+    QVERIFY( count( parted, green ) > 300 ); // the face, the arms, the knees
+    QVERIFY( ! red( parted.pixelColor( QPoint( 0, 0 ) ) ) );
+    // no hairstyle: the eyebrows only
+    f.look.hair = 0;
+    scene.render( fbo.handle(), w, h, camera, content );
+    const int eyebrows = count( fbo.toImage(), blue );
+    QVERIFY2( eyebrows < parted_hair / 4, qPrintable( QString( "%1 %2" ).arg( eyebrows ).arg( parted_hair ) ) );
+    // with a beard too: more
+    f.look.hair = FigureLooks::SIMPLE_PARTED | FigureLooks::BEARD;
+    scene.render( fbo.handle(), w, h, camera, content );
+    QVERIFY( count( fbo.toImage(), blue ) > parted_hair + 20 );
+    // a woman's hairstyle on a man's body: none (not in his model)
+    f.look.hair = FigureLooks::LONG;
+    scene.render( fbo.handle(), w, h, camera, content );
+    QCOMPARE( count( fbo.toImage(), blue ), eyebrows );
+
+    // the woman's body, with her long hair
+    scene.setFigureBody( 1, figures.model( 1 ), figures.paints( 1 ), figures.uniformCuts( 1 ) );
+    f.look.body = FigureLooks::FEMALE;
+    f.look.hair = FigureLooks::LONG;
+    figures.pose( content, 0.0 );
+    QCOMPARE( content.figure_bodies, std::vector< int >( { 1 } ) );
+    scene.render( fbo.handle(), w, h, camera, content );
+    const QImage woman = fbo.toImage();
+    QVERIFY2( count( woman, blue ) > parted_hair, qPrintable( QString::number( count( woman, blue ) ) ) );
+    QVERIFY( count( woman, red ) > 1000 );
+    QVERIFY( count( woman, green ) > 300 );
+    // and the man's not drawn
+    QVERIFY( woman != parted );
+
+    // from behind, her short hair: no scalp through its gaps (2026-11-14)
+    {
+        f.look.hair = FigureLooks::BUZZED_FEMALE;
+        figures.pose( content, 0.0 );
+        std::vector< QMatrix4x4 > her;
+        figures.worldNodes( f, 0.0, her );
+        const QVector3D head = her[figures.model( 1 ).nodeIndex( "Head" )].column( 3 ).toVector3D();
+        CameraPose behind;
+        behind.position = head + QVector3D( -1.0f, 0.05f, 0.0f );
+        behind.target = head + QVector3D( 0.0f, 0.05f, 0.0f );
+        behind.fov_y = 20.0f;
+        const auto scalp = [&]() {
+            scene.render( fbo.handle(), w, h, behind, content );
+            const QImage img = fbo.toImage();
+            // the back of the head: around its middle, above the ears
+            const QMatrix4x4 vp = behind.projection( float( w ) / h ) * behind.view();
+            const QVector3D ndc = vp.map( head + QVector3D( -0.05f, 0.1f, 0.0f ) );
+            const QPoint at( int( ( ndc.x() + 1.0f ) / 2.0f * w ), int( ( 1.0f - ndc.y() ) / 2.0f * h ) );
+            int n = 0;
+            for ( int y = at.y() - 20; y <= at.y() + 20; ++y )
+                for ( int x = at.x() - 25; x <= at.x() + 25; ++x )
+                    if ( green( img.pixelColor( x, y ) ) ) ++n;
+            return n;
+        };
+        QCOMPARE( scalp(), 0 );
+        // without a hairstyle: the scalp
+        f.look.hair = 0;
+        QVERIFY2( scalp() > 500, qPrintable( QString::number( scalp() ) ) );
+    }
     scene.release();
 }
 

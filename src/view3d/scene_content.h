@@ -33,6 +33,7 @@
 #ifndef RCSSMONITOR_SCENE_CONTENT_H
 #define RCSSMONITOR_SCENE_CONTENT_H
 
+#include "figure_looks.h"
 #include "instance_3d.h"
 
 #include <rcss/rcg/types.h>
@@ -168,6 +169,7 @@ struct FigureInstance {
     QVector4D color; //!< the jersey: the team or state color, as the body of a cylinder
     FigureMotion motion = FigureMotion(); //!< how it moves (standing still unless told)
     FigureActions actions = FigureActions(); //!< what it does besides walking (nothing unless told)
+    FigureLook look = FigureLook(); //!< how it looks as a human body (the standard looks unless told)
 };
 
 /*!
@@ -187,6 +189,7 @@ struct SceneContent {
     std::vector< Instance3D > cones; //!< base of radius 1 at the origin, tip at x = 1: the body and face directions
     std::vector< FigureInstance > figures; //!< the players drawn as human figures (in place of a cylinder and a sphere)
     std::vector< float > figure_joints; //!< the skin matrices of the figures, in their order (Figures3D::pose(); 16 floats a joint)
+    std::vector< int > figure_bodies; //!< the body drawn of each figure (Figures3D::pose(): an index of Figures3D's bodies)
 
     // flat and translucent, in this order (the layers on the ground, low to high)
     std::vector< Instance3D > discs; //!< radius 1 on the xz plane: the circles under the players, the ball's shadow
@@ -222,6 +225,7 @@ struct SceneContent {
           cones.clear();
           figures.clear();
           figure_joints.clear();
+          figure_bodies.clear();
           discs.clear();
           rings.clear();
           decay_rings.clear();

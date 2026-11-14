@@ -5,6 +5,7 @@
        (README.md tells where they come from). -->
   <qresource prefix="/models">
     <file>Mannequin.glb</file>
-    <file>BaseCharacter.glb</file>
+    <file>BaseCharacterMale.glb</file>
+    <file>BaseCharacterFemale.glb</file>
   </qresource>
 </RCC>

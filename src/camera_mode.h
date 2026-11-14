@@ -328,6 +328,62 @@ playerModelFromName( const QString & name,
     return false;
 }
 
+/*!
+  \enum FigureBodies
+  \brief which bodies the human figures (PlayerModel::Human) have: men and
+  women mixed, men only or women only (docs/PLAN_3D-VIEW.md §5.8)
+*/
+enum class FigureBodies {
+    Mixed,
+    Male,
+    Female,
+};
+
+//! the bodies of the figures, with their names in the options
+inline
+const std::array< std::pair< FigureBodies, const char * >, 3 > &
+figureBodiesList()
+{
+    static const std::array< std::pair< FigureBodies, const char * >, 3 > list = { {
+            { FigureBodies::Mixed, "mixed" },
+            { FigureBodies::Male, "male" },
+            { FigureBodies::Female, "female" },
+        } };
+    return list;
+}
+
+//! the name of the bodies in the options
+inline
+QString
+figureBodiesName( const FigureBodies bodies )
+{
+    for ( const auto & b : figureBodiesList() )
+    {
+        if ( b.first == bodies ) return QString::fromLatin1( b.second );
+    }
+    return QString();
+}
+
+/*!
+  \brief the bodies of a name in the options
+  \return false if the name is unknown (bodies is left as it was)
+*/
+inline
+bool
+figureBodiesFromName( const QString & name,
+                      FigureBodies * bodies )
+{
+    for ( const auto & b : figureBodiesList() )
+    {
+        if ( name == QLatin1String( b.second ) )
+        {
+            *bodies = b.first;
+            return true;
+        }
+    }
+    return false;
+}
+
 //! a close-up camera (CameraMode::CloseupBall, CloseupPlayer)
 inline
 bool

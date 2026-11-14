@@ -233,7 +233,7 @@ TestConfigDialog::tabs3D()
         QVERIFY( spin );
         QVERIFY2( spin->toolTip().contains( "Range: " ), name );
     }
-    for ( const char * name : { "compass_3d", "minimap_3d", "player_model_3d", "player_camera_position",
+    for ( const char * name : { "compass_3d", "minimap_3d", "player_model_3d", "figure_bodies_3d", "player_camera_position",
                                 "player_camera_direction", "player_camera_motion",
                                 "player_camera_fov", "player_camera_sight" } )
     {
@@ -247,7 +247,7 @@ TestConfigDialog::tabs3D()
     QVERIFY( ! child< QCheckBox >( dialog, "boards_3d" )->toolTip().isEmpty() );
     QVERIFY( ! child< QCheckBox >( dialog, "banners_3d" )->toolTip().isEmpty() );
     QVERIFY( child< QPushButton >( dialog, "default_3d" )->toolTip().contains( "Close-up 12 m, 20" ) );
-    QVERIFY( child< QPushButton >( dialog, "default_3d" )->toolTip().contains( "Model Simple, Figure Scale 1," ) );
+    QVERIFY( child< QPushButton >( dialog, "default_3d" )->toolTip().contains( "Model Simple, Figure Scale 1, Bodies Mixed," ) );
     QVERIFY( child< QPushButton >( dialog, "default_player_camera" )->toolTip()
              .contains( "Over the Shoulder, Head, Smooth, Fixed, Server Rules" ) );
 #else
@@ -286,7 +286,8 @@ TestConfigDialog::view3DTab()
     QPushButton * defaults = child< QPushButton >( dialog, "default_3d" );
     QButtonGroup * model = child< QButtonGroup >( dialog, "player_model_3d" );
     QDoubleSpinBox * scale = child< QDoubleSpinBox >( dialog, "figure_scale_3d" );
-    QVERIFY( distance && elevation && compass && minimap && boards && banners && defaults && model && scale );
+    QButtonGroup * bodies = child< QButtonGroup >( dialog, "figure_bodies_3d" );
+    QVERIFY( distance && elevation && compass && minimap && boards && banners && defaults && model && scale && bodies );
 
     // the options at first
     QCOMPARE( distance->value(), Options::CLOSEUP_DISTANCE_3D );
@@ -297,8 +298,10 @@ TestConfigDialog::view3DTab()
     QVERIFY( banners->isChecked() );
     QCOMPARE( model->checkedButton()->text(), QString( "Simple" ) );
     QCOMPARE( scale->value(), Options::FIGURE_SCALE_3D );
-    // the scale is not for the cylinders
+    // the scale is not for the cylinders, the bodies only for the human figures
     QVERIFY( ! scale->isEnabled() );
+    QCOMPARE( bodies->checkedButton()->text(), QString( "Mixed" ) );
+    QVERIFY( ! bodies->button( 0 )->isEnabled() );
 
     // the players' model and the figures' scale (with a figure)
     QCOMPARE( model->buttons().size(), 3 );
@@ -306,12 +309,19 @@ TestConfigDialog::view3DTab()
     model->button( 2 )->click();
     QCOMPARE( opt.playerModel3D(), PlayerModel::Human );
     QVERIFY( scale->isEnabled() );
+    QVERIFY( bodies->button( 2 )->isEnabled() );
+    QCOMPARE( bodies->button( 2 )->text(), QString( "Female" ) );
+    bodies->button( 2 )->click();
+    QCOMPARE( opt.figureBodies3D(), FigureBodies::Female );
+    bodies->button( 1 )->click();
+    QCOMPARE( opt.figureBodies3D(), FigureBodies::Male );
     model->button( 1 )->click();
     QCOMPARE( opt.playerModel3D(), PlayerModel::Mannequin );
-    QCOMPARE( spy.count(), 2 );
+    QVERIFY( ! bodies->button( 1 )->isEnabled() );
+    QCOMPARE( spy.count(), 4 );
     scale->setValue( 1.25 );
     QCOMPARE( opt.figureScale3D(), 1.25 );
-    QCOMPARE( spy.count(), 3 );
+    QCOMPARE( spy.count(), 5 );
     spy.clear();
 
     distance->setValue( 30.0 );
@@ -350,6 +360,8 @@ TestConfigDialog::view3DTab()
     QVERIFY( banners->isChecked() );
     QCOMPARE( opt.playerModel3D(), Options::PLAYER_MODEL_3D );
     QCOMPARE( opt.figureScale3D(), Options::FIGURE_SCALE_3D );
+    QCOMPARE( opt.figureBodies3D(), Options::FIGURE_BODIES_3D );
+    QCOMPARE( bodies->checkedId(), 0 );
     QCOMPARE( model->checkedId(), 0 );
     QCOMPARE( scale->value(), Options::FIGURE_SCALE_3D );
     QVERIFY( ! scale->isEnabled() );

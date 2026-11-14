@@ -47,11 +47,14 @@
 namespace {
 
 //! the bundled models in the resources (resources/models/view3d_models.qrc):
-//! the Mannequin with its clips, and the human body
+//! the Mannequin with its clips, and the human bodies (FigureLooks::MALE, FEMALE)
 const char * MODEL_PATH = ":/models/Mannequin.glb";
-const char * HUMAN_PATH = ":/models/BaseCharacter.glb";
-//! the human body's material of the skin, painted with the uniform
-const char * HUMAN_SKIN = "MI_Superhero_Male";
+const char * HUMAN_PATHS[] = { ":/models/BaseCharacterMale.glb", ":/models/BaseCharacterFemale.glb" };
+//! the human bodies' material of the skin, painted with the uniform
+const char * HUMAN_SKIN = "Body";
+//! their materials in the hair's color: the eyebrows, and the hairstyles (Hair_*)
+const char * HUMAN_EYEBROWS = "Eyebrows";
+const char * HUMAN_HAIR = "Hair_";
 //! the Mannequin's body, in the figure's color; its joints (M_Joints) keep their own
 const char * MANNEQUIN_BODY = "M_Main";
 //! its clip of standing
@@ -172,6 +175,7 @@ struct Figures3D::Body {
     float stride = 1.0f;
     QStringList jersey; //!< the materials in the figure's color
     QStringList uniform; //!< the materials in the uniform
+    bool hair = false; //!< the eyebrows and the hairstyles in the hair's color (a human body)
     FigureUniform::Cuts cuts; //!< where the uniform ends
 };
 
@@ -287,13 +291,46 @@ Figures3D::loadBody( const char * path,
         if ( count > 0 ) body->stride = sum / count;
     }
 
-    // the uniform
+    // the uniform, and the skin under the hairstyles (Hair_*)
     if ( ! uniform.isEmpty() )
     {
         FigureUniform::paintParts( body->model, rig );
-        body->cuts = FigureUniform::cutsOf( body->model, rig );
+        body->cuts = FigureUniform::cutsOf( body->model, rig, uniform );
+        std::vector< std::pair< QString, std::uint32_t > > hairs;
+        for ( const SkinPrimitive & p : body->model.primitives )
+        {
+            const std::uint32_t bit = FigureLooks::hairBit( p.material );
+            if ( bit != 0
+                 && std::none_of( hairs.begin(), hairs.end(),
+                                  [&p]( const std::pair< QString, std::uint32_t > & h ) { return h.first == p.material; } ) )
+            {
+                hairs.emplace_back( p.material, bit );
+            }
+        }
+        FigureUniform::paintScalp( body->model, uniform, hairs, &body->cuts );
     }
     return body;
+}
+
+/*-------------------------------------------------------------------*/
+bool
+Figures3D::readBody( const int k )
+{
+    if ( M_bodies[k] ) return true;
+    if ( M_body_tried[k] ) return false;
+    M_body_tried[k] = true;
+    QString error;
+    if ( k == 0 )
+    {
+        M_bodies[k] = loadBody( MODEL_PATH, QStringList( { QString::fromLatin1( MANNEQUIN_BODY ) } ), QStringList(), &error );
+    }
+    else
+    {
+        M_bodies[k] = loadBody( HUMAN_PATHS[k - 1], QStringList(), QStringList( { QString::fromLatin1( HUMAN_SKIN ) } ), &error );
+        if ( M_bodies[k] ) M_bodies[k]->hair = true;
+    }
+    if ( ! M_bodies[k] ) M_error = error;
+    return static_cast< bool >( M_bodies[k] );
 }
 
 /*-------------------------------------------------------------------*/
@@ -301,63 +338,113 @@ bool
 Figures3D::setModel( const PlayerModel model )
 {
     if ( ! M_ready ) return false;
-    const int k = ( model == PlayerModel::Human ? 1 : 0 );
-    if ( ! M_bodies[k] && ! M_body_tried[k] )
+    if ( model == PlayerModel::Human )
     {
-        M_body_tried[k] = true;
-        QString error;
-        M_bodies[k] = ( k == 1
-                        ? loadBody( HUMAN_PATH, QStringList(), QStringList( { QString::fromLatin1( HUMAN_SKIN ) } ), &error )
-                        : loadBody( MODEL_PATH, QStringList( { QString::fromLatin1( MANNEQUIN_BODY ) } ), QStringList(), &error ) );
-        if ( ! M_bodies[k] ) M_error = error;
+        // the man's and the woman's, both drawn
+        if ( ! readBody( 1 + FigureLooks::MALE ) || ! readBody( 1 + FigureLooks::FEMALE ) ) return false;
+        M_drawn = { M_bodies[1 + FigureLooks::MALE].get(), M_bodies[1 + FigureLooks::FEMALE].get() };
+        M_body_model = PlayerModel::Human;
     }
-    if ( ! M_bodies[k] ) return false;
-    M_body = M_bodies[k].get();
-    M_body_model = ( k == 1 ? PlayerModel::Human : PlayerModel::Mannequin );
+    else
+    {
+        if ( ! readBody( 0 ) ) return false;
+        M_drawn = { M_bodies[0].get() };
+        M_body_model = PlayerModel::Mannequin;
+    }
     return true;
 }
 
 /*-------------------------------------------------------------------*/
-const GltfModel &
-Figures3D::model() const
+int
+Figures3D::bodyOf( const FigureInstance & figure ) const
 {
-    return ( M_body ? M_body->model : M_model );
+    if ( M_body_model != PlayerModel::Human ) return 0;
+    return std::min( bodyCount() - 1, std::max( 0, figure.look.body ) );
+}
+
+/*-------------------------------------------------------------------*/
+const Figures3D::Body &
+Figures3D::bodyFor( const FigureInstance & figure ) const
+{
+    return *M_drawn[bodyOf( figure )];
+}
+
+/*-------------------------------------------------------------------*/
+const GltfModel &
+Figures3D::model( const int body ) const
+{
+    return ( body >= 0 && body < bodyCount() ? M_drawn[body]->model : M_model );
 }
 
 /*-------------------------------------------------------------------*/
 const HumanoidRig &
-Figures3D::rig() const
+Figures3D::rig( const int body ) const
 {
-    return ( M_body ? M_body->rig : M_rig );
+    return ( body >= 0 && body < bodyCount() ? M_drawn[body]->rig : M_rig );
 }
 
 /*-------------------------------------------------------------------*/
 float
-Figures3D::bodyStride() const
+Figures3D::bodyStride( const int body ) const
 {
-    return ( M_body ? M_body->stride : 1.0f );
+    return ( body >= 0 && body < bodyCount() ? M_drawn[body]->stride : 1.0f );
 }
 
 /*-------------------------------------------------------------------*/
 QStringList
-Figures3D::jerseyMaterials() const
+Figures3D::jerseyMaterials( const int body ) const
 {
-    return ( M_body ? M_body->jersey : QStringList() );
+    return ( body >= 0 && body < bodyCount() ? M_drawn[body]->jersey : QStringList() );
 }
 
 /*-------------------------------------------------------------------*/
 QStringList
-Figures3D::uniformMaterials() const
+Figures3D::uniformMaterials( const int body ) const
 {
-    return ( M_body ? M_body->uniform : QStringList() );
+    return ( body >= 0 && body < bodyCount() ? M_drawn[body]->uniform : QStringList() );
+}
+
+/*-------------------------------------------------------------------*/
+std::vector< FigureUniform::Paint >
+Figures3D::paints( const int body ) const
+{
+    std::vector< FigureUniform::Paint > paints;
+    if ( body < 0 || body >= bodyCount() ) return paints;
+    const Body & b = *M_drawn[body];
+    for ( const SkinPrimitive & p : b.model.primitives )
+    {
+        FigureUniform::Paint paint;
+        if ( b.uniform.contains( p.material ) )
+        {
+            paint.kind = FigureUniform::Paint::Uniform;
+        }
+        else if ( b.jersey.contains( p.material ) )
+        {
+            paint.kind = FigureUniform::Paint::Figure;
+        }
+        else if ( b.hair
+                  && ( p.material == QLatin1String( HUMAN_EYEBROWS )
+                       || p.material.startsWith( QLatin1String( HUMAN_HAIR ) ) ) )
+        {
+            // the eyebrows on all, a hairstyle on those wearing it
+            paint.kind = FigureUniform::Paint::Hair;
+            paint.show = FigureLooks::hairBit( p.material );
+            if ( paint.show == 0 && p.material != QLatin1String( HUMAN_EYEBROWS ) )
+            {
+                paint.show = 0x80000000u; // a hairstyle not known: on none
+            }
+        }
+        paints.push_back( paint );
+    }
+    return paints;
 }
 
 /*-------------------------------------------------------------------*/
 const FigureUniform::Cuts &
-Figures3D::uniformCuts() const
+Figures3D::uniformCuts( const int body ) const
 {
     static const FigureUniform::Cuts none = FigureUniform::Cuts();
-    return ( M_body ? M_body->cuts : none );
+    return ( body >= 0 && body < bodyCount() ? M_drawn[body]->cuts : none );
 }
 
 /*-------------------------------------------------------------------*/
@@ -547,6 +634,14 @@ Figures3D::twistOf( const FigureInstance & figure ) const
 QMatrix4x4
 Figures3D::modelMatrix( const FigureInstance & figure ) const
 {
+    return modelMatrix( model( bodyOf( figure ) ), figure );
+}
+
+/*-------------------------------------------------------------------*/
+QMatrix4x4
+Figures3D::modelMatrix( const GltfModel & body,
+                        const FigureInstance & figure ) const
+{
     // A glTF person faces +z. The field's angle d (from +x toward +y, which
     // is the world's +z) is +x turned about y by -d, and +z turned by 90 - d.
     QMatrix4x4 m;
@@ -573,7 +668,6 @@ Figures3D::modelMatrix( const FigureInstance & figure ) const
         m.rotate( roll, 0.0f, 0.0f, 1.0f );
     }
 
-    const GltfModel & body = model();
     m.scale( figure.height / std::max( 0.01f, body.height() ) );
     m.translate( 0.0f, -body.min_y, 0.0f ); // the feet on the ground
     return m;
@@ -655,45 +749,48 @@ Figures3D::rollOf( const FigureInstance & figure ) const
 
 /*-------------------------------------------------------------------*/
 void
-Figures3D::setLeg( HumanoidPose & pose,
+Figures3D::setLeg( const Body & body,
+                   HumanoidPose & pose,
                    const int right,
-                   const LimbPose & limb ) const
+                   const LimbPose & limb )
 {
     // A field angle (to the right) is the model's turned the other way
     // about the vertical; swinging forward turns -y toward +z, about -x.
-    const QQuaternion & down = M_body->leg_down[right];
+    const QQuaternion & down = body.leg_down[right];
     const QQuaternion swing = aboutY( -limb.yaw ) * aboutX( -limb.pitch )
         * aboutY( right ? -limb.turn : limb.turn ) * down;
     const HumanBone upper = ( right ? HumanBone::RightUpperLeg : HumanBone::LeftUpperLeg );
     const HumanBone lower = ( right ? HumanBone::RightLowerLeg : HumanBone::LeftLowerLeg );
     // in the model's directions, not the hips' (a clip may lean them): a
     // leg on the ground stays under the body
-    rig().setTurnedInModel( pose, upper, swing );
+    body.rig.setTurnedInModel( pose, upper, swing );
     // the knee bends back: about +x from hanging down
     pose[lower] = ( down.conjugated() * aboutX( limb.bend ) * down ).normalized();
 }
 
 /*-------------------------------------------------------------------*/
 void
-Figures3D::setArm( HumanoidPose & pose,
+Figures3D::setArm( const Body & body,
+                   HumanoidPose & pose,
                    const int right,
                    const LimbPose & limb,
-                   const bool in_model ) const
+                   const bool in_model )
 {
-    const QQuaternion & down = M_body->arm_down[right];
+    const QQuaternion & down = body.arm_down[right];
     const QQuaternion swing = aboutY( -limb.yaw ) * aboutX( -limb.pitch )
         * aboutY( right ? -limb.turn : limb.turn ) * down;
     const HumanBone upper = ( right ? HumanBone::RightUpperArm : HumanBone::LeftUpperArm );
     const HumanBone lower = ( right ? HumanBone::RightLowerArm : HumanBone::LeftLowerArm );
-    const HumanBone chest = ( rig().node( HumanBone::UpperChest ) >= 0 ? HumanBone::UpperChest : HumanBone::Chest );
-    rig().setTurnedInModel( pose, upper, in_model ? swing : rig().turnedInModel( pose, chest ) * swing );
+    const HumanBone chest = ( body.rig.node( HumanBone::UpperChest ) >= 0 ? HumanBone::UpperChest : HumanBone::Chest );
+    body.rig.setTurnedInModel( pose, upper, in_model ? swing : body.rig.turnedInModel( pose, chest ) * swing );
     // the elbow bends forward: about -x from hanging down
     pose[lower] = ( down.conjugated() * aboutX( -limb.bend ) * down ).normalized();
 }
 
 /*-------------------------------------------------------------------*/
 void
-Figures3D::act( const FigureInstance & figure,
+Figures3D::act( const Body & b,
+                const FigureInstance & figure,
                 HumanoidPose & pose ) const
 {
     const FigureActions & actions = figure.actions;
@@ -702,10 +799,10 @@ Figures3D::act( const FigureInstance & figure,
     if ( actions.neck != 0.0f )
     {
         const float n = actions.neck;
-        const bool neck = ( rig().node( HumanBone::Neck ) >= 0 );
-        rig().turnInModel( pose, HumanBone::Chest, aboutY( -NECK_CHEST * n ) );
-        if ( neck ) rig().turnInModel( pose, HumanBone::Neck, aboutY( -NECK_NECK * n ) );
-        rig().turnInModel( pose, HumanBone::Head, aboutY( -( neck ? NECK_HEAD : NECK_NECK + NECK_HEAD ) * n ) );
+        const bool neck = ( b.rig.node( HumanBone::Neck ) >= 0 );
+        b.rig.turnInModel( pose, HumanBone::Chest, aboutY( -NECK_CHEST * n ) );
+        if ( neck ) b.rig.turnInModel( pose, HumanBone::Neck, aboutY( -NECK_NECK * n ) );
+        b.rig.turnInModel( pose, HumanBone::Head, aboutY( -( neck ? NECK_HEAD : NECK_NECK + NECK_HEAD ) * n ) );
     }
 
     const Weights w = weightsOf( actions );
@@ -716,8 +813,8 @@ Figures3D::act( const FigureInstance & figure,
                      const float lean )
         {
             target.hips.setY( target.hips.y() - drop );
-            rig().turnInModel( target, HumanBone::Spine, aboutX( 0.5f * lean ) );
-            rig().turnInModel( target, HumanBone::Chest, aboutX( 0.5f * lean ) );
+            b.rig.turnInModel( target, HumanBone::Spine, aboutX( 0.5f * lean ) );
+            b.rig.turnInModel( target, HumanBone::Chest, aboutX( 0.5f * lean ) );
         };
 
     // the body: one action at a time, the fall after a foul first
@@ -726,10 +823,10 @@ Figures3D::act( const FigureInstance & figure,
         // sitting on the ground, leaning back on the hands
         HumanoidPose target = pose;
         body( target, 0.80f, -70.0f );
-        setLeg( target, 0, { 88.0f, -8.0f, 15.0f } );
-        setLeg( target, 1, { 90.0f, 8.0f, 20.0f } );
-        setArm( target, 0, { -50.0f, -25.0f, 10.0f } );
-        setArm( target, 1, { -50.0f, 25.0f, 10.0f } );
+        setLeg( b, target, 0, { 88.0f, -8.0f, 15.0f } );
+        setLeg( b, target, 1, { 90.0f, 8.0f, 20.0f } );
+        setArm( b, target, 0, { -50.0f, -25.0f, 10.0f } );
+        setArm( b, target, 1, { -50.0f, 25.0f, 10.0f } );
         pose = HumanoidPose::mix( pose, target, w.fouled );
     }
     else if ( w.tackle > 0.0f )
@@ -737,10 +834,10 @@ Figures3D::act( const FigureInstance & figure,
         // sliding with the right leg ahead
         HumanoidPose target = pose;
         body( target, 0.45f, -35.0f );
-        setLeg( target, 1, { 80.0f, 0.0f, 5.0f } );
-        setLeg( target, 0, { 25.0f, 0.0f, 110.0f } );
-        setArm( target, 0, { -40.0f, -20.0f, 20.0f } );
-        setArm( target, 1, { -40.0f, 20.0f, 20.0f } );
+        setLeg( b, target, 1, { 80.0f, 0.0f, 5.0f } );
+        setLeg( b, target, 0, { 25.0f, 0.0f, 110.0f } );
+        setArm( b, target, 0, { -40.0f, -20.0f, 20.0f } );
+        setArm( b, target, 1, { -40.0f, 20.0f, 20.0f } );
         pose = HumanoidPose::mix( pose, target, w.tackle );
     }
     else if ( w.kick > 0.0f )
@@ -776,9 +873,9 @@ Figures3D::act( const FigureInstance & figure,
             swing.yaw = clampTo( kick.way, 45.0f );
             break;
         }
-        setLeg( target, leg, swing );
-        setLeg( target, 1 - leg, { -5.0f, 0.0f, 15.0f } );
-        if ( kick.kind != KickKind::Tap ) setArm( target, 1 - leg, arm );
+        setLeg( b, target, leg, swing );
+        setLeg( b, target, 1 - leg, { -5.0f, 0.0f, 15.0f } );
+        if ( kick.kind != KickKind::Tap ) setArm( b, target, 1 - leg, arm );
         pose = HumanoidPose::mix( pose, target, w.kick );
     }
 
@@ -793,18 +890,18 @@ Figures3D::act( const FigureInstance & figure,
         // low: crouching deep (the feet under the hips, which go down as
         // much), leaning far forward, the hands down near the ground
         // bending at the hips too (the legs are set after it, in the model's directions)
-        rig().turnInModel( target, HumanBone::Hips, aboutX( 40.0f * low ) );
+        b.rig.turnInModel( target, HumanBone::Hips, aboutX( 40.0f * low ) );
         body( target, 0.35f * low, 45.0f * low + 5.0f * high );
         if ( low > 0.0f )
         {
-            setLeg( target, 0, { 60.0f * low, 0.0f, 110.0f * low } );
-            setLeg( target, 1, { 60.0f * low, 0.0f, 110.0f * low } );
+            setLeg( b, target, 0, { 60.0f * low, 0.0f, 110.0f * low } );
+            setLeg( b, target, 1, { 60.0f * low, 0.0f, 110.0f * low } );
         }
         // the arms' swing is from the chest, leaned with it: 85 from the
         // chest leaned 85 is hanging straight down to the ground
         const LimbPose arm{ 85.0f + ( 150.0f - 85.0f ) * high, yaw, 10.0f };
-        setArm( target, 0, arm );
-        setArm( target, 1, arm );
+        setArm( b, target, 0, arm );
+        setArm( b, target, 1, arm );
         pose = HumanoidPose::mix( pose, target, w.caught );
     }
     else if ( actions.pointing
@@ -819,14 +916,14 @@ Figures3D::act( const FigureInstance & figure,
             * std::min( POINT_TURN_MAX, std::max( 0.0f, std::fabs( way ) - POINT_TURN_FROM ) * 0.5f );
         if ( turn != 0.0f )
         {
-            rig().turnInModel( pose, HumanBone::Chest, aboutY( -turn ) );
-            rig().turnInModel( pose,
-                               rig().node( HumanBone::Neck ) >= 0 ? HumanBone::Neck : HumanBone::Head,
+            b.rig.turnInModel( pose, HumanBone::Chest, aboutY( -turn ) );
+            b.rig.turnInModel( pose,
+                               b.rig.node( HumanBone::Neck ) >= 0 ? HumanBone::Neck : HumanBone::Head,
                                aboutY( turn ) );
         }
         const float pitch = std::max( POINT_PITCH_MIN,
                                       std::atan2( actions.point_distance, POINT_SHOULDER ) * 180.0f / float( M_PI ) );
-        setArm( pose, arm, { pitch, way, 10.0f }, true );
+        setArm( b, pose, arm, { pitch, way, 10.0f }, true );
     }
 }
 
@@ -855,7 +952,8 @@ Figures3D::kickTarget( const FigureKick & kick )
 
 /*-------------------------------------------------------------------*/
 void
-Figures3D::reach( const FigureInstance & figure,
+Figures3D::reach( const Body & body,
+                  const FigureInstance & figure,
                   HumanoidPose & pose,
                   const std::vector< NodeTransform > & nodes ) const
 {
@@ -869,17 +967,17 @@ Figures3D::reach( const FigureInstance & figure,
 
     // where the leg is in the model in the pose so far
     std::vector< NodeTransform > local = nodes;
-    rig().apply( pose, local );
+    body.rig.apply( pose, local );
     std::vector< QMatrix4x4 > global;
-    model().globals( local, global );
-    auto at = [&]( const HumanBone b ) { return global[rig().node( b )].column( 3 ).toVector3D(); };
+    body.model.globals( local, global );
+    auto at = [&]( const HumanBone b ) { return global[body.rig.node( b )].column( 3 ).toVector3D(); };
     const QVector3D hip = at( upper_bone );
     const QVector3D knee = at( lower_bone );
     const QVector3D ankle = at( foot_bone );
-    const QVector3D toes = ( rig().node( toes_bone ) >= 0 ? at( toes_bone ) : ankle );
+    const QVector3D toes = ( body.rig.node( toes_bone ) >= 0 ? at( toes_bone ) : ankle );
 
     // the toes toward the ball, by the weight; the foot keeps its turn
-    const QVector3D ball = modelMatrix( figure ).inverted().map( kickTarget( figure.actions.kick ) );
+    const QVector3D ball = modelMatrix( body.model, figure ).inverted().map( kickTarget( figure.actions.kick ) );
     const QVector3D toes_goal = toes + ( ball - toes ) * w;
     const QVector3D ankle_goal = toes_goal - ( toes - ankle );
 
@@ -900,11 +998,11 @@ Figures3D::reach( const FigureInstance & figure,
     const QVector3D knee_goal = hip + dir * ( a * cos_hip ) + side * ( a * std::sqrt( 1.0f - cos_hip * cos_hip ) );
 
     const QQuaternion thigh = QQuaternion::rotationTo( knee - hip, knee_goal - hip );
-    rig().turnInModel( pose, upper_bone, thigh );
+    body.rig.turnInModel( pose, upper_bone, thigh );
     const QVector3D ankle_now = hip + thigh.rotatedVector( ankle - hip );
     const QQuaternion shin = QQuaternion::rotationTo( ankle_now - knee_goal, hip + dir * d - knee_goal );
-    rig().turnInModel( pose, lower_bone, shin );
-    rig().turnInModel( pose, foot_bone, ( shin * thigh ).conjugated() );
+    body.rig.turnInModel( pose, lower_bone, shin );
+    body.rig.turnInModel( pose, foot_bone, ( shin * thigh ).conjugated() );
 }
 
 /*-------------------------------------------------------------------*/
@@ -924,8 +1022,9 @@ Figures3D::localPose( const FigureInstance & figure,
                       const double time,
                       std::vector< NodeTransform > & local ) const
 {
-    local = model().rest;
-    if ( ! M_ready ) return;
+    local = model( bodyOf( figure ) ).rest;
+    if ( ! M_ready || M_drawn.empty() ) return;
+    const Body & body = bodyFor( figure );
 
     const FigureMotion & motion = figure.motion;
     const Mix mix = mixAt( std::hypot( motion.vx, motion.vy ) );
@@ -945,7 +1044,7 @@ Figures3D::localPose( const FigureInstance & figure,
     if ( mix.moving > 0.0f )
     {
         const double cycles = motion.gait * SceneBuilder::PERSON_HEIGHT
-            / ( std::max( 0.1f, figure.height ) * M_body->stride );
+            / ( std::max( 0.1f, figure.height ) * body.stride );
         const float phase = static_cast< float >( cycles - std::floor( cycles ) );
         const GaitClip & a = M_gaits[mix.from];
         const GaitClip & b = M_gaits[mix.to];
@@ -967,39 +1066,40 @@ Figures3D::localPose( const FigureInstance & figure,
         const float twist = twistOf( figure );
         if ( twist != 0.0f )
         {
-            rig().turnInModel( pose, HumanBone::Hips, QQuaternion::fromAxisAndAngle( 0.0f, 1.0f, 0.0f, -twist ) );
-            rig().turnInModel( pose, HumanBone::Spine, QQuaternion::fromAxisAndAngle( 0.0f, 1.0f, 0.0f, 0.5f * twist ) );
-            rig().turnInModel( pose, HumanBone::Chest, QQuaternion::fromAxisAndAngle( 0.0f, 1.0f, 0.0f, 0.5f * twist ) );
+            body.rig.turnInModel( pose, HumanBone::Hips, QQuaternion::fromAxisAndAngle( 0.0f, 1.0f, 0.0f, -twist ) );
+            body.rig.turnInModel( pose, HumanBone::Spine, QQuaternion::fromAxisAndAngle( 0.0f, 1.0f, 0.0f, 0.5f * twist ) );
+            body.rig.turnInModel( pose, HumanBone::Chest, QQuaternion::fromAxisAndAngle( 0.0f, 1.0f, 0.0f, 0.5f * twist ) );
         }
     }
 
     // the neck and the actions over the clips, and the kicking foot to the
     // ball, on the body drawn
-    bodyNodes( nodes, local );
-    act( figure, pose );
-    reach( figure, pose, local );
+    bodyNodes( body, nodes, local );
+    act( body, figure, pose );
+    reach( body, figure, pose, local );
 
     // through the humanoid layer: the bones without a role as the motion's
-    rig().apply( pose, local );
+    body.rig.apply( pose, local );
 }
 
 /*-------------------------------------------------------------------*/
 void
-Figures3D::bodyNodes( const std::vector< NodeTransform > & motion,
+Figures3D::bodyNodes( const Body & body,
+                      const std::vector< NodeTransform > & motion,
                       std::vector< NodeTransform > & local ) const
 {
-    if ( M_body->motion_skeleton
+    if ( body.motion_skeleton
          || motion.size() != M_model.rest.size() )
     {
-        local = ( M_body->motion_skeleton ? motion : M_body->model.rest );
+        local = ( body.motion_skeleton ? motion : body.model.rest );
         return;
     }
     // each bone turned from the body's rest as the motion's from its rest;
     // the bones of the roles are put by the humanoid layer after it
-    local = M_body->model.rest;
+    local = body.model.rest;
     for ( std::size_t i = 0; i < local.size(); ++i )
     {
-        const int m = M_body->motion_node[i];
+        const int m = body.motion_node[i];
         if ( m < 0 ) continue;
         local[i].r = ( local[i].r * M_model.rest[m].r.conjugated() * motion[m].r ).normalized();
     }
@@ -1015,7 +1115,7 @@ Figures3D::worldNodes( const FigureInstance & figure,
     if ( ! M_ready ) return;
     std::vector< NodeTransform > local;
     localPose( figure, time, local );
-    model().globals( local, world );
+    model( bodyOf( figure ) ).globals( local, world );
     const QMatrix4x4 place = modelMatrix( figure );
     for ( QMatrix4x4 & m : world ) m = place * m;
 }
@@ -1026,15 +1126,25 @@ Figures3D::pose( SceneContent & content,
                  const double time ) const
 {
     content.figure_joints.clear();
-    if ( ! M_ready ) return;
+    content.figure_bodies.clear();
+    if ( ! M_ready || M_drawn.empty() ) return;
 
-    const std::size_t floats = static_cast< std::size_t >( model().jointCount() ) * 16;
-    content.figure_joints.resize( content.figures.size() * floats );
-    std::vector< NodeTransform > local;
-    for ( std::size_t k = 0; k < content.figures.size(); ++k )
+    // each figure's joints after the one before's (the bodies of one skeleton: as many joints)
+    std::size_t offset = 0;
+    for ( const FigureInstance & figure : content.figures )
     {
-        const FigureInstance & figure = content.figures[k];
+        offset += static_cast< std::size_t >( model( bodyOf( figure ) ).jointCount() ) * 16;
+    }
+    content.figure_joints.resize( offset );
+    offset = 0;
+    std::vector< NodeTransform > local;
+    for ( const FigureInstance & figure : content.figures )
+    {
+        const int body = bodyOf( figure );
+        const GltfModel & m = model( body );
         localPose( figure, time, local );
-        model().skin( local, modelMatrix( figure ), &content.figure_joints[k * floats] );
+        m.skin( local, modelMatrix( m, figure ), &content.figure_joints[offset] );
+        offset += static_cast< std::size_t >( m.jointCount() ) * 16;
+        content.figure_bodies.push_back( body );
     }
 }

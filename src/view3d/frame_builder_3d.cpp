@@ -191,6 +191,7 @@ FrameBuilder3D::state( const SceneContent & content,
     s.model = ( content.figures.empty() ? PlayerModel::Simple : M_model );
     s.figures_ready = M_figures.ready();
     s.figure_joints = content.figure_joints;
+    s.figure_bodies = content.figure_bodies;
 
     for ( const FigureInstance & figure : content.figures )
     {
@@ -204,8 +205,9 @@ FrameBuilder3D::state( const SceneContent & content,
         probe.player = figure.player;
         std::vector< QMatrix4x4 > world;
         M_figures.worldNodes( figure, M_time, world );
-        const int knee = M_figures.rig().node( HumanBone::LeftLowerLeg );
-        const int head = M_figures.rig().node( HumanBone::Head );
+        const HumanoidRig & rig = M_figures.rig( M_figures.bodyOf( figure ) );
+        const int knee = rig.node( HumanBone::LeftLowerLeg );
+        const int head = rig.node( HumanBone::Head );
         if ( knee >= 0 && knee < static_cast< int >( world.size() ) )
         {
             probe.left_knee = world[knee].column( 3 ).toVector3D();

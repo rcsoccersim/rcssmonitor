@@ -74,7 +74,8 @@ struct SkinVertex {
     std::uint16_t joints[4]; //!< indices into the joints of the skin
     float weights[4];
     float rest[3]; //!< where the rest pose puts it in the model (m), skinned
-    float part = 0.0f; //!< the part of the body it is on, for the uniform (FigureUniform::paintParts())
+    float part[2] = { 0.0f, 0.0f }; //!< how much the arms' and the legs' bones move it, for the uniform (FigureUniform::paintParts())
+    float scalp[4] = { 0.0f, 0.0f, 0.0f, 0.0f }; //!< under each hairstyle of the model (1) or not (0), painted with the hair (FigureUniform::paintScalp())
 };
 
 /*!

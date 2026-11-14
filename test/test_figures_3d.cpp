@@ -58,6 +58,18 @@ nodeAt( const Figures3D & figures,
     return ( figures.modelMatrix( figure ) * global[figures.model().nodeIndex( name )] ).column( 3 ).toVector3D();
 }
 
+//! where a node of a figure is in the world, of the figure's body
+QVector3D
+nodeAt2( const Figures3D & figures,
+         const FigureInstance & figure,
+         const double time,
+         const QString & name )
+{
+    std::vector< QMatrix4x4 > world;
+    figures.worldNodes( figure, time, world );
+    return world[figures.model( figures.bodyOf( figure ) ).nodeIndex( name )].column( 3 ).toVector3D();
+}
+
 //! where the left foot is in the world: between the ankle and the toes, as analyzeGait() reads it
 QVector3D
 leftFoot( const Figures3D & figures,
@@ -130,6 +142,18 @@ private slots:
           QCOMPARE( m, PlayerModel::Mannequin );
           QCOMPARE( playerModelName( PlayerModel::Simple ), QString( "simple" ) );
           QCOMPARE( playerModelName( PlayerModel::Mannequin ), QString( "mannequin" ) );
+          QVERIFY( playerModelFromName( "human", &m ) );
+          QCOMPARE( m, PlayerModel::Human );
+          // the human bodies: mixed by default
+          QCOMPARE( Options::FIGURE_BODIES_3D, FigureBodies::Mixed );
+          FigureBodies b = FigureBodies::Mixed;
+          QVERIFY( figureBodiesFromName( "female", &b ) );
+          QCOMPARE( b, FigureBodies::Female );
+          QVERIFY( figureBodiesFromName( "male", &b ) );
+          QCOMPARE( b, FigureBodies::Male );
+          QVERIFY( ! figureBodiesFromName( "other", &b ) );
+          QCOMPARE( b, FigureBodies::Male );
+          QCOMPARE( figureBodiesName( FigureBodies::Mixed ), QString( "mixed" ) );
           QCOMPARE( M_figures.jerseyMaterials(), QStringList( { "M_Main" } ) );
 
           // the scale of the figures: life size by default, kept within its range
@@ -910,7 +934,7 @@ private slots:
           QVERIFY( ! human.motionModel().clips.empty() );
           QVERIFY2( body.height() > 1.8f && body.height() < 1.9f, qPrintable( QString::number( body.height() ) ) );
           QVERIFY( human.jerseyMaterials().isEmpty() );
-          QCOMPARE( human.uniformMaterials(), QStringList( { "MI_Superhero_Male" } ) );
+          QCOMPARE( human.uniformMaterials(), QStringList( { "Body" } ) );
           // longer strides than the Mannequin's (its legs are longer): the
           // gait clips read on the body, of their speeds on the Mannequin
           float sum = 0.0f;
@@ -989,8 +1013,84 @@ private slots:
           human.pose( content, 1.0 );
           QCOMPARE( content.figure_joints.size(), std::size_t( body.jointCount() * 16 ) );
 
+          // the woman's body too: of its own model, rig and strides
+          QCOMPARE( human.bodyCount(), 2 );
+          FigureInstance woman = figureAt( 3, 10.0f, -5.0f, 30.0f, 1.85f );
+          woman.look.body = FigureLooks::FEMALE;
+          QCOMPARE( human.bodyOf( woman ), 1 );
+          QCOMPARE( human.bodyOf( f ), 0 );
+          FigureInstance odd = woman;
+          odd.look.body = 7;
+          QCOMPARE( human.bodyOf( odd ), 1 ); // kept within the bodies
+          const GltfModel & female = human.model( 1 );
+          QVERIFY( &female != &body );
+          QCOMPARE( female.jointCount(), body.jointCount() );
+          QVERIFY2( female.height() > 1.7f && female.height() < 1.85f, qPrintable( QString::number( female.height() ) ) );
+          QCOMPARE( human.uniformMaterials( 1 ), QStringList( { "Body" } ) );
+          float female_sum = 0.0f;
+          for ( const GaitClip & g : human.gaitClips() )
+          {
+              GaitClip on_body;
+              QVERIFY( Figures3D::analyzeGait( human.motionModel(), human.motionRig(), g.clip, &on_body,
+                                               &female, &human.rig( 1 ) ) );
+              female_sum += on_body.speed / g.speed;
+          }
+          QVERIFY( std::fabs( human.bodyStride( 1 ) - female_sum / human.gaitClips().size() ) < 1.0e-5f );
+          QVERIFY( human.bodyStride( 1 ) != human.bodyStride( 0 ) );
+          QVERIFY2( human.bodyStride( 1 ) > 0.95f && human.bodyStride( 1 ) < 1.1f, qPrintable( QString::number( human.bodyStride( 1 ) ) ) );
+          QVERIFY( std::fabs( human.modelMatrix( woman ).map( QVector3D( 0.0f, female.max_y, 0.0f ) ).y() - 1.85f ) < 1.0e-3f );
+          QVERIFY( nodeAt2( human, woman, 0.0, "foot_l" ).y() < 0.2f );
+          for ( const GaitClip & g : human.gaitClips() )
+          {
+              float low = 1.0e9f, high = -1.0e9f;
+              for ( int k = 0; k <= 10; ++k )
+              {
+                  const float phase = ( 0.25f + 0.05f * k ) * g.down / g.duration;
+                  const double gait = phase * human.bodyStride( 1 );
+                  FigureInstance w = woman;
+                  w.x = float( gait ) * g.stride();
+                  w.y = 0.0f;
+                  w.body = 0.0f;
+                  w.motion.gait = gait;
+                  w.motion.vx = g.speed;
+                  const float d = ( nodeAt2( human, w, 0.0, "foot_l" ) + nodeAt2( human, w, 0.0, "ball_l" ) ).x() * 0.5f;
+                  low = std::min( low, d );
+                  high = std::max( high, d );
+              }
+              QVERIFY2( high - low < 0.025f, qPrintable( human.motionModel().clips[g.clip].name + QString( ": %1 m" ).arg( high - low ) ) );
+          }
+          // the parts: the body in the uniform, the eyebrows and the hairstyles in the hair's color
+          for ( int b = 0; b < 2; ++b )
+          {
+              const std::vector< FigureUniform::Paint > paints = human.paints( b );
+              QCOMPARE( paints.size(), human.model( b ).primitives.size() );
+              std::uint32_t styles = 0;
+              for ( std::size_t i = 0; i < paints.size(); ++i )
+              {
+                  const QString & material = human.model( b ).primitives[i].material;
+                  if ( material == "Body" ) QCOMPARE( paints[i].kind, int( FigureUniform::Paint::Uniform ) );
+                  else if ( material == "Eyes" ) QCOMPARE( paints[i].kind, int( FigureUniform::Paint::Own ) );
+                  else
+                  {
+                      QCOMPARE( paints[i].kind, int( FigureUniform::Paint::Hair ) );
+                      QCOMPARE( paints[i].show, FigureLooks::hairBit( material ) );
+                      styles |= paints[i].show;
+                  }
+              }
+              QCOMPARE( styles, b == 0
+                        ? std::uint32_t( FigureLooks::SIMPLE_PARTED | FigureLooks::BUZZED | FigureLooks::BEARD )
+                        : std::uint32_t( FigureLooks::BUNS | FigureLooks::LONG | FigureLooks::BUZZED_FEMALE ) );
+          }
+          // the figures of both, each of its body
+          content.figures = { f, woman };
+          human.pose( content, 1.0 );
+          QCOMPARE( content.figure_bodies, std::vector< int >( { 0, 1 } ) );
+          QCOMPARE( content.figure_joints.size(), std::size_t( 2 * body.jointCount() * 16 ) );
+
           // back to the Mannequin
           QVERIFY( human.setModel( PlayerModel::Mannequin ) );
+          QCOMPARE( human.bodyCount(), 1 );
+          QCOMPARE( human.bodyOf( woman ), 0 );
           QCOMPARE( human.bodyModel(), PlayerModel::Mannequin );
           QCOMPARE( human.jerseyMaterials(), QStringList( { "M_Main" } ) );
           QVERIFY( std::fabs( nodeAt( human, f, 1.0, "hand_l" ).y() - mannequin_hand ) < 1.0e-5f );

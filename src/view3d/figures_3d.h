@@ -76,12 +76,14 @@ struct GaitClip {
   SceneBuilder put in a SceneContent. No OpenGL: Scene3D draws them.
 
   The motion is the Mannequin's of Quaternius's Universal Animation
-  Library: its clips of standing, walking and running. The body drawn is
-  one of two models (setModel()): the Mannequin itself, all in the
-  figure's color but the joints, or a human body of the Universal Base
-  Characters (the same skeleton, other proportions), in a uniform painted
-  by FigureUniform. The motion goes from one to the other through the
-  humanoid layer, and the poses of the actions are made on the body drawn.
+  Library: its clips of standing, walking and running. The bodies drawn
+  are (setModel()) the Mannequin itself, all in the figure's color but the
+  joints, or the human bodies of the Universal Base Characters, a man's
+  and a woman's (the same skeleton, other proportions), each figure in its
+  own (FigureLook: its body, its hairstyle, the colors of its skin and its
+  hair) and in a uniform painted by FigureUniform. The motion goes from
+  one to the other through the humanoid layer, and the poses of the
+  actions are made on the body drawn.
 
   A pose is decided from the log every frame, from the frame and the
   fraction to the next one only (FigureMotion, from GaitTable), so that a
@@ -164,30 +166,37 @@ public:
     const QString & error() const { return M_error; }
 
     /*!
-      \brief the body drawn: the Mannequin (also for Simple) or the human
-      body, read the first time it is asked for
-      \return false if it cannot be read (error() tells why): the body stays
+      \brief the bodies drawn: the Mannequin (also for Simple), or the
+      human bodies (FigureLooks::MALE, FEMALE), read the first time they are
+      asked for
+      \return false if they cannot be read (error() tells why): the bodies stay
     */
     bool setModel( const PlayerModel model );
-    //! the body drawn
+    //! the bodies drawn
     PlayerModel bodyModel() const { return M_body_model; }
+    //! how many bodies are drawn (the Mannequin: 1; the human bodies: 2)
+    int bodyCount() const { return static_cast< int >( M_drawn.size() ); }
+    //! the body of a figure (an index of the bodies drawn): the human body of its looks
+    int bodyOf( const FigureInstance & figure ) const;
     /*!
-      \brief how long a gait cycle of the body drawn is, of the motion's
-      for the same height: the speeds of the gait clips read on it, of
-      theirs (longer for longer legs), so that its feet do not slide
+      \brief how long a gait cycle of a body is, of the motion's for the
+      same height: the speeds of the gait clips read on it, of theirs
+      (longer for longer legs), so that its feet do not slide
     */
-    float bodyStride() const;
+    float bodyStride( const int body = 0 ) const;
 
-    //! the materials of the body drawn in each figure's color
-    QStringList jerseyMaterials() const;
-    //! the materials of the body drawn in a uniform (FigureUniform) of each figure's color
-    QStringList uniformMaterials() const;
-    //! where the body's uniform ends at rest
-    const FigureUniform::Cuts & uniformCuts() const;
+    //! the materials of a body in each figure's color
+    QStringList jerseyMaterials( const int body = 0 ) const;
+    //! the materials of a body in a uniform (FigureUniform) of each figure's color
+    QStringList uniformMaterials( const int body = 0 ) const;
+    //! how each part (SkinPrimitive) of a body is painted
+    std::vector< FigureUniform::Paint > paints( const int body = 0 ) const;
+    //! where a body's uniform ends at rest
+    const FigureUniform::Cuts & uniformCuts( const int body = 0 ) const;
 
-    //! the body drawn: its model and its roles
-    const GltfModel & model() const;
-    const HumanoidRig & rig() const;
+    //! a body drawn: its model and its roles
+    const GltfModel & model( const int body = 0 ) const;
+    const HumanoidRig & rig( const int body = 0 ) const;
     //! the model of the motion (the clips) and its roles
     const GltfModel & motionModel() const { return M_model; }
     const HumanoidRig & motionRig() const { return M_rig; }
@@ -321,11 +330,17 @@ private:
     std::vector< GaitClip > M_gaits; //!< walking and running, slowest first
 
     struct Body;
-    //! the bodies by PlayerModel (Mannequin, Human), read when first asked for
-    std::array< std::unique_ptr< Body >, 2 > M_bodies;
-    std::array< bool, 2 > M_body_tried = { { false, false } };
-    const Body * M_body = nullptr; //!< the body drawn
+    //! the bodies: the Mannequin, the man's and the woman's, read when first asked for
+    static constexpr int BODIES = 3;
+    std::array< std::unique_ptr< Body >, BODIES > M_bodies;
+    std::array< bool, BODIES > M_body_tried = { { false, false, false } };
+    std::vector< const Body * > M_drawn; //!< the bodies drawn
     PlayerModel M_body_model = PlayerModel::Mannequin;
+
+    //! read a body if not yet (k: of M_bodies)
+    bool readBody( const int k );
+    //! a figure's body
+    const Body & bodyFor( const FigureInstance & figure ) const;
 
     //! read a body (a model of the motion's skeleton)
     std::unique_ptr< Body > loadBody( const char * path,
@@ -352,15 +367,17 @@ private:
         float turn = 0.0f;
     };
 
-    //! put a leg (right: 1) as told, in the directions of the model
-    void setLeg( HumanoidPose & pose,
-                 const int right,
-                 const LimbPose & limb ) const;
-    //! put an arm (right: 1) as told, in the directions of the chest (or of the model)
-    void setArm( HumanoidPose & pose,
-                 const int right,
-                 const LimbPose & limb,
-                 const bool in_model = false ) const;
+    //! put a leg (right: 1) of a body as told, in the directions of the model
+    static void setLeg( const Body & body,
+                        HumanoidPose & pose,
+                        const int right,
+                        const LimbPose & limb );
+    //! put an arm (right: 1) of a body as told, in the directions of the chest (or of the model)
+    static void setArm( const Body & body,
+                        HumanoidPose & pose,
+                        const int right,
+                        const LimbPose & limb,
+                        const bool in_model = false );
 
     /*!
       \brief the body's nodes for the motion's: the bones without a role
@@ -369,17 +386,24 @@ private:
       \param motion by the motion's node index
       \param local by the body's node index
     */
-    void bodyNodes( const std::vector< NodeTransform > & motion,
+    void bodyNodes( const Body & body,
+                    const std::vector< NodeTransform > & motion,
                     std::vector< NodeTransform > & local ) const;
 
     //! the kicking foot to the ball around the kick's moment (two-bone IK of the leg)
-    void reach( const FigureInstance & figure,
+    void reach( const Body & body,
+                const FigureInstance & figure,
                 HumanoidPose & pose,
                 const std::vector< NodeTransform > & nodes ) const;
 
     //! the neck and the actions over a pose of the clips
-    void act( const FigureInstance & figure,
+    void act( const Body & body,
+              const FigureInstance & figure,
               HumanoidPose & pose ) const;
+
+    //! where a figure of a body's model is in the world (modelMatrix())
+    QMatrix4x4 modelMatrix( const GltfModel & body,
+                            const FigureInstance & figure ) const;
 };
 
 #endif
