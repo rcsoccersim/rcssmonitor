@@ -28,5 +28,7 @@
     <file>sky.frag</file>
     <file>outside.vert</file>
     <file>outside.frag</file>
+    <file>stand.vert</file>
+    <file>stand.frag</file>
   </qresource>
 </RCC>

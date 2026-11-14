@@ -42,6 +42,7 @@
 #include "grass_3d.h"
 #include "scenery_3d.h"
 #include "stadium_3d.h"
+#include "stands_3d.h"
 #include "sun_3d.h"
 #include "gl/frame.h"
 #include "gl/render_state.h"
@@ -116,7 +117,8 @@ Scene3D::initialize()
          || ! M_shadow_program.load( "shadow" )
          || ! M_blob_program.load( "blob" )
          || ! M_sky_program.load( "sky" )
-         || ! M_outside_program.load( "outside" ) )
+         || ! M_outside_program.load( "outside" )
+         || ! M_stand_program.load( "stand" ) )
     {
         M_ground_program.destroy();
         M_lit_program.destroy();
@@ -131,6 +133,7 @@ Scene3D::initialize()
         M_blob_program.destroy();
         M_sky_program.destroy();
         M_outside_program.destroy();
+        M_stand_program.destroy();
         return false;
     }
 
@@ -147,6 +150,10 @@ Scene3D::initialize()
     M_panel.create( *this, Meshes3D::quad() );
     M_shadow_plane.create( *this, Meshes3D::ground( Sun3D::shadowLength(), Sun3D::shadowWidth() ) );
     M_far_ground.create( *this, Meshes3D::ground( 2.0f * Scenery3D::FAR_GROUND, 2.0f * Scenery3D::FAR_GROUND ) );
+    for ( int i = 0; i < Stands3D::STAND_COUNT; ++i )
+    {
+        M_stands[i].create( *this, Stands3D::mesh( i ) );
+    }
     // without a shadow map (a GPU that cannot draw into one), no shadows
     M_shadow_map.create( *this );
     // the realistic grass's noise, made once
@@ -168,10 +175,12 @@ Scene3D::release()
     {
         return;
     }
-    for ( InstancedMesh * m : { &M_ground, &M_cylinder, &M_sphere, &M_cone, &M_disc, &M_ring, &M_decay_ring, &M_quad, &M_panel, &M_shadow_plane, &M_far_ground } )
+    for ( InstancedMesh * m : { &M_ground, &M_cylinder, &M_sphere, &M_cone, &M_disc, &M_ring, &M_decay_ring, &M_quad, &M_panel, &M_shadow_plane, &M_far_ground,
+                              &M_stands[0], &M_stands[1], &M_stands[2], &M_stands[3] } )
     {
         m->destroy( *this );
     }
+    for ( Texture2D & t : M_stand_textures ) t.destroy( *this );
     M_shadow_map.destroy( *this );
     M_billboards.destroy( *this );
     for ( SkinnedMesh & m : M_figures ) m.destroy( *this );
@@ -201,6 +210,7 @@ Scene3D::release()
     M_blob_program.destroy();
     M_sky_program.destroy();
     M_outside_program.destroy();
+    M_stand_program.destroy();
     M_initialized = false;
 }
 
@@ -226,6 +236,15 @@ Scene3D::setStadium( const int end,
 {
     M_board_textures[end].upload( *this, board, true ); // repeated along the boards
     M_banner_textures[end].upload( *this, banner );
+}
+
+/*-------------------------------------------------------------------*/
+void
+Scene3D::setStands( const int index,
+                    const QImage & image )
+{
+    if ( index < 0 || index >= Stands3D::STAND_COUNT ) return;
+    M_stand_textures[index].upload( *this, image );
 }
 
 /*-------------------------------------------------------------------*/
@@ -403,6 +422,28 @@ Scene3D::render( GLuint fbo,
             M_panel_program.set( "uTile", Stadium3D::BANNER_WIDTH );
             M_banner_textures[end].bind( *this, 0 );
             M_panel.draw( *this, content.banners[end] );
+        }
+    }
+
+    //
+    // pass 2b': the stands, solid, lit by the sun; not one with the camera
+    // inside it, which it would show half, from within (Stands3D)
+    //
+    if ( content.stands )
+    {
+        RenderState::opaque().apply( *this );
+        M_stand_program.bind();
+        M_stand_program.set( "uViewProj", view_proj );
+        M_stand_program.set( "uSun", Sun3D::direction() );
+        M_stand_program.set( "uTexture", 0 );
+        M_background.resize( 1 );
+        M_background[0].model.setToIdentity();
+        M_background[0].color = QVector4D( 1.0f, 1.0f, 1.0f, 1.0f );
+        for ( int i = 0; i < Stands3D::STAND_COUNT; ++i )
+        {
+            if ( Stands3D::insideStand( i, camera.position ) ) continue;
+            M_stand_textures[i].bind( *this, 0 );
+            M_stands[i].draw( *this, M_background );
         }
     }
 

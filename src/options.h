@@ -184,6 +184,7 @@ private:
     bool M_boards_3d; //!< the boards around the pitch in the team colors
     GrassMode M_grass_3d; //!< the grass: plain, mowed in stripes, or realistic
     bool M_sky_3d; //!< the sky, and the haze over the far ground
+    bool M_stands_3d; //!< the stands along the touch lines
     bool M_banners_3d; //!< the banners behind the goals in the team colors
     GuideMode M_compass_3d; //!< when the compass shows over the 3D view
     GuideMode M_minimap_3d; //!< when the minimap shows over the 3D view
@@ -428,6 +429,10 @@ public:
     static constexpr bool SKY_3D = true;
     bool sky3D() const { return M_sky_3d; }
     void setSky3D( const bool on ) { M_sky_3d = on; }
+
+    static constexpr bool STANDS_3D = true;
+    bool stands3D() const { return M_stands_3d; }
+    void setStands3D( const bool on ) { M_stands_3d = on; }
     //! the 3D view: the banners high behind the goals, with the team names and logos
     bool banners3D() const { return M_banners_3d; }
     void setBanners3D( const bool on ) { M_banners_3d = on; }

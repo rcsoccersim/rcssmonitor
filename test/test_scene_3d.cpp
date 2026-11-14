@@ -43,6 +43,7 @@
 #include "scene_3d.h"
 #include "scene_builder.h"
 #include "stadium_3d.h"
+#include "stands_3d.h"
 #include "grass_3d.h"
 #include "scenery_3d.h"
 #include "sun_3d.h"
@@ -155,6 +156,7 @@ private slots:
     void blobShadows();
     void sky();
     void realisticGrass();
+    void stands();
     void cleanupTestCase();
 };
 
@@ -1250,6 +1252,73 @@ TestScene3D::realisticGrass()
     // faded out toward BLADES_FAR, not cut there
     const double fading_spread = spread( Grass3D::BLADES_FAR - 2.0f );
     QVERIFY2( fading_spread < 0.8, qPrintable( QString::number( fading_spread ) ) );
+
+    scene.release();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  The stands: drawn beyond the far touch line seen from the pitch; a stand
+  with the camera inside it is not drawn (the center spot as without the
+  stands); from behind a stand, its back wall (not see-through).
+*/
+void
+TestScene3D::stands()
+{
+    DispHolder holder;
+    FieldPainter painter( holder );
+    Scene3D scene;
+    QVERIFY( scene.initialize() );
+    scene.setGround( GroundTexture::draw( painter ) );
+    Stadium3D::TeamLook left, right;
+    left.color = Qt::red;
+    left.name = "L";
+    right.color = Qt::blue;
+    right.name = "R";
+    for ( int i = 0; i < Stands3D::STAND_COUNT; ++i )
+    {
+        scene.setStands( i, Stands3D::image( i, left, right ) );
+    }
+
+    const int w = 400, h = 300;
+    QOpenGLFramebufferObjectFormat fbo_format;
+    fbo_format.setAttachment( QOpenGLFramebufferObject::Depth );
+    QOpenGLFramebufferObject fbo( w, h, fbo_format );
+    const auto shot = [&]( const CameraPose & camera, const bool stands ) {
+        SceneContent content;
+        content.stands = stands;
+        content.sky = true;
+        scene.render( fbo.handle(), w, h, camera, content );
+        return fbo.toImage();
+    };
+
+    // from the pitch, the far stand ahead
+    CameraPose look;
+    look.position = QVector3D( 0.0f, 3.0f, 0.0f );
+    look.target = QVector3D( 0.0f, 5.0f, -( Stands3D::stand( 0 ).front + 6.0f ) );
+    const QImage with = shot( look, true );
+    QCOMPARE( shot( look, true ), with );
+    const QColor seen = with.pixelColor( w / 2, h / 2 );
+    QVERIFY2( distance( seen, shot( look, false ).pixelColor( w / 2, h / 2 ) ) > 30, qPrintable( seen.name() ) );
+
+    // inside the near stand, under its rows: from there the treads of the
+    // lower rows face up to the camera (through the risers, seen from
+    // behind); the stand is not drawn, the pitch beyond as without it
+    const float front = Stands3D::stand( 1 ).front;
+    CameraPose inside;
+    inside.position = QVector3D( 0.0f, 2.4f, front + 8.0f );
+    inside.target = QVector3D( 0.0f, Stands3D::WALL + Stands3D::RISER, front + 1.3f ); // the second row's tread
+    QVERIFY( Stands3D::insideStand( 1, inside.position ) );
+    QCOMPARE( shot( inside, true ).pixelColor( w / 2, h / 2 ), shot( inside, false ).pixelColor( w / 2, h / 2 ) );
+
+    // behind the near stand, low: its back wall in the way (not see-through)
+    CameraPose behind;
+    behind.position = QVector3D( 0.0f, 3.0f, Stands3D::stand( 1 ).front + Stands3D::depth() + 15.0f );
+    behind.target = QVector3D( 0.0f, 0.0f, 0.0f );
+    QVERIFY( ! Stands3D::insideStand( 1, behind.position ) );
+    const QColor wall = shot( behind, true ).pixelColor( w / 2, h / 2 );
+    QVERIFY2( distance( wall, shot( behind, false ).pixelColor( w / 2, h / 2 ) ) > 30, qPrintable( wall.name() ) );
+    QVERIFY( wall.saturation() < 60 ); // the concrete, not the grass
 
     scene.release();
 }

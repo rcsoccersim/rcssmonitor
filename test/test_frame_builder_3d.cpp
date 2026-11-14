@@ -296,8 +296,13 @@ private slots:
           opt.setGrass3D( GrassMode::Plain );
           QVERIFY( ! build( builder, M_holder, at( M_holder, 10 ) ).realistic_grass );
           opt.setGrass3D( Options::GRASS_3D );
+          QVERIFY( content.stands ); // on by default
+          opt.setStands3D( false );
+          QVERIFY( ! build( builder, M_holder, at( M_holder, 10 ) ).stands );
+          opt.setStands3D( Options::STANDS_3D );
           content.realistic_grass = true;
           content.clear();
+          QVERIFY( ! content.stands );
           QVERIFY( ! content.sky );
           QVERIFY( ! content.realistic_grass );
       }

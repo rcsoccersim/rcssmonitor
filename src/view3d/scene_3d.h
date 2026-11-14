@@ -42,6 +42,7 @@
 #include "gl/shadow_map.h"
 #include "gl/skinned_mesh.h"
 #include "figure_uniform.h"
+#include "stands_3d.h"
 #include "gl/texture_2d.h"
 #include "gl/vertex_batch.h"
 
@@ -120,6 +121,13 @@ public:
       \brief send the images of an end's boards and banner (Stadium3D) to the GPU
       \param end 0: left, 1: right
     */
+    /*!
+      \brief set the image of a stand (Stands3D::image())
+      \param index the stand (Stands3D::stand())
+    */
+    void setStands( const int index,
+                    const QImage & image );
+
     void setStadium( const int end,
                      const QImage & board,
                      const QImage & banner );
@@ -172,6 +180,7 @@ private:
     ShaderProgram M_blob_program; //!< "blob": the simple shadows, soft ellipses on the ground
     ShaderProgram M_sky_program; //!< "sky": the sky dome around the camera
     ShaderProgram M_outside_program; //!< "outside": the ground beyond the ground image, in the haze far away
+    ShaderProgram M_stand_program; //!< "stand": the stands, their images lit by the sun
 
     // the shapes (Meshes3D), each drawn in instances
     InstancedMesh M_ground; //!< the area of the ground image
@@ -185,6 +194,8 @@ private:
     InstancedMesh M_panel; //!< the boards and the banners
     InstancedMesh M_shadow_plane; //!< the area of the shadows, over the ground
     InstancedMesh M_far_ground; //!< the ground beyond the ground image (Scenery3D::FAR_GROUND around the center)
+    InstancedMesh M_stands[Stands3D::STAND_COUNT]; //!< the stands (Stands3D)
+    Texture2D M_stand_textures[Stands3D::STAND_COUNT]; //!< and their images
     std::vector< Instance3D > M_background; //!< the instance of the sky or of the ground beyond in a frame
     ShadowMap M_shadow_map; //!< the depths as the sun sees the solids (none if the GPU cannot)
     BillboardMesh M_billboards; //!< the numbers and the cards

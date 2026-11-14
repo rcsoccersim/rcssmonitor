@@ -1914,6 +1914,18 @@ ConfigDialog::create3DTab()
         layout->addWidget( M_banners_3d_cb );
 
 
+        M_stands_3d_cb = new QCheckBox( tr( "Stands" ) );
+        M_stands_3d_cb->setObjectName( "stands_3d" );
+        M_stands_3d_cb->setToolTip( tr( "Stands of one tier along both touch lines and behind both goals, the corners\n"
+                                        "open. The fans in the team colors toward their team's end, behind a goal\n"
+                                        "mostly the team that keeps it. A stand with the camera inside is not drawn." ) );
+        connect( M_stands_3d_cb, &QCheckBox::clicked,
+                 this, [this]( bool on ) {
+                     Options::instance().setStands3D( on );
+                     changed3D();
+                 } );
+        layout->addWidget( M_stands_3d_cb );
+
         M_sky_3d_cb = new QCheckBox( tr( "Sky" ) );
         M_sky_3d_cb->setObjectName( "sky_3d" );
         M_sky_3d_cb->setToolTip( tr( "The sky, from the pale horizon to the blue above, and the haze that melts the\n"
@@ -1958,7 +1970,7 @@ ConfigDialog::create3DTab()
         button->setObjectName( "default_3d" );
         button->setToolTip( tr( "Set the defaults: Close-up %1 m, %2\u00b0, Compass %3, Minimap %4,\n"
                                 "Model %5, Figure Scale %6, Bodies %9, Shadows %10, Boards %7, Banners %8,\n"
-                                "Grass %11, Sky %12" )
+                                "Stands %13, Grass %11, Sky %12" )
                             .arg( Options::CLOSEUP_DISTANCE_3D )
                             .arg( Options::CLOSEUP_ELEVATION_3D )
                             .arg( guideLabel( Options::COMPASS_3D ) )
@@ -1970,7 +1982,8 @@ ConfigDialog::create3DTab()
                             .arg( bodiesLabel( Options::FIGURE_BODIES_3D ) )
                             .arg( shadowLabel( Options::SHADOWS_3D ) )
                             .arg( grassLabel( Options::GRASS_3D ) )
-                            .arg( onOff( Options::SKY_3D ) ) );
+                            .arg( onOff( Options::SKY_3D ) )
+                            .arg( onOff( Options::STANDS_3D ) ) );
         button->setAutoDefault( false );
         connect( button, &QPushButton::clicked,
                  this, [this]() {
@@ -2224,6 +2237,7 @@ ConfigDialog::update3D()
     M_boards_3d_cb->setChecked( opt.boards3D() );
     M_banners_3d_cb->setChecked( opt.banners3D() );
     set_choice( M_grass_3d, grassIndex( opt.grass3D() ) );
+    M_stands_3d_cb->setChecked( opt.stands3D() );
     M_sky_3d_cb->setChecked( opt.sky3D() );
 
     set_choice( M_player_camera_position, indexOf( positions(), pc.position ) );

@@ -42,6 +42,7 @@
 #include "overlay_builder.h"
 #include "picking.h"
 #include "stadium_3d.h"
+#include "stands_3d.h"
 #include "scene_builder.h"
 
 #include "disp_holder.h"
@@ -178,6 +179,7 @@ FieldView3D::initializeGL()
     M_ground_key.clear();
     M_stadium_keys[0].clear();
     M_stadium_keys[1].clear();
+    M_stands_key.clear();
     // the new context has no texture of the labels yet
     M_label_atlas = LabelAtlas();
 }
@@ -239,13 +241,15 @@ FieldView3D::paintGL()
     }
 
     // The ends in the team colors: the boards and the banners with the team
-    // names and logos, drawn again when they change
+    // names and logos, drawn again when they change; and the stands, with
+    // the fans of both
     const Options & opt = Options::instance();
     {
         const DispConstPtr current = M_disp_holder.currentDisp();
+        Stadium3D::TeamLook looks[2];
         for ( int end = 0; end < 2; ++end )
         {
-            Stadium3D::TeamLook look;
+            Stadium3D::TeamLook & look = looks[end];
             look.color = ( end == 0 ? opt.leftTeamBrush() : opt.rightTeamBrush() ).color();
             look.name = ( current ? QString::fromStdString( current->team_[end].name_ ) : QString() );
             if ( opt.showTeamGraphic() )
@@ -258,6 +262,16 @@ FieldView3D::paintGL()
                 M_scene.setStadium( end, Stadium3D::boardImage( look ), Stadium3D::bannerImage( look ) );
                 M_stadium_keys[end] = key;
             }
+        }
+        // the stands only need the colors and the names (no logos)
+        const QString stands_key = looks[0].color.name() + looks[0].name + '|' + looks[1].color.name() + looks[1].name;
+        if ( opt.stands3D() && stands_key != M_stands_key )
+        {
+            for ( int i = 0; i < Stands3D::STAND_COUNT; ++i )
+            {
+                M_scene.setStands( i, Stands3D::image( i, looks[0], looks[1] ) );
+            }
+            M_stands_key = stands_key;
         }
     }
 

@@ -270,7 +270,8 @@ TestConfigDialog::tabs3D()
     QVERIFY( ! child< QCheckBox >( dialog, "boards_3d" )->toolTip().isEmpty() );
     QVERIFY( ! child< QCheckBox >( dialog, "banners_3d" )->toolTip().isEmpty() );
     QVERIFY( ! child< QCheckBox >( dialog, "sky_3d" )->toolTip().isEmpty() );
-    QVERIFY( child< QPushButton >( dialog, "default_3d" )->toolTip().contains( "Grass Stripes, Sky On" ) );
+    QVERIFY( ! child< QCheckBox >( dialog, "stands_3d" )->toolTip().isEmpty() );
+    QVERIFY( child< QPushButton >( dialog, "default_3d" )->toolTip().contains( "Stands On, Grass Stripes, Sky On" ) );
     QVERIFY( child< QPushButton >( dialog, "default_3d" )->toolTip().contains( "Close-up 12 m, 20" ) );
     QVERIFY( child< QPushButton >( dialog, "default_3d" )->toolTip().contains( "Model Simple, Figure Scale 1, Bodies Mixed, Shadows Simple," ) );
     QVERIFY( child< QPushButton >( dialog, "default_player_camera" )->toolTip()
@@ -310,7 +311,8 @@ TestConfigDialog::view3DTab()
     QCheckBox * banners = child< QCheckBox >( dialog, "banners_3d" );
     QButtonGroup * grass = child< QButtonGroup >( dialog, "grass_3d" );
     QCheckBox * sky = child< QCheckBox >( dialog, "sky_3d" );
-    QVERIFY( grass && sky );
+    QCheckBox * stands = child< QCheckBox >( dialog, "stands_3d" );
+    QVERIFY( grass && sky && stands );
     QPushButton * defaults = child< QPushButton >( dialog, "default_3d" );
     QButtonGroup * model = child< QButtonGroup >( dialog, "player_model_3d" );
     QDoubleSpinBox * scale = child< QDoubleSpinBox >( dialog, "figure_scale_3d" );
@@ -328,6 +330,7 @@ TestConfigDialog::view3DTab()
     QCOMPARE( grass->buttons().size(), 3 );
     QCOMPARE( grass->checkedButton()->text(), QString( "Stripes" ) );
     QVERIFY( sky->isChecked() );
+    QVERIFY( stands->isChecked() );
     QCOMPARE( model->checkedButton()->text(), QString( "Simple" ) );
     QCOMPARE( scale->value(), Options::FIGURE_SCALE_3D );
     // the scale is not for the cylinders, the bodies only for the human figures
@@ -391,11 +394,15 @@ TestConfigDialog::view3DTab()
     QCOMPARE( opt.grass3D(), GrassMode::Plain );
     sky->click();
     QVERIFY( ! opt.sky3D() );
-    QCOMPARE( spy.count(), 11 );
+    stands->click();
+    QVERIFY( ! opt.stands3D() );
+    QCOMPARE( spy.count(), 12 );
 
     // Default: the options and the fields back
     defaults->click();
-    QCOMPARE( spy.count(), 12 );
+    QCOMPARE( spy.count(), 13 );
+    QVERIFY( opt.stands3D() );
+    QVERIFY( stands->isChecked() );
     QCOMPARE( opt.grass3D(), GrassMode::Stripes );
     QVERIFY( opt.sky3D() );
     QCOMPARE( grass->checkedId(), 1 );
@@ -422,7 +429,7 @@ TestConfigDialog::view3DTab()
     QCOMPARE( scale->value(), Options::FIGURE_SCALE_3D );
     QVERIFY( ! scale->isEnabled() );
     // the fields set back by Default do not set the options again
-    QCOMPARE( spy.count(), 12 );
+    QCOMPARE( spy.count(), 13 );
 #endif
 }
 

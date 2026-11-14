@@ -75,6 +75,7 @@ FrameBuilder3D::build( const DispHolder & holder,
     // the sky and the ground beyond (Scenery3D)
     content.sky = opt.sky3D();
     content.realistic_grass = ( opt.grass3D() == GrassMode::Realistic );
+    content.stands = opt.stands3D();
     content.far_ground = Scenery3D::farGroundColor( opt.fieldBrush().color() );
     // the sun's detailed shadows (the shadow map), but not from the top
     // camera: they would crowd the map (§11: 8)
@@ -210,6 +211,7 @@ FrameBuilder3D::state( const SceneContent & content,
     s.shadows = content.shadows;
     s.sky = content.sky;
     s.realistic_grass = content.realistic_grass;
+    s.stands = content.stands;
     s.blob_shadows = static_cast< int >( content.blob_shadows.size() );
 
     for ( const FigureInstance & figure : content.figures )
