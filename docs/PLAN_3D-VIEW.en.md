@@ -280,7 +280,7 @@ DispHolder / LogPlayer / Options  (shared with 2D)
 
 - The current `LogPlayer` only advances one frame at a time with a `QTimer` and has no position between frames. 3D draws from the current frame, the next frame, and the fraction between them (alpha). Add to `LogPlayer` a function that returns "time since the last advance / interval" (`QElapsedTimer`). When stopped, alpha = 0.
 - Interpolation: positions linearly, angles the short way round. No interpolation around play mode changes and big jumps (a player moving over 2 m in one cycle, the ball over 5 m, etc.) (the web version's `interpolate.ts`).
-- Live: draw one cycle behind and interpolate between the latest and the one before (to smooth the motion).
+- Live: draw one cycle behind and interpolate between the latest and the one before (to smooth the motion). → Now two cycles behind (for the wind-ups of the figures' actions; §14, 2026-11-14).
 - Draw calls: while playing, while the camera moves, and while figure poses change, `update()` every frame (request the next one after `QOpenGLWidget::frameSwapped`). Stop calling when nothing moves.
 - **Poses, ball rotation, and trails are determined only from the log frames and alpha** (no state accumulated per draw). Stopping, or stepping back, shows the same thing for the same frame. In the web version, accumulating time per draw made the legs slide frozen when rewinding, and the pose changed even for the same frame (§11).
 
@@ -550,7 +550,7 @@ Each phase proceeds on a feature branch and is merged into develop when it is do
 
 **Work**
 - `FieldView3D` and switching with 2D (D key, menu, toolbar). `ENABLE_3D` and the handling when GL is unavailable.
-- Time and interpolation (§5.2). The one-cycle delay for live.
+- Time and interpolation (§5.2). The one-cycle delay for live (two cycles since Phase 7).
 - Ground image, goals, players (cylinders: state colors, cards, direction markers, foot circles and direction lines, view cones), ball (height and shadow). → The cards are drawn in 4-5 with the number labels, and the direction lines in the foot circles and the view cones in Phase 5 with the drawing of lines (4-3, §14).
 - Cameras: free, broadcast, top, and the two behind the goals. E key. Mouse operations. → Done in 4-4 (§14).
 - HUD (score board, logos). → Done in 4-5 (§14).
@@ -640,7 +640,7 @@ Port the GL-independent calculations, using the web version's unit tests as mode
 6. **Following lag**: the closer the camera, the smaller the lag (the close-up time constant is proportional to the distance). Cap the time advanced per frame.
 7. **Stands are single-sided**: even if the camera enters or goes behind the stands, the pitch is not hidden.
 8. **Sun direction**: light from the left rear so that shadows are visible from the near-side camera. No shadows in the top camera. The ball keeps its shadow directly below, for reading its height.
-9. **When not to interpolate**: around play mode switches and jumps. Live is drawn one cycle behind.
+9. **When not to interpolate**: around play mode switches and jumps. Live is drawn one cycle behind (in rcssmonitor two cycles, for the wind-ups of the figures' actions).
 10. **Software rendering is slow**: keep the CI tests light (§10.2).
 11. **Choosing keys**: use keys that are free in rcssmonitor, no Shift, and Ctrl for related operations. Unlike a browser, the native version has no key interception problem.
 12. **Presenting settings**: a tooltip per item, explicit ranges, handling of out-of-range values, dimming unused fields. Split tabs when they get long.
@@ -1689,3 +1689,25 @@ Pushed the 2 commits of 7-2 (63a07bb, 2861e6c); CI passed.
 - Found on the way: the older kick tests gave no ball place (the foot was pulled to the origin). For a touch, the reach's weight stopped at the pose's weight (0.8). With a nearly straight leg, the side the knee bends to was not settled (it now bends to the figure's front).
 - Measurement: the poses take 0.49 ms a frame in the heavy case of all 22 figures kicking and reaching.
 - Builds and tests pass with Qt 6.4.2 and Qt 5.15.13 (36 tests). `-DENABLE_3D=OFF` (17 tests) and autotools pass too. Drew the kick, the foul and the catch of the full game log in slow playback.
+
+#### 2026-11-14: Drawing live two cycles late (`feature/3d-view`)
+
+Made the 2 commits of 7-3 (d0b9580, fee89d7) (pushed together with this one).
+
+**Decided (user)**
+- Show the wind-ups of the kick, the tackle and the catch live too, as in a log: the 3D view draws a live game two cycles behind its newest frame instead of one (fixed, not a setting). The 2D view draws the newest frame as before.
+
+**Made**
+- `Interpolate::LIVE_DELAY` (2) and `Interpolate::position()`: live, from the frame two before the newest toward the next one, by the time since the newest came divided by `simulator_step`. With only 2 or 3 frames yet, as late as they allow (from the first frame toward the next).
+
+**Tests**
+- Test `interpolate`: with 10 frames from 7 toward 8, with 2 and 3 frames from 0 toward 1. Putting the delay back to one cycle makes it fail, and so does removing the handling of few frames.
+- Builds and tests pass with Qt 6.4.2 and Qt 5.15.13 (36 tests). How it looks live with a real server is for the user to check.
+- Keeping the lean from the acceleration unchanged when new frames come would need three cycles (the acceleration is taken from the velocities two cycles before and after). Two cycles late, the lean live can change a little when a new frame comes.
+
+**The user's check, and a defect found**
+- The user checked it live: the players move well, but the ball moves jerkily (smoothly in a log).
+- Cause: the time drawn live was taken from the time since the newest frame came, but a new frame was found when the view was next drawn (up to 16.7 ms later at 60 fps), and the time was measured from there. At every frame the time drawn jumped by up to ±0.17 cycles (since 4-2 of Phase 4). For the ball, moving 2 to 3 m a cycle, that is a jump of 0.3 to 0.5 m; for the players (1 m or less) it does not show. A log is timed exactly by the player's timer. Drawing two cycles late has nothing to do with it.
+- Fixed: a clock for the live view (`Interpolate::LiveClock`). It goes on at the simulation's speed and changes its speed (0 to 2 times, never backward) to catch up, with a time constant of 3 cycles, with the time the frames' coming puts it at (`Interpolate::liveTime()`). It jumps only when 2 cycles or more away (another game, the oldest frames dropped), and goes on at most a cycle from one drawing to the next (after a pause). When the next frame is late, it goes on into the frames there up to the newest (it used to stop a cycle ahead and wait). The frames and the fraction come from `Interpolate::positionAt()`; the figures' poses still come from the frames and the fraction only.
+- Tests: added to test `interpolate`: going on up to the newest frame when the next is late, `liveTime()`, `positionAt()`, the clock (drawing 60 times a second, with a frame every 0.1 s found at the next drawing, the time the frames put jumps 0 to 0.33 cycles from one drawing to the next, while the clock goes on by 0.12 to 0.22 and stays around two before the newest; ahead, it slows down and does not go back; far, it jumps; not beyond the newest; at most a cycle at once). Removing the clock, the catching up, the limit at once, the limit at the newest, or going on into the frames there each makes it fail.
+- Builds and tests pass with Qt 6.4.2 and Qt 5.15.13 (36 tests). `-DENABLE_3D=OFF` (17 tests) passes too.
