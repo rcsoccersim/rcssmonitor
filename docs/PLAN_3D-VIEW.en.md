@@ -1587,5 +1587,12 @@ The 1 commit of the plan (5343d1e) was made (not pushed yet).
 - No cost at run time (the figures and the cylinders each had their own matrices already).
 - Tests: added `heights` to test `scene_builder` (the height ratio, a taller player's cylinder, head, direction cones, picks, number and figure, the default height for a player whose number is not sure and for a gray one, the type's height when sure) and `figureLabels` (at the scales 1.0, 1.2 and 1.5, the number 0.53 m above the head's top with its text clear of the head, still above it when shrunk near). Added to `picking` (a taller player's body and head), `overlay_builder` (the line from a taller player's eyes) and `figures_3d` (each figure's height, the scale's range). Breaking what they check makes them fail (17 ways: the number's base, where it shrinks to, the scale option, the figure's height, the scale's range, the rule by the number, the height ratio, the cylinder's body, the head, the two direction cones, the number's height, the figure's height ratio, the figure's picks, the picks' body and head, the line from the eyes). At first a test kept pointing at an element of a list that it made again, and compared the near number with itself (the test was fixed).
 - Builds and tests pass with Qt 6.4.2 and Qt 5.15.13 (34 tests). `-DENABLE_3D=OFF` (17 tests) and autotools pass too.
-- The eye camera of the player camera (1.65 m) does not follow the player's height.
+- The eye camera of the player camera (1.65 m) does not follow the player's height. → It does now (below).
+
+**The eye height (7-1)**
+- After the user's check, the 3 commits (5e2361b to c7aa101) were made (not pushed yet).
+- Decided (user): the eye camera of the player camera follows the player's height, in a commit of its own.
+- Made: the eyes at 1.65 m × the player's height ratio, and the scale too when the figures are drawn (`CameraSubject::player_scale`). The point it looks at (1 m high, 10 m ahead) rises as much, keeping the angle down. The over-the-shoulder camera has the same view for a player of any size.
+- Tests: added to test `player_camera` (at the scale 1.2 the eyes and the point they look at are higher, the direction the same, over the shoulder unchanged, the controller passes the scale). Breaking what they check makes them fail (4 ways: the eye height, the point looked at, from the state to the pose, from the controller to the state). Where `FieldView3D` multiplies the height ratio and the scale cannot be checked by the tests without a screen.
+- Builds and tests pass with Qt 6.4.2 and Qt 5.15.13 (34 tests). `-DENABLE_3D=OFF` (17 tests) and autotools pass too.
 
