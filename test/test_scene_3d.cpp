@@ -37,6 +37,7 @@
 #include "ground_texture.h"
 #include "label_atlas.h"
 #include "overlay_builder.h"
+#include "figure_uniform.h"
 #include "figures_3d.h"
 #include "options.h"
 #include "scene_3d.h"
@@ -145,6 +146,7 @@ private slots:
     void batches();
     void panels();
     void figures();
+    void humanFigure();
     void cleanupTestCase();
 };
 
@@ -611,7 +613,7 @@ TestScene3D::figures()
     Scene3D scene;
     QVERIFY( scene.initialize() );
     scene.setGround( GroundTexture::draw( painter ) );
-    scene.setFigureModel( figures.model(), Figures3D::jerseyMaterials() );
+    scene.setFigureModel( figures.model(), figures.jerseyMaterials() );
 
     const int w = 300, h = 400;
     QOpenGLFramebufferObjectFormat fbo_format;
@@ -671,6 +673,85 @@ TestScene3D::figures()
     figures.pose( content, 0.0 );
     scene.render( fbo.handle(), w, h, camera, content );
     QVERIFY( ! red( fbo.toImage().pixelColor( pixel( QVector3D( 0.0f, 1.4f, 0.0f ) ) ) ) );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  the human body in its uniform, seen from its side: the shirt in the
+  figure's color at the chest, the shorts darker at the thigh, the sock in
+  its color at the shin, the shoe dark at the foot, the skin at the head
+*/
+void
+TestScene3D::humanFigure()
+{
+    DispHolder holder;
+    FieldPainter painter( holder );
+    Figures3D figures;
+    QVERIFY2( figures.load(), qPrintable( figures.error() ) );
+    QVERIFY2( figures.setModel( PlayerModel::Human ), qPrintable( figures.error() ) );
+    Scene3D scene;
+    QVERIFY( scene.initialize() );
+    scene.setGround( GroundTexture::draw( painter ) );
+    scene.setFigureModel( figures.model(), figures.jerseyMaterials(), figures.uniformMaterials(), figures.uniformCuts() );
+
+    const int w = 300, h = 400;
+    QOpenGLFramebufferObjectFormat fbo_format;
+    fbo_format.setAttachment( QOpenGLFramebufferObject::Depth );
+    QOpenGLFramebufferObject fbo( w, h, fbo_format );
+
+    // facing +x at the center spot, in red; seen from 4 m on its left side
+    SceneContent content;
+    const float height = 1.85f;
+    content.figures.push_back( FigureInstance{ 0, 0.0f, 0.0f, 0.0f, height, QVector4D( 1.0f, 0.0f, 0.0f, 1.0f ) } );
+    figures.pose( content, 0.0 );
+    CameraPose camera;
+    camera.position = QVector3D( 0.0f, 1.0f, -4.0f );
+    camera.target = QVector3D( 0.0f, 1.0f, 0.0f );
+    scene.render( fbo.handle(), w, h, camera, content );
+    const QImage image = fbo.toImage();
+    // the same body all in its color, lit the same, to compare with
+    scene.setFigureModel( figures.model(), figures.uniformMaterials() );
+    scene.render( fbo.handle(), w, h, camera, content );
+    const QImage plain = fbo.toImage();
+    scene.setFigureModel( figures.model(), figures.jerseyMaterials(), figures.uniformMaterials(), figures.uniformCuts() );
+
+    // a point of the figure's bone, a little toward the camera: its pixel
+    // in the uniform, and its brightness of the figure's color there
+    std::vector< QMatrix4x4 > world;
+    figures.worldNodes( content.figures[0], 0.0, world );
+    const QMatrix4x4 view_proj = camera.projection( float( w ) / h ) * camera.view();
+    QColor lit;
+    const auto color = [&]( const char * from, const char * to, const float t, const QVector3D & shift ) {
+        const QVector3D a = world[figures.model().nodeIndex( from )].column( 3 ).toVector3D();
+        const QVector3D b = world[figures.model().nodeIndex( to )].column( 3 ).toVector3D();
+        const QVector3D ndc = view_proj.map( a + ( b - a ) * t + shift );
+        const QPoint p( int( ( ndc.x() + 1.0f ) / 2.0f * w ), int( ( 1.0f - ndc.y() ) / 2.0f * h ) );
+        lit = plain.pixelColor( p );
+        return image.pixelColor( p );
+    };
+    const auto describe = [&]( const char * what, const QColor & c ) {
+        return qPrintable( QString( "%1 %2 (%3)" ).arg( what, c.name(), lit.name() ) ); };
+    const QVector3D side( 0.0f, 0.0f, -0.05f ); // toward the camera, on the surface
+    const auto red = []( const QColor & c ) { return c.red() > 60 && c.green() < 20 && c.blue() < 20; };
+
+    // the shirt and the sock: the figure's color (the chest, or the sleeve before it)
+    const QColor shirt = color( "spine_02", "spine_03", 0.5f, QVector3D( 0.06f, 0.0f, 0.0f ) );
+    QVERIFY2( red( lit ) && std::abs( shirt.red() - lit.red() ) <= 2 && shirt.green() < 20, describe( "shirt", shirt ) );
+    const QColor sock = color( "calf_l", "foot_l", 0.55f, side );
+    QVERIFY2( red( lit ) && std::abs( sock.red() - lit.red() ) <= 2 && sock.green() < 20, describe( "sock", sock ) );
+    // the shorts: darker by their shade
+    const QColor shorts = color( "thigh_l", "calf_l", 0.25f, side );
+    QVERIFY2( red( lit ) && std::abs( shorts.red() - FigureUniform::SHORTS_SHADE * lit.red() ) <= 3 && shorts.green() < 20,
+              describe( "shorts", shorts ) );
+    // the shoe: dark
+    const QColor shoe = color( "foot_l", "ball_l", 0.5f, QVector3D( 0.0f, 0.0f, -0.03f ) );
+    QVERIFY2( red( lit ) && shoe.red() < 40 && shoe.green() < 40 && shoe.blue() < 40, describe( "shoe", shoe ) );
+    // the skin: the face, the forearm
+    const QColor face = color( "Head", "Head", 0.0f, QVector3D( 0.05f, 0.05f, -0.06f ) );
+    QVERIFY2( red( lit ) && face.red() > face.green() && face.green() > face.blue() && face.green() > 70, describe( "face", face ) );
+    const QColor arm = color( "lowerarm_l", "hand_l", 0.5f, side );
+    QVERIFY2( red( lit ) && arm.red() > arm.green() && arm.green() > arm.blue() && arm.green() > 70, describe( "forearm", arm ) );
+    scene.release();
 }
 
 /*-------------------------------------------------------------------*/

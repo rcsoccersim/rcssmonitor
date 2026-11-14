@@ -61,13 +61,17 @@ constexpr int JOINT_UNIT = 0;
 void
 SkinnedMesh::create( QOpenGLFunctions_3_3_Core & gl,
                      const GltfModel & model,
-                     const QStringList & jersey )
+                     const QStringList & jersey,
+                     const QStringList & uniform )
 {
     M_joint_count = model.jointCount();
     M_parts.clear();
     for ( const SkinPrimitive & p : model.primitives )
     {
-        M_parts.push_back( { p.first_index, p.index_count, jersey.contains( p.material ), p.base_color } );
+        const int paint = ( uniform.contains( p.material ) ? 2
+                            : jersey.contains( p.material ) ? 1
+                            : 0 );
+        M_parts.push_back( { p.first_index, p.index_count, paint, p.base_color } );
     }
 
     gl.glGenVertexArrays( 1, &M_vao );
@@ -88,6 +92,10 @@ SkinnedMesh::create( QOpenGLFunctions_3_3_Core & gl,
     gl.glVertexAttribIPointer( GLAttribute::JOINTS, 4, GL_UNSIGNED_SHORT, stride, offset( offsetof( SkinVertex, joints ) ) );
     gl.glEnableVertexAttribArray( GLAttribute::WEIGHTS );
     gl.glVertexAttribPointer( GLAttribute::WEIGHTS, 4, GL_FLOAT, GL_FALSE, stride, offset( offsetof( SkinVertex, weights ) ) );
+    gl.glEnableVertexAttribArray( GLAttribute::REST );
+    gl.glVertexAttribPointer( GLAttribute::REST, 3, GL_FLOAT, GL_FALSE, stride, offset( offsetof( SkinVertex, rest ) ) );
+    gl.glEnableVertexAttribArray( GLAttribute::PART );
+    gl.glVertexAttribPointer( GLAttribute::PART, 1, GL_FLOAT, GL_FALSE, stride, offset( offsetof( SkinVertex, part ) ) );
 
     // the triangles: indices into the vertices (the VAO remembers this buffer too)
     gl.glGenBuffers( 1, &M_index_buffer );
@@ -170,7 +178,7 @@ SkinnedMesh::draw( QOpenGLFunctions_3_3_Core & gl,
     gl.glBindVertexArray( M_vao );
     for ( const Part & p : M_parts )
     {
-        program.set( "uInstanceColor", p.jersey ? 1 : 0 );
+        program.set( "uPaint", p.paint );
         program.set( "uBaseColor", p.color );
         gl.glDrawElementsInstanced( GL_TRIANGLES, p.index_count, GL_UNSIGNED_INT,
                                     offset( std::size_t( p.first_index ) * sizeof( std::uint32_t ) ), count );

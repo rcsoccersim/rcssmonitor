@@ -1394,6 +1394,24 @@ const ChoiceText SIGHT_TEXTS[] = {
 };
 
 // the choices of the compass and the minimap, in the order of guideModes()
+// the choices of the players' model, in the order of playerModels()
+const ChoiceText MODEL_TEXTS[] = {
+    { "Simple",
+      "Cylinders and spheres, with the marks of the body and face directions.",
+      "A cylinder and a sphere for each player, with a black cone for the body\n"
+      "direction and a red one for the face." },
+    { "Mannequin",
+      "Human figures: a mannequin in the team color, moving as the log tells.",
+      "Human figures: a mannequin all in the team color (the joints apart),\n"
+      "walking and running at the players' speeds, and kicking, tackling, sitting\n"
+      "down after a foul, catching and pointing as the log tells, the head turned\n"
+      "by the neck." },
+    { "Human",
+      "Human figures: a person in a uniform, moving as the log tells.",
+      "Human figures: a person in a uniform, the shirt and the socks in the team\n"
+      "color, the shorts darker; moving as the Mannequin does." },
+};
+
 const ChoiceText GUIDE_TEXTS[] = {
     { "Off", "Not shown.", nullptr },
     { "Player Camera", "Shown with the Player camera only.", nullptr },
@@ -1460,6 +1478,23 @@ QString
 guideLabel( const GuideMode mode )
 {
     return QString::fromUtf8( GUIDE_TEXTS[guideIndex( mode )].label );
+}
+
+//! the index of a player model in playerModels() (and MODEL_TEXTS)
+int
+modelIndex( const PlayerModel model )
+{
+    for ( std::size_t i = 0; i < playerModels().size(); ++i )
+    {
+        if ( playerModels()[i].first == model ) return int( i );
+    }
+    return 0;
+}
+
+QString
+modelLabel( const PlayerModel model )
+{
+    return QString::fromUtf8( MODEL_TEXTS[modelIndex( model )].label );
 }
 
 //! the width of the notes, in average characters
@@ -1705,6 +1740,54 @@ ConfigDialog::create3DTab()
         top_layout->addWidget( group_box );
     }
 
+    // players
+    {
+        QGroupBox * group_box = new QGroupBox( tr( "Players" ) );
+        QVBoxLayout * box = new QVBoxLayout();
+        QGridLayout * layout = new QGridLayout();
+        layout->setContentsMargins( 0, 0, 0, 0 );
+
+        std::vector< std::pair< QString, QString > > choices;
+        for ( const ChoiceText & t : MODEL_TEXTS )
+        {
+            choices.emplace_back( QString::fromUtf8( t.label ), QString::fromUtf8( t.summary ) );
+        }
+        M_player_model_3d = addChoices( layout, tr( "Model:" ),
+                                        tr( "How the players are drawn." ),
+                                        choices, &M_player_model_3d_note );
+        setChoiceTooltips( M_player_model_3d, MODEL_TEXTS );
+        M_player_model_3d->setObjectName( "player_model_3d" );
+        connect( M_player_model_3d, &QButtonGroup::idClicked,
+                 this, [this]( int id ) {
+                     Options::instance().setPlayerModel3D( playerModels()[id].first );
+                     changed3D();
+                 } );
+
+        QGridLayout * numbers = new QGridLayout();
+        numbers->setContentsMargins( 0, 0, 0, 0 );
+        M_figure_scale_3d
+            = addNumber( numbers, 0, 0, tr( "Figure Scale:" ),
+                         tr( "How many times a person's height (1.85 m) the human figures are, to be seen\n"
+                             "better from afar; each player's height still differs by its type (its\n"
+                             "kickable area). Not for the Simple model." ),
+                         Options::MIN_FIGURE_SCALE_3D, Options::MAX_FIGURE_SCALE_3D,
+                         0.05, 2, QString(), &M_figure_scale_3d_label );
+        M_figure_scale_3d->setObjectName( "figure_scale_3d" );
+        connect( M_figure_scale_3d, QOverload< double >::of( &QDoubleSpinBox::valueChanged ),
+                 this, [this]( double value ) {
+                     Options::instance().setFigureScale3D( value );
+                     changed3D();
+                 } );
+        numbers->setColumnStretch( 2, 1 );
+
+        box->addLayout( layout );
+        box->addLayout( numbers );
+        box->addWidget( noteLabel( tr( "From the Top camera, and where the Player camera does not see which way "
+                                       "a player faces, the players are cylinders." ) ) );
+        group_box->setLayout( box );
+        top_layout->addWidget( group_box );
+    }
+
     // stadium
     {
         QGroupBox * group_box = new QGroupBox( tr( "Stadium" ) );
@@ -1749,11 +1832,13 @@ ConfigDialog::create3DTab()
         QPushButton * button = new QPushButton( tr( "Default" ) );
         button->setObjectName( "default_3d" );
         button->setToolTip( tr( "Set the defaults: Close-up %1 m, %2\u00b0, Compass %3, Minimap %4,\n"
-                                "Boards %5, Banners %6" )
+                                "Model %5, Figure Scale %6, Boards %7, Banners %8" )
                             .arg( Options::CLOSEUP_DISTANCE_3D )
                             .arg( Options::CLOSEUP_ELEVATION_3D )
                             .arg( guideLabel( Options::COMPASS_3D ) )
                             .arg( guideLabel( Options::MINIMAP_3D ) )
+                            .arg( modelLabel( Options::PLAYER_MODEL_3D ) )
+                            .arg( Options::FIGURE_SCALE_3D )
                             .arg( onOff( Options::BOARDS_3D ) )
                             .arg( onOff( Options::BANNERS_3D ) ) );
         button->setAutoDefault( false );
@@ -1994,6 +2079,12 @@ ConfigDialog::update3D()
     set_number( M_closeup_elevation_3d, opt.closeupElevation3D() );
     set_choice( M_compass_3d, guideIndex( opt.compass3D() ), nullptr );
     set_choice( M_minimap_3d, guideIndex( opt.minimap3D() ), nullptr );
+    set_choice( M_player_model_3d, modelIndex( opt.playerModel3D() ), M_player_model_3d_note );
+    set_number( M_figure_scale_3d, opt.figureScale3D() );
+    // the scale of the figures, not of the cylinders
+    const bool figures = ( opt.playerModel3D() != PlayerModel::Simple );
+    M_figure_scale_3d->setEnabled( figures );
+    M_figure_scale_3d_label->setEnabled( figures );
     M_boards_3d_cb->setChecked( opt.boards3D() );
     M_banners_3d_cb->setChecked( opt.banners3D() );
 

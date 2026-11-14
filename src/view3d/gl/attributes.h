@@ -61,9 +61,10 @@
   instance. They are read by other shaders from other buffers, so they
   reuse the locations of MODEL. The vertices of a batch (VertexBatch,
   ColorVertex3D) have no instances: each vertex has its own COLOR. A
-  skinned mesh (SkinnedMesh) has the joints and their weights of a vertex,
-  and a COLOR of an instance; its instances are placed by the matrices of
-  their joints, not by a MODEL.
+  skinned mesh (SkinnedMesh) has the joints and their weights of a vertex
+  (and where it is at rest and on which part of the body, for the
+  uniform), and a COLOR of an instance; its instances are placed by the
+  matrices of their joints, not by a MODEL.
 */
 namespace GLAttribute {
 
@@ -82,6 +83,8 @@ constexpr unsigned int DISTANCE = 8; //!< float: along a dotted line (m)
 // of a vertex of a skinned mesh (SkinVertex): POSITION, NORMAL, and
 constexpr unsigned int JOINTS = 9; //!< uvec4: the joints (bones) that move the vertex
 constexpr unsigned int WEIGHTS = 10; //!< vec4: how much each of them moves it (summing to 1)
+constexpr unsigned int REST = 11; //!< vec3: where the rest pose puts it in the model, for the uniform's edges
+constexpr unsigned int PART = 12; //!< float: the part of the body it is on (FigureUniform::Part)
 // and of an instance (a figure): COLOR
 
 // of a billboard (Billboard3D), in place of MODEL

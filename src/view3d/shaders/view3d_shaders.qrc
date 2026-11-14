@@ -17,5 +17,6 @@
     <file>panel.vert</file>
     <file>panel.frag</file>
     <file>skinned.vert</file>
+    <file>skinned.frag</file>
   </qresource>
 </RCC>

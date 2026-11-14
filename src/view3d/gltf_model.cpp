@@ -335,17 +335,20 @@ GltfModel::load( const QByteArray & bytes,
     skin( rest, QMatrix4x4(), skin_rest.data() );
     min_y = std::numeric_limits< float >::max();
     max_y = -std::numeric_limits< float >::max();
-    for ( const SkinVertex & v : vertices )
+    for ( SkinVertex & v : vertices )
     {
-        float y = 0.0f;
-        for ( int k = 0; k < 4; ++k )
+        for ( int r = 0; r < 3; ++r )
         {
-            const float * m = &skin_rest[v.joints[k] * 16];
-            // the y row of the column-major matrix times (position, 1)
-            y += v.weights[k] * ( m[1] * v.position[0] + m[5] * v.position[1] + m[9] * v.position[2] + m[13] );
+            v.rest[r] = 0.0f;
+            for ( int k = 0; k < 4; ++k )
+            {
+                const float * m = &skin_rest[v.joints[k] * 16];
+                // the row r of the column-major matrix times (position, 1)
+                v.rest[r] += v.weights[k] * ( m[r] * v.position[0] + m[4 + r] * v.position[1] + m[8 + r] * v.position[2] + m[12 + r] );
+            }
         }
-        min_y = std::min( min_y, y );
-        max_y = std::max( max_y, y );
+        min_y = std::min( min_y, v.rest[1] );
+        max_y = std::max( max_y, v.rest[1] );
     }
     return true;
 }

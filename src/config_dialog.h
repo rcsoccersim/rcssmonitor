@@ -221,6 +221,10 @@ private:
     QDoubleSpinBox * M_closeup_elevation_3d = nullptr;
     QButtonGroup * M_compass_3d = nullptr;
     QButtonGroup * M_minimap_3d = nullptr;
+    QButtonGroup * M_player_model_3d = nullptr;
+    QLabel * M_player_model_3d_note = nullptr;
+    QDoubleSpinBox * M_figure_scale_3d = nullptr;
+    QLabel * M_figure_scale_3d_label = nullptr;
     QCheckBox * M_boards_3d_cb = nullptr;
     QCheckBox * M_banners_3d_cb = nullptr;
 

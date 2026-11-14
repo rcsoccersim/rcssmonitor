@@ -73,6 +73,8 @@ struct SkinVertex {
     float normal[3];
     std::uint16_t joints[4]; //!< indices into the joints of the skin
     float weights[4];
+    float rest[3]; //!< where the rest pose puts it in the model (m), skinned
+    float part = 0.0f; //!< the part of the body it is on, for the uniform (FigureUniform::paintParts())
 };
 
 /*!

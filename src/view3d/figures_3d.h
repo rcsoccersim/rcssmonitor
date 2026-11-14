@@ -33,16 +33,21 @@
 #ifndef RCSSMONITOR_FIGURES_3D_H
 #define RCSSMONITOR_FIGURES_3D_H
 
+#include "figure_uniform.h"
 #include "gait_table.h"
 #include "gltf_model.h"
 #include "humanoid.h"
 #include "scene_content.h"
 
+#include "camera_mode.h"
+
 #include <QMatrix4x4>
 #include <QString>
 #include <QStringList>
 
+#include <array>
 #include <initializer_list>
+#include <memory>
 #include <utility>
 #include <vector>
 
@@ -67,9 +72,16 @@ struct GaitClip {
 /*!
   \class Figures3D
   \brief the players as human figures (docs/PLAN_3D-VIEW.md §5.8): the
-  bundled model, the Mannequin of Quaternius's Universal Animation Library
-  (CC0, resources/models), and the poses of the figures that SceneBuilder
-  put in a SceneContent. No OpenGL: Scene3D draws them.
+  bundled models (resources/models, CC0) and the poses of the figures that
+  SceneBuilder put in a SceneContent. No OpenGL: Scene3D draws them.
+
+  The motion is the Mannequin's of Quaternius's Universal Animation
+  Library: its clips of standing, walking and running. The body drawn is
+  one of two models (setModel()): the Mannequin itself, all in the
+  figure's color but the joints, or a human body of the Universal Base
+  Characters (the same skeleton, other proportions), in a uniform painted
+  by FigureUniform. The motion goes from one to the other through the
+  humanoid layer, and the poses of the actions are made on the body drawn.
 
   A pose is decided from the log every frame, from the frame and the
   fraction to the next one only (FigureMotion, from GaitTable), so that a
@@ -137,8 +149,13 @@ public:
     static constexpr float CATCH_LOW = 0.3f;
     static constexpr float CATCH_HIGH = 1.5f;
 
+    Figures3D();
+    ~Figures3D();
+    Figures3D( const Figures3D & ) = delete;
+    Figures3D & operator=( const Figures3D & ) = delete;
+
     /*!
-      \brief read the bundled model (once)
+      \brief read the motion and the Mannequin, the body drawn first (once)
       \return false if it cannot be read; error() tells why
     */
     bool load();
@@ -146,11 +163,34 @@ public:
     bool ready() const { return M_ready; }
     const QString & error() const { return M_error; }
 
-    //! the materials of the model in each figure's jersey color
-    static QStringList jerseyMaterials();
+    /*!
+      \brief the body drawn: the Mannequin (also for Simple) or the human
+      body, read the first time it is asked for
+      \return false if it cannot be read (error() tells why): the body stays
+    */
+    bool setModel( const PlayerModel model );
+    //! the body drawn
+    PlayerModel bodyModel() const { return M_body_model; }
+    /*!
+      \brief how long a gait cycle of the body drawn is, of the motion's
+      for the same height: the speeds of the gait clips read on it, of
+      theirs (longer for longer legs), so that its feet do not slide
+    */
+    float bodyStride() const;
 
-    const GltfModel & model() const { return M_model; }
-    const HumanoidRig & rig() const { return M_rig; }
+    //! the materials of the body drawn in each figure's color
+    QStringList jerseyMaterials() const;
+    //! the materials of the body drawn in a uniform (FigureUniform) of each figure's color
+    QStringList uniformMaterials() const;
+    //! where the body's uniform ends at rest
+    const FigureUniform::Cuts & uniformCuts() const;
+
+    //! the body drawn: its model and its roles
+    const GltfModel & model() const;
+    const HumanoidRig & rig() const;
+    //! the model of the motion (the clips) and its roles
+    const GltfModel & motionModel() const { return M_model; }
+    const HumanoidRig & motionRig() const { return M_rig; }
 
     /*!
       \brief read a clip of walking or running: when the left foot comes
@@ -161,12 +201,17 @@ public:
       \param rig its roles (the feet, and the toes if any)
       \param clip the clip
       \param out the result
+      \param body if not null, the clip read on this body (through the
+      humanoid layer), of the speed for its proportions
+      \param body_rig the body's roles
       \return false if the feet do not come down and go back
     */
     static bool analyzeGait( const GltfModel & model,
                              const HumanoidRig & rig,
                              const int clip,
-                             GaitClip * out );
+                             GaitClip * out,
+                             const GltfModel * body = nullptr,
+                             const HumanoidRig * body_rig = nullptr );
 
     //! the clips of walking and running, slowest first
     const std::vector< GaitClip > & gaitClips() const { return M_gaits; }
@@ -240,11 +285,22 @@ public:
       \brief the transforms of the model's nodes for a figure
       \param figure the figure, with its motion
       \param time the game's time (s), with the fraction to the next frame
-      \param local by node index
+      \param local by the body's node index
     */
     void localPose( const FigureInstance & figure,
                     const double time,
                     std::vector< NodeTransform > & local ) const;
+
+    /*!
+      \brief where the model's nodes of a figure are in the world, posed
+      (to inspect a pose: FrameBuilder3D::state())
+      \param figure the figure, with its motion
+      \param time the game's time (s), with the fraction to the next frame
+      \param world by node index
+    */
+    void worldNodes( const FigureInstance & figure,
+                     const double time,
+                     std::vector< QMatrix4x4 > & world ) const;
 
     /*!
       \brief the skin matrices of the figures of a content, into
@@ -259,10 +315,23 @@ private:
     bool M_loaded = false; //!< load() was tried
     bool M_ready = false;
     QString M_error;
-    GltfModel M_model;
-    HumanoidRig M_rig;
+    GltfModel M_model; //!< the motion: the Mannequin with its clips
+    HumanoidRig M_rig; //!< its roles
     int M_idle = -1; //!< the clip of standing
     std::vector< GaitClip > M_gaits; //!< walking and running, slowest first
+
+    struct Body;
+    //! the bodies by PlayerModel (Mannequin, Human), read when first asked for
+    std::array< std::unique_ptr< Body >, 2 > M_bodies;
+    std::array< bool, 2 > M_body_tried = { { false, false } };
+    const Body * M_body = nullptr; //!< the body drawn
+    PlayerModel M_body_model = PlayerModel::Mannequin;
+
+    //! read a body (a model of the motion's skeleton)
+    std::unique_ptr< Body > loadBody( const char * path,
+                                      const QStringList & jersey,
+                                      const QStringList & uniform,
+                                      QString * error ) const;
 
     //! a clip at a time, through the humanoid layer, and the nodes of the motion
     HumanoidPose sample( const int clip,
@@ -283,10 +352,6 @@ private:
         float turn = 0.0f;
     };
 
-    //! from each limb's rest to hanging down, in the model: left, right
-    QQuaternion M_leg_down[2];
-    QQuaternion M_arm_down[2];
-
     //! put a leg (right: 1) as told, in the directions of the model
     void setLeg( HumanoidPose & pose,
                  const int right,
@@ -296,6 +361,16 @@ private:
                  const int right,
                  const LimbPose & limb,
                  const bool in_model = false ) const;
+
+    /*!
+      \brief the body's nodes for the motion's: the bones without a role
+      (the fingers) turned from the body's rest as the motion's are from
+      theirs (the same skeleton: as they are)
+      \param motion by the motion's node index
+      \param local by the body's node index
+    */
+    void bodyNodes( const std::vector< NodeTransform > & motion,
+                    std::vector< NodeTransform > & local ) const;
 
     //! the kicking foot to the ball around the kick's moment (two-bone IK of the leg)
     void reach( const FigureInstance & figure,

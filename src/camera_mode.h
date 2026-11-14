@@ -268,21 +268,24 @@ guideModeFromName( const QString & name,
 /*!
   \enum PlayerModel
   \brief how the 3D view draws the players: cylinders and spheres, or
-  human figures (docs/PLAN_3D-VIEW.md §5.8)
+  human figures (docs/PLAN_3D-VIEW.md §5.8): the mannequin, or a human body
+  in a uniform
 */
 enum class PlayerModel {
     Simple,
-    Figure,
+    Mannequin,
+    Human,
 };
 
 //! the player models, with their names in the options
 inline
-const std::array< std::pair< PlayerModel, const char * >, 2 > &
+const std::array< std::pair< PlayerModel, const char * >, 3 > &
 playerModels()
 {
-    static const std::array< std::pair< PlayerModel, const char * >, 2 > list = { {
+    static const std::array< std::pair< PlayerModel, const char * >, 3 > list = { {
             { PlayerModel::Simple, "simple" },
-            { PlayerModel::Figure, "figure" },
+            { PlayerModel::Mannequin, "mannequin" },
+            { PlayerModel::Human, "human" },
         } };
     return list;
 }
@@ -315,6 +318,12 @@ playerModelFromName( const QString & name,
             *model = m.first;
             return true;
         }
+    }
+    // the name of the mannequin before there were more figures
+    if ( name == QLatin1String( "figure" ) )
+    {
+        *model = PlayerModel::Mannequin;
+        return true;
     }
     return false;
 }

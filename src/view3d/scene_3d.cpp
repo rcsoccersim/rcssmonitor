@@ -92,7 +92,7 @@ Scene3D::initialize()
          || ! M_billboard_program.load( "billboard" )
          || ! M_colored_program.load( "colored" )
          || ! M_panel_program.load( "panel" )
-         || ! M_skinned_program.load( "skinned", "lit" ) )
+         || ! M_skinned_program.load( "skinned" ) )
     {
         M_ground_program.destroy();
         M_lit_program.destroy();
@@ -138,6 +138,7 @@ Scene3D::release()
     }
     M_billboards.destroy( *this );
     M_figure.destroy( *this );
+    M_gpu_timer.destroy( *this );
     for ( VertexBatch * b : { &M_sector_batch, &M_line_batch, &M_dotted_batch, &M_point_batch } )
     {
         b->destroy( *this );
@@ -185,15 +186,36 @@ Scene3D::setStadium( const int end,
 
 /*-------------------------------------------------------------------*/
 void
+Scene3D::setTiming( const bool on )
+{
+    if ( ! M_initialized )
+    {
+        return;
+    }
+    if ( on )
+    {
+        M_gpu_timer.create( *this );
+    }
+    else
+    {
+        M_gpu_timer.destroy( *this );
+    }
+}
+
+/*-------------------------------------------------------------------*/
+void
 Scene3D::setFigureModel( const GltfModel & model,
-                         const QStringList & jersey )
+                         const QStringList & jersey,
+                         const QStringList & uniform,
+                         const FigureUniform::Cuts & cuts )
 {
     if ( ! M_initialized )
     {
         return;
     }
     M_figure.destroy( *this );
-    M_figure.create( *this, model, jersey );
+    M_figure.create( *this, model, jersey, uniform );
+    M_figure_cuts = cuts;
 }
 
 /*-------------------------------------------------------------------*/
@@ -214,6 +236,7 @@ Scene3D::render( GLuint fbo,
 
     // start the frame: into the framebuffer, cleared to the sky
     GLFrame::begin( *this, fbo, width, height, SKY );
+    M_gpu_timer.begin( *this );
 
     //
     // pass 1: the ground, with the image of the 2D view on texture unit 0
@@ -249,6 +272,18 @@ Scene3D::render( GLuint fbo,
         M_skinned_program.bind();
         M_skinned_program.set( "uViewProj", view_proj );
         M_skinned_program.set( "uSun", SUN );
+        // the uniform (FigureUniform)
+        static const char * const CUTS[FigureUniform::Cuts::COUNT] = {
+            "uCuts[0]", "uCuts[1]", "uCuts[2]", "uCuts[3]", "uCuts[4]",
+            "uCuts[5]", "uCuts[6]", "uCuts[7]", "uCuts[8]", "uCuts[9]",
+        };
+        for ( int i = 0; i < FigureUniform::Cuts::COUNT; ++i )
+        {
+            M_skinned_program.set( CUTS[i], M_figure_cuts.planes[i] );
+        }
+        M_skinned_program.set( "uSkinColor", FigureUniform::SKIN_COLOR );
+        M_skinned_program.set( "uShoeColor", FigureUniform::SHOE_COLOR );
+        M_skinned_program.set( "uShortsShade", FigureUniform::SHORTS_SHADE );
         M_figure.draw( *this, M_skinned_program, M_figure_colors, content.figure_joints );
     }
 
@@ -321,5 +356,6 @@ Scene3D::render( GLuint fbo,
     }
 
     // end the frame: OpenGL as QPainter expects it, for the HUD over the scene
+    M_gpu_timer.end( *this );
     GLFrame::end( *this );
 }

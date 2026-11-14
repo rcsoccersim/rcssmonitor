@@ -36,7 +36,6 @@
 
 #include "field_view_3d.h"
 
-#include "figure_actions.h"
 #include "ground_texture.h"
 #include "guides_3d.h"
 #include "interpolate.h"
@@ -63,6 +62,7 @@
 #include <QPainter>
 
 #include <cmath>
+#include <cstdio>
 #include <iostream>
 
 /*-------------------------------------------------------------------*/
@@ -87,6 +87,9 @@ FieldView3D::FieldView3D( DispHolder & disp_holder,
     // without a timer of our own.
     connect( this, SIGNAL( frameSwapped() ),
              this, SLOT( drawNext() ) );
+
+    // the times of the frames, to measure (docs/PLAN_3D-VIEW.md §10.3)
+    M_timing.on = ! qEnvironmentVariableIsEmpty( "RCSSMONITOR_3D_TIMING" );
 }
 
 /*-------------------------------------------------------------------*/
@@ -163,16 +166,15 @@ FieldView3D::initializeGL()
     {
         std::cerr << "(FieldView3D) OpenGL 3.3 core is not available" << std::endl;
     }
-    // the human figure, read once, sent to every new context
-    else if ( M_figures.load() )
-    {
-        M_scene.setFigureModel( M_figures.model(), Figures3D::jerseyMaterials() );
-    }
-    else
+    // the human figures, read once (FrameBuilder3D), their body sent to
+    // every new context when drawn (paintGL())
+    else if ( ! M_builder.figures().load() )
     {
         std::cerr << "(FieldView3D) the human figures are not available: "
-                  << M_figures.error().toStdString() << std::endl;
+                  << M_builder.figures().error().toStdString() << std::endl;
     }
+    M_figure_model = PlayerModel::Simple;
+    M_scene.setTiming( M_timing.on );
     M_ground_key.clear();
     M_stadium_keys[0].clear();
     M_stadium_keys[1].clear();
@@ -230,24 +232,21 @@ FieldView3D::paintGL()
                                     since_newest );
     }
 
-    // what to draw where: the goals, and the players and the ball on the way
-    // between the two frames
     // the automatic selection of a player, as the 2D view does when it is drawn
     if ( const DispConstPtr current = M_disp_holder.currentDisp() )
     {
         selectPlayerNearestBall( current->show_, Options::instance() );
     }
 
-    // The ends in the team colors: the nets, and the boards and the banners
-    // with the team names and logos, drawn again when they change
+    // The ends in the team colors: the boards and the banners with the team
+    // names and logos, drawn again when they change
     const Options & opt = Options::instance();
-    const QColor team_colors[2] = { opt.leftTeamBrush().color(), opt.rightTeamBrush().color() };
     {
         const DispConstPtr current = M_disp_holder.currentDisp();
         for ( int end = 0; end < 2; ++end )
         {
             Stadium3D::TeamLook look;
-            look.color = team_colors[end];
+            look.color = ( end == 0 ? opt.leftTeamBrush() : opt.rightTeamBrush() ).color();
             look.name = ( current ? QString::fromStdString( current->team_[end].name_ ) : QString() );
             if ( opt.showTeamGraphic() )
             {
@@ -262,100 +261,33 @@ FieldView3D::paintGL()
         }
     }
 
-    M_content.clear();
-    SceneBuilder::addGoals( M_content, team_colors[0], team_colors[1] );
-    Stadium3D::addPanels( M_content, opt.boards3D(), opt.banners3D(), team_colors[0], team_colors[1] );
-    rcss::rcg::ShowInfoT show;
-    if ( ! frames.empty() )
-    {
-        show = Interpolate::show( *frames[at.index],
-                                  ( at.next != at.index ? frames[at.next].get() : nullptr ),
-                                  at.alpha );
-    }
+    QElapsedTimer cpu;
+    cpu.start();
 
-    // the players as human figures, but not from the top camera (a map)
-    const bool figures = ( opt.playerModel3D() == PlayerModel::Figure
-                           && M_camera.mode() != CameraMode::Top
-                           && M_figures.ready() );
-
-    // what the cameras follow: the ball, and the selected player in the show
-    CameraSubject subject;
-    subject.ball_x = show.ball_.x_;
-    subject.ball_y = show.ball_.y_;
-    int selected = -1;
-    if ( ! frames.empty() )
+    // what to draw where (FrameBuilder3D): the goals and the boards, the
+    // players (posed from the log, as figures) and the ball on the way
+    // between the two frames, the overlays
+    M_builder.build( M_disp_holder, opt, at, M_camera.mode(), M_content );
+    const rcss::rcg::ShowInfoT & show = M_builder.show();
+    // the body of the figures to the GPU, when another is drawn
+    if ( ! M_content.figures.empty()
+         && M_builder.figures().bodyModel() != M_figure_model )
     {
-        for ( int i = 0; i < rcss::rcg::MAX_PLAYER * 2; ++i )
-        {
-            const rcss::rcg::PlayerT & p = show.player_[i];
-            if ( p.side() != rcss::rcg::NEUTRAL
-                 && p.isAlive()
-                 && Options::instance().selectedPlayer( p.side(), p.unum_ ) )
-            {
-                selected = i;
-                subject.has_player = true;
-                subject.player_x = p.x_;
-                subject.player_y = p.y_;
-                subject.player = &show.player_[i];
-                // as tall as it is drawn: its type, and the scale of the figures
-                subject.player_scale = SceneBuilder::heightRatio( M_disp_holder.playerType( p.type_ ),
-                                                                  M_disp_holder.serverParam() )
-                    * ( figures ? float( opt.figureScale3D() ) : 1.0f );
-            }
-        }
+        const Figures3D & figures = M_builder.figures();
+        M_scene.setFigureModel( figures.model(), figures.jerseyMaterials(), figures.uniformMaterials(), figures.uniformCuts() );
+        M_figure_model = figures.bodyModel();
     }
-
-    // The player camera draws what its player perceives (its sight),
-    // decided on the frame of the cycle, not between frames; at its eyes,
-    // not the player itself.
-    const PlayerCameraOptions & player_camera = Options::instance().playerCamera();
-    Perceptions perceptions;
-    const Perceptions * seen = nullptr;
-    if ( M_camera.mode() == CameraMode::Player
-         && selected >= 0 )
-    {
-        const rcss::rcg::ShowInfoT & cycle = frames[at.index]->show_;
-        perceptions = Perceptions::perceive( player_camera.sight,
-                                             cycle,
-                                             selected,
-                                             M_disp_holder.playerType( cycle.player_[selected].type_ ),
-                                             M_disp_holder.serverParam(),
-                                             player_camera.position == PlayerCameraStyle::Position::Eye );
-        seen = &perceptions;
-    }
-
-    if ( ! frames.empty() )
-    {
-        SceneBuilder::addShow( M_content, show, M_disp_holder, Options::instance(), seen, figures );
-        // how the figures move and what they do, from the log, and so their poses at the
-        // game's time of the frame drawn and the fraction to the next one
-        if ( ! M_content.figures.empty() )
-        {
-            M_gaits.setStrides( M_figures.strides() );
-            M_gaits.update( frames, step * 1.0e-3 );
-            const float ball_radius = float( SceneBuilder::ballRadius( opt, M_disp_holder.serverParam().ball_size_ ) );
-            for ( FigureInstance & figure : M_content.figures )
-            {
-                figure.motion = M_gaits.motion( figure.player, at.index, at.next, at.alpha );
-                figure.actions = FigureActionLog::read( frames, figure.player, at.index, at.next, at.alpha,
-                                                        show.player_[figure.player], M_disp_holder.serverParam(),
-                                                        ball_radius );
-            }
-        }
-        M_figures.pose( M_content, ( at.index + at.alpha ) * step * 1.0e-3 );
-        OverlayBuilder::addDirections( M_content, show, M_disp_holder, Options::instance(), seen );
-        OverlayBuilder::addViewAreas( M_content, show, M_disp_holder, Options::instance(), seen );
-        OverlayBuilder::addOverlays( M_content, show, M_disp_holder, Options::instance(), seen );
-    }
+    const Perceptions * seen = M_builder.seen();
+    const PlayerCameraOptions & player_camera = opt.playerCamera();
 
     // the camera, after the ball for the time since the last frame
     const double dt = ( M_frame_clock.isValid() ? M_frame_clock.restart() * 1.0e-3 : 0.0 );
     if ( ! M_frame_clock.isValid() ) M_frame_clock.start();
     const float aspect = float( width() ) / float( std::max( 1, height() ) );
-    M_camera.setCloseup( float( Options::instance().closeupDistance3D() ),
-                         float( Options::instance().closeupElevation3D() ) );
+    M_camera.setCloseup( float( opt.closeupDistance3D() ),
+                         float( opt.closeupElevation3D() ) );
     M_camera.setPlayerCamera( player_camera );
-    const CameraPose camera = M_camera.update( dt, aspect, subject );
+    const CameraPose camera = M_camera.update( dt, aspect, M_builder.subject() );
     M_drawn_camera = camera;
     M_drawn = true;
 
@@ -381,14 +313,31 @@ FieldView3D::paintGL()
         M_scene.setLabels( M_label_atlas.image() );
     }
 
+    const double build_time = cpu.nsecsElapsed() * 1.0e-6;
+
     // draw into the widget's framebuffer, in physical pixels: on a screen
     // scaled by 1.5, a widget of 100 logical pixels has 150 of them
     const qreal dpr = devicePixelRatioF();
+    cpu.restart();
     M_scene.render( defaultFramebufferObject(),
                     static_cast< int >( std::lround( width() * dpr ) ),
                     static_cast< int >( std::lround( height() * dpr ) ),
                     camera,
                     M_content );
+    if ( M_timing.on )
+    {
+        M_timing.submit += cpu.nsecsElapsed() * 1.0e-6;
+        M_timing.build += build_time;
+        M_timing.players += M_builder.poseTime();
+        M_timing.figures = static_cast< int >( M_content.figures.size() );
+        if ( M_timing.since_frame.isValid() )
+        {
+            M_timing.longest = std::max( M_timing.longest, M_timing.since_frame.nsecsElapsed() * 1.0e-6 );
+        }
+        M_timing.since_frame.start();
+        ++M_timing.frames;
+        reportTiming();
+    }
 
     // the HUD over the scene, as the 2D view draws it. The team logo on the
     // right is placed by the size of the canvas in the options, which the
@@ -448,6 +397,40 @@ FieldView3D::paintGL()
             }
         }
     }
+}
+
+/*-------------------------------------------------------------------*/
+void
+FieldView3D::reportTiming()
+{
+    if ( ! M_timing.period.isValid() )
+    {
+        M_timing.period.start();
+        return;
+    }
+    const double seconds = M_timing.period.nsecsElapsed() * 1.0e-9;
+    if ( seconds < TIMING_PERIOD || M_timing.frames == 0 )
+    {
+        return;
+    }
+    double gpu = 0.0;
+    const int gpu_frames = M_scene.takeGpuTime( &gpu );
+    const double n = M_timing.frames;
+    const qreal dpr = devicePixelRatioF();
+    std::fprintf( stderr,
+                  "(3D timing) %dx%d px, %s, %d figures: %.1f fps (longest %.1f ms);"
+                  " CPU build %.3f ms (players %.3f), submit %.3f ms; GPU %.3f ms\n",
+                  int( std::lround( width() * dpr ) ), int( std::lround( height() * dpr ) ),
+                  playerModelName( Options::instance().playerModel3D() ).toLatin1().constData(),
+                  M_timing.figures,
+                  n / seconds, M_timing.longest,
+                  M_timing.build / n, M_timing.players / n, M_timing.submit / n,
+                  gpu_frames > 0 ? gpu / gpu_frames : -1.0 );
+    const bool on = M_timing.on;
+    M_timing = Timing();
+    M_timing.on = on;
+    M_timing.period.start();
+    M_timing.since_frame.start();
 }
 
 /*-------------------------------------------------------------------*/
@@ -544,6 +527,17 @@ FieldView3D::targetAt( const QPoint & point ) const
         return RefereeTarget();
     }
     return Picking::targetAt( M_drawn_camera, QSizeF( size() ), QPointF( point ), M_content.picks );
+}
+
+/*-------------------------------------------------------------------*/
+View3DState
+FieldView3D::state() const
+{
+    if ( ! M_drawn )
+    {
+        return View3DState();
+    }
+    return M_builder.state( M_content, M_drawn_camera );
 }
 
 /*-------------------------------------------------------------------*/

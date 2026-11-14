@@ -74,6 +74,8 @@ shader_header()
         + "#define A_DISTANCE " + QByteArray::number( GLAttribute::DISTANCE ) + "\n"
         + "#define A_JOINTS " + QByteArray::number( GLAttribute::JOINTS ) + "\n"
         + "#define A_WEIGHTS " + QByteArray::number( GLAttribute::WEIGHTS ) + "\n"
+        + "#define A_REST " + QByteArray::number( GLAttribute::REST ) + "\n"
+        + "#define A_PART " + QByteArray::number( GLAttribute::PART ) + "\n"
         + "#define A_BILLBOARD_CENTER " + QByteArray::number( GLAttribute::BILLBOARD_CENTER ) + "\n"
         + "#define A_BILLBOARD_SIZE " + QByteArray::number( GLAttribute::BILLBOARD_SIZE ) + "\n"
         + "#define A_BILLBOARD_UV " + QByteArray::number( GLAttribute::BILLBOARD_UV ) + "\n";

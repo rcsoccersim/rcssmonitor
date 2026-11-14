@@ -407,8 +407,9 @@ public:
     static constexpr GuideMode MINIMAP_3D = GuideMode::Off;
     /*!
       \brief the settings of the 3D tab of the settings dialog back to their
-      defaults: the close-up cameras, the compass, the minimap, the boards
-      and the banners (the Default button)
+      defaults: the close-up cameras, the compass, the minimap, the
+      players' model and the figures' scale, the boards and the banners
+      (the Default button)
     */
     void setView3DDefaults();
 

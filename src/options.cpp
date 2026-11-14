@@ -995,6 +995,8 @@ Options::setView3DDefaults()
     M_closeup_elevation_3d = CLOSEUP_ELEVATION_3D;
     M_compass_3d = COMPASS_3D;
     M_minimap_3d = MINIMAP_3D;
+    M_player_model_3d = PLAYER_MODEL_3D;
+    M_figure_scale_3d = FIGURE_SCALE_3D;
     M_boards_3d = BOARDS_3D;
     M_banners_3d = BANNERS_3D;
 }
@@ -1138,7 +1140,7 @@ Options::parseCmdLine( int argc,
                                        "mode", guideModeName( M_minimap_3d ) );
     parser.addOption( opt_minimap_3d );
     QCommandLineOption opt_player_model_3d( "player-model-3d",
-                                            "The 3D view: how the players are drawn, simple (cylinders and spheres) or figure (human figures). (Default="
+                                            "The 3D view: how the players are drawn, simple (cylinders and spheres), mannequin or human (human figures). (Default="
                                             + playerModelName( M_player_model_3d ) + ")",
                                             "model", playerModelName( M_player_model_3d ) );
     parser.addOption( opt_player_model_3d );

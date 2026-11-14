@@ -1,21 +1,25 @@
 // The human figures (SkinnedMesh): each vertex moves with up to 4 joints
 // of its figure's skeleton, by their weights. The skin matrices of the
 // joints are in a texture, a row a figure (gl_InstanceID), 4 texels (the
-// columns) a joint. Lit as the solids (lit.frag).
+// columns) a joint. Lit and painted by skinned.frag.
 
 layout( location = A_POSITION ) in vec3 aPos;
 layout( location = A_NORMAL ) in vec3 aNormal;
 layout( location = A_JOINTS ) in uvec4 aJoints;
 layout( location = A_WEIGHTS ) in vec4 aWeights;
-layout( location = A_COLOR ) in vec4 iColor; // the figure's jersey
+layout( location = A_REST ) in vec3 aRest;  // where the vertex is at rest, for the uniform
+layout( location = A_PART ) in float aPart; // the part of the body, for the uniform
+layout( location = A_COLOR ) in vec4 iColor; // the figure's color
 
 uniform mat4 uViewProj;
 uniform sampler2D uJoints;   // the skin matrices
-uniform int uInstanceColor;  // 1: this part is the jersey, in iColor
-uniform vec4 uBaseColor;     // 0: in this color of the material
+uniform int uPaint;          // 0: this part in uBaseColor; 1: in the figure's color; 2: in the uniform of it
+uniform vec4 uBaseColor;     // the color of the material
 
 out vec3 vNormal; // in the world
-out vec4 vColor;
+out vec4 vColor;  // uBaseColor or the figure's color
+out vec3 vRest;
+flat out float vPart; // not interpolated: the part of the triangle's first vertex
 
 mat4 jointMatrix( uint joint )
 {
@@ -35,6 +39,8 @@ void main()
               + aWeights.w * jointMatrix( aJoints.w );
     // the normal by the inverse transpose, as lit.vert (the skin may scale)
     vNormal = transpose( inverse( mat3( skin ) ) ) * aNormal;
-    vColor = ( uInstanceColor != 0 ? iColor : uBaseColor );
+    vColor = ( uPaint != 0 ? iColor : uBaseColor );
+    vRest = aRest;
+    vPart = aPart;
     gl_Position = uViewProj * skin * vec4( aPos, 1.0 );
 }

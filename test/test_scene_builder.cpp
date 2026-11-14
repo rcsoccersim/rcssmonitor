@@ -616,6 +616,9 @@ private slots:
           QCOMPARE( c.discs.size(), simple.discs.size() );
           QCOMPARE( c.rings.size(), size_t( 1 ) );
           QCOMPARE( c.picks.size(), n );
+          // picked as wide as the figure: wider than the cylinder
+          QVERIFY( near( c.picks[3].radius, simple.picks[3].radius * SceneBuilder::FIGURE_PICK_SCALE * float( opt.figureScale3D() ) ) );
+          QVERIFY( c.picks[3].radius > simple.picks[3].radius );
           const FigureInstance & f = c.figures[3];
           QCOMPARE( f.player, 3 );
           QCOMPARE( f.x, show.player_[3].x_ );
@@ -713,6 +716,10 @@ private slots:
           // picked as tall: the head's top at the figure's top
           QVERIFY( near( c.picks[3].head_height + SceneBuilder::HEAD_RADIUS, c.figures[3].height ) );
           QVERIFY( c.picks[3].body_height < c.picks[3].head_height - SceneBuilder::HEAD_RADIUS );
+          // and as wide: scaled with the figure
+          const float wide = float( type.player_size_ ) * SceneBuilder::FIGURE_PICK_SCALE;
+          QVERIFY( near( c.picks[3].radius, wide * ratio * 1.2f ) );
+          QVERIFY( near( c.picks[2].radius, wide * 1.2f ) );
           opt.setFigureScale3D( Options::FIGURE_SCALE_3D );
 
           // the player camera not sure of the number: of the default height

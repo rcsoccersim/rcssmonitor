@@ -57,6 +57,8 @@ if(HAVE_3D_VIEW)
     view3d/cameras_3d.cpp
     view3d/field_view_3d.cpp
     view3d/figure_actions.cpp
+    view3d/figure_uniform.cpp
+    view3d/frame_builder_3d.cpp
     view3d/figures_3d.cpp
     view3d/gait_table.cpp
     view3d/gltf_model.cpp
@@ -75,6 +77,7 @@ if(HAVE_3D_VIEW)
     view3d/stadium_3d.cpp
     view3d/gl/billboard_mesh.cpp
     view3d/gl/frame.cpp
+    view3d/gl/gpu_timer.cpp
     view3d/gl/instanced_mesh.cpp
     view3d/gl/render_state.cpp
     view3d/gl/shader_program.cpp

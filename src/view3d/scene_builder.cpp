@@ -266,13 +266,15 @@ addShow( SceneContent & content,
             QMatrix4x4 m;
             float body_height = BODY_HEIGHT * ratio;
             float head_height = body_height + HEAD_GAP + HEAD_RADIUS;
+            float pick_r = body_r;
             if ( figure )
             {
                 const float height = figureHeight( ratio, opt );
                 content.figures.push_back( { i, p.x_, p.y_, p.body_, height, body } );
-                // picked as a cylinder and a head of its height
+                // picked as a cylinder and a head of its height, as wide as the figure
                 head_height = height - HEAD_RADIUS;
                 body_height = head_height - HEAD_RADIUS - HEAD_GAP;
+                pick_r = body_r * FIGURE_PICK_SCALE * height / PERSON_HEIGHT;
             }
             else
             {
@@ -288,7 +290,7 @@ addShow( SceneContent & content,
                 m.scale( HEAD_RADIUS );
                 add( content.spheres, m, body );
             }
-            content.picks.push_back( { p.side(), p.unum_, p.x_, p.y_, body_r, body_height, head_height } );
+            content.picks.push_back( { p.side(), p.unum_, p.x_, p.y_, pick_r, body_height, head_height } );
 
             // the circle on the ground, as the outer circle in 2D
             m.setToIdentity();

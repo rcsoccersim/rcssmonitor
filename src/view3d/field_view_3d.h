@@ -34,7 +34,7 @@
 #define RCSSMONITOR_FIELD_VIEW_3D_H
 
 #include "cameras_3d.h"
-#include "figures_3d.h"
+#include "frame_builder_3d.h"
 #include "interpolate.h"
 #include "label_atlas.h"
 #include "referee_target.h"
@@ -140,6 +140,12 @@ public:
     */
     RefereeTarget targetAt( const QPoint & point ) const;
 
+    /*!
+      \brief what the last frame drew, for the tests to check
+      (docs/PLAN_3D-VIEW.md §10.2): not drawn before the first frame
+    */
+    View3DState state() const;
+
 signals:
 
     //! the mouse made the camera the free camera
@@ -176,11 +182,11 @@ private:
     std::unique_ptr< ScoreBoardPainter > M_score_board_painter; //!< the HUD: the 2D score board
     std::unique_ptr< TeamGraphicPainter > M_team_graphic_painter; //!< the HUD: the 2D team logos
     LabelAtlas M_label_atlas; //!< the texts of the number labels
-    Figures3D M_figures; //!< the players as human figures (Options::playerModel3D())
-    GaitTable M_gaits; //!< how far the players have walked, for the figures
+    FrameBuilder3D M_builder; //!< what to draw in a frame, the human figures (Options::playerModel3D()) posed
     Scene3D M_scene; //!< the OpenGL drawing
     SceneContent M_content; //!< what to draw, reused in every frame
     bool M_ready; //!< Scene3D could be initialized
+    PlayerModel M_figure_model = PlayerModel::Simple; //!< the body of the figures sent to the GPU (Simple: none)
     QString M_ground_key; //!< what the ground was drawn with (GroundTexture::key())
     QString M_stadium_keys[2]; //!< what each end's boards and banner were drawn with (Stadium3D::TeamLook::key())
     QImage M_minimap_field; //!< the pitch of the minimap (the HUD), drawn by the 2D field painter
@@ -197,6 +203,28 @@ private:
     bool M_drawn = false; //!< a frame has been drawn (M_drawn_camera and M_content.picks are set)
     QElapsedTimer M_frame_clock; //!< since the last frame was drawn, for the camera to glide
     QPoint M_last_mouse; //!< where the mouse was at the last press or move
+
+    /*!
+      \struct Timing
+      \brief the times of the frames, told every TIMING_PERIOD seconds when
+      the environment variable RCSSMONITOR_3D_TIMING is set
+      (docs/PLAN_3D-VIEW.md §10.3)
+    */
+    struct Timing {
+        bool on = false;
+        QElapsedTimer period; //!< since the times were last told
+        QElapsedTimer since_frame; //!< since the last frame
+        int frames = 0;
+        double build = 0.0; //!< ms of the CPU: what to draw (FrameBuilder3D, the labels)
+        double players = 0.0; //!< of it, the players with the figures
+        double submit = 0.0; //!< ms of the CPU: asking the GPU to draw (Scene3D::render())
+        double longest = 0.0; //!< the longest time between two frames (ms)
+        int figures = 0; //!< in the last frame
+    };
+    static constexpr double TIMING_PERIOD = 2.0;
+    Timing M_timing;
+    //! tell the times, every TIMING_PERIOD seconds
+    void reportTiming();
 
 private slots:
     //! after a frame is shown: draw the next one while things move

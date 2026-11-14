@@ -92,6 +92,12 @@ const QColor CAPACITY_COLOR( 0x4a, 0xa3, 0xff ); //!< the fill of the capacity b
 
 // the human figures (Figures3D)
 constexpr float PERSON_HEIGHT = 1.85f; //!< a person's height (m)
+/*!
+  \brief a figure is picked (Picking) as a cylinder this many times as
+  wide as a player (player_size), scaled with the figure from a person's
+  height: the shoulders and the arms swinging (the web version's 1.2)
+*/
+constexpr float FIGURE_PICK_SCALE = 1.2f;
 
 /*!
   \brief how tall a player is, of a player of the default type (1): the

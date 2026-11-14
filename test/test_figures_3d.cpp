@@ -121,12 +121,16 @@ private slots:
       {
           QCOMPARE( Options::PLAYER_MODEL_3D, PlayerModel::Simple );
           PlayerModel m = PlayerModel::Simple;
-          QVERIFY( playerModelFromName( "figure", &m ) );
-          QCOMPARE( m, PlayerModel::Figure );
+          QVERIFY( playerModelFromName( "mannequin", &m ) );
+          QCOMPARE( m, PlayerModel::Mannequin );
           QVERIFY( ! playerModelFromName( "robot", &m ) );
-          QCOMPARE( m, PlayerModel::Figure ); // unchanged
+          QCOMPARE( m, PlayerModel::Mannequin ); // unchanged
+          m = PlayerModel::Simple;
+          QVERIFY( playerModelFromName( "figure", &m ) ); // the mannequin's name before
+          QCOMPARE( m, PlayerModel::Mannequin );
           QCOMPARE( playerModelName( PlayerModel::Simple ), QString( "simple" ) );
-          QCOMPARE( Figures3D::jerseyMaterials(), QStringList( { "M_Main" } ) );
+          QCOMPARE( playerModelName( PlayerModel::Mannequin ), QString( "mannequin" ) );
+          QCOMPARE( M_figures.jerseyMaterials(), QStringList( { "M_Main" } ) );
 
           // the scale of the figures: life size by default, kept within its range
           Options & opt = Options::instance();
@@ -883,6 +887,113 @@ private slots:
           // still standing at the foul's moment, while the tackler slides in
           f.actions.fouled.phase = 0.5f;
           QVERIFY( std::fabs( nodeAt( M_figures, f, 0.0, "pelvis" ).y() - standing ) < 1.0e-4f );
+      }
+
+    /*!
+      the human body (the Universal Base Characters): the motion's clips
+      on another skeleton of the same bones, of its own height, standing
+      on the ground; its feet not sliding with its longer legs; the
+      kicking foot to the ball; back to the Mannequin
+    */
+    void humanBody()
+      {
+          Figures3D human;
+          QVERIFY2( human.load(), qPrintable( human.error() ) );
+          QCOMPARE( human.bodyModel(), PlayerModel::Mannequin );
+          QCOMPARE( human.bodyStride(), 1.0f );
+          QVERIFY2( human.setModel( PlayerModel::Human ), qPrintable( human.error() ) );
+          QCOMPARE( human.bodyModel(), PlayerModel::Human );
+          QVERIFY( human.setModel( PlayerModel::Human ) ); // read once
+          const GltfModel & body = human.model();
+          QCOMPARE( body.jointCount(), human.motionModel().jointCount() );
+          QVERIFY( body.clips.empty() ); // the motion's clips play on it
+          QVERIFY( ! human.motionModel().clips.empty() );
+          QVERIFY2( body.height() > 1.8f && body.height() < 1.9f, qPrintable( QString::number( body.height() ) ) );
+          QVERIFY( human.jerseyMaterials().isEmpty() );
+          QCOMPARE( human.uniformMaterials(), QStringList( { "MI_Superhero_Male" } ) );
+          // longer strides than the Mannequin's (its legs are longer): the
+          // gait clips read on the body, of their speeds on the Mannequin
+          float sum = 0.0f;
+          for ( const GaitClip & g : human.gaitClips() )
+          {
+              GaitClip on_body;
+              QVERIFY( Figures3D::analyzeGait( human.motionModel(), human.motionRig(), g.clip, &on_body,
+                                               &human.model(), &human.rig() ) );
+              QCOMPARE( on_body.duration, g.duration );
+              sum += on_body.speed / g.speed;
+          }
+          QVERIFY( std::fabs( human.bodyStride() - sum / human.gaitClips().size() ) < 1.0e-5f );
+          QVERIFY2( human.bodyStride() > 1.01f && human.bodyStride() < 1.1f, qPrintable( QString::number( human.bodyStride() ) ) );
+
+          // standing at its height on the ground, the head high
+          const FigureInstance f = figureAt( 3, 10.0f, -5.0f, 30.0f, 1.85f );
+          QVERIFY( std::fabs( human.modelMatrix( f ).map( QVector3D( 0.0f, body.min_y, 0.0f ) ).y() ) < 1.0e-4f );
+          QVERIFY( std::fabs( human.modelMatrix( f ).map( QVector3D( 0.0f, body.max_y, 0.0f ) ).y() - 1.85f ) < 1.0e-3f );
+          const QVector3D head = nodeAt( human, f, 0.0, "Head" );
+          QVERIFY2( head.y() > 1.45f && head.y() < 1.75f, qPrintable( QString::number( head.y() ) ) );
+          QVERIFY( nodeAt( human, f, 0.0, "foot_l" ).y() < 0.2f );
+          // as the Mannequin moves: the hand at the same height of the body in the idle clip
+          const float hand = nodeAt( human, f, 1.0, "hand_l" ).y();
+          const float mannequin_hand = nodeAt( M_figures, f, 1.0, "hand_l" ).y();
+          QVERIFY2( std::fabs( hand - mannequin_hand ) < 0.1f, qPrintable( QString( "%1 %2" ).arg( hand ).arg( mannequin_hand ) ) );
+
+          // walking and running: the left foot stays in the middle of its time
+          // down, with the body's strides
+          for ( const GaitClip & g : human.gaitClips() )
+          {
+              for ( const float way : { 1.0f, -1.0f } )
+              {
+                  float low = 1.0e9f, high = -1.0e9f;
+                  for ( int k = 0; k <= 10; ++k )
+                  {
+                      const float phase = ( 0.25f + 0.05f * k ) * g.down / g.duration;
+                      // the body's own stride: the gait walked for the motion's is longer by it
+                      const double gait = ( way > 0.0f ? phase : phase - 1.0f ) * human.bodyStride();
+                      const float along = float( gait ) * g.stride();
+                      FigureInstance w = figureAt( 0, along, 0.0f, 0.0f, 1.85f );
+                      w.motion.gait = gait;
+                      w.motion.vx = way * g.speed; // the clip alone (the mix is by the speed)
+                      const float d = leftFoot( human, w ).x();
+                      low = std::min( low, d );
+                      high = std::max( high, d );
+                  }
+                  // (closer than the Mannequin's own 6 cm: without the body's stride, 3.5 cm)
+                  QVERIFY2( high - low < 0.025f,
+                            qPrintable( human.motionModel().clips[g.clip].name + QString( " way %1: %2 m" ).arg( way ).arg( high - low ) ) );
+              }
+          }
+
+          // the kicking foot to the ball
+          FigureInstance k = figureAt( 0, 2.0f, 1.0f, 90.0f, 1.85f );
+          FigureKick kick{ true, 0.0f, KickKind::Shot, true, 0.0f };
+          kick.ball_x = 1.85f;
+          kick.ball_y = 1.5f;
+          kick.dir_x = 0.0f;
+          kick.dir_y = 1.0f;
+          kick.ball_radius = 0.11f;
+          k.actions.kick = kick;
+          QVERIFY( ( nodeAt( human, k, 0.0, "ball_r" ) - Figures3D::kickTarget( kick ) ).length() < 0.03f );
+
+          // sitting after a foul: the hands and the feet near the ground, as the Mannequin
+          FigureInstance s = figureAt( 0, 0.0f, 0.0f, 0.0f, 1.85f );
+          s.actions.fouled = FigureRun{ true, 3.0f, 5.0f };
+          for ( const char * name : { "hand_l", "hand_r", "foot_l", "foot_r" } )
+          {
+              const float y = nodeAt( human, s, 0.0, name ).y();
+              QVERIFY2( y > -0.08f && y < 0.25f, qPrintable( QString( "%1 %2" ).arg( name ).arg( y ) ) );
+          }
+
+          // the skin matrices of its joints
+          SceneContent content;
+          content.figures.push_back( f );
+          human.pose( content, 1.0 );
+          QCOMPARE( content.figure_joints.size(), std::size_t( body.jointCount() * 16 ) );
+
+          // back to the Mannequin
+          QVERIFY( human.setModel( PlayerModel::Mannequin ) );
+          QCOMPARE( human.bodyModel(), PlayerModel::Mannequin );
+          QCOMPARE( human.jerseyMaterials(), QStringList( { "M_Main" } ) );
+          QVERIFY( std::fabs( nodeAt( human, f, 1.0, "hand_l" ).y() - mannequin_hand ) < 1.0e-5f );
       }
 };
 

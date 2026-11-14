@@ -58,8 +58,11 @@
   place, not filtered.
 
   The mesh has parts in materials (SkinPrimitive): the jersey, in each
-  figure's color (an attribute of the instance), and the others in their
-  own color. Each part is one instanced draw call for all the figures.
+  figure's color (an attribute of the instance); a body in a uniform of
+  that color (FigureUniform: the fragment shader paints it by the part of
+  the body and where the point is at rest, attributes of the vertex); and
+  the others in their own color. Each part is one instanced draw call for
+  all the figures.
 
   Every function needs the OpenGL context current.
 */
@@ -74,11 +77,13 @@ public:
       \brief send the mesh to the GPU
       \param gl the OpenGL functions
       \param model the model: its vertices, triangles and parts
-      \param jersey the materials in each figure's color (the others in their own color)
+      \param jersey the materials in each figure's color
+      \param uniform the materials in a uniform of each figure's color (the others in their own color)
     */
     void create( QOpenGLFunctions_3_3_Core & gl,
                  const GltfModel & model,
-                 const QStringList & jersey );
+                 const QStringList & jersey,
+                 const QStringList & uniform = QStringList() );
 
     //! delete the buffers, the VAO and the texture
     void destroy( QOpenGLFunctions_3_3_Core & gl );
@@ -92,7 +97,9 @@ public:
       "skinned" vertex shader) and the render state that is applied
       \param gl the OpenGL functions
       \param program the bound program: draw() sets its uniforms uJoints
-      (the texture unit of the skin matrices), uInstanceColor and uBaseColor
+      (the texture unit of the skin matrices), uPaint (0: in uBaseColor, 1:
+      in the figure's color, 2: in the uniform) and uBaseColor; the caller
+      sets those of the uniform
       \param colors each figure's jersey color
       \param joints the skin matrices: jointCount() * 16 floats a figure, as many figures as colors
     */
@@ -105,7 +112,7 @@ private:
     struct Part {
         int first_index;
         int index_count;
-        bool jersey;
+        int paint; //!< uPaint
         QVector4D color;
     };
 

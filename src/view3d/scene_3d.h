@@ -38,7 +38,9 @@
 #include "gl/billboard_mesh.h"
 #include "gl/instanced_mesh.h"
 #include "gl/shader_program.h"
+#include "gl/gpu_timer.h"
 #include "gl/skinned_mesh.h"
+#include "figure_uniform.h"
 #include "gl/texture_2d.h"
 #include "gl/vertex_batch.h"
 
@@ -95,6 +97,18 @@ public:
     //! delete what initialize() made, in the current context
     void release();
 
+    /*!
+      \brief time the GPU's drawing of the frames (GpuTimer), or not
+      (docs/PLAN_3D-VIEW.md §10.3)
+    */
+    void setTiming( const bool on );
+    /*!
+      \brief the GPU's times of the frames drawn since the last call (setTiming())
+      \param total their sum (ms)
+      \return how many frames
+    */
+    int takeGpuTime( double * total ) { return M_gpu_timer.take( total ); }
+
     //! send the image of the ground (GroundTexture::draw()) to the GPU
     void setGround( const QImage & image );
 
@@ -114,9 +128,13 @@ public:
       of a SceneContent
       \param model the model
       \param jersey its materials in each figure's color
+      \param uniform its materials in a uniform of each figure's color
+      \param cuts where the uniform ends on the model
     */
     void setFigureModel( const GltfModel & model,
-                         const QStringList & jersey );
+                         const QStringList & jersey,
+                         const QStringList & uniform = QStringList(),
+                         const FigureUniform::Cuts & cuts = FigureUniform::Cuts() );
 
     /*!
       \brief draw the scene.
@@ -156,7 +174,9 @@ private:
     InstancedMesh M_panel; //!< the boards and the banners
     BillboardMesh M_billboards; //!< the numbers and the cards
     SkinnedMesh M_figure; //!< the human figure of the players
+    FigureUniform::Cuts M_figure_cuts; //!< where its uniform ends
     std::vector< QVector4D > M_figure_colors; //!< the jerseys of the figures of a frame
+    GpuTimer M_gpu_timer; //!< the GPU's time of a frame, when timed
 
     // made again in every frame (OverlayBuilder)
     VertexBatch M_sector_batch; //!< the view areas
