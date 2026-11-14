@@ -161,6 +161,16 @@ private slots:
           const CameraPose shoulder = PlayerCamera3D::pose( 10.0f, 5.0f, Position::Shoulder, 0.0f, 120.0f, ASPECT );
           QVERIFY( near( shoulder.position, QVector3D( 10.0f - PlayerCamera3D::SHOULDER_BEHIND, PlayerCamera3D::SHOULDER_HEIGHT, 5.0f ) ) );
           QVERIFY( near( shoulder.target, QVector3D( 10.0f + PlayerCamera3D::SHOULDER_AHEAD, PlayerCamera3D::SHOULDER_TARGET_HEIGHT, 5.0f ) ) );
+
+          // a taller player: the eyes and the point they look at as much
+          // higher (the same look down); over the shoulder, the same view
+          const CameraPose tall = PlayerCamera3D::pose( 10.0f, 5.0f, Position::Eye, 90.0f, 120.0f, ASPECT, 1.2f );
+          QVERIFY( near( tall.position, QVector3D( 10.0f, PlayerCamera3D::EYE_HEIGHT * 1.2f, 5.0f ) ) );
+          QVERIFY( std::fabs( tall.target.y() - PlayerCamera3D::EYE_TARGET_HEIGHT * 1.2f ) < 1.0e-5f );
+          QVERIFY( std::fabs( lookDirection( tall ) - 90.0f ) < 1.0e-3f );
+          const CameraPose tall_shoulder = PlayerCamera3D::pose( 10.0f, 5.0f, Position::Shoulder, 0.0f, 120.0f, ASPECT, 1.2f );
+          QVERIFY( near( tall_shoulder.position, shoulder.position ) );
+          QVERIFY( near( tall_shoulder.target, shoulder.target ) );
       }
 
     /*!
@@ -268,6 +278,13 @@ private slots:
           QVERIFY( near( pose.target, expected.target ) );
           QVERIFY( std::fabs( pose.fov_y - expected.fov_y ) < 1.0e-3f );
           QVERIFY( camera.settled() );
+
+          // the eyes of a player drawn taller
+          subject.player_scale = 1.1f;
+          pose = camera.update( 0.016, ASPECT, subject );
+          QVERIFY( near( pose.position, PlayerCamera3D::pose( -20.0f, 10.0f, Position::Eye, 45.0f, 100.0f, ASPECT, 1.1f ).position ) );
+          QVERIFY( std::fabs( pose.position.y() - PlayerCamera3D::EYE_HEIGHT * 1.1f ) < 1.0e-5f );
+          subject.player_scale = 1.0f;
 
           // a change of the styles: at once in the new ones, also in the
           // middle of a smooth turn

@@ -422,7 +422,8 @@ CameraController::update( const double dt,
         }
         bool settled = false;
         M_pose = M_player_camera.update( *subject.player, aspect, M_player_options,
-                                         std::min( std::max( 0.0, dt ), Cameras3D::MAX_STEP ), &settled );
+                                         std::min( std::max( 0.0, dt ), Cameras3D::MAX_STEP ), &settled,
+                                         subject.player_scale );
         M_settled = settled;
         return M_pose;
     }

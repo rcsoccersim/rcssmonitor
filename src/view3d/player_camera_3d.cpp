@@ -126,7 +126,8 @@ pose( const float x,
       const PlayerCameraStyle::Position position,
       const float direction,
       const float fov,
-      const float aspect )
+      const float aspect,
+      const float scale )
 {
     const float c = std::cos( direction * DEG2RAD );
     const float s = std::sin( direction * DEG2RAD );
@@ -141,8 +142,8 @@ pose( const float x,
     }
     else
     {
-        p.position = QVector3D( x, EYE_HEIGHT, y );
-        p.target = QVector3D( x + EYE_AHEAD * c, EYE_TARGET_HEIGHT, y + EYE_AHEAD * s );
+        p.position = QVector3D( x, EYE_HEIGHT * scale, y );
+        p.target = QVector3D( x + EYE_AHEAD * c, EYE_TARGET_HEIGHT * scale, y + EYE_AHEAD * s );
     }
     return p;
 }
@@ -155,7 +156,8 @@ PlayerCameraState::update( const rcss::rcg::PlayerT & player,
                            const float aspect,
                            const PlayerCameraOptions & o,
                            const double dt,
-                           bool * settled )
+                           bool * settled,
+                           const float scale )
 {
     using namespace PlayerCamera3D;
     using PlayerCameraStyle::Fov;
@@ -194,5 +196,5 @@ PlayerCameraState::update( const rcss::rcg::PlayerT & player,
         M_direction = goal;
         M_fov = goal_fov;
     }
-    return PlayerCamera3D::pose( player.x_, player.y_, o.position, M_direction, M_fov, aspect );
+    return PlayerCamera3D::pose( player.x_, player.y_, o.position, M_direction, M_fov, aspect, scale );
 }

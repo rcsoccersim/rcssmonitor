@@ -201,6 +201,7 @@ struct CameraSubject {
     float player_x = 0.0f;
     float player_y = 0.0f;
     const rcss::rcg::PlayerT * player = nullptr; //!< that player (interpolated), for the player camera
+    float player_scale = 1.0f; //!< how tall that player is drawn, of a player of the default height (the player camera's eyes)
 };
 
 /*!

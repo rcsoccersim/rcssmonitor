@@ -257,6 +257,11 @@ FieldView3D::paintGL()
                                   at.alpha );
     }
 
+    // the players as human figures, but not from the top camera (a map)
+    const bool figures = ( opt.playerModel3D() == PlayerModel::Figure
+                           && M_camera.mode() != CameraMode::Top
+                           && M_figures.ready() );
+
     // what the cameras follow: the ball, and the selected player in the show
     CameraSubject subject;
     subject.ball_x = show.ball_.x_;
@@ -276,6 +281,10 @@ FieldView3D::paintGL()
                 subject.player_x = p.x_;
                 subject.player_y = p.y_;
                 subject.player = &show.player_[i];
+                // as tall as it is drawn: its type, and the scale of the figures
+                subject.player_scale = SceneBuilder::heightRatio( M_disp_holder.playerType( p.type_ ),
+                                                                  M_disp_holder.serverParam() )
+                    * ( figures ? float( opt.figureScale3D() ) : 1.0f );
             }
         }
     }
@@ -301,10 +310,6 @@ FieldView3D::paintGL()
 
     if ( ! frames.empty() )
     {
-        // the players as human figures, but not from the top camera (a map)
-        const bool figures = ( opt.playerModel3D() == PlayerModel::Figure
-                               && M_camera.mode() != CameraMode::Top
-                               && M_figures.ready() );
         SceneBuilder::addShow( M_content, show, M_disp_holder, Options::instance(), seen, figures );
         // posed at the game's time of the frame drawn and the fraction to the next one
         M_figures.pose( M_content, ( at.index + at.alpha ) * step * 1.0e-3 );

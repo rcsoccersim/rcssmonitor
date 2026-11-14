@@ -105,13 +105,17 @@ float easeToward( const float from,
   \param direction the field direction it looks in (degree)
   \param fov the horizontal field of view (degree)
   \param aspect the width of the view divided by its height
+  \param scale at the eyes, how tall the player is drawn, of a player of the
+  default height: the eyes and the point it looks at are as much higher
+  (over the shoulder, the same view for any player)
 */
 CameraPose pose( const float x,
                  const float y,
                  const PlayerCameraStyle::Position position,
                  const float direction,
                  const float fov,
-                 const float aspect );
+                 const float aspect,
+                 const float scale = 1.0f );
 
 }
 
@@ -135,12 +139,14 @@ public:
       \param options the styles
       \param dt the time since the last frame (s)
       \param settled set to whether it no longer moves by itself
+      \param scale how tall the player is drawn (pose())
     */
     CameraPose update( const rcss::rcg::PlayerT & player,
                        const float aspect,
                        const PlayerCameraOptions & options,
                        const double dt,
-                       bool * settled );
+                       bool * settled,
+                       const float scale = 1.0f );
 
     //! the direction now (degree)
     float direction() const { return M_direction; }
