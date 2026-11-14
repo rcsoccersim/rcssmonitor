@@ -39,6 +39,7 @@
 #include "ground_texture.h"
 #include "meshes_3d.h"
 #include "stadium_3d.h"
+#include "sun_3d.h"
 #include "gl/frame.h"
 #include "gl/render_state.h"
 
@@ -55,14 +56,24 @@ constexpr float POINT_SIZE = 4.0f;
 // the color of the background: the sky, until it is drawn (Phase 8)
 const QColor SKY = QColor::fromRgbF( 0.55, 0.72, 0.88 );
 
-// toward the sun: from the far left, 44 degrees up (rcssmonitor-web, §4.3)
-const QVector3D SUN = QVector3D( -60.0f, 65.0f, -30.0f ).normalized();
+// the texture unit of the shadow map (unit 0 has the ground's image or the
+// figures' skin matrices)
+constexpr int SHADOW_UNIT = 1;
+
+QMatrix4x4
+shadow_plane_matrix()
+{
+    QMatrix4x4 m;
+    m.translate( 0.0f, Sun3D::SHADOW_PLANE_Y, 0.0f );
+    return m;
+}
 
 }
 
 /*-------------------------------------------------------------------*/
 Scene3D::Scene3D()
-    : M_ground_instance( 1, Instance3D{ QMatrix4x4(), QVector4D( 1.0f, 1.0f, 1.0f, 1.0f ) } )
+    : M_ground_instance( 1, Instance3D{ QMatrix4x4(), QVector4D( 1.0f, 1.0f, 1.0f, 1.0f ) } ),
+      M_shadow_instance( 1, Instance3D{ shadow_plane_matrix(), QVector4D( 0.0f, 0.0f, 0.0f, 1.0f ) } )
 {
 
 }
@@ -92,7 +103,11 @@ Scene3D::initialize()
          || ! M_billboard_program.load( "billboard" )
          || ! M_colored_program.load( "colored" )
          || ! M_panel_program.load( "panel" )
-         || ! M_skinned_program.load( "skinned" ) )
+         || ! M_skinned_program.load( "skinned" )
+         || ! M_depth_program.load( "depth" )
+         || ! M_skinned_depth_program.load( "skinned", "depth" )
+         || ! M_shadow_program.load( "shadow" )
+         || ! M_blob_program.load( "blob" ) )
     {
         M_ground_program.destroy();
         M_lit_program.destroy();
@@ -101,6 +116,10 @@ Scene3D::initialize()
         M_colored_program.destroy();
         M_panel_program.destroy();
         M_skinned_program.destroy();
+        M_depth_program.destroy();
+        M_skinned_depth_program.destroy();
+        M_shadow_program.destroy();
+        M_blob_program.destroy();
         return false;
     }
 
@@ -115,6 +134,9 @@ Scene3D::initialize()
     M_decay_ring.create( *this, Meshes3D::ring( 1.1f, 1.22f, 40 ) );
     M_quad.create( *this, Meshes3D::quad() );
     M_panel.create( *this, Meshes3D::quad() );
+    M_shadow_plane.create( *this, Meshes3D::ground( Sun3D::shadowLength(), Sun3D::shadowWidth() ) );
+    // without a shadow map (a GPU that cannot draw into one), no shadows
+    M_shadow_map.create( *this );
     M_billboards.create( *this );
     for ( VertexBatch * b : { &M_sector_batch, &M_line_batch, &M_dotted_batch, &M_point_batch } )
     {
@@ -132,10 +154,11 @@ Scene3D::release()
     {
         return;
     }
-    for ( InstancedMesh * m : { &M_ground, &M_cylinder, &M_sphere, &M_cone, &M_disc, &M_ring, &M_decay_ring, &M_quad, &M_panel } )
+    for ( InstancedMesh * m : { &M_ground, &M_cylinder, &M_sphere, &M_cone, &M_disc, &M_ring, &M_decay_ring, &M_quad, &M_panel, &M_shadow_plane } )
     {
         m->destroy( *this );
     }
+    M_shadow_map.destroy( *this );
     M_billboards.destroy( *this );
     for ( SkinnedMesh & m : M_figures ) m.destroy( *this );
     M_gpu_timer.destroy( *this );
@@ -157,6 +180,10 @@ Scene3D::release()
     M_colored_program.destroy();
     M_panel_program.destroy();
     M_skinned_program.destroy();
+    M_depth_program.destroy();
+    M_skinned_depth_program.destroy();
+    M_shadow_program.destroy();
+    M_blob_program.destroy();
     M_initialized = false;
 }
 
@@ -243,6 +270,33 @@ Scene3D::render( GLuint fbo,
     GLFrame::begin( *this, fbo, width, height, SKY );
     M_gpu_timer.begin( *this );
 
+    // the figures of each body together, for the shadow map and the scene
+    sortFigures( content );
+
+    //
+    // pass 0: the shadow map, the solids that cast the sun's shadows drawn
+    // as the sun sees them, only their depths (Sun3D). Not the ball (its
+    // own disc below tells its height) nor the cones (on the heads).
+    //
+    const bool shadows = ( content.shadows && M_shadow_map.created() );
+    const QMatrix4x4 sun_view_proj = Sun3D::shadowViewProj();
+    if ( shadows )
+    {
+        M_shadow_map.begin( *this );
+        RenderState::opaque().apply( *this );
+        M_depth_program.bind();
+        M_depth_program.set( "uViewProj", sun_view_proj );
+        M_cylinder.draw( *this, content.cylinders );
+        M_sphere.draw( *this, content.spheres );
+        if ( ! content.figures.empty() )
+        {
+            M_skinned_depth_program.bind();
+            M_skinned_depth_program.set( "uViewProj", sun_view_proj );
+            drawFigures( M_skinned_depth_program, false );
+        }
+        M_shadow_map.end( *this, fbo, width, height );
+    }
+
     //
     // pass 1: the ground, with the image of the 2D view on texture unit 0
     //
@@ -258,9 +312,10 @@ Scene3D::render( GLuint fbo,
     //
     M_lit_program.bind();
     M_lit_program.set( "uViewProj", view_proj );
-    M_lit_program.set( "uSun", SUN );
+    M_lit_program.set( "uSun", Sun3D::direction() );
     M_cylinder.draw( *this, content.cylinders );
     M_sphere.draw( *this, content.spheres );
+    M_sphere.draw( *this, content.balls );
     M_cone.draw( *this, content.cones );
 
     //
@@ -271,48 +326,11 @@ Scene3D::render( GLuint fbo,
     {
         M_skinned_program.bind();
         M_skinned_program.set( "uViewProj", view_proj );
-        M_skinned_program.set( "uSun", SUN );
+        M_skinned_program.set( "uSun", Sun3D::direction() );
         M_skinned_program.set( "uShoeColor", FigureUniform::SHOE_COLOR );
         M_skinned_program.set( "uShortsShade", FigureUniform::SHORTS_SHADE );
         M_skinned_program.set( "uCollarSlope", FigureUniform::COLLAR_SLOPE );
-        static const char * const CUTS[FigureUniform::Cuts::COUNT] = {
-            "uCuts[0]", "uCuts[1]", "uCuts[2]", "uCuts[3]", "uCuts[4]",
-            "uCuts[5]", "uCuts[6]", "uCuts[7]", "uCuts[8]", "uCuts[9]", "uCuts[10]",
-            "uCuts[11]", "uCuts[12]",
-        };
-        // each body for its figures at once, with their colors and their skin matrices
-        for ( int body = 0; body < FIGURE_BODIES; ++body )
-        {
-            if ( ! M_figures[body].created() ) continue;
-            M_figure_instances.clear();
-            M_figure_joints.clear();
-            std::size_t offset = 0;
-            for ( std::size_t i = 0; i < content.figures.size(); ++i )
-            {
-                const int b = ( i < content.figure_bodies.size() ? content.figure_bodies[i] : 0 );
-                const std::size_t floats = std::size_t( M_figures[b >= 0 && b < FIGURE_BODIES ? b : 0].jointCount() ) * 16;
-                if ( b == body && offset + floats <= content.figure_joints.size() )
-                {
-                    const FigureInstance & f = content.figures[i];
-                    M_figure_instances.push_back( { f.color, f.look.skin,
-                                                    QVector4D( f.look.hair_color.toVector3D(), float( f.look.hair ) ) } );
-                    M_figure_joints.insert( M_figure_joints.end(),
-                                            content.figure_joints.begin() + offset,
-                                            content.figure_joints.begin() + offset + floats );
-                }
-                offset += floats;
-            }
-            if ( M_figure_instances.empty() ) continue;
-            // the uniform of the body (FigureUniform)
-            for ( int i = 0; i < FigureUniform::Cuts::COUNT; ++i )
-            {
-                M_skinned_program.set( CUTS[i], M_figure_cuts[body].planes[i] );
-            }
-            const std::array< std::uint32_t, FigureUniform::SCALP_HAIRS > & scalp = M_figure_cuts[body].scalp;
-            // (the bits as floats, exact to 2^24)
-            M_skinned_program.set( "uScalp", QVector4D( float( scalp[0] ), float( scalp[1] ), float( scalp[2] ), float( scalp[3] ) ) );
-            M_figures[body].draw( *this, M_skinned_program, M_figure_instances, M_figure_joints );
-        }
+        drawFigures( M_skinned_program, true );
     }
 
     //
@@ -346,6 +364,26 @@ Scene3D::render( GLuint fbo,
     // circles, the rings, the view areas, the lines and dots), then the nets.
     //
     RenderState::translucent().apply( *this );
+    if ( shadows )
+    {
+        // the shadows, the lowest layer: darkened where the map has
+        // something nearer to the sun, on texture unit SHADOW_UNIT
+        M_shadow_program.bind();
+        M_shadow_program.set( "uViewProj", view_proj );
+        M_shadow_program.set( "uSunViewProj", sun_view_proj );
+        M_shadow_program.set( "uShadowMap", SHADOW_UNIT );
+        M_shadow_program.set( "uTexel", 1.0f / float( M_shadow_map.size() ) );
+        M_shadow_program.set( "uOpacity", Sun3D::SHADOW_OPACITY );
+        M_shadow_map.bind( *this, SHADOW_UNIT );
+        M_shadow_plane.draw( *this, M_shadow_instance );
+    }
+    if ( ! content.blob_shadows.empty() )
+    {
+        // or the simple shadows, soft ellipses, as low
+        M_blob_program.bind();
+        M_blob_program.set( "uViewProj", view_proj );
+        M_disc.draw( *this, content.blob_shadows );
+    }
     M_flat_program.bind();
     M_flat_program.set( "uViewProj", view_proj );
     M_disc.draw( *this, content.discs );
@@ -386,4 +424,64 @@ Scene3D::render( GLuint fbo,
     // end the frame: OpenGL as QPainter expects it, for the HUD over the scene
     M_gpu_timer.end( *this );
     GLFrame::end( *this );
+}
+
+/*-------------------------------------------------------------------*/
+void
+Scene3D::sortFigures( const SceneContent & content )
+{
+    for ( int body = 0; body < FIGURE_BODIES; ++body )
+    {
+        M_figure_instances[body].clear();
+        M_figure_joints[body].clear();
+    }
+    // the skin matrices of the figures follow one another, each as many as
+    // the joints of its body
+    std::size_t offset = 0;
+    for ( std::size_t i = 0; i < content.figures.size(); ++i )
+    {
+        int b = ( i < content.figure_bodies.size() ? content.figure_bodies[i] : 0 );
+        if ( b < 0 || b >= FIGURE_BODIES ) b = 0;
+        const std::size_t floats = std::size_t( M_figures[b].jointCount() ) * 16;
+        if ( M_figures[b].created()
+             && offset + floats <= content.figure_joints.size() )
+        {
+            const FigureInstance & f = content.figures[i];
+            M_figure_instances[b].push_back( { f.color, f.look.skin,
+                                               QVector4D( f.look.hair_color.toVector3D(), float( f.look.hair ) ) } );
+            M_figure_joints[b].insert( M_figure_joints[b].end(),
+                                       content.figure_joints.begin() + offset,
+                                       content.figure_joints.begin() + offset + floats );
+        }
+        offset += floats;
+    }
+}
+
+/*-------------------------------------------------------------------*/
+void
+Scene3D::drawFigures( ShaderProgram & program,
+                      const bool uniform )
+{
+    static const char * const CUTS[FigureUniform::Cuts::COUNT] = {
+        "uCuts[0]", "uCuts[1]", "uCuts[2]", "uCuts[3]", "uCuts[4]",
+        "uCuts[5]", "uCuts[6]", "uCuts[7]", "uCuts[8]", "uCuts[9]", "uCuts[10]",
+        "uCuts[11]", "uCuts[12]",
+    };
+    // each body for its figures at once, with their colors and their skin matrices
+    for ( int body = 0; body < FIGURE_BODIES; ++body )
+    {
+        if ( M_figure_instances[body].empty() ) continue;
+        if ( uniform )
+        {
+            // the uniform of the body (FigureUniform)
+            for ( int i = 0; i < FigureUniform::Cuts::COUNT; ++i )
+            {
+                program.set( CUTS[i], M_figure_cuts[body].planes[i] );
+            }
+            const std::array< std::uint32_t, FigureUniform::SCALP_HAIRS > & scalp = M_figure_cuts[body].scalp;
+            // (the bits as floats, exact to 2^24)
+            program.set( "uScalp", QVector4D( float( scalp[0] ), float( scalp[1] ), float( scalp[2] ), float( scalp[3] ) ) );
+        }
+        M_figures[body].draw( *this, program, M_figure_instances[body], M_figure_joints[body], uniform );
+    }
 }

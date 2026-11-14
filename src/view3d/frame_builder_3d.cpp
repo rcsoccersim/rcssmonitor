@@ -70,6 +70,10 @@ FrameBuilder3D::build( const DispHolder & holder,
     content.clear();
     SceneBuilder::addGoals( content, team_colors[0], team_colors[1] );
     Stadium3D::addPanels( content, opt.boards3D(), opt.banners3D(), team_colors[0], team_colors[1] );
+    // the sun's detailed shadows (the shadow map), but not from the top
+    // camera: they would crowd the map (§11: 8)
+    const bool shadows = ( camera != CameraMode::Top );
+    content.shadows = ( shadows && opt.shadows3D() == ShadowMode::Detailed );
 
     // the players and the ball on the way between the two frames
     M_has_show = ! frames.empty();
@@ -152,6 +156,11 @@ FrameBuilder3D::build( const DispHolder & holder,
     QElapsedTimer clock;
     clock.start();
     SceneBuilder::addShow( content, M_show, holder, opt, seen(), figures );
+    // the simple shadows, an ellipse under each player drawn
+    if ( shadows && opt.shadows3D() == ShadowMode::Simple )
+    {
+        SceneBuilder::addBlobShadows( content );
+    }
     // how the figures move and what they do, from the log, and so their
     // poses at the game's time of the frame drawn and the fraction to the
     // next one
@@ -192,6 +201,8 @@ FrameBuilder3D::state( const SceneContent & content,
     s.figures_ready = M_figures.ready();
     s.figure_joints = content.figure_joints;
     s.figure_bodies = content.figure_bodies;
+    s.shadows = content.shadows;
+    s.blob_shadows = static_cast< int >( content.blob_shadows.size() );
 
     for ( const FigureInstance & figure : content.figures )
     {

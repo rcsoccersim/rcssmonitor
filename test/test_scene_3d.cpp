@@ -43,6 +43,7 @@
 #include "scene_3d.h"
 #include "scene_builder.h"
 #include "stadium_3d.h"
+#include "sun_3d.h"
 
 #include <QOffscreenSurface>
 #include <QOpenGLContext>
@@ -148,6 +149,8 @@ private slots:
     void panels();
     void figures();
     void humanFigure();
+    void shadows();
+    void blobShadows();
     void cleanupTestCase();
 };
 
@@ -870,6 +873,210 @@ TestScene3D::humanFigure()
         f.look.hair = 0;
         QVERIFY2( scalp() > 500, qPrintable( QString::number( scalp() ) ) );
     }
+    scene.release();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  The sun's shadows seen from straight above: a player's body, a figure
+  and a goal post darken the ground away from the sun, as far as the sun's
+  rays through them reach it; the ground toward the sun and under the ball
+  (which casts none: its disc tells its height) is as without the shadows.
+  Turned off, the image is as before; turned on, the first frame is as the
+  next (§11: 4).
+*/
+void
+TestScene3D::shadows()
+{
+    DispHolder holder;
+    FieldPainter painter( holder );
+    Figures3D figures;
+    QVERIFY2( figures.load(), qPrintable( figures.error() ) );
+    Scene3D scene;
+    QVERIFY( scene.initialize() );
+    scene.setGround( GroundTexture::draw( painter ) );
+    scene.setFigureBody( 0, figures.model(), figures.paints() );
+
+    const int w = 400, h = 300;
+    QOpenGLFramebufferObjectFormat fbo_format;
+    fbo_format.setAttachment( QOpenGLFramebufferObject::Depth );
+    QOpenGLFramebufferObject fbo( w, h, fbo_format );
+
+    // a player at (-4, 0), the ball 2 m up at (0, -4), a figure at (4, 0)
+    rcss::rcg::ShowInfoT show;
+    rcss::rcg::PlayerT & p = show.player_[0];
+    p.side_ = 'l';
+    p.unum_ = 1;
+    p.state_ = rcss::rcg::STAND;
+    p.x_ = -4.0f;
+    p.y_ = 0.0f;
+    show.ball_.x_ = 0.0f;
+    show.ball_.y_ = -4.0f;
+    show.ball_.z_ = 2.0f;
+    SceneContent content;
+    SceneBuilder::addGoals( content );
+    SceneBuilder::addShow( content, show, holder, Options::instance() );
+    const float height = 1.85f;
+    content.figures.push_back( FigureInstance{ 0, 4.0f, 0.0f, 0.0f, height, QVector4D( 1.0f, 0.0f, 0.0f, 1.0f ) } );
+    figures.pose( content, 0.0 );
+
+    // 30 m above the center spot
+    CameraPose camera;
+    camera.position = QVector3D( 0.0f, 30.0f, 0.0f );
+    camera.target = QVector3D( 0.0f, 0.0f, 0.0f );
+    camera.up = QVector3D( 0.0f, 0.0f, -1.0f );
+    const QMatrix4x4 view_proj = camera.projection( float( w ) / h ) * camera.view();
+    const auto pixel = [&]( const QVector3D & q ) {
+        const QVector3D ndc = view_proj.map( q );
+        return QPoint( int( ( ndc.x() + 1.0f ) / 2.0f * w ), int( ( 1.0f - ndc.y() ) / 2.0f * h ) );
+    };
+    // where the sun's ray through a point meets the ground, and the point
+    // as far on the other side (toward the sun)
+    const QVector3D sun = Sun3D::direction();
+    const auto shade = [&]( const QVector3D & q ) { return q - sun * ( q.y() / sun.y() ); };
+    const auto lit = [&]( const QVector3D & q ) { const QVector3D g( q.x(), 0.0f, q.z() ); return g - ( shade( q ) - g ); };
+
+    content.shadows = false;
+    scene.render( fbo.handle(), w, h, camera, content );
+    const QImage plain = fbo.toImage();
+    content.shadows = true;
+    scene.render( fbo.handle(), w, h, camera, content );
+    const QImage first = fbo.toImage();
+    scene.render( fbo.handle(), w, h, camera, content );
+    QCOMPARE( first, fbo.toImage() );
+
+    const auto darker = [&]( const QVector3D & q ) {
+        const QPoint at = pixel( q );
+        const int with = first.pixelColor( at ).lightness();
+        const int without = plain.pixelColor( at ).lightness();
+        return with < without * 0.8 && with > without * 0.4; // as dark as SHADOW_OPACITY: not black
+    };
+    const auto same = [&]( const QVector3D & q ) {
+        const QPoint at = pixel( q );
+        return first.pixelColor( at ) == plain.pixelColor( at );
+    };
+
+    // the player's body, halfway up, and the figure's chest
+    const QVector3D body( -4.0f, 0.8f, 0.0f );
+    const QVector3D chest( 4.0f, 1.3f, 0.0f );
+    for ( const QVector3D & q : { body, chest } )
+    {
+        QVERIFY2( darker( shade( q ) ), qPrintable( QString( "%1 %2: %3 %4" )
+                                                    .arg( q.x() ).arg( q.y() )
+                                                    .arg( first.pixelColor( pixel( shade( q ) ) ).name() )
+                                                    .arg( plain.pixelColor( pixel( shade( q ) ) ).name() ) ) );
+        QVERIFY( same( lit( q ) ) );
+    }
+    // beyond the shadow of the figure's head: lit
+    QVERIFY( same( shade( QVector3D( 4.0f, height + 0.4f, 0.0f ) ) ) );
+    // the ball casts none
+    const float r = float( SceneBuilder::ballRadius( Options::instance(), holder.serverParam().ball_size_ ) );
+    QVERIFY( same( shade( QVector3D( 0.0f, 2.0f + r, -4.0f ) ) ) );
+
+    // a goal post seen from 10 m above, its shadow on the ground in front of
+    // the goal: thin (the post is 12 cm), softened by the edges, lighter
+    CameraPose goal = camera;
+    goal.position = QVector3D( -52.5f, 10.0f, 7.0f );
+    goal.target = QVector3D( -52.5f, 0.0f, 7.0f );
+    const QMatrix4x4 goal_view_proj = goal.projection( float( w ) / h ) * goal.view();
+    const QVector3D post( -52.5f, 1.2f, 7.01f ); // the right post (the field's +y), halfway up
+    const QVector3D ndc = goal_view_proj.map( shade( post ) );
+    const QPoint at( int( ( ndc.x() + 1.0f ) / 2.0f * w ), int( ( 1.0f - ndc.y() ) / 2.0f * h ) );
+    content.shadows = false;
+    scene.render( fbo.handle(), w, h, goal, content );
+    const int goal_plain = fbo.toImage().pixelColor( at ).lightness();
+    content.shadows = true;
+    scene.render( fbo.handle(), w, h, goal, content );
+    const int goal_shade = fbo.toImage().pixelColor( at ).lightness();
+    QVERIFY2( goal_shade < goal_plain * 0.9, qPrintable( QString( "%1 %2" ).arg( goal_shade ).arg( goal_plain ) ) );
+
+    // without the figure: no shadow of it left in the map
+    SceneContent alone = content;
+    alone.figures.clear();
+    alone.figure_joints.clear();
+    alone.figure_bodies.clear();
+    scene.render( fbo.handle(), w, h, camera, alone );
+    QCOMPARE( fbo.toImage().pixelColor( pixel( shade( chest ) ) ), plain.pixelColor( pixel( shade( chest ) ) ) );
+
+    // off again: as before
+    content.shadows = false;
+    scene.render( fbo.handle(), w, h, camera, content );
+    QCOMPARE( fbo.toImage(), plain );
+
+    scene.release();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  The simple shadows seen from straight above: a soft ellipse from the
+  player's feet away from the sun, as dark as Sun3D::SHADOW_OPACITY in its
+  middle, fading toward its edge, nothing beyond it nor toward the sun;
+  the same in every frame.
+*/
+void
+TestScene3D::blobShadows()
+{
+    DispHolder holder;
+    FieldPainter painter( holder );
+    Scene3D scene;
+    QVERIFY( scene.initialize() );
+    scene.setGround( GroundTexture::draw( painter ) );
+
+    const int w = 400, h = 300;
+    QOpenGLFramebufferObjectFormat fbo_format;
+    fbo_format.setAttachment( QOpenGLFramebufferObject::Depth );
+    QOpenGLFramebufferObject fbo( w, h, fbo_format );
+
+    rcss::rcg::ShowInfoT show;
+    rcss::rcg::PlayerT & p = show.player_[0];
+    p.side_ = 'l';
+    p.unum_ = 1;
+    p.state_ = rcss::rcg::STAND;
+    p.x_ = 0.0f;
+    p.y_ = 0.0f;
+    show.ball_.x_ = 100.0f; // out of the view
+    SceneContent content;
+    SceneBuilder::addShow( content, show, holder, Options::instance() );
+    content.discs.clear(); // without the circle under the player, to see the shadow alone
+    QCOMPARE( content.picks.size(), size_t( 1 ) );
+
+    CameraPose camera;
+    camera.position = QVector3D( 0.0f, 20.0f, 0.0f );
+    camera.target = QVector3D( 0.0f, 0.0f, 0.0f );
+    camera.up = QVector3D( 0.0f, 0.0f, -1.0f );
+    const QMatrix4x4 view_proj = camera.projection( float( w ) / h ) * camera.view();
+    const auto pixel = [&]( const QVector3D & q ) {
+        const QVector3D ndc = view_proj.map( q );
+        return QPoint( int( ( ndc.x() + 1.0f ) / 2.0f * w ), int( ( 1.0f - ndc.y() ) / 2.0f * h ) );
+    };
+
+    scene.render( fbo.handle(), w, h, camera, content );
+    const QImage plain = fbo.toImage();
+    SceneBuilder::addBlobShadows( content );
+    QCOMPARE( content.blob_shadows.size(), size_t( 1 ) );
+    scene.render( fbo.handle(), w, h, camera, content );
+    const QImage first = fbo.toImage();
+    scene.render( fbo.handle(), w, h, camera, content );
+    QCOMPARE( first, fbo.toImage() );
+
+    // points of the ellipse (the unit disc of its model matrix)
+    const QMatrix4x4 & m = content.blob_shadows[0].model;
+    const auto ratio = [&]( const QVector3D & disc ) {
+        const QPoint at = pixel( m.map( disc ) );
+        return double( first.pixelColor( at ).lightness() ) / std::max( 1, plain.pixelColor( at ).lightness() );
+    };
+    // the middle, a meter past the feet: as dark as the shadows (0.6 of the light)
+    const double middle = ratio( QVector3D( 0.2f, 0.0f, 0.0f ) );
+    QVERIFY2( middle > 0.5 && middle < 0.7, qPrintable( QString::number( middle ) ) );
+    // toward the edge, lighter; beyond it and toward the sun, as without
+    const double fading = ratio( QVector3D( 0.0f, 0.0f, 0.8f ) );
+    QVERIFY2( fading > middle + 0.1 && fading < 0.98, qPrintable( QString::number( fading ) ) );
+    for ( const QVector3D & out : { QVector3D( 1.3f, 0.0f, 0.0f ), QVector3D( -1.6f, 0.0f, 0.0f ), QVector3D( 0.0f, 0.0f, 1.5f ) } )
+    {
+        const QPoint at = pixel( m.map( out ) );
+        QCOMPARE( first.pixelColor( at ), plain.pixelColor( at ) );
+    }
+
     scene.release();
 }
 

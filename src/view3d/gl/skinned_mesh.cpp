@@ -148,7 +148,8 @@ void
 SkinnedMesh::draw( QOpenGLFunctions_3_3_Core & gl,
                    ShaderProgram & program,
                    const std::vector< Instance > & figures,
-                   const std::vector< float > & joints )
+                   const std::vector< float > & joints,
+                   const bool colors )
 {
     const std::size_t floats = static_cast< std::size_t >( M_joint_count ) * 16;
     if ( ! created()
@@ -186,7 +187,7 @@ SkinnedMesh::draw( QOpenGLFunctions_3_3_Core & gl,
     {
         program.set( "uPaint", p.paint );
         program.set( "uShow", p.show );
-        program.set( "uBaseColor", p.color );
+        if ( colors ) program.set( "uBaseColor", p.color );
         gl.glDrawElementsInstanced( GL_TRIANGLES, p.index_count, GL_UNSIGNED_INT,
                                     offset( std::size_t( p.first_index ) * sizeof( std::uint32_t ) ), count );
     }

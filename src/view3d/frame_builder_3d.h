@@ -92,6 +92,8 @@ struct View3DState {
     std::vector< FigureProbe > probes; //!< of each figure, in the order drawn
     std::vector< float > figure_joints; //!< the skin matrices of the figures (SceneContent::figure_joints)
     std::vector< int > figure_bodies; //!< the body of each figure (SceneContent::figure_bodies)
+    bool shadows = false; //!< the sun cast the detailed shadows (SceneContent::shadows)
+    int blob_shadows = 0; //!< the simple shadows drawn (SceneContent::blob_shadows)
 };
 
 /*!

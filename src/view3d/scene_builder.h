@@ -231,6 +231,16 @@ void addLabels( SceneContent & content,
                 const LabelView & view,
                 const Perceptions * perceptions = nullptr );
 
+/*!
+  \brief the simple shadows of the players drawn (ShadowMode::Simple): an
+  ellipse each away from the sun (Sun3D::blobShadow()), as tall as the
+  player as addShow() put it in content.picks and as wide as its body
+  (of the cylinder, or the figure's), as dark as Sun3D::SHADOW_OPACITY in
+  the middle. The goal frames cast none.
+  \param content the players drawn (picks), where to add the shadows
+*/
+void addBlobShadows( SceneContent & content );
+
 }
 
 #endif

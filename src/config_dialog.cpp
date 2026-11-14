@@ -1420,6 +1420,16 @@ const ChoiceText BODIES_TEXTS[] = {
     { "Female", "Women only.", nullptr },
 };
 
+const ChoiceText SHADOW_TEXTS[] = {
+    { "Off", "No shadows of the sun.", nullptr },
+    { "Simple", "A soft ellipse under each player, away from the sun: almost no cost.",
+      "A soft ellipse under each player, away from the sun, as long as the player\n"
+      "is tall: almost no cost, for a slow GPU. The goal frames cast none." },
+    { "Detailed", "The shapes of the players and the goal frames (a shadow map).",
+      "The shapes of the players and the goal frames, drawn from the sun into a\n"
+      "shadow map: about 1.5\u20132 ms more of an integrated GPU." },
+};
+
 const ChoiceText GUIDE_TEXTS[] = {
     { "Off", "Not shown.", nullptr },
     { "Player Camera", "Shown with the Player camera only.", nullptr },
@@ -1513,6 +1523,28 @@ bodiesLabel( const FigureBodies bodies )
         if ( figureBodiesList()[i].first == bodies ) return QString::fromUtf8( BODIES_TEXTS[i].label );
     }
     return QString();
+}
+
+//! the label of a mode of the shadows
+QString
+shadowLabel( const ShadowMode mode )
+{
+    for ( std::size_t i = 0; i < shadowModes().size(); ++i )
+    {
+        if ( shadowModes()[i].first == mode ) return QString::fromUtf8( SHADOW_TEXTS[i].label );
+    }
+    return QString();
+}
+
+//! the id of a mode of the shadows in its radio buttons
+int
+shadowIndex( const ShadowMode mode )
+{
+    for ( std::size_t i = 0; i < shadowModes().size(); ++i )
+    {
+        if ( shadowModes()[i].first == mode ) return int( i );
+    }
+    return 0;
 }
 
 //! the width of the notes, in average characters
@@ -1818,6 +1850,24 @@ ConfigDialog::create3DTab()
                  } );
         numbers->setColumnStretch( 2, 1 );
 
+        std::vector< std::pair< QString, QString > > shadows;
+        for ( const ChoiceText & t : SHADOW_TEXTS )
+        {
+            shadows.emplace_back( QString::fromUtf8( t.label ), QString::fromUtf8( t.summary ) );
+        }
+        M_shadows_3d = addChoices( layout, tr( "Shadows:" ),
+                                   tr( "The sun's shadows on the ground. The sun is beyond the far touch line on\n"
+                                       "the left, 44\u00b0 up: from the near side, the shadows fall toward the camera,\n"
+                                       "on the right. Not from the Top camera. The ball keeps its own shadow below." ),
+                                   shadows, &M_shadows_3d_note );
+        setChoiceTooltips( M_shadows_3d, SHADOW_TEXTS );
+        M_shadows_3d->setObjectName( "shadows_3d" );
+        connect( M_shadows_3d, &QButtonGroup::idClicked,
+                 this, [this]( int id ) {
+                     Options::instance().setShadows3D( shadowModes()[id].first );
+                     changed3D();
+                 } );
+
         box->addLayout( layout );
         box->addLayout( numbers );
         box->addWidget( noteLabel( tr( "From the Top camera, and where the Player camera does not see which way "
@@ -1870,7 +1920,7 @@ ConfigDialog::create3DTab()
         QPushButton * button = new QPushButton( tr( "Default" ) );
         button->setObjectName( "default_3d" );
         button->setToolTip( tr( "Set the defaults: Close-up %1 m, %2\u00b0, Compass %3, Minimap %4,\n"
-                                "Model %5, Figure Scale %6, Bodies %9, Boards %7, Banners %8" )
+                                "Model %5, Figure Scale %6, Bodies %9, Shadows %10, Boards %7, Banners %8" )
                             .arg( Options::CLOSEUP_DISTANCE_3D )
                             .arg( Options::CLOSEUP_ELEVATION_3D )
                             .arg( guideLabel( Options::COMPASS_3D ) )
@@ -1879,7 +1929,8 @@ ConfigDialog::create3DTab()
                             .arg( Options::FIGURE_SCALE_3D )
                             .arg( onOff( Options::BOARDS_3D ) )
                             .arg( onOff( Options::BANNERS_3D ) )
-                            .arg( bodiesLabel( Options::FIGURE_BODIES_3D ) ) );
+                            .arg( bodiesLabel( Options::FIGURE_BODIES_3D ) )
+                            .arg( shadowLabel( Options::SHADOWS_3D ) ) );
         button->setAutoDefault( false );
         connect( button, &QPushButton::clicked,
                  this, [this]() {
@@ -2132,6 +2183,7 @@ ConfigDialog::update3D()
     const bool human = ( opt.playerModel3D() == PlayerModel::Human );
     for ( QAbstractButton * b : M_figure_bodies_3d->buttons() ) b->setEnabled( human );
     if ( M_figure_bodies_3d_label ) M_figure_bodies_3d_label->setEnabled( human );
+    set_choice( M_shadows_3d, shadowIndex( opt.shadows3D() ), M_shadows_3d_note );
     M_boards_3d_cb->setChecked( opt.boards3D() );
     M_banners_3d_cb->setChecked( opt.banners3D() );
 

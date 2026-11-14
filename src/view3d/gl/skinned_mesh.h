@@ -113,11 +113,14 @@ public:
       of the uniform
       \param figures each figure's colors
       \param joints the skin matrices: jointCount() * 16 floats a figure, as many figures
+      \param colors false for the shadow map (depth.frag), which uses no
+      colors: uBaseColor is not set (the compiler removes it)
     */
     void draw( QOpenGLFunctions_3_3_Core & gl,
                ShaderProgram & program,
                const std::vector< Instance > & figures,
-               const std::vector< float > & joints );
+               const std::vector< float > & joints,
+               const bool colors = true );
 
 private:
     struct Part {

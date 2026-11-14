@@ -36,6 +36,8 @@
 
 #include "scene_builder.h"
 
+#include "sun_3d.h"
+
 #include "label_atlas.h"
 
 #include "disp_holder.h"
@@ -305,7 +307,7 @@ addShow( SceneContent & content,
                 m.scale( HEAD_RADIUS );
                 add( content.spheres, m, body );
             }
-            content.picks.push_back( { p.side(), p.unum_, p.x_, p.y_, pick_r, body_height, head_height } );
+            content.picks.push_back( { p.side(), p.unum_, p.x_, p.y_, pick_r, body_height, head_height, figure } );
 
             // the circle on the ground, as the outer circle in 2D
             m.setToIdentity();
@@ -365,7 +367,7 @@ addShow( SceneContent & content,
         QMatrix4x4 m;
         m.translate( ball.x_, std::max( 0.0f, ball.z_ ) + r, ball.y_ );
         m.scale( r );
-        add( content.spheres, m, rgba( opt.ballBrush().color() ) );
+        add( content.balls, m, rgba( opt.ballBrush().color() ) );
 
         // the shadow right below, which tells the height
         m.setToIdentity();
@@ -563,6 +565,21 @@ addLabels( SceneContent & content,
     for ( const Labels & l : all )
     {
         content.labels.insert( content.labels.end(), l.billboards.begin(), l.billboards.end() );
+    }
+}
+
+/*-------------------------------------------------------------------*/
+void
+addBlobShadows( SceneContent & content )
+{
+    const QVector4D dark( 0.0f, 0.0f, 0.0f, Sun3D::SHADOW_OPACITY );
+    for ( const PlayerPick & p : content.picks )
+    {
+        // a figure's pick is FIGURE_PICK_SCALE times as wide as its body
+        const float width = 2.0f * p.radius / ( p.figure ? FIGURE_PICK_SCALE : 1.0f );
+        add( content.blob_shadows,
+             Sun3D::blobShadow( p.x, p.y, p.head_height + HEAD_RADIUS, width ),
+             dark );
     }
 }
 

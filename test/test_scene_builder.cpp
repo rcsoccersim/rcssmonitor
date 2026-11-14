@@ -38,6 +38,7 @@
 #include "options.h"
 #include "player_style.h"
 #include "scene_builder.h"
+#include "sun_3d.h"
 
 #include <rcss/rcg/types.h>
 
@@ -192,7 +193,8 @@ private slots:
 
           const size_t n = rcss::rcg::MAX_PLAYER * 2 - 1;
           QCOMPARE( c.cylinders.size(), n );
-          QCOMPARE( c.spheres.size(), n + 1 ); // the heads and the ball
+          QCOMPARE( c.spheres.size(), n ); // the heads
+          QCOMPARE( c.balls.size(), size_t( 1 ) );
           QCOMPARE( c.cones.size(), n * 2 );
           QCOMPARE( c.discs.size(), n + 1 ); // the circles and the ball's shadow
           QCOMPARE( c.rings.size(), size_t( 0 ) );
@@ -297,7 +299,8 @@ private slots:
 
           SceneContent c;
           SceneBuilder::addShow( c, show, M_holder, opt );
-          const Instance3D & ball = c.spheres.back();
+          QCOMPARE( c.balls.size(), size_t( 1 ) );
+          const Instance3D & ball = c.balls.back();
           const Instance3D & shadow = c.discs.back();
           // on the ground
           QVERIFY( near( at( ball, QVector3D( 0, -1, 0 ) ), QVector3D( 3, 0, -4 ) ) );
@@ -308,7 +311,7 @@ private slots:
           show.ball_.z_ = 2.0f;
           c.clear();
           SceneBuilder::addShow( c, show, M_holder, opt );
-          QVERIFY( near( at( c.spheres.back() ), QVector3D( 3, 2.0f + float( r ), -4 ) ) );
+          QVERIFY( near( at( c.balls.back() ), QVector3D( 3, 2.0f + float( r ), -4 ) ) );
           QVERIFY( near( at( c.discs.back() ), QVector3D( 3, SceneBuilder::BALL_SHADOW_Y, -4 ) ) );
           QCOMPARE( c.discs.back().color.w(), 0.3f );
       }
@@ -611,7 +614,8 @@ private slots:
           const size_t n = rcss::rcg::MAX_PLAYER * 2;
           QCOMPARE( c.figures.size(), n );
           QCOMPARE( c.cylinders.size(), size_t( 0 ) );
-          QCOMPARE( c.spheres.size(), size_t( 1 ) ); // the ball only
+          QCOMPARE( c.spheres.size(), size_t( 0 ) ); // no heads
+          QCOMPARE( c.balls.size(), size_t( 1 ) );
           QCOMPARE( c.cones.size(), size_t( 0 ) );
           QCOMPARE( c.discs.size(), simple.discs.size() );
           QCOMPARE( c.rings.size(), size_t( 1 ) );
@@ -642,6 +646,59 @@ private slots:
           QCOMPARE( c.cylinders.size(), size_t( 1 ) );
           QVERIFY( near( at( c.cylinders[0] ).x(), show.player_[2].x_ ) );
           for ( const FigureInstance & g : c.figures ) QVERIFY( g.player != 2 );
+      }
+
+    /*!
+      the simple shadows: one for each player drawn, as tall as it is drawn
+      and as wide as its body (of the cylinder, or the figure's, not the
+      wider pick), black at Sun3D::SHADOW_OPACITY
+    */
+    void blobShadows()
+      {
+          Options & opt = Options::instance();
+          rcss::rcg::ShowInfoT show = makeShow();
+          show.player_[3].side_ = 'n'; // not in the show: no shadow
+          const auto same = []( const QMatrix4x4 & a, const QMatrix4x4 & b ) {
+              for ( int i = 0; i < 16; ++i )
+              {
+                  if ( std::fabs( a.constData()[i] - b.constData()[i] ) > 1.0e-5f ) return false;
+              }
+              return true;
+          };
+          for ( const bool figures : { false, true } )
+          {
+              SceneContent c;
+              SceneBuilder::addShow( c, show, M_holder, opt, nullptr, figures );
+              SceneBuilder::addBlobShadows( c );
+              QCOMPARE( c.picks.size(), size_t( rcss::rcg::MAX_PLAYER * 2 - 1 ) );
+              QCOMPARE( c.blob_shadows.size(), c.picks.size() );
+              for ( size_t i = 0; i < c.picks.size(); ++i )
+              {
+                  const PlayerPick & p = c.picks[i];
+                  QCOMPARE( p.figure, figures );
+                  const rcss::rcg::PlayerT * player = nullptr;
+                  for ( const rcss::rcg::PlayerT & q : show.player_ )
+                  {
+                      if ( q.side() == p.side && q.unum_ == p.unum ) player = &q;
+                  }
+                  QVERIFY( player );
+                  const float body = float( M_holder.playerType( player->type_ ).player_size_ );
+                  const float top = p.head_height + SceneBuilder::HEAD_RADIUS;
+                  // a figure as wide as its body times its height over a person's
+                  const float width = 2.0f * body * ( figures ? top / SceneBuilder::PERSON_HEIGHT : 1.0f );
+                  QVERIFY2( same( c.blob_shadows[i].model, Sun3D::blobShadow( p.x, p.y, top, width ) ),
+                            qPrintable( QString( "%1 %2" ).arg( i ).arg( figures ) ) );
+                  QCOMPARE( c.blob_shadows[i].color, QVector4D( 0.0f, 0.0f, 0.0f, Sun3D::SHADOW_OPACITY ) );
+              }
+          }
+
+          // no players drawn: no shadows
+          SceneContent c;
+          opt.toggleShowPlayer();
+          SceneBuilder::addShow( c, show, M_holder, opt );
+          opt.toggleShowPlayer();
+          SceneBuilder::addBlobShadows( c );
+          QVERIFY( c.blob_shadows.empty() );
       }
 
     /*!
@@ -882,7 +939,8 @@ private slots:
           opt.unselectPlayer();
           const size_t n = rcss::rcg::MAX_PLAYER * 2 - 2; // without the unseen and the hidden
           QCOMPARE( c.cylinders.size(), n );
-          QCOMPARE( c.spheres.size(), n ); // no ball
+          QCOMPARE( c.spheres.size(), n );
+          QCOMPARE( c.balls.size(), size_t( 0 ) ); // no ball
           QCOMPARE( c.discs.size(), n ); // nor its shadow
           QCOMPARE( c.cones.size(), ( n - 2 ) * 2 ); // not of the two without directions
           QCOMPARE( c.rings.size(), size_t( 0 ) ); // the selected one's team is not known
@@ -913,7 +971,8 @@ private slots:
           c.clear();
           SceneBuilder::addShow( c, show, M_holder, opt, &eyes );
           QCOMPARE( c.cylinders.size(), size_t( rcss::rcg::MAX_PLAYER * 2 - 1 ) );
-          QCOMPARE( c.spheres.size(), size_t( rcss::rcg::MAX_PLAYER * 2 ) ); // with the ball
+          QCOMPARE( c.spheres.size(), size_t( rcss::rcg::MAX_PLAYER * 2 - 1 ) );
+          QCOMPARE( c.balls.size(), size_t( 1 ) ); // with the ball
       }
 
     /*!
@@ -976,7 +1035,8 @@ private slots:
           SceneBuilder::addShow( c, makeShow(), M_holder, opt );
           opt.toggleShowPlayer();
           QCOMPARE( c.cylinders.size(), size_t( 0 ) );
-          QCOMPARE( c.spheres.size(), size_t( 1 ) );
+          QCOMPARE( c.spheres.size(), size_t( 0 ) );
+          QCOMPARE( c.balls.size(), size_t( 1 ) );
           QCOMPARE( c.picks.size(), size_t( 0 ) ); // not drawn: not aimed at
 
           c.clear();
@@ -984,6 +1044,7 @@ private slots:
           SceneBuilder::addShow( c, makeShow(), M_holder, opt );
           opt.toggleShowBall();
           QCOMPARE( c.spheres.size(), size_t( rcss::rcg::MAX_PLAYER * 2 ) );
+          QCOMPARE( c.balls.size(), size_t( 0 ) );
           QCOMPARE( c.discs.size(), size_t( rcss::rcg::MAX_PLAYER * 2 ) );
 
           // no players: no labels

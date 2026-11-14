@@ -188,6 +188,7 @@ private:
     PlayerModel M_player_model_3d; //!< how the 3D view draws the players
     double M_figure_scale_3d; //!< the human figures: how many times a person's height
     FigureBodies M_figure_bodies_3d; //!< the human bodies: men and women, or one of them
+    ShadowMode M_shadows_3d; //!< the sun's shadows of the players (and the goal frames when detailed)
     bool M_show_tool_bar;
     bool M_show_status_bar;
 
@@ -438,6 +439,10 @@ public:
     static constexpr FigureBodies FIGURE_BODIES_3D = FigureBodies::Mixed;
     FigureBodies figureBodies3D() const { return M_figure_bodies_3d; }
     void setFigureBodies3D( const FigureBodies bodies ) { M_figure_bodies_3d = bodies; }
+
+    static constexpr ShadowMode SHADOWS_3D = ShadowMode::Simple; //!< light on any GPU (the user, 2026-11-15)
+    ShadowMode shadows3D() const { return M_shadows_3d; }
+    void setShadows3D( const ShadowMode mode ) { M_shadows_3d = mode; }
     //! the 3D view: when the minimap (the pitch with the camera's view) shows
     GuideMode minimap3D() const { return M_minimap_3d; }
     void setMinimap3D( const GuideMode mode ) { M_minimap_3d = mode; }

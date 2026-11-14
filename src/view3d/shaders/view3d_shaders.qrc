@@ -18,5 +18,11 @@
     <file>panel.frag</file>
     <file>skinned.vert</file>
     <file>skinned.frag</file>
+    <file>depth.vert</file>
+    <file>depth.frag</file>
+    <file>shadow.vert</file>
+    <file>shadow.frag</file>
+    <file>blob.vert</file>
+    <file>blob.frag</file>
   </qresource>
 </RCC>

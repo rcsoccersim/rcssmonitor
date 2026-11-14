@@ -39,6 +39,7 @@
 #include "gl/instanced_mesh.h"
 #include "gl/shader_program.h"
 #include "gl/gpu_timer.h"
+#include "gl/shadow_map.h"
 #include "gl/skinned_mesh.h"
 #include "figure_uniform.h"
 #include "gl/texture_2d.h"
@@ -165,6 +166,10 @@ private:
     ShaderProgram M_colored_program; //!< "colored": the lines, dots and view areas, each vertex its color
     ShaderProgram M_panel_program; //!< "panel": the boards and the banners, an image on the front, unlit
     ShaderProgram M_skinned_program; //!< "skinned" and "lit": the human figures, lit by the sun
+    ShaderProgram M_depth_program; //!< "depth": the solids as the sun sees them, into the shadow map
+    ShaderProgram M_skinned_depth_program; //!< "skinned" and "depth": the figures into the shadow map
+    ShaderProgram M_shadow_program; //!< "shadow": the plane of the shadows over the ground
+    ShaderProgram M_blob_program; //!< "blob": the simple shadows, soft ellipses on the ground
 
     // the shapes (Meshes3D), each drawn in instances
     InstancedMesh M_ground; //!< the area of the ground image
@@ -176,11 +181,13 @@ private:
     InstancedMesh M_decay_ring; //!< the decay of effort or recovery
     InstancedMesh M_quad; //!< the nets, the floors of the goals
     InstancedMesh M_panel; //!< the boards and the banners
+    InstancedMesh M_shadow_plane; //!< the area of the shadows, over the ground
+    ShadowMap M_shadow_map; //!< the depths as the sun sees the solids (none if the GPU cannot)
     BillboardMesh M_billboards; //!< the numbers and the cards
     std::array< SkinnedMesh, FIGURE_BODIES > M_figures; //!< the bodies of the human figures of the players
     std::array< FigureUniform::Cuts, FIGURE_BODIES > M_figure_cuts; //!< where their uniforms end
-    std::vector< SkinnedMesh::Instance > M_figure_instances; //!< the figures of a body in a frame
-    std::vector< float > M_figure_joints; //!< and their skin matrices
+    std::array< std::vector< SkinnedMesh::Instance >, FIGURE_BODIES > M_figure_instances; //!< the figures of each body in a frame
+    std::array< std::vector< float >, FIGURE_BODIES > M_figure_joints; //!< and their skin matrices
     GpuTimer M_gpu_timer; //!< the GPU's time of a frame, when timed
 
     // made again in every frame (OverlayBuilder)
@@ -194,6 +201,18 @@ private:
     Texture2D M_board_textures[2]; //!< a tile of the boards of each end (repeated)
     Texture2D M_banner_textures[2]; //!< the banner of each end
     const std::vector< Instance3D > M_ground_instance; //!< one instance of the ground, where it is (no move)
+    const std::vector< Instance3D > M_shadow_instance; //!< one instance of the plane of the shadows, just over the ground
+
+    //! sort the figures of a frame by their bodies (M_figure_instances, M_figure_joints)
+    void sortFigures( const SceneContent & content );
+    /*!
+      \brief draw the figures sorted, with a skinned program bound
+      \param program the main one, or the depth one for the shadow map
+      \param uniform for the main one: the planes of each body's uniform,
+      and the colors of its parts
+    */
+    void drawFigures( ShaderProgram & program,
+                      const bool uniform );
 };
 
 #endif

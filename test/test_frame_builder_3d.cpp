@@ -229,6 +229,49 @@ private slots:
       }
 
     /*!
+      the sun's shadows: detailed (the shadow map) or simple (an ellipse
+      under each player drawn) by the option, neither from the top camera
+      nor when off; reset with the content
+    */
+    void shadows()
+      {
+          Options & opt = Options::instance();
+          FrameBuilder3D builder;
+          opt.setShadows3D( ShadowMode::Detailed );
+          View3DState s = build( builder, M_holder, at( M_holder, 10 ) );
+          QVERIFY( s.shadows );
+          QCOMPARE( s.blob_shadows, 0 );
+          QVERIFY( build( builder, M_holder, at( M_holder, 10 ), CameraMode::Player ).shadows );
+          QVERIFY( ! build( builder, M_holder, at( M_holder, 10 ), CameraMode::Top ).shadows );
+          QVERIFY( build( builder, M_holder, at( M_holder, 10 ), CameraMode::Free ).shadows );
+
+          opt.setShadows3D( ShadowMode::Simple );
+          s = build( builder, M_holder, at( M_holder, 10 ) );
+          QVERIFY( ! s.shadows );
+          QCOMPARE( s.blob_shadows, s.players ); // one each, none of the goal frames
+          QCOMPARE( s.blob_shadows, 22 );
+          s = build( builder, M_holder, at( M_holder, 10 ), CameraMode::Top );
+          QCOMPARE( s.blob_shadows, 0 );
+          opt.toggleShowPlayer();
+          s = build( builder, M_holder, at( M_holder, 10 ) );
+          opt.toggleShowPlayer();
+          QCOMPARE( s.blob_shadows, 0 ); // no players drawn
+
+          opt.setShadows3D( ShadowMode::Off );
+          s = build( builder, M_holder, at( M_holder, 10 ) );
+          QVERIFY( ! s.shadows );
+          QCOMPARE( s.blob_shadows, 0 );
+          opt.setShadows3D( Options::SHADOWS_3D );
+
+          SceneContent content;
+          content.shadows = true;
+          content.blob_shadows.push_back( Instance3D() );
+          content.clear();
+          QVERIFY( ! content.shadows );
+          QVERIFY( content.blob_shadows.empty() );
+      }
+
+    /*!
       the human bodies: of the option, men and women mixed (both bodies
       drawn) or one of them; the same poses however reached
     */

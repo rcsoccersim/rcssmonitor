@@ -250,6 +250,7 @@ Options::Options()
     M_player_model_3d( PLAYER_MODEL_3D ),
     M_figure_scale_3d( FIGURE_SCALE_3D ),
     M_figure_bodies_3d( FIGURE_BODIES_3D ),
+    M_shadows_3d( SHADOWS_3D ),
     M_show_tool_bar( false ),
     M_show_status_bar( false ),
     // view options
@@ -765,6 +766,9 @@ Options::readSettings()
     val = settings.value( "figure_bodies_3d" );
     if ( val.isValid() ) figureBodiesFromName( val.toString(), &M_figure_bodies_3d );
 
+    val = settings.value( "shadows_3d" );
+    if ( val.isValid() ) shadowModeFromName( val.toString(), &M_shadows_3d );
+
     // the player camera: an unknown name (of a later version) is not read
     {
         using namespace PlayerCameraStyle;
@@ -945,6 +949,7 @@ Options::writeSettings( bool all )
     settings.setValue( "player_model_3d", playerModelName( M_player_model_3d ) );
     settings.setValue( "figure_scale_3d", M_figure_scale_3d );
     settings.setValue( "figure_bodies_3d", figureBodiesName( M_figure_bodies_3d ) );
+    settings.setValue( "shadows_3d", shadowModeName( M_shadows_3d ) );
     {
         using namespace PlayerCameraStyle;
         const PlayerCameraOptions & pc = M_player_camera;
@@ -1003,6 +1008,7 @@ Options::setView3DDefaults()
     M_player_model_3d = PLAYER_MODEL_3D;
     M_figure_scale_3d = FIGURE_SCALE_3D;
     M_figure_bodies_3d = FIGURE_BODIES_3D;
+    M_shadows_3d = SHADOWS_3D;
     M_boards_3d = BOARDS_3D;
     M_banners_3d = BANNERS_3D;
 }
@@ -1162,6 +1168,11 @@ Options::parseCmdLine( int argc,
                                              + figureBodiesName( M_figure_bodies_3d ) + ")",
                                              "bodies", figureBodiesName( M_figure_bodies_3d ) );
     parser.addOption( opt_figure_bodies_3d );
+    QCommandLineOption opt_shadows_3d( "shadows-3d",
+                                       "The 3D view: the sun's shadows of the players, off, simple (an ellipse each) or detailed (their shapes, and the goal frames'). (Default="
+                                       + shadowModeName( M_shadows_3d ) + ")",
+                                       "mode", shadowModeName( M_shadows_3d ) );
+    parser.addOption( opt_shadows_3d );
     // the player camera: the names of a style's values
     const auto names_of = []( const auto & list )
         {
@@ -1415,6 +1426,11 @@ Options::parseCmdLine( int argc,
          && ! figureBodiesFromName( parser.value( opt_figure_bodies_3d ), &M_figure_bodies_3d ) )
     {
         std::cerr << "Unknown value of figure-bodies-3d: " << parser.value( opt_figure_bodies_3d ).toStdString() << std::endl;
+    }
+    if ( parser.isSet( opt_shadows_3d )
+         && ! shadowModeFromName( parser.value( opt_shadows_3d ), &M_shadows_3d ) )
+    {
+        std::cerr << "Unknown value of shadows-3d: " << parser.value( opt_shadows_3d ).toStdString() << std::endl;
     }
     if ( parser.isSet( opt_player_model_3d )
          && ! playerModelFromName( parser.value( opt_player_model_3d ), &M_player_model_3d ) )

@@ -71,8 +71,12 @@ end( QOpenGLFunctions_3_3_Core & gl )
 {
     gl.glUseProgram( 0 );
     gl.glBindVertexArray( 0 );
-    gl.glActiveTexture( GL_TEXTURE0 );
-    gl.glBindTexture( GL_TEXTURE_2D, 0 );
+    // the textures of the units used (1: the shadow map), unit 0 left active
+    for ( int unit = 1; unit >= 0; --unit )
+    {
+        gl.glActiveTexture( GLenum( GL_TEXTURE0 + unit ) );
+        gl.glBindTexture( GL_TEXTURE_2D, 0 );
+    }
     RenderState::painter().apply( gl );
 }
 

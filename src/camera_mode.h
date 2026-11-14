@@ -384,6 +384,64 @@ figureBodiesFromName( const QString & name,
     return false;
 }
 
+/*!
+  \enum ShadowMode
+  \brief the sun's shadows of the players in the 3D view (docs/PLAN_3D-VIEW.md
+  §4.3, 8-1): none, simple ones (a soft ellipse on the ground for each
+  player, away from the sun: almost no cost), or detailed ones (a shadow
+  map: the shapes of the players and the goal frames)
+*/
+enum class ShadowMode {
+    Off,
+    Simple,
+    Detailed,
+};
+
+//! the shadows' modes, with their names in the options
+inline
+const std::array< std::pair< ShadowMode, const char * >, 3 > &
+shadowModes()
+{
+    static const std::array< std::pair< ShadowMode, const char * >, 3 > list = { {
+            { ShadowMode::Off, "off" },
+            { ShadowMode::Simple, "simple" },
+            { ShadowMode::Detailed, "detailed" },
+        } };
+    return list;
+}
+
+//! the name of a mode of the shadows in the options
+inline
+QString
+shadowModeName( const ShadowMode mode )
+{
+    for ( const auto & m : shadowModes() )
+    {
+        if ( m.first == mode ) return QString::fromLatin1( m.second );
+    }
+    return QString();
+}
+
+/*!
+  \brief the mode of the shadows of a name in the options
+  \return false if the name is unknown (mode is left as it was)
+*/
+inline
+bool
+shadowModeFromName( const QString & name,
+                    ShadowMode * mode )
+{
+    for ( const auto & m : shadowModes() )
+    {
+        if ( name == QLatin1String( m.second ) )
+        {
+            *mode = m.first;
+            return true;
+        }
+    }
+    return false;
+}
+
 //! a close-up camera (CameraMode::CloseupBall, CloseupPlayer)
 inline
 bool

@@ -227,6 +227,8 @@ private:
     QLabel * M_figure_bodies_3d_label = nullptr;
     QDoubleSpinBox * M_figure_scale_3d = nullptr;
     QLabel * M_figure_scale_3d_label = nullptr;
+    QButtonGroup * M_shadows_3d = nullptr;
+    QLabel * M_shadows_3d_note = nullptr;
     QCheckBox * M_boards_3d_cb = nullptr;
     QCheckBox * M_banners_3d_cb = nullptr;
 

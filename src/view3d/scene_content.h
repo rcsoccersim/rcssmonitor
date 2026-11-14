@@ -72,6 +72,7 @@ struct PlayerPick {
     float radius; //!< of the body (m)
     float body_height; //!< the top of the body (m)
     float head_height; //!< the center of the head (m)
+    bool figure = false; //!< drawn as a human figure (its radius is FIGURE_PICK_SCALE times as wide as it)
 };
 
 /*!
@@ -185,13 +186,20 @@ struct FigureInstance {
 struct SceneContent {
     // lit by the sun
     std::vector< Instance3D > cylinders; //!< radius 1, height 1 along y, centered: the bodies, the goal posts and crossbars
-    std::vector< Instance3D > spheres; //!< radius 1: the heads and the ball
+    std::vector< Instance3D > spheres; //!< radius 1: the heads
+    std::vector< Instance3D > balls; //!< radius 1: the ball (casts no shadow of the sun: its own disc below tells its height)
     std::vector< Instance3D > cones; //!< base of radius 1 at the origin, tip at x = 1: the body and face directions
     std::vector< FigureInstance > figures; //!< the players drawn as human figures (in place of a cylinder and a sphere)
     std::vector< float > figure_joints; //!< the skin matrices of the figures, in their order (Figures3D::pose(); 16 floats a joint)
     std::vector< int > figure_bodies; //!< the body drawn of each figure (Figures3D::pose(): an index of Figures3D's bodies)
 
+    //! the sun casts the detailed shadows of the solids above (but the ball
+    //! and the cones) on the ground with the shadow map (Sun3D): the option
+    //! ShadowMode::Detailed, and not from the top camera
+    bool shadows = false;
+
     // flat and translucent, in this order (the layers on the ground, low to high)
+    std::vector< Instance3D > blob_shadows; //!< radius 1 on the xz plane, darkest in the middle: the simple shadows of the players (Sun3D::blobShadow())
     std::vector< Instance3D > discs; //!< radius 1 on the xz plane: the circles under the players, the ball's shadow
     std::vector< Instance3D > rings; //!< 0.92 to 1.08 on the xz plane: the outline of a highlighted player
     std::vector< Instance3D > decay_rings; //!< 1.1 to 1.22 on the xz plane: the decay of effort or recovery
@@ -222,10 +230,13 @@ struct SceneContent {
       {
           cylinders.clear();
           spheres.clear();
+          balls.clear();
           cones.clear();
           figures.clear();
           figure_joints.clear();
           figure_bodies.clear();
+          shadows = false;
+          blob_shadows.clear();
           discs.clear();
           rings.clear();
           decay_rings.clear();
