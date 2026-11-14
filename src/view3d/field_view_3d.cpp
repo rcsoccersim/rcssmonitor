@@ -345,6 +345,12 @@ FieldView3D::paintGL()
     {
         Options::instance().updateFieldSize( width(), height() );
         QPainter painter( this );
+        // on a scaled screen, a painter of QOpenGLWidget has its window in
+        // physical pixels while it draws in logical ones: the score board,
+        // placed at the bottom of the window, fell off the view. The window
+        // in logical pixels, as a painter of the 2D view has it.
+        painter.setViewport( rect() );
+        painter.setWindow( rect() );
         M_score_board_painter->draw( painter );
         M_team_graphic_painter->draw( painter );
 
