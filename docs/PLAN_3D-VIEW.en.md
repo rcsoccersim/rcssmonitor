@@ -7,7 +7,7 @@
 | Reference implementation | rcssmonitor-web 20.0.0-beta.2 (tag `v20.0.0-beta.2`, ed36941). Its working tree is `../rcssmonitor-web`, next to this repository |
 | Server referred to | The asio version of rcssserver 19.x. Its working tree is `../rcssserver` (branch `feature/asio-migration`), next to this repository |
 | Japanese version | [PLAN_3D-VIEW.md](PLAN_3D-VIEW.md) (same content; §0.1) |
-| Status | Phase 7 done (2026-11-15). Working on Phase 8 (8-1 done, 8-2 waiting for the user's check; §14). The work is on `feature/3d-view` |
+| Status | Phase 7 done (2026-11-15). Working on Phase 8 (8-1 and 8-2 done, 8-2b waiting for the user's check; §14). The work is on `feature/3d-view` |
 
 ## 0. How to use this plan
 
@@ -392,7 +392,8 @@ Add to `Options` and save to `~/.rcssmonitor.conf`. The names follow the web ver
 | `figure_scale_3d` | 1.0 | 0.8 to 1.5: how many times a person's height the figures are (to be seen from afar; not for the cylinders; in the group `View3D`; `--figure-scale-3d` on the command line; 7-1) |
 | `figure_bodies_3d` | mixed | mixed / male / female: the human bodies' (`human`) sexes (in the group `View3D`; `--figure-bodies-3d` on the command line; 7-5) |
 | `shadows_3d` | simple | off / simple / detailed: the sun's shadows (simple: a soft ellipse for each player; detailed: the shapes of the players and the goal frames by a shadow map; in the group `View3D`; `--shadows-3d` on the command line; 8-1) |
-| `grass_stripes_3d`, `sky_3d`, `stands_3d`, `ball_pattern_3d` | on | (in the group `View3D`; the same names on the command line) |
+| `grass_3d` | stripes | plain / stripes / realistic: the grass (stripes: light and dark stripes; realistic: stripes light or dark by the way the camera looks, the blades and patches of the grass, the wear; in the group `View3D`; `--grass-3d` on the command line; 8-2b replaced 8-2's `grass_stripes_3d`) |
+| `sky_3d`, `stands_3d`, `ball_pattern_3d` | on | (in the group `View3D`; the same names on the command line) |
 | `ball_ring_3d`, `ball_ring_radius_3d` | on, 0.7 | 0.1–5 m |
 | `ball_trail_3d`, `ball_trail_cycles_3d` | on, 5 | 1–30 (integer) |
 
@@ -402,7 +403,7 @@ Settings dialog:
 - **Player Camera tab**: the 4 styles, time constant, maximum angular speed, fixed field of view, Player Sight, Default button.
 - Every item gets a detailed tooltip. Numeric fields state their range in the tooltip, and out-of-range values are clamped to the ends (error color while typing). Numeric fields not used by the selected style are dimmed.
 - In the web version, the 3D items grew and one tab became too tall, so Player Camera was split into its own tab. If the items grow further, split them likewise.
-- → 6-6 made the settings of 6-1 to 6-5 (Close-up Camera, Guides, Boards and Banners of Stadium, and all of the Player Camera tab). Players, Ball and the rest of Stadium come in Phases 7 and 8. The two tabs are only in a build with the 3D view. → 7-4 added Players (the three Models and Figure Scale). 8-1 added Shadows to Players. 8-2 added Grass Stripes and Sky to Stadium.
+- → 6-6 made the settings of 6-1 to 6-5 (Close-up Camera, Guides, Boards and Banners of Stadium, and all of the Player Camera tab). Players, Ball and the rest of Stadium come in Phases 7 and 8. The two tabs are only in a build with the 3D view. → 7-4 added Players (the three Models and Figure Scale). 8-1 added Shadows to Players. 8-2 added Grass Stripes and Sky to Stadium. 8-2b made Grass Stripes a choice of three, Grass.
 
 ### 5.8 Figures
 
@@ -582,7 +583,7 @@ Each phase proceeds on a feature branch and is merged into develop when it is do
 
 ### Phase 8: Appearance and ball aids
 
-**Work**: shadows (§4.3), grass stripes, sky and fog, stands, ball pattern and rolling, ball ring and trail. Settings and the dialog. → Steps (2026-11-15): 8-1 shadows. 8-2 grass stripes, sky and fog, the ground outside. 8-3 stands. 8-4 the ball's pattern and rolling. 8-5 the ball ring and trail, and a measurement with everything on. Each step adds its settings and its items of the dialog.
+**Work**: shadows (§4.3), grass stripes, sky and fog, stands, ball pattern and rolling, ball ring and trail. Settings and the dialog. → Steps (2026-11-15): 8-1 shadows. 8-2 grass stripes, sky and fog, the ground outside. 8-2b realistic grass (added by the user). 8-3 stands. 8-4 the ball's pattern and rolling. 8-5 the ball ring and trail, and a measurement with everything on. Each step adds its settings and its items of the dialog.
 
 **Done when**: each one can be switched in the settings. The first frame after switching to the top camera equals the next frame (§11 item 4). 60 fps holds at 1920×1080 on a desktop GPU with everything on (measurement recorded in §14).
 
@@ -683,6 +684,7 @@ Port the GL-independent calculations, using the web version's unit tests as mode
 | `view3d/figure_looks` | Made in 7-5: each player's looks (the body, the hairstyle, the skin and hair colors), and how they blend with the standard ones for the player camera (no GL) |
 | `view3d/sun_3d`, `gl/shadow_map`, `shaders/depth.*`, `shaders/shadow.*`, `shaders/blob.*` | Made in 8-1: the sun's direction, the camera of the shadow map, the ellipses of the simple shadows (no GL), the shadow map (a depth texture and a framebuffer), the shaders that draw only depths, the shaders of the plane of the shadows, the shaders of the simple shadows |
 | `view3d/scenery_3d`, `shaders/sky.*`, `shaders/outside.*` | Made in 8-2: the constants and computations of the sky, the haze and the ground beyond (no GL), the shaders of the sky and of the ground beyond. The grass stripes are drawn by `FieldPainter::drawGround()` |
+| `view3d/grass_3d` | Made in 8-2b: the realistic grass (the noise image, the stripes' light and dark by the way the camera looks, the wear, the patches and the wear painted into the ground image; no GL). Its shader is `ground.frag` |
 | `figure_pack`, `fbx_model`, `bvh_motion`, `vrm` and so on | Figure packs (Phase 9; §5.9) |
 | `third_party/ufbx/ufbx.{h,c}` | FBX loading (MIT or Unlicense; D12) |
 | A document on the figure material under `docs/` | How to convert to glTF with Blender and so on (for the maintainers and those who want to modify it; D12) |
@@ -1899,4 +1901,35 @@ The 2 commits of 8-1 (72348d6, 3505257) were pushed, and the CI passed.
 - Measured (as in 8-1, 22 human bodies, the simple shadows): GPU 3.0 to 3.1 ms (no sky and stripes; the ground beyond drawn) → 3.3 ms (with them); 3.6 ms with the sky drawn first. Before and after the change of the order, the images differ only in 131 pixels of the goal camera (7 levels at most; the far corners of the ground beyond). The 0.3 ms over 8-1's 2.7 ms are the ground beyond.
 - With Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`), the clean builds and the tests pass (41 tests). `-DENABLE_3D=OFF` (17) and autotools also pass.
 - In a window not shown on the screen, frame 3,000 of the full game's log was drawn from the broadcast, goal and player cameras, and looked at. From the broadcast camera, the ground beyond shows wide beyond the boards (as in the web version; the stands (8-3) fill it).
+
+#### 2026-11-15: Step 8-2b, realistic grass (`feature/3d-view`)
+
+The 2 commits of 8-2 (8e1f8cf, d218678) were pushed, and the CI passed.
+
+**Decided (user)**
+- A more realistic grass, chosen by the option. 8-2 committed first, this a step of its own (8-2b). Of the ideas, 1 (stripes light or dark by the way the camera looks), 2 (the blades and patches of the grass) and 3 (the wear). No photographic texture.
+
+**Decided**
+- The option `grass_3d`, a choice of three, `plain` (no stripes) / `stripes` (8-2's stripes) / `realistic`, replaces 8-2's `grass_stripes_3d` (before a release: the old name is not read). `stripes` by default still (whether the realistic grass becomes the default, the user decides on the screen).
+- The stripes' light and dark: a mower bends the blades its way, which look lighter seen along it and darker seen against it. The stripes (5.25 m as in 8-2) are taken as mowed along the field's y one way and back in turn, the even ones toward -z (light from the main cameras on the near side, as 8-2's stripes), the odd ones toward +z. The light and dark span ±6.5%, 35% of it whatever the way (the stripes show a little from behind the goals too). Seen straight down, only that part. From the other side, light and dark swap.
+- The detail: a noise image made at the start (256 px, fractal noise of five scales, tiling both ways; no material). The patches (one tile in 23 m, ±6%) are painted into the ground image; the blades (one tile in 1.7 m, ±8%) are read by the shader only nearer than 30 m from the camera (fading from 15 m): far away the blades would average out anyway.
+- The wear: both goal mouths (centered at x = ±49.5, 7 × 9 m), the penalty spots (2.5 m, 0.6) and the center (4 m, 0.5) toward the color of dry grass and soil (0.50, 0.50, 0.28), at most 0.6 of it, patchy by the patches, painted into the ground image. At first the colors were multiplied to look yellower, which hardly changed a saturated green; they are mixed instead.
+- The stripes, the blades and the patches are over the lines too (real lines are painted on the grass, and show the mowed stripes).
+- Why it is split so (measured): at first all of it was in the shader (the noise read twice, the five worn spots computed for every pixel), 1.0 to 1.3 ms more than the stripes on an integrated GPU. On that GPU, over the ground that covers most of the screen, each texture read takes about 0.25 to 0.5 ms. The wear computed near its spots only: +0.7 ms; the patches and the wear painted into the ground image and the blades read near the camera only: no difference from the stripes from the broadcast camera. Painting the ground image takes 15 to 23 ms with the rows in bands by up to 8 threads (about 80 ms by one, 160 ms as first written), once when the option or the colors change.
+
+**Made**
+- `GrassMode`, `grassModes()`, `grassModeName()`, `grassModeFromName()` (`camera_mode.h`). `grass_3d` of `Options`, and `--grass-3d` on the command line. Grass in Stadium of the settings dialog (three radio buttons with a summary, in place of the checkbox Grass Stripes).
+- `src/view3d/grass_3d`: `noiseImage()`, `stripeShade()` and `bladesFade()` (as ground.frag), `wearAt()`, `paintGround()`, the constants. No GL.
+- `GroundTexture::draw()`: with the realistic grass, no stripes, and the patches and the wear painted by `paintGround()`.
+- The shaders `ground.vert` (passing the position in the world) and `ground.frag` (the stripes' light and dark, the blades near the camera). `Texture2D::upload()` takes repeating down and anisotropic filtering (none for the noise). The noise is on texture unit 2, and `GLFrame::end()` unbinds unit 2 too.
+- `SceneContent::realistic_grass`, `View3DState::realistic_grass`.
+
+**Tests**
+- Test `grass_3d` (new): the noise (gray, a mean of 0.5 with a spread, the same for the same seed, as smooth across its edges as inside), the stripes' light and dark (from the near side the even ones light and the odd ones dark, on both sides of the halfway line, swapped from the other side, only the fixed part straight down and across, within the span from anywhere), the fading of the blades, the painting of the ground image (a goal mouth redder and less green, elsewhere lighter and darker by the patches but not redder, down to the bottom rows, the same image), the wear (most in the goal mouths, the penalty spots and the center, none elsewhere, the same at both ends, the edge of the bounds).
+- Added to test `scene_3d`: a point seen from both sides of the pitch, the ratio of its lightness with the realistic grass to the plain ground's (the noise, the same at the same point, drops out): for an even stripe lighter from the near side and darker from the other, for an odd one the other way. Within one stripe straight down, the blades at 8 m, none at 28 m (nearly faded) and at 40 m.
+- Fixed and added to tests `ground_texture` (no stripes with the realistic grass, a goal mouth redder, the lines still light, the key changing), `frame_builder_3d` (`realistic_grass` by the option), `config_dialog` (the three buttons, Stripes at first, Realistic and Plain chosen, Stripes back by Default).
+- Every test was checked to fail with what it checks broken for a while (11 ways: not by the way the camera looks, the way mowed reversed (the shader and C++), no blades, the blades read far away without fading, no wear painted, no patches painted, the painting not called, Scene3D ignoring the option, the edge of the wear's bounds, the threads' last band not painted). At first removing the blades passed (the area looked at crossed a stripe's edge); it now looks within one stripe. Not fading the blades was not caught at first either; a check at 28 m was added.
+- Measured (as in 8-1, 22 human bodies, the simple shadows, the sky and the stripes): from the broadcast camera, the stripes 3.0 to 3.1 ms, the realistic grass 3.0 to 3.1 ms; from the close-up camera 2.8 to 2.9 ms → 3.4 ms; from the player camera 2.1 to 2.3 ms → 2.6 to 2.7 ms (the blades read near).
+- With Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`), the clean builds and the tests pass (42 tests). `-DENABLE_3D=OFF` (17) and autotools also pass.
+- In a window not shown on the screen, frame 3,000 of the full game's log was drawn from the broadcast, close-up, player and goal cameras, with the stripes and the realistic grass, and looked at. From the player camera (looking along the pitch), the stripes are only the fixed part, faint (as real ones). The wear is subtle.
 
