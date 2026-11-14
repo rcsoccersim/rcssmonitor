@@ -7,7 +7,7 @@
 | Reference implementation | rcssmonitor-web 20.0.0-beta.2 (tag `v20.0.0-beta.2`, ed36941). Its working tree is `../rcssmonitor-web`, next to this repository |
 | Server referred to | The asio version of rcssserver 19.x. Its working tree is `../rcssserver` (branch `feature/asio-migration`), next to this repository |
 | Japanese version | [PLAN_3D-VIEW.md](PLAN_3D-VIEW.md) (same content; §0.1) |
-| Status | Phase 6 done (2026-11-14). Working on Phase 7 (7-1 to 7-4 done, 7-5 waiting for the user's check; §14). The work is on `feature/3d-view` |
+| Status | Phase 7 done (2026-11-15). Phase 8 is next (§14). The work is on `feature/3d-view` |
 
 ## 0. How to use this plan
 
@@ -1813,3 +1813,17 @@ The two commits of 7-4 (5f0b552, f522bf3) were pushed, and CI passed.
 - Decided (user): the scalp where the hair is is painted in the hair's color.
 - Fixed (`FigureUniform::paintScalp()`): when read, for each hairstyle, the vertices of the skin within 1.2 cm of its triangles with the hair outward of the skin (within 60 degrees of its normal) are marked (within 3 mm, whichever way). Without the outward condition, the skin beyond the hair's edge was marked too, and a band of the hair's color stood out about 1 cm below the short hair at the nape. The marks are a vertex attribute (`A_SCALP`, up to 4 hairstyles), interpolated for every pixel; where the mark of a hairstyle the player wears is over a half, the hair's color is painted (a smooth hairline). The chin under the beard too. The long hair is away from the scalp and marks none, but covers it itself. The marking looks only at the hair's triangles near a vertex (in a grid): reading the human bodies when first used takes about 30 ms (about 120 ms trying all).
 - Tests: added to test `figure_uniform` (on a made skin and hair: under the hair, beyond its edge, far below, near but facing away; on both bodies: the back of the head under the short hairstyles, the face and the nape not under any, the chin under the beard, the hairstyles' bits). Added to test `scene_3d`: the woman drawn from behind shows no scalp at the back of her head, and does without a hairstyle. Breaking what they check makes them fail (6 ways: the outward condition, the near condition, the shader painting never or always, the bits, the vertex attribute). At first, removing the outward condition passed (the made point "beyond the edge" was farther than 1.2 cm), so it was put 1.1 cm from the hair's corner. Measured: 22 human bodies (mixed), the GPU 2.7 to 3.0 ms, the CPU 0.80 to 0.84 ms. Builds and tests pass with Qt 6.4.2 and Qt 5.15.13 (39 tests). `-DENABLE_3D=OFF` (17 tests) and autotools pass too. The six hairstyles were drawn in light blond from the front, the back and the sides, and looked at.
+
+#### 2026-11-15: The end of Phase 7, and the parallel builds of the CI (`feature/3d-view`)
+
+The 2 commits of 7-5 (1f45db8, 7930436) were pushed.
+
+**A bug of the CI**
+- The job CMake, Qt6 (Ubuntu 26.04) stopped in the middle of the build. The first time, it was stopped from outside after about 40 seconds (exit code 143); the second, rerun, made no progress for over 17 minutes and was cancelled. The other 3 jobs passed. No compile error was shown.
+- The cause: the CI built with `cmake --build build --parallel`, without a number. Then the Makefile build gets `make -j` with no limit, and the compiling of more than 30 files starts within a second (seen in the log). With the files added in 7-5, the runner ran out of memory in the job of Qt 6.10 and GCC 15, whose headers are heavy (written the same way since 4-1, it had been enough until now).
+- Fixed: the 2 CMake jobs build with `cmake --build build --parallel "$(nproc)"` (the autotools job has used `make -j"$(nproc)"` from before). With commit 7e2c99e, the 4 jobs passed (CMake, Qt6 in about 3 minutes).
+
+**Phase 7's completion conditions**
+- The user checked on real logs the figures walking, running, kicking, tackling (for a moment on a foul), sitting down when fouled, catching and pointing (7-2, 7-3).
+- Test `frame_builder_3d` checks the same pose (the skin matrices, the left knee, the head's turn) stepped forward and back, jumped and back, and drawn again and again (7-4, 7-5).
+- The user checked 7-5 on the screen. Phase 7's completion conditions are met.
