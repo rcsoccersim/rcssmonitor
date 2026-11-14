@@ -7,7 +7,7 @@
 | Reference implementation | rcssmonitor-web 20.0.0-beta.2 (tag `v20.0.0-beta.2`, ed36941). Its working tree is `../rcssmonitor-web`, next to this repository |
 | Server referred to | The asio version of rcssserver 19.x. Its working tree is `../rcssserver` (branch `feature/asio-migration`), next to this repository |
 | Japanese version | [PLAN_3D-VIEW.md](PLAN_3D-VIEW.md) (same content; §0.1) |
-| Status | Phase 7 done (2026-11-15). Phase 8 is next (§14). The work is on `feature/3d-view` |
+| Status | Phase 7 done (2026-11-15). Working on Phase 8 (8-1 waiting for the user's check; §14). The work is on `feature/3d-view` |
 
 ## 0. How to use this plan
 
@@ -42,6 +42,7 @@ What this plan decided that the web version (rcssmonitor-web) should also get la
 - [ ] **The limit of the catch directions in the goalie's catch area** (2026-11-13, user): from rcssserver 17.0.0, a catch direction is within `min_catch_angle` to `max_catch_angle` (-90 to +90 by default), and a goalie cannot catch behind it. The web version (`catchAreaRadii()` in `overlay-math.ts`) draws circles, as rcssmonitor did. Draw the same shape as rcssmonitor (`OverlayMath::catchOutline()`). Read a log without the two parameters (a server before 17) as ±180 (no limit) (the web version's `param-defaults.ts` has 19.0.0's ±90).
 - [ ] **The same operations as 2D** (§5.6, 5-1b, 2026-11-12, user): in 3D too, the wheel steps the frames, and Z and X (and Ctrl+Z) bring the camera nearer / farther. In the web version the wheel moves the 3D camera (three.js OrbitControls' zoom, and the distance of the close-up cameras `closeupWheel`); make it follow 2D (the web version's 2D wheel and keys) as rcssmonitor does. Also follow rcssmonitor in that a following camera keeps following at the new distance, the top camera shows around the ball when nearer, a change of the camera sets the zoom back, and I sets it back.
 - [ ] **The look of the focus point** (5-5, 2026-11-13, user): the web version's focus point is only a line from the player and a circle, as rcssmonitor's was. As in rcssmonitor, in 2D and 3D, add the lines of the same noise (ellipses with the player and the focus point as the foci, cut to the view; `OverlayMath::focusNoiseLines()`), the reticle and the spot (`OverlayMath::FocusLook`, `focusTicks()`), the line from the eyes in 3D, and the option of all players' focus points (`show_all_focus_points`).
+- [ ] **The shadows' option** (8-1, 2026-11-15, user): the web version's shadows are only on or off, and on draws the shadow map (the shapes of the players and the goal frames). Make them a choice of three, `off` / `simple` / `detailed`, as rcssmonitor, `simple` by default. `simple` is a soft ellipse for each player from the feet away from the sun, about as long as the player is tall (as wide as the body, black at 0.4 out to 0.35 of the way from the middle and fading toward the edge; `Sun3D::blobShadow()`, the shader `blob`). The goal frames cast none. `detailed` is the web version's shadows of now.
 - [ ] **Better figure motion and figure packs (a note)** (2026-11-14, user): how to bring them into the web version is to be thought about later. The motion should improve in the web version too (phase-matched blending, directional walking and running, leaning, the kick contact at the moment of the log, the neck turn spread over the neck, head and chest; §5.8). The figure models (figure packs, material that users add) are not settled yet. The figures' size (the scale 1.0 by default, each player's height, the number from the top of the head; §5.8, 7-1) is also to be thought about for the web version later, and so is what 7-2 made (finding the clips' speeds and contacts automatically, the hips' turn going sideways, the lean toward the acceleration; §14), and so is what 7-3 made (the kick contact one cycle earlier, kicks in a row as one, the kinds of kicks, the goalie's pose by the ball's height; §14), and so is what 7-4 made (the human body as the second figure, its uniform painted from the bones' weights and the rest pose, the strides of each body, the width of the figures' hit testing; §14), and so is what 7-5 made (the men's and women's bodies, each player's hairstyle, skin and hair colors, and with the player camera the looks and the height toward the standard ones by how sure it is of the number; §14).
 
 ## 1. Goals and scope
@@ -390,7 +391,8 @@ Add to `Options` and save to `~/.rcssmonitor.conf`. The names follow the web ver
 | `player_model_3d` | simple | simple / mannequin / human (in the group `View3D`; `--player-model-3d` on the command line; simple / figure in 7-1, figure renamed mannequin and human added in 7-4; figure is read as the mannequin) |
 | `figure_scale_3d` | 1.0 | 0.8 to 1.5: how many times a person's height the figures are (to be seen from afar; not for the cylinders; in the group `View3D`; `--figure-scale-3d` on the command line; 7-1) |
 | `figure_bodies_3d` | mixed | mixed / male / female: the human bodies' (`human`) sexes (in the group `View3D`; `--figure-bodies-3d` on the command line; 7-5) |
-| `shadows_3d`, `grass_stripes_3d`, `sky_3d`, `stands_3d`, `ball_pattern_3d` | on | |
+| `shadows_3d` | simple | off / simple / detailed: the sun's shadows (simple: a soft ellipse for each player; detailed: the shapes of the players and the goal frames by a shadow map; in the group `View3D`; `--shadows-3d` on the command line; 8-1) |
+| `grass_stripes_3d`, `sky_3d`, `stands_3d`, `ball_pattern_3d` | on | (in the group `View3D`; the same names on the command line) |
 | `ball_ring_3d`, `ball_ring_radius_3d` | on, 0.7 | 0.1–5 m |
 | `ball_trail_3d`, `ball_trail_cycles_3d` | on, 5 | 1–30 (integer) |
 
@@ -400,7 +402,7 @@ Settings dialog:
 - **Player Camera tab**: the 4 styles, time constant, maximum angular speed, fixed field of view, Player Sight, Default button.
 - Every item gets a detailed tooltip. Numeric fields state their range in the tooltip, and out-of-range values are clamped to the ends (error color while typing). Numeric fields not used by the selected style are dimmed.
 - In the web version, the 3D items grew and one tab became too tall, so Player Camera was split into its own tab. If the items grow further, split them likewise.
-- → 6-6 made the settings of 6-1 to 6-5 (Close-up Camera, Guides, Boards and Banners of Stadium, and all of the Player Camera tab). Players, Ball and the rest of Stadium come in Phases 7 and 8. The two tabs are only in a build with the 3D view. → 7-4 added Players (the three Models and Figure Scale). Shadows come in Phase 8.
+- → 6-6 made the settings of 6-1 to 6-5 (Close-up Camera, Guides, Boards and Banners of Stadium, and all of the Player Camera tab). Players, Ball and the rest of Stadium come in Phases 7 and 8. The two tabs are only in a build with the 3D view. → 7-4 added Players (the three Models and Figure Scale). 8-1 added Shadows to Players.
 
 ### 5.8 Figures
 
@@ -580,7 +582,7 @@ Each phase proceeds on a feature branch and is merged into develop when it is do
 
 ### Phase 8: Appearance and ball aids
 
-**Work**: shadows (§4.3), grass stripes, sky and fog, stands, ball pattern and rolling, ball ring and trail. Settings and the dialog.
+**Work**: shadows (§4.3), grass stripes, sky and fog, stands, ball pattern and rolling, ball ring and trail. Settings and the dialog. → Steps (2026-11-15): 8-1 shadows. 8-2 grass stripes, sky and fog, the ground outside. 8-3 stands. 8-4 the ball's pattern and rolling. 8-5 the ball ring and trail, and a measurement with everything on. Each step adds its settings and its items of the dialog.
 
 **Done when**: each one can be switched in the settings. The first frame after switching to the top camera equals the next frame (§11 item 4). 60 fps holds at 1920×1080 on a desktop GPU with everything on (measurement recorded in §14).
 
@@ -646,7 +648,7 @@ Port the GL-independent calculations, using the web version's unit tests as mode
 10. **Software rendering is slow**: keep the CI tests light (§10.2).
 11. **Choosing keys**: use keys that are free in rcssmonitor, no Shift, and Ctrl for related operations. Unlike a browser, the native version has no key interception problem.
 12. **Presenting settings**: a tooltip per item, explicit ranges, handling of out-of-range values, dimming unused fields. Split tabs when they get long.
-13. **Defaults decided by the user**: player view (over the shoulder, head, smooth, fixed 120°, server rules, τ 0.5, ω 90), figures default to cylinders (simple), shadows, scenery, and ball aids are on by default.
+13. **Defaults decided by the user**: player view (over the shoulder, head, smooth, fixed 120°, server rules, τ 0.5, ω 90), figures default to cylinders (simple), shadows, scenery, and ball aids are on by default (rcssmonitor's shadows by default are the light simple ones; 8-1).
 
 ## 12. Files to change and add (expected)
 
@@ -679,6 +681,7 @@ Port the GL-independent calculations, using the web version's unit tests as mode
 | `view3d/gl/gpu_timer` | Made in 7-4: the GPU's time to draw (timer queries) |
 | `resources/models/BaseCharacterMale.glb`, `BaseCharacterFemale.glb`, `pack_base_character.py` | Made in 7-4, split into a man's and a woman's in 7-5: the human bodies and hairstyles (CC0) and the script that wrote them |
 | `view3d/figure_looks` | Made in 7-5: each player's looks (the body, the hairstyle, the skin and hair colors), and how they blend with the standard ones for the player camera (no GL) |
+| `view3d/sun_3d`, `gl/shadow_map`, `shaders/depth.*`, `shaders/shadow.*`, `shaders/blob.*` | Made in 8-1: the sun's direction, the camera of the shadow map, the ellipses of the simple shadows (no GL), the shadow map (a depth texture and a framebuffer), the shaders that draw only depths, the shaders of the plane of the shadows, the shaders of the simple shadows |
 | `figure_pack`, `fbx_model`, `bvh_motion`, `vrm` and so on | Figure packs (Phase 9; §5.9) |
 | `third_party/ufbx/ufbx.{h,c}` | FBX loading (MIT or Unlicense; D12) |
 | A document on the figure material under `docs/` | How to convert to glTF with Blender and so on (for the maintainers and those who want to modify it; D12) |
@@ -1827,3 +1830,44 @@ The 2 commits of 7-5 (1f45db8, 7930436) were pushed.
 - The user checked on real logs the figures walking, running, kicking, tackling (for a moment on a foul), sitting down when fouled, catching and pointing (7-2, 7-3).
 - Test `frame_builder_3d` checks the same pose (the skin matrices, the left knee, the head's turn) stepped forward and back, jumped and back, and drawn again and again (7-4, 7-5).
 - The user checked 7-5 on the screen. Phase 7's completion conditions are met.
+
+### Phase 8
+
+#### 2026-11-15: Step 8-1, shadows (`feature/3d-view`)
+
+The 1 commit of the plan (13223e6) was pushed.
+
+**Decided**
+- Phase 8 in 5 steps: 8-1 shadows, 8-2 grass stripes, sky and fog and the ground outside, 8-3 stands, 8-4 the ball's pattern and rolling, 8-5 the ball ring and trail, and a measurement with everything on. Each step adds its settings and its items of the dialog.
+- The shadows as in the web version (§4.3): from the sun's direction (-60, 65, -30), the players' bodies and heads, the figures, and the goal posts and crossbars cast shadows on the ground. Only the ground receives them (none on the players or the goals). A plane that draws only the shadows (over the ground image and 4 m around it) is 0.01 m over the ground, and darkens the shadows with black at 0.4. The ball keeps its disc right below (it casts no shadow of the sun), and the direction cones cast none either. Not drawn from the top camera, nor with the option off.
+- The shadow map is 4096 px (where the GPU takes textures of 8192 px; 2048 px otherwise). The sun's camera is orthographic, just over the area of the shadows up to 4 m from the ground (3 m in the web version; the figure of the tallest type at the largest scale, both hands raised to catch, is about 3.6 m).
+- The shadows' edges are softened by 25 reads (5 × 5) of the map; but 5 reads come first, the middle and the 4 corners, and the rest are skipped where they are all lit or all in the shadow (the measurements below).
+- The ball is apart from the heads in the lists of what is drawn (`SceneContent::balls`), not to be drawn into the shadow map.
+- The option `shadows_3d` (on by default; in the group `View3D`) and `--shadows-3d` on the command line. Shadows in Players of the 3D tab of the settings dialog (always available: the cylinders cast them too). Default turns them on. → Made a choice of three below (off / simple / detailed).
+
+**Made**
+- `src/view3d/sun_3d`: `Sun3D::direction()`, `shadowLength()`, `shadowWidth()`, `shadowViewProj()` (the 8 corners of the box of the shadows seen from the sun, the orthographic projection fitted to them), the constants (`SHADOW_MARGIN`, `SHADOW_HEIGHT`, `SHADOW_OPACITY`, `SHADOW_PLANE_Y`). No GL.
+- `src/view3d/gl/shadow_map`: a depth texture (24 bits, read by comparing as a `sampler2DShadow`, lit outside it) and a framebuffer without colors. `begin()`, `end()`, `bind()`.
+- The shaders `depth.vert`, `depth.frag` (depths only; the figures with `skinned.vert` and `depth.frag`: hairstyles not worn cast no shadow either), `shadow.vert`, `shadow.frag` (the plane of the shadows).
+- `Scene3D`: at the start of a frame, a pass that draws what casts shadows into the shadow map from the sun. The plane of the shadows first in the translucent pass (under the circles at the feet). Sorting the figures by their bodies is `sortFigures()` and drawing them `drawFigures()`, used for both the shadow map and the scene. The shadow map is on texture unit 1, and `GLFrame::end()` unbinds unit 1 too.
+- `SceneContent::shadows` (FrameBuilder3D decides it by the option and the camera not being the top one), `View3DState::shadows`.
+- `shadows_3d` of `Options`, Shadows of `ConfigDialog`.
+
+**Tests**
+- Test `sun_3d` (new): the sun's direction (of length 1, 44 degrees up, on the far left), the area of the shadows, the sun's camera (the box of the shadows within OpenGL's cube, touching its sides across and down; a point and where the sun's ray through it meets the ground at the same place of the map, the point nearer to the sun; the shadow falls away from the sun, to the right and the near side), the height that casts shadows above 1.2 times the tallest figure.
+- Added to test `scene_3d`: seen from straight above, the shadows of the middle of a player's body and of a figure's chest darken the ground away from the sun (0.4 to 0.8 times the lightness without shadows), the pixels toward the sun the same as without, the ground where the ray passes above the figure's head lit, no shadow of the ball in the air, the shadow of a goal post (from 10 m above), no shadow left when the figure is gone (the map cleared every time), the image as before with the shadows off again, the first frame with the shadows the same as the next.
+- Added to test `frame_builder_3d`: with the option on, the shadows from the broadcast, player and free cameras, not from the top camera; none with the option off; reset by `clear()`.
+- Added to test `config_dialog`: the tooltip of Shadows, on at first, the option changed by a click, back by Default. Test `scene_builder` was fixed for the list of the ball.
+- Every test was checked to fail with what it checks broken for a while (11 ways: the plane of the shadows not drawn, the ball casting too, the figures casting none, the cylinders casting none, the map not cleared, drawn from the top camera too, not reset by `clear()`, not back by Default, the sun's camera looking from the other way, the shadows black, the dialog not changing the option). The softness of the edges (the 25 reads) is not checked.
+- Measured (Release, the work machine's integrated GPU (radeonsi), `RCSSMONITOR_3D_TIMING`, as in 7-4: logical 1920×1080 (physical 2480×1395), the broadcast camera, playing the full game's log from frame 3,000): cylinders, GPU 0.9 to 1.0 ms → 2.2 to 2.5 ms with the shadows; 22 human bodies, 2.6 to 2.8 ms → 4.8 to 4.9 ms. At first, always reading 25 times, 7.7 to 9.1 ms and 10 to 11.6 ms (about 7 ms for the plane of the shadows). Drawing the shadow map takes about 0.1 to 0.2 ms. Before and after the 5 reads first, the images differ only in a few pixels of the shadows' edges (10 levels at most). The CPU's time does not change.
+- With Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`), the clean builds and the tests pass (40 tests). `-DENABLE_3D=OFF` (17) and autotools also pass.
+- In a window not shown on the screen, frame 3,000 of the full game's log was drawn from the broadcast, close-up and goal cameras, with and without the shadows, and looked at.
+
+**The user's proposal and the change (8-1)**
+- The user's proposal: the players' shadows switched by the option between detailed ones of the models' shapes and simple circles or ellipses. Decided (user): the option `shadows_3d` is a choice of three, `off` / `simple` / `detailed`, `detailed` by default (the web version's look). → `simple` by default (user: light on any GPU). The web version gets the same three (§0.2). The simple shadows are ellipses stretched away from the sun. With the simple shadows, the goal frames cast none (thin bars drawn as ellipses would look odd).
+- The simple shadows (`simple`): an ellipse for each player drawn, as high as the plane of the shadows (0.01 m) (`Sun3D::blobShadow()`). From the feet away from the sun, as long as to where the sun's ray over the top of the head meets the ground (the height × cot 44°: about the player's height), as wide as the body (the cylinder's diameter, or the body's diameter × the height over a person's for a figure), with half the width more at each end. Black at 0.4 out to 0.35 of the way from the middle, fading toward the edge from there (the shader `blob`). As tall as the player is drawn (its type, the scale, the player camera's blend). Not from the top camera. Drawn with the disc of the circles at the feet, in one instanced draw call.
+- Made: `ShadowMode`, `shadowModes()`, `shadowModeName()`, `shadowModeFromName()` (`camera_mode.h`). `Sun3D::blobShadow()`, `SceneBuilder::addBlobShadows()`, `SceneContent::blob_shadows`, `PlayerPick::figure` (whether a figure: its pick is 1.2 times as wide as its body, which the shadow's width needs), `View3DState::blob_shadows`, the shaders `blob.vert`, `blob.frag`. Shadows of the settings dialog became a row of three radio buttons with a summary (under Model and Bodies). `--shadows-3d` on the command line takes `off`, `simple` or `detailed`.
+- Tests: `sun_3d` (the ellipse's ends half the width behind the feet and half the width beyond the top's shadow, the middle, the width, on the ground, about the height long to the right and the near side), `scene_builder` (one for each player drawn, the widths and heights of the cylinders and the figures, the color, none without players drawn), `scene_3d` (seen from straight above, the middle of the ellipse 0.5 to 0.7 times the lightness without it, lighter near the edge, the pixels outside and toward the sun the same as without, the same in every frame), `frame_builder_3d` (detailed: the shadow map only; simple: the ellipses only, as many as the players (none of the goal frames); the top camera, no players drawn, off, `clear()`), `config_dialog` (the three buttons and their tooltips, Simple at first, Detailed and Off chosen, Simple back by Default). Checked to fail with what they check broken (10 ways: the ellipses not drawn, stretched toward the sun, not fading at the edge, the figures' width from the pick's radius, drawn from the top camera too, the ellipses with detailed too, the dialog's choices mismatched, not the top of the head, not reset by `clear()`, the dialog not showing the option). Toward the sun is caught by `sun_3d` (`scene_3d` takes its points from the ellipse's matrix, so it passes either way).
+- Measured (as before): cylinders, GPU 0.84 to 0.94 ms (off), 0.88 to 0.98 ms (simple), 2.1 to 2.3 ms (detailed); 22 human bodies, 2.6 ms, 2.7 ms, 4.9 to 5.0 ms. The simple shadows take 0.04 to 0.1 ms. The CPU's time does not change.
+- With Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`), the clean builds and the tests pass (40 tests). `-DENABLE_3D=OFF` (17) and autotools also pass. In a window not shown on the screen, frame 3,000 of the full game's log was drawn from the broadcast and close-up cameras with each of the three options, and looked at.
+
