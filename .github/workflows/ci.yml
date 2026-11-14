@@ -46,7 +46,7 @@ jobs:
       - name: Check that the 3D view is built
         run: grep -q '^#define HAVE_3D_VIEW' build/config.h
       - name: Build
-        run: cmake --build build --parallel
+        run: cmake --build build --parallel "$(nproc)"
       - name: Test
         run: xvfb-run -a ctest --test-dir build --output-on-failure
         env:
@@ -75,7 +75,7 @@ jobs:
       - name: Check that the 3D view is built
         run: grep -q '^#define HAVE_3D_VIEW' build/config.h
       - name: Build
-        run: cmake --build build --parallel
+        run: cmake --build build --parallel "$(nproc)"
       - name: Test
         run: xvfb-run -a ctest --test-dir build --output-on-failure
         env:
