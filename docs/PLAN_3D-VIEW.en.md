@@ -7,7 +7,7 @@
 | Reference implementation | rcssmonitor-web 20.0.0-beta.2 (tag `v20.0.0-beta.2`, ed36941). Its working tree is `../rcssmonitor-web`, next to this repository |
 | Server referred to | The asio version of rcssserver 19.x. Its working tree is `../rcssserver` (branch `feature/asio-migration`), next to this repository |
 | Japanese version | [PLAN_3D-VIEW.md](PLAN_3D-VIEW.md) (same content; §0.1) |
-| Status | Phase 6 (started 2026-11-13, `feature/3d-view`). Steps 6-1 to 6-6 (§14). Phase 5 done |
+| Status | Phase 6 done (2026-11-14). Preparing Phase 7 (the course of the figures decided; §14). The work is on `feature/3d-view` |
 
 ## 0. How to use this plan
 
@@ -42,6 +42,7 @@ What this plan decided that the web version (rcssmonitor-web) should also get la
 - [ ] **The limit of the catch directions in the goalie's catch area** (2026-11-13, user): from rcssserver 17.0.0, a catch direction is within `min_catch_angle` to `max_catch_angle` (-90 to +90 by default), and a goalie cannot catch behind it. The web version (`catchAreaRadii()` in `overlay-math.ts`) draws circles, as rcssmonitor did. Draw the same shape as rcssmonitor (`OverlayMath::catchOutline()`). Read a log without the two parameters (a server before 17) as ±180 (no limit) (the web version's `param-defaults.ts` has 19.0.0's ±90).
 - [ ] **The same operations as 2D** (§5.6, 5-1b, 2026-11-12, user): in 3D too, the wheel steps the frames, and Z and X (and Ctrl+Z) bring the camera nearer / farther. In the web version the wheel moves the 3D camera (three.js OrbitControls' zoom, and the distance of the close-up cameras `closeupWheel`); make it follow 2D (the web version's 2D wheel and keys) as rcssmonitor does. Also follow rcssmonitor in that a following camera keeps following at the new distance, the top camera shows around the ball when nearer, a change of the camera sets the zoom back, and I sets it back.
 - [ ] **The look of the focus point** (5-5, 2026-11-13, user): the web version's focus point is only a line from the player and a circle, as rcssmonitor's was. As in rcssmonitor, in 2D and 3D, add the lines of the same noise (ellipses with the player and the focus point as the foci, cut to the view; `OverlayMath::focusNoiseLines()`), the reticle and the spot (`OverlayMath::FocusLook`, `focusTicks()`), the line from the eyes in 3D, and the option of all players' focus points (`show_all_focus_points`).
+- [ ] **Better figure motion and figure packs (a note)** (2026-11-14, user): how to bring them into the web version is to be thought about later. The motion should improve in the web version too (phase-matched blending, directional walking and running, leaning, the kick contact at the moment of the log, the neck turn spread over the neck, head and chest; §5.8). The figure models (figure packs, material that users add) are not settled yet.
 
 ## 1. Goals and scope
 
@@ -50,6 +51,7 @@ What this plan decided that the web version (rcssmonitor-web) should also get la
 3. **JSON parser improvements**: read JSON logs and live messages as robustly as the web version does (§7).
 4. **Qt6 support**: build with Qt6 and replace deprecated APIs (§8).
 5. Along with these, set up CI (GitHub Actions) and tests (§10).
+6. **Better figure motion and figure packs**: make the figures move more naturally than in the web version (§5.8). Let users download models and motions that cannot be bundled for their licenses and use them (figure packs; §5.9, 2026-11-14).
 
 Out of scope: §13.
 
@@ -61,8 +63,9 @@ Out of scope: §13.
 - The bug fixes, the JSON parser improvements, and the Qt6 support are also part of this plan.
 - The plan is written in Japanese, with an English version kept in parallel (§0.1).
 - The work is done on branches derived from `develop`. The TCP / WebSocket support is not merged for now, because whether to adopt it officially has not been decided (D7, 2026-11-11).
-- Phases 0–3 (up to the Qt6 support) are merged into develop as each one is done. The 3D view (Phases 4–8) is merged into develop only after it is complete and its official adoption is decided (§9.1, 2026-11-11).
+- Phases 0–3 (up to the Qt6 support) are merged into develop as each one is done. The 3D view (Phases 4–9) is merged into develop only after it is complete and its official adoption is decided (§9.1, 2026-11-11).
 - The qmake build is dropped (D11, 2026-11-11).
+- Figures (2026-11-14): bundling a CC0 model by default does not change. In addition, "figure packs" let users download and use models and motions that cannot be bundled for their licenses (§5.9). The figures move more naturally (§5.8). FBX is read directly (D12). The figure packs are a phase after Phase 8 (Phase 9; D13). More material is bundled (D14).
 
 ### 2.2 To decide at the start
 
@@ -82,7 +85,10 @@ State on 2026-11-11: the user decided D7, D10, and D11 ("Decided" in the table; 
 | D8 | Version | 20.0.0 (aligned with asio rcssserver 20 and rcssmonitor-web 20) | 19.1.0 etc. | The Qt6 support and the 3D view are big changes |
 | D9 | Branch policy | Same as the web version (master: releases, develop: integration, feature/*: work, hotfix/*). Merges use a merge commit by default (decided by the user on 2026-11-11; squash merges were also used before). When a squash merge fits, and the per-phase branches, in §9.1 | Follow rcssmonitor's current practice | The web version's `docs/release.md` |
 | D10 | master's AppImage workflow (§3.2) | **Decided**: drop the AppImage (option B of §2.4, 2026-11-11). The current workflow is a maintenance burden (the user disabled it in the GitHub UI), and with the browser version of the monitor, the AppImage is less needed (user). Option A was tried and worked, but is not adopted | Keep it as is (the code would have to stay buildable with Qt 5.12, which conflicts with D2) | It requires maintaining an Ubuntu 20.04 (end of support) Docker image, `qt5-default`, and custom shell and Python scripts. It builds with autotools, so 3D would not be included (D3) |
-| D11 | The qmake build (§3.2) | **Decided**: drop it. Delete `rcssmonitor.pro`, `src/src.pro`, and `src/rcsslogplayer/`, an old copy of a parser that only the qmake build used (`feature/ci`). Mention it in NEWS (Phase 9). autotools uses qmake to find Qt, so the `qt5-qmake` package is still needed | Fix it (one definition, the version, boost) and add it to CI | No machine will use qmake any more (user). It was already broken on develop, and nobody had noticed. CMake and autotools are enough |
+| D11 | The qmake build (§3.2) | **Decided**: drop it. Delete `rcssmonitor.pro`, `src/src.pro`, and `src/rcsslogplayer/`, an old copy of a parser that only the qmake build used (`feature/ci`). Mention it in NEWS (Phase 10). autotools uses qmake to find Qt, so the `qt5-qmake` package is still needed | Fix it (one definition, the version, boost) and add it to CI | No machine will use qmake any more (user). It was already broken on develop, and nobody had noticed. CMake and autotools are enough |
+| D12 | The formats of the material users add (§5.9) | **Decided**: read FBX directly with [ufbx](https://github.com/ufbx/ufbx) (one .c and one .h; MIT or Unlicense). Files downloaded from Mixamo go in as they are. glTF / GLB (cgltf), VRM, BVH and VRMA are read too. How to convert to glTF with Blender is kept in a separate document for the maintainers and those who want to modify it (2026-11-14, user) | Not read FBX, and have users convert to glTF with Blender | Converting is much work for users and easy to get wrong (units, bone directions). ufbx is a small dependency |
+| D13 | When the figure packs come | **Decided**: Phase 9, after Phase 8. The documents and the release become Phase 10 (2026-11-14, user). Phase 7 makes first what lets figure packs be read (the layer that treats the bones by their humanoid roles) | Before Phase 8 | Complete a 3D view equivalent to the web version first, to have what is needed to decide its official adoption |
+| D14 | Bundled material | **Decided**: bundle more (2026-11-14, user). Candidates: Quaternius's Universal Base Characters (CC0; human-like bodies on the same skeleton as the bundled mannequin), motions of walking backward and sideways (UAL1 Pro, if Pro is CC0 too; or 100STYLE (CC BY 4.0), processed). Which, and in which step, is consulted at the start of the step after looking into them | Keep the mannequin and its 4 clips | The bundled UAL1 Standard has only forward walking, not enough for directional walking and running (§5.8) |
 
 ### 2.3 Comparison for D1 (3D rendering technology)
 
@@ -407,6 +413,26 @@ Settings dialog:
 - The rotations are layered on top of the clip pose "from scratch every time". In the web version (three.js), the animation mixer does not rewrite bones whose values do not change, so the layered rotations accumulated per draw and the neck and body kept turning (§11). Computing everything ourselves every time avoids this.
 - The size is 1.2× real. Drawn as cylinders in the top camera. Under the server rules of the player view, players whose direction is unknown are also drawn as cylinders (a figure would reveal the direction by its shape). Figures get no direction cones.
 - Hit testing uses invisible cylinders for everyone (1.2× for figures).
+- **The bones by their humanoid roles (2026-11-14)**: the poses are computed by the humanoid roles (hips, spine, chest, neck, head, upperArm, lowerArm, hand, upperLeg, lowerLeg, foot and so on; as VRM's Humanoid), not by the bones' names. The rotations of every skeleton are expressed in directions aligned to a T-pose, so a model and a motion of different skeletons can be combined (retargeting). A model in an A-pose gets a correction that aligns its bones to a T-pose. The hips' bob is scaled by the ratio of the leg lengths, and the log decides the horizontal movement. The bundled mannequin goes through this layer too.
+- **More natural motion (2026-11-14, user)**. Improvements that do not depend on the material, so they work for the bundled mannequin too:
+  1. Phase-matched blending: walking, jogging and sprinting are read at the same phase, with the left foot's contact aligned. The phase advances by the distance walked divided by the blended stride. The times of the foot contacts and the clips' speeds (strides) are found from the clips themselves (how the feet move while on the ground). With the web version's "distance walked / speed for each clip", the legs can cross while blending.
+  2. Directional walking and running: the forward, backward, left and right clips are blended by the angle between the body direction and the direction of movement. Without those clips, the forward one runs backward as now.
+  3. Leaning: forward when speeding up, backward when slowing down, inward when turning (from the velocities in the log).
+  4. Actions at the moments of the log: a kick has its foot contact at the cycle in which the ball starts moving, and a pass or a shot by the power and the direction. A goalie catches in front or dives, by where the ball is. A tackle and a foul last as long as the bits do. The neck turn is spread over the neck, the head and the chest.
+  5. Turning on the spot (stepping when turning without moving).
+  6. Foot IK and planted feet (may come later).
+  - A clip is used when there is one; otherwise the procedural pose (the web version's `pose.ts`).
+  - The principle that a pose is decided from the frame of the log and alpha only (§5.2, §11 item 1) is kept. Motion matching depends on the previous pose (it has a state), and is not used (§13).
+
+### 5.9 Figure packs (2026-11-14, Phase 9)
+
+- A folder with a settings file `figure.json`, a model and motions is a "figure pack". The bundled mannequin is written as a pack too.
+- `figure.json`: the model's file, the height, the materials dyed in the team color, the bone mapping (the ready-made `mixamo`, `vrm`, `quaternius`, or written one by one), the clips of the actions (idle, walk, jog and sprint are required; walking backward and sideways, turning on the spot, kicks, sliding, falling and getting up, the goalie's catches and dives, pointing and celebrating are optional), and the credits. A clip's speed and foot contacts are found automatically, and the written ones are used if given.
+- Formats (D12): FBX (ufbx), glTF / GLB (cgltf), VRM (glTF with the bones' roles), BVH (motion capture), VRMA (VRM Animation).
+- Places: `~/.local/share/rcssmonitor/figures/` (XDG) and a folder set in the settings. A pack is chosen in the 3D tab, which shows its credits.
+- Material that cannot be bundled for its license (Mixamo and so on) is downloaded by users themselves. rcssmonitor distributes only a template of the settings file and the list of the actions to download with the steps (README). No tool for automatic bulk downloads from Mixamo is made.
+- Candidates and their licenses (looked into on 2026-11-14; §14): Quaternius UAL1 Standard (CC0; bundled), UAL1 Pro (paid; seems to have the walking in 8 directions; whether Pro is CC0 too is to be confirmed), Universal Base Characters (CC0), 100STYLE (CC BY 4.0; walking and running forward, backward and sideways, idling; BVH), Mixamo (free, but the material itself cannot be distributed), LAFAN1 and Bandai Namco (non-commercial licenses).
+- How to convert FBX to glTF with Blender is kept in a separate document (under `docs/`) for the maintainers and those who want to modify it (D12).
 
 ## 6. Bug fixes
 
@@ -467,7 +493,7 @@ Tests: with fixtures (a short excerpt of `1-json.rcg.gz`, broken lines, unknown 
 
 ## 9. Phase plan
 
-Each phase proceeds on a feature branch and is merged into develop when it is done (D9). The 3D view (Phases 4–8), however, is merged into develop only after it is complete and its official adoption is decided. Confirm with the user at each step.
+Each phase proceeds on a feature branch and is merged into develop when it is done (D9). The 3D view (Phases 4–9), however, is merged into develop only after it is complete and its official adoption is decided. Confirm with the user at each step.
 
 ### 9.1 Branches (approved by the user on 2026-11-11)
 
@@ -478,7 +504,7 @@ Each phase proceeds on a feature branch and is merged into develop when it is do
 | Phase 1: Bug fixes | `fix/parity-bugs` |
 | Phase 2: Parser improvements | `feature/json-parser` |
 | Phase 3: Qt6 support | `feature/qt6` |
-| Phase 4–8: 3D view | `feature/3d-view` |
+| Phase 4–9: 3D view | `feature/3d-view` |
 
 - Phases 0–3 are merged into develop as each one is done (the user does the merges). The next phase's branch is created from develop after the previous phase has been merged. To start before that merge, create it from the previous phase's branch (stacking). Phase 1 and Phase 3 both change `main_window.cpp`, `config_dialog.cpp`, and `player_painter.cpp`, so stack them in order rather than working on them in parallel.
 - `feature/3d-view` is created from develop after the Qt6 support (Phase 3) has been merged. It is not merged into develop until it is complete and its official adoption is decided. Anything merged into develop in the meantime (the TCP / WebSocket support, etc.) is brought in by merging develop into `feature/3d-view`.
@@ -544,7 +570,7 @@ Each phase proceeds on a feature branch and is merged into develop when it is do
 
 ### Phase 7: Figures
 
-**Work**: §5.8.
+**Work**: §5.8. → Steps (proposed on 2026-11-14): 7-1 the layer that treats the bones by their humanoid roles, and the skinned drawing (the bundled mannequin), the option `player_model_3d`. 7-2 walking and running (the table of the distance walked, phase-matched blending, finding the contacts automatically, leaning). 7-3 actions (the neck, kicks, tackles, fouls, catches, pointing; a clip if there is one, otherwise the procedural pose). 7-4 finishing (hit testing, Players in the settings dialog, the inspection state, measurements). Bundling more material (D14) is consulted at the start of a step after looking into it.
 
 **Done when**: walking, running, kicking, tackling (momentary for a foul), sitting down after being fouled, catching, and pointing are confirmed with figures on real logs. Stepping forward and back, and jumping back, give the same pose (checked with unit tests and the inspection state of the renderer). Drawing the same frame repeatedly does not change the neck or the legs.
 
@@ -554,7 +580,13 @@ Each phase proceeds on a feature branch and is merged into develop when it is do
 
 **Done when**: each one can be switched in the settings. The first frame after switching to the top camera equals the next frame (§11 item 4). 60 fps holds at 1920×1080 on a desktop GPU with everything on (measurement recorded in §14).
 
-### Phase 9: Documents and release
+### Phase 9: Figure packs
+
+**Work**: §5.9. Proposed steps: 9-1 the pack format, the places, choosing in the dialog, showing the credits. 9-2 models (glTF, VRM, FBX), textures, the team-colored materials, retargeting. 9-3 motions (FBX, BVH, VRMA), the template and the steps for Mixamo, the document of converting with Blender. 9-4 directional walking, turning on the spot, the goalie's dives, falling and getting up.
+
+**Done when**: a pack made of Mixamo models and motions that the user downloaded works. It combines with the bundled pack (the bundled motions on a model of another skeleton). The user checks it on real logs.
+
+### Phase 10: Documents and release
 
 **Work**: README (3D, keys, settings, Qt6 build), ChangeLog and NEWS (including the removal of qmake, D11), the version per D8. Put the files that only CMake builds (`src/view3d/`, `test/`, `data/` etc.; missing as of 2026-11-12) into the tarball that autotools makes with `make dist`, or change how the tarball is made (the 19.0.1 tarball was made with `make dist`). Delete master's `main.yml` and `utils/appimage/` (D10; done in the merge into master). Write in NEWS and the README that the AppImage was dropped, how to build from source, and a pointer to the browser version. The user merges into master and tags the release.
 
@@ -634,7 +666,10 @@ Port the GL-independent calculations, using the web version's unit tests as mode
 | `rcss/rcg/line_parser.{h,cpp}` | Parsing the lines of a log in parallel and passing them to the handler in order (Phase 2) |
 | `test/bench_load.cpp` | Measuring the loading speed (Phase 2; not run in CI) |
 | `stadium_3d`, `scenery_3d`, `ball_3d`, `ball_aids_3d` | Components |
-| `figures_3d`, `pose`, `gltf_model` | Figures |
+| `figures_3d`, `pose`, `gltf_model` | Figures (with the layer that treats the bones by their humanoid roles; §5.8) |
+| `figure_pack`, `fbx_model`, `bvh_motion`, `vrm` and so on | Figure packs (Phase 9; §5.9) |
+| `third_party/ufbx/ufbx.{h,c}` | FBX loading (MIT or Unlicense; D12) |
+| A document on the figure material under `docs/` | How to convert to glTF with Blender and so on (for the maintainers and those who want to modify it; D12) |
 | `hud_3d`, `guides` | HUD, compass strip, minimap |
 | The 3D tab and the Player Camera tab of `config_dialog` | Settings (6-6; the items of Phases 7 and 8 come with those steps) |
 | `third_party/cgltf/cgltf.h` | glTF loading (MIT). v1.15 is in the prototype branch (§14) |
@@ -653,6 +688,7 @@ Port the GL-independent calculations, using the web version's unit tests as mode
 - Improving how binary rcg (v1–v3) is handled in 3D (being readable, as in 2D today, is enough).
 - Matching the server-side format of the 2.5D simulator (after the format is decided).
 - Future extensions of rcssmonitor-web (moving players by dragging, a list of msg, etc.).
+- Motion matching for the figures (it depends on the previous pose, against the principle that a pose is decided from the frame of the log only (§5.2); 2026-11-14).
 
 ## 14. Record
 
@@ -1090,7 +1126,7 @@ The five commits of 4-2 and 4-3 (81a8493 to c863113) were pushed, and the CI pas
 - Clean builds pass the tests with Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`; 20 tests). `-DENABLE_3D=OFF` (14 tests) and autotools pass too.
 
 **Found**
-- The tarball that autotools makes with `make dist` lacks the files that only CMake builds (`src/view3d/`, `test/` etc.). The tarball of the 19.0.1 release was made with `make dist` (it has `configure` and `Makefile.in`, and no `.github`). Added to the work of Phase 9.
+- The tarball that autotools makes with `make dist` lacks the files that only CMake builds (`src/view3d/`, `test/` etc.). The tarball of the 19.0.1 release was made with `make dist` (it has `configure` and `Makefile.in`, and no `.github`). Added to the work of Phase 9 (Phase 10 since D13).
 
 #### 2026-11-12: Step 4-4, cameras (`feature/3d-view`)
 
@@ -1482,4 +1518,30 @@ The 2 commits of 6-5 (11ff531, 1fc390f) were pushed, and the CI passed.
 **The user's check, and a bug found**
 - The user checked the two tabs on the screen (fine).
 - The user pointed out that the 3D view did not show the score board. The cause: on a screen scaled by other than 1, a QPainter on a `QOpenGLWidget` has its window (`window()`) in physical pixels (1653×930 at the scale 1.29) while it draws in logical pixels (1280×720). The score board is placed at the bottom of the window, so it was out of the view (since 4-5). The rest of the HUD is placed in logical pixels without the window, and stayed in place. The fix: before the HUD, the painter's window and viewport are the widget's rectangle in logical pixels (as a painter of the 2D view has them). An OpenGL widget cannot be made in the tests without a screen, so the real `FieldView3D` was drawn in a window that is not shown (`WA_DontShowOnScreen`), with Qt6 (at the scale 1.29) and Qt5: the score board is at the bottom left, and the rest of the HUD and the scene are where they were.
+
+### Phase 7
+
+#### 2026-11-14: The course of the figures (a consultation)
+
+The 3 commits of 6-6 (d80f044 to e96497b) were pushed, and the CI passed. Phase 6 is done. When the steps of Phase 7 were proposed, the user brought up the figures.
+
+**The user's thoughts**
+- Bundling a CC0 model by default does not change. In addition, models that cannot be bundled for their licenses should be usable after users download them themselves.
+- The figures should move more naturally and realistically. Motions that cannot be bundled for their licenses may be added by users themselves too.
+
+**Decided (user)**
+- Figure packs (§5.9) are made. FBX is read directly with ufbx. How to convert to glTF with Blender is kept in a separate document for the maintainers and those who want to modify it (D12).
+- The figure packs are Phase 9, after Phase 8. The documents and the release become Phase 10 (D13).
+- More material is bundled (D14).
+- How to bring them into the web version is to be thought about later (a note in §0.2). The motion should improve in the web version too. The figure models are not settled yet.
+- Phase 7 makes the layer that treats the bones by their humanoid roles, and the improvements of the motion that do not depend on the material (phase-matched blending, leaning, the kick contact at its moment and so on; §5.8).
+
+**Looked into**
+- The bundled Quaternius UAL1 Standard (`UAL1_Standard.glb`) has 43 clips: A_TPose, Crouch_Fwd_Loop, Crouch_Idle_Loop, Dance_Loop, Death01, Driving_Loop, Fixing_Kneeling, Hit_Chest, Hit_Head, Idle_Loop, Idle_Talking_Loop, Idle_Torch_Loop, Interact, Jog_Fwd_Loop, Jump_Land, Jump_Loop, Jump_Start, PickUp_Table, Pistol_* (6), Punch_Cross, Punch_Jab, Push_Loop, Roll, Sitting_* (4), Spell_Simple_* (4), Sprint_Loop, Swim_Fwd_Loop, Swim_Idle_Loop, Sword_Attack, Sword_Idle, Walk_Formal_Loop, Walk_Loop. No walking backward or sideways, and no kicks. Quaternius's page advertises "locomotion in 8 directions", which seems to be in Pro (paid). The page says CC0, but whether Pro is CC0 too was not confirmed.
+- Quaternius's Universal Base Characters: CC0, the same skeleton as UAL, 13k triangles on average.
+- 100STYLE: CC BY 4.0 (credited like "The 100STYLE Dataset - Ian Mason"). BVH, 60 fps, 28 bones. The kinds of movement: forward walking (FW), backward walking (BW), sidestep walking (SW), their running (FR, BR, SR), idling (ID), transitions (TR1 to 3). 100 styles.
+- Mixamo: free with an Adobe ID. Usable built into a work, but the files of the material themselves cannot be distributed (the official FAQ and answers in the Adobe Community; the text of the terms could not be checked). An answer says bulk downloads are forbidden too. The names of the soccer actions could not be checked.
+- ufbx: `ufbx.h` and `ufbx.c`. MIT or Unlicense, by choice. Reads skinned meshes and evaluates animations.
+- VRM Animation (VRMA): a motion format of glTF with the humanoid roles of the bones written in it, reusable on other models.
+- LAFAN1 (CC BY-NC-ND 4.0), the Bandai Namco Research Motion dataset (CC BY-NC 4.0 or CC BY-NC-ND 4.0; the sources disagree) and CMU (the sources word it differently) are not bundled. They are candidates for users to add themselves (the long takes need cutting).
 
