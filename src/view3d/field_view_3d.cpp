@@ -197,8 +197,9 @@ FieldView3D::paintGL()
         M_ground_key = key;
     }
 
-    // The frames to draw, and how far between them (§5.2). Live, the
-    // fraction is the time since the newest frame came, in simulation steps.
+    // The frames to draw, and how far between them (§5.2). Live, by a clock
+    // going on with the simulation, drawn toward where the newest frame's
+    // coming puts it (Interpolate::LiveClock): not jumping at every frame.
     const DispCont & frames = M_disp_holder.dispCont();
     const rcss::rcg::DispInfoT * newest = ( frames.empty() ? nullptr : frames.back().get() );
     if ( newest != M_newest )
@@ -209,11 +210,25 @@ FieldView3D::paintGL()
     const bool live = M_log_player.isLiveMode();
     const double step = std::max( 1, M_disp_holder.serverParam().simulator_step_ );
     const double since_newest = ( M_newest_clock.isValid() ? M_newest_clock.nsecsElapsed() * 1.0e-6 / step : 1.0 );
-    const Interpolate::Position at = Interpolate::position( frames.size(),
-                                                            M_disp_holder.currentIndex(),
-                                                            live,
-                                                            M_log_player.alpha(),
-                                                            since_newest );
+    const double since_drawn = ( M_live_tick.isValid() ? double( M_live_tick.restart() ) / step : 0.0 );
+    if ( ! M_live_tick.isValid() ) M_live_tick.start();
+    Interpolate::Position at;
+    if ( live && frames.size() >= 2 )
+    {
+        const double time = M_live_clock.advance( Interpolate::liveTime( frames.size(), since_newest ),
+                                                  since_drawn,
+                                                  double( frames.size() - 1 ) );
+        at = Interpolate::positionAt( frames.size(), time );
+    }
+    else
+    {
+        M_live_clock.reset();
+        at = Interpolate::position( frames.size(),
+                                    M_disp_holder.currentIndex(),
+                                    live,
+                                    M_log_player.alpha(),
+                                    since_newest );
+    }
 
     // what to draw where: the goals, and the players and the ball on the way
     // between the two frames
@@ -347,7 +362,8 @@ FieldView3D::paintGL()
     // draw again after this frame (drawNext()) while playing a log, live
     // until the newest frame is reached, and while the camera glides
     M_moving = ( M_log_player.isPlaying()
-                 || ( live && since_newest < 1.0 )
+                 || ( live && ( since_newest <= double( Interpolate::LIVE_DELAY )
+                                || M_live_clock.time() < double( frames.size() ) - 1.0 ) )
                  || ! M_camera.settled() );
 
     // the number labels and the cards, sized for the camera and the screen

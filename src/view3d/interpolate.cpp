@@ -156,15 +156,62 @@ position( const std::size_t frame_count,
     }
     if ( live && frame_count >= 2 )
     {
-        p.index = frame_count - 2;
-        p.next = frame_count - 1;
-        p.alpha = std::max( 0.0, std::min( 1.0, since_newest ) );
-        return p;
+        return positionAt( frame_count, liveTime( frame_count, since_newest ) );
     }
     p.index = std::min( current, frame_count - 1 );
     p.next = std::min( p.index + 1, frame_count - 1 );
     p.alpha = ( p.next != p.index ? std::max( 0.0, std::min( 1.0, play_alpha ) ) : 0.0 );
     return p;
+}
+
+/*-------------------------------------------------------------------*/
+double
+liveTime( const std::size_t frame_count,
+          const double since_newest )
+{
+    if ( frame_count == 0 ) return 0.0;
+    const double latest = static_cast< double >( frame_count - 1 );
+    const double from = ( frame_count > LIVE_DELAY ? latest - LIVE_DELAY : 0.0 );
+    const double on = std::max( 0.0, std::min( static_cast< double >( LIVE_DELAY ), since_newest ) );
+    return std::min( latest, from + on );
+}
+
+/*-------------------------------------------------------------------*/
+Position
+positionAt( const std::size_t frame_count,
+            const double time )
+{
+    Position p;
+    if ( frame_count == 0 ) return p;
+    const double t = std::max( 0.0, std::min( static_cast< double >( frame_count - 1 ), time ) );
+    p.index = std::min( static_cast< std::size_t >( std::floor( t ) ), frame_count - 1 );
+    p.next = std::min( p.index + 1, frame_count - 1 );
+    p.alpha = ( p.next != p.index ? t - static_cast< double >( p.index ) : 0.0 );
+    return p;
+}
+
+/*-------------------------------------------------------------------*/
+double
+LiveClock::advance( const double target,
+                    const double elapsed,
+                    const double latest )
+{
+    if ( ! M_valid
+         || std::fabs( target - M_time ) > SNAP )
+    {
+        M_time = target;
+        M_valid = true;
+    }
+    else
+    {
+        // at the simulation's speed, faster when behind, slower (never
+        // backward) when ahead
+        const double step = std::max( 0.0, std::min( MAX_ELAPSED, elapsed ) );
+        const double rate = std::max( 0.0, std::min( 2.0, 1.0 + ( target - M_time ) / TIME_CONSTANT ) );
+        M_time += step * rate;
+    }
+    M_time = std::max( 0.0, std::min( latest, M_time ) );
+    return M_time;
 }
 
 }

@@ -48,8 +48,8 @@
   commands of a cycle before it moves the ball, so the frame with the bit
   already has the ball moved, and the foot met it at the frame before. The
   figure starts its action that much (the lead) before the moment, so it
-  looks two frames ahead; live, the newest frame is drawn one cycle late,
-  so the action is seen from its moment.
+  looks two frames ahead; live, the game is drawn two cycles behind its
+  newest frame (Interpolate::LIVE_DELAY), so the frames ahead are there.
 
   A run of frames with a bit is one action: a tackle and a foul last as
   long as the server holds the player, and the kicks of the cycles in a row

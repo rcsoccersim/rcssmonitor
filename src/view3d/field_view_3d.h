@@ -35,6 +35,7 @@
 
 #include "cameras_3d.h"
 #include "figures_3d.h"
+#include "interpolate.h"
 #include "label_atlas.h"
 #include "referee_target.h"
 #include "scene_3d.h"
@@ -187,6 +188,8 @@ private:
 
     const rcss::rcg::DispInfoT * M_newest; //!< the newest frame when it was last drawn
     QElapsedTimer M_newest_clock; //!< since the newest frame came
+    QElapsedTimer M_live_tick; //!< since the last drawing, for the live clock
+    Interpolate::LiveClock M_live_clock; //!< the time a live game is drawn at
     bool M_moving; //!< to be drawn again in the next frame
 
     CameraController M_camera; //!< which camera, and where it is

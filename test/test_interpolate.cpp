@@ -175,21 +175,118 @@ private slots:
 
     void positionOfLive()
       {
-          // one cycle late, toward the newest
+          // two cycles late (the figures' actions look two frames ahead), toward the next
+          QCOMPARE( Interpolate::LIVE_DELAY, size_t( 2 ) );
           Interpolate::Position p = Interpolate::position( 10, 9, true, 0.0, 0.4 );
-          QCOMPARE( p.index, size_t( 8 ) );
-          QCOMPARE( p.next, size_t( 9 ) );
+          QCOMPARE( p.index, size_t( 7 ) );
+          QCOMPARE( p.next, size_t( 8 ) );
           QCOMPARE( p.alpha, 0.4 );
 
-          // the next frame is late
+          // two frames yet: as late as they allow
+          p = Interpolate::position( 2, 1, true, 0.0, 0.4 );
+          QCOMPARE( p.index, size_t( 0 ) );
+          QCOMPARE( p.next, size_t( 1 ) );
+          p = Interpolate::position( 3, 2, true, 0.0, 0.4 );
+          QCOMPARE( p.index, size_t( 0 ) );
+          QCOMPARE( p.next, size_t( 1 ) );
+
+          // the next frame is late: on into the frames there, up to the newest
+          p = Interpolate::position( 10, 9, true, 0.0, 1.5 );
+          QCOMPARE( p.index, size_t( 8 ) );
+          QCOMPARE( p.next, size_t( 9 ) );
+          QCOMPARE( p.alpha, 0.5 );
           p = Interpolate::position( 10, 9, true, 0.0, 3.0 );
-          QCOMPARE( p.alpha, 1.0 );
+          QCOMPARE( p.index, size_t( 9 ) );
+          QCOMPARE( p.next, size_t( 9 ) );
+          QCOMPARE( p.alpha, 0.0 );
+          QCOMPARE( Interpolate::liveTime( 10, 0.4 ), 7.4 );
+          QCOMPARE( Interpolate::liveTime( 10, 5.0 ), 9.0 );
+          QCOMPARE( Interpolate::liveTime( 2, 0.4 ), 0.4 );
+          QCOMPARE( Interpolate::liveTime( 2, 2.0 ), 1.0 );
+
+          // the frames at a time
+          p = Interpolate::positionAt( 10, 4.25 );
+          QCOMPARE( p.index, size_t( 4 ) );
+          QCOMPARE( p.next, size_t( 5 ) );
+          QCOMPARE( p.alpha, 0.25 );
+          p = Interpolate::positionAt( 10, 12.0 );
+          QCOMPARE( p.index, size_t( 9 ) );
+          QCOMPARE( p.alpha, 0.0 );
+          p = Interpolate::positionAt( 10, -1.0 );
+          QCOMPARE( p.index, size_t( 0 ) );
+          QCOMPARE( p.next, size_t( 1 ) );
+          QCOMPARE( p.alpha, 0.0 );
 
           // only one frame yet
           p = Interpolate::position( 1, 0, true, 0.0, 0.4 );
           QCOMPARE( p.index, size_t( 0 ) );
           QCOMPARE( p.next, size_t( 0 ) );
           QCOMPARE( p.alpha, 0.0 );
+      }
+
+    /*!
+      the live clock: the newest frame seen at the next drawing (60 times a
+      second, a frame every 0.1 s): where the frames put the time jumps at
+      every frame, the clock goes on smoothly; it catches up, never goes
+      back, jumps when far, and stops at the newest frame
+    */
+    void liveClock()
+      {
+          Interpolate::LiveClock clock;
+          QCOMPARE( clock.advance( 7.4, 0.0, 9.0 ), 7.4 ); // the first: there
+
+          // 60 drawings a second; frame k comes at 0.1 k s, seen at the next drawing
+          clock.reset();
+          const double draw = 1.0 / 60.0; // s
+          const double cycle = 0.1; // s
+          double raw_least = 1.0e9, raw_most = 0.0, least = 1.0e9, most = 0.0;
+          double last_raw = -1.0, last = -1.0;
+          int frames = 10;
+          double seen = 0.9; // when the newest frame was seen
+          for ( int k = 0; k < 600; ++k )
+          {
+              const double now = 1.0 + k * draw;
+              // the frames come every cycle; one is seen at the first drawing after it
+              while ( ( frames + 1 ) * cycle <= now )
+              {
+                  ++frames;
+                  seen = now;
+              }
+              const double target = Interpolate::liveTime( frames, ( now - seen ) / cycle );
+              const double time = clock.advance( target, draw / cycle, frames - 1 );
+              if ( k > 60 ) // settled
+              {
+                  raw_least = std::min( raw_least, target - last_raw );
+                  raw_most = std::max( raw_most, target - last_raw );
+                  least = std::min( least, time - last );
+                  most = std::max( most, time - last );
+              }
+              last_raw = target;
+              last = time;
+              // two frames behind the newest, give or take
+              QVERIFY( k < 60 || std::fabs( time - ( frames - 1 - 2 ) ) < 1.2 );
+          }
+          // where the frames put it jumps (a drawing is a sixth of a cycle)
+          QVERIFY2( raw_least < 0.05 || raw_most > 0.3, qPrintable( QString( "%1 %2" ).arg( raw_least ).arg( raw_most ) ) );
+          // the clock goes on by nearly a sixth of a cycle at every drawing
+          QVERIFY2( least > 0.12 && most < 0.22, qPrintable( QString( "%1 %2" ).arg( least ).arg( most ) ) );
+
+          // ahead of where the frames put it: slower, not back
+          clock.reset();
+          clock.advance( 20.0, 0.0, 30.0 );
+          const double ahead = clock.advance( 19.0, 0.2, 30.0 );
+          QVERIFY( ahead > 20.0 && ahead < 20.2 );
+          // far: jumps (another game, the oldest frames dropped)
+          clock.reset();
+          clock.advance( 20.0, 0.0, 30.0 );
+          QCOMPARE( clock.advance( 5.0, 0.1, 30.0 ), 5.0 );
+          // not beyond the newest frame, nor more than MAX_ELAPSED at once
+          clock.reset();
+          clock.advance( 9.5, 0.0, 10.0 );
+          QCOMPARE( clock.advance( 9.5, 5.0, 10.0 ), 10.0 );
+          clock.reset();
+          clock.advance( 5.0, 0.0, 30.0 );
+          QCOMPARE( clock.advance( 5.0, 10.0, 30.0 ), 5.0 + Interpolate::LiveClock::MAX_ELAPSED );
       }
 };
 
