@@ -591,6 +591,210 @@ private slots:
       gray, without the highlights; one whose directions it does not know
       has no direction marks; its own is not drawn at its eyes
     */
+    /*!
+      the players as human figures: where their directions are known, a
+      figure in place of the cylinder, the head and the direction marks,
+      in the body's color; the circles, the rings and the picks as before
+    */
+    void figures()
+      {
+          Options & opt = Options::instance();
+          rcss::rcg::ShowInfoT show = makeShow();
+          show.player_[3].body_ = 45.0f;
+          opt.setSelectedNumber( rcss::rcg::LEFT, 4 ); // index 3: highlighted
+
+          SceneContent simple;
+          SceneBuilder::addShow( simple, show, M_holder, opt );
+          SceneContent c;
+          SceneBuilder::addShow( c, show, M_holder, opt, nullptr, true );
+          opt.unselectPlayer();
+          const size_t n = rcss::rcg::MAX_PLAYER * 2;
+          QCOMPARE( c.figures.size(), n );
+          QCOMPARE( c.cylinders.size(), size_t( 0 ) );
+          QCOMPARE( c.spheres.size(), size_t( 1 ) ); // the ball only
+          QCOMPARE( c.cones.size(), size_t( 0 ) );
+          QCOMPARE( c.discs.size(), simple.discs.size() );
+          QCOMPARE( c.rings.size(), size_t( 1 ) );
+          QCOMPARE( c.picks.size(), n );
+          const FigureInstance & f = c.figures[3];
+          QCOMPARE( f.player, 3 );
+          QCOMPARE( f.x, show.player_[3].x_ );
+          QCOMPARE( f.y, show.player_[3].y_ );
+          QCOMPARE( f.body, 45.0f );
+          QCOMPARE( f.height, SceneBuilder::PERSON_HEIGHT * float( opt.figureScale3D() ) );
+          QCOMPARE( f.color, simple.cylinders[3].color ); // the body's color
+          QVERIFY( c.figure_joints.empty() ); // Figures3D poses them
+
+          // without the figures: none
+          QVERIFY( simple.figures.empty() );
+
+          // a player whose directions the player camera does not know: a cylinder
+          Perceptions seen;
+          seen.active = true;
+          seen.players.fill( PlayerSight::FULL );
+          seen.players[2] = PlayerSight::FELT;
+          c.clear();
+          SceneBuilder::addShow( c, show, M_holder, opt, &seen, true );
+          QCOMPARE( c.figures.size(), n - 1 );
+          QCOMPARE( c.cylinders.size(), size_t( 1 ) );
+          QVERIFY( near( at( c.cylinders[0] ).x(), show.player_[2].x_ ) );
+          for ( const FigureInstance & g : c.figures ) QVERIFY( g.player != 2 );
+      }
+
+    /*!
+      the players' heights by their types (the reach, player_size +
+      kickable_margin, of the default type's): the cylinder and its head,
+      the direction marks, the picks, the label and the figure; of the
+      default height where the player camera does not know the number for sure
+    */
+    void heights()
+      {
+          Options & opt = Options::instance();
+          const rcss::rcg::ServerParamT & sp = M_holder.serverParam();
+          rcss::rcg::PlayerTypeT type = M_holder.playerType( 0 );
+          QVERIFY( near( SceneBuilder::heightRatio( type, sp ), 1.0f ) );
+          type.kickable_margin_ = sp.kickable_margin_ + 0.1;
+          const float ratio = float( ( sp.player_size_ + sp.kickable_margin_ + 0.1 ) / ( sp.player_size_ + sp.kickable_margin_ ) );
+          QVERIFY( near( SceneBuilder::heightRatio( type, sp ), ratio ) );
+          QVERIFY( ratio > 1.05f );
+          type.kickable_margin_ = sp.kickable_margin_ - 0.1;
+          QVERIFY( SceneBuilder::heightRatio( type, sp ) < 0.95f );
+          rcss::rcg::PlayerTypeT broken = type;
+          broken.player_size_ = 0.0;
+          broken.kickable_margin_ = 0.0;
+          QCOMPARE( SceneBuilder::heightRatio( broken, sp ), 1.0f );
+
+          // a holder with a longer reach for the type 1
+          DispHolder holder;
+          holder.handleServerParam( sp );
+          rcss::rcg::PlayerTypeT longer = M_holder.playerType( 0 );
+          longer.id_ = 1;
+          longer.kickable_margin_ = sp.kickable_margin_ + 0.1;
+          holder.handlePlayerType( longer );
+          rcss::rcg::ShowInfoT show = makeShow();
+          show.player_[3].type_ = 1;
+
+          SceneContent c;
+          SceneBuilder::addShow( c, show, holder, opt );
+          const float body = SceneBuilder::BODY_HEIGHT * ratio;
+          const float head = body + SceneBuilder::HEAD_GAP + SceneBuilder::HEAD_RADIUS;
+          // the cylinder from the ground to its height, the head on it
+          QVERIFY( near( at( c.cylinders[3], QVector3D( 0, -0.5f, 0 ) ).y(), 0.0f ) );
+          QVERIFY( near( at( c.cylinders[3], QVector3D( 0, 0.5f, 0 ) ).y(), body ) );
+          QVERIFY( near( at( c.spheres[3] ).y(), head ) );
+          QVERIFY( near( at( c.spheres[3], QVector3D( 0, 1, 0 ) ).y() - at( c.spheres[3] ).y(), SceneBuilder::HEAD_RADIUS ) );
+          // the others of the default height
+          QVERIFY( near( at( c.cylinders[2], QVector3D( 0, 0.5f, 0 ) ).y(), SceneBuilder::BODY_HEIGHT ) );
+          QVERIFY( near( at( c.spheres[2] ).y(), SceneBuilder::HEAD_HEIGHT ) );
+          // the direction marks: at the chest and the head
+          QVERIFY( near( at( c.cones[6] ).y(), body * 0.7f ) );
+          QVERIFY( near( at( c.cones[7] ).y(), head ) );
+          QVERIFY( near( at( c.cones[4] ).y(), SceneBuilder::BODY_HEIGHT * 0.7f ) );
+          // the picks
+          QVERIFY( near( c.picks[3].body_height, body ) );
+          QVERIFY( near( c.picks[3].head_height, head ) );
+          QVERIFY( near( c.picks[2].body_height, SceneBuilder::BODY_HEIGHT ) );
+          // the label above its head
+          LabelAtlas atlas;
+          SceneBuilder::addLabels( c, show, holder, opt, atlas,
+                                   labelView( QVector3D( -10, 20, 80 ), QVector3D( -10, 0, -15 ) ) );
+          const float y = -30.0f + 5.0f * 3;
+          const auto label = std::find_if( c.labels.begin(), c.labels.end(), [y]( const Billboard3D & b ) {
+              return std::fabs( b.center.x() + 10.0f ) < 1.0e-3f && std::fabs( b.center.z() - y ) < 1.0e-3f; } );
+          QVERIFY( label != c.labels.end() );
+          QVERIFY( near( label->center.y(), head + SceneBuilder::HEAD_RADIUS + SceneBuilder::LABEL_ABOVE ) );
+
+          // a figure: a person's height times the ratio times the scale
+          opt.setFigureScale3D( 1.2 );
+          c.clear();
+          SceneBuilder::addShow( c, show, holder, opt, nullptr, true );
+          QVERIFY( near( c.figures[3].height, SceneBuilder::PERSON_HEIGHT * ratio * 1.2f ) );
+          QVERIFY( near( c.figures[2].height, SceneBuilder::PERSON_HEIGHT * 1.2f ) );
+          // picked as tall: the head's top at the figure's top
+          QVERIFY( near( c.picks[3].head_height + SceneBuilder::HEAD_RADIUS, c.figures[3].height ) );
+          QVERIFY( c.picks[3].body_height < c.picks[3].head_height - SceneBuilder::HEAD_RADIUS );
+          opt.setFigureScale3D( Options::FIGURE_SCALE_3D );
+
+          // the player camera not sure of the number: of the default height
+          Perceptions seen;
+          seen.active = true;
+          seen.players.fill( PlayerSight::FULL );
+          seen.players[3] = Perception{ true, 1.0f, 0.99f, true }; // the team known, the number almost
+          c.clear();
+          SceneBuilder::addShow( c, show, holder, opt, &seen );
+          QVERIFY( near( at( c.cylinders[3], QVector3D( 0, 0.5f, 0 ) ).y(), SceneBuilder::BODY_HEIGHT ) );
+          QVERIFY( near( c.picks[3].head_height, SceneBuilder::HEAD_HEIGHT ) );
+          c.clear();
+          SceneBuilder::addShow( c, show, holder, opt, &seen, true );
+          QVERIFY( near( c.figures[3].height, SceneBuilder::PERSON_HEIGHT * float( opt.figureScale3D() ) ) );
+          // a felt one (gray, a cylinder even with figures): of the default height
+          seen.players[3] = PlayerSight::FELT;
+          c.clear();
+          SceneBuilder::addShow( c, show, holder, opt, &seen, true );
+          QCOMPARE( c.cylinders.size(), size_t( 1 ) );
+          QVERIFY( near( at( c.cylinders[0], QVector3D( 0, 0.5f, 0 ) ).y(), SceneBuilder::BODY_HEIGHT ) );
+          // sure of the number: by its type
+          seen.players[3] = PlayerSight::FULL;
+          c.clear();
+          SceneBuilder::addShow( c, show, holder, opt, &seen );
+          QVERIFY( near( at( c.cylinders[3], QVector3D( 0, 0.5f, 0 ) ).y(), body ) );
+      }
+
+    /*!
+      the height of the figures by the option, and the number above the
+      top of a figure's head as above a cylinder's, shrinking toward it
+    */
+    void figureLabels()
+      {
+          Options & opt = Options::instance();
+          rcss::rcg::ShowInfoT show = makeShow();
+          const rcss::rcg::PlayerTypeT & type = M_holder.playerType( 0 );
+          for ( const double scale : { 1.0, 1.2, 1.5 } )
+          {
+              opt.setFigureScale3D( scale );
+              QCOMPARE( SceneBuilder::figureHeight( SceneBuilder::heightRatio( type, M_holder.serverParam() ), opt ), SceneBuilder::PERSON_HEIGHT * float( scale ) );
+
+              SceneContent c;
+              SceneBuilder::addShow( c, show, M_holder, opt, nullptr, true );
+              const float head_top = c.figures[0].height;
+              QCOMPARE( head_top, SceneBuilder::PERSON_HEIGHT * float( scale ) );
+
+              // far: full size, LABEL_ABOVE above the head, its text clear of it
+              LabelAtlas atlas;
+              SceneBuilder::addLabels( c, show, M_holder, opt, atlas,
+                                       labelView( QVector3D( -10, 20, 60 ), QVector3D( -10, 0, -30 ) ) );
+              const auto found = std::find_if( c.labels.begin(), c.labels.end(), []( const Billboard3D & b ) {
+                  return std::fabs( b.center.x() + 10.0f ) < 1.0e-3f && std::fabs( b.center.z() + 30.0f ) < 1.0e-3f; } );
+              QVERIFY( found != c.labels.end() );
+              const Billboard3D * label = &*found;
+              const Billboard3D far = *found; // kept: the list is made again below
+              QVERIFY( near( label->center.y(), head_top + SceneBuilder::LABEL_ABOVE ) );
+              QVERIFY( label->center.y() - textHeight( *label ) / 2.0f > head_top + 0.05f );
+
+              // near: smaller, toward the top of the head, still above it
+              c.labels.clear();
+              SceneBuilder::addLabels( c, show, M_holder, opt, atlas,
+                                       labelView( QVector3D( -10, head_top, -26 ), QVector3D( -10, head_top, -30 ) ) );
+              const auto near_label = std::find_if( c.labels.begin(), c.labels.end(), []( const Billboard3D & b ) {
+                  return std::fabs( b.center.x() + 10.0f ) < 1.0e-3f && std::fabs( b.center.z() + 30.0f ) < 1.0e-3f; } );
+              QVERIFY( near_label != c.labels.end() );
+              QVERIFY( textHeight( *near_label ) < textHeight( far ) - 1.0e-3f );
+              QVERIFY( near_label->center.y() < far.center.y() );
+              QVERIFY( near_label->center.y() - textHeight( *near_label ) / 2.0f > head_top );
+          }
+          opt.setFigureScale3D( Options::FIGURE_SCALE_3D );
+
+          // a cylinder's number as before
+          SceneContent c;
+          SceneBuilder::addShow( c, show, M_holder, opt );
+          LabelAtlas atlas;
+          SceneBuilder::addLabels( c, show, M_holder, opt, atlas,
+                                   labelView( QVector3D( -10, 20, 60 ), QVector3D( -10, 0, -30 ) ) );
+          QVERIFY( std::any_of( c.labels.begin(), c.labels.end(), []( const Billboard3D & b ) {
+              return near( b.center, QVector3D( -10, SceneBuilder::NUMBER_HEIGHT, -30 ) ); } ) );
+          QVERIFY( near( SceneBuilder::NUMBER_HEIGHT, 2.4f ) );
+      }
+
     void perceptions()
       {
           Options & opt = Options::instance();

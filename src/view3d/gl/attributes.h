@@ -60,7 +60,10 @@
   The billboards (BillboardMesh, Billboard3D) have other attributes of an
   instance. They are read by other shaders from other buffers, so they
   reuse the locations of MODEL. The vertices of a batch (VertexBatch,
-  ColorVertex3D) have no instances: each vertex has its own COLOR.
+  ColorVertex3D) have no instances: each vertex has its own COLOR. A
+  skinned mesh (SkinnedMesh) has the joints and their weights of a vertex,
+  and a COLOR of an instance; its instances are placed by the matrices of
+  their joints, not by a MODEL.
 */
 namespace GLAttribute {
 
@@ -75,6 +78,11 @@ constexpr unsigned int COLOR = 7; //!< vec4: the color, with the opacity in w
 
 // of a vertex of a batch (ColorVertex3D): POSITION, COLOR (one per vertex there), and
 constexpr unsigned int DISTANCE = 8; //!< float: along a dotted line (m)
+
+// of a vertex of a skinned mesh (SkinVertex): POSITION, NORMAL, and
+constexpr unsigned int JOINTS = 9; //!< uvec4: the joints (bones) that move the vertex
+constexpr unsigned int WEIGHTS = 10; //!< vec4: how much each of them moves it (summing to 1)
+// and of an instance (a figure): COLOR
 
 // of a billboard (Billboard3D), in place of MODEL
 constexpr unsigned int BILLBOARD_CENTER = 3; //!< vec3: where it is in the world

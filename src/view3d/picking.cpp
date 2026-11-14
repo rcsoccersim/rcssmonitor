@@ -54,13 +54,13 @@ constexpr float EPS = 1.0e-6f;
 
 /*!
   the smallest t > 0 where the ray meets the body of a player (a cylinder
-  from the ground to BODY_HEIGHT), or infinity
+  from the ground to its body_height), or infinity
 */
 float
 hit_body( const Ray & ray,
           const PlayerPick & pick )
 {
-    const float H = SceneBuilder::BODY_HEIGHT;
+    const float H = pick.body_height;
     const float r2 = pick.radius * pick.radius;
     float best = std::numeric_limits< float >::infinity();
 
@@ -113,7 +113,7 @@ float
 hit_head( const Ray & ray,
           const PlayerPick & pick )
 {
-    const QVector3D center( pick.x, SceneBuilder::HEAD_HEIGHT, pick.y );
+    const QVector3D center( pick.x, pick.head_height, pick.y );
     const float r = SceneBuilder::HEAD_RADIUS;
     // |o + t d - center|^2 = r^2, with |d| = 1: t^2 + b t + c = 0
     const QVector3D oc = ray.origin - center;

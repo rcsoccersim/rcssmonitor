@@ -162,6 +162,16 @@ FieldView3D::initializeGL()
     {
         std::cerr << "(FieldView3D) OpenGL 3.3 core is not available" << std::endl;
     }
+    // the human figure, read once, sent to every new context
+    else if ( M_figures.load() )
+    {
+        M_scene.setFigureModel( M_figures.model(), Figures3D::jerseyMaterials() );
+    }
+    else
+    {
+        std::cerr << "(FieldView3D) the human figures are not available: "
+                  << M_figures.error().toStdString() << std::endl;
+    }
     M_ground_key.clear();
     M_stadium_keys[0].clear();
     M_stadium_keys[1].clear();
@@ -291,7 +301,13 @@ FieldView3D::paintGL()
 
     if ( ! frames.empty() )
     {
-        SceneBuilder::addShow( M_content, show, M_disp_holder, Options::instance(), seen );
+        // the players as human figures, but not from the top camera (a map)
+        const bool figures = ( opt.playerModel3D() == PlayerModel::Figure
+                               && M_camera.mode() != CameraMode::Top
+                               && M_figures.ready() );
+        SceneBuilder::addShow( M_content, show, M_disp_holder, Options::instance(), seen, figures );
+        // posed at the game's time of the frame drawn and the fraction to the next one
+        M_figures.pose( M_content, ( at.index + at.alpha ) * step * 1.0e-3 );
         OverlayBuilder::addDirections( M_content, show, M_disp_holder, Options::instance(), seen );
         OverlayBuilder::addViewAreas( M_content, show, M_disp_holder, Options::instance(), seen );
         OverlayBuilder::addOverlays( M_content, show, M_disp_holder, Options::instance(), seen );

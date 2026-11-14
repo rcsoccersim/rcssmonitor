@@ -351,10 +351,16 @@ add_focus_point( SceneContent & content,
         }
     }
 
-    // the line of sight, from the eyes (the center of the head) down to the focus point
+    // the line of sight, from the eyes (the center of the head, as
+    // SceneBuilder::addShow() put the player) down to the focus point
     {
         const QVector4D c = rgba( color );
-        const QVector3D eye( float( pos.x ), SceneBuilder::HEAD_HEIGHT, float( pos.y ) );
+        float head = SceneBuilder::HEAD_HEIGHT;
+        for ( const PlayerPick & pick : content.picks )
+        {
+            if ( pick.side == player.side() && pick.unum == player.unum_ ) head = pick.head_height;
+        }
+        const QVector3D eye( float( pos.x ), head, float( pos.y ) );
         const QVector3D at = on_ground( point_of( focus ), OverlayBuilder::LINE_Y );
         content.lines.push_back( ColorVertex3D{ eye, c, 0.0f } );
         content.lines.push_back( ColorVertex3D{ at, c, ( at - eye ).length() } );

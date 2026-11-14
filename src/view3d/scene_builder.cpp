@@ -235,7 +235,8 @@ addShow( SceneContent & content,
          const rcss::rcg::ShowInfoT & show,
          const DispHolder & holder,
          const Options & opt,
-         const Perceptions * perceptions )
+         const Perceptions * perceptions,
+         const bool figures )
 {
     const rcss::rcg::ServerParamT & sp = holder.serverParam();
 
@@ -257,19 +258,37 @@ addShow( SceneContent & content,
             const float ground_r = ground_radius( type, sp, opt );
             const QVector4D body = rgba( fadeTeam( style.body.color(), seen.team ) );
 
-            // the body: the unit cylinder scaled to the player and standing
-            // on the ground (its center at half the height)
+            // How tall: by its type, but of the default height where the
+            // player camera's player does not know for sure who it is
+            const float ratio = ( seen.unum >= 1.0f ? heightRatio( type, sp ) : 1.0f );
+            // a human figure, where its directions are known
+            const bool figure = ( figures && seen.facing );
             QMatrix4x4 m;
-            m.translate( p.x_, BODY_HEIGHT / 2.0f, p.y_ );
-            m.scale( body_r, BODY_HEIGHT, body_r );
-            add( content.cylinders, m, body );
-            content.picks.push_back( { p.side(), p.unum_, p.x_, p.y_, body_r } );
+            float body_height = BODY_HEIGHT * ratio;
+            float head_height = body_height + HEAD_GAP + HEAD_RADIUS;
+            if ( figure )
+            {
+                const float height = figureHeight( ratio, opt );
+                content.figures.push_back( { i, p.x_, p.y_, p.body_, height, body } );
+                // picked as a cylinder and a head of its height
+                head_height = height - HEAD_RADIUS;
+                body_height = head_height - HEAD_RADIUS - HEAD_GAP;
+            }
+            else
+            {
+                // the body: the unit cylinder scaled to the player and
+                // standing on the ground (its center at half the height)
+                m.translate( p.x_, body_height / 2.0f, p.y_ );
+                m.scale( body_r, body_height, body_r );
+                add( content.cylinders, m, body );
 
-            // the head on it
-            m.setToIdentity();
-            m.translate( p.x_, HEAD_HEIGHT, p.y_ );
-            m.scale( HEAD_RADIUS );
-            add( content.spheres, m, body );
+                // the head on it
+                m.setToIdentity();
+                m.translate( p.x_, head_height, p.y_ );
+                m.scale( HEAD_RADIUS );
+                add( content.spheres, m, body );
+            }
+            content.picks.push_back( { p.side(), p.unum_, p.x_, p.y_, body_r, body_height, head_height } );
 
             // the circle on the ground, as the outer circle in 2D
             m.setToIdentity();
@@ -291,7 +310,9 @@ addShow( SceneContent & content,
                 add( content.decay_rings, m, rgba( style.decay.color() ) );
             }
 
-            if ( ! seen.facing )
+            // the direction marks, but not on a figure, which shows its directions
+            if ( ! seen.facing
+                 || figure )
             {
                 continue;
             }
@@ -302,7 +323,7 @@ addShow( SceneContent & content,
             // player. yaw() turns the field's angle (from +x toward +y) into
             // a rotation about the world's y.
             m.setToIdentity();
-            m.translate( p.x_, BODY_HEIGHT * 0.7f, p.y_ );
+            m.translate( p.x_, body_height * 0.7f, p.y_ );
             m.rotate( yaw( p.body_ ), 0.0f, 1.0f, 0.0f );
             m.translate( body_r * 0.8f, 0.0f, 0.0f );
             m.scale( 0.45f, 0.14f, 0.14f );
@@ -310,7 +331,7 @@ addShow( SceneContent & content,
 
             const float face = p.body_ + ( p.hasNeck() ? p.neck_ : 0.0f );
             m.setToIdentity();
-            m.translate( p.x_, HEAD_HEIGHT, p.y_ );
+            m.translate( p.x_, head_height, p.y_ );
             m.rotate( yaw( face ), 0.0f, 1.0f, 0.0f );
             m.translate( HEAD_RADIUS * 0.8f, 0.0f, 0.0f );
             m.scale( 0.3f, 0.09f, 0.09f );
@@ -335,6 +356,28 @@ addShow( SceneContent & content,
         m.scale( r * 1.15f, 1.0f, r * 1.15f );
         add( content.discs, m, QVector4D( 0.0f, 0.0f, 0.0f, float( ballShadowOpacity( ball ) ) ) );
     }
+}
+
+/*-------------------------------------------------------------------*/
+float
+heightRatio( const rcss::rcg::PlayerTypeT & type,
+             const rcss::rcg::ServerParamT & param )
+{
+    const double base = param.player_size_ + param.kickable_margin_;
+    const double reach = type.player_size_ + type.kickable_margin_;
+    if ( base <= 0.0 || reach <= 0.0 )
+    {
+        return 1.0f;
+    }
+    return float( reach / base );
+}
+
+/*-------------------------------------------------------------------*/
+float
+figureHeight( const float ratio,
+              const Options & opt )
+{
+    return PERSON_HEIGHT * ratio * float( opt.figureScale3D() );
 }
 
 /*-------------------------------------------------------------------*/
@@ -407,9 +450,16 @@ addLabels( SceneContent & content,
         }
         const float text_width = ( shown ? float( atlas.textWidth( slot ) ) : 0.0f );
 
+        // the top of the head, as addShow() put the player (a cylinder or a figure)
+        float head_top = LABEL_BASE;
+        for ( const PlayerPick & pick : content.picks )
+        {
+            if ( pick.side == p.side() && pick.unum == p.unum_ ) head_top = pick.head_height + HEAD_RADIUS;
+        }
+
         // where the number is (its center), and k: how many times its size in
         // meters. With the bars, the number goes up so that they are above the head.
-        const float height = NUMBER_HEIGHT + ( barred ? BAR_LIFT : 0.0f );
+        const float height = head_top + LABEL_ABOVE + ( barred ? BAR_LIFT : 0.0f );
         QVector3D at( p.x_, height, p.y_ );
         float k = 1.0f;
         float bars_x = 0.0f; // from the number's center to the bars' (m)
@@ -436,7 +486,7 @@ addLabels( SceneContent & content,
             {
                 k = most_pixels / full_pixels;
             }
-            at.setY( LABEL_BASE + k * ( height - LABEL_BASE ) );
+            at.setY( head_top + k * ( height - head_top ) );
         }
 
         Labels labels;

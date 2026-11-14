@@ -84,6 +84,14 @@ public:
     */
     bool load( const QString & name );
 
+    /*!
+      \brief compile and link :/shaders/<vertex>.vert and
+      :/shaders/<fragment>.frag (two programs may share a shader)
+      \return false on an error, which is printed with the line of the shader
+    */
+    bool load( const QString & vertex,
+               const QString & fragment );
+
     //! delete the program, in the current context
     void destroy();
 

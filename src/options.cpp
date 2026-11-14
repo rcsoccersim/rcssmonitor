@@ -247,6 +247,8 @@ Options::Options()
     M_banners_3d( BANNERS_3D ),
     M_compass_3d( COMPASS_3D ),
     M_minimap_3d( MINIMAP_3D ),
+    M_player_model_3d( PLAYER_MODEL_3D ),
+    M_figure_scale_3d( FIGURE_SCALE_3D ),
     M_show_tool_bar( false ),
     M_show_status_bar( false ),
     // view options
@@ -750,6 +752,15 @@ Options::readSettings()
     val = settings.value( "minimap_3d" );
     if ( val.isValid() ) guideModeFromName( val.toString(), &M_minimap_3d );
 
+    val = settings.value( "player_model_3d" );
+    if ( val.isValid() ) playerModelFromName( val.toString(), &M_player_model_3d );
+
+    val = settings.value( "figure_scale_3d" );
+    if ( val.isValid() && in_range( val.toDouble(), MIN_FIGURE_SCALE_3D, MAX_FIGURE_SCALE_3D ) )
+    {
+        M_figure_scale_3d = val.toDouble();
+    }
+
     // the player camera: an unknown name (of a later version) is not read
     {
         using namespace PlayerCameraStyle;
@@ -927,6 +938,8 @@ Options::writeSettings( bool all )
     settings.setValue( "banners_3d", M_banners_3d );
     settings.setValue( "compass_3d", guideModeName( M_compass_3d ) );
     settings.setValue( "minimap_3d", guideModeName( M_minimap_3d ) );
+    settings.setValue( "player_model_3d", playerModelName( M_player_model_3d ) );
+    settings.setValue( "figure_scale_3d", M_figure_scale_3d );
     {
         using namespace PlayerCameraStyle;
         const PlayerCameraOptions & pc = M_player_camera;
@@ -965,6 +978,13 @@ void
 Options::setCloseupElevation3D( const double elevation )
 {
     M_closeup_elevation_3d = std::min( MAX_CLOSEUP_ELEVATION_3D, std::max( MIN_CLOSEUP_ELEVATION_3D, elevation ) );
+}
+
+/*-------------------------------------------------------------------*/
+void
+Options::setFigureScale3D( const double scale )
+{
+    M_figure_scale_3d = std::min( MAX_FIGURE_SCALE_3D, std::max( MIN_FIGURE_SCALE_3D, scale ) );
 }
 
 /*-------------------------------------------------------------------*/
@@ -1117,6 +1137,18 @@ Options::parseCmdLine( int argc,
                                        + guideModeName( M_minimap_3d ) + ")",
                                        "mode", guideModeName( M_minimap_3d ) );
     parser.addOption( opt_minimap_3d );
+    QCommandLineOption opt_player_model_3d( "player-model-3d",
+                                            "The 3D view: how the players are drawn, simple (cylinders and spheres) or figure (human figures). (Default="
+                                            + playerModelName( M_player_model_3d ) + ")",
+                                            "model", playerModelName( M_player_model_3d ) );
+    parser.addOption( opt_player_model_3d );
+    QCommandLineOption opt_figure_scale_3d( "figure-scale-3d",
+                                            "The 3D view: the human figures are this many times a person's height, "
+                                            + to_string( MIN_FIGURE_SCALE_3D ) + " to " + to_string( MAX_FIGURE_SCALE_3D )
+                                            + ". (Default=" + to_string( M_figure_scale_3d ) + ")",
+                                            "scale",
+                                            to_string( M_figure_scale_3d ) );
+    parser.addOption( opt_figure_scale_3d );
     // the player camera: the names of a style's values
     const auto names_of = []( const auto & list )
         {
@@ -1359,6 +1391,17 @@ Options::parseCmdLine( int argc,
             std::cerr << "Unknown value of " << g.first->names().front().toStdString() << ": "
                       << parser.value( *g.first ).toStdString() << std::endl;
         }
+    }
+    if ( parser.isSet( opt_figure_scale_3d ) )
+    {
+        const double s = parser.value( opt_figure_scale_3d ).toDouble();
+        if ( in_range( s, MIN_FIGURE_SCALE_3D, MAX_FIGURE_SCALE_3D ) ) M_figure_scale_3d = s;
+        else std::cerr << "Out of range: figure-scale-3d " << parser.value( opt_figure_scale_3d ).toStdString() << std::endl;
+    }
+    if ( parser.isSet( opt_player_model_3d )
+         && ! playerModelFromName( parser.value( opt_player_model_3d ), &M_player_model_3d ) )
+    {
+        std::cerr << "Unknown value of player-model-3d: " << parser.value( opt_player_model_3d ).toStdString() << std::endl;
     }
     {
         PlayerCameraOptions & pc = M_player_camera;

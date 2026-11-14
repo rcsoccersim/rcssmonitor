@@ -16,5 +16,6 @@
     <file>colored.frag</file>
     <file>panel.vert</file>
     <file>panel.frag</file>
+    <file>skinned.vert</file>
   </qresource>
 </RCC>

@@ -40,6 +40,7 @@
 #include <QColor>
 #include <QString>
 #include <QVector3D>
+#include <QVector4D>
 
 #include <array>
 #include <vector>
@@ -59,8 +60,8 @@ struct OverlayText {
 /*!
   \struct PlayerPick
   \brief a player as drawn, for a click to find it (Picking): the body is a
-  cylinder of the radius from the ground to BODY_HEIGHT, the head a sphere
-  of HEAD_RADIUS at HEAD_HEIGHT (SceneBuilder)
+  cylinder of the radius from the ground to body_height, the head a sphere
+  of HEAD_RADIUS at head_height (SceneBuilder)
 */
 struct PlayerPick {
     rcss::rcg::Side side;
@@ -68,6 +69,22 @@ struct PlayerPick {
     float x; //!< on the field (m)
     float y;
     float radius; //!< of the body (m)
+    float body_height; //!< the top of the body (m)
+    float head_height; //!< the center of the head (m)
+};
+
+/*!
+  \struct FigureInstance
+  \brief a player drawn as a human figure (docs/PLAN_3D-VIEW.md §5.8):
+  SceneBuilder puts it where the player is, and Figures3D poses it
+*/
+struct FigureInstance {
+    int player; //!< its index in the show (0 to 21)
+    float x; //!< on the field (m)
+    float y;
+    float body; //!< the body direction (degree)
+    float height; //!< from the ground to the top of the head (m)
+    QVector4D color; //!< the jersey: the team or state color, as the body of a cylinder
 };
 
 /*!
@@ -85,6 +102,8 @@ struct SceneContent {
     std::vector< Instance3D > cylinders; //!< radius 1, height 1 along y, centered: the bodies, the goal posts and crossbars
     std::vector< Instance3D > spheres; //!< radius 1: the heads and the ball
     std::vector< Instance3D > cones; //!< base of radius 1 at the origin, tip at x = 1: the body and face directions
+    std::vector< FigureInstance > figures; //!< the players drawn as human figures (in place of a cylinder and a sphere)
+    std::vector< float > figure_joints; //!< the skin matrices of the figures, in their order (Figures3D::pose(); 16 floats a joint)
 
     // flat and translucent, in this order (the layers on the ground, low to high)
     std::vector< Instance3D > discs; //!< radius 1 on the xz plane: the circles under the players, the ball's shadow
@@ -118,6 +137,8 @@ struct SceneContent {
           cylinders.clear();
           spheres.clear();
           cones.clear();
+          figures.clear();
+          figure_joints.clear();
           discs.clear();
           rings.clear();
           decay_rings.clear();

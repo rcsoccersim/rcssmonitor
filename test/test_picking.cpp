@@ -95,7 +95,7 @@ pick( const rcss::rcg::Side side,
       const float x,
       const float y )
 {
-    return PlayerPick{ side, unum, x, y, 0.3f };
+    return PlayerPick{ side, unum, x, y, 0.3f, SceneBuilder::BODY_HEIGHT, SceneBuilder::HEAD_HEIGHT };
 }
 
 }
@@ -182,6 +182,16 @@ private slots:
           QCOMPARE( Picking::playerAt( Picking::rayAt( camera, VIEW, project( camera, QVector3D( 10.0f, 0.0f, 5.5f ) ) ), picks ), -1 );
           // none
           QCOMPARE( Picking::playerAt( Picking::rayAt( camera, VIEW, QPointF( 400, 225 ) ), std::vector< PlayerPick >() ), -1 );
+
+          // a taller player: its body and head higher (SceneBuilder puts them)
+          std::vector< PlayerPick > tall = picks;
+          tall[0].body_height = 1.7f;
+          tall[0].head_height = 1.7f + SceneBuilder::HEAD_GAP + SceneBuilder::HEAD_RADIUS;
+          const QPointF chest = project( camera, QVector3D( 10.0f, 1.6f, 5.0f ) ); // above the default body, below its head
+          QCOMPARE( Picking::playerAt( Picking::rayAt( camera, VIEW, chest ), tall ), 0 );
+          const QPointF over = project( camera, QVector3D( 10.0f, tall[0].head_height + 0.15f, 5.0f ) );
+          QCOMPARE( Picking::playerAt( Picking::rayAt( camera, VIEW, over ), tall ), 0 );
+          QCOMPARE( Picking::playerAt( Picking::rayAt( camera, VIEW, over ), picks ), -1 );
       }
 
     //! the nearest of the players on the ray, whatever their order

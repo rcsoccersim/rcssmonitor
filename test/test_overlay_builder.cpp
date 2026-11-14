@@ -325,6 +325,26 @@ private slots:
           }
           QVERIFY( sight );
 
+          // from the eyes of the player as SceneBuilder put it: a taller one higher
+          {
+              SceneContent tall;
+              tall.picks.push_back( PlayerPick{ rcss::rcg::LEFT, 1, 0.0f, 0.0f, 0.3f, 1.6f, 1.85f } );
+              opt.toggleShowFocusPoint();
+              opt.setSelectedNumber( rcss::rcg::LEFT, 1 );
+              OverlayBuilder::addOverlays( tall, show, M_holder, opt );
+              opt.toggleShowFocusPoint();
+              bool high = false;
+              for ( size_t i = 0; i + 1 < tall.lines.size(); i += 2 )
+              {
+                  if ( tall.lines[i].position == QVector3D( 0, 1.85f, 0 )
+                       && near( field( tall.lines[i + 1] ), QPointF( 5, 0 ) ) )
+                  {
+                      high = true;
+                  }
+              }
+              QVERIFY( high );
+          }
+
           // the lines of the same noise, fainter outward, on their ellipses within the view
           std::vector< size_t > noise( std::size( FocusLook::NOISE_OPACITY ), 0 );
           size_t solid = 0;

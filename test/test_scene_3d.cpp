@@ -37,6 +37,7 @@
 #include "ground_texture.h"
 #include "label_atlas.h"
 #include "overlay_builder.h"
+#include "figures_3d.h"
 #include "options.h"
 #include "scene_3d.h"
 #include "scene_builder.h"
@@ -143,6 +144,7 @@ private slots:
     void labels();
     void batches();
     void panels();
+    void figures();
     void cleanupTestCase();
 };
 
@@ -591,6 +593,84 @@ TestScene3D::panels()
     QCOMPARE( back.pixelColor( w / 2, h / 2 ), QColor( Qt::yellow ) );
 
     scene.release();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  a human figure seen from its side: its jersey in its color up to about
+  1.2 times a person's height, its joints in their own color, nothing
+  above it; the same when drawn again, and nothing without it
+*/
+void
+TestScene3D::figures()
+{
+    DispHolder holder;
+    FieldPainter painter( holder );
+    Figures3D figures;
+    QVERIFY2( figures.load(), qPrintable( figures.error() ) );
+    Scene3D scene;
+    QVERIFY( scene.initialize() );
+    scene.setGround( GroundTexture::draw( painter ) );
+    scene.setFigureModel( figures.model(), Figures3D::jerseyMaterials() );
+
+    const int w = 300, h = 400;
+    QOpenGLFramebufferObjectFormat fbo_format;
+    fbo_format.setAttachment( QOpenGLFramebufferObject::Depth );
+    QOpenGLFramebufferObject fbo( w, h, fbo_format );
+
+    // facing +x at the center spot, in red; seen from 6 m on its left side
+    SceneContent content;
+    const float height = 2.22f;
+    content.figures.push_back( FigureInstance{ 0, 0.0f, 0.0f, 0.0f, height, QVector4D( 1.0f, 0.0f, 0.0f, 1.0f ) } );
+    figures.pose( content, 0.0 );
+    CameraPose camera;
+    camera.position = QVector3D( 0.0f, 1.2f, -6.0f );
+    camera.target = QVector3D( 0.0f, 1.2f, 0.0f );
+
+    scene.render( fbo.handle(), w, h, camera, content );
+    const QImage image = fbo.toImage();
+    scene.render( fbo.handle(), w, h, camera, content );
+    QCOMPARE( image, fbo.toImage() );
+
+    // where a point of the world is on the image
+    const QMatrix4x4 view_proj = camera.projection( float( w ) / h ) * camera.view();
+    const auto pixel = [&]( const QVector3D & p ) {
+        const QVector3D ndc = view_proj.map( p );
+        return QPoint( int( ( ndc.x() + 1.0f ) / 2.0f * w ), int( ( 1.0f - ndc.y() ) / 2.0f * h ) );
+    };
+    const auto red = []( const QColor & c ) { return c.red() > c.green() + 60 && c.red() > c.blue() + 60; };
+    const auto purple = []( const QColor & c ) { return c.blue() > c.red() + 30 && c.blue() > c.green() + 60; };
+
+    // the jersey at the waist and the chest
+    for ( const float y : { 1.0f, 1.4f } )
+    {
+        const QColor c = image.pixelColor( pixel( QVector3D( 0.0f, y, 0.0f ) ) );
+        QVERIFY2( red( c ), qPrintable( QString::number( y ) + " " + c.name() ) );
+    }
+    // nothing of it above its height
+    const QPoint top = pixel( QVector3D( 0.0f, height + 0.15f, 0.0f ) );
+    for ( int x = 0; x < w; ++x )
+    {
+        QVERIFY2( ! red( image.pixelColor( x, top.y() ) ), qPrintable( QString::number( x ) ) );
+    }
+    // the head near the top
+    QVERIFY( red( image.pixelColor( pixel( QVector3D( 0.0f, height - 0.2f, 0.0f ) ) ) ) );
+    // the joints in their own color, somewhere on it
+    int joints = 0;
+    for ( int y = top.y(); y < h; ++y )
+    {
+        for ( int x = 0; x < w; ++x )
+        {
+            if ( purple( image.pixelColor( x, y ) ) ) ++joints;
+        }
+    }
+    QVERIFY2( joints > 20, qPrintable( QString::number( joints ) ) );
+
+    // without it: the background there
+    content.figures.clear();
+    figures.pose( content, 0.0 );
+    scene.render( fbo.handle(), w, h, camera, content );
+    QVERIFY( ! red( fbo.toImage().pixelColor( pixel( QVector3D( 0.0f, 1.4f, 0.0f ) ) ) ) );
 }
 
 /*-------------------------------------------------------------------*/

@@ -91,7 +91,8 @@ Scene3D::initialize()
          || ! M_flat_program.load( "flat" )
          || ! M_billboard_program.load( "billboard" )
          || ! M_colored_program.load( "colored" )
-         || ! M_panel_program.load( "panel" ) )
+         || ! M_panel_program.load( "panel" )
+         || ! M_skinned_program.load( "skinned", "lit" ) )
     {
         M_ground_program.destroy();
         M_lit_program.destroy();
@@ -99,6 +100,7 @@ Scene3D::initialize()
         M_billboard_program.destroy();
         M_colored_program.destroy();
         M_panel_program.destroy();
+        M_skinned_program.destroy();
         return false;
     }
 
@@ -135,6 +137,7 @@ Scene3D::release()
         m->destroy( *this );
     }
     M_billboards.destroy( *this );
+    M_figure.destroy( *this );
     for ( VertexBatch * b : { &M_sector_batch, &M_line_batch, &M_dotted_batch, &M_point_batch } )
     {
         b->destroy( *this );
@@ -152,6 +155,7 @@ Scene3D::release()
     M_billboard_program.destroy();
     M_colored_program.destroy();
     M_panel_program.destroy();
+    M_skinned_program.destroy();
     M_initialized = false;
 }
 
@@ -177,6 +181,19 @@ Scene3D::setStadium( const int end,
 {
     M_board_textures[end].upload( *this, board, true ); // repeated along the boards
     M_banner_textures[end].upload( *this, banner );
+}
+
+/*-------------------------------------------------------------------*/
+void
+Scene3D::setFigureModel( const GltfModel & model,
+                         const QStringList & jersey )
+{
+    if ( ! M_initialized )
+    {
+        return;
+    }
+    M_figure.destroy( *this );
+    M_figure.create( *this, model, jersey );
 }
 
 /*-------------------------------------------------------------------*/
@@ -217,6 +234,23 @@ Scene3D::render( GLuint fbo,
     M_cylinder.draw( *this, content.cylinders );
     M_sphere.draw( *this, content.spheres );
     M_cone.draw( *this, content.cones );
+
+    //
+    // pass 2a: the human figures, lit as the solids, their skeletons posed
+    // by the skin matrices (Figures3D), each in its jersey
+    //
+    if ( ! content.figures.empty() )
+    {
+        M_figure_colors.clear();
+        for ( const FigureInstance & f : content.figures )
+        {
+            M_figure_colors.push_back( f.color );
+        }
+        M_skinned_program.bind();
+        M_skinned_program.set( "uViewProj", view_proj );
+        M_skinned_program.set( "uSun", SUN );
+        M_figure.draw( *this, M_skinned_program, M_figure_colors, content.figure_joints );
+    }
 
     //
     // pass 2b: the boards and the banners, solid and unlit, both faces (the

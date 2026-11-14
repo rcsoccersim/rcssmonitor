@@ -185,6 +185,8 @@ private:
     bool M_banners_3d; //!< the banners behind the goals in the team colors
     GuideMode M_compass_3d; //!< when the compass shows over the 3D view
     GuideMode M_minimap_3d; //!< when the minimap shows over the 3D view
+    PlayerModel M_player_model_3d; //!< how the 3D view draws the players
+    double M_figure_scale_3d; //!< the human figures: how many times a person's height
     bool M_show_tool_bar;
     bool M_show_status_bar;
 
@@ -419,6 +421,17 @@ public:
     //! the 3D view: when the compass (a strip of the directions around the camera) shows
     GuideMode compass3D() const { return M_compass_3d; }
     void setCompass3D( const GuideMode mode ) { M_compass_3d = mode; }
+    //! the 3D view: how the players are drawn (the default: cylinders and spheres)
+    static constexpr PlayerModel PLAYER_MODEL_3D = PlayerModel::Simple;
+    PlayerModel playerModel3D() const { return M_player_model_3d; }
+    void setPlayerModel3D( const PlayerModel model ) { M_player_model_3d = model; }
+    //! the 3D view: the human figures are this many times a person's height (larger to be seen from afar)
+    static constexpr double FIGURE_SCALE_3D = 1.0;
+    static constexpr double MIN_FIGURE_SCALE_3D = 0.8;
+    static constexpr double MAX_FIGURE_SCALE_3D = 1.5;
+    double figureScale3D() const { return M_figure_scale_3d; }
+    //! within MIN_FIGURE_SCALE_3D and MAX_FIGURE_SCALE_3D
+    void setFigureScale3D( const double scale );
     //! the 3D view: when the minimap (the pitch with the camera's view) shows
     GuideMode minimap3D() const { return M_minimap_3d; }
     void setMinimap3D( const GuideMode mode ) { M_minimap_3d = mode; }

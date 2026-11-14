@@ -85,7 +85,7 @@ bool groundAt( const Ray & ray,
 
 /*!
   \brief the player that a ray meets first, its body (a cylinder standing on
-  the ground, BODY_HEIGHT high) or its head (a sphere at HEAD_HEIGHT)
+  the ground, body_height high) or its head (a sphere at head_height)
   \param ray the ray
   \param picks the players drawn
   \return the index in picks, or -1 if it meets none

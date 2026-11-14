@@ -265,6 +265,60 @@ guideModeFromName( const QString & name,
     return false;
 }
 
+/*!
+  \enum PlayerModel
+  \brief how the 3D view draws the players: cylinders and spheres, or
+  human figures (docs/PLAN_3D-VIEW.md §5.8)
+*/
+enum class PlayerModel {
+    Simple,
+    Figure,
+};
+
+//! the player models, with their names in the options
+inline
+const std::array< std::pair< PlayerModel, const char * >, 2 > &
+playerModels()
+{
+    static const std::array< std::pair< PlayerModel, const char * >, 2 > list = { {
+            { PlayerModel::Simple, "simple" },
+            { PlayerModel::Figure, "figure" },
+        } };
+    return list;
+}
+
+//! the name of a player model in the options
+inline
+QString
+playerModelName( const PlayerModel model )
+{
+    for ( const auto & m : playerModels() )
+    {
+        if ( m.first == model ) return QString::fromLatin1( m.second );
+    }
+    return QString();
+}
+
+/*!
+  \brief the player model of a name in the options
+  \return false if the name is unknown (model is left as it was)
+*/
+inline
+bool
+playerModelFromName( const QString & name,
+                     PlayerModel * model )
+{
+    for ( const auto & m : playerModels() )
+    {
+        if ( name == QLatin1String( m.second ) )
+        {
+            *model = m.first;
+            return true;
+        }
+    }
+    return false;
+}
+
 //! a close-up camera (CameraMode::CloseupBall, CloseupPlayer)
 inline
 bool

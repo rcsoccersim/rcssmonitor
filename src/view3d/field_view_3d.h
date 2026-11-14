@@ -34,6 +34,7 @@
 #define RCSSMONITOR_FIELD_VIEW_3D_H
 
 #include "cameras_3d.h"
+#include "figures_3d.h"
 #include "label_atlas.h"
 #include "referee_target.h"
 #include "scene_3d.h"
@@ -174,6 +175,7 @@ private:
     std::unique_ptr< ScoreBoardPainter > M_score_board_painter; //!< the HUD: the 2D score board
     std::unique_ptr< TeamGraphicPainter > M_team_graphic_painter; //!< the HUD: the 2D team logos
     LabelAtlas M_label_atlas; //!< the texts of the number labels
+    Figures3D M_figures; //!< the players as human figures (Options::playerModel3D())
     Scene3D M_scene; //!< the OpenGL drawing
     SceneContent M_content; //!< what to draw, reused in every frame
     bool M_ready; //!< Scene3D could be initialized

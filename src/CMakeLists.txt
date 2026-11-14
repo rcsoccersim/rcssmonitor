@@ -56,8 +56,11 @@ if(HAVE_3D_VIEW)
     PRIVATE
     view3d/cameras_3d.cpp
     view3d/field_view_3d.cpp
+    view3d/figures_3d.cpp
+    view3d/gltf_model.cpp
     view3d/ground_texture.cpp
     view3d/guides_3d.cpp
+    view3d/humanoid.cpp
     view3d/interpolate.cpp
     view3d/label_atlas.cpp
     view3d/meshes_3d.cpp
@@ -73,13 +76,17 @@ if(HAVE_3D_VIEW)
     view3d/gl/instanced_mesh.cpp
     view3d/gl/render_state.cpp
     view3d/gl/shader_program.cpp
+    view3d/gl/skinned_mesh.cpp
     view3d/gl/texture_2d.cpp
     view3d/gl/vertex_batch.cpp
     view3d/shaders/view3d_shaders.qrc
+    ${PROJECT_SOURCE_DIR}/resources/models/view3d_models.qrc
     )
-  # the shaders in the resources (ShaderProgram)
+  # the shaders (ShaderProgram) and the models of the figures (Figures3D) in the resources
   set_target_properties(rcssmonitor_core PROPERTIES AUTORCC ON)
   target_include_directories(rcssmonitor_core PUBLIC ${PROJECT_SOURCE_DIR}/src/view3d)
+  # cgltf (glTF loading, MIT), a single header: compiled in gltf_model.cpp
+  target_include_directories(rcssmonitor_core PRIVATE ${PROJECT_SOURCE_DIR}/third_party/cgltf)
   target_link_libraries(rcssmonitor_core PUBLIC ${QT_3D_VIEW_LIBRARIES})
 endif()
 

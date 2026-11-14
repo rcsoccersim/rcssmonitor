@@ -38,6 +38,7 @@
 #include "gl/billboard_mesh.h"
 #include "gl/instanced_mesh.h"
 #include "gl/shader_program.h"
+#include "gl/skinned_mesh.h"
 #include "gl/texture_2d.h"
 #include "gl/vertex_batch.h"
 
@@ -109,6 +110,15 @@ public:
                      const QImage & banner );
 
     /*!
+      \brief send the human figure (Figures3D) to the GPU, for the figures
+      of a SceneContent
+      \param model the model
+      \param jersey its materials in each figure's color
+    */
+    void setFigureModel( const GltfModel & model,
+                         const QStringList & jersey );
+
+    /*!
       \brief draw the scene.
       \param fbo the framebuffer to draw into: OpenGL's number of the
       widget's (QOpenGLWidget::defaultFramebufferObject()) or of an offscreen one
@@ -132,6 +142,7 @@ private:
     ShaderProgram M_billboard_program; //!< "billboard": the labels, facing the camera
     ShaderProgram M_colored_program; //!< "colored": the lines, dots and view areas, each vertex its color
     ShaderProgram M_panel_program; //!< "panel": the boards and the banners, an image on the front, unlit
+    ShaderProgram M_skinned_program; //!< "skinned" and "lit": the human figures, lit by the sun
 
     // the shapes (Meshes3D), each drawn in instances
     InstancedMesh M_ground; //!< the area of the ground image
@@ -144,6 +155,8 @@ private:
     InstancedMesh M_quad; //!< the nets, the floors of the goals
     InstancedMesh M_panel; //!< the boards and the banners
     BillboardMesh M_billboards; //!< the numbers and the cards
+    SkinnedMesh M_figure; //!< the human figure of the players
+    std::vector< QVector4D > M_figure_colors; //!< the jerseys of the figures of a frame
 
     // made again in every frame (OverlayBuilder)
     VertexBatch M_sector_batch; //!< the view areas

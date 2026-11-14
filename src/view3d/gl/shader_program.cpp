@@ -72,6 +72,8 @@ shader_header()
         + "#define A_MODEL " + QByteArray::number( GLAttribute::MODEL ) + "\n"
         + "#define A_COLOR " + QByteArray::number( GLAttribute::COLOR ) + "\n"
         + "#define A_DISTANCE " + QByteArray::number( GLAttribute::DISTANCE ) + "\n"
+        + "#define A_JOINTS " + QByteArray::number( GLAttribute::JOINTS ) + "\n"
+        + "#define A_WEIGHTS " + QByteArray::number( GLAttribute::WEIGHTS ) + "\n"
         + "#define A_BILLBOARD_CENTER " + QByteArray::number( GLAttribute::BILLBOARD_CENTER ) + "\n"
         + "#define A_BILLBOARD_SIZE " + QByteArray::number( GLAttribute::BILLBOARD_SIZE ) + "\n"
         + "#define A_BILLBOARD_UV " + QByteArray::number( GLAttribute::BILLBOARD_UV ) + "\n";
@@ -114,6 +116,14 @@ ShaderProgram::~ShaderProgram() = default;
 bool
 ShaderProgram::load( const QString & name )
 {
+    return load( name, name );
+}
+
+/*-------------------------------------------------------------------*/
+bool
+ShaderProgram::load( const QString & vertex,
+                     const QString & fragment )
+{
     static bool resources = false;
     if ( ! resources )
     {
@@ -125,14 +135,14 @@ ShaderProgram::load( const QString & name )
     // of the vertex shader ("out") meet the inputs of the fragment shader
     // ("in") of the same names
     std::unique_ptr< QOpenGLShaderProgram > program( new QOpenGLShaderProgram );
-    if ( ! add_shader( *program, QOpenGLShader::Vertex, ":/shaders/" + name + ".vert" )
-         || ! add_shader( *program, QOpenGLShader::Fragment, ":/shaders/" + name + ".frag" ) )
+    if ( ! add_shader( *program, QOpenGLShader::Vertex, ":/shaders/" + vertex + ".vert" )
+         || ! add_shader( *program, QOpenGLShader::Fragment, ":/shaders/" + fragment + ".frag" ) )
     {
         return false;
     }
     if ( ! program->link() )
     {
-        std::cerr << "(ShaderProgram) " << name.toStdString() << ": "
+        std::cerr << "(ShaderProgram) " << vertex.toStdString() << "+" << fragment.toStdString() << ": "
                   << program->log().toStdString() << std::endl;
         return false;
     }
