@@ -7,7 +7,7 @@
 | Reference implementation | rcssmonitor-web 20.0.0-beta.2 (tag `v20.0.0-beta.2`, ed36941). Its working tree is `../rcssmonitor-web`, next to this repository |
 | Server referred to | The asio version of rcssserver 19.x. Its working tree is `../rcssserver` (branch `feature/asio-migration`), next to this repository |
 | Japanese version | [PLAN_3D-VIEW.md](PLAN_3D-VIEW.md) (same content; §0.1) |
-| Status | Phase 7 done (2026-11-15). Working on Phase 8 (8-1 waiting for the user's check; §14). The work is on `feature/3d-view` |
+| Status | Phase 7 done (2026-11-15). Working on Phase 8 (8-1 done, 8-2 waiting for the user's check; §14). The work is on `feature/3d-view` |
 
 ## 0. How to use this plan
 
@@ -402,7 +402,7 @@ Settings dialog:
 - **Player Camera tab**: the 4 styles, time constant, maximum angular speed, fixed field of view, Player Sight, Default button.
 - Every item gets a detailed tooltip. Numeric fields state their range in the tooltip, and out-of-range values are clamped to the ends (error color while typing). Numeric fields not used by the selected style are dimmed.
 - In the web version, the 3D items grew and one tab became too tall, so Player Camera was split into its own tab. If the items grow further, split them likewise.
-- → 6-6 made the settings of 6-1 to 6-5 (Close-up Camera, Guides, Boards and Banners of Stadium, and all of the Player Camera tab). Players, Ball and the rest of Stadium come in Phases 7 and 8. The two tabs are only in a build with the 3D view. → 7-4 added Players (the three Models and Figure Scale). 8-1 added Shadows to Players.
+- → 6-6 made the settings of 6-1 to 6-5 (Close-up Camera, Guides, Boards and Banners of Stadium, and all of the Player Camera tab). Players, Ball and the rest of Stadium come in Phases 7 and 8. The two tabs are only in a build with the 3D view. → 7-4 added Players (the three Models and Figure Scale). 8-1 added Shadows to Players. 8-2 added Grass Stripes and Sky to Stadium.
 
 ### 5.8 Figures
 
@@ -682,6 +682,7 @@ Port the GL-independent calculations, using the web version's unit tests as mode
 | `resources/models/BaseCharacterMale.glb`, `BaseCharacterFemale.glb`, `pack_base_character.py` | Made in 7-4, split into a man's and a woman's in 7-5: the human bodies and hairstyles (CC0) and the script that wrote them |
 | `view3d/figure_looks` | Made in 7-5: each player's looks (the body, the hairstyle, the skin and hair colors), and how they blend with the standard ones for the player camera (no GL) |
 | `view3d/sun_3d`, `gl/shadow_map`, `shaders/depth.*`, `shaders/shadow.*`, `shaders/blob.*` | Made in 8-1: the sun's direction, the camera of the shadow map, the ellipses of the simple shadows (no GL), the shadow map (a depth texture and a framebuffer), the shaders that draw only depths, the shaders of the plane of the shadows, the shaders of the simple shadows |
+| `view3d/scenery_3d`, `shaders/sky.*`, `shaders/outside.*` | Made in 8-2: the constants and computations of the sky, the haze and the ground beyond (no GL), the shaders of the sky and of the ground beyond. The grass stripes are drawn by `FieldPainter::drawGround()` |
 | `figure_pack`, `fbx_model`, `bvh_motion`, `vrm` and so on | Figure packs (Phase 9; §5.9) |
 | `third_party/ufbx/ufbx.{h,c}` | FBX loading (MIT or Unlicense; D12) |
 | A document on the figure material under `docs/` | How to convert to glTF with Blender and so on (for the maintainers and those who want to modify it; D12) |
@@ -1870,4 +1871,32 @@ The 1 commit of the plan (13223e6) was pushed.
 - Tests: `sun_3d` (the ellipse's ends half the width behind the feet and half the width beyond the top's shadow, the middle, the width, on the ground, about the height long to the right and the near side), `scene_builder` (one for each player drawn, the widths and heights of the cylinders and the figures, the color, none without players drawn), `scene_3d` (seen from straight above, the middle of the ellipse 0.5 to 0.7 times the lightness without it, lighter near the edge, the pixels outside and toward the sun the same as without, the same in every frame), `frame_builder_3d` (detailed: the shadow map only; simple: the ellipses only, as many as the players (none of the goal frames); the top camera, no players drawn, off, `clear()`), `config_dialog` (the three buttons and their tooltips, Simple at first, Detailed and Off chosen, Simple back by Default). Checked to fail with what they check broken (10 ways: the ellipses not drawn, stretched toward the sun, not fading at the edge, the figures' width from the pick's radius, drawn from the top camera too, the ellipses with detailed too, the dialog's choices mismatched, not the top of the head, not reset by `clear()`, the dialog not showing the option). Toward the sun is caught by `sun_3d` (`scene_3d` takes its points from the ellipse's matrix, so it passes either way).
 - Measured (as before): cylinders, GPU 0.84 to 0.94 ms (off), 0.88 to 0.98 ms (simple), 2.1 to 2.3 ms (detailed); 22 human bodies, 2.6 ms, 2.7 ms, 4.9 to 5.0 ms. The simple shadows take 0.04 to 0.1 ms. The CPU's time does not change.
 - With Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`), the clean builds and the tests pass (40 tests). `-DENABLE_3D=OFF` (17) and autotools also pass. In a window not shown on the screen, frame 3,000 of the full game's log was drawn from the broadcast and close-up cameras with each of the three options, and looked at.
+
+#### 2026-11-15: Step 8-2, grass stripes, sky and haze, the ground beyond (`feature/3d-view`)
+
+The 2 commits of 8-1 (72348d6, 3505257) were pushed, and the CI passed.
+
+**Decided**
+- As in the web version (`scenery.ts`, §4.3).
+- Grass stripes: 5.25 m wide (20 on the pitch), from the halfway line light, dark and so on to the right (the stripes differ left and right of it, as the mower turns there). The light stripes are the field color times 1.05, the dark ones times 0.92. The 2D `FieldPainter` draws them into the ground image, after the grass and before the lines (over the margins too). Not on the minimap.
+- Sky: a sphere of 1900 m around the camera. Up to the zenith's #3d7ccc, #d4e4f0 at the horizon (changing faster near the horizon: the height to the power 0.55), below the horizon toward #6f9f7f (all of it 1/12 down).
+- The ground beyond: a flat ground out to 1500 m from the center (3000 m square) beyond the ground image, 2 cm under it, in the field color times 0.86 (the web version's #1a8a1a for the default field color #1fa01f). With the sky, it melts into the horizon's color from 600 to 1500 m from the camera (the haze, linearly). The ground beyond is drawn whatever the sky option; without the sky, the background is #87a96b and there is no haze (as in the web version). The haze is only over the ground beyond (the stadium's things are nearer than 600 m).
+- The order: the ground beyond is drawn as a solid before the ground image (a depth buffer of 24 bits tells 5 mm apart at 200 m: 2 cm is plenty). The sky is drawn after the solids (the players, the goals, the boards and the banners), testing the depth without writing it (only where nothing is). At first, as in the web version, the sky came first without the depth; it painted the whole screen though the ground covers most of it, about 0.3 ms more of an integrated GPU (the measurements below).
+- The options `grass_stripes_3d` and `sky_3d` (both on by default; in the group `View3D`) and `--grass-stripes-3d`, `--sky-3d` on the command line. Grass Stripes and Sky in Stadium of the 3D tab of the settings dialog. Default turns them on.
+
+**Made**
+- The parameter `stripes` of `FieldPainter::drawGround()`, `drawGrassStripes()`, the constants `GRASS_STRIPE_WIDTH`, `GRASS_LIGHT`, `GRASS_DARK`. `GroundTexture::draw()` draws the stripes by the option (not at the minimap's size), and `key()` has the option.
+- `src/view3d/scenery_3d`: the constants of the sky, the haze and the ground beyond, `skyColor()` (as sky.frag), `haze()` (as outside.frag), `farGroundColor()`. No GL.
+- The shaders `sky.vert`, `sky.frag`, `outside.vert`, `outside.frag`. `RenderState::sky()`. `Scene3D`: a pass of the ground beyond (before the ground) and of the sky (after the solids). The background is cleared to the horizon's color with the sky, #87a96b without.
+- `SceneContent::sky`, `far_ground`, `View3DState::sky`. The two options of `Options` and `ConfigDialog`.
+
+**Tests**
+- Added to test `ground_texture`: the stripes (the middles of 20 stripes light and dark in turn, in the margins too, the edges of a stripe, the lines over them, the field color with the option off, no stripes on the minimap), the key changing with the option. The checks from before are done without the stripes.
+- Test `scenery_3d` (new): the sky's colors (the zenith straight up, the horizon level, #6f9f7f below, bluer all the way up from the horizon and faster near it, halfway halfway down), the haze (0 out to 600 m, 1 from 1500 m, linear between, not reaching the stadium), the color of the ground beyond (#1a8a1a for the default field color).
+- Added to test `scene_3d`: seen level from 50 m up, the sky's colors at three heights over the horizon as `skyColor()`, the ground beyond 300 m on in its color, 1000 m on toward the horizon's color by the haze, without the sky the background and no haze, the same in every frame. The pixels checked before compare the ground with the field color, so they are drawn without the stripes (the stripes are checked by `ground_texture`).
+- Added to tests `frame_builder_3d` (the sky option from every camera, the color of the ground beyond, `clear()`) and `config_dialog` (the tooltips of the two checkboxes, on at first, the options changed by a click, back by Default).
+- Every test was checked to fail with what it checks broken for a while (13 ways: no stripes, the stripes' light and dark swapped, the stripes over the lines, the option not in the key, stripes on the minimap, no sky, the sky's gradient linear, no haze with the sky, haze without the sky, no ground beyond, FrameBuilder3D ignoring the sky option, the dialog not changing the stripes, Default not turning the sky back on).
+- Measured (as in 8-1, 22 human bodies, the simple shadows): GPU 3.0 to 3.1 ms (no sky and stripes; the ground beyond drawn) → 3.3 ms (with them); 3.6 ms with the sky drawn first. Before and after the change of the order, the images differ only in 131 pixels of the goal camera (7 levels at most; the far corners of the ground beyond). The 0.3 ms over 8-1's 2.7 ms are the ground beyond.
+- With Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`), the clean builds and the tests pass (41 tests). `-DENABLE_3D=OFF` (17) and autotools also pass.
+- In a window not shown on the screen, frame 3,000 of the full game's log was drawn from the broadcast, goal and player cameras, and looked at. From the broadcast camera, the ground beyond shows wide beyond the boards (as in the web version; the stands (8-3) fill it).
 
