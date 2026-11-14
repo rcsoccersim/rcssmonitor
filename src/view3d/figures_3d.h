@@ -42,6 +42,8 @@
 #include <QString>
 #include <QStringList>
 
+#include <initializer_list>
+#include <utility>
 #include <vector>
 
 /*!
@@ -85,6 +87,21 @@ struct GaitClip {
   the chest keeps the body direction; going backward, the clips play
   backward. The figure leans toward its acceleration, about its feet:
   forward when speeding up, back when slowing down, in when turning.
+
+  Actions (7-3, FigureActions from FigureActionLog): over the clips, the
+  head turns by the neck (spread over the chest, the neck and the head),
+  and the poses of the actions go in by their weights, which rise before
+  the action's moment and fall after it: the kick (the foot on the ball's
+  side meeting it at the moment; a touch, a pass with the side of the foot,
+  or a shot with a long swing; around the moment the foot goes to the
+  ball, by IK of the leg), the sliding tackle, sitting down after a foul
+  (once the tackler has slid in), the goalie's hands toward the ball for a
+  catch (crouching with the hands near the ground for a low ball, the arms
+  up for a high one, leaning to the side for a ball to the side), and the
+  arm on the side it points to pointing (the chest turning for a point far
+  to the side or behind). The model has no clips of them, so they are
+  poses made here (the web version's pose.ts): each limb by its swing from
+  hanging down, its turn to the right and its bend.
 */
 class Figures3D {
 public:
@@ -99,6 +116,26 @@ public:
     static constexpr float TILT_MAX = 10.0f;
     //! the acceleration (m/s^2) at which the lean is three quarters (tanh 1) of TILT_MAX
     static constexpr float TILT_ACCELERATION = 15.0f;
+    //! how much of the neck's turn the chest, the neck and the head take
+    static constexpr float NECK_CHEST = 0.2f;
+    static constexpr float NECK_NECK = 0.4f;
+    static constexpr float NECK_HEAD = 0.4f;
+    //! how far a goalie leans at most to catch a ball to the side (degree)
+    static constexpr float CATCH_ROLL = 35.0f;
+    //! how much a touch's pose counts at most (it keeps some of the running)
+    static constexpr float KICK_TAP_WEIGHT = 0.8f;
+    //! the kicking foot goes to the ball from this many cycles before the kick's moment to this many after it
+    static constexpr float REACH_BEFORE = 0.4f;
+    static constexpr float REACH_AFTER = 0.3f;
+    //! pointing farther to the side than this (degree), the chest turns toward it by half the rest, up to POINT_TURN_MAX
+    static constexpr float POINT_TURN_FROM = 60.0f;
+    static constexpr float POINT_TURN_MAX = 60.0f;
+    //! the arm points down from the shoulder's height (m) to the point, but not lower than POINT_PITCH_MIN (degree from hanging down)
+    static constexpr float POINT_SHOULDER = 1.4f;
+    static constexpr float POINT_PITCH_MIN = 30.0f;
+    //! a ball to catch this high (m) or lower is caught bending down, this high or higher with the arms up
+    static constexpr float CATCH_LOW = 0.3f;
+    static constexpr float CATCH_HIGH = 1.5f;
 
     /*!
       \brief read the bundled model (once)
@@ -160,9 +197,42 @@ public:
     float twistOf( const FigureInstance & figure ) const;
 
     /*!
+      \struct Weights
+      \brief how much each action's pose counts at the time drawn (0 to 1)
+    */
+    struct Weights {
+        float kick = 0.0f;
+        float tackle = 0.0f;
+        float fouled = 0.0f;
+        float caught = 0.0f;
+    };
+
+    //! how much each action's pose counts: by its phase, rising before its moment and falling after it
+    static Weights weightsOf( const FigureActions & actions );
+
+    /*!
+      \brief through points (x ascending), eased between them (smoothstep),
+      flat beyond the ends
+    */
+    static float curve( std::initializer_list< std::pair< float, float > > points,
+                        const float x );
+
+    //! how far a goalie leans to its right to catch a ball to the side (degree; left: negative)
+    float rollOf( const FigureInstance & figure ) const;
+
+    /*!
+      \brief how much the kicking foot goes to the ball (0 to 1): most at
+      the kick's moment, from REACH_BEFORE before it to REACH_AFTER after it
+    */
+    static float reachOf( const FigureActions & actions );
+
+    //! where the kicking foot's toes meet the ball (world): its back, at its center's height
+    static QVector3D kickTarget( const FigureKick & kick );
+
+    /*!
       \brief where a figure is in the world: standing on the ground at the
       player, facing its body direction, as high as figure.height, leaning
-      toward its acceleration about its feet
+      toward its acceleration about its feet (and to a ball to catch)
     */
     QMatrix4x4 modelMatrix( const FigureInstance & figure ) const;
 
@@ -198,6 +268,43 @@ private:
     HumanoidPose sample( const int clip,
                          const float time,
                          std::vector< NodeTransform > & motion ) const;
+
+    /*!
+      \struct LimbPose
+      \brief a leg or an arm: swung forward from hanging down (pitch; up is
+      180), then turned to the right about the vertical (yaw), turned
+      outward about itself first (turn, as a foot for a pass), and the knee
+      or the elbow bent (degree)
+    */
+    struct LimbPose {
+        float pitch = 0.0f;
+        float yaw = 0.0f;
+        float bend = 0.0f;
+        float turn = 0.0f;
+    };
+
+    //! from each limb's rest to hanging down, in the model: left, right
+    QQuaternion M_leg_down[2];
+    QQuaternion M_arm_down[2];
+
+    //! put a leg (right: 1) as told, in the directions of the model
+    void setLeg( HumanoidPose & pose,
+                 const int right,
+                 const LimbPose & limb ) const;
+    //! put an arm (right: 1) as told, in the directions of the chest (or of the model)
+    void setArm( HumanoidPose & pose,
+                 const int right,
+                 const LimbPose & limb,
+                 const bool in_model = false ) const;
+
+    //! the kicking foot to the ball around the kick's moment (two-bone IK of the leg)
+    void reach( const FigureInstance & figure,
+                HumanoidPose & pose,
+                const std::vector< NodeTransform > & nodes ) const;
+
+    //! the neck and the actions over a pose of the clips
+    void act( const FigureInstance & figure,
+              HumanoidPose & pose ) const;
 };
 
 #endif

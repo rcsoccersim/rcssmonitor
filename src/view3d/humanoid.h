@@ -188,6 +188,21 @@ public:
                       const HumanBone bone,
                       const QQuaternion & turn ) const;
 
+    /*!
+      \brief how a role's bone is turned from rest in the model (D, through
+      the roles above), identity if the role has no bone
+    */
+    QQuaternion turnedInModel( const HumanoidPose & pose,
+                               const HumanBone bone ) const;
+
+    /*!
+      \brief turn a role's bone so that it is turned from rest in the model
+      by turned (D), the bones below following
+    */
+    void setTurnedInModel( HumanoidPose & pose,
+                           const HumanBone bone,
+                           const QQuaternion & turned ) const;
+
 private:
     const GltfModel * M_model = nullptr;
     std::array< int, HUMAN_BONE_COUNT > M_node; //!< the node of each role, -1 if none

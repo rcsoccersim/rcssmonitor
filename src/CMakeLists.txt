@@ -56,6 +56,7 @@ if(HAVE_3D_VIEW)
     PRIVATE
     view3d/cameras_3d.cpp
     view3d/field_view_3d.cpp
+    view3d/figure_actions.cpp
     view3d/figures_3d.cpp
     view3d/gait_table.cpp
     view3d/gltf_model.cpp

@@ -36,6 +36,7 @@
 
 #include "figures_3d.h"
 
+#include "figure_actions.h"
 #include "scene_builder.h"
 
 #include <QFile>
@@ -65,6 +66,26 @@ float
 clamp01( const float v )
 {
     return std::min( 1.0f, std::max( 0.0f, v ) );
+}
+
+float
+clampTo( const float v,
+         const float limit )
+{
+    return std::min( limit, std::max( -limit, v ) );
+}
+
+//! a rotation about the model's vertical (+y) or its left (+x), degree
+QQuaternion
+aboutY( const float degree )
+{
+    return QQuaternion::fromAxisAndAngle( 0.0f, 1.0f, 0.0f, degree );
+}
+
+QQuaternion
+aboutX( const float degree )
+{
+    return QQuaternion::fromAxisAndAngle( 1.0f, 0.0f, 0.0f, degree );
 }
 
 /*!
@@ -131,6 +152,23 @@ Figures3D::load()
         M_error = file.fileName() + QStringLiteral( ": no clip " ) + IDLE_CLIP;
         return false;
     }
+    // each limb from its rest to hanging down
+    {
+        std::vector< QMatrix4x4 > global;
+        M_model.globals( M_model.rest, global );
+        auto down = [&]( const HumanBone upper,
+                         const HumanBone lower )
+            {
+                if ( M_rig.node( upper ) < 0 || M_rig.node( lower ) < 0 ) return QQuaternion();
+                const QVector3D dir = ( global[M_rig.node( lower )].column( 3 ) - global[M_rig.node( upper )].column( 3 ) ).toVector3D();
+                return QQuaternion::rotationTo( dir.normalized(), QVector3D( 0.0f, -1.0f, 0.0f ) );
+            };
+        M_leg_down[0] = down( HumanBone::LeftUpperLeg, HumanBone::LeftLowerLeg );
+        M_leg_down[1] = down( HumanBone::RightUpperLeg, HumanBone::RightLowerLeg );
+        M_arm_down[0] = down( HumanBone::LeftUpperArm, HumanBone::LeftLowerArm );
+        M_arm_down[1] = down( HumanBone::RightUpperArm, HumanBone::RightLowerArm );
+    }
+
     for ( const char * name : GAIT_CLIPS )
     {
         GaitClip gait;
@@ -344,10 +382,344 @@ Figures3D::modelMatrix( const FigureInstance & figure ) const
         m.rotate( TILT_MAX * std::tanh( accel / TILT_ACCELERATION ),
                   forward / accel, 0.0f, -left / accel );
     }
+    // to a ball to catch to the side: +y turned toward the right, -x
+    const float roll = rollOf( figure );
+    if ( roll != 0.0f )
+    {
+        m.rotate( roll, 0.0f, 0.0f, 1.0f );
+    }
 
     m.scale( figure.height / std::max( 0.01f, M_model.height() ) );
     m.translate( 0.0f, -M_model.min_y, 0.0f ); // the feet on the ground
     return m;
+}
+
+/*-------------------------------------------------------------------*/
+float
+Figures3D::curve( std::initializer_list< std::pair< float, float > > points,
+                  const float x )
+{
+    if ( points.size() == 0 ) return 0.0f;
+    const std::pair< float, float > * p = points.begin();
+    if ( x <= p[0].first ) return p[0].second;
+    for ( std::size_t i = 1; i < points.size(); ++i )
+    {
+        if ( x <= p[i].first )
+        {
+            const float t = ( x - p[i - 1].first ) / std::max( 1.0e-6f, p[i].first - p[i - 1].first );
+            const float eased = t * t * ( 3.0f - 2.0f * t );
+            return p[i - 1].second + ( p[i].second - p[i - 1].second ) * eased;
+        }
+    }
+    return p[points.size() - 1].second;
+}
+
+/*-------------------------------------------------------------------*/
+Figures3D::Weights
+Figures3D::weightsOf( const FigureActions & actions )
+{
+    using namespace FigureActionLog;
+    Weights w;
+    const FigureKick & kick = actions.kick;
+    if ( kick.on )
+    {
+        const int k = static_cast< int >( kick.kind );
+        const float top = ( kick.kind == KickKind::Tap ? KICK_TAP_WEIGHT : 1.0f ); // a touch keeps some of the running
+        w.kick = curve( { { -KICK_LEAD[k], 0.0f },
+                          { -0.7f * KICK_LEAD[k], top },
+                          { KICK_TAIL[k] - 0.5f, top },
+                          { KICK_TAIL[k], 0.0f } }, kick.phase );
+    }
+    if ( actions.tackle.on )
+    {
+        const float last = actions.tackle.last;
+        w.tackle = curve( { { -TACKLE_LEAD, 0.0f }, { 0.0f, 1.0f },
+                            { last + TACKLE_TAIL - 1.2f, 1.0f }, { last + TACKLE_TAIL, 0.0f } },
+                          actions.tackle.phase );
+    }
+    if ( actions.fouled.on )
+    {
+        const float last = actions.fouled.last;
+        // down from after the tackler slid in, while the server holds it
+        const float down = FOULED_START + FOULED_FALL;
+        w.fouled = curve( { { FOULED_START, 0.0f }, { down, 1.0f },
+                            { std::max( down, last + FOULED_TAIL - 1.3f ), 1.0f },
+                            { std::max( down + 0.1f, last + FOULED_TAIL ), 0.0f } },
+                          actions.fouled.phase );
+    }
+    if ( actions.caught.on )
+    {
+        const float hold = actions.caught.hold;
+        w.caught = curve( { { -CATCH_LEAD, 0.0f }, { -0.3f, 1.0f },
+                            { hold + CATCH_TAIL - 1.0f, 1.0f }, { hold + CATCH_TAIL, 0.0f } },
+                          actions.caught.phase );
+    }
+    return w;
+}
+
+/*-------------------------------------------------------------------*/
+float
+Figures3D::rollOf( const FigureInstance & figure ) const
+{
+    const FigureCatch & c = figure.actions.caught;
+    if ( ! c.on || figure.actions.fouled.on ) return 0.0f;
+    // a ball more than half a meter to the side: leaning to it, most from 2 m
+    const float reach = clamp01( ( std::fabs( c.side ) - 0.5f ) / 1.5f );
+    return weightsOf( figure.actions ).caught * reach * CATCH_ROLL * ( c.side < 0.0f ? -1.0f : 1.0f );
+}
+
+/*-------------------------------------------------------------------*/
+void
+Figures3D::setLeg( HumanoidPose & pose,
+                   const int right,
+                   const LimbPose & limb ) const
+{
+    // A field angle (to the right) is the model's turned the other way
+    // about the vertical; swinging forward turns -y toward +z, about -x.
+    const QQuaternion & down = M_leg_down[right];
+    const QQuaternion swing = aboutY( -limb.yaw ) * aboutX( -limb.pitch )
+        * aboutY( right ? -limb.turn : limb.turn ) * down;
+    const HumanBone upper = ( right ? HumanBone::RightUpperLeg : HumanBone::LeftUpperLeg );
+    const HumanBone lower = ( right ? HumanBone::RightLowerLeg : HumanBone::LeftLowerLeg );
+    // in the model's directions, not the hips' (a clip may lean them): a
+    // leg on the ground stays under the body
+    M_rig.setTurnedInModel( pose, upper, swing );
+    // the knee bends back: about +x from hanging down
+    pose[lower] = ( down.conjugated() * aboutX( limb.bend ) * down ).normalized();
+}
+
+/*-------------------------------------------------------------------*/
+void
+Figures3D::setArm( HumanoidPose & pose,
+                   const int right,
+                   const LimbPose & limb,
+                   const bool in_model ) const
+{
+    const QQuaternion & down = M_arm_down[right];
+    const QQuaternion swing = aboutY( -limb.yaw ) * aboutX( -limb.pitch )
+        * aboutY( right ? -limb.turn : limb.turn ) * down;
+    const HumanBone upper = ( right ? HumanBone::RightUpperArm : HumanBone::LeftUpperArm );
+    const HumanBone lower = ( right ? HumanBone::RightLowerArm : HumanBone::LeftLowerArm );
+    const HumanBone chest = ( M_rig.node( HumanBone::UpperChest ) >= 0 ? HumanBone::UpperChest : HumanBone::Chest );
+    M_rig.setTurnedInModel( pose, upper, in_model ? swing : M_rig.turnedInModel( pose, chest ) * swing );
+    // the elbow bends forward: about -x from hanging down
+    pose[lower] = ( down.conjugated() * aboutX( -limb.bend ) * down ).normalized();
+}
+
+/*-------------------------------------------------------------------*/
+void
+Figures3D::act( const FigureInstance & figure,
+                HumanoidPose & pose ) const
+{
+    const FigureActions & actions = figure.actions;
+
+    // the head by the neck, spread over the chest, the neck and the head
+    if ( actions.neck != 0.0f )
+    {
+        const float n = actions.neck;
+        const bool neck = ( M_rig.node( HumanBone::Neck ) >= 0 );
+        M_rig.turnInModel( pose, HumanBone::Chest, aboutY( -NECK_CHEST * n ) );
+        if ( neck ) M_rig.turnInModel( pose, HumanBone::Neck, aboutY( -NECK_NECK * n ) );
+        M_rig.turnInModel( pose, HumanBone::Head, aboutY( -( neck ? NECK_HEAD : NECK_NECK + NECK_HEAD ) * n ) );
+    }
+
+    const Weights w = weightsOf( actions );
+
+    // the hips down by part of their height, the upper body leaned forward (+)
+    auto body = [&]( HumanoidPose & target,
+                     const float drop,
+                     const float lean )
+        {
+            target.hips.setY( target.hips.y() - drop );
+            M_rig.turnInModel( target, HumanBone::Spine, aboutX( 0.5f * lean ) );
+            M_rig.turnInModel( target, HumanBone::Chest, aboutX( 0.5f * lean ) );
+        };
+
+    // the body: one action at a time, the fall after a foul first
+    if ( w.fouled > 0.0f )
+    {
+        // sitting on the ground, leaning back on the hands
+        HumanoidPose target = pose;
+        body( target, 0.80f, -70.0f );
+        setLeg( target, 0, { 88.0f, -8.0f, 15.0f } );
+        setLeg( target, 1, { 90.0f, 8.0f, 20.0f } );
+        setArm( target, 0, { -50.0f, -25.0f, 10.0f } );
+        setArm( target, 1, { -50.0f, 25.0f, 10.0f } );
+        pose = HumanoidPose::mix( pose, target, w.fouled );
+    }
+    else if ( w.tackle > 0.0f )
+    {
+        // sliding with the right leg ahead
+        HumanoidPose target = pose;
+        body( target, 0.45f, -35.0f );
+        setLeg( target, 1, { 80.0f, 0.0f, 5.0f } );
+        setLeg( target, 0, { 25.0f, 0.0f, 110.0f } );
+        setArm( target, 0, { -40.0f, -20.0f, 20.0f } );
+        setArm( target, 1, { -40.0f, 20.0f, 20.0f } );
+        pose = HumanoidPose::mix( pose, target, w.tackle );
+    }
+    else if ( w.kick > 0.0f )
+    {
+        // the leg on the ball's side swings back, through the ball at the
+        // moment, and on; the other arm out for balance
+        const FigureKick & kick = actions.kick;
+        const float k = kick.phase;
+        const int leg = ( kick.right ? 1 : 0 );
+        const float out = ( leg ? -1.0f : 1.0f ); // the other arm's outward, to its side
+        HumanoidPose target = pose;
+        LimbPose swing;
+        LimbPose arm;
+        switch ( kick.kind ) {
+        case KickKind::Shot:
+            swing.pitch = curve( { { -1.0f, 0.0f }, { -0.45f, -50.0f }, { 0.0f, 25.0f }, { 0.6f, 85.0f }, { 1.5f, 0.0f } }, k );
+            swing.bend = curve( { { -1.0f, 0.0f }, { -0.45f, 100.0f }, { 0.0f, 10.0f }, { 0.6f, 20.0f }, { 1.5f, 0.0f } }, k );
+            swing.yaw = clampTo( kick.way, 30.0f );
+            arm = { 50.0f, 40.0f * out, 20.0f };
+            break;
+        case KickKind::Pass:
+            // with the inside of the foot: the leg turned outward
+            swing.pitch = curve( { { -0.9f, 0.0f }, { -0.4f, -30.0f }, { 0.0f, 20.0f }, { 0.5f, 50.0f }, { 1.3f, 0.0f } }, k );
+            swing.bend = curve( { { -0.9f, 0.0f }, { -0.4f, 70.0f }, { 0.0f, 15.0f }, { 0.5f, 15.0f }, { 1.3f, 0.0f } }, k );
+            swing.yaw = clampTo( kick.way, 45.0f );
+            swing.turn = 30.0f;
+            arm = { 35.0f, 30.0f * out, 20.0f };
+            break;
+        case KickKind::Tap:
+        default:
+            swing.pitch = curve( { { -0.6f, 0.0f }, { -0.3f, -10.0f }, { 0.0f, 20.0f }, { 0.3f, 25.0f }, { 0.8f, 0.0f } }, k );
+            swing.bend = curve( { { -0.6f, 0.0f }, { -0.3f, 40.0f }, { 0.0f, 15.0f }, { 0.8f, 0.0f } }, k );
+            swing.yaw = clampTo( kick.way, 45.0f );
+            break;
+        }
+        setLeg( target, leg, swing );
+        setLeg( target, 1 - leg, { -5.0f, 0.0f, 15.0f } );
+        if ( kick.kind != KickKind::Tap ) setArm( target, 1 - leg, arm );
+        pose = HumanoidPose::mix( pose, target, w.kick );
+    }
+
+    // the arms: toward the ball for the goalie's catch, bending down for a
+    // low one, up for a high one; or the right one pointing
+    if ( w.caught > 0.0f && w.fouled <= 0.0f )
+    {
+        const float yaw = clampTo( actions.caught.way, 50.0f );
+        const float high = clamp01( ( actions.caught.height - CATCH_LOW ) / ( CATCH_HIGH - CATCH_LOW ) );
+        HumanoidPose target = pose;
+        const float low = 1.0f - high;
+        // low: crouching deep (the feet under the hips, which go down as
+        // much), leaning far forward, the hands down near the ground
+        // bending at the hips too (the legs are set after it, in the model's directions)
+        M_rig.turnInModel( target, HumanBone::Hips, aboutX( 40.0f * low ) );
+        body( target, 0.35f * low, 45.0f * low + 5.0f * high );
+        if ( low > 0.0f )
+        {
+            setLeg( target, 0, { 60.0f * low, 0.0f, 110.0f * low } );
+            setLeg( target, 1, { 60.0f * low, 0.0f, 110.0f * low } );
+        }
+        // the arms' swing is from the chest, leaned with it: 85 from the
+        // chest leaned 85 is hanging straight down to the ground
+        const LimbPose arm{ 85.0f + ( 150.0f - 85.0f ) * high, yaw, 10.0f };
+        setArm( target, 0, arm );
+        setArm( target, 1, arm );
+        pose = HumanoidPose::mix( pose, target, w.caught );
+    }
+    else if ( actions.pointing
+              && w.kick <= 0.0f && w.tackle <= 0.0f && w.fouled <= 0.0f )
+    {
+        // with the arm on the side it points to; far to the side or behind,
+        // the chest turns toward it too (the head keeping its way, by the
+        // neck); the arm lower for a point near the feet, the elbow a little bent
+        const float way = actions.point_way;
+        const int arm = ( way >= 0.0f ? 1 : 0 );
+        const float turn = ( way >= 0.0f ? 1.0f : -1.0f )
+            * std::min( POINT_TURN_MAX, std::max( 0.0f, std::fabs( way ) - POINT_TURN_FROM ) * 0.5f );
+        if ( turn != 0.0f )
+        {
+            M_rig.turnInModel( pose, HumanBone::Chest, aboutY( -turn ) );
+            M_rig.turnInModel( pose,
+                               M_rig.node( HumanBone::Neck ) >= 0 ? HumanBone::Neck : HumanBone::Head,
+                               aboutY( turn ) );
+        }
+        const float pitch = std::max( POINT_PITCH_MIN,
+                                      std::atan2( actions.point_distance, POINT_SHOULDER ) * 180.0f / float( M_PI ) );
+        setArm( pose, arm, { pitch, way, 10.0f }, true );
+    }
+}
+
+/*-------------------------------------------------------------------*/
+float
+Figures3D::reachOf( const FigureActions & actions )
+{
+    if ( ! actions.kick.on ) return 0.0f;
+    const Weights w = weightsOf( actions );
+    if ( w.fouled > 0.0f || w.tackle > 0.0f ) return 0.0f; // not kicking then
+    // all the way at the moment, even for a touch (whose pose keeps some running)
+    const float top = ( actions.kick.kind == KickKind::Tap ? KICK_TAP_WEIGHT : 1.0f );
+    return clamp01( w.kick / top )
+        * curve( { { -REACH_BEFORE, 0.0f }, { 0.0f, 1.0f }, { REACH_AFTER, 0.0f } }, actions.kick.phase );
+}
+
+/*-------------------------------------------------------------------*/
+QVector3D
+Figures3D::kickTarget( const FigureKick & kick )
+{
+    // the back of the ball at its center's height, from where the foot sends
+    // it; the world's x and z are the field's x and y
+    const float r = kick.ball_radius;
+    return QVector3D( kick.ball_x - kick.dir_x * r, r, kick.ball_y - kick.dir_y * r );
+}
+
+/*-------------------------------------------------------------------*/
+void
+Figures3D::reach( const FigureInstance & figure,
+                  HumanoidPose & pose,
+                  const std::vector< NodeTransform > & nodes ) const
+{
+    const float w = reachOf( figure.actions );
+    if ( w <= 0.0f ) return;
+    const bool right = figure.actions.kick.right;
+    const HumanBone upper_bone = ( right ? HumanBone::RightUpperLeg : HumanBone::LeftUpperLeg );
+    const HumanBone lower_bone = ( right ? HumanBone::RightLowerLeg : HumanBone::LeftLowerLeg );
+    const HumanBone foot_bone = ( right ? HumanBone::RightFoot : HumanBone::LeftFoot );
+    const HumanBone toes_bone = ( right ? HumanBone::RightToes : HumanBone::LeftToes );
+
+    // where the leg is in the model in the pose so far
+    std::vector< NodeTransform > local = nodes;
+    M_rig.apply( pose, local );
+    std::vector< QMatrix4x4 > global;
+    M_model.globals( local, global );
+    auto at = [&]( const HumanBone b ) { return global[M_rig.node( b )].column( 3 ).toVector3D(); };
+    const QVector3D hip = at( upper_bone );
+    const QVector3D knee = at( lower_bone );
+    const QVector3D ankle = at( foot_bone );
+    const QVector3D toes = ( M_rig.node( toes_bone ) >= 0 ? at( toes_bone ) : ankle );
+
+    // the toes toward the ball, by the weight; the foot keeps its turn
+    const QVector3D ball = modelMatrix( figure ).inverted().map( kickTarget( figure.actions.kick ) );
+    const QVector3D toes_goal = toes + ( ball - toes ) * w;
+    const QVector3D ankle_goal = toes_goal - ( toes - ankle );
+
+    // the thigh and the shin (two bones) reaching the ankle's goal, the knee
+    // bending forward (the model's +z), or as now if the leg points that way
+    const float a = ( knee - hip ).length();
+    const float b = ( ankle - knee ).length();
+    const QVector3D to = ankle_goal - hip;
+    if ( a < 1.0e-4f || b < 1.0e-4f || to.length() < 1.0e-4f ) return;
+    const float d = std::min( a + b - 1.0e-4f, std::max( std::fabs( a - b ) + 1.0e-4f, to.length() ) );
+    const QVector3D dir = to.normalized();
+    const QVector3D forward( 0.0f, 0.0f, 1.0f );
+    QVector3D side = forward - dir * QVector3D::dotProduct( forward, dir );
+    if ( side.length() < 0.1f ) side = ( knee - hip ) - dir * QVector3D::dotProduct( knee - hip, dir );
+    if ( side.length() < 1.0e-4f ) return;
+    side.normalize();
+    const float cos_hip = std::min( 1.0f, std::max( -1.0f, ( a * a + d * d - b * b ) / ( 2.0f * a * d ) ) );
+    const QVector3D knee_goal = hip + dir * ( a * cos_hip ) + side * ( a * std::sqrt( 1.0f - cos_hip * cos_hip ) );
+
+    const QQuaternion thigh = QQuaternion::rotationTo( knee - hip, knee_goal - hip );
+    M_rig.turnInModel( pose, upper_bone, thigh );
+    const QVector3D ankle_now = hip + thigh.rotatedVector( ankle - hip );
+    const QQuaternion shin = QQuaternion::rotationTo( ankle_now - knee_goal, hip + dir * d - knee_goal );
+    M_rig.turnInModel( pose, lower_bone, shin );
+    M_rig.turnInModel( pose, foot_bone, ( shin * thigh ).conjugated() );
 }
 
 /*-------------------------------------------------------------------*/
@@ -414,6 +786,10 @@ Figures3D::localPose( const FigureInstance & figure,
             M_rig.turnInModel( pose, HumanBone::Chest, QQuaternion::fromAxisAndAngle( 0.0f, 1.0f, 0.0f, 0.5f * twist ) );
         }
     }
+
+    // the neck and the actions over the clips, and the kicking foot to the ball
+    act( figure, pose );
+    reach( figure, pose, nodes );
 
     // through the humanoid layer: the motion's skeleton is the model's, so
     // the bones without a role take the motion's too

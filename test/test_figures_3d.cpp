@@ -33,6 +33,7 @@
 #include <QtTest>
 
 #include "camera_mode.h"
+#include "figure_actions.h"
 #include "figures_3d.h"
 #include "gait_table.h"
 #include "options.h"
@@ -543,6 +544,345 @@ private slots:
           f.motion.ay = 1000.0f;
           const float y = ( nodeAt( M_figures, f, 0.0, "Head" ) - foot0 ).y();
           QVERIFY( std::fabs( y - head0.y() * std::cos( Figures3D::TILT_MAX * float( M_PI ) / 180.0f ) ) < 0.01f );
+      }
+
+    //! through points, eased between them, flat beyond
+    void curve()
+      {
+          QCOMPARE( Figures3D::curve( { { 0.0f, 1.0f }, { 2.0f, 3.0f } }, -1.0f ), 1.0f );
+          QCOMPARE( Figures3D::curve( { { 0.0f, 1.0f }, { 2.0f, 3.0f } }, 5.0f ), 3.0f );
+          QCOMPARE( Figures3D::curve( { { 0.0f, 1.0f }, { 2.0f, 3.0f } }, 1.0f ), 2.0f ); // halfway
+          const float early = Figures3D::curve( { { 0.0f, 0.0f }, { 1.0f, 1.0f } }, 0.1f );
+          QVERIFY( early > 0.0f && early < 0.05f ); // eased: slow from the point
+          QCOMPARE( Figures3D::curve( { { 0.0f, 0.0f }, { 1.0f, 1.0f }, { 2.0f, -1.0f } }, 1.5f ), 0.0f );
+      }
+
+    /*!
+      the weights of the actions: none before the lead, full at the moment
+      (a touch keeping some running), none after the tail
+    */
+    void weights()
+      {
+          using namespace FigureActionLog;
+          FigureActions a;
+          QCOMPARE( Figures3D::weightsOf( a ).kick, 0.0f );
+          a.kick.on = true;
+          for ( const KickKind kind : { KickKind::Tap, KickKind::Pass, KickKind::Shot } )
+          {
+              a.kick.kind = kind;
+              const int k = int( kind );
+              a.kick.phase = -KICK_LEAD[k];
+              QCOMPARE( Figures3D::weightsOf( a ).kick, 0.0f );
+              a.kick.phase = 0.0f;
+              QCOMPARE( Figures3D::weightsOf( a ).kick, kind == KickKind::Tap ? Figures3D::KICK_TAP_WEIGHT : 1.0f );
+              a.kick.phase = KICK_TAIL[k];
+              QCOMPARE( Figures3D::weightsOf( a ).kick, 0.0f );
+          }
+          a = FigureActions();
+          a.tackle = FigureRun{ true, 0.0f, 9.0f };
+          QCOMPARE( Figures3D::weightsOf( a ).tackle, 1.0f );
+          a.tackle.phase = 10.0f; // still held by the server
+          QCOMPARE( Figures3D::weightsOf( a ).tackle, 1.0f );
+          a.tackle.phase = 9.0f + TACKLE_TAIL;
+          QCOMPARE( Figures3D::weightsOf( a ).tackle, 0.0f );
+          a.fouled = FigureRun{ true, FOULED_START, 4.0f };
+          QCOMPARE( Figures3D::weightsOf( a ).fouled, 0.0f );
+          a.fouled.phase = 5.0f;
+          QCOMPARE( Figures3D::weightsOf( a ).fouled, 1.0f );
+          a.caught.on = true;
+          a.caught.hold = 5.0f;
+          a.caught.phase = 5.5f;
+          QCOMPARE( Figures3D::weightsOf( a ).caught, 1.0f );
+          a.caught.phase = 5.0f + CATCH_TAIL;
+          QCOMPARE( Figures3D::weightsOf( a ).caught, 0.0f );
+      }
+
+    /*!
+      the neck: the head turns as far, the chest a fifth of it, the hips
+      not at all
+    */
+    void neck()
+      {
+          FigureInstance f = figureAt( 0, 0.0f, 0.0f, 0.0f );
+          const GltfModel & m = M_figures.model();
+          auto turned = [&]( const float neck, const char * name )
+              {
+                  f.actions.neck = neck;
+                  std::vector< NodeTransform > local;
+                  M_figures.localPose( f, 0.0, local );
+                  std::vector< QMatrix4x4 > g;
+                  m.globals( local, g );
+                  // where the node's +z goes, turned about the vertical (the model's angle)
+                  const QVector3D z = g[m.nodeIndex( name )].mapVector( QVector3D( 0.0f, 0.0f, 1.0f ) );
+                  return std::atan2( z.x(), z.z() ) * 180.0f / float( M_PI );
+              };
+          // a field angle is the model's the other way
+          QVERIFY2( std::fabs( angleBetween( turned( 0.0f, "Head" ), turned( 40.0f, "Head" ) ) - 40.0f ) < 2.0f,
+                    qPrintable( QString::number( angleBetween( turned( 0.0f, "Head" ), turned( 40.0f, "Head" ) ) ) ) );
+          QVERIFY( std::fabs( angleBetween( turned( 0.0f, "spine_03" ), turned( 40.0f, "spine_03" ) ) - 8.0f ) < 2.0f );
+          QVERIFY( std::fabs( angleBetween( turned( 0.0f, "pelvis" ), turned( 40.0f, "pelvis" ) ) ) < 0.1f );
+      }
+
+    /*!
+      the kick: the foot on the ball's side behind and up in the backswing,
+      ahead at the moment, high ahead after it; the other foot stays; a pass
+      turns the foot outward; the way turns the swing
+    */
+    void kick()
+      {
+          // facing the field's +x, the world's +x; its right is the world's +z
+          // (the ball 0.5 m ahead, 0.15 m to the side of the foot)
+          auto kickOf = []( const float phase,
+                            const KickKind kind,
+                            const bool right,
+                            const float way )
+              {
+                  FigureKick k{ true, phase, kind, right, way };
+                  k.ball_x = 0.5f;
+                  k.ball_y = ( right ? 0.15f : -0.15f );
+                  k.ball_radius = 0.11f;
+                  return k;
+              };
+          auto footAt = [&]( const KickKind kind,
+                             const bool right,
+                             const float phase,
+                             const float way = 0.0f,
+                             const char * name = nullptr )
+              {
+                  FigureInstance f = figureAt( 0, 0.0f, 0.0f, 0.0f, 1.85f );
+                  f.actions.kick = kickOf( phase, kind, right, way );
+                  return nodeAt( M_figures, f, 0.0, name ? name : ( right ? "foot_r" : "foot_l" ) );
+              };
+          for ( const bool right : { true, false } )
+          {
+              const QVector3D back = footAt( KickKind::Shot, right, -0.45f );
+              QVERIFY2( back.x() < -0.3f && back.y() > 0.4f, qPrintable( QString( "%1 %2" ).arg( back.x() ).arg( back.y() ) ) );
+              const QVector3D moment = footAt( KickKind::Shot, right, 0.0f );
+              QVERIFY2( moment.x() > 0.1f && moment.y() < 0.4f, qPrintable( QString( "%1 %2" ).arg( moment.x() ).arg( moment.y() ) ) );
+              const QVector3D after = footAt( KickKind::Shot, right, 0.6f );
+              QVERIFY2( after.x() > 0.5f && after.y() > 0.5f, qPrintable( QString( "%1 %2" ).arg( after.x() ).arg( after.y() ) ) );
+              // the other foot on the ground
+              const QVector3D other = nodeAt( M_figures, [&]() { FigureInstance f = figureAt( 0, 0.0f, 0.0f, 0.0f, 1.85f );
+                                                                  f.actions.kick = kickOf( 0.0f, KickKind::Shot, right, 0.0f );
+                                                                  return f; }(), 0.0, right ? "foot_l" : "foot_r" );
+              QVERIFY( other.y() < 0.2f );
+          }
+          // sprinting into the kick: the other foot under the body, wherever the gait had it
+          for ( const double gait : { 0.0, 0.25, 0.5, 0.75 } )
+          {
+              FigureInstance f = figureAt( 0, 0.0f, 0.0f, 0.0f, 1.85f );
+              f.motion.vx = M_figures.gaitClips().back().speed;
+              f.motion.gait = gait;
+              f.actions.kick = kickOf( 0.0f, KickKind::Shot, true, 0.0f );
+              const float x = nodeAt( M_figures, f, 0.0, "foot_l" ).x() - nodeAt( M_figures, f, 0.0, "pelvis" ).x();
+              QVERIFY2( std::fabs( x ) < 0.25f, qPrintable( QString( "%1: %2" ).arg( gait ).arg( x ) ) );
+          }
+          // a shot swings farther than a pass, a pass than a touch
+          QVERIFY( footAt( KickKind::Shot, true, 0.6f ).y() > footAt( KickKind::Pass, true, 0.5f ).y() );
+          QVERIFY( footAt( KickKind::Pass, true, 0.5f ).y() > footAt( KickKind::Tap, true, 0.3f ).y() );
+          // a pass with the inside of the right foot: its toes turned to the right (+z)
+          const QVector3D toes = footAt( KickKind::Pass, true, 0.0f, 0.0f, "ball_r" ) - footAt( KickKind::Pass, true, 0.0f );
+          const QVector3D shot_toes = footAt( KickKind::Shot, true, 0.0f, 0.0f, "ball_r" ) - footAt( KickKind::Shot, true, 0.0f );
+          const float turn = std::atan2( toes.z(), toes.x() ) - std::atan2( shot_toes.z(), shot_toes.x() );
+          QVERIFY2( std::fabs( turn * 180.0f / float( M_PI ) - 30.0f ) < 10.0f, qPrintable( QString::number( turn * 180.0f / float( M_PI ) ) ) );
+          // kicked to the left: the follow-through to the left (-z)
+          QVERIFY( footAt( KickKind::Shot, true, 0.6f, -30.0f ).z() < footAt( KickKind::Shot, true, 0.6f ).z() - 0.2f );
+      }
+
+    //! the tackle: the hips low, the right leg ahead; the fall after a foul: sitting, leaning back on the hands
+    void downs()
+      {
+          FigureInstance f = figureAt( 0, 0.0f, 0.0f, 0.0f, 1.85f );
+          const float hips = nodeAt( M_figures, f, 0.0, "pelvis" ).y();
+          f.actions.tackle = FigureRun{ true, 1.0f, 5.0f };
+          QVERIFY( nodeAt( M_figures, f, 0.0, "pelvis" ).y() < 0.6f * hips );
+          QVERIFY( nodeAt( M_figures, f, 0.0, "foot_r" ).x() > 0.5f );
+          QVERIFY( nodeAt( M_figures, f, 0.0, "Head" ).x() < nodeAt( M_figures, f, 0.0, "pelvis" ).x() ); // leaning back
+
+          f.actions.fouled = FigureRun{ true, 3.0f, 5.0f }; // over the tackle, down
+          const QVector3D pelvis = nodeAt( M_figures, f, 0.0, "pelvis" );
+          QVERIFY( pelvis.y() < 0.25f );
+          QVERIFY( nodeAt( M_figures, f, 0.0, "Head" ).x() < pelvis.x() - 0.2f );
+          for ( const char * name : { "foot_l", "foot_r" } )
+          {
+              const QVector3D foot = nodeAt( M_figures, f, 0.0, name );
+              QVERIFY2( foot.x() > pelvis.x() + 0.4f && std::fabs( foot.y() ) < 0.1f, name );
+          }
+          for ( const char * name : { "hand_l", "hand_r" } )
+          {
+              const QVector3D hand = nodeAt( M_figures, f, 0.0, name );
+              QVERIFY2( hand.x() < pelvis.x() && std::fabs( hand.y() ) < 0.1f, name );
+          }
+      }
+
+    /*!
+      the catch: bending down with the hands ahead for a low ball, the hands
+      over the head for a high one, toward the ball's way, leaning to a ball
+      to the side; the right arm pointing
+    */
+    void arms()
+      {
+          FigureInstance f = figureAt( 0, 0.0f, 0.0f, 0.0f, 1.85f );
+          const float head = nodeAt( M_figures, f, 0.0, "Head" ).y();
+          f.actions.caught = FigureCatch{ true, 1.0f, 5.0f, 0.0f, 0.0f, 0.0f };
+          for ( const char * name : { "hand_l", "hand_r" } )
+          {
+              // ahead, near the ground, where a rolling ball is
+              const QVector3D hand = nodeAt( M_figures, f, 0.0, name );
+              QVERIFY2( hand.x() > 0.3f && hand.y() < 0.3f, qPrintable( QString( "%1 %2" ).arg( hand.x() ).arg( hand.y() ) ) );
+          }
+          // bending the knees, the feet on the ground under the hips
+          for ( const char * name : { "foot_l", "foot_r" } )
+          {
+              const QVector3D foot = nodeAt( M_figures, f, 0.0, name );
+              QVERIFY2( foot.y() > 0.0f && foot.y() < 0.15f && std::fabs( foot.x() ) < 0.3f,
+                        qPrintable( QString( "%1: %2 %3" ).arg( name ).arg( foot.x() ).arg( foot.y() ) ) );
+          }
+          QVERIFY( nodeAt( M_figures, f, 0.0, "pelvis" ).y() < 0.9f * nodeAt( M_figures, figureAt( 0, 0.0f, 0.0f, 0.0f, 1.85f ), 0.0, "pelvis" ).y() );
+          f.actions.caught.height = 2.0f;
+          for ( const char * name : { "hand_l", "hand_r" } )
+          {
+              QVERIFY( nodeAt( M_figures, f, 0.0, name ).y() > head );
+          }
+          // toward the ball on the right (+z)
+          f.actions.caught.height = 0.0f;
+          f.actions.caught.way = 40.0f;
+          QVERIFY( nodeAt( M_figures, f, 0.0, "hand_l" ).z() > 0.2f );
+          // a ball 2 m to the right: leaning to it, most
+          QCOMPARE( M_figures.rollOf( f ), 0.0f );
+          const float upright = nodeAt( M_figures, f, 0.0, "Head" ).z();
+          f.actions.caught.side = 2.0f;
+          QCOMPARE( M_figures.rollOf( f ), Figures3D::CATCH_ROLL );
+          QVERIFY( nodeAt( M_figures, f, 0.0, "Head" ).z() > upright + 0.3f );
+          f.actions.caught.side = -1.25f;
+          QCOMPARE( M_figures.rollOf( f ), -0.5f * Figures3D::CATCH_ROLL );
+          f.actions.fouled = FigureRun{ true, 1.0f, 5.0f }; // down: not catching
+          QCOMPARE( M_figures.rollOf( f ), 0.0f );
+
+          // pointing far to the right: the right hand near the shoulder's height, to the right
+          FigureInstance p = figureAt( 0, 0.0f, 0.0f, 0.0f, 1.85f );
+          p.actions.pointing = true;
+          p.actions.point_way = 90.0f;
+          p.actions.point_distance = 20.0f;
+          const QVector3D shoulder = nodeAt( M_figures, p, 0.0, "upperarm_r" );
+          const QVector3D hand = nodeAt( M_figures, p, 0.0, "hand_r" );
+          QVERIFY2( hand.z() - shoulder.z() > 0.45f && std::fabs( hand.y() - shoulder.y() ) < 0.15f,
+                    qPrintable( QString( "%1 %2" ).arg( hand.z() - shoulder.z() ).arg( hand.y() - shoulder.y() ) ) );
+          // where it points whatever the neck turns the chest by (the head's way)
+          for ( const float neck : { 0.0f, 80.0f, -80.0f } )
+          {
+              FigureInstance q = p;
+              q.actions.point_way = 30.0f;
+              q.actions.neck = neck;
+              const QVector3D arm = nodeAt( M_figures, q, 0.0, "hand_r" ) - nodeAt( M_figures, q, 0.0, "upperarm_r" );
+              const float way = std::atan2( arm.z(), arm.x() ) * 180.0f / float( M_PI ); // facing +x, the right is +z
+              QVERIFY2( std::fabs( way - 30.0f ) < 6.0f, qPrintable( QString( "%1: %2" ).arg( neck ).arg( way ) ) );
+          }
+          // near the feet: the arm lower
+          p.actions.point_distance = 1.0f;
+          QVERIFY( nodeAt( M_figures, p, 0.0, "hand_r" ).y() < shoulder.y() - 0.3f );
+          p.actions.point_distance = 20.0f;
+          // to the left: the left arm, the right one down
+          p.actions.point_way = -90.0f;
+          QVERIFY( nodeAt( M_figures, p, 0.0, "hand_l" ).z() - nodeAt( M_figures, p, 0.0, "upperarm_l" ).z() < -0.45f );
+          QVERIFY( nodeAt( M_figures, p, 0.0, "hand_r" ).y() < shoulder.y() - 0.3f );
+          // behind on the right: the chest turned toward it, the head not, the hand behind
+          auto facingOf = [&]( const FigureInstance & g, const char * name )
+              {
+                  std::vector< NodeTransform > local;
+                  M_figures.localPose( g, 0.0, local );
+                  std::vector< QMatrix4x4 > gl;
+                  M_figures.model().globals( local, gl );
+                  const QVector3D z = gl[M_figures.model().nodeIndex( name )].mapVector( QVector3D( 0.0f, 0.0f, 1.0f ) );
+                  return std::atan2( z.x(), z.z() ) * 180.0f / float( M_PI );
+              };
+          FigureInstance still = figureAt( 0, 0.0f, 0.0f, 0.0f, 1.85f );
+          p.actions.point_way = 170.0f;
+          const float turn = std::min( Figures3D::POINT_TURN_MAX, ( 170.0f - Figures3D::POINT_TURN_FROM ) * 0.5f );
+          QVERIFY2( std::fabs( angleBetween( facingOf( still, "spine_03" ), facingOf( p, "spine_03" ) ) - turn ) < 2.0f,
+                    qPrintable( QString::number( angleBetween( facingOf( still, "spine_03" ), facingOf( p, "spine_03" ) ) ) ) );
+          QVERIFY( std::fabs( angleBetween( facingOf( still, "Head" ), facingOf( p, "Head" ) ) ) < 1.0f );
+          QVERIFY( nodeAt( M_figures, p, 0.0, "hand_r" ).x() < nodeAt( M_figures, p, 0.0, "pelvis" ).x() - 0.3f );
+          // not while kicking
+          p.actions.point_way = 90.0f;
+          p.actions.kick = FigureKick{ true, 0.0f, KickKind::Shot, true, 0.0f };
+          QVERIFY( nodeAt( M_figures, p, 0.0, "hand_r" ).z() - shoulder.z() < 0.3f );
+      }
+
+    /*!
+      the kicking foot to the ball: the toes at the ball's back at the
+      moment, for either foot and any kind; not before or after the window
+    */
+    void footToBall()
+      {
+          using namespace FigureActionLog;
+          FigureActions a;
+          a.kick = FigureKick{ true, 0.0f, KickKind::Shot, true, 0.0f };
+          QCOMPARE( Figures3D::reachOf( a ), 1.0f );
+          a.kick.phase = -Figures3D::REACH_BEFORE;
+          QCOMPARE( Figures3D::reachOf( a ), 0.0f );
+          a.kick.phase = Figures3D::REACH_AFTER;
+          QCOMPARE( Figures3D::reachOf( a ), 0.0f );
+          a.kick.phase = 0.0f;
+          a.tackle = FigureRun{ true, 0.0f, 3.0f };
+          QCOMPARE( Figures3D::reachOf( a ), 0.0f ); // tackling, not kicking
+
+          for ( const KickKind kind : { KickKind::Tap, KickKind::Pass, KickKind::Shot } )
+          {
+              for ( const bool right : { true, false } )
+              {
+                  // the figure at (2, 1) facing the field's +y; the ball 0.5 m ahead, 0.15 m to the side
+                  FigureInstance f = figureAt( 0, 2.0f, 1.0f, 90.0f, 1.85f );
+                  FigureKick kick{ true, 0.0f, kind, right, 0.0f };
+                  kick.ball_x = 2.0f + ( right ? -0.15f : 0.15f ); // the right of facing +y is -x
+                  kick.ball_y = 1.5f;
+                  kick.dir_x = 0.0f;
+                  kick.dir_y = 1.0f;
+                  kick.ball_radius = 0.11f;
+                  f.actions.kick = kick;
+                  const QVector3D target = Figures3D::kickTarget( kick );
+                  QVERIFY( ( target - QVector3D( kick.ball_x, 0.11f, 1.39f ) ).length() < 1.0e-5f );
+                  const QVector3D toes = nodeAt( M_figures, f, 0.0, right ? "ball_r" : "ball_l" );
+                  QVERIFY2( ( toes - target ).length() < 0.03f,
+                            qPrintable( QString( "%1 %2: %3" ).arg( int( kind ) ).arg( right ).arg( ( toes - target ).length() ) ) );
+                  // the knee bends forward, not back (not behind the line from the hip to the ankle)
+                  const QVector3D hip = nodeAt( M_figures, f, 0.0, right ? "thigh_r" : "thigh_l" );
+                  const QVector3D knee = nodeAt( M_figures, f, 0.0, right ? "calf_r" : "calf_l" );
+                  const QVector3D ankle = nodeAt( M_figures, f, 0.0, right ? "foot_r" : "foot_l" );
+                  const float t = QVector3D::dotProduct( knee - hip, ( ankle - hip ).normalized() ) / ( ankle - hip ).length();
+                  const QVector3D line = hip + ( ankle - hip ) * t;
+                  QVERIFY2( knee.z() - line.z() > -0.02f, qPrintable( QString::number( knee.z() - line.z() ) ) );
+              }
+          }
+          // a ball too far: the leg stretched toward it, nearer than without
+          FigureInstance f = figureAt( 0, 0.0f, 0.0f, 0.0f, 1.85f );
+          FigureKick kick{ true, 0.0f, KickKind::Pass, true, 0.0f };
+          kick.ball_x = 1.6f;
+          kick.ball_y = 0.2f;
+          kick.ball_radius = 0.11f;
+          f.actions.kick = kick;
+          const QVector3D target = Figures3D::kickTarget( kick );
+          const float reached = ( nodeAt( M_figures, f, 0.0, "ball_r" ) - target ).length();
+          f.actions.kick.ball_radius = 0.11f;
+          FigureInstance g = f;
+          g.actions.kick.phase = -0.39f; // hardly reaching
+          QVERIFY( reached < 0.9f * ( nodeAt( M_figures, g, 0.0, "ball_r" ) - target ).length() );
+      }
+
+    //! halfway in: the pose between the clips' and the action's
+    void actionMixed()
+      {
+          FigureInstance f = figureAt( 0, 0.0f, 0.0f, 0.0f, 1.85f );
+          const float standing = nodeAt( M_figures, f, 0.0, "pelvis" ).y();
+          f.actions.fouled = FigureRun{ true, 3.0f, 5.0f };
+          const float down = nodeAt( M_figures, f, 0.0, "pelvis" ).y();
+          // halfway down
+          f.actions.fouled.phase = FigureActionLog::FOULED_START + 0.5f * FigureActionLog::FOULED_FALL;
+          const float half = nodeAt( M_figures, f, 0.0, "pelvis" ).y();
+          QVERIFY( std::fabs( half - 0.5f * ( standing + down ) ) < 0.02f );
+          // still standing at the foul's moment, while the tackler slides in
+          f.actions.fouled.phase = 0.5f;
+          QVERIFY( std::fabs( nodeAt( M_figures, f, 0.0, "pelvis" ).y() - standing ) < 1.0e-4f );
       }
 };
 

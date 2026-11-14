@@ -295,3 +295,31 @@ HumanoidPose::mix( const HumanoidPose & a,
     pose.hips = a.hips * ( 1.0f - t ) + b.hips * t;
     return pose;
 }
+
+/*-------------------------------------------------------------------*/
+QQuaternion
+HumanoidRig::turnedInModel( const HumanoidPose & pose,
+                            const HumanBone bone ) const
+{
+    const int b = static_cast< int >( bone );
+    if ( ! M_model || M_node[b] < 0 ) return QQuaternion();
+    QQuaternion turned;
+    for ( int r = b; r >= 0; r = M_parent_role[r] )
+    {
+        turned = pose.rotations[r] * turned;
+    }
+    return turned;
+}
+
+/*-------------------------------------------------------------------*/
+void
+HumanoidRig::setTurnedInModel( HumanoidPose & pose,
+                               const HumanBone bone,
+                               const QQuaternion & turned ) const
+{
+    const int b = static_cast< int >( bone );
+    if ( ! M_model || M_node[b] < 0 ) return;
+    const int p = M_parent_role[b];
+    const QQuaternion above = ( p >= 0 ? turnedInModel( pose, HumanBone( p ) ) : QQuaternion() );
+    pose.rotations[b] = ( above.conjugated() * turned ).normalized();
+}

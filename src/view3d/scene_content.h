@@ -88,6 +88,73 @@ struct FigureMotion {
 };
 
 /*!
+  \enum KickKind
+  \brief how hard and where a kick goes, which decides how a figure swings
+*/
+enum class KickKind {
+    Tap, //!< a touch: holding or dribbling the ball
+    Pass, //!< a pass, with the side of the foot
+    Shot, //!< hard toward the opponents' goal
+};
+
+/*!
+  \struct FigureKick
+  \brief a kick of a figure around the time drawn, from the log (FigureActionLog)
+*/
+struct FigureKick {
+    bool on = false;
+    float phase = 0.0f; //!< cycles from the foot meeting the ball (negative before it)
+    KickKind kind = KickKind::Tap;
+    bool right = true; //!< with the right foot: the ball on the right of the body
+    float way = 0.0f; //!< where the ball goes, from the body direction (degree, clockwise on the screen positive)
+    float ball_x = 0.0f; //!< where the ball was at the moment, on the field (m)
+    float ball_y = 0.0f;
+    float dir_x = 1.0f; //!< the way the ball goes, on the field (unit)
+    float dir_y = 0.0f;
+    float ball_radius = 0.0f; //!< the ball as drawn (m): the foot meets its back
+};
+
+/*!
+  \struct FigureRun
+  \brief an action that lasts as long as a state bit of the player does (a
+  tackle, being down after a foul), around the time drawn
+*/
+struct FigureRun {
+    bool on = false;
+    float phase = 0.0f; //!< cycles from the action's moment (the cycle before the bit's first frame)
+    float last = 0.0f; //!< how many cycles the bit lasted after its first frame
+};
+
+/*!
+  \struct FigureCatch
+  \brief a goalie's catch around the time drawn
+*/
+struct FigureCatch {
+    bool on = false;
+    float phase = 0.0f; //!< cycles from the ball coming into the hands
+    float hold = 0.0f; //!< how many cycles the hands keep the ball up (catch_ban_cycle)
+    float way = 0.0f; //!< where the ball was, from the body direction (degree)
+    float side = 0.0f; //!< how far to the right of the body the ball was (m; left: negative)
+    float height = 0.0f; //!< how high the ball was (m; 0 in the logs of today's server, which has no height)
+};
+
+/*!
+  \struct FigureActions
+  \brief what a figure does at the time drawn besides walking, from the log
+  (FigureActionLog): so that Figures3D poses it from the frames only
+*/
+struct FigureActions {
+    float neck = 0.0f; //!< the head's angle from the body (degree)
+    bool pointing = false; //!< pointing with an arm (pointto)
+    float point_way = 0.0f; //!< where, from the body direction (degree)
+    float point_distance = 0.0f; //!< how far (m)
+    FigureKick kick;
+    FigureRun tackle;
+    FigureRun fouled; //!< down after a foul by an opponent
+    FigureCatch caught;
+};
+
+/*!
   \struct FigureInstance
   \brief a player drawn as a human figure (docs/PLAN_3D-VIEW.md §5.8):
   SceneBuilder puts it where the player is, and Figures3D poses it
@@ -100,6 +167,7 @@ struct FigureInstance {
     float height; //!< from the ground to the top of the head (m)
     QVector4D color; //!< the jersey: the team or state color, as the body of a cylinder
     FigureMotion motion = FigureMotion(); //!< how it moves (standing still unless told)
+    FigureActions actions = FigureActions(); //!< what it does besides walking (nothing unless told)
 };
 
 /*!
