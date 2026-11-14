@@ -1,0 +1,9 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+  <!-- The models of the human figures of the 3D view, compiled into the
+       program as Qt's resources and read as :/models/<file>
+       (README.md tells where they come from). -->
+  <qresource prefix="/models">
+    <file>Mannequin.glb</file>
+  </qresource>
+</RCC>
