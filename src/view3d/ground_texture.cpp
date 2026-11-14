@@ -67,14 +67,15 @@ width()
 QImage
 draw( FieldPainter & painter )
 {
-    return draw( painter, SCALE, PEN_SCALE );
+    return draw( painter, SCALE, PEN_SCALE, Options::instance().grassStripes3D() );
 }
 
 /*-------------------------------------------------------------------*/
 QImage
 draw( FieldPainter & painter,
       const double scale,
-      const double pen_scale )
+      const double pen_scale,
+      const bool stripes )
 {
     const int w = std::max( 1, static_cast< int >( std::lround( length() * scale ) ) );
     const int h = std::max( 1, static_cast< int >( std::lround( width() * scale ) ) );
@@ -89,7 +90,7 @@ draw( FieldPainter & painter,
     {
         QPainter p( &image );
         p.setRenderHint( QPainter::Antialiasing );
-        painter.drawGround( p, pen_scale );
+        painter.drawGround( p, pen_scale, stripes );
     }
     opt.setFieldTransform( saved );
 
@@ -111,6 +112,7 @@ key( const rcss::rcg::ServerParamT & param )
             QString::number( opt.showKeepawayArea() ),
             QString::number( opt.gridStep() ),
             QString::number( opt.showGridCoord() ),
+            QString::number( opt.grassStripes3D() ),
         } ).join( ',' );
 }
 

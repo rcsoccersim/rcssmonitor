@@ -24,5 +24,9 @@
     <file>shadow.frag</file>
     <file>blob.vert</file>
     <file>blob.frag</file>
+    <file>sky.vert</file>
+    <file>sky.frag</file>
+    <file>outside.vert</file>
+    <file>outside.frag</file>
   </qresource>
 </RCC>

@@ -193,6 +193,11 @@ struct SceneContent {
     std::vector< float > figure_joints; //!< the skin matrices of the figures, in their order (Figures3D::pose(); 16 floats a joint)
     std::vector< int > figure_bodies; //!< the body drawn of each figure (Figures3D::pose(): an index of Figures3D's bodies)
 
+    //! the sky dome and the haze over the ground beyond (Scenery3D): the option sky_3d
+    bool sky = false;
+    //! the color of the ground beyond the ground image (Scenery3D::farGroundColor())
+    QVector4D far_ground = QVector4D( 0.1f, 0.54f, 0.1f, 1.0f );
+
     //! the sun casts the detailed shadows of the solids above (but the ball
     //! and the cones) on the ground with the shadow map (Sun3D): the option
     //! ShadowMode::Detailed, and not from the top camera
@@ -235,6 +240,7 @@ struct SceneContent {
           figures.clear();
           figure_joints.clear();
           figure_bodies.clear();
+          sky = false;
           shadows = false;
           blob_shadows.clear();
           discs.clear();

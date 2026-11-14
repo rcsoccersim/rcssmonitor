@@ -1906,6 +1906,29 @@ ConfigDialog::create3DTab()
                      changed3D();
                  } );
         layout->addWidget( M_banners_3d_cb );
+
+        M_grass_stripes_3d_cb = new QCheckBox( tr( "Grass Stripes" ) );
+        M_grass_stripes_3d_cb->setObjectName( "grass_stripes_3d" );
+        M_grass_stripes_3d_cb->setToolTip( tr( "The grass mowed in stripes across the pitch, 5.25 m wide (20 on the pitch),\n"
+                                               "a little lighter and darker than the field color: they help to judge\n"
+                                               "distances and speeds along the pitch." ) );
+        connect( M_grass_stripes_3d_cb, &QCheckBox::clicked,
+                 this, [this]( bool on ) {
+                     Options::instance().setGrassStripes3D( on );
+                     changed3D();
+                 } );
+        layout->addWidget( M_grass_stripes_3d_cb );
+
+        M_sky_3d_cb = new QCheckBox( tr( "Sky" ) );
+        M_sky_3d_cb->setObjectName( "sky_3d" );
+        M_sky_3d_cb->setToolTip( tr( "The sky, from the pale horizon to the blue above, and the haze that melts the\n"
+                                     "far ground into the horizon. Without it, a plain background." ) );
+        connect( M_sky_3d_cb, &QCheckBox::clicked,
+                 this, [this]( bool on ) {
+                     Options::instance().setSky3D( on );
+                     changed3D();
+                 } );
+        layout->addWidget( M_sky_3d_cb );
         layout->addStretch();
 
         box->addLayout( layout );
@@ -1920,7 +1943,8 @@ ConfigDialog::create3DTab()
         QPushButton * button = new QPushButton( tr( "Default" ) );
         button->setObjectName( "default_3d" );
         button->setToolTip( tr( "Set the defaults: Close-up %1 m, %2\u00b0, Compass %3, Minimap %4,\n"
-                                "Model %5, Figure Scale %6, Bodies %9, Shadows %10, Boards %7, Banners %8" )
+                                "Model %5, Figure Scale %6, Bodies %9, Shadows %10, Boards %7, Banners %8,\n"
+                                "Grass Stripes %11, Sky %12" )
                             .arg( Options::CLOSEUP_DISTANCE_3D )
                             .arg( Options::CLOSEUP_ELEVATION_3D )
                             .arg( guideLabel( Options::COMPASS_3D ) )
@@ -1930,7 +1954,9 @@ ConfigDialog::create3DTab()
                             .arg( onOff( Options::BOARDS_3D ) )
                             .arg( onOff( Options::BANNERS_3D ) )
                             .arg( bodiesLabel( Options::FIGURE_BODIES_3D ) )
-                            .arg( shadowLabel( Options::SHADOWS_3D ) ) );
+                            .arg( shadowLabel( Options::SHADOWS_3D ) )
+                            .arg( onOff( Options::GRASS_STRIPES_3D ) )
+                            .arg( onOff( Options::SKY_3D ) ) );
         button->setAutoDefault( false );
         connect( button, &QPushButton::clicked,
                  this, [this]() {
@@ -2186,6 +2212,8 @@ ConfigDialog::update3D()
     set_choice( M_shadows_3d, shadowIndex( opt.shadows3D() ), M_shadows_3d_note );
     M_boards_3d_cb->setChecked( opt.boards3D() );
     M_banners_3d_cb->setChecked( opt.banners3D() );
+    M_grass_stripes_3d_cb->setChecked( opt.grassStripes3D() );
+    M_sky_3d_cb->setChecked( opt.sky3D() );
 
     set_choice( M_player_camera_position, indexOf( positions(), pc.position ), M_player_camera_position_note );
     set_choice( M_player_camera_direction, indexOf( directions(), pc.direction ), M_player_camera_direction_note );

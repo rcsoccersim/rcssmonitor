@@ -59,18 +59,30 @@ public:
 
     void draw( QPainter & painter ) override;
 
+    //! the grass mowed in stripes (the ground of the 3D view): this wide (m), across the pitch, one edge on the halfway line (20 on the pitch)
+    static constexpr double GRASS_STRIPE_WIDTH = 105.0 / 20.0;
+    //! the light stripes are the field color times this, the dark ones times that (rcssmonitor-web GRASS)
+    static constexpr double GRASS_LIGHT = 1.05;
+    static constexpr double GRASS_DARK = 0.92;
+
     /*!
       \brief draw the field without the goals, which the 3D view builds
       itself, with the pens pen_scale times wider: the ground of the 3D view.
+      \param stripes the grass mowed in stripes, over the field color and
+      under the lines: light from the halfway line to the right, then dark,
+      and so on both ways (the stripes left and right of the halfway line
+      differ, as the mower turns there)
     */
     void drawGround( QPainter & painter,
-                     const double pen_scale );
+                     const double pen_scale,
+                     const bool stripes = false );
 
 private:
 
     QPen pen( const QPen & pen ) const;
 
     void drawBackGround( QPainter & painter ) const;
+    void drawGrassStripes( QPainter & painter ) const;
     void drawLines( QPainter & painter ) const;
     void drawPenaltyAreaLines( QPainter & painter ) const;
     void drawGoalAreaLines( QPainter & painter ) const;

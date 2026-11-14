@@ -170,6 +170,8 @@ private:
     ShaderProgram M_skinned_depth_program; //!< "skinned" and "depth": the figures into the shadow map
     ShaderProgram M_shadow_program; //!< "shadow": the plane of the shadows over the ground
     ShaderProgram M_blob_program; //!< "blob": the simple shadows, soft ellipses on the ground
+    ShaderProgram M_sky_program; //!< "sky": the sky dome around the camera
+    ShaderProgram M_outside_program; //!< "outside": the ground beyond the ground image, in the haze far away
 
     // the shapes (Meshes3D), each drawn in instances
     InstancedMesh M_ground; //!< the area of the ground image
@@ -182,6 +184,8 @@ private:
     InstancedMesh M_quad; //!< the nets, the floors of the goals
     InstancedMesh M_panel; //!< the boards and the banners
     InstancedMesh M_shadow_plane; //!< the area of the shadows, over the ground
+    InstancedMesh M_far_ground; //!< the ground beyond the ground image (Scenery3D::FAR_GROUND around the center)
+    std::vector< Instance3D > M_background; //!< the instance of the sky or of the ground beyond in a frame
     ShadowMap M_shadow_map; //!< the depths as the sun sees the solids (none if the GPU cannot)
     BillboardMesh M_billboards; //!< the numbers and the cards
     std::array< SkinnedMesh, FIGURE_BODIES > M_figures; //!< the bodies of the human figures of the players

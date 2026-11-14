@@ -65,6 +65,7 @@ class TestGroundTexture
 private slots:
 
     void image();
+    void stripes();
     void key();
 };
 
@@ -81,7 +82,9 @@ TestGroundTexture::image()
     Options & opt = Options::instance();
     const Options::FieldTransform before = opt.fieldTransform();
 
+    opt.setGrassStripes3D( false ); // the plain field color
     const QImage image = GroundTexture::draw( painter );
+    opt.setGrassStripes3D( Options::GRASS_STRIPES_3D );
     QCOMPARE( image.size(), QSize( 115 * 24, 78 * 24 ) );
 
     const Options::FieldTransform after = opt.fieldTransform();
@@ -113,6 +116,61 @@ TestGroundTexture::image()
 
 /*-------------------------------------------------------------------*/
 /*!
+  The grass mowed in stripes by the option: 5.25 m wide across the pitch,
+  light from the halfway line to the right, dark next, and so on both
+  ways, over the margins too; the lines over them; not on the minimap.
+*/
+void
+TestGroundTexture::stripes()
+{
+    DispHolder holder;
+    FieldPainter painter( holder );
+    Options & opt = Options::instance();
+    QVERIFY( opt.grassStripes3D() ); // on by default
+    const QImage image = GroundTexture::draw( painter );
+    const QColor field = opt.fieldBrush().color();
+    const auto times = [&]( const double k ) {
+        return QColor( int( std::lround( field.red() * k ) ), int( std::lround( field.green() * k ) ),
+                       int( std::lround( field.blue() * k ) ) );
+    };
+    const QColor light = times( FieldPainter::GRASS_LIGHT );
+    const QColor dark = times( FieldPainter::GRASS_DARK );
+    const auto at = [&]( double x, double y ) // field coordinates
+        {
+            return image.pixelColor( int( std::lround( image.width() / 2 + x * 24 ) ),
+                                     int( std::lround( image.height() / 2 + y * 24 ) ) );
+        };
+    const double w = FieldPainter::GRASS_STRIPE_WIDTH;
+    QCOMPARE( w, 5.25 );
+    // the middles of the stripes (away from the lines), to the right and the left
+    for ( int k = -10; k < 10; ++k )
+    {
+        const QColor expected = ( k % 2 != 0 ? dark : light );
+        const QColor c = at( ( k + 0.5 ) * w, -25.0 );
+        QVERIFY2( distance( c, expected ) <= 3, qPrintable( QString( "%1: %2" ).arg( k ).arg( c.name() ) ) );
+    }
+    // in the margins too: beyond the touch line, and beyond the goal line
+    QVERIFY( distance( at( 0.5 * w, -36.0 ), light ) <= 3 );
+    QVERIFY( distance( at( -55.0, 20.0 ), dark ) <= 3 ); // k = -11
+    // the edges: the light stripe right of the halfway line ends 5.25 m on
+    QVERIFY( distance( at( w - 0.1, -25.0 ), light ) <= 3 );
+    QVERIFY( distance( at( w + 0.1, -25.0 ), dark ) <= 3 );
+    // the lines over them: the center line, the touch line
+    const QColor line = opt.linePen().color();
+    QVERIFY( distance( at( 0.0, -20.0 ), line ) < 60 );
+    QVERIFY( distance( at( 3.0, -34.0 ), line ) < 60 );
+
+    // the option off: the plain field color
+    opt.setGrassStripes3D( false );
+    QVERIFY( distance( GroundTexture::draw( painter ).pixelColor( image.width() / 2 + int( 1.5 * w * 24 ), 10 ), field ) <= 3 );
+    opt.setGrassStripes3D( true );
+    // the minimap: no stripes
+    const QImage minimap = GroundTexture::draw( painter, 4.0, 1.0 );
+    QVERIFY( distance( minimap.pixelColor( minimap.width() / 2 + int( 1.5 * w * 4 ), 6 ), field ) <= 3 );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
   The image is drawn again when the colors or the keepaway area change.
 */
 void
@@ -127,6 +185,11 @@ TestGroundTexture::key()
     opt.setLineColor( Qt::red );
     QVERIFY( GroundTexture::key( param ) != first );
     opt.setLineColor( line );
+    QCOMPARE( GroundTexture::key( param ), first );
+
+    opt.setGrassStripes3D( ! opt.grassStripes3D() );
+    QVERIFY( GroundTexture::key( param ) != first );
+    opt.setGrassStripes3D( ! opt.grassStripes3D() );
     QCOMPARE( GroundTexture::key( param ), first );
 
     param.keepaway_mode_ = ! param.keepaway_mode_;

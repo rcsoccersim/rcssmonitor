@@ -43,6 +43,7 @@
 #include "scene_3d.h"
 #include "scene_builder.h"
 #include "stadium_3d.h"
+#include "scenery_3d.h"
 #include "sun_3d.h"
 
 #include <QOffscreenSurface>
@@ -151,6 +152,7 @@ private slots:
     void humanFigure();
     void shadows();
     void blobShadows();
+    void sky();
     void cleanupTestCase();
 };
 
@@ -158,6 +160,10 @@ private slots:
 void
 TestScene3D::initTestCase()
 {
+    // the ground plain: its color is the field color (the stripes are
+    // checked by test ground_texture)
+    Options::instance().setGrassStripes3D( false );
+
     QSurfaceFormat format = FieldView3D::surfaceFormat();
     format.setSamples( 0 );
     M_context.setFormat( format );
@@ -1076,6 +1082,79 @@ TestScene3D::blobShadows()
         const QPoint at = pixel( m.map( out ) );
         QCOMPARE( first.pixelColor( at ), plain.pixelColor( at ) );
     }
+
+    scene.release();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  The sky and the ground beyond, seen level from 50 m up: above the
+  horizon the sky's colors (Scenery3D::skyColor()), below it the ground
+  beyond in its color nearer than the haze, toward the horizon's color in
+  the haze; without the sky, the plain background and no haze. The same in
+  every frame.
+*/
+void
+TestScene3D::sky()
+{
+    DispHolder holder;
+    FieldPainter painter( holder );
+    Scene3D scene;
+    QVERIFY( scene.initialize() );
+    scene.setGround( GroundTexture::draw( painter ) );
+
+    const int w = 400, h = 300;
+    QOpenGLFramebufferObjectFormat fbo_format;
+    fbo_format.setAttachment( QOpenGLFramebufferObject::Depth );
+    QOpenGLFramebufferObject fbo( w, h, fbo_format );
+
+    CameraPose camera;
+    camera.position = QVector3D( 0.0f, 50.0f, 0.0f );
+    camera.target = QVector3D( 100.0f, 50.0f, 0.0f ); // level along +x
+    SceneContent content;
+    content.sky = true;
+    content.far_ground = Scenery3D::farGroundColor( Options::instance().fieldBrush().color() );
+
+    scene.render( fbo.handle(), w, h, camera, content );
+    const QImage image = fbo.toImage();
+    scene.render( fbo.handle(), w, h, camera, content );
+    QCOMPARE( image, fbo.toImage() );
+
+    // the row of the middle column seen at an angle above (+) or below (-) level
+    const double f = ( h / 2.0 ) / std::tan( camera.fov_y / 2.0 * M_PI / 180.0 );
+    const auto row = [&]( const double degree ) { return int( std::lround( h / 2.0 - std::tan( degree * M_PI / 180.0 ) * f ) ); };
+    const auto color = [&]( const QVector4D & c ) { return QColor::fromRgbF( c.x(), c.y(), c.z() ); };
+    const auto mix = []( const QColor & a, const QColor & b, const double t ) {
+        return QColor::fromRgbF( a.redF() * ( 1 - t ) + b.redF() * t, a.greenF() * ( 1 - t ) + b.greenF() * t,
+                                 a.blueF() * ( 1 - t ) + b.blueF() * t );
+    };
+    const QColor far = color( content.far_ground );
+
+    // the sky above
+    for ( const double up : { 2.0, 8.0, 16.0 } )
+    {
+        const double a = up * M_PI / 180.0;
+        const QColor expected = Scenery3D::skyColor( QVector3D( float( std::cos( a ) ), float( std::sin( a ) ), 0.0f ) );
+        const QColor c = image.pixelColor( w / 2, row( up ) );
+        QVERIFY2( distance( c, expected ) < 10, qPrintable( QString( "%1: %2 %3" ).arg( up ).arg( c.name(), expected.name() ) ) );
+    }
+    // the ground beyond, 300 m on: its color; 1000 m on, in the haze
+    const double at300 = std::atan( 50.0 / 300.0 ) * 180.0 / M_PI;
+    const double at1000 = std::atan( 50.0 / 1000.0 ) * 180.0 / M_PI;
+    QVERIFY2( distance( image.pixelColor( w / 2, row( -at300 ) ), far ) < 8,
+              qPrintable( image.pixelColor( w / 2, row( -at300 ) ).name() ) );
+    const QColor hazy = mix( far, Scenery3D::SKY_HORIZON, Scenery3D::haze( std::hypot( 1000.0f, 50.0f ) ) );
+    QVERIFY2( distance( image.pixelColor( w / 2, row( -at1000 ) ), hazy ) < 24, // a pixel near the horizon spans many meters
+              qPrintable( image.pixelColor( w / 2, row( -at1000 ) ).name() + " " + hazy.name() ) );
+    QVERIFY( distance( hazy, far ) > 100 ); // the haze shows
+
+    // without the sky: the plain background above, no haze below
+    content.sky = false;
+    scene.render( fbo.handle(), w, h, camera, content );
+    const QImage plain = fbo.toImage();
+    QVERIFY( distance( plain.pixelColor( w / 2, row( 8.0 ) ), Scenery3D::CLEAR ) <= 3 );
+    QVERIFY2( distance( plain.pixelColor( w / 2, row( -at1000 ) ), far ) < 8,
+              qPrintable( plain.pixelColor( w / 2, row( -at1000 ) ).name() ) );
 
     scene.release();
 }

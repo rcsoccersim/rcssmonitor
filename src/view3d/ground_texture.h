@@ -62,18 +62,21 @@ constexpr double PEN_SCALE = 3.0;
 
 /*!
   \brief draw the ground: the field without the goals, which the 3D view
-  builds itself. The image is length() * SCALE by width() * SCALE pixels,
-  with the center of the pitch at its center and +y down.
+  builds itself, with the grass mowed in stripes by the option
+  (grass_stripes_3d). The image is length() * SCALE by width() * SCALE
+  pixels, with the center of the pitch at its center and +y down.
 */
 QImage draw( FieldPainter & painter );
 
 /*!
   \brief draw the same area at another size: scale pixels per meter, the
-  pens pen_scale times as thick (the minimap of the HUD)
+  pens pen_scale times as thick (the minimap of the HUD: no stripes)
+  \param stripes the grass mowed in stripes (FieldPainter::drawGround())
 */
 QImage draw( FieldPainter & painter,
              const double scale,
-             const double pen_scale );
+             const double pen_scale,
+             const bool stripes = false );
 
 /*!
   \brief what the image depends on (colors, options): the image is drawn

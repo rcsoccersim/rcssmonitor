@@ -75,6 +75,7 @@ if(HAVE_3D_VIEW)
     view3d/scene_builder.cpp
     view3d/scene_3d.cpp
     view3d/sight.cpp
+    view3d/scenery_3d.cpp
     view3d/stadium_3d.cpp
     view3d/sun_3d.cpp
     view3d/gl/billboard_mesh.cpp

@@ -42,6 +42,7 @@
 #include "options.h"
 
 #include <algorithm>
+#include <cmath>
 #include <iostream>
 
 /*-------------------------------------------------------------------*/
@@ -102,11 +103,16 @@ FieldPainter::draw( QPainter & painter )
  */
 void
 FieldPainter::drawGround( QPainter & painter,
-                          const double pen_scale )
+                          const double pen_scale,
+                          const bool stripes )
 {
     M_pen_scale = pen_scale;
 
     drawBackGround( painter );
+    if ( stripes )
+    {
+        drawGrassStripes( painter );
+    }
     drawLines( painter );
     drawPenaltyAreaLines( painter );
     drawGoalAreaLines( painter );
@@ -149,6 +155,34 @@ FieldPainter::drawBackGround( QPainter & painter ) const
     // fill the whole region
     painter.fillRect( painter.window(),
                       Options::instance().fieldBrush() );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  Over the whole region, stripe by stripe, the edges by the field's
+  coordinates (the same pixel ends one and starts the next: no gaps).
+ */
+void
+FieldPainter::drawGrassStripes( QPainter & painter ) const
+{
+    const Options & opt = Options::instance();
+    const QColor field = opt.fieldBrush().color();
+    const auto times = []( const QColor & c, const double k ) {
+        const auto f = [k]( const int v ) { return std::min( 255, std::max( 0, int( std::lround( v * k ) ) ) ); };
+        return QColor( f( c.red() ), f( c.green() ), f( c.blue() ) );
+    };
+    const QColor light = times( field, GRASS_LIGHT );
+    const QColor dark = times( field, GRASS_DARK );
+
+    const QRect region = painter.window();
+    const double left = opt.fieldX( region.left() );
+    const double right = opt.fieldX( region.right() + 1 );
+    for ( int k = int( std::floor( left / GRASS_STRIPE_WIDTH ) ); k * GRASS_STRIPE_WIDTH < right; ++k )
+    {
+        const int x0 = opt.screenX( k * GRASS_STRIPE_WIDTH );
+        const int x1 = opt.screenX( ( k + 1 ) * GRASS_STRIPE_WIDTH );
+        painter.fillRect( x0, region.top(), x1 - x0, region.height(), ( k % 2 != 0 ) ? dark : light );
+    }
 }
 
 /*-------------------------------------------------------------------*/

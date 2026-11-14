@@ -72,6 +72,8 @@ struct RenderState {
     //! the layers on the ground and the nets: hidden by the solids, hiding nothing, seen from both sides
     static RenderState translucent() { return { true, false, false, true }; }
 
+    //! the sky: behind all, after the solids, only where nothing is (the depth still "farthest"), hiding nothing, seen from inside
+    static RenderState sky() { return { true, false, false, false }; }
     //! the labels: over everything, translucent, seen from both sides
     static RenderState overlay() { return { false, false, false, true }; }
 

@@ -33,6 +33,7 @@
 #include <QtTest>
 
 #include "frame_builder_3d.h"
+#include "scenery_3d.h"
 
 #include "camera_mode.h"
 #include "disp_holder.h"
@@ -269,6 +270,28 @@ private slots:
           content.clear();
           QVERIFY( ! content.shadows );
           QVERIFY( content.blob_shadows.empty() );
+      }
+
+    /*!
+      the sky by the option, from every camera; the ground beyond in the
+      shade of the field color
+    */
+    void scenery()
+      {
+          Options & opt = Options::instance();
+          FrameBuilder3D builder;
+          QVERIFY( opt.sky3D() ); // on by default
+          QVERIFY( build( builder, M_holder, at( M_holder, 10 ) ).sky );
+          QVERIFY( build( builder, M_holder, at( M_holder, 10 ), CameraMode::Top ).sky );
+          opt.setSky3D( false );
+          QVERIFY( ! build( builder, M_holder, at( M_holder, 10 ) ).sky );
+          opt.setSky3D( Options::SKY_3D );
+
+          SceneContent content;
+          builder.build( M_holder, opt, at( M_holder, 10 ), CameraMode::Broadcast, content );
+          QCOMPARE( content.far_ground, Scenery3D::farGroundColor( opt.fieldBrush().color() ) );
+          content.clear();
+          QVERIFY( ! content.sky );
       }
 
     /*!

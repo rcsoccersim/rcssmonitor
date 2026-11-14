@@ -38,6 +38,7 @@
 
 #include "ground_texture.h"
 #include "meshes_3d.h"
+#include "scenery_3d.h"
 #include "stadium_3d.h"
 #include "sun_3d.h"
 #include "gl/frame.h"
@@ -53,8 +54,11 @@ namespace {
 constexpr float DASH = 0.3f;
 constexpr float POINT_SIZE = 4.0f;
 
-// the color of the background: the sky, until it is drawn (Phase 8)
-const QColor SKY = QColor::fromRgbF( 0.55, 0.72, 0.88 );
+QVector3D
+rgb( const QColor & c )
+{
+    return QVector3D( float( c.redF() ), float( c.greenF() ), float( c.blueF() ) );
+}
 
 // the texture unit of the shadow map (unit 0 has the ground's image or the
 // figures' skin matrices)
@@ -107,7 +111,9 @@ Scene3D::initialize()
          || ! M_depth_program.load( "depth" )
          || ! M_skinned_depth_program.load( "skinned", "depth" )
          || ! M_shadow_program.load( "shadow" )
-         || ! M_blob_program.load( "blob" ) )
+         || ! M_blob_program.load( "blob" )
+         || ! M_sky_program.load( "sky" )
+         || ! M_outside_program.load( "outside" ) )
     {
         M_ground_program.destroy();
         M_lit_program.destroy();
@@ -120,6 +126,8 @@ Scene3D::initialize()
         M_skinned_depth_program.destroy();
         M_shadow_program.destroy();
         M_blob_program.destroy();
+        M_sky_program.destroy();
+        M_outside_program.destroy();
         return false;
     }
 
@@ -135,6 +143,7 @@ Scene3D::initialize()
     M_quad.create( *this, Meshes3D::quad() );
     M_panel.create( *this, Meshes3D::quad() );
     M_shadow_plane.create( *this, Meshes3D::ground( Sun3D::shadowLength(), Sun3D::shadowWidth() ) );
+    M_far_ground.create( *this, Meshes3D::ground( 2.0f * Scenery3D::FAR_GROUND, 2.0f * Scenery3D::FAR_GROUND ) );
     // without a shadow map (a GPU that cannot draw into one), no shadows
     M_shadow_map.create( *this );
     M_billboards.create( *this );
@@ -154,7 +163,7 @@ Scene3D::release()
     {
         return;
     }
-    for ( InstancedMesh * m : { &M_ground, &M_cylinder, &M_sphere, &M_cone, &M_disc, &M_ring, &M_decay_ring, &M_quad, &M_panel, &M_shadow_plane } )
+    for ( InstancedMesh * m : { &M_ground, &M_cylinder, &M_sphere, &M_cone, &M_disc, &M_ring, &M_decay_ring, &M_quad, &M_panel, &M_shadow_plane, &M_far_ground } )
     {
         m->destroy( *this );
     }
@@ -184,6 +193,8 @@ Scene3D::release()
     M_skinned_depth_program.destroy();
     M_shadow_program.destroy();
     M_blob_program.destroy();
+    M_sky_program.destroy();
+    M_outside_program.destroy();
     M_initialized = false;
 }
 
@@ -266,8 +277,9 @@ Scene3D::render( GLuint fbo,
     // the camera: one matrix that takes a point of the world to the screen
     const QMatrix4x4 view_proj = camera.projection( float( width ) / std::max( 1, height ) ) * camera.view();
 
-    // start the frame: into the framebuffer, cleared to the sky
-    GLFrame::begin( *this, fbo, width, height, SKY );
+    // start the frame: into the framebuffer, cleared to the horizon (the
+    // sky covers it) or the background without the sky
+    GLFrame::begin( *this, fbo, width, height, content.sky ? Scenery3D::SKY_HORIZON : Scenery3D::CLEAR );
     M_gpu_timer.begin( *this );
 
     // the figures of each body together, for the shadow map and the scene
@@ -296,6 +308,25 @@ Scene3D::render( GLuint fbo,
         }
         M_shadow_map.end( *this, fbo, width, height );
     }
+
+    //
+    // pass 0b: the ground beyond the ground image (in the haze with the
+    // sky), a solid as the ground over it, 2 cm under it (fine for the
+    // depth buffer of 24 bits: 5 mm at 200 m)
+    //
+    RenderState::opaque().apply( *this );
+    M_background.resize( 1 );
+    M_background[0].model.setToIdentity();
+    M_background[0].model.translate( 0.0f, Scenery3D::FAR_GROUND_Y, 0.0f );
+    M_background[0].color = content.far_ground;
+    M_outside_program.bind();
+    M_outside_program.set( "uViewProj", view_proj );
+    M_outside_program.set( "uCamera", camera.position );
+    M_outside_program.set( "uHaze", content.sky ? 1.0f : 0.0f );
+    M_outside_program.set( "uHorizon", rgb( Scenery3D::SKY_HORIZON ) );
+    M_outside_program.set( "uHazeFrom", Scenery3D::HAZE_FROM );
+    M_outside_program.set( "uHazeTo", Scenery3D::HAZE_TO );
+    M_far_ground.draw( *this, M_background );
 
     //
     // pass 1: the ground, with the image of the 2D view on texture unit 0
@@ -355,6 +386,26 @@ Scene3D::render( GLuint fbo,
             M_banner_textures[end].bind( *this, 0 );
             M_panel.draw( *this, content.banners[end] );
         }
+    }
+
+    //
+    // pass 2c: the sky dome around the camera, after the solids and only
+    // where none of them is (the depth test against the cleared
+    // "farthest"): not over the whole screen, most of it ground
+    //
+    if ( content.sky )
+    {
+        RenderState::sky().apply( *this );
+        M_background[0].model.setToIdentity();
+        M_background[0].model.translate( camera.position );
+        M_background[0].model.scale( Scenery3D::SKY_RADIUS );
+        M_background[0].color = QVector4D( 1.0f, 1.0f, 1.0f, 1.0f );
+        M_sky_program.bind();
+        M_sky_program.set( "uViewProj", view_proj );
+        M_sky_program.set( "uZenith", rgb( Scenery3D::SKY_ZENITH ) );
+        M_sky_program.set( "uHorizon", rgb( Scenery3D::SKY_HORIZON ) );
+        M_sky_program.set( "uBelow", rgb( Scenery3D::SKY_BELOW ) );
+        M_sphere.draw( *this, M_background );
     }
 
     //
