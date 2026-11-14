@@ -38,13 +38,16 @@
 #include <QPushButton>
 
 #include <functional>
+#include <utility>
 #include <vector>
 
 class QPushButton;
+class QButtonGroup;
 class QCheckBox;
 class QCloseEvent;
 class QComboBox;
 class QDoubleSpinBox;
+class QGridLayout;
 class QLabel;
 class QLineEdit;
 class QListWidget;
@@ -213,6 +216,32 @@ private:
     // color list
     QListWidget * M_color_list_box;
 
+    // the 3D tab (only in a build with the 3D view; null otherwise)
+    QDoubleSpinBox * M_closeup_distance_3d = nullptr;
+    QDoubleSpinBox * M_closeup_elevation_3d = nullptr;
+    QButtonGroup * M_compass_3d = nullptr;
+    QButtonGroup * M_minimap_3d = nullptr;
+    QCheckBox * M_boards_3d_cb = nullptr;
+    QCheckBox * M_banners_3d_cb = nullptr;
+
+    // the Player Camera tab (only in a build with the 3D view; null otherwise)
+    QButtonGroup * M_player_camera_position = nullptr;
+    QButtonGroup * M_player_camera_direction = nullptr;
+    QButtonGroup * M_player_camera_motion = nullptr;
+    QButtonGroup * M_player_camera_fov = nullptr;
+    QButtonGroup * M_player_camera_sight = nullptr;
+    QLabel * M_player_camera_position_note = nullptr;
+    QLabel * M_player_camera_direction_note = nullptr;
+    QLabel * M_player_camera_motion_note = nullptr;
+    QLabel * M_player_camera_fov_note = nullptr;
+    QLabel * M_player_camera_sight_note = nullptr;
+    QDoubleSpinBox * M_player_camera_time_constant = nullptr;
+    QDoubleSpinBox * M_player_camera_max_turn = nullptr;
+    QDoubleSpinBox * M_player_camera_fixed_fov = nullptr;
+    QLabel * M_player_camera_time_constant_label = nullptr;
+    QLabel * M_player_camera_max_turn_label = nullptr;
+    QLabel * M_player_camera_fixed_fov_label = nullptr;
+
 public:
 
     ConfigDialog( QWidget * parent,
@@ -236,6 +265,26 @@ private:
     QLayout * createColorList();
     void createColorItems();
     QLayout * createFontButtons();
+    QWidget * create3DTab();
+    QWidget * createPlayerCameraTab();
+
+    QButtonGroup * addChoices( QGridLayout * layout,
+                               const QString & label,
+                               const QString & tooltip,
+                               const std::vector< std::pair< QString, QString > > & choices,
+                               QLabel ** note );
+    QDoubleSpinBox * addNumber( QGridLayout * layout,
+                                int row,
+                                int column,
+                                const QString & label,
+                                const QString & tooltip,
+                                double min,
+                                double max,
+                                double step,
+                                int decimals,
+                                const QString & unit,
+                                QLabel ** label_widget = nullptr );
+    void changed3D();
 
 protected:
 
@@ -318,6 +367,8 @@ public slots:
     // just update this dialog contents
     // no emit
     void updateFieldScale();
+    // the 3D tab and the Player Camera tab from the options
+    void update3D();
 
     // connect to other objects
     // emit configured()

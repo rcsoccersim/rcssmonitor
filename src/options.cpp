@@ -243,10 +243,10 @@ Options::Options()
     M_camera_3d( DEFAULT_CAMERA_MODE ),
     M_closeup_distance_3d( CLOSEUP_DISTANCE_3D ),
     M_closeup_elevation_3d( CLOSEUP_ELEVATION_3D ),
-    M_boards_3d( true ),
-    M_banners_3d( true ),
-    M_compass_3d( GuideMode::Off ),
-    M_minimap_3d( GuideMode::Off ),
+    M_boards_3d( BOARDS_3D ),
+    M_banners_3d( BANNERS_3D ),
+    M_compass_3d( COMPASS_3D ),
+    M_minimap_3d( MINIMAP_3D ),
     M_show_tool_bar( false ),
     M_show_status_bar( false ),
     // view options
@@ -965,6 +965,18 @@ void
 Options::setCloseupElevation3D( const double elevation )
 {
     M_closeup_elevation_3d = std::min( MAX_CLOSEUP_ELEVATION_3D, std::max( MIN_CLOSEUP_ELEVATION_3D, elevation ) );
+}
+
+/*-------------------------------------------------------------------*/
+void
+Options::setView3DDefaults()
+{
+    M_closeup_distance_3d = CLOSEUP_DISTANCE_3D;
+    M_closeup_elevation_3d = CLOSEUP_ELEVATION_3D;
+    M_compass_3d = COMPASS_3D;
+    M_minimap_3d = MINIMAP_3D;
+    M_boards_3d = BOARDS_3D;
+    M_banners_3d = BANNERS_3D;
 }
 
 /*-------------------------------------------------------------------*/

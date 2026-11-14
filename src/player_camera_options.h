@@ -81,8 +81,8 @@ enum class Sight {
 };
 
 /*!
-  \brief the name of a style in the options (as rcssmonitor-web's) and in
-  the menu
+  \brief the name of a style in the options (as rcssmonitor-web's) and its
+  label in the settings dialog (the Player Camera tab)
 */
 template < typename E >
 struct Info {
@@ -103,9 +103,9 @@ inline const std::array< Info< Position >, 2 > & positions()
 inline const std::array< Info< Direction >, 3 > & directions()
 {
     static const std::array< Info< Direction >, 3 > list = { {
-            { Direction::Head, "head", "Head (Body + Neck)" },
+            { Direction::Head, "head", "Head" },
             { Direction::Body, "body", "Body" },
-            { Direction::Middle, "middle", "Between Body and Head" },
+            { Direction::Middle, "middle", "Between" },
         } };
     return list;
 }
@@ -123,7 +123,7 @@ inline const std::array< Info< Fov >, 3 > & fovs()
 {
     static const std::array< Info< Fov >, 3 > list = { {
             { Fov::View, "view", "View Width" },
-            { Fov::Eased, "eased", "Eased to the View Width" },
+            { Fov::Eased, "eased", "Eased" },
             { Fov::Fixed, "fixed", "Fixed" },
         } };
     return list;
@@ -133,8 +133,8 @@ inline const std::array< Info< Sight >, 3 > & sights()
 {
     static const std::array< Info< Sight >, 3 > list = { {
             { Sight::All, "all", "Everything" },
-            { Sight::View, "view", "Inside the View" },
-            { Sight::Server, "server", "As the Server Tells" },
+            { Sight::View, "view", "View Cone" },
+            { Sight::Server, "server", "Server Rules" },
         } };
     return list;
 }

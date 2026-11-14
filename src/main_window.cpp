@@ -2037,6 +2037,7 @@ MainWindow::zoomIn()
     if ( FieldView3D * view = shownView3D() )
     {
         view->zoomCamera( 1.0 / Options::ZOOM_RATIO );
+        M_config_dialog->update3D(); // the close-up cameras' distance
         return;
     }
 #endif
@@ -2054,6 +2055,7 @@ MainWindow::zoomOut()
     if ( FieldView3D * view = shownView3D() )
     {
         view->zoomCamera( Options::ZOOM_RATIO );
+        M_config_dialog->update3D(); // the close-up cameras' distance
         return;
     }
 #endif

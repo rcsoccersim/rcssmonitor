@@ -398,6 +398,18 @@ public:
     //! the numbers are kept within their ranges (PlayerCameraStyle)
     void setPlayerCamera( const PlayerCameraOptions & options );
 
+    // the defaults of the 3D tab of the settings dialog
+    static constexpr bool BOARDS_3D = true;
+    static constexpr bool BANNERS_3D = true;
+    static constexpr GuideMode COMPASS_3D = GuideMode::Off;
+    static constexpr GuideMode MINIMAP_3D = GuideMode::Off;
+    /*!
+      \brief the settings of the 3D tab of the settings dialog back to their
+      defaults: the close-up cameras, the compass, the minimap, the boards
+      and the banners (the Default button)
+    */
+    void setView3DDefaults();
+
     //! the 3D view: the boards around the pitch, in the team colors
     bool boards3D() const { return M_boards_3d; }
     void setBoards3D( const bool on ) { M_boards_3d = on; }

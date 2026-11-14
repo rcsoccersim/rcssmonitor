@@ -41,6 +41,7 @@
 #include "disp_holder.h"
 #include "options.h"
 
+#include <algorithm>
 #include <functional>
 #include <iostream>
 #include <cassert>
@@ -312,6 +313,11 @@ ConfigDialog::createWidgets()
         frame->setLayout( layout );
         M_tab_widget->addTab( frame, tr( "Font" ) );
     }
+#ifdef HAVE_3D_VIEW
+    // the 3D view
+    M_tab_widget->addTab( create3DTab(), tr( "3D" ) );
+    M_tab_widget->addTab( createPlayerCameraTab(), tr( "Player Camera" ) );
+#endif
 
     // object selection
 //     {
@@ -1300,6 +1306,719 @@ ConfigDialog::createFontButtons()
 }
 
 /*-------------------------------------------------------------------*/
+/*
+  The 3D tab and the Player Camera tab (docs/PLAN_3D-VIEW.md §5.7, as
+  rcssmonitor-web's config-dialog.ts). Every item has a tooltip with the
+  details; below a row of choices, a line sums up the chosen one. A number
+  field applies with Enter or on leaving it: while what is typed is out of
+  its range, it shows the error color, and a value out of the range is
+  brought to the nearest end. The numbers that the chosen styles do not use
+  are dim.
+*/
+
+namespace {
+
+//! a choice of a row of radio buttons: the label, the line below the row, the tooltip
+struct ChoiceText {
+    const char * label;
+    const char * summary;
+    const char * tooltip; //!< the summary if null
+};
+
+// the choices of the Player Camera tab, in the order of player_camera_options.h
+const ChoiceText POSITION_TEXTS[] = {
+    { nullptr,
+      "At the eyes, 1.65 m high; the player itself is not drawn.",
+      "At the eyes, 1.65 m high, looking at the point 10 m ahead and 1 m high.\n"
+      "The player itself is not drawn." },
+    { nullptr,
+      "6 m behind the player and 3 m high.",
+      "6 m behind the player and 3 m high, looking at the point 15 m ahead and 1 m high." },
+};
+
+const ChoiceText DIRECTION_TEXTS[] = {
+    { nullptr,
+      "The face direction: body + neck.",
+      "The goal is the face direction, body + neck: the center of the view cone." },
+    { nullptr,
+      "The body direction: not the neck.",
+      "The goal is the body direction: the camera does not follow the neck." },
+    { nullptr,
+      "Halfway: body + neck / 2.",
+      "The goal is halfway between the body and the face: body + neck / 2." },
+};
+
+const ChoiceText MOTION_TEXTS[] = {
+    { nullptr, "The goal direction at every frame.", nullptr },
+    { nullptr,
+      "Turns by e\u00b7(1 \u2212 exp(\u2212\u0394t / \u03c4)) a frame, at most \u03c9\u00b7\u0394t.",
+      "Each frame, the camera turns by e\u00b7(1 \u2212 exp(\u2212\u0394t / \u03c4)), but at most \u03c9\u00b7\u0394t:\n"
+      "e is the angle left to the goal and \u0394t the time since the last frame (up to 0.1 s).\n"
+      "So it turns at \u03c9 while e is over about \u03c9\u00b7\u03c4, and then slows down.\n"
+      "It takes the goal at once when another player is selected, the player moves\n"
+      "over 3 m in a frame (e.g. by a move), or the 3D camera or an option here changes." },
+};
+
+const ChoiceText FOV_TEXTS[] = {
+    { nullptr,
+      "The player's view width, within 40\u00b0\u2013120\u00b0.",
+      "The player's view width, within 40\u00b0\u2013120\u00b0: the wide 180\u00b0 is shown as 120\u00b0,\n"
+      "an unknown width as 90\u00b0." },
+    { nullptr,
+      "Toward the view width, by (1 \u2212 exp(\u2212\u0394t / \u03c4)) a frame.",
+      "Each frame, the field of view moves (1 \u2212 exp(\u2212\u0394t / \u03c4)) of the way to the view width\n"
+      "(as View Width; not limited by \u03c9)." },
+    { nullptr, "Always Fixed Field of View, whatever the view width.", nullptr },
+};
+
+const ChoiceText SIGHT_TEXTS[] = {
+    { nullptr,
+      "Everything, as the other cameras draw it.",
+      "Everything, as the other cameras draw it (the players not connected in black)." },
+    { nullptr,
+      "Only the players and the ball in the view cone.",
+      "Only the players and the ball in the view cone, at any distance:\n"
+      "|the angle from the face direction| < the view width / 2." },
+    { nullptr,
+      "As rcssserver tells the player: the numbers fade out from 20 m to 40 m, "
+      "and those within 3 m out of the view are gray.",
+      "As rcssserver tells the player. In the cone, the players up to\n"
+      "player_max_observation_length (by default the diagonal of the pitch): the number\n"
+      "has the opacity 1 \u2212 (d \u2212 unum_far_length) / (unum_too_far_length \u2212 unum_far_length)\n"
+      "within 0\u20131, by default 1 under 20 m and 0 from 40 m, and without it the direction\n"
+      "marks and the view area are not drawn. The team colors fade to gray in the same way\n"
+      "by team_far_length and team_too_far_length. Outside the cone, the players within\n"
+      "visible_distance (3 m) are drawn in gray only. The ball is drawn in the cone up to\n"
+      "ball_max_observation_length, or within visible_distance. Unlike the server, the true\n"
+      "distance is used every cycle, and the chances show as opacity and gray." },
+};
+
+// the choices of the compass and the minimap, in the order of guideModes()
+const ChoiceText GUIDE_TEXTS[] = {
+    { "Off", "Not shown.", nullptr },
+    { "Player Camera", "Shown with the Player camera only.", nullptr },
+    { "All Cameras", "Shown with every camera but Top, which is a map already.", nullptr },
+};
+
+/*!
+  \brief the radio buttons' texts of a list of player_camera_options.h
+*/
+template < typename E, std::size_t N, std::size_t M >
+std::vector< std::pair< QString, QString > >
+choicesOf( const std::array< PlayerCameraStyle::Info< E >, N > & list,
+           const ChoiceText ( & texts )[M] )
+{
+    static_assert( N == M, "a text for each choice" );
+    std::vector< std::pair< QString, QString > > choices;
+    for ( std::size_t i = 0; i < N; ++i )
+    {
+        choices.emplace_back( QString::fromUtf8( texts[i].label ? texts[i].label : list[i].label ),
+                              QString::fromUtf8( texts[i].summary ) );
+    }
+    return choices;
+}
+
+//! the tooltips of the choices, by the radio buttons' ids
+template < std::size_t M >
+void
+setChoiceTooltips( QButtonGroup * group,
+                   const ChoiceText ( & texts )[M] )
+{
+    for ( std::size_t i = 0; i < M; ++i )
+    {
+        if ( QAbstractButton * b = group->button( int( i ) ) )
+        {
+            b->setToolTip( QString::fromUtf8( texts[i].tooltip ? texts[i].tooltip : texts[i].summary ) );
+        }
+    }
+}
+
+//! the index of a value in a list of player_camera_options.h
+template < typename E, std::size_t N >
+int
+indexOf( const std::array< PlayerCameraStyle::Info< E >, N > & list,
+         const E value )
+{
+    for ( std::size_t i = 0; i < N; ++i )
+    {
+        if ( list[i].value == value ) return int( i );
+    }
+    return 0;
+}
+
+int
+guideIndex( const GuideMode mode )
+{
+    for ( std::size_t i = 0; i < guideModes().size(); ++i )
+    {
+        if ( guideModes()[i].first == mode ) return int( i );
+    }
+    return 0;
+}
+
+QString
+guideLabel( const GuideMode mode )
+{
+    return QString::fromUtf8( GUIDE_TEXTS[guideIndex( mode )].label );
+}
+
+//! the width of the notes, in average characters
+constexpr int NOTE_CHARS = 60;
+
+//! a line of notes below a group or a row of choices, wrapped at a fixed width
+QLabel *
+noteLabel( const QString & text )
+{
+    QLabel * label = new QLabel( text );
+    label->setWordWrap( true );
+    label->setFixedWidth( label->fontMetrics().averageCharWidth() * NOTE_CHARS );
+    return label;
+}
+
+//! the error color of a number field while what is typed is out of its range
+void
+markNumber( QDoubleSpinBox * spin )
+{
+    QPalette palette = QApplication::palette( spin );
+    if ( ! spin->hasAcceptableInput() )
+    {
+        const QColor base = palette.color( QPalette::Base );
+        const QColor error( 255, 64, 64 );
+        palette.setColor( QPalette::Base,
+                          QColor( ( base.red() * 6 + error.red() * 4 ) / 10,
+                                  ( base.green() * 6 + error.green() * 4 ) / 10,
+                                  ( base.blue() * 6 + error.blue() * 4 ) / 10 ) );
+    }
+    spin->setPalette( palette );
+}
+
+QString
+onOff( const bool on )
+{
+    return on ? QStringLiteral( "On" ) : QStringLiteral( "Off" );
+}
+
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  a row of radio buttons after its label (ids 0, 1, ... in the order of
+  choices), and if note is given, a line below the row that a slot fills
+  with the chosen one's summary (the buttons' "summary" property)
+*/
+QButtonGroup *
+ConfigDialog::addChoices( QGridLayout * layout,
+                          const QString & label,
+                          const QString & tooltip,
+                          const std::vector< std::pair< QString, QString > > & choices,
+                          QLabel ** note )
+{
+    const int row = layout->rowCount();
+
+    if ( ! label.isEmpty() )
+    {
+        QLabel * l = new QLabel( label );
+        l->setToolTip( tooltip );
+        layout->addWidget( l, row, 0 );
+    }
+
+    QButtonGroup * group = new QButtonGroup( this );
+    QHBoxLayout * buttons = new QHBoxLayout();
+    buttons->setContentsMargins( 0, 0, 0, 0 );
+    buttons->setSpacing( 8 );
+    for ( std::size_t i = 0; i < choices.size(); ++i )
+    {
+        QRadioButton * b = new QRadioButton( choices[i].first );
+        b->setProperty( "summary", choices[i].second );
+        group->addButton( b, int( i ) );
+        buttons->addWidget( b );
+    }
+    buttons->addStretch();
+    layout->addLayout( buttons, row, 1, 1, 3 );
+    layout->setColumnStretch( 1, 1 ); // the labels as narrow as they can be
+
+    if ( note )
+    {
+        // as high as the longest summary, so that the dialog keeps its size
+        QLabel * n = noteLabel( QString() );
+        n->setContentsMargins( 4, 0, 0, 4 );
+        const int width = n->width();
+        int height = 0;
+        for ( const auto & c : choices )
+        {
+            height = std::max( height,
+                               n->fontMetrics().boundingRect( QRect( 0, 0, width - 4, 10000 ),
+                                                              Qt::TextWordWrap,
+                                                              c.second ).height() );
+        }
+        n->setMinimumHeight( height + 4 );
+        n->setAlignment( Qt::AlignLeft | Qt::AlignTop );
+        layout->addWidget( n, row + 1, 1, 1, 3 );
+        *note = n;
+    }
+
+    return group;
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  a number field after its label at (row, column) and (row, column + 1).
+  The tooltip tells the range in unit.
+*/
+QDoubleSpinBox *
+ConfigDialog::addNumber( QGridLayout * layout,
+                         const int row,
+                         const int column,
+                         const QString & label,
+                         const QString & tooltip,
+                         const double min,
+                         const double max,
+                         const double step,
+                         const int decimals,
+                         const QString & unit,
+                         QLabel ** label_widget )
+{
+    const QString details = tooltip
+        + tr( "\nRange: %1\u2013%2%3; a value outside it is brought to the nearest end." )
+        .arg( min ).arg( max ).arg( unit );
+
+    QLabel * l = new QLabel( label );
+    l->setToolTip( details );
+    layout->addWidget( l, row, column );
+    if ( label_widget ) *label_widget = l;
+
+    QDoubleSpinBox * spin = new QDoubleSpinBox();
+    spin->setRange( min, max );
+    spin->setSingleStep( step );
+    spin->setDecimals( decimals );
+    spin->setKeyboardTracking( false ); // apply with Enter or on leaving the field
+    spin->setCorrectionMode( QAbstractSpinBox::CorrectToNearestValue );
+    spin->setToolTip( details );
+    l->setBuddy( spin );
+    // what is typed: QDoubleSpinBox::textChanged() waits for Enter without
+    // the keyboard tracking
+    connect( spin->findChild< QLineEdit * >(), &QLineEdit::textChanged,
+             this, [spin]( const QString & ) { markNumber( spin ); } );
+    layout->addWidget( spin, row, column + 1 );
+    return spin;
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  the close-up cameras, and for every camera of the 3D view, the compass,
+  the minimap, the boards and the banners
+*/
+QWidget *
+ConfigDialog::create3DTab()
+{
+    QFrame * frame = new QFrame();
+    QVBoxLayout * top_layout = new QVBoxLayout();
+    top_layout->setSizeConstraint( QLayout::SetFixedSize );
+    top_layout->setContentsMargins( 4, 4, 4, 4 );
+    top_layout->setSpacing( 4 );
+
+    // close-up camera
+    {
+        QGroupBox * group_box = new QGroupBox( tr( "Close-up Camera" ) );
+        QVBoxLayout * box = new QVBoxLayout();
+        QGridLayout * layout = new QGridLayout();
+        layout->setContentsMargins( 0, 0, 0, 0 );
+
+        M_closeup_distance_3d
+            = addNumber( layout, 0, 0, tr( "Distance (m):" ),
+                         tr( "How far the close-up cameras are from the ball or the player they follow,\n"
+                             "in meters. Z and X (and Ctrl+Z) over the 3D view change it too." ),
+                         Options::MIN_CLOSEUP_DISTANCE_3D, Options::MAX_CLOSEUP_DISTANCE_3D,
+                         0.5, 1, tr( " m" ) );
+        M_closeup_distance_3d->setObjectName( "closeup_distance_3d" );
+        connect( M_closeup_distance_3d, QOverload< double >::of( &QDoubleSpinBox::valueChanged ),
+                 this, [this]( double value ) {
+                     Options::instance().setCloseupDistance3D( value );
+                     changed3D();
+                 } );
+
+        M_closeup_elevation_3d
+            = addNumber( layout, 0, 3, tr( "Elevation (\u00b0):" ),
+                         tr( "How high the close-up cameras look down from, in degrees above the ground\n"
+                             "(the broadcast camera: 32\u00b0)." ),
+                         Options::MIN_CLOSEUP_ELEVATION_3D, Options::MAX_CLOSEUP_ELEVATION_3D,
+                         1.0, 0, tr( "\u00b0" ) );
+        M_closeup_elevation_3d->setObjectName( "closeup_elevation_3d" );
+        connect( M_closeup_elevation_3d, QOverload< double >::of( &QDoubleSpinBox::valueChanged ),
+                 this, [this]( double value ) {
+                     Options::instance().setCloseupElevation3D( value );
+                     changed3D();
+                 } );
+        layout->setColumnMinimumWidth( 2, 16 );
+        layout->setColumnStretch( 5, 1 );
+
+        box->addLayout( layout );
+        box->addWidget( noteLabel( tr( "Close-up: Ball and Close-up: Selected Player (View > 3D Camera, E) "
+                                       "follow from the near touch line as the broadcast camera does, but nearer; "
+                                       "without a selected player, the ball." ) ) );
+        group_box->setLayout( box );
+        top_layout->addWidget( group_box );
+    }
+
+    // guides
+    {
+        QGroupBox * group_box = new QGroupBox( tr( "Guides" ) );
+        QVBoxLayout * box = new QVBoxLayout();
+        QGridLayout * layout = new QGridLayout();
+        layout->setContentsMargins( 0, 0, 0, 0 );
+
+        std::vector< std::pair< QString, QString > > choices;
+        for ( const ChoiceText & t : GUIDE_TEXTS )
+        {
+            choices.emplace_back( QString::fromUtf8( t.label ), QString::fromUtf8( t.summary ) );
+        }
+
+        M_compass_3d = addChoices( layout, tr( "Compass:" ),
+                                   tr( "A strip at the top: the 360\u00b0 around the camera direction (the triangle),\n"
+                                       "with the directions of the goals (L, R in the team colors) and the ball, and\n"
+                                       "what the camera sees brighter. Clockwise on the field is to the right." ),
+                                   choices, nullptr );
+        setChoiceTooltips( M_compass_3d, GUIDE_TEXTS );
+        M_compass_3d->setObjectName( "compass_3d" );
+        connect( M_compass_3d, &QButtonGroup::idClicked,
+                 this, [this]( int id ) {
+                     Options::instance().setCompass3D( guideModes()[id].first );
+                     changed3D();
+                 } );
+
+        M_minimap_3d = addChoices( layout, tr( "Minimap:" ),
+                                   tr( "The pitch at the bottom right as the 2D view shows it, with the players,\n"
+                                       "the ball, and where the camera is and what it sees." ),
+                                   choices, nullptr );
+        setChoiceTooltips( M_minimap_3d, GUIDE_TEXTS );
+        M_minimap_3d->setObjectName( "minimap_3d" );
+        connect( M_minimap_3d, &QButtonGroup::idClicked,
+                 this, [this]( int id ) {
+                     Options::instance().setMinimap3D( guideModes()[id].first );
+                     changed3D();
+                 } );
+
+        box->addLayout( layout );
+        box->addWidget( noteLabel( tr( "Which way the camera looks; they show everything, "
+                                       "whatever the Player Sight." ) ) );
+        group_box->setLayout( box );
+        top_layout->addWidget( group_box );
+    }
+
+    // stadium
+    {
+        QGroupBox * group_box = new QGroupBox( tr( "Stadium" ) );
+        QVBoxLayout * box = new QVBoxLayout();
+        QHBoxLayout * layout = new QHBoxLayout();
+        layout->setContentsMargins( 0, 0, 0, 0 );
+
+        M_boards_3d_cb = new QCheckBox( tr( "Boards" ) );
+        M_boards_3d_cb->setObjectName( "boards_3d" );
+        M_boards_3d_cb->setToolTip( tr( "Boards around the pitch, 5.5 m out and 1 m high: a dark shade of the team\n"
+                                        "color with the team name and edges in the team color, changing at the\n"
+                                        "halfway line." ) );
+        connect( M_boards_3d_cb, &QCheckBox::clicked,
+                 this, [this]( bool on ) {
+                     Options::instance().setBoards3D( on );
+                     changed3D();
+                 } );
+        layout->addWidget( M_boards_3d_cb );
+
+        M_banners_3d_cb = new QCheckBox( tr( "Banners" ) );
+        M_banners_3d_cb->setObjectName( "banners_3d" );
+        M_banners_3d_cb->setToolTip( tr( "A banner behind each goal, 22 m back and floating 12\u201320 m high, with the\n"
+                                         "team name and logo (with Team Graphic): above the goal, so that the goal\n"
+                                         "stands out against the ground beyond." ) );
+        connect( M_banners_3d_cb, &QCheckBox::clicked,
+                 this, [this]( bool on ) {
+                     Options::instance().setBanners3D( on );
+                     changed3D();
+                 } );
+        layout->addWidget( M_banners_3d_cb );
+        layout->addStretch();
+
+        box->addLayout( layout );
+        box->addWidget( noteLabel( tr( "The boards and the banners are in the team colors, to tell the ends apart; "
+                                       "the goal nets always are." ) ) );
+        group_box->setLayout( box );
+        top_layout->addWidget( group_box );
+    }
+
+    // default
+    {
+        QPushButton * button = new QPushButton( tr( "Default" ) );
+        button->setObjectName( "default_3d" );
+        button->setToolTip( tr( "Set the defaults: Close-up %1 m, %2\u00b0, Compass %3, Minimap %4,\n"
+                                "Boards %5, Banners %6" )
+                            .arg( Options::CLOSEUP_DISTANCE_3D )
+                            .arg( Options::CLOSEUP_ELEVATION_3D )
+                            .arg( guideLabel( Options::COMPASS_3D ) )
+                            .arg( guideLabel( Options::MINIMAP_3D ) )
+                            .arg( onOff( Options::BOARDS_3D ) )
+                            .arg( onOff( Options::BANNERS_3D ) ) );
+        button->setAutoDefault( false );
+        connect( button, &QPushButton::clicked,
+                 this, [this]() {
+                     Options::instance().setView3DDefaults();
+                     changed3D();
+                 } );
+        top_layout->addWidget( button, 0, Qt::AlignLeft );
+    }
+
+    top_layout->addStretch();
+    frame->setLayout( top_layout );
+    return frame;
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  the selected player's camera of the 3D view, in the styles to compare,
+  and what it draws
+*/
+QWidget *
+ConfigDialog::createPlayerCameraTab()
+{
+    using namespace PlayerCameraStyle;
+    QFrame * frame = new QFrame();
+    QVBoxLayout * top_layout = new QVBoxLayout();
+    top_layout->setSizeConstraint( QLayout::SetFixedSize );
+    top_layout->setContentsMargins( 4, 4, 4, 4 );
+    top_layout->setSpacing( 4 );
+
+    top_layout->addWidget( noteLabel( tr( "The 3D view's Player camera, at the selected player. "
+                                          "Point at an item for details." ) ) );
+
+    // a style changed by the radio buttons: a copy with one style changed
+    const auto set_style = [this]( const std::function< void ( PlayerCameraOptions & ) > & change ) {
+        PlayerCameraOptions o = Options::instance().playerCamera();
+        change( o );
+        Options::instance().setPlayerCamera( o );
+        changed3D();
+    };
+
+    // camera
+    {
+        QGroupBox * group_box = new QGroupBox( tr( "Camera" ) );
+        QGridLayout * layout = new QGridLayout();
+        layout->setVerticalSpacing( 0 );
+
+        M_player_camera_position
+            = addChoices( layout, tr( "Position:" ),
+                          tr( "Where the camera is, along the camera direction" ),
+                          choicesOf( positions(), POSITION_TEXTS ), &M_player_camera_position_note );
+        setChoiceTooltips( M_player_camera_position, POSITION_TEXTS );
+        M_player_camera_position->setObjectName( "player_camera_position" );
+        connect( M_player_camera_position, &QButtonGroup::idClicked,
+                 this, [set_style]( int id ) {
+                     set_style( [id]( PlayerCameraOptions & o ) { o.position = positions()[id].value; } );
+                 } );
+
+        M_player_camera_direction
+            = addChoices( layout, tr( "Direction:" ),
+                          tr( "The goal direction that the camera turns to" ),
+                          choicesOf( directions(), DIRECTION_TEXTS ), &M_player_camera_direction_note );
+        setChoiceTooltips( M_player_camera_direction, DIRECTION_TEXTS );
+        M_player_camera_direction->setObjectName( "player_camera_direction" );
+        connect( M_player_camera_direction, &QButtonGroup::idClicked,
+                 this, [set_style]( int id ) {
+                     set_style( [id]( PlayerCameraOptions & o ) { o.direction = directions()[id].value; } );
+                 } );
+
+        M_player_camera_motion
+            = addChoices( layout, tr( "Motion:" ),
+                          tr( "How the camera turns to the goal direction" ),
+                          choicesOf( motions(), MOTION_TEXTS ), &M_player_camera_motion_note );
+        setChoiceTooltips( M_player_camera_motion, MOTION_TEXTS );
+        M_player_camera_motion->setObjectName( "player_camera_motion" );
+        connect( M_player_camera_motion, &QButtonGroup::idClicked,
+                 this, [set_style]( int id ) {
+                     set_style( [id]( PlayerCameraOptions & o ) { o.motion = motions()[id].value; } );
+                 } );
+
+        M_player_camera_fov
+            = addChoices( layout, tr( "Field of View:" ),
+                          tr( "The horizontal field of view h. The vertical one follows the shape of the view:\n"
+                              "2\u00b7atan(tan(h / 2) / (width / height))." ),
+                          choicesOf( fovs(), FOV_TEXTS ), &M_player_camera_fov_note );
+        setChoiceTooltips( M_player_camera_fov, FOV_TEXTS );
+        M_player_camera_fov->setObjectName( "player_camera_fov" );
+        connect( M_player_camera_fov, &QButtonGroup::idClicked,
+                 this, [set_style]( int id ) {
+                     set_style( [id]( PlayerCameraOptions & o ) { o.fov = fovs()[id].value; } );
+                 } );
+
+        // the numbers: below the choices, in 2 columns of a label and a field
+        QGridLayout * numbers = new QGridLayout();
+        numbers->setContentsMargins( 0, 4, 0, 0 );
+
+        M_player_camera_time_constant
+            = addNumber( numbers, 0, 0, tr( "Time Constant \u03c4 (s):" ),
+                         tr( "\u03c4 of Smooth and Eased: after \u03c4 seconds, about 37% (1/e) of the difference\n"
+                             "is left (while Smooth turns slower than \u03c9). With 0, Smooth turns at \u03c9 only\n"
+                             "and Eased follows at once." ),
+                         MIN_TIME_CONSTANT, MAX_TIME_CONSTANT, 0.05, 2, tr( " s" ),
+                         &M_player_camera_time_constant_label );
+        M_player_camera_time_constant->setObjectName( "player_camera_time_constant" );
+        connect( M_player_camera_time_constant, QOverload< double >::of( &QDoubleSpinBox::valueChanged ),
+                 this, [set_style]( double value ) {
+                     set_style( [value]( PlayerCameraOptions & o ) { o.time_constant = value; } );
+                 } );
+
+        M_player_camera_max_turn
+            = addNumber( numbers, 0, 3, tr( "Max Turn \u03c9 (\u00b0/s):" ),
+                         tr( "\u03c9 of Smooth: the fastest the camera turns, in degrees per second." ),
+                         MIN_MAX_TURN, MAX_MAX_TURN, 1.0, 0, tr( "\u00b0/s" ),
+                         &M_player_camera_max_turn_label );
+        M_player_camera_max_turn->setObjectName( "player_camera_max_turn" );
+        connect( M_player_camera_max_turn, QOverload< double >::of( &QDoubleSpinBox::valueChanged ),
+                 this, [set_style]( double value ) {
+                     set_style( [value]( PlayerCameraOptions & o ) { o.max_turn = value; } );
+                 } );
+
+        M_player_camera_fixed_fov
+            = addNumber( numbers, 1, 0, tr( "Fixed Field of View (\u00b0):" ),
+                         tr( "The horizontal field of view of Fixed, in degrees." ),
+                         MIN_FIXED_FOV, MAX_FIXED_FOV, 1.0, 0, tr( "\u00b0" ),
+                         &M_player_camera_fixed_fov_label );
+        M_player_camera_fixed_fov->setObjectName( "player_camera_fixed_fov" );
+        connect( M_player_camera_fixed_fov, QOverload< double >::of( &QDoubleSpinBox::valueChanged ),
+                 this, [set_style]( double value ) {
+                     set_style( [value]( PlayerCameraOptions & o ) { o.fixed_fov = value; } );
+                 } );
+        numbers->setColumnMinimumWidth( 2, 16 );
+        numbers->setColumnStretch( 5, 1 );
+
+        layout->addLayout( numbers, layout->rowCount(), 0, 1, 4 );
+        group_box->setLayout( layout );
+        top_layout->addWidget( group_box );
+    }
+
+    // player sight
+    {
+        QGroupBox * group_box = new QGroupBox( tr( "Player Sight" ) );
+        QVBoxLayout * box = new QVBoxLayout();
+        QGridLayout * layout = new QGridLayout();
+        layout->setContentsMargins( 0, 0, 0, 0 );
+        layout->setVerticalSpacing( 0 );
+
+        M_player_camera_sight
+            = addChoices( layout, QString(), QString(),
+                          choicesOf( sights(), SIGHT_TEXTS ), &M_player_camera_sight_note );
+        setChoiceTooltips( M_player_camera_sight, SIGHT_TEXTS );
+        M_player_camera_sight->setObjectName( "player_camera_sight" );
+        connect( M_player_camera_sight, &QButtonGroup::idClicked,
+                 this, [set_style]( int id ) {
+                     set_style( [id]( PlayerCameraOptions & o ) { o.sight = sights()[id].value; } );
+                 } );
+
+        box->addLayout( layout );
+        box->addWidget( noteLabel( tr( "Only with a connected player selected, by its face direction "
+                                       "and view width in the log." ) ) );
+        group_box->setLayout( box );
+        top_layout->addWidget( group_box );
+    }
+
+    // default
+    {
+        const PlayerCameraOptions d;
+        QPushButton * button = new QPushButton( tr( "Default" ) );
+        button->setObjectName( "default_player_camera" );
+        button->setToolTip( tr( "Set the default player camera: %1, %2, %3, %4, %5,\n"
+                                "\u03c4 %6 s, \u03c9 %7\u00b0/s, Fixed %8\u00b0" )
+                            .arg( QString::fromUtf8( positions()[indexOf( positions(), d.position )].label ) )
+                            .arg( QString::fromUtf8( directions()[indexOf( directions(), d.direction )].label ) )
+                            .arg( QString::fromUtf8( motions()[indexOf( motions(), d.motion )].label ) )
+                            .arg( QString::fromUtf8( fovs()[indexOf( fovs(), d.fov )].label ) )
+                            .arg( QString::fromUtf8( sights()[indexOf( sights(), d.sight )].label ) )
+                            .arg( d.time_constant )
+                            .arg( d.max_turn )
+                            .arg( d.fixed_fov ) );
+        button->setAutoDefault( false );
+        connect( button, &QPushButton::clicked,
+                 this, [this]() {
+                     Options::instance().setPlayerCamera( PlayerCameraOptions() );
+                     changed3D();
+                 } );
+        top_layout->addWidget( button, 0, Qt::AlignLeft );
+    }
+
+    top_layout->addStretch();
+    frame->setLayout( top_layout );
+    return frame;
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  a setting of the 3D tab or the Player Camera tab changed: the tabs show
+  it, and the views draw it
+*/
+void
+ConfigDialog::changed3D()
+{
+    update3D();
+    emit configured();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+void
+ConfigDialog::update3D()
+{
+    if ( ! M_closeup_distance_3d )
+    {
+        return; // a build without the 3D view
+    }
+
+    using namespace PlayerCameraStyle;
+    const Options & opt = Options::instance();
+    const PlayerCameraOptions & pc = opt.playerCamera();
+
+    // without valueChanged(), which would write the shown (rounded) value back
+    const auto set_number = []( QDoubleSpinBox * spin, const double value ) {
+        const QSignalBlocker blocker( spin );
+        spin->setValue( value );
+        markNumber( spin );
+    };
+    // the summary of the chosen one below the row
+    const auto set_choice = []( QButtonGroup * group, const int id, QLabel * note ) {
+        if ( QAbstractButton * b = group->button( id ) )
+        {
+            b->setChecked( true );
+            if ( note ) note->setText( b->property( "summary" ).toString() );
+        }
+    };
+
+    set_number( M_closeup_distance_3d, opt.closeupDistance3D() );
+    set_number( M_closeup_elevation_3d, opt.closeupElevation3D() );
+    set_choice( M_compass_3d, guideIndex( opt.compass3D() ), nullptr );
+    set_choice( M_minimap_3d, guideIndex( opt.minimap3D() ), nullptr );
+    M_boards_3d_cb->setChecked( opt.boards3D() );
+    M_banners_3d_cb->setChecked( opt.banners3D() );
+
+    set_choice( M_player_camera_position, indexOf( positions(), pc.position ), M_player_camera_position_note );
+    set_choice( M_player_camera_direction, indexOf( directions(), pc.direction ), M_player_camera_direction_note );
+    set_choice( M_player_camera_motion, indexOf( motions(), pc.motion ), M_player_camera_motion_note );
+    set_choice( M_player_camera_fov, indexOf( fovs(), pc.fov ), M_player_camera_fov_note );
+    set_choice( M_player_camera_sight, indexOf( sights(), pc.sight ), M_player_camera_sight_note );
+    set_number( M_player_camera_time_constant, pc.time_constant );
+    set_number( M_player_camera_max_turn, pc.max_turn );
+    set_number( M_player_camera_fixed_fov, pc.fixed_fov );
+
+    // the numbers that the chosen styles do not use are dim
+    const bool smooth = ( pc.motion == Motion::Smooth );
+    const bool time_constant = ( smooth || pc.fov == Fov::Eased );
+    const bool fixed = ( pc.fov == Fov::Fixed );
+    M_player_camera_time_constant->setEnabled( time_constant );
+    M_player_camera_time_constant_label->setEnabled( time_constant );
+    M_player_camera_max_turn->setEnabled( smooth );
+    M_player_camera_max_turn_label->setEnabled( smooth );
+    M_player_camera_fixed_fov->setEnabled( fixed );
+    M_player_camera_fixed_fov_label->setEnabled( fixed );
+}
+
+/*-------------------------------------------------------------------*/
 /*!
 
 */
@@ -1406,6 +2125,8 @@ ConfigDialog::updateAll()
 
         color_item->updateColor();
     }
+
+    update3D();
 }
 
 /*-------------------------------------------------------------------*/
