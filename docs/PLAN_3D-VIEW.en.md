@@ -392,6 +392,7 @@ Settings dialog:
 - **Player Camera tab**: the 4 styles, time constant, maximum angular speed, fixed field of view, Player Sight, Default button.
 - Every item gets a detailed tooltip. Numeric fields state their range in the tooltip, and out-of-range values are clamped to the ends (error color while typing). Numeric fields not used by the selected style are dimmed.
 - In the web version, the 3D items grew and one tab became too tall, so Player Camera was split into its own tab. If the items grow further, split them likewise.
+- → 6-6 made the settings of 6-1 to 6-5 (Close-up Camera, Guides, Boards and Banners of Stadium, and all of the Player Camera tab). Players, Ball and the rest of Stadium come in Phases 7 and 8. The two tabs are only in a build with the 3D view.
 
 ### 5.8 Figures
 
@@ -635,7 +636,7 @@ Port the GL-independent calculations, using the web version's unit tests as mode
 | `stadium_3d`, `scenery_3d`, `ball_3d`, `ball_aids_3d` | Components |
 | `figures_3d`, `pose`, `gltf_model` | Figures |
 | `hud_3d`, `guides` | HUD, compass strip, minimap |
-| The 3D tab and the Player Camera tab of `config_dialog` | Settings |
+| The 3D tab and the Player Camera tab of `config_dialog` | Settings (6-6; the items of Phases 7 and 8 come with those steps) |
 | `third_party/cgltf/cgltf.h` | glTF loading (MIT). v1.15 is in the prototype branch (§14) |
 | `resources/models/Mannequin.glb`, `.qrc` | Figure model (CC0) and its source. The one without compression is in the prototype branch (§14) |
 | `test/test_*.cpp` | Unit tests and rendering tests |
@@ -1456,4 +1457,29 @@ The 2 commits of 6-4 (06b5555, 2a7b07f) were pushed, and the CI passed.
 - Every test was confirmed to fail when what it checks is broken for a while (9 ways: the top camera, the player camera only, the horizontal field of view, the short way round, the sector's direction, the goalie color, the ring of the selected player, the compass's ball, clipping to the minimap). At first the check of the ring relied on the brightness of the sector behind it, and the check beyond the minimap looked where the sector did not reach; they now compare with the unselected drawing and look above the minimap, where the camera looks.
 - Builds and tests pass with Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`; 31 tests). `-DENABLE_3D=OFF` (17 tests) and autotools pass too.
 - The player camera of the left 9 at frame 3,000 of the full game log was drawn offscreen with the compass and the minimap over it, and looked at.
+
+#### 2026-11-14: Step 6-6, the 3D tab and the Player Camera tab of the settings dialog (`feature/3d-view`)
+
+The 2 commits of 6-5 (11ff531, 1fc390f) were pushed, and the CI passed.
+
+**Decided**
+- As in the web version (`config-dialog.ts`, §5.7): the 3D tab has Close-up Camera (distance, elevation), Guides (the compass and the minimap, each off / with the player camera only / with all cameras), Stadium (Boards, Banners) and a Default button. The Player Camera tab has the 4 styles (position, direction, motion, field of view), the time constant τ, the largest turn ω, the fixed field of view, Player Sight and a Default button. Players, Ball and the rest of Stadium (Stands, Grass Stripes, Sky) come in Phases 7 and 8, which make them.
+- The styles are rows of radio buttons as in the web version, with the chosen one summed up below the row (the summary's line is as high as the longest summary, so that the dialog keeps its size when another is chosen). Every item has a tooltip with the details, and the Default buttons' tooltips tell the defaults. The styles' names are now the web version's short ones (`player_camera_options.h`).
+- The number fields are `QDoubleSpinBox`es. They apply with Enter or on leaving the field (not at every key). A value out of the range is brought to the nearest end (a value under the lower end becomes it with Enter; Qt does not take a digit that goes over the upper end). While what is typed is out of the range, the field shows the error color. The numbers the chosen styles do not use (τ is used with Smooth or Eased, ω with Smooth, the fixed field of view with Fixed only) are dim, with their labels.
+- The two tabs are made only in a build with the 3D view (a build without it keeps the settings, unused).
+- When Z and X change the close-up cameras' distance in 3D, the open dialog's field follows. Filling the fields does not write the rounded values back to the settings.
+
+**Made**
+- `ConfigDialog::create3DTab()`, `createPlayerCameraTab()`, `addChoices()` (a row of radio buttons and its summary), `addNumber()` (a number field with its label, the range in the tooltip, the error color), `update3D()` (the fields from the settings; called by `updateAll()` and after Z and X in 3D).
+- `Options`: the defaults of the 3D tab (`BOARDS_3D`, `BANNERS_3D`, `COMPASS_3D`, `MINIMAP_3D`) and `setView3DDefaults()`.
+
+**Tests**
+- Added to test `config_dialog`: the tabs (4 in a build without the 3D view); a tooltip on every field and button; every item of the 3D tab changes its setting and emits `configured()`; Default sets the settings and the fields back; the number fields (typing a value under the lower end shows the error color, Enter brings it to the lower end and the color back; a value within the range does not apply before Enter; never over the upper end); `update3D()` shows the settings changed elsewhere and does not write the rounded values back; every style and number of the Player Camera tab changes only its own setting; the summary follows the chosen one; Default; the unused numbers dim in 5 combinations.
+- Every test was confirmed to fail when what it checks is broken for a while (12 ways: bringing to the end, applying with Enter, the error color, blocking the signals while filling the fields, the condition to dim τ, dimming the labels, the summary, the fields after Default, the minimap's choice, the call from `updateAll()`, where τ is written, the choice of Player Sight). At first breaking "applying with Enter" passed, so a check that a value within the range does not apply before Enter was added.
+- Builds and tests pass with Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`; 31 tests). `-DENABLE_3D=OFF` (17 tests) and autotools pass too.
+- The 6 tabs of the dialog were drawn offscreen and looked at.
+
+**The user's check, and a bug found**
+- The user checked the two tabs on the screen (fine).
+- The user pointed out that the 3D view did not show the score board. The cause: on a screen scaled by other than 1, a QPainter on a `QOpenGLWidget` has its window (`window()`) in physical pixels (1653×930 at the scale 1.29) while it draws in logical pixels (1280×720). The score board is placed at the bottom of the window, so it was out of the view (since 4-5). The rest of the HUD is placed in logical pixels without the window, and stayed in place. The fix: before the HUD, the painter's window and viewport are the widget's rectangle in logical pixels (as a painter of the 2D view has them). An OpenGL widget cannot be made in the tests without a screen, so the real `FieldView3D` was drawn in a window that is not shown (`WA_DontShowOnScreen`), with Qt6 (at the scale 1.29) and Qt5: the score board is at the bottom left, and the rest of the HUD and the scene are where they were.
 
