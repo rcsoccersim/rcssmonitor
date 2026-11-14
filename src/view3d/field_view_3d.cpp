@@ -311,7 +311,17 @@ FieldView3D::paintGL()
     if ( ! frames.empty() )
     {
         SceneBuilder::addShow( M_content, show, M_disp_holder, Options::instance(), seen, figures );
-        // posed at the game's time of the frame drawn and the fraction to the next one
+        // how the figures move, from the log, and so their poses at the
+        // game's time of the frame drawn and the fraction to the next one
+        if ( ! M_content.figures.empty() )
+        {
+            M_gaits.setStrides( M_figures.strides() );
+            M_gaits.update( frames, step * 1.0e-3 );
+            for ( FigureInstance & figure : M_content.figures )
+            {
+                figure.motion = M_gaits.motion( figure.player, at.index, at.next, at.alpha );
+            }
+        }
         M_figures.pose( M_content, ( at.index + at.alpha ) * step * 1.0e-3 );
         OverlayBuilder::addDirections( M_content, show, M_disp_holder, Options::instance(), seen );
         OverlayBuilder::addViewAreas( M_content, show, M_disp_holder, Options::instance(), seen );

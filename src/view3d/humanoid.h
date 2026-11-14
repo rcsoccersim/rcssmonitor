@@ -109,6 +109,17 @@ struct HumanoidPose {
 
     QQuaternion & operator[]( const HumanBone bone ) { return rotations[static_cast< int >( bone )]; }
     const QQuaternion & operator[]( const HumanBone bone ) const { return rotations[static_cast< int >( bone )]; }
+
+    /*!
+      \brief between two poses: each role's rotation the shorter way, the
+      hips' move in a line
+      \param a the pose at 0
+      \param b the pose at 1
+      \param t how far toward b (0 to 1)
+    */
+    static HumanoidPose mix( const HumanoidPose & a,
+                             const HumanoidPose & b,
+                             const float t );
 };
 
 /*!
@@ -164,6 +175,18 @@ public:
     */
     void apply( const HumanoidPose & pose,
                 std::vector< NodeTransform > & local ) const;
+
+    /*!
+      \brief turn a role's bone in the model, the bones below it following
+      (as the hips turned about the vertical carry the legs and the back)
+      \param pose the pose to change
+      \param bone the role
+      \param turn the rotation in the directions of the model, about the
+      bone's own joint
+    */
+    void turnInModel( HumanoidPose & pose,
+                      const HumanBone bone,
+                      const QQuaternion & turn ) const;
 
 private:
     const GltfModel * M_model = nullptr;

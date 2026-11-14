@@ -255,3 +255,43 @@ HumanoidRig::apply( const HumanoidPose & pose,
         global[i] = parent_global * local[i].matrix();
     }
 }
+
+/*-------------------------------------------------------------------*/
+void
+HumanoidRig::turnInModel( HumanoidPose & pose,
+                          const HumanBone bone,
+                          const QQuaternion & turn ) const
+{
+    const int b = static_cast< int >( bone );
+    if ( ! M_model || M_node[b] < 0 ) return;
+
+    // D of the role above, through the roles above it
+    QQuaternion above;
+    for ( int p = M_parent_role[b]; p >= 0; p = M_parent_role[p] )
+    {
+        above = pose.rotations[p] * above;
+    }
+    // D' = turn * D, the roles below keeping their rotations relative to
+    // it (so they turn as much in the model): N' = above^-1 * turn * above * N
+    pose.rotations[b] = ( above.conjugated() * turn * above * pose.rotations[b] ).normalized();
+}
+
+/*-------------------------------------------------------------------*/
+HumanoidPose
+HumanoidPose::mix( const HumanoidPose & a,
+                   const HumanoidPose & b,
+                   const float t )
+{
+    if ( t <= 0.0f ) return a;
+    if ( t >= 1.0f ) return b;
+    HumanoidPose pose;
+    for ( int k = 0; k < HUMAN_BONE_COUNT; ++k )
+    {
+        const QQuaternion & p = a.rotations[k];
+        QQuaternion q = b.rotations[k];
+        if ( QQuaternion::dotProduct( p, q ) < 0.0f ) q = -q; // the shorter way
+        pose.rotations[k] = ( p * ( 1.0f - t ) + q * t ).normalized();
+    }
+    pose.hips = a.hips * ( 1.0f - t ) + b.hips * t;
+    return pose;
+}

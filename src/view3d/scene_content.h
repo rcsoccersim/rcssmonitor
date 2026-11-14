@@ -74,6 +74,20 @@ struct PlayerPick {
 };
 
 /*!
+  \struct FigureMotion
+  \brief how a figure moves at the time drawn, from the log (GaitTable):
+  so that Figures3D poses it from the frame and the fraction to the next
+  one only
+*/
+struct FigureMotion {
+    double gait = 0.0; //!< the gait's cycles walked by the time drawn, for a figure of a person's height (fewer when going backward)
+    float vx = 0.0f; //!< the velocity on the field (m/s), smoothed over the cycles around
+    float vy = 0.0f;
+    float ax = 0.0f; //!< the acceleration on the field (m/s^2), smoothed over the cycles around
+    float ay = 0.0f;
+};
+
+/*!
   \struct FigureInstance
   \brief a player drawn as a human figure (docs/PLAN_3D-VIEW.md §5.8):
   SceneBuilder puts it where the player is, and Figures3D poses it
@@ -85,6 +99,7 @@ struct FigureInstance {
     float body; //!< the body direction (degree)
     float height; //!< from the ground to the top of the head (m)
     QVector4D color; //!< the jersey: the team or state color, as the body of a cylinder
+    FigureMotion motion = FigureMotion(); //!< how it moves (standing still unless told)
 };
 
 /*!

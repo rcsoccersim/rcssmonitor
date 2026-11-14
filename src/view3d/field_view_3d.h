@@ -176,6 +176,7 @@ private:
     std::unique_ptr< TeamGraphicPainter > M_team_graphic_painter; //!< the HUD: the 2D team logos
     LabelAtlas M_label_atlas; //!< the texts of the number labels
     Figures3D M_figures; //!< the players as human figures (Options::playerModel3D())
+    GaitTable M_gaits; //!< how far the players have walked, for the figures
     Scene3D M_scene; //!< the OpenGL drawing
     SceneContent M_content; //!< what to draw, reused in every frame
     bool M_ready; //!< Scene3D could be initialized

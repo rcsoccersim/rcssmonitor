@@ -242,6 +242,64 @@ private slots:
           QVERIFY( ( mb - 2.0f * ma ).length() < 1.0e-3f );
       }
 
+    //! between two poses: the ends, halfway the shorter way, the hips in a line
+    void mix()
+      {
+          HumanoidPose a, b;
+          a[HumanBone::Head] = QQuaternion::fromAxisAndAngle( 0.0f, 1.0f, 0.0f, 10.0f );
+          b[HumanBone::Head] = -QQuaternion::fromAxisAndAngle( 0.0f, 1.0f, 0.0f, 50.0f ); // written negated
+          a.hips = QVector3D( 0.0f, 0.1f, 0.0f );
+          b.hips = QVector3D( 0.2f, -0.1f, 0.0f );
+          QVERIFY( same( HumanoidPose::mix( a, b, 0.0f )[HumanBone::Head], a[HumanBone::Head] ) );
+          QVERIFY( same( HumanoidPose::mix( a, b, 1.0f )[HumanBone::Head], b[HumanBone::Head] ) );
+          const HumanoidPose half = HumanoidPose::mix( a, b, 0.5f );
+          QVERIFY2( same( half[HumanBone::Head], QQuaternion::fromAxisAndAngle( 0.0f, 1.0f, 0.0f, 30.0f ), 1.0e-3f ),
+                    qPrintable( QString::number( half[HumanBone::Head].scalar() ) ) );
+          QVERIFY( same( half[HumanBone::Hips], QQuaternion() ) );
+          QVERIFY( ( half.hips - QVector3D( 0.1f, 0.0f, 0.0f ) ).length() < 1.0e-6f );
+      }
+
+    /*!
+      a role's bone turned in the model: it and every role below it turn as
+      much in the model, the roles above do not
+    */
+    void turnInModel()
+      {
+          std::vector< NodeTransform > motion = M_model.rest;
+          M_model.sample( M_model.clips[M_model.clipIndex( "Jog_Fwd_Loop" )], 0.4f, motion );
+          const HumanoidPose before = M_rig.poseOf( motion );
+          std::vector< NodeTransform > a = M_model.rest;
+          M_rig.apply( before, a );
+          const std::vector< QQuaternion > ra = modelRotations( M_model, a );
+
+          // the hips: all the roles turn
+          const QQuaternion turn = QQuaternion::fromAxisAndAngle( 0.0f, 1.0f, 0.0f, 30.0f );
+          HumanoidPose pose = before;
+          M_rig.turnInModel( pose, HumanBone::Hips, turn );
+          std::vector< NodeTransform > b = M_model.rest;
+          M_rig.apply( pose, b );
+          const std::vector< QQuaternion > rb = modelRotations( M_model, b );
+          for ( int r = 0; r < HUMAN_BONE_COUNT; ++r )
+          {
+              const int n = M_rig.node( HumanBone( r ) );
+              QVERIFY2( same( rb[n] * ra[n].conjugated(), turn ), humanBoneName( HumanBone( r ) ) );
+          }
+
+          // then the chest back: the chest and above as before, the legs and the spine turned
+          M_rig.turnInModel( pose, HumanBone::Chest, turn.conjugated() );
+          std::vector< NodeTransform > c = M_model.rest;
+          M_rig.apply( pose, c );
+          const std::vector< QQuaternion > rc = modelRotations( M_model, c );
+          for ( const HumanBone r : { HumanBone::Chest, HumanBone::Head, HumanBone::LeftHand, HumanBone::RightUpperArm } )
+          {
+              QVERIFY2( same( rc[M_rig.node( r )], ra[M_rig.node( r )] ), humanBoneName( r ) );
+          }
+          for ( const HumanBone r : { HumanBone::Hips, HumanBone::Spine, HumanBone::LeftFoot } )
+          {
+              QVERIFY2( same( rc[M_rig.node( r )] * ra[M_rig.node( r )].conjugated(), turn ), humanBoneName( r ) );
+          }
+      }
+
     //! the bones without a role keep what the caller gave them
     void otherBones()
       {
