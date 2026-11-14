@@ -222,17 +222,14 @@ private:
     QButtonGroup * M_compass_3d = nullptr;
     QButtonGroup * M_minimap_3d = nullptr;
     QButtonGroup * M_player_model_3d = nullptr;
-    QLabel * M_player_model_3d_note = nullptr;
     QButtonGroup * M_figure_bodies_3d = nullptr;
     QLabel * M_figure_bodies_3d_label = nullptr;
     QDoubleSpinBox * M_figure_scale_3d = nullptr;
     QLabel * M_figure_scale_3d_label = nullptr;
     QButtonGroup * M_shadows_3d = nullptr;
-    QLabel * M_shadows_3d_note = nullptr;
     QCheckBox * M_boards_3d_cb = nullptr;
     QCheckBox * M_banners_3d_cb = nullptr;
     QButtonGroup * M_grass_3d = nullptr;
-    QLabel * M_grass_3d_note = nullptr;
     QCheckBox * M_sky_3d_cb = nullptr;
 
     // the Player Camera tab (only in a build with the 3D view; null otherwise)
@@ -241,11 +238,6 @@ private:
     QButtonGroup * M_player_camera_motion = nullptr;
     QButtonGroup * M_player_camera_fov = nullptr;
     QButtonGroup * M_player_camera_sight = nullptr;
-    QLabel * M_player_camera_position_note = nullptr;
-    QLabel * M_player_camera_direction_note = nullptr;
-    QLabel * M_player_camera_motion_note = nullptr;
-    QLabel * M_player_camera_fov_note = nullptr;
-    QLabel * M_player_camera_sight_note = nullptr;
     QDoubleSpinBox * M_player_camera_time_constant = nullptr;
     QDoubleSpinBox * M_player_camera_max_turn = nullptr;
     QDoubleSpinBox * M_player_camera_fixed_fov = nullptr;
@@ -282,8 +274,7 @@ private:
     QButtonGroup * addChoices( QGridLayout * layout,
                                const QString & label,
                                const QString & tooltip,
-                               const std::vector< std::pair< QString, QString > > & choices,
-                               QLabel ** note );
+                               const std::vector< std::pair< QString, QString > > & choices );
     QDoubleSpinBox * addNumber( QGridLayout * layout,
                                 int row,
                                 int column,

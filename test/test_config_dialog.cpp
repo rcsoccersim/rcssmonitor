@@ -31,6 +31,7 @@
 /////////////////////////////////////////////////////////////////////
 
 #include <QtTest>
+#include <QGroupBox>
 
 #include "config.h"
 
@@ -104,14 +105,6 @@ resetView3D()
     Options::instance().setPlayerCamera( PlayerCameraOptions() );
 }
 
-//! the line below a row of choices
-QString
-noteOf( const QButtonGroup * group )
-{
-    // the note is the label in the same grid, below the buttons: the one whose
-    // text is the checked button's summary
-    return group->checkedButton()->property( "summary" ).toString();
-}
 
 }
 
@@ -243,6 +236,36 @@ TestConfigDialog::tabs3D()
         {
             QVERIFY2( ! b->toolTip().isEmpty(), qPrintable( b->text() ) );
         }
+    }
+    // the items with a tooltip marked by a dotted underline (TooltipMarker)
+    {
+        QLabel * compass = nullptr;
+        for ( QLabel * l : dialog.findChildren< QLabel * >() )
+        {
+            if ( l->text() == "Compass:" ) compass = l;
+        }
+        QVERIFY( compass && ! compass->toolTip().isEmpty() );
+        dialog.show();
+        const QImage with = compass->grab().toImage();
+        const QString tip = compass->toolTip();
+        compass->setToolTip( QString() );
+        const QImage without = compass->grab().toImage();
+        compass->setToolTip( tip );
+        QVERIFY( with != without );
+    }
+    // the notes of the groups in their tooltips, not below them (compact)
+    for ( const char * title : { "Close-up Camera", "Guides", "Players", "Stadium", "Player Sight" } )
+    {
+        bool found = false;
+        for ( const QGroupBox * g : dialog.findChildren< QGroupBox * >() )
+        {
+            if ( g->title() == title )
+            {
+                found = true;
+                QVERIFY2( ! g->toolTip().isEmpty(), title );
+            }
+        }
+        QVERIFY2( found, title );
     }
     QVERIFY( ! child< QCheckBox >( dialog, "boards_3d" )->toolTip().isEmpty() );
     QVERIFY( ! child< QCheckBox >( dialog, "banners_3d" )->toolTip().isEmpty() );
@@ -542,32 +565,32 @@ TestConfigDialog::playerCameraTab()
     QCOMPARE( max_turn->value(), MAX_TURN );
     QCOMPARE( fixed_fov->value(), FIXED_FOV );
 
-    // the note below the row: the summary of the chosen one
-    const auto note_shown = [&dialog]( const QButtonGroup * group ) {
-        for ( const QLabel * l : dialog.findChildren< QLabel * >() )
+    // compact: no line below a row (the summaries are in the tooltips)
+    for ( const QButtonGroup * group : { position, direction, motion, fov, sight } )
+    {
+        for ( const QAbstractButton * b : group->buttons() )
         {
-            if ( l->text() == noteOf( group ) ) return true;
+            const QString summary = b->property( "summary" ).toString();
+            QVERIFY( ! summary.isEmpty() );
+            for ( const QLabel * l : dialog.findChildren< QLabel * >() )
+            {
+                QVERIFY2( l->text() != summary, qPrintable( summary ) );
+            }
         }
-        return false;
-    };
-    QVERIFY( note_shown( position ) );
-    QCOMPARE( noteOf( position ), QString( "6 m behind the player and 3 m high." ) );
+    }
+    QVERIFY( position->button( 1 )->toolTip().contains( "6 m behind the player and 3 m high" ) );
+    QVERIFY( position->button( 0 )->toolTip().startsWith( "At the eyes" ) );
 
     position->button( 0 )->click();
     QCOMPARE( opt.playerCamera().position, Position::Eye );
-    QVERIFY( noteOf( position ).startsWith( "At the eyes" ) );
-    QVERIFY( note_shown( position ) );
     direction->button( 2 )->click();
     QCOMPARE( opt.playerCamera().direction, Direction::Middle );
-    QVERIFY( note_shown( direction ) );
     motion->button( 0 )->click();
     QCOMPARE( opt.playerCamera().motion, Motion::Instant );
     fov->button( 1 )->click();
     QCOMPARE( opt.playerCamera().fov, Fov::Eased );
-    QVERIFY( note_shown( fov ) );
     sight->button( 0 )->click();
     QCOMPARE( opt.playerCamera().sight, Sight::All );
-    QVERIFY( note_shown( sight ) );
     QCOMPARE( spy.count(), 5 );
 
     time_constant->setValue( 1.25 );
@@ -587,7 +610,6 @@ TestConfigDialog::playerCameraTab()
     QCOMPARE( position->checkedButton()->text(), QString( "Over the Shoulder" ) );
     QCOMPARE( sight->checkedButton()->text(), QString( "Server Rules" ) );
     QCOMPARE( max_turn->value(), MAX_TURN );
-    QVERIFY( note_shown( position ) );
     QCOMPARE( spy.count(), 9 );
 #endif
 }

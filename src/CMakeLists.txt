@@ -28,6 +28,7 @@ add_library(rcssmonitor_core STATIC
   team_graphic.cpp
   team_graphic_painter.cpp
   tool_icon.cpp
+  tooltip_marker.cpp
   vector_2d.cpp
   )
 
