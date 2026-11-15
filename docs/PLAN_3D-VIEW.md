@@ -7,7 +7,7 @@
 | 参照実装 | rcssmonitor-web 20.0.0-beta.2 (タグ `v20.0.0-beta.2`、ed36941)。作業ツリーは、このリポジトリと並べて置いた `../rcssmonitor-web` |
 | 参照したサーバ | asio 版 rcssserver 19.x。作業ツリーは、このリポジトリと並べて置いた `../rcssserver` (`feature/asio-migration` ブランチ) |
 | 英語版 | [PLAN_3D-VIEW.en.md](PLAN_3D-VIEW.en.md) (内容は同じ。§0.1) |
-| 状態 | Phase 8 は済 (2026-11-15)。次は Phase 9 (人型パック)。作業は `feature/3d-view` |
+| 状態 | Phase 8 は済 (2026-11-15)。Phase 9 (人型パック) の作業中 (9-1 を作った)。作業は `feature/3d-view` |
 
 ## 0. この計画書の使い方
 
@@ -391,7 +391,8 @@ Shift を使うショートカットは作らない。関係のある別の操�
 | `compass_3d`、`minimap_3d` | off | off / player / all (グループ `View3D`。コマンドラインは `--compass-3d`、`--minimap-3d`。6-5) |
 | `fps_3d` | off | 3D の画面の右下に、1 秒あたりのフレーム数と GPU の描画の時間 (グループ `View3D`。コマンドラインは `--fps-3d`。2026-11-15、ユーザ) |
 | `boards_3d`、`banners_3d` | on | (グループ `View3D`。コマンドラインは `--boards-3d`、`--banners-3d`。6-4) |
-| `player_model_3d` | simple | simple / mannequin / human (グループ `View3D`。コマンドラインは `--player-model-3d`。7-1 で simple / figure、7-4 で figure を mannequin にし、human を足した。figure はマネキンとして読む) |
+| `player_model_3d` | simple | simple (円柱)、または人型パックの名前 (そのフォルダの名前。同梱の mannequin と human、ユーザのパック。§5.9) (グループ `View3D`。コマンドラインは `--player-model-3d`。7-1 で simple / figure、7-4 で figure を mannequin にし、human を足した。figure はマネキンとして読む。9-1 でパックの名前にした。ないパックの名前も読み、描くときに円柱にして知らせる) |
+| `figure_folder_3d` | (なし) | ユーザが選んだ人型パックのフォルダ (グループ `View3D`。コマンドラインは `--figure-folder-3d`。9-1) |
 | `figure_scale_3d` | 1.0 | 0.8〜1.5。人型を人の身長の何倍にするか (遠くから見やすくするため。円柱には効かない。グループ `View3D`。コマンドラインは `--figure-scale-3d`。7-1) |
 | `figure_bodies_3d` | mixed | mixed / male / female。人の体 (`human`) の男女 (グループ `View3D`。コマンドラインは `--figure-bodies-3d`。7-5) |
 | `shadows_3d` | simple | off / simple / detailed。太陽の影 (simple は選手ごとの柔らかい楕円、detailed は影の地図で選手とゴールの枠の形。グループ `View3D`。コマンドラインは `--shadows-3d`。8-1) |
@@ -407,7 +408,7 @@ Shift を使うショートカットは作らない。関係のある別の操�
 - **Player Camera タブ**: 4 つのスタイル、時定数、最大角速度、一定の画角、Player Sight、Default ボタン。
 - どの項目にもツールチップで詳しい説明を付ける。数値の欄は、ツールチップに範囲を書き、範囲の外は端に寄せる (入力中はエラーの色)。選んだスタイルが使わない数値の欄は薄くする。
 - web 版では、3D の項目が増えて 1 つのタブが縦に長くなりすぎたので、Player Camera を別のタブに分けた。項目がさらに増えたら、同じく分ける。
-- → 6-6 で、6-1〜6-5 の設定 (Close-up Camera、Guides、Stadium の Boards と Banners、Player Camera タブのすべて) を作った。Players、Ball と、Stadium の残りの項目は、Phase 7 と 8 で足す。2 つのタブは 3D の入ったビルドにだけある。 → 7-4 で Players (Model の 3 択と Figure Scale) を足した。8-1 で Players に Shadows を足した。8-2 で Stadium に Grass Stripes と Sky を足した。8-2b で Grass Stripes を Grass の 3 択にした。8-3 で Stadium に Stands を足した。8-4 で Ball のグループを作り、Pattern を足した。8-5 で Ball に Ring、Trail、Ring Radius、Trail Cycles を足した。Guides に FPS を足した (2026-11-15)。8-6 で Ball に Flight を足した。 → 2026-11-15: ダイアログが大きくなったので、選択肢の行の下の要約と、グループの下の説明の行をやめ、ツールチップに移した (ユーザ。§14)。
+- → 6-6 で、6-1〜6-5 の設定 (Close-up Camera、Guides、Stadium の Boards と Banners、Player Camera タブのすべて) を作った。Players、Ball と、Stadium の残りの項目は、Phase 7 と 8 で足す。2 つのタブは 3D の入ったビルドにだけある。 → 7-4 で Players (Model の 3 択と Figure Scale) を足した。8-1 で Players に Shadows を足した。8-2 で Stadium に Grass Stripes と Sky を足した。8-2b で Grass Stripes を Grass の 3 択にした。8-3 で Stadium に Stands を足した。8-4 で Ball のグループを作り、Pattern を足した。8-5 で Ball に Ring、Trail、Ring Radius、Trail Cycles を足した。Guides に FPS を足した (2026-11-15)。8-6 で Ball に Flight を足した。 → 2026-11-15: ダイアログが大きくなったので、選択肢の行の下の要約と、グループの下の説明の行をやめ、ツールチップに移した (ユーザ。§14)。 → 9-1 で Players の Model を、円柱と見つけた人型パックの一覧にし、その下に出典の行、横にパックのフォルダのボタン (Packs) を置いた。
 
 ### 5.8 人型
 
@@ -444,6 +445,13 @@ Shift を使うショートカットは作らない。関係のある別の操�
 - ライセンスで同梱できない素材 (Mixamo など) は、ユーザが自分でダウンロードする。rcssmonitor は、設定ファイルのひな形と、ダウンロードする動作の一覧と手順 (README) だけを配る。Mixamo からの自動の一括ダウンロードの道具は作らない。
 - 素材の候補とライセンス (2026-11-14 に調べた。§14): Quaternius UAL1 Standard (CC0。同梱中)、UAL1 Pro (有料。8 方向の歩きがあると見られる。Pro も CC0 かは要確認)、Universal Base Characters (CC0)、100STYLE (CC BY 4.0。前後と横の歩きと走り、待機。BVH)、Mixamo (無料だが素材そのものは配れない)、LAFAN1 と Bandai Namco (非商用のライセンス)。
 - Blender で FBX を glTF に変換する方法は、メンテナと改造したい人向けの別の文書 (`docs/` の下) に残す (D12)。
+- → 9-1 (2026-11-15) で、`figure.json` の形式 1 と置き場所を決めた。利用者向けの説明は `docs/FIGURE_PACKS.md` (英語)。
+  - 形式 1 のキー: `format` (1。新しい形式のパックは読まない)、`name`、`description`、`credits` (title、author、license、url のオブジェクトか 1 行の文字列)、`motion`、`bodies`。知らないキーは読み飛ばす (後の版のパックも読める)。
+  - `motion`: 自分のモーション (`model`、`skeleton`、`clips` の `idle`、`walk`、`jog`、`sprint`。4 つとも必須) か、別のパックの名前 (同梱の Human は `"mannequin"`)。別のパックのモーションを使うときは、そのパックの出典も出す。
+  - `bodies` (1 つ以上): `model`、`skeleton` (今は `quaternius` だけ。書かなければ骨の名前から見つける)、`sex` (`male` か `female`。書かなければ誰でも)、`paint` (材質ごとに `team` (選手の色)、`uniform` (ユニフォームと肌)、`hair` (髪の色、全員。眉)、`model` (材質の色。既定))、`hairstyles` (どれか 1 つを、どれも同じだけ)、`standard_hairstyle` (選手視点で背番号が確かでない選手の髪型。既定は最初)、`extras` (髪型の上に確率でかぶるもの。ひげ)。髪型と extras は合わせて 4 つまで (頭皮の印の数)。髪型の印 (ビット) は体ごと。
+  - 背の高さのキーは作らなかった (モデルの静止の姿勢から求める)。クリップの速さと接地も、今は書けない (自動で求める)。
+  - 置き場所と順: 同梱 (リソースの `:/figures`)、ユーザが選んだフォルダ (`figure_folder_3d`)、XDG のデータのフォルダの `rcssmonitor/figures` (最初は `~/.local/share/rcssmonitor/figures`)。フォルダの名前がパックの名前。選んだフォルダは、それ自体がパックでもよい。同じ名前は最初のものだけ (後のものは読めないと知らせる)。`simple` は円柱の名前で、パックの名前にできない。
+  - 読めない理由: `figure.json` を読むとき (JSON の誤りの行と列、キーの場所と誤り、ないファイル、モーションのパックがない・読めない・互いに指す) と、モデルを読むとき (glTF の誤り、知らない骨格、ないクリップ (クリップの一覧を添える)、歩きでないクリップ、ない材質 (材質の一覧を添える))。前者は一覧で選べず、後者は「描けない」と知らせて円柱で描く。
 
 ## 6. 不具合の修正
 
@@ -593,7 +601,7 @@ web 版の `docs/parity.md` §7。行番号は 2026-11-11 の develop (01f880a) 
 
 ### Phase 9: 人型パック
 
-**作業**: §5.9。区切りの案: 9-1 パックの形式、置き場所、ダイアログでの選択、出典の表示。9-2 モデル (glTF、VRM、FBX)、テクスチャ、チームの色の材質、リターゲット。9-3 モーション (FBX、BVH、VRMA)、Mixamo 用のひな形と手順書、Blender での変換の文書。9-4 方向つきの歩き、その場の向き変え、キーパーの横っ飛び、倒れて起きる動作。
+**作業**: §5.9。 → 区切り (2026-11-15、ユーザが了承): 9-1 パックの土台 (`figure.json` の形式、置き場所、読めないパックの理由、同梱のマネキンと人の体をパックの形式で書き直す (見た目は変えない)、設定とダイアログでの選択、出典の表示)。9-2 glTF と VRM のモデル (テクスチャ、材質ごとの塗り方、VRM 0.x と 1.0 の骨の役割、骨の対応の型、A ポーズの補正、描画のテクスチャ対応)。9-3 FBX (ufbx を同梱、単位と軸、Mixamo の命名、別のファイルのクリップ、ルートモーションを取り除く、Mixamo 用のひな形と手順書、Blender での変換の文書)。9-4 BVH と VRMA のモーション、100STYLE (CC BY 4.0) から前・後・横の歩きと走りを加工して同梱。9-5 クリップで動かす動作 (進む向きで混ぜる歩きと走り、その場の向き変え、キック、スライディング、倒れて起きる、キーパーのキャッチと横っ飛び、指差し。クリップがなければ今の姿勢)。9-6 仕上げ (重いパックでの計測、文書、ユーザの確認)。
 
 **完了条件**: ユーザがダウンロードした Mixamo のモデルとモーションで、パックを作って使える。同梱のパックと組み合わせられる (別の骨格のモデルに同梱のモーション)。ユーザが実際のログで確かめる。
 
@@ -611,7 +619,7 @@ GL に依存しない計算を、web 版の単体テストを手本に移す。
 
 - テストは `test/CMakeLists.txt` の `rcssmonitor_add_test(<名前> <ライブラリ>...)` で足す (`test_<名前>.cpp` をビルドし、`<名前>` として登録する)。アプリのクラスを使うテストは `rcssmonitor_core` をリンクする。
 - `gl_isolation` は、OpenGL を `src/view3d/gl/` の外で使っていないことを確かめる (§5.3)。
-- CTest はどのテストも `HOME` をビルドディレクトリの下 (`test/home`) にし、`QT_QPA_PLATFORM=offscreen` で動かす。`Options` は作られたときに `~/.rcssmonitor.conf` を読み (なければ書き)、終了時に書くので、利用者の設定ファイルを守るため。
+- CTest はどのテストも `HOME` をビルドディレクトリの下 (`test/home`) にし、`QT_QPA_PLATFORM=offscreen` で動かす。`Options` は作られたときに `~/.rcssmonitor.conf` を読み (なければ書き)、終了時に書くので、利用者の設定ファイルを守るため。XDG のデータのフォルダ (`XDG_DATA_HOME`、`XDG_DATA_DIRS`) も `test/home` の下にし、利用者の人型パックを読まない (9-1)。
 
 | web 版のテスト | 確かめること |
 |---|---|
@@ -684,7 +692,7 @@ GL に依存しない計算を、web 版の単体テストを手本に移す。
 | `view3d/frame_builder_3d` | 7-4 で作った: フレームに描くもの (補間した show、選手と人型の姿勢、重ね描き、カメラが追うもの) を、ウィジェットと OpenGL なしに組み立てる。点検用の状態 (`View3DState`) を出す |
 | `view3d/figure_uniform`、`shaders/skinned.frag` | 7-4 で作った: 人の体に塗るユニフォーム (部位と境目の平面。GL に依存しない) と、それを画素ごとに塗るシェーダ |
 | `view3d/gl/gpu_timer` | 7-4 で作った: GPU の描画の時間 (タイマーのクエリ) |
-| `resources/models/BaseCharacterMale.glb`、`BaseCharacterFemale.glb`、`pack_base_character.py` | 7-4 で作り、7-5 で男女に分けた: 人の体と髪型 (CC0) と、それを書き出したスクリプト |
+| `resources/figures/human/BaseCharacterMale.glb`、`BaseCharacterFemale.glb`、`pack_base_character.py` | 7-4 で作り、7-5 で男女に分けた: 人の体と髪型 (CC0) と、それを書き出したスクリプト。9-1 で `resources/models/` から同梱の人型パック human のフォルダに移した |
 | `view3d/figure_looks` | 7-5 で作った: 選手ごとの見た目 (体、髪型、肌と髪の色) と、選手視点での標準との混ぜ方 (GL に依存しない) |
 | `view3d/sun_3d`、`gl/shadow_map`、`shaders/depth.*`、`shaders/shadow.*`、`shaders/blob.*` | 8-1 で作った: 太陽の向き、影の地図のカメラ、簡易な影の楕円 (GL に依存しない)、影の地図 (深さのテクスチャとフレームバッファ)、深さだけを描くシェーダ、影の面のシェーダ、簡易な影のシェーダ |
 | `view3d/scenery_3d`、`shaders/sky.*`、`shaders/outside.*` | 8-2 で作った: 空、霧、外の地面の定数と計算 (GL に依存しない)、空のシェーダ、外の地面のシェーダ。芝の縞は `FieldPainter::drawGround()` が描く |
@@ -695,13 +703,16 @@ GL に依存しない計算を、web 版の単体テストを手本に移す。
 | `view3d/ball_flight_3d` | 8-6 で作った: ログの再生でボールを仮想的に宙に飛ばす (区間、浮かせる理由、制約から上向きの初速、放物線とバウンド。GL に依存しない) |
 | `tooltip_marker` | ツールチップのある項目 (ラベル、チェックボックス、ラジオボタン、グループの見出し) の文字の下に点線を引く (web 版と同じ。設定ダイアログ) |
 | `view3d/grass_3d` | 8-2b で作った: リアルな芝 (ノイズの画像、見る向きによる縞の明暗、すり減り、地面の絵への色むらとすり減りの描き込み。GL に依存しない)。シェーダは `ground.frag` |
-| `figure_pack`、`fbx_model`、`bvh_motion`、`vrm` など | 人型パック (Phase 9。§5.9) |
+| `view3d/figure_pack` | 9-1 で作った: 人型パック (`figure.json` を読むこと、読めない理由、パックを探すこと、別のパックのモーションを引くこと、出典。GL に依存しない) |
+| `resources/figures/mannequin/figure.json`、`resources/figures/human/figure.json`、各フォルダの `README.md` | 9-1 で作った: 同梱の 2 つの人型パック (見た目と動きは前と同じ) |
+| `docs/FIGURE_PACKS.md` | 9-1 で作った: 人型パックの選び方、置き場所、`figure.json` の形式 (利用者向け、英語) |
+| `fbx_model`、`bvh_motion`、`vrm` など | 人型パック (Phase 9。§5.9) |
 | `third_party/ufbx/ufbx.{h,c}` | FBX の読み込み (MIT か Unlicense。D12) |
 | `docs/` の人型の素材の文書 | Blender で glTF に変換する方法など (メンテナと改造したい人向け。D12) |
 | `hud_3d`、`guides` | HUD、方位の帯、ミニマップ |
 | `config_dialog` の 3D タブ、Player Camera タブ | 設定 (6-6。Phase 7、8 の項目はその区切りで足す) |
 | `third_party/cgltf/cgltf.h` | glTF の読み込み (MIT)。v1.15。試作のブランチから持ってきた (7-1) |
-| `resources/models/Mannequin.glb`、`view3d_models.qrc` | 人型のモデル (CC0) と出典。圧縮を外したもの。試作のブランチから持ってきた (7-1) |
+| `resources/figures/mannequin/Mannequin.glb`、`resources/figures/view3d_figures.qrc` | 人型のモデル (CC0) と出典。圧縮を外したもの。試作のブランチから持ってきた (7-1)。9-1 で `resources/models/` (`view3d_models.qrc`) から同梱の人型パック mannequin のフォルダに移した |
 | `test/test_*.cpp` | 単体テストと描画のテスト |
 | `.github/workflows/ci.yml` | CI |
 | `data/rcssmonitor.desktop`、`icons/rcssmonitor.png` | デスクトップのファイルとアイコン。CMake の `install()` で入れる (Phase 0 で AppImage の試行のために足した。普通のインストールでもアプリのメニューに出るので、AppImage をやめた後も残す) |
@@ -2171,3 +2182,59 @@ CI の直しと SceneContent の分離の 3 コミット (fb41ec9〜b281ba2) を
 - 真上のカメラに切り替えた最初のフレームが次のフレームと同じ (§11 の 4。テスト `scene_3d` と、実際の `FieldView3D`。8-5)。
 - 1920×1080、作業マシンの内蔵 GPU で、すべてオンでも 60 fps を保つ (GPU 7.4 ms まで。8-5)。宙を飛ぶボールは、描く重さを変えない (表はログを読んだ後に一度だけ 3〜6 ms)。
 - ユーザが 8-1〜8-6 を画面で確かめた。Phase 8 の完了条件を満たした。
+
+### Phase 9
+
+#### 2026-11-15: Phase 9 の計画
+
+Phase 8 の終わりの記録 (8d46ee7) をプッシュした。
+
+**今の作りで足りないもの (調べたこと)**
+- モデルは glTF (cgltf) だけで、テクスチャを読まない。同梱の体はどれも材質の色で塗るが、Mixamo や VRM のモデルは色をテクスチャで持つ。
+- 骨の役割の対応は Quaternius の骨格だけ (`quaterniusBoneNames()`)。Mixamo (`mixamorig:Hips` など)、VRM (骨の役割がファイルにある)、BVH の対応がない。
+- どのモデルも静止の姿勢を T ポーズとみなしている。A ポーズのモデルを T ポーズにそろえる補正がない。
+- クリップは同梱のマネキンの glTF の中のものだけ。別のファイルのクリップ、ルートモーションを取り除くこと、FBX と BVH の読み込みがない。
+- 動作 (キック、タックルなど) はコードで作る姿勢だけで、クリップで動かす作りがない。歩きと走りは前向きのクリップだけ。
+- 人型のモデルは設定の固定の 3 択 (Simple、Mannequin、Human) で、パックを選ぶ場所と出典を出す場所がない。
+- 作業マシンに Blender はない。テストの素材 (glTF、BVH、ASCII の FBX) は、スクリプトで小さく自作して `test/data` に置く。Mixamo の素材は配れないので、実物での確認はユーザが行う。 → 9-1 の初めに、ユーザが Blender 5.3.0 を入れた。テストの素材は Blender のスクリプトでも作れる。
+
+**決めたこと (ユーザ)**
+- 区切りは上の Phase 9 の作業のとおり (9-1〜9-6)。glTF と VRM を先に (新しい依存なしで、描画と骨の対応の土台を固める)、FBX を後にする (その土台に読み込みを足すだけにする)。
+- 同梱のマネキンと人の体を、人型パックの形式で書き直す (形式に足りないもの (体の種類、髪型、ユニフォームの塗り方) が早くわかる)。見た目と動きは今と同じにし、テストで確かめる。
+- 100STYLE (CC BY 4.0。前・後・横の歩きと走り、BVH) から、方向つきの歩きと走りのクリップを加工して同梱する (BVH の読み込みの確かめを兼ねる)。出典を表示する。
+
+#### 2026-11-15: 区切り 9-1、パックの土台 (`feature/3d-view`)
+
+Phase 9 の計画を、9-1 と一緒にコミットする。
+
+**決めたこと**
+- 設定 `player_model_3d` は、円柱 (`simple`) か人型パックの名前 (フォルダの名前) にした。同梱のパックの名前は `mannequin` と `human` なので、前の設定の値はそのまま読める。ないパックの名前も読み (パックはあとから置かれうる)、描くときに円柱にして、理由を知らせる。設定 `figure_folder_3d` (ユーザが選んだパックのフォルダ) とコマンドラインの `--figure-folder-3d` を足した。Default ボタンは、フォルダを戻さない (見た目の設定ではないため)。
+- `figure.json` の形式 1 と置き場所は §5.9 のとおり。
+- 選手の見た目 (`FigureLooks`) を、パックの体 (`FigureCast`: 体ごとの男女、髪型、標準の髪型、extras とその確率) から決めるようにした。髪型の印 (ビット) は、全体で決まった値から、体ごとの番号 (髪型、続いて extras の順) にした。乱数を引く数と順は前と同じにした (男女、髪型、最初の extra、肌、髪の色、2 つ目からの extra)。男女混合では、半分の確率で女性の体、そうでなければ男性の体の中から、同じ乱数を伸ばして選ぶ。性別のない体は男女のどちらにも入る。その性別の体がなければ、すべての体から選ぶ。
+- `Figures3D` は、パックごとに、モーションと体を初めて使うときに読み、持ち続ける (`setPack()`)。同じモデルとクリップのモーションは、パックが違っても 1 回だけ読む。体がモーションと同じファイルなら、前のマネキンと同じく、モーションのモデルをそのまま使う。読めないパックでは、前のパックのまま。
+- `FrameBuilder3D` は、設定のパックを探し、読めなければ円柱で描き、理由を標準エラーと `FigurePacks::noteError()` に残す。同じパックは、パックを探し直すまで (ダイアログが開いたときなど) 読み直さない。描けたら理由を消す。
+- 設定ダイアログ: 3D タブの Players の Model を、円柱と見つけたパックの一覧にした (同梱のもの、選んだフォルダのもの、ユーザのデータのフォルダのもの)。読めないパックは「(cannot be read)」を付けて選べなくし、理由をツールチップに書く。描けなかったパックは「(cannot be drawn)」を付け、選び直せる (試し直す)。ないパックの名前は「(not found)」。一覧の下に、出典を短く (作者とライセンス) 出し、ツールチップに全部 (題名と URL) を出す。誤りがあれば、出典の代わりに赤で理由を出す。一覧の横の Packs ボタンのメニューで、フォルダを選ぶ、フォルダをやめる、ユーザのパックのフォルダを開く (なければ作る)、パックを探し直す。ダイアログは開くたびにパックを探し直す。Bodies は、男性と女性の体のあるパックでだけ選べる。
+- 同梱の素材は、`resources/models/` から、パックの形のフォルダ (`resources/figures/mannequin/`、`resources/figures/human/`) に移し、`figure.json` と README を置いた。利用者がパックを作るときの手本にもなる。
+
+**作ったもの**
+- `src/view3d/figure_pack`: `FigureCredit`、`FigureBodySpec` (`bitOf()`)、`FigureMotionSpec`、`FigurePack` (`read()`、`hasSexes()`、`allCredits()`、`creditLine()`、`creditText()`、`cast()`)、`FigurePacks` (`builtins()`、`builtin()`、`userFolders()`、`scan()`、`packs()`、`find()`、`refresh()`、`generation()`、`noteError()`、`drawError()`)。GL に依存しない。
+- `humanoid`: `skeletonPresets()`、`skeletonBoneNames()`。
+- `figure_looks`: `FigureCast`、`FigureSex`。`of()` と `standard()` にパックの体を渡す。全体の髪型の印 (`FigureLooks::Hair`、`hairBit()`) をやめた。
+- `Figures3D`: `setPack()`、`hasPack()`、`pack()`、`cast()` (`setModel()`、`bodyModel()` をやめた)。モーション、体、パックの構造体 (`Motion`、`Body`、`Pack`)。読めないときの理由 (パックの名前、ファイルの名前、何が足りないか)。
+- `SceneBuilder::addShow()` は、人型にするかの真偽値の代わりに、パックの体 (`const FigureCast *`) を受け取る。
+- `PlayerModel` (列挙) をやめ、`PLAYER_MODEL_SIMPLE`、`PLAYER_MODEL_MANNEQUIN`、`PLAYER_MODEL_HUMAN` と `normalizedPlayerModel()` (`camera_mode.h`) にした。`Options` の `playerModel3D()` は文字列、`figures3D()`、`figureFolder3D()`。
+- `ConfigDialog`: `fillPacks()`、`setFigureFolder()`。
+- `docs/FIGURE_PACKS.md`、`resources/figures/view3d_figures.qrc`。
+
+**試験**
+- 見た目と動きが前と同じこと: HEAD (8d46ee7) をビルドしたものと今のビルドで、全試合のログを、マネキン、人の体の男女混合・男性だけ・女性だけで、中継と選手視点のカメラから、5 つのフレームと 2 つの割合で組み立て、比べた。体ごとの材質の塗り方 (髪型は材質の名前で)、ユニフォームの境目の平面、頭皮の印、頂点 (ハッシュ)、歩幅の倍率、人型ごとの体・髪型・肌と髪の色・身長、骨の行列 (ハッシュ) が、4 つの設定のすべてで同じ。寄りと選手視点のカメラから描いた 16 枚の絵が、バイトまで同じ。
+- テスト `figure_pack` (新): 同梱の 2 つのパック (モーション、体、塗り方、男女、髪型、extras、Human がマネキンのモーションと出典を引くこと)、髪型の印とパックの体 (`cast()`)、出典 (短く、全部、重なりを 1 つに)、`figure.json` を読むこと (知らないキー、1 行の出典、名前がないとき)、読めない理由 42 通り (どれもキーの場所と誤り)、`figure.json` のないフォルダ、パックを探すこと (同梱、選んだフォルダ (名前の順)、ユーザのフォルダの順、同じ名前、`simple`、`figure.json` のないフォルダ、別のパックのモーションを引くこと (間に 1 つはさんでも)、ないパック、読めないパック、互いに指すパック (順によらず)、それ自体がパックのフォルダ、ユーザのフォルダを選んだとき)、探す回数 (1 回、フォルダが変わったとき、`refresh()` の後) と描けない理由、`Figures3D::setPack()` (別のファイルのマネキンが同梱のモーションでマネキンと同じ姿勢になる、自分のモーション、骨格を名前から見つける、1 回だけ読む)、モデルを読んで見つかる誤り (glTF でない、ないクリップ、歩きでないクリップ、ない材質、読めないパック。前のパックのまま)。
+- テスト `figure_looks`: 男女と髪型を手で作ったパックの体 (Human と同じもの) で確かめるようにし、ほかのパック (体が 1 つで髪型なし、男性 2 つと女性 1 つ、男性だけ、性別のない体、extras 2 つ) を足した。
+- テスト `frame_builder_3d` に足した: ユーザのパックで描く、ないパックとモデルの読めないパックは円柱で理由を残す、読み直さない、直してパックを探し直すと描く、同梱のパックに戻る。
+- テスト `config_dialog`: Model の一覧 (円柱、マネキン、Human、ユーザのパック、読めないパック、描けないパック、ないパックの名前)、出典の行、フォルダのボタンとメニュー、Bodies が選べるパック、開き直すとパックを探し直すこと。
+- テスト `figures_3d`、`figure_uniform`、`scene_3d`、`scene_builder` を、新しい作りに合わせて直した (期待する値は前と同じ)。
+- どのテストも、確かめる箇所を一時的に壊すと失敗することを確かめた (39 通り: extras の印、モーションの出典、形式、髪型の塗り方の重なり、性別、標準の髪型、確率の範囲、髪型の数、同じ名前、`simple`、探す順、それ自体がパックのフォルダ、フォルダが変わったときに探すこと、`refresh()`、モーションを引く順、パックを 1 回だけ読むこと、ない材質、歩きでないクリップ、クリップの一覧、髪型の印の塗り方、体の番号の範囲、extras の頭皮、骨格を見つけること、読めないときに前のパックのままにすること、男女混合の向き、男性の体の中の選び方、性別のない体、2 つ目の extra、女性だけの標準、描けたら理由を消すこと、読み直さないこと、ないパックを描かないこと、読めないパックを選べなくすること、Bodies、フォルダをやめること、描けない理由の行、ないパックの名前、`figure` の名前、開いたときに探すこと)。初めは、開いたときに探すことを壊しても通ったので、テストを足した。
+- Qt 6.4.2 と Qt 5.15.13 (`-Werror=deprecated-declarations`) で、きれいなビルドとテストが通る (テスト 50 個)。`-DENABLE_3D=OFF` (19 個) と autotools も通る (初めは、3D なしのビルドでダイアログが `FigurePacks` を使っていて止まった)。
+
+**見つけたこと**
+- 3D タブを作る関数 (`ConfigDialog::create3DTab()`) は、3D なしのビルドでもコンパイルされる (呼ばれないだけ)。3D の部品を使う所は `HAVE_3D_VIEW` で囲む。

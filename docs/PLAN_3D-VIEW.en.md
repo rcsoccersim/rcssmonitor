@@ -7,7 +7,7 @@
 | Reference implementation | rcssmonitor-web 20.0.0-beta.2 (tag `v20.0.0-beta.2`, ed36941). Its working tree is `../rcssmonitor-web`, next to this repository |
 | Server referred to | The asio version of rcssserver 19.x. Its working tree is `../rcssserver` (branch `feature/asio-migration`), next to this repository |
 | Japanese version | [PLAN_3D-VIEW.md](PLAN_3D-VIEW.md) (same content; §0.1) |
-| Status | Phase 8 done (2026-11-15). Next, Phase 9 (figure packs). The work is on `feature/3d-view` |
+| Status | Phase 8 done (2026-11-15). Phase 9 (figure packs) under way (9-1 made). The work is on `feature/3d-view` |
 
 ## 0. How to use this plan
 
@@ -391,7 +391,8 @@ Add to `Options` and save to `~/.rcssmonitor.conf`. The names follow the web ver
 | `compass_3d`, `minimap_3d` | off | off / player / all (the group `View3D`; `--compass-3d`, `--minimap-3d` on the command line; 6-5) |
 | `fps_3d` | off | the frames per second and the GPU's time of a frame at the bottom right of the 3D view (the group `View3D`; `--fps-3d` on the command line; 2026-11-15, user) |
 | `boards_3d`, `banners_3d` | on | (the group `View3D`; `--boards-3d`, `--banners-3d` on the command line; 6-4) |
-| `player_model_3d` | simple | simple / mannequin / human (in the group `View3D`; `--player-model-3d` on the command line; simple / figure in 7-1, figure renamed mannequin and human added in 7-4; figure is read as the mannequin) |
+| `player_model_3d` | simple | simple (cylinders), or the name of a figure pack (its folder's name: the bundled mannequin and human, or a pack of the user's; §5.9) (in the group `View3D`; `--player-model-3d` on the command line; simple / figure in 7-1, figure renamed mannequin and human added in 7-4; figure is read as the mannequin; a pack's name since 9-1; the name of a pack that is not there is read too, and told when drawn as cylinders) |
+| `figure_folder_3d` | (none) | A folder of figure packs of the user's choice (in the group `View3D`; `--figure-folder-3d` on the command line; 9-1) |
 | `figure_scale_3d` | 1.0 | 0.8 to 1.5: how many times a person's height the figures are (to be seen from afar; not for the cylinders; in the group `View3D`; `--figure-scale-3d` on the command line; 7-1) |
 | `figure_bodies_3d` | mixed | mixed / male / female: the human bodies' (`human`) sexes (in the group `View3D`; `--figure-bodies-3d` on the command line; 7-5) |
 | `shadows_3d` | simple | off / simple / detailed: the sun's shadows (simple: a soft ellipse for each player; detailed: the shapes of the players and the goal frames by a shadow map; in the group `View3D`; `--shadows-3d` on the command line; 8-1) |
@@ -407,7 +408,7 @@ Settings dialog:
 - **Player Camera tab**: the 4 styles, time constant, maximum angular speed, fixed field of view, Player Sight, Default button.
 - Every item gets a detailed tooltip. Numeric fields state their range in the tooltip, and out-of-range values are clamped to the ends (error color while typing). Numeric fields not used by the selected style are dimmed.
 - In the web version, the 3D items grew and one tab became too tall, so Player Camera was split into its own tab. If the items grow further, split them likewise.
-- → 6-6 made the settings of 6-1 to 6-5 (Close-up Camera, Guides, Boards and Banners of Stadium, and all of the Player Camera tab). Players, Ball and the rest of Stadium come in Phases 7 and 8. The two tabs are only in a build with the 3D view. → 7-4 added Players (the three Models and Figure Scale). 8-1 added Shadows to Players. 8-2 added Grass Stripes and Sky to Stadium. 8-2b made Grass Stripes a choice of three, Grass. 8-3 added Stands to Stadium. 8-4 made the Ball group, with Pattern. 8-5 added Ring, Trail, Ring Radius and Trail Cycles to Ball. FPS was added to Guides (2026-11-15). 8-6 added Flight to Ball. → 2026-11-15: the dialog had grown large, so the summaries under the rows of choices and the notes under the groups went into the tooltips (user; §14).
+- → 6-6 made the settings of 6-1 to 6-5 (Close-up Camera, Guides, Boards and Banners of Stadium, and all of the Player Camera tab). Players, Ball and the rest of Stadium come in Phases 7 and 8. The two tabs are only in a build with the 3D view. → 7-4 added Players (the three Models and Figure Scale). 8-1 added Shadows to Players. 8-2 added Grass Stripes and Sky to Stadium. 8-2b made Grass Stripes a choice of three, Grass. 8-3 added Stands to Stadium. 8-4 made the Ball group, with Pattern. 8-5 added Ring, Trail, Ring Radius and Trail Cycles to Ball. FPS was added to Guides (2026-11-15). 8-6 added Flight to Ball. → 2026-11-15: the dialog had grown large, so the summaries under the rows of choices and the notes under the groups went into the tooltips (user; §14). → 9-1 made the Model of Players a list of the cylinders and the figure packs found, with a line of the credits under it and a button of the packs' folders (Packs) beside it.
 
 ### 5.8 Figures
 
@@ -444,6 +445,13 @@ Settings dialog:
 - Material that cannot be bundled for its license (Mixamo and so on) is downloaded by users themselves. rcssmonitor distributes only a template of the settings file and the list of the actions to download with the steps (README). No tool for automatic bulk downloads from Mixamo is made.
 - Candidates and their licenses (looked into on 2026-11-14; §14): Quaternius UAL1 Standard (CC0; bundled), UAL1 Pro (paid; seems to have the walking in 8 directions; whether Pro is CC0 too is to be confirmed), Universal Base Characters (CC0), 100STYLE (CC BY 4.0; walking and running forward, backward and sideways, idling; BVH), Mixamo (free, but the material itself cannot be distributed), LAFAN1 and Bandai Namco (non-commercial licenses).
 - How to convert FBX to glTF with Blender is kept in a separate document (under `docs/`) for the maintainers and those who want to modify it (D12).
+- → 9-1 (2026-11-15) decided format 1 of `figure.json` and the places. The description for users is `docs/FIGURE_PACKS.md` (in English).
+  - The keys of format 1: `format` (1; a pack of a later format is not read), `name`, `description`, `credits` (objects of title, author, license and url, or a line of text), `motion`, `bodies`. Keys not known are skipped (a pack of a later version can be read).
+  - `motion`: its own (`model`, `skeleton`, and `clips` of `idle`, `walk`, `jog` and `sprint`, all four required), or the name of another pack (the bundled Human's is `"mannequin"`). With another pack's motion, that pack's credits are shown too.
+  - `bodies` (one or more): `model`, `skeleton` (only `quaternius` for now; without it, found from the bones' names), `sex` (`male` or `female`; without it, anyone's), `paint` (for each material, `team` (the player's color), `uniform` (the uniform and the skin), `hair` (the hair color, on all: the eyebrows) or `model` (the material's own color, the default)), `hairstyles` (one of them each, each as often), `standard_hairstyle` (the hairstyle of a player whose number the player camera does not know for sure; the first by default), `extras` (worn by a chance over the hairstyle: a beard). At most four hairstyles and extras together (the scalp's marks). The hairstyles' bits are a body's own.
+  - No key of the height (it is found from the model at rest). The clips' speeds and contacts cannot be written yet (found automatically).
+  - The places, in order: the bundled ones (the resources' `:/figures`), the folder of the user's choice (`figure_folder_3d`), and `rcssmonitor/figures` of the XDG data folders (first `~/.local/share/rcssmonitor/figures`). A folder's name is the pack's name. The folder chosen may be a pack itself. Only the first of a name is the one (a later one is told it cannot be read). `simple` is the cylinders' name and cannot be a pack's.
+  - Why a pack cannot be read: when `figure.json` is read (the line and column of a JSON error, where a key is and what is wrong, a missing file, a motion's pack missing, unreadable or referring back), and when the models are read (a glTF error, an unknown skeleton, a missing clip (with the clips listed), a clip not of walking, a missing material (with the materials listed)). A pack of the former cannot be chosen in the list; one of the latter is told it "cannot be drawn", drawn as cylinders.
 
 ## 6. Bug fixes
 
@@ -593,7 +601,7 @@ Each phase proceeds on a feature branch and is merged into develop when it is do
 
 ### Phase 9: Figure packs
 
-**Work**: §5.9. Proposed steps: 9-1 the pack format, the places, choosing in the dialog, showing the credits. 9-2 models (glTF, VRM, FBX), textures, the team-colored materials, retargeting. 9-3 motions (FBX, BVH, VRMA), the template and the steps for Mixamo, the document of converting with Blender. 9-4 directional walking, turning on the spot, the goalie's dives, falling and getting up.
+**Work**: §5.9. → Steps (2026-11-15, agreed by the user): 9-1 the base of the packs (the format of `figure.json`, the places, why a pack cannot be read, the bundled Mannequin and human bodies written as packs (looking the same), choosing in the options and the dialog, showing the credits). 9-2 glTF and VRM models (textures, how each material is painted, the bone roles of VRM 0.x and 1.0, the presets of the bone maps, the A-pose correction, textures in the drawing). 9-3 FBX (ufbx bundled, units and axes, Mixamo's names, clips in other files, removing the root motion, the template and the steps for Mixamo, the document of converting with Blender). 9-4 BVH and VRMA motions, and walking and running forward, backward and sideways made from 100STYLE (CC BY 4.0) and bundled. 9-5 actions by clips (walking and running mixed by the way the figure goes, turning on the spot, the kick, the sliding tackle, falling and getting up, the goalie's catch and dive, pointing; the present poses without clips). 9-6 finishing (measuring with a heavy pack, the documents, the user's check).
 
 **Done when**: a pack made of Mixamo models and motions that the user downloaded works. It combines with the bundled pack (the bundled motions on a model of another skeleton). The user checks it on real logs.
 
@@ -611,7 +619,7 @@ Port the GL-independent calculations, using the web version's unit tests as mode
 
 - Tests are added with `rcssmonitor_add_test(<name> <libraries>...)` in `test/CMakeLists.txt` (it builds `test_<name>.cpp` and registers it as `<name>`). Tests that use the application's classes link `rcssmonitor_core`.
 - `gl_isolation` checks that OpenGL is not used outside `src/view3d/gl/` (§5.3).
-- CTest runs every test with `HOME` in the build tree (`test/home`) and `QT_QPA_PLATFORM=offscreen`. `Options` reads `~/.rcssmonitor.conf` when it is created (writing it if missing) and writes it on exit, so this keeps the user's settings file safe.
+- CTest runs every test with `HOME` in the build tree (`test/home`) and `QT_QPA_PLATFORM=offscreen`. `Options` reads `~/.rcssmonitor.conf` when it is created (writing it if missing) and writes it on exit, so this keeps the user's settings file safe. The XDG data folders (`XDG_DATA_HOME`, `XDG_DATA_DIRS`) are under `test/home` too, so that the tests never read the user's figure packs (9-1).
 
 | Web version test | What it checks |
 |---|---|
@@ -684,7 +692,7 @@ Port the GL-independent calculations, using the web version's unit tests as mode
 | `view3d/frame_builder_3d` | Made in 7-4: what a frame draws (the show between the frames, the players and the figures' poses, the overlays, what the cameras follow), built without the widget and OpenGL; it gives the inspection state (`View3DState`) |
 | `view3d/figure_uniform`, `shaders/skinned.frag` | Made in 7-4: the uniform painted on the human body (the parts and the planes of the edges; no GL), and the shader that paints it for every pixel |
 | `view3d/gl/gpu_timer` | Made in 7-4: the GPU's time to draw (timer queries) |
-| `resources/models/BaseCharacterMale.glb`, `BaseCharacterFemale.glb`, `pack_base_character.py` | Made in 7-4, split into a man's and a woman's in 7-5: the human bodies and hairstyles (CC0) and the script that wrote them |
+| `resources/figures/human/BaseCharacterMale.glb`, `BaseCharacterFemale.glb`, `pack_base_character.py` | Made in 7-4, split into a man's and a woman's in 7-5: the human bodies and hairstyles (CC0) and the script that wrote them. Moved in 9-1 from `resources/models/` to the folder of the bundled figure pack human |
 | `view3d/figure_looks` | Made in 7-5: each player's looks (the body, the hairstyle, the skin and hair colors), and how they blend with the standard ones for the player camera (no GL) |
 | `view3d/sun_3d`, `gl/shadow_map`, `shaders/depth.*`, `shaders/shadow.*`, `shaders/blob.*` | Made in 8-1: the sun's direction, the camera of the shadow map, the ellipses of the simple shadows (no GL), the shadow map (a depth texture and a framebuffer), the shaders that draw only depths, the shaders of the plane of the shadows, the shaders of the simple shadows |
 | `view3d/scenery_3d`, `shaders/sky.*`, `shaders/outside.*` | Made in 8-2: the constants and computations of the sky, the haze and the ground beyond (no GL), the shaders of the sky and of the ground beyond. The grass stripes are drawn by `FieldPainter::drawGround()` |
@@ -695,13 +703,16 @@ Port the GL-independent calculations, using the web version's unit tests as mode
 | `view3d/ball_flight_3d` | Made in 8-6: the ball flying in the air in log replay, virtually (the segments, the reasons to loft, the upward speed from the constraints, the flight and the bounces; no GL) |
 | `tooltip_marker` | A dotted underline under the texts of the items with a tooltip (labels, check boxes, radio buttons, group titles), as the web version (the settings dialog) |
 | `view3d/grass_3d` | Made in 8-2b: the realistic grass (the noise image, the stripes' light and dark by the way the camera looks, the wear, the patches and the wear painted into the ground image; no GL). Its shader is `ground.frag` |
-| `figure_pack`, `fbx_model`, `bvh_motion`, `vrm` and so on | Figure packs (Phase 9; §5.9) |
+| `view3d/figure_pack` | Made in 9-1: the figure packs (reading `figure.json`, why one cannot be read, looking for the packs, looking up another pack's motion, the credits; no GL) |
+| `resources/figures/mannequin/figure.json`, `resources/figures/human/figure.json`, and the `README.md` of each folder | Made in 9-1: the two bundled figure packs (looking and moving as before) |
+| `docs/FIGURE_PACKS.md` | Made in 9-1: how to choose a figure pack, the places, and the format of `figure.json` (for users, in English) |
+| `fbx_model`, `bvh_motion`, `vrm` and so on | Figure packs (Phase 9; §5.9) |
 | `third_party/ufbx/ufbx.{h,c}` | FBX loading (MIT or Unlicense; D12) |
 | A document on the figure material under `docs/` | How to convert to glTF with Blender and so on (for the maintainers and those who want to modify it; D12) |
 | `hud_3d`, `guides` | HUD, compass strip, minimap |
 | The 3D tab and the Player Camera tab of `config_dialog` | Settings (6-6; the items of Phases 7 and 8 come with those steps) |
 | `third_party/cgltf/cgltf.h` | glTF loading (MIT). v1.15, brought from the prototype branch (7-1) |
-| `resources/models/Mannequin.glb`, `view3d_models.qrc` | Figure model (CC0) and its source, without compression, brought from the prototype branch (7-1) |
+| `resources/figures/mannequin/Mannequin.glb`, `resources/figures/view3d_figures.qrc` | Figure model (CC0) and its source, without compression, brought from the prototype branch (7-1). Moved in 9-1 from `resources/models/` (`view3d_models.qrc`) to the folder of the bundled figure pack mannequin |
 | `test/test_*.cpp` | Unit tests and rendering tests |
 | `.github/workflows/ci.yml` | CI |
 | `data/rcssmonitor.desktop`, `icons/rcssmonitor.png` | The desktop file and the icon, installed by CMake's `install()` (added in Phase 0 for the AppImage trial; kept after dropping the AppImage, because a normal installation also shows the app in the application menu) |
@@ -2171,3 +2182,59 @@ The two commits of 8-6 (b4da4cf, 060b6a4) were pushed, and CI passed. The user c
 - The first frame after switching to the top camera is the same as the next one (§11: 4; test `scene_3d` and the real `FieldView3D`; 8-5).
 - 60 fps with everything on at 1920×1080 on the work machine's integrated GPU (GPU up to 7.4 ms; 8-5). The flying ball does not change the cost of drawing (its table once after a log is read, 3 to 6 ms).
 - The user checked 8-1 to 8-6 on the screen. The conditions of Phase 8 are met.
+
+### Phase 9
+
+#### 2026-11-15: The plan of Phase 9
+
+The record of the end of Phase 8 (8d46ee7) was pushed.
+
+**What the present code lacks (found)**
+- Models are glTF only (cgltf), without textures. The bundled bodies are painted in their materials' colors, but Mixamo and VRM models have their colors in textures.
+- The bone roles are mapped for Quaternius's skeleton only (`quaterniusBoneNames()`). None for Mixamo (`mixamorig:Hips` and so on), VRM (its file has the roles) or BVH.
+- Every model's rest pose is taken as a T-pose. No correction bringing an A-pose model to a T-pose.
+- The clips are only those in the bundled Mannequin's glTF. No clips in other files, no removal of the root motion, no FBX or BVH.
+- The actions (kicks, tackles and so on) are poses made in code only, with no way to play clips for them. Walking and running have forward clips only.
+- The figure model is a fixed choice of three (Simple, Mannequin, Human), with no place to choose a pack or show its credits.
+- The work machine has no Blender. The test assets (glTF, BVH, ASCII FBX) are made small by scripts and kept in `test/data`. Mixamo's assets cannot be distributed, so the user checks the real ones. → At the start of 9-1, the user installed Blender 5.3.0. The test assets can be made by Blender's scripts too.
+
+**Decided (user)**
+- The steps as in Phase 9's work above (9-1 to 9-6). glTF and VRM first (the base of drawing and bone mapping without a new dependency), FBX after (only its reading on that base).
+- The bundled Mannequin and human bodies are written as packs (what the format lacks (kinds of bodies, hairstyles, the uniform's painting) shows early). They look and move the same, checked by the tests.
+- Walking and running clips with directions are made from 100STYLE (CC BY 4.0; walking and running forward, backward and sideways, BVH) and bundled (also checking the BVH reading), with the credits shown.
+
+#### 2026-11-15: Step 9-1, the base of the packs (`feature/3d-view`)
+
+The plan of Phase 9 is committed with 9-1.
+
+**Decided**
+- The option `player_model_3d` is the cylinders (`simple`) or the name of a figure pack (its folder's name). The bundled packs are named `mannequin` and `human`, so the values of the settings before are read as they are. The name of a pack that is not there is read too (the pack may be put later); it is drawn as cylinders, with the reason told. The option `figure_folder_3d` (a folder of packs of the user's choice) and `--figure-folder-3d` on the command line were added. The Default button does not set the folder back (it is not a look).
+- Format 1 of `figure.json` and the places are as in §5.9.
+- The players' looks (`FigureLooks`) are decided from the pack's bodies (`FigureCast`: each body's sex, hairstyles, standard hairstyle, and extras with their chances). The hairstyles' bits went from fixed values for all to a body's own numbers (the hairstyles, then the extras). As many numbers are drawn, in the same order as before (the sex, the hairstyle, the first extra, the skin, the hair color, the extras from the second). With men and women mixed, a woman's body by half the chance, else a man's, one of them by the same number stretched. A body of no sex goes with both. Without a body of a sex, any body.
+- `Figures3D` reads each pack's motion and bodies the first time it is used, and keeps them (`setPack()`). A motion of the same model and clips is read once for the packs that share it. A body of the motion's own file takes the motion's model as it is, as the mannequin did. With a pack that cannot be read, the pack before stays.
+- `FrameBuilder3D` looks for the pack of the option, draws cylinders if it cannot be read, and keeps the reason in the standard error and `FigurePacks::noteError()`. The same pack is not read again until the packs are looked for again (when the dialog shows, and so on). Once drawn, the reason goes.
+- The settings dialog: the Model of Players in the 3D tab is a list of the cylinders and the packs found (the bundled ones, those of the folder chosen, those of the user's data folder). A pack that cannot be read is marked "(cannot be read)" and cannot be chosen, the reason in its tooltip. A pack that could not be drawn is marked "(cannot be drawn)" and can be chosen again (tried again). A name of no pack is "(not found)". Under the list, the credits in short (the authors and the licenses), in full in the tooltip (the titles and the URLs); if something is wrong, the reason in red instead. The menu of the Packs button beside the list: choose a folder, no folder, open the user's folder of packs (made if missing), look for the packs again. The dialog looks for the packs each time it shows. Bodies can be chosen only for a pack with men's and women's bodies.
+- The bundled material moved from `resources/models/` to folders in the form of packs (`resources/figures/mannequin/`, `resources/figures/human/`), with a `figure.json` and a README each. They are also examples for users who make packs.
+
+**Made**
+- `src/view3d/figure_pack`: `FigureCredit`, `FigureBodySpec` (`bitOf()`), `FigureMotionSpec`, `FigurePack` (`read()`, `hasSexes()`, `allCredits()`, `creditLine()`, `creditText()`, `cast()`), `FigurePacks` (`builtins()`, `builtin()`, `userFolders()`, `scan()`, `packs()`, `find()`, `refresh()`, `generation()`, `noteError()`, `drawError()`). No GL.
+- `humanoid`: `skeletonPresets()`, `skeletonBoneNames()`.
+- `figure_looks`: `FigureCast`, `FigureSex`. `of()` and `standard()` take the pack's bodies. The hairstyles' bits for all (`FigureLooks::Hair`, `hairBit()`) went.
+- `Figures3D`: `setPack()`, `hasPack()`, `pack()`, `cast()` (`setModel()` and `bodyModel()` went). The structures of the motion, the body and the pack (`Motion`, `Body`, `Pack`). The reasons when they cannot be read (the pack's name, the file's name, what is missing).
+- `SceneBuilder::addShow()` takes the pack's bodies (`const FigureCast *`) in place of the flag of the figures.
+- `PlayerModel` (the enumeration) went, for `PLAYER_MODEL_SIMPLE`, `PLAYER_MODEL_MANNEQUIN`, `PLAYER_MODEL_HUMAN` and `normalizedPlayerModel()` (`camera_mode.h`). `Options::playerModel3D()` is a string; `figures3D()`, `figureFolder3D()`.
+- `ConfigDialog`: `fillPacks()`, `setFigureFolder()`.
+- `docs/FIGURE_PACKS.md`, `resources/figures/view3d_figures.qrc`.
+
+**Tests**
+- Looking and moving as before: a build of HEAD (8d46ee7) and the present build built the full game's log with the Mannequin and the human bodies mixed, men only and women only, from the broadcast and the player cameras, at 5 frames and 2 fractions, and were compared. Each body's paints of the materials (the hairstyles by their materials' names), the planes of the uniform, the scalp's marks, the vertices (a hash), the stride factor, and each figure's body, hairstyle, skin and hair colors, height and joint matrices (a hash) are the same in all 4 settings. 16 pictures drawn from the close-up and the player cameras are the same to the byte.
+- Test `figure_pack` (new): the two bundled packs (the motion, the bodies, the paints, the sexes, the hairstyles, the extras, the Human looking up the Mannequin's motion and credits), the hairstyles' bits and the pack's bodies (`cast()`), the credits (in short, in full, each once), reading `figure.json` (keys not known, a credit as a line, no name), 42 reasons a pack cannot be read (each with where the key is and what is wrong), a folder without `figure.json`, looking for the packs (the bundled ones, the folder chosen (by the names), the user's folder, in this order; the same name; `simple`; a folder without `figure.json`; another pack's motion looked up (through one more too), a missing pack, an unreadable pack, packs referring to each other (whatever the order); a folder that is a pack itself; the user's folder chosen), how often the packs are looked for (once, when the folder changes, after `refresh()`) and the reasons a pack was not drawn, `Figures3D::setPack()` (the Mannequin in another file posed as the Mannequin with the bundled motion, its own motion, the skeleton found from the names, read once), and what reading the models finds (not glTF, a missing clip, a clip not of walking, a missing material, a pack that cannot be read; the pack before stays).
+- Test `figure_looks`: checked with the bodies of a pack made by hand (as the Human's), and other packs added (one body without hairstyles, two men and a woman, men only, a body of no sex, two extras).
+- Test `frame_builder_3d`, added: drawing a user's pack, a missing pack and a pack of an unreadable model as cylinders with the reason kept, not read again, drawn after mended and looked for again, back to a bundled pack.
+- Test `config_dialog`: the list of the Model (the cylinders, the Mannequin, the Human, a user's pack, an unreadable pack, a pack not drawn, the name of no pack), the line of the credits, the button of the folder and its menu, the packs whose Bodies can be chosen, looking for the packs when shown again.
+- Tests `figures_3d`, `figure_uniform`, `scene_3d`, `scene_builder` were adapted to the new design (the same values expected).
+- Each test was checked to fail when what it checks was broken on purpose (39 ways: the extras' bits, the motion's credits, the format, a hairstyle's paint overlapping, the sex, the standard hairstyle, the chance's range, the number of hairstyles, the same name, `simple`, the order of looking, a folder that is a pack itself, looking again when the folder changes, `refresh()`, the order of looking up motions, reading a pack once, a missing material, a clip not of walking, the list of clips, painting by the hairstyles' bits, the range of the body's index, the extras' scalp, finding the skeleton, the pack before staying, the direction of men and women mixed, the choice among the men's bodies, a body of no sex, the second extra, the standard with women only, the reason going once drawn, not reading again, not drawing a missing pack, an unreadable pack not chosen, Bodies, no folder, the line of the reason not drawn, the name of no pack, the name `figure`, looking when shown). At first, breaking the looking when shown passed, so a test was added.
+- Clean builds and tests pass with Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`) (50 tests). `-DENABLE_3D=OFF` (19) and autotools pass too (at first, the build without 3D stopped, as the dialog used `FigurePacks`).
+
+**Found**
+- The function that makes the 3D tab (`ConfigDialog::create3DTab()`) is compiled in a build without the 3D view too (it is only not called). What uses the 3D parts there is enclosed by `HAVE_3D_VIEW`.
