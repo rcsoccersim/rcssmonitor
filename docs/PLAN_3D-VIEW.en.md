@@ -7,7 +7,7 @@
 | Reference implementation | rcssmonitor-web 20.0.0-beta.2 (tag `v20.0.0-beta.2`, ed36941). Its working tree is `../rcssmonitor-web`, next to this repository |
 | Server referred to | The asio version of rcssserver 19.x. Its working tree is `../rcssserver` (branch `feature/asio-migration`), next to this repository |
 | Japanese version | [PLAN_3D-VIEW.md](PLAN_3D-VIEW.md) (same content; §0.1) |
-| Status | Phase 7 done (2026-11-15). Working on Phase 8 (8-1 to 8-3 done, 8-4 waiting for the user's check; §14). The work is on `feature/3d-view` |
+| Status | Phase 7 done (2026-11-15). Working on Phase 8 (8-1 to 8-4 done, 8-5 waiting for the user's check; §14). The work is on `feature/3d-view` |
 
 ## 0. How to use this plan
 
@@ -396,8 +396,8 @@ Add to `Options` and save to `~/.rcssmonitor.conf`. The names follow the web ver
 | `shadows_3d` | simple | off / simple / detailed: the sun's shadows (simple: a soft ellipse for each player; detailed: the shapes of the players and the goal frames by a shadow map; in the group `View3D`; `--shadows-3d` on the command line; 8-1) |
 | `grass_3d` | stripes | plain / stripes / realistic: the grass (stripes: light and dark stripes; realistic: stripes light or dark by the way the camera looks, the blades and patches of the grass, the wear; in the group `View3D`; `--grass-3d` on the command line; 8-2b replaced 8-2's `grass_stripes_3d`) |
 | `sky_3d`, `stands_3d`, `ball_pattern_3d` | on | (in the group `View3D`; the same names on the command line) |
-| `ball_ring_3d`, `ball_ring_radius_3d` | on, 0.7 | 0.1–5 m |
-| `ball_trail_3d`, `ball_trail_cycles_3d` | on, 5 | 1–30 (integer) |
+| `ball_ring_3d`, `ball_ring_radius_3d` | on, 0.7 | 0.1–5 m (group `View3D`; the command line by the same names; 8-5) |
+| `ball_trail_3d`, `ball_trail_cycles_3d` | on, 5 | 1–30 (integer; group `View3D`; the command line by the same names; 8-5) |
 
 Settings dialog:
 
@@ -405,7 +405,7 @@ Settings dialog:
 - **Player Camera tab**: the 4 styles, time constant, maximum angular speed, fixed field of view, Player Sight, Default button.
 - Every item gets a detailed tooltip. Numeric fields state their range in the tooltip, and out-of-range values are clamped to the ends (error color while typing). Numeric fields not used by the selected style are dimmed.
 - In the web version, the 3D items grew and one tab became too tall, so Player Camera was split into its own tab. If the items grow further, split them likewise.
-- → 6-6 made the settings of 6-1 to 6-5 (Close-up Camera, Guides, Boards and Banners of Stadium, and all of the Player Camera tab). Players, Ball and the rest of Stadium come in Phases 7 and 8. The two tabs are only in a build with the 3D view. → 7-4 added Players (the three Models and Figure Scale). 8-1 added Shadows to Players. 8-2 added Grass Stripes and Sky to Stadium. 8-2b made Grass Stripes a choice of three, Grass. 8-3 added Stands to Stadium. 8-4 made the Ball group, with Pattern. → 2026-11-15: the dialog had grown large, so the summaries under the rows of choices and the notes under the groups went into the tooltips (user; §14).
+- → 6-6 made the settings of 6-1 to 6-5 (Close-up Camera, Guides, Boards and Banners of Stadium, and all of the Player Camera tab). Players, Ball and the rest of Stadium come in Phases 7 and 8. The two tabs are only in a build with the 3D view. → 7-4 added Players (the three Models and Figure Scale). 8-1 added Shadows to Players. 8-2 added Grass Stripes and Sky to Stadium. 8-2b made Grass Stripes a choice of three, Grass. 8-3 added Stands to Stadium. 8-4 made the Ball group, with Pattern. 8-5 added Ring, Trail, Ring Radius and Trail Cycles to Ball. → 2026-11-15: the dialog had grown large, so the summaries under the rows of choices and the notes under the groups went into the tooltips (user; §14).
 
 ### 5.8 Figures
 
@@ -688,6 +688,7 @@ Port the GL-independent calculations, using the web version's unit tests as mode
 | `view3d/scenery_3d`, `shaders/sky.*`, `shaders/outside.*` | Made in 8-2: the constants and computations of the sky, the haze and the ground beyond (no GL), the shaders of the sky and of the ground beyond. The grass stripes are drawn by `FieldPainter::drawGround()` |
 | `view3d/stands_3d`, `shaders/stand.*` | Made in 8-3: the stands' shape and image (no GL), the shader of their lit image |
 | `view3d/ball_3d`, `shaders/ball.*` | Made in 8-4: the ball's pattern and the table of how it has turned rolling (no GL), the shader of the pattern |
+| `view3d/ball_aids_3d`, `shaders/ring.*` | Made in 8-5: the ring and the trail of the ball (the trail's points, the least widths on the screen, the ribbon's triangles; no GL), the shader of the ring |
 | `tooltip_marker` | A dotted underline under the texts of the items with a tooltip (labels, check boxes, radio buttons, group titles), as the web version (the settings dialog) |
 | `view3d/grass_3d` | Made in 8-2b: the realistic grass (the noise image, the stripes' light and dark by the way the camera looks, the wear, the patches and the wear painted into the ground image; no GL). Its shader is `ground.frag` |
 | `figure_pack`, `fbx_model`, `bvh_motion`, `vrm` and so on | Figure packs (Phase 9; §5.9) |
@@ -2026,3 +2027,33 @@ The two commits of the stands (adf3d23, 5e3dcb9) were pushed, and CI passed. The
 - Measured (as in 8-1, 22 human bodies, the simple shadows, the sky, the stripes and the stands): GPU from the broadcast camera 3.3 to 3.4 ms without the pattern and 3.3 to 3.4 ms with it, from the ball's close-up camera 3.5 to 3.8 ms and 3.5 to 3.9 ms (no difference to measure). The table of the turns takes 0.6 ms for the full game's log (6,209 frames) and 0.8 ms for 8,406 frames (once, at the first drawing after a log is read); a frame's turn about 0.1 µs.
 - With Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`), the clean builds and the tests pass (45 tests). `-DENABLE_3D=OFF` (18) and autotools also pass.
 - In a window not shown on the screen, frames 3,000 to 3,002 of the full game's log were drawn from the ball's close-up camera (3 m, 15° up); the pattern turned from frame to frame as the ball rolled.
+
+#### 2026-11-15: Step 8-5, the ball's ring and trail, and the measurement with everything on (`feature/3d-view`)
+
+The two commits of 8-4 (2bf13c2, ce69bc7) were pushed with the record of the backup of the two-tier stands (a7035a5), and CI passed.
+
+**Decided**
+- As in the web version (`ball-aids.ts`, §4.3):
+  - The ring: on the ground around the ball, 0.7 m in radius (the default kickable margin; 0.1 to 5 m). Its line 0.06 m or 2 pixels on the screen, whichever is wider (at most half the radius), 0.9 opaque, over a fill 0.12 opaque inside. 0.028 m above the ground (under the ball's shadow), over the circles under the players and their rings. A square of 2 m on the ground, on which the shader draws the line and the fill by the distance from the center (the edges smoothed over a pixel).
+  - The trail: a ribbon through the ball's centers of the last cycles (5 by default; 1 to 30). Exactly that many cycles back from the time drawn (the frame and the fraction), the last point part of the way between two frames. The ribbon faces the camera (across the way and the direction to the eye), its head 3 times the ball's radius or 6 pixels on the screen wide, whichever is wider, narrower (the fraction left to the power of 0.6) and fainter (0.75 times the fraction left) the older, dense along its middle and clear at its edges. Drawn after everything else translucent.
+- The trail is from the frames of the log alone (§5.2). Unlike the web version, it breaks by the rule of the interpolation, as the rolling of 8-4 (at a play mode change and at a placement farther than 4 m; the web version: 5 m, without the play mode).
+- The widths of the ring and the trail depend on the camera, so they are added after the camera is known, as the labels, by `FrameBuilder3D::addBallAids()`. Where the ball is not drawn (Ball of Show off, not seen from the player camera), neither is drawn. The screen's height is in logical pixels.
+- The options `ball_ring_3d`, `ball_ring_radius_3d`, `ball_trail_3d` and `ball_trail_cycles_3d` (group `View3D`) and the command line by the same names. Out of the ranges, not read; the setters bring them within. Ring, Trail and the fields Ring Radius and Trail Cycles in Ball of the settings dialog; the fields dim while the ring or the trail is off. The dialog is now 408 × 557 (the Ball group about 90 pixels taller).
+
+**Made**
+- `src/view3d/ball_aids_3d`: `trailPoints()`, `metersPerPixel()`, `addRing()`, `addTrail()`. No GL.
+- Shaders `ring.vert` and `ring.frag`. `Scene3D`: the ring's pass (after the circles and the rings), the trail's pass (after the nets), `M_ring_square`, `M_trail_batch`.
+- `SceneContent::ball_rings`, `ball_ring_radius`, `ball_ring_width`, `ball_trail`. `FrameBuilder3D::addBallAids()`, `View3DState::ball_ring`, `ball_ring_width`, `ball_trail`. `FieldView3D` calls it after the labels.
+- The four options of `Options`, and Ring, Trail and the two fields of `ConfigDialog`.
+
+**Tests**
+- Test `ball_aids_3d` (new): the trail's points (six at a frame; the head and the last part of the way between two frames; one cycle; without a next frame; at the start of the log; out of range; the height), where it breaks (a placement, a play mode change, no head on the way to a placement), the length of a pixel (orthographic, the depth of a perspective camera, behind the camera), the ring (place, size, color, the least and the most width of its line, `clear()`), the ribbon (the number of vertices; the middle on the point with the opacity of its age; the edges clear; across perpendicular to the way and to the eye; narrower with age; the tail clear; a width even going straight at the camera; nothing from one point).
+- Added to test `scene_3d`: from straight above without perspective, the ring's line light, its inside faint, nothing outside (three ways); the trail light along its middle, fainter to its edges and to its tail, nothing beside or ahead of it; the same in every frame. The first frame after switching to the top camera the same as the next one, and the first after switching back to the broadcast camera as before (§11: 4; frames built by FrameBuilder3D with the figures, the detailed shadows, the realistic grass, the ring and the trail).
+- Added to tests `frame_builder_3d` (the ring and the trail by the options; the ring under the ball, its line 0.06 m near and wider far away; the number of the trail's points and its head at the ball; the same trail however reached; the cycles and the radius by the options; none when off; none without the ball drawn; the options' ranges) and `config_dialog` (the tooltips, the tooltip of Default, the values at first, the fields setting the options, the fields dimmed while off, back by Default).
+- Every test was checked to fail with what it checks broken for a while (24 ways: no head between frames, no last point part of the way, no break at a placement, the center's height, the pixel of the orthographic camera, the depth ignored, no least width in pixels, no most width, the ribbon not facing the eye, not narrowing, the edges not clear, not fainter with age, no fill in the shader, no line, nothing discarded outside, the trail not drawn, the ring's option ignored, the cycles' option ignored, drawn without the ball, the dialog's dimming, the field of the cycles, the radius by Default, the ranges of the two setters). The ranges of the setters were first missed (the dialog's fields keep them), so a check of the options' ranges was added. The test of switching to the top camera has nothing to break in this build (Scene3D sends all of the content at each drawing, so the problem of the web version, when the data reach the GPU, cannot happen).
+- **Measured with everything on** (a condition of Phase 8; Release, the work machine's integrated GPU (radeonsi), `RCSSMONITOR_3D_TIMING`, logical 1920×1080 (2480×1395 physical pixels at the screen's scale 1.29), playing the full game's log from frame 3,000, 22 human bodies, the detailed shadows, the realistic grass, the sky, the stands, the ball's pattern, ring and trail): GPU from the broadcast camera 5.6 ms, the ball's close-up 6.9 to 7.4 ms, the player's close-up 6.0 ms, the player camera 4.3 to 4.4 ms, behind the goal 5.8 to 5.9 ms, the whole-pitch viewpoint 5.6 ms, the top camera 1.7 ms. The CPU's building up to 0.8 ms. All within a frame of 60 fps (16.7 ms) (the fps stops at 62.5, the interval at which the measuring tool asks for a drawing). With the simple shadows (the default), 3.3 to 3.4 ms from the broadcast camera.
+- With the real `FieldView3D` too (in a window not shown on the screen), the first frame after switching to the top camera was the same as the next one, and the first after switching back to the broadcast camera the same as before.
+- With Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`), the clean builds and the tests pass (46 tests). `-DENABLE_3D=OFF` (18) and autotools also pass.
+- In a window not shown on the screen, frame 3,000 of the full game's log was drawn from the ball's close-up (8 m), the broadcast and the top cameras.
+
+**The conditions of Phase 8**: everything can be turned on and off by the options (the three shadows, the three grasses, the sky, the stands, the ball's pattern, ring and trail). The first frame after switching to the top camera is the same as the next one (test `scene_3d`, and the real `FieldView3D`). 60 fps with everything on (the measurement above). Met once the user checks 8-5 on the screen.
