@@ -7,7 +7,7 @@
 | Reference implementation | rcssmonitor-web 20.0.0-beta.2 (tag `v20.0.0-beta.2`, ed36941). Its working tree is `../rcssmonitor-web`, next to this repository |
 | Server referred to | The asio version of rcssserver 19.x. Its working tree is `../rcssserver` (branch `feature/asio-migration`), next to this repository |
 | Japanese version | [PLAN_3D-VIEW.md](PLAN_3D-VIEW.md) (same content; §0.1) |
-| Status | Phase 7 done (2026-11-15). Working on Phase 8 (8-1 to 8-2b done, 8-3 waiting for the user's check; §14). The work is on `feature/3d-view` |
+| Status | Phase 7 done (2026-11-15). Working on Phase 8 (8-1 to 8-3 done, 8-4 waiting for the user's check; §14). The work is on `feature/3d-view` |
 
 ## 0. How to use this plan
 
@@ -405,7 +405,7 @@ Settings dialog:
 - **Player Camera tab**: the 4 styles, time constant, maximum angular speed, fixed field of view, Player Sight, Default button.
 - Every item gets a detailed tooltip. Numeric fields state their range in the tooltip, and out-of-range values are clamped to the ends (error color while typing). Numeric fields not used by the selected style are dimmed.
 - In the web version, the 3D items grew and one tab became too tall, so Player Camera was split into its own tab. If the items grow further, split them likewise.
-- → 6-6 made the settings of 6-1 to 6-5 (Close-up Camera, Guides, Boards and Banners of Stadium, and all of the Player Camera tab). Players, Ball and the rest of Stadium come in Phases 7 and 8. The two tabs are only in a build with the 3D view. → 7-4 added Players (the three Models and Figure Scale). 8-1 added Shadows to Players. 8-2 added Grass Stripes and Sky to Stadium. 8-2b made Grass Stripes a choice of three, Grass. 8-3 added Stands to Stadium. → 2026-11-15: the dialog had grown large, so the summaries under the rows of choices and the notes under the groups went into the tooltips (user; §14).
+- → 6-6 made the settings of 6-1 to 6-5 (Close-up Camera, Guides, Boards and Banners of Stadium, and all of the Player Camera tab). Players, Ball and the rest of Stadium come in Phases 7 and 8. The two tabs are only in a build with the 3D view. → 7-4 added Players (the three Models and Figure Scale). 8-1 added Shadows to Players. 8-2 added Grass Stripes and Sky to Stadium. 8-2b made Grass Stripes a choice of three, Grass. 8-3 added Stands to Stadium. 8-4 made the Ball group, with Pattern. → 2026-11-15: the dialog had grown large, so the summaries under the rows of choices and the notes under the groups went into the tooltips (user; §14).
 
 ### 5.8 Figures
 
@@ -687,6 +687,7 @@ Port the GL-independent calculations, using the web version's unit tests as mode
 | `view3d/sun_3d`, `gl/shadow_map`, `shaders/depth.*`, `shaders/shadow.*`, `shaders/blob.*` | Made in 8-1: the sun's direction, the camera of the shadow map, the ellipses of the simple shadows (no GL), the shadow map (a depth texture and a framebuffer), the shaders that draw only depths, the shaders of the plane of the shadows, the shaders of the simple shadows |
 | `view3d/scenery_3d`, `shaders/sky.*`, `shaders/outside.*` | Made in 8-2: the constants and computations of the sky, the haze and the ground beyond (no GL), the shaders of the sky and of the ground beyond. The grass stripes are drawn by `FieldPainter::drawGround()` |
 | `view3d/stands_3d`, `shaders/stand.*` | Made in 8-3: the stands' shape and image (no GL), the shader of their lit image |
+| `view3d/ball_3d`, `shaders/ball.*` | Made in 8-4: the ball's pattern and the table of how it has turned rolling (no GL), the shader of the pattern |
 | `tooltip_marker` | A dotted underline under the texts of the items with a tooltip (labels, check boxes, radio buttons, group titles), as the web version (the settings dialog) |
 | `view3d/grass_3d` | Made in 8-2b: the realistic grass (the noise image, the stripes' light and dark by the way the camera looks, the wear, the patches and the wear painted into the ground image; no GL). Its shader is `ground.frag` |
 | `figure_pack`, `fbx_model`, `bvh_motion`, `vrm` and so on | Figure packs (Phase 9; §5.9) |
@@ -1999,3 +2000,29 @@ The 2 commits of the settings dialog (c99bda8, 5c11f6b) were pushed, and the CI 
 - Measured (as in 8-1, 22 human bodies, the simple shadows, the sky and the stripes): GPU from the broadcast camera 3.0 ms without the stands, 3.2 to 3.4 ms with them; from the player camera 2.2 to 2.3 ms and 2.3 to 2.4 ms; from a goal camera 3.0 ms and 3.3 ms. Drawing the four images takes 4 to 6 ms (only when the team colors or names change).
 - With Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`), the clean builds and the tests pass (44 tests). `-DENABLE_3D=OFF` (18) and autotools also pass.
 - In a window not shown on the screen, frame 3,000 of the full game's log was drawn from the broadcast, close-up, player, goal and whole-pitch cameras, and from a far, low close-up camera (40 m, 5° up), and looked at.
+
+#### 2026-11-15: Step 8-4, the ball's pattern and rolling (`feature/3d-view`)
+
+The two commits of the stands (adf3d23, 5e3dcb9) were pushed, and CI passed. The record of the backup of the two-tier stands (a7035a5) was only committed (user).
+
+**Decided**
+- As in the web version (`ball.ts`, §4.3): twelve dark pentagons at the corners of an icosahedron (their corners a third of the way to the neighbors, about 21°), 0.12 times the ball's color. The shader finds the pentagons at each pixel from the direction on the ball, so that their edges stay sharp however near the camera is (smoothed over a pixel). Lit as the players.
+- Rolling: from the frames of the log alone (§5.2). The table of the ball's turns (`BallSpin`) adds up, from the first frame, how far it rolled at each frame (the distance moved on the ground over the radius, about up × the way), found once and kept. At most 0.8π a cycle (so that a fast ball does not seem to turn back at 60 fps). Between two frames, by the fraction. Unlike the web version, it rolls by the rule of the interpolation: not over a play mode change, nor over a move farther than `Interpolate::MAX_BALL_STEP` (4 m; a placement) (the web version: 5 m, without the play mode). The ball turns as far as it is drawn moving. When a live game drops its oldest frames, the turns of the frames left stay. Another log or another radius starts again.
+- With a height (`ball.z`) too, it rolls by the move on the ground (to be looked at again when the format of the 2.5D server is decided).
+- The option `ball_pattern_3d` (on by default; group `View3D`) and the command line `--ball-pattern-3d`. The 3D tab of the settings dialog has a new group Ball between Players and Stadium, with Pattern (8-5 adds Ring, Trail and so on). Without the pattern the turn is still found (only not seen).
+- The ball's sphere is divided more finely than the heads (32 × 24; its outline is near the close cameras).
+
+**Made**
+- `src/view3d/ball_3d`: `Ball3D::pentagons()`, `patternAt()` (as ball.frag), `roll()`, `rolls()`, `BallSpin` (`update()`, `turnAt()`, `clear()`). No GL.
+- Shaders `ball.vert` and `ball.frag`. `ShaderProgram::setArray()` (a uniform array of vec3). `Scene3D`: the ball's pass within the pass of the lit solids, with the finer sphere `M_ball`.
+- The argument `ball_turn` of `SceneBuilder::addShow()`. `SceneContent::ball_pattern`, `View3DState::ball_pattern` and `ball_turn`. `FrameBuilder3D` keeps the table and gives the frame's turn to the ball.
+- `ball_pattern_3d` of `Options`, Ball and Pattern of `ConfigDialog`.
+
+**Tests**
+- Test `ball_3d` (new): the pentagons (of length 1, five neighbors each 63.4° away, the corners toward the neighbors, a third of the way), the pattern (the centers, out to PENTAGON toward a corner, the five corners, out to cos 36° times as far toward the middle of an edge, white halfway to a neighbor, 27 to 33% of the ball dark), rolling (along the field's x the top goes toward +x, along y toward +z, the angle the distance over the radius with its limit and the fraction, the point on the ground does not slide, no turn without a move), when it rolls (the play mode, a placement), the table (adding up frame by frame, the fraction, without a next frame, beyond the end, the same frame by frame, no turn over a placement or a play mode change), live (the turns left the same after the oldest are dropped and after more frames, other frames and another radius start again, `clear()`).
+- Added to test `scene_3d`: a large ball drawn from straight above without perspective; whether each pixel of the ball (within 0.85 of the radius) is dark agrees with `patternAt()` at the direction turned back by the roll for more than 97% (not turned and turned), 15 to 50% dark, nothing dark without the pattern, the turned ball not agreeing with the pattern not turned, the same in every frame.
+- Added to tests `scene_builder` (the ball's matrix turned by the turn given, of the same radius), `frame_builder_3d` (no turn before the kick, turning on after it, the turn of the ball's matrix, the same turn drawn again, after other frames, by another builder, and live with frames coming later, `ball_pattern` by the option, `clear()`) and `config_dialog` (the tooltips of the group Ball and of Pattern, on at first, the option changed by a click, back by Default).
+- Every test was checked to fail with what it checks broken for a while (16 ways: the shader not using the turned direction, no pattern, the shader's distance of the edges, the CPU's, the axis of rolling reversed, no limit, rolling over a play mode change, no fraction, starting again when the oldest are dropped, a change of the radius ignored, the ball's matrix not turned, FrameBuilder3D not turning between frames, the option ignored, the dialog setting another option, Default not setting it back, the corners toward the farthest corner). The last one does not show in the drawing (the CPU and the shader use the same values), but `ball_3d` catches it.
+- Measured (as in 8-1, 22 human bodies, the simple shadows, the sky, the stripes and the stands): GPU from the broadcast camera 3.3 to 3.4 ms without the pattern and 3.3 to 3.4 ms with it, from the ball's close-up camera 3.5 to 3.8 ms and 3.5 to 3.9 ms (no difference to measure). The table of the turns takes 0.6 ms for the full game's log (6,209 frames) and 0.8 ms for 8,406 frames (once, at the first drawing after a log is read); a frame's turn about 0.1 µs.
+- With Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`), the clean builds and the tests pass (45 tests). `-DENABLE_3D=OFF` (18) and autotools also pass.
+- In a window not shown on the screen, frames 3,000 to 3,002 of the full game's log were drawn from the ball's close-up camera (3 m, 15° up); the pattern turned from frame to frame as the ball rolled.
