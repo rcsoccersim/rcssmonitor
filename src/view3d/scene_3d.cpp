@@ -114,8 +114,10 @@ Scene3D::initialize()
          || ! M_colored_program.load( "colored" )
          || ! M_panel_program.load( "panel" )
          || ! M_skinned_program.load( "skinned" )
+         || ! M_skinned_textured_program.load( "skinned", "skinned", "#define TEXTURED\n" )
          || ! M_depth_program.load( "depth" )
          || ! M_skinned_depth_program.load( "skinned", "depth" )
+         || ! M_skinned_masked_depth_program.load( "skinned", "skinned_depth", "#define TEXTURED\n" )
          || ! M_shadow_program.load( "shadow" )
          || ! M_blob_program.load( "blob" )
          || ! M_sky_program.load( "sky" )
@@ -337,9 +339,12 @@ Scene3D::render( GLuint fbo,
         M_sphere.draw( *this, content.spheres );
         if ( ! content.figures.empty() )
         {
-            M_skinned_depth_program.bind();
-            M_skinned_depth_program.set( "uViewProj", sun_view_proj );
-            drawFigures( M_skinned_depth_program, false );
+            for ( ShaderProgram * p : { &M_skinned_masked_depth_program, &M_skinned_depth_program } )
+            {
+                p->bind();
+                p->set( "uViewProj", sun_view_proj );
+            }
+            drawFigures( M_skinned_depth_program, M_skinned_masked_depth_program, false );
         }
         M_shadow_map.end( *this, fbo, width, height );
     }
@@ -419,13 +424,16 @@ Scene3D::render( GLuint fbo,
     //
     if ( ! content.figures.empty() )
     {
-        M_skinned_program.bind();
-        M_skinned_program.set( "uViewProj", view_proj );
-        M_skinned_program.set( "uSun", Sun3D::direction() );
-        M_skinned_program.set( "uShoeColor", FigureUniform::SHOE_COLOR );
-        M_skinned_program.set( "uShortsShade", FigureUniform::SHORTS_SHADE );
-        M_skinned_program.set( "uCollarSlope", FigureUniform::COLLAR_SLOPE );
-        drawFigures( M_skinned_program, true );
+        for ( ShaderProgram * p : { &M_skinned_textured_program, &M_skinned_program } )
+        {
+            p->bind();
+            p->set( "uViewProj", view_proj );
+            p->set( "uSun", Sun3D::direction() );
+            p->set( "uShoeColor", FigureUniform::SHOE_COLOR );
+            p->set( "uShortsShade", FigureUniform::SHORTS_SHADE );
+            p->set( "uCollarSlope", FigureUniform::COLLAR_SLOPE );
+        }
+        drawFigures( M_skinned_program, M_skinned_textured_program, true );
     }
 
     //
@@ -611,11 +619,17 @@ Scene3D::sortFigures( const SceneContent & content )
         }
         offset += floats;
     }
+    // to the GPU, once for the shadow map and the scene
+    for ( int body = 0; body < FIGURE_BODIES; ++body )
+    {
+        M_figures[body].setFigures( *this, M_figure_instances[body], M_figure_joints[body] );
+    }
 }
 
 /*-------------------------------------------------------------------*/
 void
 Scene3D::drawFigures( ShaderProgram & program,
+                      ShaderProgram & textured,
                       const bool uniform )
 {
     static const char * const CUTS[FigureUniform::Cuts::COUNT] = {
@@ -623,21 +637,28 @@ Scene3D::drawFigures( ShaderProgram & program,
         "uCuts[5]", "uCuts[6]", "uCuts[7]", "uCuts[8]", "uCuts[9]", "uCuts[10]",
         "uCuts[11]", "uCuts[12]",
     };
-    // each body for its figures at once, with their colors and their skin matrices
+    // each body for its figures at once, with their colors and their skin
+    // matrices: its plain parts, then those with a texture or a transparency
     for ( int body = 0; body < FIGURE_BODIES; ++body )
     {
         if ( M_figure_instances[body].empty() ) continue;
-        if ( uniform )
+        for ( const bool texture : { false, true } )
         {
-            // the uniform of the body (FigureUniform)
-            for ( int i = 0; i < FigureUniform::Cuts::COUNT; ++i )
+            if ( texture && ! M_figures[body].hasTextured() ) break;
+            ShaderProgram & p = ( texture ? textured : program );
+            p.bind();
+            if ( uniform )
             {
-                program.set( CUTS[i], M_figure_cuts[body].planes[i] );
+                // the uniform of the body (FigureUniform)
+                for ( int i = 0; i < FigureUniform::Cuts::COUNT; ++i )
+                {
+                    p.set( CUTS[i], M_figure_cuts[body].planes[i] );
+                }
+                const std::array< std::uint32_t, FigureUniform::SCALP_HAIRS > & scalp = M_figure_cuts[body].scalp;
+                // (the bits as floats, exact to 2^24)
+                p.set( "uScalp", QVector4D( float( scalp[0] ), float( scalp[1] ), float( scalp[2] ), float( scalp[3] ) ) );
             }
-            const std::array< std::uint32_t, FigureUniform::SCALP_HAIRS > & scalp = M_figure_cuts[body].scalp;
-            // (the bits as floats, exact to 2^24)
-            program.set( "uScalp", QVector4D( float( scalp[0] ), float( scalp[1] ), float( scalp[2] ), float( scalp[3] ) ) );
+            M_figures[body].draw( *this, p, texture, uniform );
         }
-        M_figures[body].draw( *this, program, M_figure_instances[body], M_figure_joints[body], uniform );
     }
 }

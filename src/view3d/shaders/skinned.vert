@@ -5,6 +5,10 @@
 
 layout( location = A_POSITION ) in vec3 aPos;
 layout( location = A_NORMAL ) in vec3 aNormal;
+#ifdef TEXTURED
+// (the variant for the parts with a texture or a transparency: the plain ones fetch no coordinates)
+layout( location = A_UV ) in vec2 aUV;       // where in the material's texture
+#endif
 layout( location = A_JOINTS ) in uvec4 aJoints;
 layout( location = A_WEIGHTS ) in vec4 aWeights;
 layout( location = A_REST ) in vec3 aRest;  // where the vertex is at rest, for the uniform
@@ -16,12 +20,15 @@ layout( location = A_HAIR ) in vec4 iHair;   // its hair, with the hairstyles it
 
 uniform mat4 uViewProj;
 uniform sampler2D uJoints;   // the skin matrices
-uniform int uPaint;          // this part: 0 in uBaseColor; 1 in the figure's color; 2 in its uniform; 3 in its hair color
+uniform int uPaint;          // this part: 0 in uBaseColor; 1 in the figure's color; 2 in its uniform; 3 in its hair color; 4 in its skin; 5 in its color under a texture's shades
 uniform int uShow;           // a hairstyle: its bit, drawn on the figures wearing it (0: on all)
 uniform vec4 uBaseColor;     // the color of the material
 
 out vec3 vNormal; // in the world
-out vec4 vColor;  // uBaseColor, the figure's color or its hair's
+#ifdef TEXTURED
+out vec2 vUV;
+#endif
+out vec4 vColor;  // uBaseColor, the figure's color, its hair's or its skin's
 out vec4 vSkin;   // the figure's skin
 out vec4 vHair;   // the figure's hair, the hairstyles it wears in w
 out vec4 vScalp;  // under each hairstyle (interpolated: a smooth hairline)
@@ -40,6 +47,9 @@ mat4 jointMatrix( uint joint )
 
 void main()
 {
+#ifdef TEXTURED
+    vUV = aUV;
+#endif
     vSkin = iSkin;
     vHair = iHair;
     vScalp = aScalp;
@@ -60,6 +70,9 @@ void main()
               + aWeights.w * jointMatrix( aJoints.w );
     // the normal by the inverse transpose, as lit.vert (the skin may scale)
     vNormal = transpose( inverse( mat3( skin ) ) ) * aNormal;
-    vColor = ( uPaint == 0 ? uBaseColor : uPaint == 3 ? vec4( iHair.rgb, 1.0 ) : iColor );
+    vColor = ( uPaint == 0 ? uBaseColor
+               : uPaint == 3 ? vec4( iHair.rgb, 1.0 )
+               : uPaint == 4 ? vec4( iSkin.rgb, 1.0 )
+               : iColor );
     gl_Position = uViewProj * skin * vec4( aPos, 1.0 );
 }

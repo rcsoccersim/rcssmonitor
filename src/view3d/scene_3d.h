@@ -173,9 +173,11 @@ private:
     ShaderProgram M_billboard_program; //!< "billboard": the labels, facing the camera
     ShaderProgram M_colored_program; //!< "colored": the lines, dots and view areas, each vertex its color
     ShaderProgram M_panel_program; //!< "panel": the boards and the banners, an image on the front, unlit
-    ShaderProgram M_skinned_program; //!< "skinned" and "lit": the human figures, lit by the sun
+    ShaderProgram M_skinned_program; //!< "skinned": the human figures, lit by the sun (their plain parts)
+    ShaderProgram M_skinned_textured_program; //!< "skinned" with TEXTURED: their parts with a texture or a transparency
     ShaderProgram M_depth_program; //!< "depth": the solids as the sun sees them, into the shadow map
     ShaderProgram M_skinned_depth_program; //!< "skinned" and "depth": the figures into the shadow map
+    ShaderProgram M_skinned_masked_depth_program; //!< "skinned" and "skinned_depth": their parts with a texture or a transparency
     ShaderProgram M_shadow_program; //!< "shadow": the plane of the shadows over the ground
     ShaderProgram M_blob_program; //!< "blob": the simple shadows, soft ellipses on the ground
     ShaderProgram M_sky_program; //!< "sky": the sky dome around the camera
@@ -224,15 +226,19 @@ private:
     const std::vector< Instance3D > M_ground_instance; //!< one instance of the ground, where it is (no move)
     const std::vector< Instance3D > M_shadow_instance; //!< one instance of the plane of the shadows, just over the ground
 
-    //! sort the figures of a frame by their bodies (M_figure_instances, M_figure_joints)
+    //! sort the figures of a frame by their bodies (M_figure_instances, M_figure_joints) and send them to the GPU
     void sortFigures( const SceneContent & content );
     /*!
-      \brief draw the figures sorted, with a skinned program bound
-      \param program the main one, or the depth one for the shadow map
-      \param uniform for the main one: the planes of each body's uniform,
+      \brief draw the figures sorted: the plain parts with a program, those
+      with a texture or a transparency with the other (each of them set
+      with the frame's uniforms)
+      \param program the main one (plain), or the depth one for the shadow map
+      \param textured the variant for the parts with a texture or a transparency
+      \param uniform for the main ones: the planes of each body's uniform,
       and the colors of its parts
     */
     void drawFigures( ShaderProgram & program,
+                      ShaderProgram & textured,
                       const bool uniform );
 };
 

@@ -34,6 +34,7 @@
 #define RCSSMONITOR_GLTF_MODEL_H
 
 #include <QByteArray>
+#include <QImage>
 #include <QMatrix4x4>
 #include <QQuaternion>
 #include <QString>
@@ -41,6 +42,7 @@
 #include <QVector4D>
 
 #include <cstdint>
+#include <utility>
 #include <vector>
 
 /*!
@@ -84,19 +86,30 @@ struct SkinVertex {
   first_index + index_count) of GltfModel::indices
 */
 struct SkinPrimitive {
+    //! how the material's alpha is taken (glTF's alphaMode)
+    enum Alpha {
+        Opaque = 0,
+        Mask = 1, //!< transparent below alpha_cutoff (hair cards, eyelashes)
+        Blend = 2, //!< see-through: drawn as a mask at 0.5 (the figures are not sorted)
+    };
     int first_index = 0;
     int index_count = 0;
     QString material; //!< the material's name
     QVector4D base_color = QVector4D( 1.0f, 1.0f, 1.0f, 1.0f ); //!< the material's own color
+    int image = -1; //!< its base color texture: an index of GltfModel::images (-1: none)
+    int alpha = Opaque;
+    float alpha_cutoff = 0.5f; //!< Mask: transparent below this
+    bool double_sided = false; //!< seen from behind too (no culling)
 };
 
 /*!
   \class GltfModel
-  \brief a skinned model of a glTF 2.0 file (.glb) and its clips, as plain
-  data: the nodes (bones) with their rest transforms, the skin (which nodes
-  are joints, and their inverse bind matrices), the meshes skinned with
-  it, and the keyframes of the clips. No OpenGL: Figures3D poses it, and
-  SkinnedMesh draws it.
+  \brief a skinned model of a glTF 2.0 file (.glb, .gltf, .vrm) and its
+  clips, as plain data: the nodes (bones) with their rest transforms, the
+  joints (which nodes, and their inverse bind matrices: the skins of the
+  file joined, and the nodes that meshes are fixed to), the meshes, the
+  materials and their textures, and the keyframes of the clips. No
+  OpenGL: Figures3D poses it, and SkinnedMesh draws it.
 
   glTF's space: y up, and a person faces +z. A skinned vertex is drawn at
   sum of weight * global(joint) * inverse_bind(joint) * position, where
@@ -135,23 +148,55 @@ public:
     std::vector< QMatrix4x4 > inverse_bind; //!< by joint
 
     std::vector< SkinVertex > vertices;
+    //! by vertex, 2 floats: where in its material's texture (0 to 1 across, from the image's top left).
+    //! Apart from the vertices: only a part with a texture reads them (a larger vertex is slower to draw)
+    std::vector< float > uvs;
     std::vector< std::uint32_t > indices; //!< 3 a triangle
     std::vector< SkinPrimitive > primitives;
+    std::vector< QImage > images; //!< the textures of the materials (at most MAX_IMAGE_SIZE)
+    std::vector< float > image_luminance; //!< by image: its mean luminance (0 to 1) where it is not transparent
 
     std::vector< Clip > clips;
+
+    //! VRM's humanoid bones (a role's name as VRM writes it, and its node), if the file is a VRM
+    std::vector< std::pair< QString, int > > humanoid_bones;
+    int vrm_version = -1; //!< 0 for VRM 0.x, 1 for VRM 1.0, -1 if not a VRM
 
     float min_y = 0.0f; //!< the lowest point of the skinned mesh at rest (m)
     float max_y = 0.0f; //!< the highest
 
+    //! a texture larger than this (pixels) is made smaller: a figure is small on the screen
+    static constexpr int MAX_IMAGE_SIZE = 1024;
+
     /*!
-      \brief read a glTF binary (.glb) with its buffers inside: the first
-      skin, the meshes skinned with it, and all the clips
+      \brief read a glTF file: a binary (.glb, .vrm) or JSON (.gltf), with
+      its buffers and images inside or in files beside it. All the meshes
+      are read: those skinned (the skins joined into one list of joints)
+      and those fixed to a node, which move with it; the materials with
+      their base color textures; the clips; VRM's humanoid bones.
       \param data the file
       \param error what went wrong, if not null
-      \return false if it cannot be read, or has no skinned mesh
+      \param path where the file is (a file or a resource), to find the
+      files it names; empty: none
+      \return false if it cannot be read, or has no mesh
     */
     bool load( const QByteArray & data,
-               QString * error = nullptr );
+               QString * error = nullptr,
+               const QString & path = QString() );
+
+    /*!
+      \brief read a glTF file by its path (a file or a resource): load()
+      \return false if it cannot be opened or read
+    */
+    bool loadFile( const QString & path,
+                   QString * error = nullptr );
+
+    /*!
+      \brief turn the whole model (its skeleton, so its mesh and its clips
+      too) about its origin: a new root node above the old roots, turned so.
+      To face +z (a VRM 0.x model faces -z).
+    */
+    void turnAbout( const QQuaternion & turn );
 
     //! the index of the node of the name, or -1
     int nodeIndex( const QString & name ) const;
@@ -195,6 +240,10 @@ public:
     void skin( const std::vector< NodeTransform > & local,
                const QMatrix4x4 & model,
                float * out ) const;
+
+private:
+    //! where the rest pose puts the vertices (SkinVertex::rest), and the lowest and highest of them
+    void computeRest();
 };
 
 #endif

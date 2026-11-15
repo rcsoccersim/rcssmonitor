@@ -92,7 +92,8 @@ shader_header()
 bool
 add_shader( QOpenGLShaderProgram & program,
             const QOpenGLShader::ShaderType type,
-            const QString & path )
+            const QString & path,
+            const QByteArray & defines )
 {
     QFile file( path );
     if ( ! file.open( QIODevice::ReadOnly ) )
@@ -100,7 +101,7 @@ add_shader( QOpenGLShaderProgram & program,
         std::cerr << "(ShaderProgram) cannot read " << path.toStdString() << std::endl;
         return false;
     }
-    if ( ! program.addShaderFromSourceCode( type, shader_header() + file.readAll() ) )
+    if ( ! program.addShaderFromSourceCode( type, shader_header() + defines + file.readAll() ) )
     {
         std::cerr << "(ShaderProgram) " << path.toStdString() << ": "
                   << program.log().toStdString() << std::endl;
@@ -127,7 +128,8 @@ ShaderProgram::load( const QString & name )
 /*-------------------------------------------------------------------*/
 bool
 ShaderProgram::load( const QString & vertex,
-                     const QString & fragment )
+                     const QString & fragment,
+                     const QByteArray & defines )
 {
     static bool resources = false;
     if ( ! resources )
@@ -140,8 +142,8 @@ ShaderProgram::load( const QString & vertex,
     // of the vertex shader ("out") meet the inputs of the fragment shader
     // ("in") of the same names
     std::unique_ptr< QOpenGLShaderProgram > program( new QOpenGLShaderProgram );
-    if ( ! add_shader( *program, QOpenGLShader::Vertex, ":/shaders/" + vertex + ".vert" )
-         || ! add_shader( *program, QOpenGLShader::Fragment, ":/shaders/" + fragment + ".frag" ) )
+    if ( ! add_shader( *program, QOpenGLShader::Vertex, ":/shaders/" + vertex + ".vert", defines )
+         || ! add_shader( *program, QOpenGLShader::Fragment, ":/shaders/" + fragment + ".frag", defines ) )
     {
         return false;
     }

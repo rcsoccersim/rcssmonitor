@@ -40,8 +40,10 @@
 #include "ground_texture.h"
 #include "label_atlas.h"
 #include "overlay_builder.h"
+#include "figure_pack.h"
 #include "figure_uniform.h"
 #include "figures_3d.h"
+#include "test_gltf.h"
 #include "options.h"
 #include "scene_3d.h"
 #include "scene_builder.h"
@@ -51,7 +53,9 @@
 #include "scenery_3d.h"
 #include "sun_3d.h"
 
+#include <QDir>
 #include <QOffscreenSurface>
+#include <QTemporaryDir>
 #include <QOpenGLContext>
 #include <QOpenGLFramebufferObject>
 #include <QOpenGLFunctions_3_3_Core>
@@ -155,6 +159,7 @@ private slots:
     void panels();
     void figures();
     void humanFigure();
+    void texturedFigure();
     void shadows();
     void blobShadows();
     void sky();
@@ -1574,6 +1579,256 @@ TestScene3D::topSwitch()
     opt.setPlayerModel3D( Options::PLAYER_MODEL_3D );
     opt.setShadows3D( Options::SHADOWS_3D );
     opt.setGrass3D( GrassMode::Plain );
+    scene.release();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  a figure of a texture (a pack of a humanoid of boxes, test_gltf.h): in
+  its own color times the texture; the texture's shades over the figure's
+  color (tint) and over its skin; its transparent parts not drawn (a
+  mask); a double-sided part seen from behind, and not if single-sided
+*/
+void
+TestScene3D::texturedFigure()
+{
+    DispHolder holder;
+    FieldPainter painter( holder );
+    Scene3D scene;
+    QVERIFY( scene.initialize() );
+    scene.setGround( GroundTexture::draw( painter ) );
+    const int w = 240, h = 320;
+    QOpenGLFramebufferObjectFormat fbo_format;
+    fbo_format.setAttachment( QOpenGLFramebufferObject::Depth );
+    QOpenGLFramebufferObject fbo( w, h, fbo_format );
+
+    // facing the figure (it faces +x), and from 8 m above, its shadow on the
+    // ground beside it (away from the sun: +x, +z)
+    CameraPose front;
+    front.position = QVector3D( 4.0f, 1.0f, 0.0f );
+    front.target = QVector3D( 0.0f, 1.0f, 0.0f );
+    CameraPose above;
+    above.position = QVector3D( 0.8f, 8.0f, 0.4f );
+    above.target = QVector3D( 0.8f, 0.0f, 0.4f );
+    above.up = QVector3D( 0.0f, 0.0f, -1.0f );
+
+    // how the humanoid of a pack looks: its material's texture, paint,
+    // alpha mode and own alpha; a quad (a cape) in front of its chest
+    struct Look {
+        QImage texture;
+        QString paint = QStringLiteral( "model" );
+        QString alpha = QStringLiteral( "OPAQUE" );
+        float opacity = 1.0f;
+        int cape = 0; //!< 0: none; 1: facing the body, away from the eye in front; 2: facing the eye in front
+        bool two_sided = false; //!< the cape's
+    };
+    // a pack of the figure, with the bundled motion, drawn
+    QTemporaryDir folder;
+    const auto draw = [&]( const Look & look, const CameraPose & camera, const bool shadows ) -> QImage {
+        TestGltf::HumanoidOptions o;
+        o.texture = look.texture;
+        TestGltf::File f = TestGltf::humanoid( TestGltf::mannequin(), o );
+        f.materials[0].alpha = look.alpha;
+        f.materials[0].color.setW( look.opacity );
+        if ( look.cape )
+        {
+            TestGltf::Material yellow;
+            yellow.name = "Cape";
+            yellow.color = QVector4D( 1.0f, 1.0f, 0.0f, 1.0f );
+            yellow.double_sided = look.two_sided;
+            f.materials.push_back( yellow );
+            TestGltf::Mesh quad;
+            quad.node = f.skins[0].joints[0]; // the hips: at their joint, unturned
+            quad.material = 1;
+            quad.positions = { QVector3D( -0.3f, -0.3f, 0.3f ), QVector3D( 0.3f, -0.3f, 0.3f ),
+                               QVector3D( 0.3f, 0.3f, 0.3f ), QVector3D( -0.3f, 0.3f, 0.3f ) };
+            if ( look.cape == 1 )
+            {
+                quad.normals = std::vector< QVector3D >( 4, QVector3D( 0.0f, 0.0f, -1.0f ) );
+                quad.indices = { 0, 2, 1, 0, 3, 2 }; // counterclockwise seen from -z: facing the body
+            }
+            else
+            {
+                quad.normals = std::vector< QVector3D >( 4, QVector3D( 0.0f, 0.0f, 1.0f ) );
+                quad.indices = { 0, 1, 2, 0, 2, 3 }; // counterclockwise seen from +z: facing the eye
+            }
+            f.meshes.push_back( quad );
+        }
+        const QString dir = QDir( folder.path() ).filePath( QStringLiteral( "pack%1" ).arg( QDir( folder.path() ).entryList( QDir::Dirs | QDir::NoDotAndDotDot ).size() ) );
+        QDir().mkpath( dir );
+        TestGltf::File::write( QDir( dir ).filePath( "Body.glb" ), f.glb() );
+        TestGltf::File::write( QDir( dir ).filePath( "figure.json" ),
+                               "{ \"format\": 1, \"motion\": \"mannequin\", \"bodies\": [ { \"model\": \"Body.glb\", \"paint\": { \"Body\": \""
+                               + look.paint.toUtf8() + "\" } } ] }" );
+        // the bundled motion looked up as FigurePacks::scan() does
+        FigurePack resolved = FigurePack::read( dir, false );
+        resolved.motion = FigurePacks::builtin( "mannequin" )->motion;
+        Figures3D figures;
+        figures.load();
+        if ( ! figures.setPack( resolved ) )
+        {
+            qWarning( "%s", qPrintable( figures.error() ) );
+            return QImage();
+        }
+        scene.setFigureBody( 0, figures.model(), figures.paints(), figures.uniformCuts() );
+        // facing +x, in green, of a tan skin
+        SceneContent content;
+        content.shadows = shadows;
+        content.figures.push_back( FigureInstance{ 0, 0.0f, 0.0f, 0.0f, 1.85f, QVector4D( 0.0f, 0.6f, 0.0f, 1.0f ) } );
+        content.figures[0].look.skin = QVector4D( 0.8f, 0.6f, 0.4f, 1.0f );
+        figures.pose( content, 0.0 );
+        scene.render( fbo.handle(), w, h, camera, content );
+        return fbo.toImage();
+    };
+    const auto count = [&]( const QImage & image, const std::function< bool( const QColor & ) > & is ) {
+        int n = 0;
+        for ( int y = 0; y < h; ++y )
+            for ( int x = 0; x < w; ++x )
+                if ( is( image.pixelColor( x, y ) ) ) ++n;
+        return n;
+    };
+    const auto reddish = []( const QColor & c ) { return c.red() > 80 && c.green() < 30 && c.blue() < 30; };
+    const auto bluish = []( const QColor & c ) { return c.blue() > 80 && c.red() < 30 && c.green() < 30; };
+    const auto greenish = []( const QColor & c ) { return c.green() > 30 && c.red() < 15 && c.blue() < 15; };
+
+    // the empty ground, to tell the figure's pixels
+    SceneContent nothing;
+    scene.render( fbo.handle(), w, h, front, nothing );
+    const QImage ground = fbo.toImage();
+    const auto figurePixels = [&]( const QImage & image ) {
+        int n = 0;
+        for ( int y = 0; y < h; ++y )
+            for ( int x = 0; x < w; ++x )
+                if ( image.pixelColor( x, y ) != ground.pixelColor( x, y ) ) ++n;
+        return n;
+    };
+
+    // its own color times the texture: red and blue, each face both
+    QImage two( 8, 4, QImage::Format_RGBA8888 );
+    for ( int y = 0; y < 4; ++y )
+        for ( int x = 0; x < 8; ++x ) two.setPixelColor( x, y, x < 4 ? QColor( 255, 0, 0 ) : QColor( 0, 0, 255 ) );
+    Look look;
+    look.texture = two;
+    const QImage own = draw( look, front, false );
+    QVERIFY( ! own.isNull() );
+    const int figure = figurePixels( own );
+    QVERIFY2( figure > 2000, qPrintable( QString::number( figure ) ) );
+    QVERIFY2( count( own, reddish ) > figure / 5 && count( own, bluish ) > figure / 5,
+              qPrintable( QString( "%1 %2 of %3" ).arg( count( own, reddish ) ).arg( count( own, bluish ) ).arg( figure ) ) );
+    QCOMPARE( count( own, greenish ), 0 );
+
+    // the shades over the figure's color: green, darker and lighter (the
+    // texture's mean at the figure's color)
+    QImage gray( 8, 4, QImage::Format_RGBA8888 );
+    for ( int y = 0; y < 4; ++y )
+        for ( int x = 0; x < 8; ++x ) gray.setPixelColor( x, y, x < 4 ? QColor( 64, 64, 64 ) : QColor( 192, 192, 192 ) );
+    look.texture = gray;
+    look.paint = "tint";
+    const QImage tint = draw( look, front, false );
+    QCOMPARE( count( tint, reddish ) + count( tint, bluish ), 0 );
+    int dark = 0, light = 0;
+    for ( int y = 0; y < h; ++y )
+    {
+        for ( int x = 0; x < w; ++x )
+        {
+            const QColor c = tint.pixelColor( x, y );
+            if ( ! greenish( c ) || c == ground.pixelColor( x, y ) ) continue;
+            // 0.6 times a shade of 0.5 or 1.5, lit by 0.53 to 1.14
+            if ( c.green() < 90 ) ++dark;
+            if ( c.green() > 110 ) ++light;
+        }
+    }
+    QVERIFY2( dark > figure / 5 && light > figure / 5, qPrintable( QString( "%1 %2 of %3" ).arg( dark ).arg( light ).arg( figure ) ) );
+
+    // over the skin: its tan, in shades
+    look.paint = "skin";
+    const QImage skin = draw( look, front, false );
+    const auto tan = []( const QColor & c ) { return c.red() > c.green() + 10 && c.green() > c.blue() + 10; };
+    QVERIFY2( count( skin, tan ) > figure * 2 / 3, qPrintable( QString( "%1 of %2" ).arg( count( skin, tan ) ).arg( figure ) ) );
+
+    // a mask: the transparent half not drawn
+    QImage half = two;
+    for ( int y = 0; y < 4; ++y )
+        for ( int x = 4; x < 8; ++x ) half.setPixelColor( x, y, QColor( 0, 0, 255, 0 ) );
+    look = Look();
+    look.texture = half;
+    look.alpha = "MASK";
+    const QImage masked = draw( look, front, false );
+    QCOMPARE( count( masked, bluish ), 0 );
+    QVERIFY2( figurePixels( masked ) < figure * 4 / 5 && count( masked, reddish ) > figure / 5,
+              qPrintable( QString( "%1 of %2" ).arg( figurePixels( masked ) ).arg( figure ) ) );
+    // the same opaque: drawn
+    look.alpha = "OPAQUE";
+    QVERIFY( count( draw( look, front, false ), bluish ) > figure / 5 );
+    // in the figure's color, flat: the mask still taken
+    look.alpha = "MASK";
+    look.paint = "team";
+    const QImage team = draw( look, front, false );
+    QVERIFY2( figurePixels( team ) < figure * 4 / 5 && count( team, greenish ) > figure / 5,
+              qPrintable( QString( "%1 %2 of %3" ).arg( figurePixels( team ) ).arg( count( team, greenish ) ).arg( figure ) ) );
+    // a material more transparent than the cutoff, without a texture: not drawn
+    look = Look();
+    look.alpha = "BLEND";
+    look.opacity = 0.2f;
+    QCOMPARE( draw( look, front, false ), ground );
+
+    // shadows: the opaque figure's on the ground; none where a mask is
+    // transparent, nor of a material more transparent than the cutoff
+    scene.render( fbo.handle(), w, h, above, nothing );
+    const QImage unlit = fbo.toImage();
+    SceneContent shaded;
+    shaded.shadows = true;
+    scene.render( fbo.handle(), w, h, above, shaded );
+    const QImage bare = fbo.toImage(); // the ground with the shadows on: nothing casts one
+    QCOMPARE( bare, unlit );
+    const auto shadowPixels = [&]( const QImage & image ) {
+        int n = 0;
+        for ( int y = 0; y < h; ++y )
+            for ( int x = 0; x < w; ++x )
+            {
+                const QColor c = image.pixelColor( x, y );
+                const QColor g = bare.pixelColor( x, y );
+                if ( c.green() > c.red() && c.green() > c.blue() && c.lightness() < g.lightness() * 0.85 ) ++n;
+            }
+        return n;
+    };
+    look = Look();
+    look.texture = two;
+    const int opaque_shadow = shadowPixels( draw( look, above, true ) );
+    QVERIFY2( opaque_shadow > 500, qPrintable( QString::number( opaque_shadow ) ) );
+    QImage clear( 8, 4, QImage::Format_RGBA8888 );
+    clear.fill( QColor( 255, 0, 0, 0 ) );
+    look.texture = clear;
+    look.alpha = "MASK";
+    QCOMPARE( draw( look, above, true ), bare );
+    look = Look();
+    look.alpha = "MASK";
+    look.opacity = 0.2f;
+    QCOMPARE( draw( look, above, true ), bare );
+
+    // a part facing away: seen if double-sided, lit as its side toward the
+    // eye (as bright as one facing the eye)
+    const auto yellow = []( const QColor & c ) { return c.red() > 100 && c.green() > 100 && c.blue() < 40; };
+    look = Look();
+    look.texture = two;
+    look.cape = 1;
+    QCOMPARE( count( draw( look, front, false ), yellow ), 0 );
+    const auto meanYellow = [&]( const QImage & image ) {
+        double sum = 0.0;
+        int n = 0;
+        for ( int y = 0; y < h; ++y )
+            for ( int x = 0; x < w; ++x )
+                if ( yellow( image.pixelColor( x, y ) ) ) { sum += image.pixelColor( x, y ).red(); ++n; }
+        return n > 0 ? sum / n : 0.0;
+    };
+    look.two_sided = true;
+    const QImage behind = draw( look, front, false );
+    QVERIFY2( count( behind, yellow ) > 1000, qPrintable( QString::number( count( behind, yellow ) ) ) );
+    look.cape = 2;
+    look.two_sided = false;
+    const QImage facing = draw( look, front, false );
+    QVERIFY2( std::fabs( meanYellow( behind ) - meanYellow( facing ) ) < 4.0,
+              qPrintable( QString( "%1 %2" ).arg( meanYellow( behind ) ).arg( meanYellow( facing ) ) ) );
     scene.release();
 }
 

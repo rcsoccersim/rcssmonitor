@@ -86,11 +86,13 @@ public:
 
     /*!
       \brief compile and link :/shaders/<vertex>.vert and
-      :/shaders/<fragment>.frag (two programs may share a shader)
+      :/shaders/<fragment>.frag (two programs may share a shader), with
+      lines of #define first if any (a variant of a shader: TEXTURED)
       \return false on an error, which is printed with the line of the shader
     */
     bool load( const QString & vertex,
-               const QString & fragment );
+               const QString & fragment,
+               const QByteArray & defines = QByteArray() );
 
     //! delete the program, in the current context
     void destroy();

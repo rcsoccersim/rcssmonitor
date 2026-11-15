@@ -53,6 +53,10 @@ offset( const std::size_t bytes )
 
 //! the texture unit of the skin matrices while drawing
 constexpr int JOINT_UNIT = 0;
+//! and of the textures of the materials (1, 2: the shadow map, the grass's noise)
+constexpr int TEXTURE_UNIT = 3;
+//! the mean luminance of a texture is taken as at least this (its shades not too strong)
+constexpr float MIN_LUMINANCE = 0.05f;
 
 }
 
@@ -64,11 +68,27 @@ SkinnedMesh::create( QOpenGLFunctions_3_3_Core & gl,
 {
     M_joint_count = model.jointCount();
     M_parts.clear();
+    M_textured = false;
+    M_count = 0;
+    // the images of the materials, once; repeated (as glTF's sampler by default)
+    M_textures.clear();
+    for ( const QImage & image : model.images )
+    {
+        M_textures.emplace_back( new Texture2D );
+        if ( ! image.isNull() ) M_textures.back()->upload( gl, image, true, true );
+    }
     for ( std::size_t i = 0; i < model.primitives.size(); ++i )
     {
         const SkinPrimitive & p = model.primitives[i];
         const FigureUniform::Paint paint = ( i < paints.size() ? paints[i] : FigureUniform::Paint() );
-        M_parts.push_back( { p.first_index, p.index_count, paint.kind, int( paint.show ), p.base_color } );
+        const int texture = ( p.image >= 0 && p.image < static_cast< int >( M_textures.size() ) ? p.image : -1 );
+        const float luminance = ( texture >= 0 ? model.image_luminance[texture] : 1.0f );
+        M_parts.push_back( { p.first_index, p.index_count, paint.kind, int( paint.show ), p.base_color,
+                             texture,
+                             ( p.alpha == SkinPrimitive::Opaque ? -1.0f : p.alpha_cutoff ),
+                             1.0f / std::max( MIN_LUMINANCE, luminance ),
+                             p.double_sided } );
+        if ( M_parts.back().textured() ) M_textured = true;
     }
 
     gl.glGenVertexArrays( 1, &M_vao );
@@ -95,6 +115,16 @@ SkinnedMesh::create( QOpenGLFunctions_3_3_Core & gl,
     gl.glVertexAttribPointer( GLAttribute::PART, 2, GL_FLOAT, GL_FALSE, stride, offset( offsetof( SkinVertex, part ) ) );
     gl.glEnableVertexAttribArray( GLAttribute::SCALP );
     gl.glVertexAttribPointer( GLAttribute::SCALP, 4, GL_FLOAT, GL_FALSE, stride, offset( offsetof( SkinVertex, scalp ) ) );
+
+    // where in the textures, in a buffer of their own: only the parts with a
+    // texture read them, and the vertices stay as small (faster to draw)
+    gl.glGenBuffers( 1, &M_uv_buffer );
+    gl.glBindBuffer( GL_ARRAY_BUFFER, M_uv_buffer );
+    std::vector< float > uvs = model.uvs;
+    uvs.resize( model.vertices.size() * 2, 0.0f );
+    gl.glBufferData( GL_ARRAY_BUFFER, GLsizeiptr( uvs.size() * sizeof( float ) ), uvs.data(), GL_STATIC_DRAW );
+    gl.glEnableVertexAttribArray( GLAttribute::UV );
+    gl.glVertexAttribPointer( GLAttribute::UV, 2, GL_FLOAT, GL_FALSE, 2 * sizeof( float ), offset( 0 ) );
 
     // the triangles: indices into the vertices (the VAO remembers this buffer too)
     gl.glGenBuffers( 1, &M_index_buffer );
@@ -135,22 +165,24 @@ SkinnedMesh::destroy( QOpenGLFunctions_3_3_Core & gl )
 {
     gl.glDeleteVertexArrays( 1, &M_vao );
     gl.glDeleteBuffers( 1, &M_vertex_buffer );
+    gl.glDeleteBuffers( 1, &M_uv_buffer );
     gl.glDeleteBuffers( 1, &M_index_buffer );
     gl.glDeleteBuffers( 1, &M_instance_buffer );
     gl.glDeleteTextures( 1, &M_joint_texture );
-    M_vao = M_vertex_buffer = M_index_buffer = M_instance_buffer = M_joint_texture = 0;
+    for ( std::unique_ptr< Texture2D > & t : M_textures ) t->destroy( gl );
+    M_textures.clear();
+    M_vao = M_vertex_buffer = M_uv_buffer = M_index_buffer = M_instance_buffer = M_joint_texture = 0;
     M_capacity = 0;
     M_parts.clear();
 }
 
 /*-------------------------------------------------------------------*/
 void
-SkinnedMesh::draw( QOpenGLFunctions_3_3_Core & gl,
-                   ShaderProgram & program,
-                   const std::vector< Instance > & figures,
-                   const std::vector< float > & joints,
-                   const bool colors )
+SkinnedMesh::setFigures( QOpenGLFunctions_3_3_Core & gl,
+                         const std::vector< Instance > & figures,
+                         const std::vector< float > & joints )
 {
+    M_count = 0;
     const std::size_t floats = static_cast< std::size_t >( M_joint_count ) * 16;
     if ( ! created()
          || figures.empty()
@@ -158,11 +190,11 @@ SkinnedMesh::draw( QOpenGLFunctions_3_3_Core & gl,
     {
         return;
     }
-    const GLsizei count = GLsizei( figures.size() );
-
+    M_count = GLsizei( figures.size() );
     // room for the figures: made larger (twice) only when too small
     // (docs/PLAN_3D-VIEW.md §5.3), then overwritten
     gl.glBindBuffer( GL_ARRAY_BUFFER, M_instance_buffer );
+    gl.glActiveTexture( GL_TEXTURE0 + JOINT_UNIT );
     gl.glBindTexture( GL_TEXTURE_2D, M_joint_texture );
     if ( figures.size() > M_capacity )
     {
@@ -175,22 +207,51 @@ SkinnedMesh::draw( QOpenGLFunctions_3_3_Core & gl,
     gl.glBindBuffer( GL_ARRAY_BUFFER, 0 );
     // the rows of the figures: a joint's matrix is 4 texels of 4 floats, column by column
     gl.glPixelStorei( GL_UNPACK_ALIGNMENT, 4 );
-    gl.glTexSubImage2D( GL_TEXTURE_2D, 0, 0, 0, M_joint_count * 4, count, GL_RGBA, GL_FLOAT, joints.data() );
+    gl.glTexSubImage2D( GL_TEXTURE_2D, 0, 0, 0, M_joint_count * 4, M_count, GL_RGBA, GL_FLOAT, joints.data() );
+    gl.glBindTexture( GL_TEXTURE_2D, 0 );
+}
 
+/*-------------------------------------------------------------------*/
+void
+SkinnedMesh::draw( QOpenGLFunctions_3_3_Core & gl,
+                   ShaderProgram & program,
+                   const bool textured,
+                   const bool colors )
+{
+    if ( ! created() || M_count == 0 ) return;
     gl.glActiveTexture( GL_TEXTURE0 + JOINT_UNIT );
     gl.glBindTexture( GL_TEXTURE_2D, M_joint_texture );
     program.set( "uJoints", JOINT_UNIT );
-
-    // each part for all the figures at once
+    if ( textured ) program.set( "uTexture", TEXTURE_UNIT );
+    // each part for all the figures at once: a double-sided one without
+    // culling (then the culling as the caller had it)
+    const bool culling = gl.glIsEnabled( GL_CULL_FACE );
     gl.glBindVertexArray( M_vao );
     for ( const Part & p : M_parts )
     {
+        if ( p.textured() != textured ) continue;
         program.set( "uPaint", p.paint );
         program.set( "uShow", p.show );
         if ( colors ) program.set( "uBaseColor", p.color );
+        if ( textured )
+        {
+            program.set( "uTextured", p.texture >= 0 ? 1 : 0 );
+            program.set( "uAlphaCutoff", p.alpha_cutoff );
+            program.set( "uLumScale", p.lum_scale );
+            if ( p.texture >= 0 ) M_textures[p.texture]->bind( gl, TEXTURE_UNIT );
+        }
+        if ( culling )
+        {
+            if ( p.two_sided ) gl.glDisable( GL_CULL_FACE );
+            else gl.glEnable( GL_CULL_FACE );
+        }
         gl.glDrawElementsInstanced( GL_TRIANGLES, p.index_count, GL_UNSIGNED_INT,
-                                    offset( std::size_t( p.first_index ) * sizeof( std::uint32_t ) ), count );
+                                    offset( std::size_t( p.first_index ) * sizeof( std::uint32_t ) ), M_count );
     }
+    if ( culling ) gl.glEnable( GL_CULL_FACE );
     gl.glBindVertexArray( 0 );
+    gl.glActiveTexture( GL_TEXTURE0 + TEXTURE_UNIT );
+    gl.glBindTexture( GL_TEXTURE_2D, 0 );
+    gl.glActiveTexture( GL_TEXTURE0 + JOINT_UNIT );
     gl.glBindTexture( GL_TEXTURE_2D, 0 );
 }

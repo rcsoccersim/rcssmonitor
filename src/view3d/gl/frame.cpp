@@ -72,8 +72,8 @@ end( QOpenGLFunctions_3_3_Core & gl )
     gl.glUseProgram( 0 );
     gl.glBindVertexArray( 0 );
     // the textures of the units used (1: the shadow map, 2: the grass's
-    // noise), unit 0 left active
-    for ( int unit = 2; unit >= 0; --unit )
+    // noise, 3: the figures' materials), unit 0 left active
+    for ( int unit = 3; unit >= 0; --unit )
     {
         gl.glActiveTexture( GLenum( GL_TEXTURE0 + unit ) );
         gl.glBindTexture( GL_TEXTURE_2D, 0 );

@@ -17,6 +17,14 @@ uniform vec4 uShoeColor;
 uniform float uShortsShade; // the shorts: the figure's color times this
 uniform float uCollarSlope; // the collar's width grows by this much for its height
 uniform vec4 uScalp;        // the hairstyle (bit, as a float) of each of vScalp (FigureUniform::Cuts::scalp)
+#ifdef TEXTURED
+in vec2 vUV;
+// (a variant for the parts with a texture or a transparency: the plain ones without it are lighter)
+uniform int uTextured;      // the material has a texture
+uniform sampler2D uTexture; // its texture
+uniform float uAlphaCutoff; // not drawn where more transparent than this (< 0: opaque)
+uniform float uLumScale;    // a texture's luminance times this is its shade (1 / its mean)
+#endif
 
 out vec4 fragColor;
 
@@ -75,8 +83,33 @@ vec4 uniformColor()
 
 void main()
 {
-    vec3 n = normalize( vNormal );
+    // a double-sided part seen from behind: lit as its side toward the eye
+    vec3 n = ( gl_FrontFacing ? 1.0 : -1.0 ) * normalize( vNormal );
     vec4 color = ( uPaint == 2 ? uniformColor() : vColor );
+
+#ifdef TEXTURED
+    // a texture: times its own color; its shades over the hair's, the
+    // skin's or the figure's (a tint); the figure's color and the uniform
+    // flat; its transparent parts not drawn
+    if ( uTextured != 0 )
+    {
+        vec4 t = texture( uTexture, vUV );
+        if ( uPaint == 0 )
+        {
+            color *= t;
+        }
+        else if ( uPaint >= 3 )
+        {
+            float shade = dot( t.rgb, vec3( 0.299, 0.587, 0.114 ) ) * uLumScale;
+            color = vec4( color.rgb * shade, color.a * t.a );
+        }
+        else
+        {
+            color.a *= t.a;
+        }
+    }
+    if ( uAlphaCutoff >= 0.0 && color.a < uAlphaCutoff ) discard;
+#endif
 
     // the brightness as lit.frag
     float ambient = 0.42;

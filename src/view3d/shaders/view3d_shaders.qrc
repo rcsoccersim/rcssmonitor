@@ -18,6 +18,7 @@
     <file>panel.frag</file>
     <file>skinned.vert</file>
     <file>skinned.frag</file>
+    <file>skinned_depth.frag</file>
     <file>depth.vert</file>
     <file>depth.frag</file>
     <file>shadow.vert</file>

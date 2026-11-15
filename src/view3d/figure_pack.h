@@ -39,6 +39,7 @@
 #include <QStringList>
 
 #include <cstdint>
+#include <utility>
 #include <vector>
 
 /*!
@@ -65,12 +66,15 @@ struct FigureCredit {
   \brief a body of a figure pack, as its figure.json tells (FigurePack)
 */
 struct FigureBodySpec {
-    QString model; //!< the model's file (a path of the pack's folder, or of the resources)
-    QString skeleton; //!< its bones' names: a preset (skeletonPresets()); empty: found from the names
+    QString model; //!< the model's file (a path of the pack's folder, or of the resources): glTF, GLB, VRM
+    QString skeleton; //!< its bones' roles: a preset (skeletonPresets()); empty: found (findHumanBones())
+    std::vector< std::pair< QString, QString > > bones; //!< or the pack's own map: a role's name (as VRM writes it) to a bone's name
     FigureSex sex = FigureSex::Any;
     QStringList team; //!< the materials in the player's color (the Mannequin's body)
     QStringList uniform; //!< the materials of the skin, in a uniform of the player's color (FigureUniform)
-    QStringList hair; //!< the materials in the player's hair color on all (the eyebrows)
+    QStringList hair; //!< the materials in the player's hair color on all (the eyebrows); a texture's shades over it
+    QStringList skin; //!< the materials in the player's skin color; a texture's shades over it
+    QStringList tint; //!< the materials in the player's color, a texture's shades over it (clothes of a texture)
     QStringList hairstyles; //!< the materials of the hairstyles: one worn by each player, each as often, in its hair color
     int standard_hairstyle = 0; //!< of hairstyles: worn by a player not known for sure
     struct Extra {
@@ -95,7 +99,8 @@ struct FigureBodySpec {
 struct FigureMotionSpec {
     QString pack; //!< whose motion it is: the pack's own name, or another pack's
     QString model; //!< the model with the clips (a path); empty while another pack's is not looked up
-    QString skeleton; //!< its bones' names (as FigureBodySpec::skeleton)
+    QString skeleton; //!< its bones' roles (as FigureBodySpec::skeleton)
+    std::vector< std::pair< QString, QString > > bones; //!< or the pack's own map (as FigureBodySpec::bones)
     QString idle; //!< the clips
     QString walk;
     QString jog;

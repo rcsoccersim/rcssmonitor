@@ -131,58 +131,59 @@ namesOf( const QStringList & names )
     return quoted.join( QStringLiteral( ", " ) );
 }
 
+//! a model facing farther than this (degree) from +z is turned to face it
+constexpr float FACING_TOLERANCE = 2.0f;
+
 /*!
-  \brief the roles of a model's bones by a skeleton's preset, or by the
-  first preset whose bones it has (empty preset)
+  \brief the roles of a model's bones (by a pack's map, a preset, or found:
+  findHumanBones()), the model turned to face +z if it does not (a VRM
+  0.x model faces -z)
 */
 bool
-buildRig( const GltfModel & model,
-          const QString & preset,
+rigModel( const QString & path,
+          const QString & skeleton,
+          const std::vector< std::pair< QString, QString > > & bones,
+          GltfModel & model,
           HumanoidRig & rig,
-          QString * why )
+          QString * error )
 {
-    const QStringList presets = ( preset.isEmpty() ? skeletonPresets() : QStringList( preset ) );
-    QString first;
-    for ( const QString & p : presets )
-    {
-        HumanBoneNames names;
-        QString w;
-        if ( skeletonBoneNames( p, &names )
-             && rig.build( model, names, &w ) )
-        {
-            return true;
-        }
-        if ( first.isEmpty() ) first = w;
-    }
-    *why = ( preset.isEmpty()
-             ? QStringLiteral( "the bones are of no skeleton known (" ) + skeletonPresets().join( QStringLiteral( ", " ) )
-               + QStringLiteral( "): " ) + first
-             : first );
-    return false;
-}
-
-//! read a model of a pack and its roles
-bool
-readModel( const QString & path,
-           const QString & skeleton,
-           GltfModel & model,
-           HumanoidRig & rig,
-           QString * error )
-{
-    QFile file( path );
-    if ( ! file.open( QIODevice::ReadOnly ) )
-    {
-        *error = QStringLiteral( "cannot open " ) + fileOf( path );
-        return false;
-    }
+    HumanBoneNodes nodes;
     QString why;
-    if ( ! model.load( file.readAll(), &why )
-         || ! buildRig( model, skeleton, rig, &why ) )
+    if ( ! findHumanBones( model, skeleton, bones, &nodes, &why )
+         || ! rig.build( model, nodes, &why ) )
     {
         *error = fileOf( path ) + QStringLiteral( ": " ) + why;
         return false;
     }
+    const float facing = rig.facingAngle();
+    if ( std::fabs( facing ) > FACING_TOLERANCE )
+    {
+        model.turnAbout( QQuaternion::fromAxisAndAngle( 0.0f, 1.0f, 0.0f, -facing ) );
+        if ( ! rig.build( model, nodes, &why ) )
+        {
+            *error = fileOf( path ) + QStringLiteral( ": " ) + why;
+            return false;
+        }
+    }
     return true;
+}
+
+//! read a model of a pack (glTF, GLB, VRM) and its roles
+bool
+readModel( const QString & path,
+           const QString & skeleton,
+           const std::vector< std::pair< QString, QString > > & bones,
+           GltfModel & model,
+           HumanoidRig & rig,
+           QString * error )
+{
+    QString why;
+    if ( ! model.loadFile( path, &why ) )
+    {
+        *error = fileOf( path ) + QStringLiteral( ": " ) + why;
+        return false;
+    }
+    return rigModel( path, skeleton, bones, model, rig, error );
 }
 
 }
@@ -265,7 +266,7 @@ Figures3D::motionOf( const FigureMotionSpec & spec,
     std::unique_ptr< Motion > m( new Motion );
     m->key = key;
     m->source = spec.model;
-    if ( ! readModel( spec.model, spec.skeleton, m->model, m->rig, error ) )
+    if ( ! readModel( spec.model, spec.skeleton, spec.bones, m->model, m->rig, error ) )
     {
         return nullptr;
     }
@@ -314,14 +315,12 @@ Figures3D::loadBody( const FigureBodySpec & spec,
         // the motion's own model
         body->model = motion.model;
         body->motion_skeleton = true;
-        QString why;
-        if ( ! buildRig( body->model, spec.skeleton, body->rig, &why ) )
+        if ( ! rigModel( spec.model, spec.skeleton, spec.bones, body->model, body->rig, error ) )
         {
-            *error = fileOf( spec.model ) + QStringLiteral( ": " ) + why;
             return nullptr;
         }
     }
-    else if ( ! readModel( spec.model, spec.skeleton, body->model, body->rig, error ) )
+    else if ( ! readModel( spec.model, spec.skeleton, spec.bones, body->model, body->rig, error ) )
     {
         return nullptr;
     }
@@ -332,7 +331,7 @@ Figures3D::loadBody( const FigureBodySpec & spec,
     {
         if ( ! materials.contains( p.material ) ) materials << p.material;
     }
-    QStringList named = spec.team + spec.uniform + spec.hair + spec.hairstyles;
+    QStringList named = spec.team + spec.uniform + spec.hair + spec.skin + spec.tint + spec.hairstyles;
     for ( const FigureBodySpec::Extra & e : spec.extras ) named << e.material;
     for ( const QString & m : named )
     {
@@ -344,7 +343,7 @@ Figures3D::loadBody( const FigureBodySpec & spec,
         }
     }
 
-    // each limb from its rest to hanging down
+    // each limb from its rest (in the T pose: HumanoidRig::restTurn()) to hanging down
     std::vector< QMatrix4x4 > global;
     body->model.globals( body->model.rest, global );
     const HumanoidRig & rig = body->rig;
@@ -352,7 +351,9 @@ Figures3D::loadBody( const FigureBodySpec & spec,
                      const HumanBone lower )
         {
             if ( rig.node( upper ) < 0 || rig.node( lower ) < 0 ) return QQuaternion();
-            const QVector3D dir = ( global[rig.node( lower )].column( 3 ) - global[rig.node( upper )].column( 3 ) ).toVector3D();
+            const QVector3D rest = ( global[rig.node( lower )].column( 3 ) - global[rig.node( upper )].column( 3 ) ).toVector3D();
+            const QQuaternion turn = rig.restTurn( upper );
+            const QVector3D dir = ( turn.isIdentity() ? rest : turn.rotatedVector( rest ) );
             return QQuaternion::rotationTo( dir.normalized(), QVector3D( 0.0f, -1.0f, 0.0f ) );
         };
     body->leg_down[0] = down( HumanBone::LeftUpperLeg, HumanBone::LeftLowerLeg );
@@ -571,6 +572,14 @@ Figures3D::paints( const int body ) const
         {
             // the eyebrows, on all
             paint.kind = FigureUniform::Paint::Hair;
+        }
+        else if ( b.spec.skin.contains( p.material ) )
+        {
+            paint.kind = FigureUniform::Paint::Skin;
+        }
+        else if ( b.spec.tint.contains( p.material ) )
+        {
+            paint.kind = FigureUniform::Paint::Tint;
         }
         else if ( const std::uint32_t bit = b.spec.bitOf( p.material ) )
         {

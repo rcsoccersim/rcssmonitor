@@ -96,18 +96,46 @@ using HumanBoneNames = std::array< QString, HUMAN_BONE_COUNT >;
 */
 HumanBoneNames quaterniusBoneNames();
 
+//! the role of a name as VRM writes it ("leftUpperArm"), or -1
+int humanBoneOf( const QString & name );
+
+//! the nodes of the roles of a skeleton, by the role (-1: none)
+using HumanBoneNodes = std::array< int, HUMAN_BONE_COUNT >;
+
 /*!
-  \brief the presets of the bones' names that a figure pack can name as its
-  skeleton (FigureBodySpec::skeleton): "quaternius"
+  \brief the presets of the skeletons that a figure pack can name
+  (FigureBodySpec::skeleton): "quaternius" (and Unreal's mannequin),
+  "mixamo", "vroid" (VRoid's J_Bip_ names) and "vrm" (the roles that a VRM
+  file tells)
 */
 QStringList skeletonPresets();
 
 /*!
-  \brief the bones' names of a preset (skeletonPresets())
+  \brief the bones' names of a preset of names (quaternius, mixamo, vroid;
+  not vrm, whose roles are in the file)
   \return false if there is no such preset (names is left as it was)
 */
 bool skeletonBoneNames( const QString & preset,
                         HumanBoneNames * names );
+
+/*!
+  \brief the nodes of the roles of a model: by a pack's own map (a role's
+  name, as VRM writes it, to a bone's name), else by a preset, else (both
+  empty) by VRM's roles if the file has them, else by the first preset
+  whose bones the model has. A preset's names match a bone of the name,
+  also after a prefix ending with ':' or '_' (mixamorig:Hips, mixamorig_Hips).
+  \param model the model
+  \param preset a preset of skeletonPresets(), or empty
+  \param map a role's name to a bone's name (empty: none)
+  \param nodes the nodes found
+  \param error why not, if not null: the roles required without a bone
+  \return false if a required role (humanBoneRequired()) has no bone
+*/
+bool findHumanBones( const GltfModel & model,
+                     const QString & preset,
+                     const std::vector< std::pair< QString, QString > > & map,
+                     HumanBoneNodes * nodes,
+                     QString * error = nullptr );
 
 /*!
   \struct HumanoidPose
@@ -146,8 +174,9 @@ struct HumanoidPose {
   with the figure packs, Phase 9).
 
   How a role's rotation is read: with G the bone's rotation in the model
-  in the pose and R at rest, the bone turned D = G * R^-1 in the model; the
-  normalized rotation is D(parent role)^-1 * D. Putting it on another
+  in the pose and R at rest (in the T pose: turned by restTurn()), the bone
+  turned D = G * R^-1 in the model; the normalized rotation is
+  D(parent role)^-1 * D. Putting it on another
   skeleton is the reverse, with that skeleton's R. The bones without a
   role (the root, the fingers, ...) keep what the caller gives them.
 */
@@ -164,6 +193,32 @@ public:
     bool build( const GltfModel & model,
                 const HumanBoneNames & names,
                 QString * error = nullptr );
+
+    /*!
+      \brief map the nodes of a model to the roles (findHumanBones())
+      \return false if a required role has no node
+    */
+    bool build( const GltfModel & model,
+                const HumanBoneNodes & nodes,
+                QString * error = nullptr );
+
+    //! an arm farther than this (degree) from straight out sideways at rest is taken as if it were (an A pose)
+    static constexpr float ARM_POSE_TOLERANCE = 10.0f;
+
+    /*!
+      \brief how a role's bone is taken as turned at rest in the model, from
+      where the model has it, for the T pose: the upper arms of an A pose
+      turned up to straight out sideways, and their lower arms straightened
+      with them (and the roles below following); identity for the others
+    */
+    QQuaternion restTurn( const HumanBone bone ) const { return M_rest_turn[static_cast< int >( bone )]; }
+
+    /*!
+      \brief which way the model faces, from +z about the vertical (degree,
+      counterclockwise from above): from its left side, the hips' joints (a
+      person faces +z with its left at +x)
+    */
+    float facingAngle() const;
 
     const GltfModel * model() const { return M_model; }
 
@@ -222,7 +277,8 @@ private:
     std::array< int, HUMAN_BONE_COUNT > M_node; //!< the node of each role, -1 if none
     std::array< int, HUMAN_BONE_COUNT > M_parent_role; //!< the nearest role above, -1 at the hips
     std::vector< int > M_role_of; //!< by node index: its role, -1 if none
-    std::array< QQuaternion, HUMAN_BONE_COUNT > M_rest_rotation; //!< R: each role's bone in the model at rest
+    std::array< QQuaternion, HUMAN_BONE_COUNT > M_rest_rotation; //!< R: each role's bone in the model at rest, in the T pose (restTurn())
+    std::array< QQuaternion, HUMAN_BONE_COUNT > M_rest_turn; //!< restTurn()
     QVector3D M_rest_hips; //!< where the hips are in the model at rest
     float M_hip_height = 1.0f;
 };

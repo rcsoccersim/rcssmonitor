@@ -254,7 +254,9 @@ struct Paint {
         Own = 0, //!< in the material's own color
         Figure = 1, //!< in the figure's color (the mannequin's body)
         Uniform = 2, //!< in a uniform of the figure's color, with its skin (a human body)
-        Hair = 3, //!< in the figure's hair color (the eyebrows and the hairstyles)
+        Hair = 3, //!< in the figure's hair color (the eyebrows and the hairstyles); a texture's shades over it
+        Skin = 4, //!< in the figure's skin color; a texture's shades over it
+        Tint = 5, //!< in the figure's color, a texture's shades over it (clothes of a texture)
     };
     int kind = Own;
     //! Hair: only on the figures wearing this hairstyle or extra (its bit of the body: FigureBodySpec::bitOf()); 0: on all

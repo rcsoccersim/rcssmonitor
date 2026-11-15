@@ -34,6 +34,7 @@
 
 #include "figure_pack.h"
 #include "figures_3d.h"
+#include "test_gltf.h"
 
 #include <QDir>
 #include <QFile>
@@ -293,6 +294,20 @@ private slots:
           QCOMPARE( b.extras[1].chance, 1.0 );
           QCOMPARE( p.cast().bodies[0].standard_hair, 2u );
 
+          // a skeleton map, and the paints of the shades
+          const QString mapped = makePack( folder.path(), "mapped",
+                                           packJson( ", \"skeleton\": { \"hips\": \"pelvis\", \"head\": \"Head\" },"
+                                                     " \"paint\": { \"M_Main\": \"skin\", \"M_Joints\": \"tint\" }" ),
+                                           { "Body.glb" } );
+          const FigurePack m = FigurePack::read( mapped, false );
+          QVERIFY2( m.ok(), qPrintable( m.error ) );
+          QVERIFY( m.bodies[0].skeleton.isEmpty() );
+          QCOMPARE( int( m.bodies[0].bones.size() ), 2 );
+          QCOMPARE( m.bodies[0].bones[0].first, QString( "head" ) ); // (in the order of the keys)
+          QCOMPARE( m.bodies[0].bones[0].second, QString( "Head" ) );
+          QCOMPARE( m.bodies[0].skin, QStringList( { "M_Main" } ) );
+          QCOMPARE( m.bodies[0].tint, QStringList( { "M_Joints" } ) );
+
           // no name: the folder's
           const QString unnamed = makePack( folder.path(), "unnamed",
                                             "{ \"format\": 1, \"motion\": \"mannequin\", \"bodies\": [ { \"model\": \"Body.glb\" } ] }",
@@ -325,7 +340,7 @@ private slots:
           QTest::newRow( "motion itself" ) << packJson( QByteArray(), "\"pack\"" ) << QString( "motion: the pack itself" );
           QTest::newRow( "motion no model" ) << packJson( QByteArray(), "{ " + clips + " }" ) << QString( "motion: no \"model\"" );
           QTest::newRow( "motion model" ) << packJson( QByteArray(), "{ \"model\": \"None.glb\", " + clips + " }" ) << QString( "motion.model: \"None.glb\" is not found in the pack's folder" );
-          QTest::newRow( "motion skeleton" ) << packJson( QByteArray(), "{ \"model\": \"Body.glb\", \"skeleton\": \"mixamo\", " + clips + " }" ) << QString( "motion.skeleton: \"mixamo\" is not one of quaternius" );
+          QTest::newRow( "motion skeleton" ) << packJson( QByteArray(), "{ \"model\": \"Body.glb\", \"skeleton\": \"biped\", " + clips + " }" ) << QString( "motion.skeleton: \"biped\" is not one of quaternius, mixamo, vroid, vrm, nor a map of the roles to the bones" );
           QTest::newRow( "motion no clips" ) << packJson( QByteArray(), "{ \"model\": \"Body.glb\" }" ) << QString( "motion: no \"clips\"" );
           QTest::newRow( "motion no jog" ) << packJson( QByteArray(), "{ \"model\": \"Body.glb\", \"clips\": { \"idle\": \"I\", \"walk\": \"W\", \"sprint\": \"S\" } }" ) << QString( "motion.clips: no \"jog\"" );
           QTest::newRow( "no bodies" ) << QByteArray( "{ \"format\": 1, \"motion\": \"mannequin\" }" ) << QString( "no \"bodies\"" );
@@ -335,7 +350,7 @@ private slots:
           QTest::newRow( "body model" ) << QByteArray( "{ \"format\": 1, \"motion\": \"mannequin\", \"bodies\": [ { \"model\": \"Body.glb\" }, { \"model\": \"x/None.glb\" } ] }" ) << QString( "bodies[1].model: \"x/None.glb\" is not found in the pack's folder" );
           QTest::newRow( "body model empty" ) << QByteArray( "{ \"format\": 1, \"motion\": \"mannequin\", \"bodies\": [ { \"model\": \"\" } ] }" ) << QString( "bodies[0].model: empty" );
           QTest::newRow( "sex" ) << packJson( ", \"sex\": \"other\"" ) << QString( "bodies[0].sex: \"other\" is not male or female" );
-          QTest::newRow( "paint" ) << packJson( ", \"paint\": { \"M_Main\": \"unifrom\" }" ) << QString( "bodies[0].paint: \"M_Main\": \"unifrom\" is not one of team, uniform, hair, model" );
+          QTest::newRow( "paint" ) << packJson( ", \"paint\": { \"M_Main\": \"unifrom\" }" ) << QString( "bodies[0].paint: \"M_Main\": \"unifrom\" is not one of team, tint, uniform, skin, hair, model" );
           QTest::newRow( "paint object" ) << packJson( ", \"paint\": 3" ) << QString( "bodies[0].paint: not an object" );
           QTest::newRow( "paint hairstyle" ) << packJson( ", \"hairstyles\": [ \"H\" ], \"paint\": { \"H\": \"team\" }" ) << QString( "bodies[0].paint: \"H\" is a hairstyle or an extra, in the hair's color" );
           QTest::newRow( "hairstyles twice" ) << packJson( ", \"hairstyles\": [ \"H\", \"H\" ]" ) << QString( "bodies[0].hairstyles: \"H\" is listed twice" );
@@ -348,7 +363,11 @@ private slots:
           QTest::newRow( "extra no chance" ) << packJson( ", \"extras\": [ { \"material\": \"E\" } ]" ) << QString( "bodies[0].extras[0]: no \"chance\" from 0 to 1" );
           QTest::newRow( "extra twice" ) << packJson( ", \"hairstyles\": [ \"H\" ], \"extras\": [ { \"material\": \"H\", \"chance\": 0.5 } ]" ) << QString( "bodies[0].extras[0]: \"H\" is listed twice" );
           QTest::newRow( "too many hairs" ) << packJson( ", \"hairstyles\": [ \"A\", \"B\", \"C\" ], \"extras\": [ { \"material\": \"D\", \"chance\": 0.5 }, { \"material\": \"E\", \"chance\": 0.5 } ]" ) << QString( "bodies[0]: more than 4 hairstyles and extras" );
-          QTest::newRow( "skeleton" ) << packJson( ", \"skeleton\": \"vrm\"" ) << QString( "bodies[0].skeleton: \"vrm\" is not one of quaternius" );
+          QTest::newRow( "skeleton" ) << packJson( ", \"skeleton\": \"biped\"" ) << QString( "bodies[0].skeleton: \"biped\" is not one of quaternius, mixamo, vroid, vrm" );
+          QTest::newRow( "skeleton role" ) << packJson( ", \"skeleton\": { \"hips\": \"pelvis\", \"lefthand\": \"hand_l\" }" ) << QString( "bodies[0].skeleton: \"lefthand\" is not one of hips, spine, chest, upperChest, neck, head, leftShoulder, leftUpperArm, leftLowerArm, leftHand," );
+          QTest::newRow( "skeleton bone" ) << packJson( ", \"skeleton\": { \"hips\": 3 }" ) << QString( "bodies[0].skeleton.hips: not a bone's name" );
+          QTest::newRow( "skeleton empty" ) << packJson( ", \"skeleton\": { }" ) << QString( "bodies[0].skeleton: empty" );
+          QTest::newRow( "motion skeleton map" ) << packJson( QByteArray(), "{ \"model\": \"Body.glb\", \"skeleton\": { \"knee\": \"calf_l\" }, " + clips + " }" ) << QString( "motion.skeleton: \"knee\" is not one of hips" );
       }
 
     void readErrors()
@@ -539,6 +558,132 @@ private slots:
           QVERIFY( figures.setPack( *byId( list, "own" ) ) );
           QVERIFY( figures.setPack( *byId( list, "robot" ) ) );
           QCOMPARE( &figures.model(), robot_body );
+      }
+
+    /*!
+      packs of glTF models of other skeletons (humanoids of boxes,
+      test_gltf.h) with the bundled motion: an A pose of Mixamo's names
+      (with a prefix) and a texture, its arms moving as the Mannequin's; a
+      VRM 0.x facing -z, by its own roles, turned to face +z; a .gltf with
+      its files beside it, by a skeleton map; the paints of the shades
+    */
+    void gltfPacks()
+      {
+          QTemporaryDir folder;
+          const QString f = folder.path();
+          QImage texture( 4, 4, QImage::Format_RGBA8888 );
+          texture.fill( QColor( 200, 150, 100 ) );
+
+          TestGltf::HumanoidOptions a;
+          a.preset = "mixamo";
+          a.prefix = "mixamorig:";
+          a.arm_down = 40.0f;
+          a.texture = texture;
+          QVERIFY( QDir( f ).mkpath( "apose" ) );
+          QVERIFY( TestGltf::File::write( QDir( f ).filePath( "apose/Body.glb" ), TestGltf::humanoid( TestGltf::mannequin(), a ).glb() ) );
+          QVERIFY( writeFile( QDir( f ).filePath( "apose/figure.json" ),
+                              "{ \"format\": 1, \"motion\": \"mannequin\", \"bodies\": [ { \"model\": \"Body.glb\", \"skeleton\": \"mixamo\","
+                              " \"paint\": { \"Body\": \"skin\" } } ] }" ) );
+
+          TestGltf::HumanoidOptions v;
+          v.preset = "vroid";
+          v.facing = 180.0f;
+          v.vrm = 0;
+          QVERIFY( QDir( f ).mkpath( "vrm" ) );
+          QVERIFY( TestGltf::File::write( QDir( f ).filePath( "vrm/Avatar.vrm" ), TestGltf::humanoid( TestGltf::mannequin(), v ).glb() ) );
+          QVERIFY( writeFile( QDir( f ).filePath( "vrm/figure.json" ),
+                              "{ \"format\": 1, \"motion\": \"mannequin\", \"bodies\": [ { \"model\": \"Avatar.vrm\","
+                              " \"paint\": { \"Body\": \"tint\" } } ] }" ) );
+
+          TestGltf::HumanoidOptions t;
+          t.facing = -70.0f; // to the left of +z
+          QVERIFY( QDir( f ).mkpath( "side" ) );
+          QVERIFY( TestGltf::File::write( QDir( f ).filePath( "side/Body.glb" ), TestGltf::humanoid( TestGltf::mannequin(), t ).glb() ) );
+          QVERIFY( writeFile( QDir( f ).filePath( "side/figure.json" ),
+                              "{ \"format\": 1, \"motion\": \"mannequin\", \"bodies\": [ { \"model\": \"Body.glb\" } ] }" ) );
+
+          TestGltf::HumanoidOptions g;
+          g.preset = "quaternius";
+          QVERIFY( QDir( f ).mkpath( "files" ) );
+          TestGltf::File named = TestGltf::humanoid( TestGltf::mannequin(), g );
+          for ( TestGltf::Node & n : named.nodes ) n.name = "B-" + n.name; // no preset's
+          QVERIFY( named.writeGltf( QDir( f ).filePath( "files" ), "body" ) );
+          QByteArray map = "{ ";
+          for ( int b = 0; b < HUMAN_BONE_COUNT; ++b )
+          {
+              map += QByteArray( b ? ", " : "" ) + "\"" + humanBoneName( HumanBone( b ) ) + "\": \"B-" + quaterniusBoneNames()[b].toUtf8() + "\"";
+          }
+          map += " }";
+          QVERIFY( writeFile( QDir( f ).filePath( "files/figure.json" ),
+                              "{ \"format\": 1, \"motion\": \"mannequin\", \"bodies\": [ { \"model\": \"body.gltf\", \"skeleton\": " + map + " } ] }" ) );
+          QVERIFY( QDir( f ).mkpath( "unknown" ) );
+          QVERIFY( named.writeGltf( QDir( f ).filePath( "unknown" ), "body" ) );
+          QVERIFY( writeFile( QDir( f ).filePath( "unknown/figure.json" ),
+                              "{ \"format\": 1, \"motion\": \"mannequin\", \"bodies\": [ { \"model\": \"body.gltf\" } ] }" ) );
+
+          const std::vector< FigurePack > list = FigurePacks::scan( f );
+          Figures3D mannequin;
+          QVERIFY( mannequin.load() );
+          // a figure of each, at the same time and place, its arm's direction
+          FigureInstance fi{ 0, 0.0f, 0.0f, 30.0f, 1.85f, QVector4D( 1.0f, 0.0f, 0.0f, 1.0f ) };
+          const auto armOf = []( const Figures3D & figures, const FigureInstance & figure, const double time ) {
+              std::vector< QMatrix4x4 > world;
+              figures.worldNodes( figure, time, world );
+              const HumanoidRig & rig = figures.rig( figures.bodyOf( figure ) );
+              return ( world[rig.node( HumanBone::LeftLowerArm )].column( 3 )
+                       - world[rig.node( HumanBone::LeftUpperArm )].column( 3 ) ).toVector3D().normalized();
+          };
+          const auto leftOf = []( const Figures3D & figures, const FigureInstance & figure ) {
+              std::vector< QMatrix4x4 > world;
+              figures.worldNodes( figure, 0.0, world );
+              const HumanoidRig & rig = figures.rig( figures.bodyOf( figure ) );
+              return ( world[rig.node( HumanBone::LeftUpperLeg )].column( 3 )
+                       - world[rig.node( HumanBone::RightUpperLeg )].column( 3 ) ).toVector3D().normalized();
+          };
+
+          // the A pose: its arms as the Mannequin's
+          {
+              Figures3D figures;
+              QVERIFY( figures.load() );
+              QVERIFY2( figures.setPack( *byId( list, "apose" ) ), qPrintable( figures.error() ) );
+              QVERIFY( ! figures.rig().restTurn( HumanBone::LeftUpperArm ).isIdentity() );
+              QCOMPARE( figures.model().images.size(), std::size_t( 1 ) );
+              QCOMPARE( figures.paints()[0].kind, int( FigureUniform::Paint::Skin ) );
+              for ( const double time : { 0.0, 0.4, 1.1 } )
+              {
+                  const float dot = QVector3D::dotProduct( armOf( figures, fi, time ), armOf( mannequin, fi, time ) );
+                  QVERIFY2( dot > std::cos( 3.0f * 3.14159265f / 180.0f ), qPrintable( QString( "%1: %2" ).arg( time ).arg( dot ) ) );
+              }
+          }
+          // the VRM: by its roles, turned to face +z, its left on the Mannequin's left
+          {
+              Figures3D figures;
+              QVERIFY( figures.load() );
+              QVERIFY2( figures.setPack( *byId( list, "vrm" ) ), qPrintable( figures.error() ) );
+              QCOMPARE( figures.model().vrm_version, 0 );
+              QVERIFY( std::fabs( figures.rig().facingAngle() ) < 0.01f );
+              QCOMPARE( figures.paints()[0].kind, int( FigureUniform::Paint::Tint ) );
+              QVERIFY( QVector3D::dotProduct( leftOf( figures, fi ), leftOf( mannequin, fi ) ) > 0.999f );
+              const float dot = QVector3D::dotProduct( armOf( figures, fi, 0.7 ), armOf( mannequin, fi, 0.7 ) );
+              QVERIFY2( dot > 0.999f, qPrintable( QString::number( dot ) ) );
+          }
+          // a model facing another way: turned to face +z
+          {
+              Figures3D figures;
+              QVERIFY( figures.load() );
+              QVERIFY2( figures.setPack( *byId( list, "side" ) ), qPrintable( figures.error() ) );
+              QVERIFY2( std::fabs( figures.rig().facingAngle() ) < 0.01f, qPrintable( QString::number( figures.rig().facingAngle() ) ) );
+              QVERIFY( QVector3D::dotProduct( leftOf( figures, fi ), leftOf( mannequin, fi ) ) > 0.999f );
+          }
+          // the .gltf by the map; without it, of no skeleton known
+          {
+              Figures3D figures;
+              QVERIFY( figures.load() );
+              QVERIFY2( figures.setPack( *byId( list, "files" ) ), qPrintable( figures.error() ) );
+              QCOMPARE( figures.model().node_names[figures.rig().node( HumanBone::Hips )], QString( "B-pelvis" ) );
+              QVERIFY( ! figures.setPack( *byId( list, "unknown" ) ) );
+              QVERIFY2( figures.error().startsWith( "unknown: body.gltf: the bones are of no skeleton known" ), qPrintable( figures.error() ) );
+          }
       }
 
     /*!

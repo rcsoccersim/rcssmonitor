@@ -14,9 +14,10 @@ You can add packs of your own, for example with models that cannot be
 bundled because of their licenses.
 
 This document describes format 1 of `figure.json`. In this version a pack
-can use glTF binary models (`.glb`) whose bones are named as Quaternius's
-rig. Later versions will read more formats (glTF with textures, VRM, FBX,
-BVH) and more skeletons (Mixamo, VRM).
+can use glTF 2.0 models (`.glb`, `.gltf`, and VRM 0.x and 1.0 `.vrm`) with
+their textures, whose bones are named as Quaternius's, Mixamo's or VRoid's
+rigs, or have VRM's roles, or are mapped by the pack. Later versions will
+read FBX models and BVH and VRM Animation motions.
 
 ## Choosing a pack
 
@@ -124,8 +125,8 @@ written for a later version.
 
 | Key | Required | Value |
 |---|---|---|
-| `model` | yes | The glTF binary file with the clips, in the pack's folder. |
-| `skeleton` | no | The names of its bones: `quaternius`. Without it, the skeleton is found from the bones' names. |
+| `model` | yes | The model with the clips (a glTF file), in the pack's folder. |
+| `skeleton` | no | Which bones play which roles (below). Without it, they are found from the model. |
 | `clips` | yes | The names of the clips: `idle` (standing), `walk`, `jog` and `sprint`. All four are required. |
 
 The clips of walking and running must play in place, facing +z: the 3D
@@ -136,10 +137,10 @@ each one goes (the feet on the ground), so that the feet do not slide.
 
 | Key | Required | Value |
 |---|---|---|
-| `model` | yes | The glTF binary file of the body, in the pack's folder. It may be the motion's own file. |
+| `model` | yes | The model of the body (`.glb`, `.gltf` or `.vrm`), in the pack's folder. It may be the motion's own file. |
 | `skeleton` | no | As for the motion. A body may have another skeleton than the motion's, as long as both are humanoid: the motion goes through the bones' roles (hips, spine, upper arm, and so on). |
 | `sex` | no | `male` or `female`. A pack with both men's and women's bodies can be limited to one of them (the **Bodies** setting). Without it, the body is anyone's. |
-| `paint` | no | How each material of the model is painted: `team` (the player's color, as the Mannequin's body), `uniform` (the skin, in a footballer's uniform of the player's color and the player's skin), `hair` (the player's hair color, on all players: eyebrows) or `model` (the material's own color, the default). |
+| `paint` | no | How each material of the model is painted (below): `model`, `team`, `tint`, `uniform`, `skin` or `hair`. A material not named is painted `model`. |
 | `hairstyles` | no | The materials of the hairstyles. Each player wears one of them, each as often as the others, in its hair color. |
 | `standard_hairstyle` | no | The hairstyle of a player whose number the player camera does not know for sure. Without it, the first hairstyle. |
 | `extras` | no | Materials that a player wears by a chance over its hairstyle, such as a beard: a list of objects with `material` and `chance` (0 to 1). |
@@ -147,6 +148,82 @@ each one goes (the feet on the ground), so that the feet do not slide.
 A body can have at most four hairstyles and extras together. Each player's
 body, hairstyle and colors are drawn by lot, but always the same for the
 same player of the same team: a team looks the same in every game.
+
+### The skeleton
+
+The 3D view moves the bones by their roles, the same as VRM's humanoid
+bones: `hips`, `spine`, `chest`, `upperChest`, `neck`, `head`,
+`leftShoulder`, `leftUpperArm`, `leftLowerArm`, `leftHand`,
+`leftUpperLeg`, `leftLowerLeg`, `leftFoot`, `leftToes`, and the same on the
+right. All but `chest`, `upperChest`, `neck`, the shoulders and the toes
+are required.
+
+`skeleton` is one of these presets:
+
+| Preset | The bones |
+|---|---|
+| `quaternius` | Quaternius's rig (the bundled models): `pelvis`, `spine_01`, `upperarm_l`, ... |
+| `mixamo` | Mixamo's: `Hips`, `Spine`, `LeftArm`, `LeftForeArm`, `LeftUpLeg`, ... |
+| `vroid` | VRoid Studio's: `J_Bip_C_Hips`, `J_Bip_L_UpperArm`, ... |
+| `vrm` | The roles that a VRM file tells |
+
+A preset's names may also follow a prefix that ends with `:` or `_`, such
+as `mixamorig:Hips`. Or `skeleton` is the pack's own map from the roles to
+the bones' names:
+
+```json
+"skeleton": { "hips": "Root_Pelvis", "spine": "Spine1", "head": "Head", "leftUpperArm": "L_Arm", ... }
+```
+
+Without `skeleton`, a VRM file's roles are used; otherwise the first
+preset whose bones the model has.
+
+The figure's rest pose should be a T pose (the arms straight out
+sideways), facing +z. A model whose arms are more than 10° off that (an A
+pose) is taken as if they were straight out, and a model facing another
+way (a VRM 0.x model faces -z) is turned to face +z, both by itself.
+
+### The materials
+
+The color of each material comes from its base color and its base color
+texture (glTF's metallic-roughness model, or the diffuse of the older
+specular-glossiness one). `paint` tells how the player's colors go over
+them:
+
+| Paint | Color |
+|---|---|
+| `model` | The material's own color and texture (the default). |
+| `team` | The player's color, flat (the Mannequin's body). Of a texture, only its transparency is used. |
+| `tint` | The player's color, with the texture's light and dark over it (clothes drawn in a texture). |
+| `uniform` | A footballer's uniform of the player's color and the player's skin, cut by the bones (the Human's body). Of a texture, only its transparency is used. |
+| `skin` | The player's skin color, with the texture's light and dark over it. |
+| `hair` | The player's hair color on all players (eyebrows), with the texture's light and dark over it. The `hairstyles` and the `extras` are painted so too. |
+
+For `tint`, `skin` and `hair`, the texture's brightness is taken relative
+to its mean: a texture shades the color, and does not make it darker or
+lighter as a whole.
+
+A material whose alpha mode is `MASK` is not drawn, and casts no shadow,
+where it is more transparent than its alpha cutoff (hair cards,
+eyelashes). One whose mode is `BLEND` is drawn the same, with the cutoff
+0.5 (the figures are not sorted from far to near). A double-sided material
+is drawn from behind too. A texture larger than 1024 pixels is made
+smaller.
+
+### The models
+
+A model can be a glTF binary (`.glb`), a glTF JSON file (`.gltf`) with its
+buffers and images in files beside it or inside it, or a VRM (`.vrm`, 0.x
+or 1.0). All its meshes are drawn: the skinned ones move with their bones,
+and one fixed to a bone (a hat on the head) moves with it. A mesh without
+normals gets smooth ones. Texture coordinates moved by
+KHR_texture_transform are read.
+
+A model that cannot be read without an extension that rcssmonitor does
+not read, such as a compression of its meshes or textures
+(KHR_draco_mesh_compression, EXT_meshopt_compression, KHR_texture_basisu),
+cannot be read; the reason names the extension. Export it without the
+compression.
 
 ### Paths
 
@@ -156,7 +233,8 @@ another pack's motion names that pack, not its files.
 ## Making a pack
 
 1. Make a folder, for example `~/.local/share/rcssmonitor/figures/robot`.
-2. Put the model of the body (`.glb`) in it.
+2. Put the model of the body (`.glb`, `.gltf` with its files, or `.vrm`)
+   in it.
 3. Write `figure.json`. To start, you can use the bundled motion:
 
    ```json

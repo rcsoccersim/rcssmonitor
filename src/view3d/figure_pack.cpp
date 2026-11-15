@@ -177,15 +177,43 @@ public:
           return path;
       }
 
-    //! a skeleton's preset, which must be known
+    /*!
+      a skeleton: a preset, which must be known, or the pack's own map of
+      the roles (as VRM names them) to the bones
+    */
     QString skeleton( const QJsonObject & o,
-                      const QString & parent )
+                      const QString & parent,
+                      std::vector< std::pair< QString, QString > > * bones )
       {
+          const QString where = pathOf( parent, QStringLiteral( "skeleton" ) );
+          const QJsonValue v = o.value( QStringLiteral( "skeleton" ) );
+          if ( v.isObject() )
+          {
+              const QJsonObject map = v.toObject();
+              for ( auto it = map.begin(); it != map.end(); ++it )
+              {
+                  if ( humanBoneOf( it.key() ) < 0 )
+                  {
+                      QStringList roles;
+                      for ( int b = 0; b < HUMAN_BONE_COUNT; ++b ) roles << QString::fromLatin1( humanBoneName( HumanBone( b ) ) );
+                      fail( where, quoted( it.key() ) + QStringLiteral( " is not one of " ) + roles.join( QStringLiteral( ", " ) ) );
+                      return QString();
+                  }
+                  if ( ! it.value().isString() || it.value().toString().isEmpty() )
+                  {
+                      fail( pathOf( where, it.key() ), QStringLiteral( "not a bone's name" ) );
+                      return QString();
+                  }
+                  bones->emplace_back( it.key(), it.value().toString() );
+              }
+              if ( bones->empty() ) fail( where, QStringLiteral( "empty" ) );
+              return QString();
+          }
           const QString preset = string( o, parent, "skeleton" );
           if ( ! preset.isEmpty() && ! skeletonPresets().contains( preset ) )
           {
-              fail( pathOf( parent, QStringLiteral( "skeleton" ) ),
-                    quoted( preset ) + QStringLiteral( " is not one of " ) + skeletonPresets().join( QStringLiteral( ", " ) ) );
+              fail( where, quoted( preset ) + QStringLiteral( " is not one of " ) + skeletonPresets().join( QStringLiteral( ", " ) )
+                    + QStringLiteral( ", nor a map of the roles to the bones" ) );
           }
           return preset;
       }
@@ -515,7 +543,7 @@ FigurePack::read( const QString & dir,
         const QString where = QStringLiteral( "motion" );
         pack.motion.pack = pack.id;
         pack.motion.model = r.file( o, where, "model" );
-        pack.motion.skeleton = r.skeleton( o, where );
+        pack.motion.skeleton = r.skeleton( o, where, &pack.motion.bones );
         const QJsonValue clips = o.value( QStringLiteral( "clips" ) );
         if ( ! clips.isObject() )
         {
@@ -551,7 +579,7 @@ FigurePack::read( const QString & dir,
         const QJsonObject o = list[i].toObject();
         FigureBodySpec b;
         b.model = r.file( o, where, "model" );
-        b.skeleton = r.skeleton( o, where );
+        b.skeleton = r.skeleton( o, where, &b.bones );
 
         const QString sex = r.string( o, where, "sex" );
         if ( sex == QLatin1String( "male" ) ) b.sex = FigureSex::Male;
@@ -620,10 +648,12 @@ FigurePack::read( const QString & dir,
             else if ( how == QLatin1String( "team" ) ) b.team << it.key();
             else if ( how == QLatin1String( "uniform" ) ) b.uniform << it.key();
             else if ( how == QLatin1String( "hair" ) ) { if ( b.bitOf( it.key() ) == 0 ) b.hair << it.key(); }
+            else if ( how == QLatin1String( "skin" ) ) b.skin << it.key();
+            else if ( how == QLatin1String( "tint" ) ) b.tint << it.key();
             else if ( how != QLatin1String( "model" ) )
             {
                 r.fail( at, quoted( it.key() ) + QStringLiteral( ": " ) + quoted( how )
-                        + QStringLiteral( " is not one of team, uniform, hair, model" ) );
+                        + QStringLiteral( " is not one of team, tint, uniform, skin, hair, model" ) );
             }
         }
         pack.bodies.push_back( b );
