@@ -34,6 +34,7 @@
 #define RCSSMONITOR_FRAME_BUILDER_3D_H
 
 #include "ball_3d.h"
+#include "ball_flight_3d.h"
 #include "camera_3d.h"
 #include "cameras_3d.h"
 #include "figures_3d.h"
@@ -102,6 +103,8 @@ struct View3DState {
     bool ball_ring = false; //!< the ring around the ball was drawn (SceneContent::ball_rings)
     float ball_ring_width = 0.0f; //!< its line's width as drawn (m)
     int ball_trail = 0; //!< the points of the trail behind the ball drawn (0: none)
+    bool ball_flight = false; //!< the ball flew virtually (BallFlight: the option ball_flight_3d in log replay)
+    float ball_height = 0.0f; //!< the ball's height drawn (m)
     int blob_shadows = 0; //!< the simple shadows drawn (SceneContent::blob_shadows)
 };
 
@@ -144,6 +147,15 @@ public:
                 const Interpolate::Position & at,
                 const CameraMode camera,
                 SceneContent & content );
+
+    /*!
+      \brief a live game: the ball does not fly virtually (BallFlight
+      needs the next touch, not known yet)
+    */
+    void setLive( const bool live ) { M_live = live; }
+
+    //! the ball's flight in the air, if it flew in the last build()
+    const BallFlight * flight() const { return M_flying ? &M_flight : nullptr; }
 
     //! the show drawn (between the two frames)
     const rcss::rcg::ShowInfoT & show() const { return M_show; }
@@ -188,6 +200,9 @@ private:
     Figures3D M_figures;
     GaitTable M_gaits; //!< how far the players have walked, for the figures
     BallSpin M_spin; //!< how the ball has rolled
+    BallFlight M_flight; //!< how the ball flies in the air, virtually
+    bool M_live = false; //!< a live game (setLive())
+    bool M_flying = false; //!< the ball flew in the last build()
     int M_trail_points = 0; //!< the points of the trail added by addBallAids()
     QQuaternion M_ball_turn; //!< how the ball is turned in the frame built
     rcss::rcg::ShowInfoT M_show;

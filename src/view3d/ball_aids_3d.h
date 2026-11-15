@@ -43,6 +43,8 @@
 
 #include <vector>
 
+class BallFlight;
+
 /*!
   \brief what helps to find the ball in the 3D view, where it is small
   (docs/PLAN_3D-VIEW.md §4.3, 8-5, rcssmonitor-web ball-aids.ts; the 3D
@@ -98,6 +100,7 @@ struct TrailPoint {
   \param alpha the fraction of the way to next
   \param cycles how long the trail is
   \param radius the ball as drawn (its center that high over its height)
+  \param flight the heights of the ball flying virtually (BallFlight), if active; else the frames'
   \return from the newest (age 0) to the oldest
 */
 std::vector< TrailPoint > trailPoints( const DispCont & frames,
@@ -105,7 +108,8 @@ std::vector< TrailPoint > trailPoints( const DispCont & frames,
                                        const std::size_t next,
                                        const double alpha,
                                        const int cycles,
-                                       const float radius );
+                                       const float radius,
+                                       const BallFlight * flight = nullptr );
 
 /*!
   \brief meters per pixel of the screen at a point as a camera sees it

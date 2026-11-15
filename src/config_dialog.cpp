@@ -1915,6 +1915,20 @@ ConfigDialog::create3DTab()
                  } );
         layout->addWidget( M_ball_pattern_3d_cb );
 
+        M_ball_flight_3d_cb = new QCheckBox( tr( "Flight" ) );
+        M_ball_flight_3d_cb->setObjectName( "ball_flight_3d" );
+        M_ball_flight_3d_cb->setToolTip( tr( "In log replay, the ball flies in the air, virtually: today's server has no\n"
+                                             "height. A kick is lofted when the log gives a reason (a long ball, a corner\n"
+                                             "or a goal kick, a cross, opponents near its way that did not touch it), low\n"
+                                             "enough for the next player to touch it and under the crossbar into a goal,\n"
+                                             "then it bounces. A guess from the log; not in a live game." ) );
+        connect( M_ball_flight_3d_cb, &QCheckBox::clicked,
+                 this, [this]( bool on ) {
+                     Options::instance().setBallFlight3D( on );
+                     changed3D();
+                 } );
+        layout->addWidget( M_ball_flight_3d_cb );
+
         M_ball_ring_3d_cb = new QCheckBox( tr( "Ring" ) );
         M_ball_ring_3d_cb->setObjectName( "ball_ring_3d" );
         M_ball_ring_3d_cb->setToolTip( tr( "A ring on the ground around the ball, over a faint fill, its line a few\n"
@@ -2061,7 +2075,7 @@ ConfigDialog::create3DTab()
         button->setObjectName( "default_3d" );
         button->setToolTip( tr( "Set the defaults: Close-up %1 m, %2\u00b0, Compass %3, Minimap %4, FPS %19,\n"
                                 "Model %5, Figure Scale %6, Bodies %9, Shadows %10, Boards %7, Banners %8,\n"
-                                "Ball Pattern %14, Ring %15 (%16 m), Trail %17 (%18 cycles),\n"
+                                "Ball Pattern %14, Flight %20, Ring %15 (%16 m), Trail %17 (%18 cycles),\n"
                                 "Stands %13, Grass %11, Sky %12" )
                             .arg( Options::CLOSEUP_DISTANCE_3D )
                             .arg( Options::CLOSEUP_ELEVATION_3D )
@@ -2081,7 +2095,8 @@ ConfigDialog::create3DTab()
                             .arg( Options::BALL_RING_RADIUS_3D )
                             .arg( onOff( Options::BALL_TRAIL_3D ) )
                             .arg( Options::BALL_TRAIL_CYCLES_3D )
-                            .arg( onOff( Options::FPS_3D ) ) );
+                            .arg( onOff( Options::FPS_3D ) )
+                            .arg( onOff( Options::BALL_FLIGHT_3D ) ) );
         button->setAutoDefault( false );
         connect( button, &QPushButton::clicked,
                  this, [this]() {
@@ -2338,6 +2353,7 @@ ConfigDialog::update3D()
     set_choice( M_grass_3d, grassIndex( opt.grass3D() ) );
     M_stands_3d_cb->setChecked( opt.stands3D() );
     M_ball_pattern_3d_cb->setChecked( opt.ballPattern3D() );
+    M_ball_flight_3d_cb->setChecked( opt.ballFlight3D() );
     M_ball_ring_3d_cb->setChecked( opt.ballRing3D() );
     M_ball_trail_3d_cb->setChecked( opt.ballTrail3D() );
     set_number( M_ball_ring_radius_3d, opt.ballRingRadius3D() );

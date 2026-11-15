@@ -463,6 +463,50 @@ private slots:
       }
 
     /*!
+      the ball flying virtually (the option ball_flight_3d): the long ball
+      of the kick in the air, the ball drawn at its height; on the ground
+      without the option and live; the same height however the frame is
+      reached
+    */
+    void ballFlight()
+      {
+          Options & opt = Options::instance();
+          QVERIFY( ! opt.ballFlight3D() ); // off by default
+          FrameBuilder3D builder;
+          const Interpolate::Position frame = at( M_holder, 46, 0.5 ); // the ball in the air after the kick
+          View3DState s = build( builder, M_holder, frame );
+          QVERIFY( ! s.ball_flight );
+          QCOMPARE( s.ball_height, 0.0f );
+
+          opt.setBallFlight3D( true );
+          SceneContent content;
+          builder.build( M_holder, opt, frame, CameraMode::Broadcast, content );
+          s = builder.state( content, CameraPose() );
+          QVERIFY( s.ball_flight );
+          QVERIFY( s.ball_height > 0.5f );
+          QVERIFY( builder.flight() != nullptr );
+          QCOMPARE( s.ball_height, builder.flight()->heightAt( 46, 0.5 ) );
+          // the ball drawn at its height
+          const float r = float( SceneBuilder::ballRadius( opt, M_holder.serverParam().ball_size_ ) );
+          QVERIFY( std::fabs( content.balls[0].model.map( QVector3D() ).y() - ( s.ball_height + r ) ) < 1.0e-4f );
+          // still before the kick: on the ground
+          QCOMPARE( build( builder, M_holder, at( M_holder, 20 ) ).ball_height, 0.0f );
+          // the same however reached, and by another builder
+          build( builder, M_holder, at( M_holder, 100 ) );
+          QCOMPARE( build( builder, M_holder, frame ).ball_height, s.ball_height );
+          FrameBuilder3D other;
+          QCOMPARE( build( other, M_holder, frame ).ball_height, s.ball_height );
+          // live: on the ground
+          builder.setLive( true );
+          s = build( builder, M_holder, frame );
+          QVERIFY( ! s.ball_flight );
+          QCOMPARE( s.ball_height, 0.0f );
+          QVERIFY( builder.flight() == nullptr );
+          builder.setLive( false );
+          opt.setBallFlight3D( Options::BALL_FLIGHT_3D );
+      }
+
+    /*!
       the ring and the trail by the options, where the ball is drawn; the
       ring's line wider far away; the trail as long as the cycles, from the
       log (the same however the frame is reached); none without the ball

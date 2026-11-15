@@ -282,6 +282,7 @@ FieldView3D::paintGL()
     // what to draw where (FrameBuilder3D): the goals and the boards, the
     // players (posed from the log, as figures) and the ball on the way
     // between the two frames, the overlays
+    M_builder.setLive( live ); // the ball does not fly virtually live
     M_builder.build( M_disp_holder, opt, at, M_camera.mode(), M_content );
     const rcss::rcg::ShowInfoT & show = M_builder.show();
     // the bodies of the figures to the GPU, when others are drawn

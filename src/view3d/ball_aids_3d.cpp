@@ -37,6 +37,7 @@
 #include "ball_aids_3d.h"
 
 #include "ball_3d.h"
+#include "ball_flight_3d.h"
 
 #include <algorithm>
 #include <cmath>
@@ -62,10 +63,20 @@ trailPoints( const DispCont & frames,
              const std::size_t next,
              const double alpha,
              const int cycles,
-             const float radius )
+             const float radius,
+             const BallFlight * flight )
 {
     std::vector< TrailPoint > points;
     if ( index >= frames.size() || cycles <= 0 ) return points;
+
+    // the ball's center at frame k and the fraction t to the next: at its
+    // height in the frames, or flying virtually
+    const bool flying = ( flight && flight->active() );
+    const auto at = [&]( const std::size_t k, const double t ) {
+        QVector3D c = center( frames[k]->show_.ball_, radius );
+        if ( flying ) c.setY( flight->heightAt( k, t ) + radius );
+        return c;
+    };
 
     const rcss::rcg::DispInfoT & here = *frames[index];
     // the place drawn, on the way to the next frame
@@ -76,12 +87,14 @@ trailPoints( const DispCont & frames,
          && Ball3D::rolls( here, *frames[next] ) )
     {
         const float t = static_cast< float >( std::min( 1.0, alpha ) );
-        const QVector3D a = center( here.show_.ball_, radius );
-        const QVector3D b = center( frames[next]->show_.ball_, radius );
-        points.push_back( TrailPoint{ a + ( b - a ) * t, 0.0f } );
+        const QVector3D a = at( index, 0.0 );
+        const QVector3D b = at( next, 0.0 );
+        QVector3D head = a + ( b - a ) * t;
+        if ( flying ) head.setY( flight->heightAt( index, t ) + radius ); // on its arc, not the chord
+        points.push_back( TrailPoint{ head, 0.0f } );
         later_age = t;
     }
-    points.push_back( TrailPoint{ center( here.show_.ball_, radius ), later_age } );
+    points.push_back( TrailPoint{ at( index, 0.0 ), later_age } );
 
     // back through the frames before, the last one part of the way to it
     const rcss::rcg::DispInfoT * later = &here;
@@ -90,12 +103,14 @@ trailPoints( const DispCont & frames,
         const rcss::rcg::DispInfoT & earlier = *frames[index - k];
         if ( ! Ball3D::rolls( earlier, *later ) ) break;
         const float age = later_age + 1.0f;
-        const QVector3D a = center( later->show_.ball_, radius );
-        const QVector3D b = center( earlier.show_.ball_, radius );
+        const QVector3D a = at( index - k + 1, 0.0 );
+        const QVector3D b = at( index - k, 0.0 );
         if ( age > float( cycles ) )
         {
             const float t = ( float( cycles ) - later_age ) / ( age - later_age );
-            points.push_back( TrailPoint{ a + ( b - a ) * t, float( cycles ) } );
+            QVector3D tail = a + ( b - a ) * t;
+            if ( flying ) tail.setY( flight->heightAt( index - k, 1.0 - t ) + radius );
+            points.push_back( TrailPoint{ tail, float( cycles ) } );
             break;
         }
         points.push_back( TrailPoint{ b, age } );

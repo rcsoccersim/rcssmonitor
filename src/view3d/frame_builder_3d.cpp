@@ -94,6 +94,24 @@ FrameBuilder3D::build( const DispHolder & holder,
                                     at.alpha );
     }
 
+    // the ball flying in the air, virtually (BallFlight), in log replay
+    // with the option: its height over the way between the two frames
+    // (none where the view does not move the ball to the next frame)
+    M_flying = false;
+    if ( M_has_show
+         && opt.ballFlight3D()
+         && ! M_live )
+    {
+        M_flight.update( frames, sp, float( SceneBuilder::ballRadius( opt, sp.ball_size_ ) ) );
+        if ( M_flight.active() )
+        {
+            const bool moves = ( at.next != at.index
+                                 && Ball3D::rolls( *frames[at.index], *frames[at.next] ) );
+            M_show.ball_.z_ = M_flight.heightAt( at.index, moves ? at.alpha : 0.0 );
+            M_flying = true;
+        }
+    }
+
     // the players as human figures of the model, but not from the top
     // camera (a map); as cylinders if the model cannot be read
     bool figures = ( opt.playerModel3D() != PlayerModel::Simple
@@ -189,7 +207,7 @@ FrameBuilder3D::build( const DispHolder & holder,
         {
             figure.motion = M_gaits.motion( figure.player, at.index, at.next, at.alpha );
             figure.actions = FigureActionLog::read( frames, figure.player, at.index, at.next, at.alpha,
-                                                    M_show.player_[figure.player], sp, ball_radius );
+                                                    M_show.player_[figure.player], sp, ball_radius, flight() );
         }
     }
     M_figures.pose( content, M_time );
@@ -222,7 +240,7 @@ FrameBuilder3D::addBallAids( const DispHolder & holder,
         const float radius = float( SceneBuilder::ballRadius( opt, holder.serverParam().ball_size_ ) );
         const std::vector< BallAids3D::TrailPoint > points
             = BallAids3D::trailPoints( holder.dispCont(), M_at.index, M_at.next, M_at.alpha,
-                                       opt.ballTrailCycles3D(), radius );
+                                       opt.ballTrailCycles3D(), radius, flight() );
         BallAids3D::addTrail( content, points, camera.position,
                               std::max( BallAids3D::TRAIL_WIDTH * radius, BallAids3D::TRAIL_PIXELS * meters_per_pixel ),
                               opt.ballTrailCycles3D(), color );
@@ -254,6 +272,8 @@ FrameBuilder3D::state( const SceneContent & content,
     s.stands = content.stands;
     s.ball_pattern = content.ball_pattern;
     s.ball_turn = M_ball_turn;
+    s.ball_flight = M_flying;
+    s.ball_height = M_show.ball_.z_;
     s.ball_ring = ! content.ball_rings.empty();
     s.ball_ring_width = content.ball_ring_width;
     s.ball_trail = ( content.ball_trail.empty() ? 0 : M_trail_points );

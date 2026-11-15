@@ -83,6 +83,7 @@ if(HAVE_3D_VIEW)
     view3d/stands_3d.cpp
     view3d/ball_3d.cpp
     view3d/ball_aids_3d.cpp
+    view3d/ball_flight_3d.cpp
     view3d/fps_meter.cpp
     view3d/sun_3d.cpp
     view3d/gl/billboard_mesh.cpp

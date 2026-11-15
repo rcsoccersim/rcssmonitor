@@ -36,6 +36,8 @@
 
 #include "figure_actions.h"
 
+#include "ball_flight_3d.h"
+
 #include "options.h"
 
 #include <algorithm>
@@ -220,7 +222,8 @@ FigureActionLog::read( const DispCont & frames,
                        const double alpha,
                        const rcss::rcg::PlayerT & drawn,
                        const rcss::rcg::ServerParamT & sp,
-                       const float ball_radius )
+                       const float ball_radius,
+                       const BallFlight * flight )
 {
     FigureActions actions;
     if ( drawn.hasNeck() ) actions.neck = drawn.neck_;
@@ -297,7 +300,10 @@ FigureActionLog::read( const DispCont & frames,
             float ahead, right;
             log.ballFromPlayer( before, &ahead, &right );
             actions.caught.side = right;
-            actions.caught.height = log.show( before ).ball_.z_;
+            // (in the air, virtually, with the option ball_flight_3d)
+            actions.caught.height = ( flight && flight->active()
+                                      ? flight->heightAtFrame( before )
+                                      : log.show( before ).ball_.z_ );
             actions.caught.way = ( std::hypot( ahead, right ) > 1.0e-4f
                                    ? std::atan2( right, ahead ) * 180.0f / float( M_PI )
                                    : 0.0f );

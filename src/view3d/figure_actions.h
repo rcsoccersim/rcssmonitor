@@ -36,6 +36,8 @@
 #include "disp_holder.h"
 #include "scene_content.h"
 
+class BallFlight;
+
 /*!
   \namespace FigureActionLog
   \brief what a player does besides walking at a time between two frames,
@@ -104,7 +106,8 @@ FigureActions read( const DispCont & frames,
                     const double alpha,
                     const rcss::rcg::PlayerT & drawn,
                     const rcss::rcg::ServerParamT & sp,
-                    const float ball_radius );
+                    const float ball_radius,
+                    const BallFlight * flight = nullptr );
 
 }
 

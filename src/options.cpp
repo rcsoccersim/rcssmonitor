@@ -222,6 +222,7 @@ Options::Options()
     M_sky_3d( SKY_3D ),
     M_stands_3d( STANDS_3D ),
     M_ball_pattern_3d( BALL_PATTERN_3D ),
+    M_ball_flight_3d( BALL_FLIGHT_3D ),
     M_ball_ring_3d( BALL_RING_3D ),
     M_ball_ring_radius_3d( BALL_RING_RADIUS_3D ),
     M_ball_trail_3d( BALL_TRAIL_3D ),
@@ -739,6 +740,9 @@ Options::readSettings()
     val = settings.value( "ball_pattern_3d" );
     if ( val.isValid() ) M_ball_pattern_3d = val.toBool();
 
+    val = settings.value( "ball_flight_3d" );
+    if ( val.isValid() ) M_ball_flight_3d = val.toBool();
+
     val = settings.value( "ball_ring_3d" );
     if ( val.isValid() ) M_ball_ring_3d = val.toBool();
 
@@ -963,6 +967,7 @@ Options::writeSettings( bool all )
     settings.setValue( "sky_3d", M_sky_3d );
     settings.setValue( "stands_3d", M_stands_3d );
     settings.setValue( "ball_pattern_3d", M_ball_pattern_3d );
+    settings.setValue( "ball_flight_3d", M_ball_flight_3d );
     settings.setValue( "ball_ring_3d", M_ball_ring_3d );
     settings.setValue( "ball_ring_radius_3d", M_ball_ring_radius_3d );
     settings.setValue( "ball_trail_3d", M_ball_trail_3d );
@@ -1040,6 +1045,7 @@ Options::setView3DDefaults()
     M_sky_3d = SKY_3D;
     M_stands_3d = STANDS_3D;
     M_ball_pattern_3d = BALL_PATTERN_3D;
+    M_ball_flight_3d = BALL_FLIGHT_3D;
     M_ball_ring_3d = BALL_RING_3D;
     M_ball_ring_radius_3d = BALL_RING_RADIUS_3D;
     M_ball_trail_3d = BALL_TRAIL_3D;
@@ -1202,6 +1208,10 @@ Options::parseCmdLine( int argc,
                                             "The 3D view: the ball's pattern, which shows it rolling. (Default=" + to_onoff( M_ball_pattern_3d ) + ")",
                                             "bool", to_onoff( M_ball_pattern_3d ) );
     parser.addOption( opt_ball_pattern_3d );
+    QCommandLineOption opt_ball_flight_3d( "ball-flight-3d",
+                                           "The 3D view: in log replay, the ball flies in the air, virtually (from the kicks, the touches and the opponents on the way). (Default=" + to_onoff( M_ball_flight_3d ) + ")",
+                                           "bool", to_onoff( M_ball_flight_3d ) );
+    parser.addOption( opt_ball_flight_3d );
     QCommandLineOption opt_ball_ring_3d( "ball-ring-3d",
                                          "The 3D view: a ring on the ground around the ball. (Default=" + to_onoff( M_ball_ring_3d ) + ")",
                                          "bool", to_onoff( M_ball_ring_3d ) );
@@ -1504,6 +1514,7 @@ Options::parseCmdLine( int argc,
     if ( parser.isSet( opt_sky_3d ) ) M_sky_3d = to_bool( parser.value( opt_sky_3d ), M_sky_3d );
     if ( parser.isSet( opt_stands_3d ) ) M_stands_3d = to_bool( parser.value( opt_stands_3d ), M_stands_3d );
     if ( parser.isSet( opt_ball_pattern_3d ) ) M_ball_pattern_3d = to_bool( parser.value( opt_ball_pattern_3d ), M_ball_pattern_3d );
+    if ( parser.isSet( opt_ball_flight_3d ) ) M_ball_flight_3d = to_bool( parser.value( opt_ball_flight_3d ), M_ball_flight_3d );
     if ( parser.isSet( opt_ball_ring_3d ) ) M_ball_ring_3d = to_bool( parser.value( opt_ball_ring_3d ), M_ball_ring_3d );
     if ( parser.isSet( opt_ball_ring_radius_3d ) )
     {

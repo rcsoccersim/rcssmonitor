@@ -186,6 +186,7 @@ private:
     bool M_sky_3d; //!< the sky, and the haze over the far ground
     bool M_stands_3d; //!< the stands along the touch lines
     bool M_ball_pattern_3d; //!< the ball's pattern, which shows it rolling
+    bool M_ball_flight_3d; //!< the ball flying in the air in log replay, virtually
     bool M_ball_ring_3d; //!< a ring on the ground around the ball
     double M_ball_ring_radius_3d; //!< the ring's radius (m)
     bool M_ball_trail_3d; //!< a trail behind the ball
@@ -453,6 +454,11 @@ public:
     //! the 3D view: the ball's pattern, twelve pentagons, which shows it rolling
     bool ballPattern3D() const { return M_ball_pattern_3d; }
     void setBallPattern3D( const bool on ) { M_ball_pattern_3d = on; }
+
+    static constexpr bool BALL_FLIGHT_3D = false;
+    //! the 3D view: in log replay, the ball flies in the air, virtually (BallFlight; not live)
+    bool ballFlight3D() const { return M_ball_flight_3d; }
+    void setBallFlight3D( const bool on ) { M_ball_flight_3d = on; }
 
     static constexpr bool BALL_RING_3D = true;
     //! the 3D view: a ring on the ground around the ball, to find it where it is small
