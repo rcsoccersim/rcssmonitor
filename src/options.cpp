@@ -248,6 +248,10 @@ Options::Options()
     M_sky_3d( SKY_3D ),
     M_stands_3d( STANDS_3D ),
     M_ball_pattern_3d( BALL_PATTERN_3D ),
+    M_ball_ring_3d( BALL_RING_3D ),
+    M_ball_ring_radius_3d( BALL_RING_RADIUS_3D ),
+    M_ball_trail_3d( BALL_TRAIL_3D ),
+    M_ball_trail_cycles_3d( BALL_TRAIL_CYCLES_3D ),
     M_banners_3d( BANNERS_3D ),
     M_compass_3d( COMPASS_3D ),
     M_minimap_3d( MINIMAP_3D ),
@@ -760,6 +764,24 @@ Options::readSettings()
     val = settings.value( "ball_pattern_3d" );
     if ( val.isValid() ) M_ball_pattern_3d = val.toBool();
 
+    val = settings.value( "ball_ring_3d" );
+    if ( val.isValid() ) M_ball_ring_3d = val.toBool();
+
+    val = settings.value( "ball_ring_radius_3d" );
+    if ( val.isValid() && in_range( val.toDouble(), MIN_BALL_RING_RADIUS_3D, MAX_BALL_RING_RADIUS_3D ) )
+    {
+        M_ball_ring_radius_3d = val.toDouble();
+    }
+
+    val = settings.value( "ball_trail_3d" );
+    if ( val.isValid() ) M_ball_trail_3d = val.toBool();
+
+    val = settings.value( "ball_trail_cycles_3d" );
+    if ( val.isValid() && in_range( val.toInt(), MIN_BALL_TRAIL_CYCLES_3D, MAX_BALL_TRAIL_CYCLES_3D ) )
+    {
+        M_ball_trail_cycles_3d = val.toInt();
+    }
+
     val = settings.value( "banners_3d" );
     if ( val.isValid() ) M_banners_3d = val.toBool();
 
@@ -963,6 +985,10 @@ Options::writeSettings( bool all )
     settings.setValue( "sky_3d", M_sky_3d );
     settings.setValue( "stands_3d", M_stands_3d );
     settings.setValue( "ball_pattern_3d", M_ball_pattern_3d );
+    settings.setValue( "ball_ring_3d", M_ball_ring_3d );
+    settings.setValue( "ball_ring_radius_3d", M_ball_ring_radius_3d );
+    settings.setValue( "ball_trail_3d", M_ball_trail_3d );
+    settings.setValue( "ball_trail_cycles_3d", M_ball_trail_cycles_3d );
     settings.setValue( "banners_3d", M_banners_3d );
     settings.setValue( "compass_3d", guideModeName( M_compass_3d ) );
     settings.setValue( "minimap_3d", guideModeName( M_minimap_3d ) );
@@ -1034,7 +1060,25 @@ Options::setView3DDefaults()
     M_sky_3d = SKY_3D;
     M_stands_3d = STANDS_3D;
     M_ball_pattern_3d = BALL_PATTERN_3D;
+    M_ball_ring_3d = BALL_RING_3D;
+    M_ball_ring_radius_3d = BALL_RING_RADIUS_3D;
+    M_ball_trail_3d = BALL_TRAIL_3D;
+    M_ball_trail_cycles_3d = BALL_TRAIL_CYCLES_3D;
     M_banners_3d = BANNERS_3D;
+}
+
+/*-------------------------------------------------------------------*/
+void
+Options::setBallRingRadius3D( const double radius )
+{
+    M_ball_ring_radius_3d = std::min( MAX_BALL_RING_RADIUS_3D, std::max( MIN_BALL_RING_RADIUS_3D, radius ) );
+}
+
+/*-------------------------------------------------------------------*/
+void
+Options::setBallTrailCycles3D( const int cycles )
+{
+    M_ball_trail_cycles_3d = std::min( MAX_BALL_TRAIL_CYCLES_3D, std::max( MIN_BALL_TRAIL_CYCLES_3D, cycles ) );
 }
 
 /*-------------------------------------------------------------------*/
@@ -1178,6 +1222,26 @@ Options::parseCmdLine( int argc,
                                             "The 3D view: the ball's pattern, which shows it rolling. (Default=" + to_onoff( M_ball_pattern_3d ) + ")",
                                             "bool", to_onoff( M_ball_pattern_3d ) );
     parser.addOption( opt_ball_pattern_3d );
+    QCommandLineOption opt_ball_ring_3d( "ball-ring-3d",
+                                         "The 3D view: a ring on the ground around the ball. (Default=" + to_onoff( M_ball_ring_3d ) + ")",
+                                         "bool", to_onoff( M_ball_ring_3d ) );
+    parser.addOption( opt_ball_ring_3d );
+    QCommandLineOption opt_ball_ring_radius_3d( "ball-ring-radius-3d",
+                                                "The 3D view: the radius of the ring around the ball (m), "
+                                                + to_string( MIN_BALL_RING_RADIUS_3D ) + " to " + to_string( MAX_BALL_RING_RADIUS_3D )
+                                                + ". (Default=" + to_string( M_ball_ring_radius_3d ) + ")",
+                                                "radius", to_string( M_ball_ring_radius_3d ) );
+    parser.addOption( opt_ball_ring_radius_3d );
+    QCommandLineOption opt_ball_trail_3d( "ball-trail-3d",
+                                          "The 3D view: a trail behind the ball. (Default=" + to_onoff( M_ball_trail_3d ) + ")",
+                                          "bool", to_onoff( M_ball_trail_3d ) );
+    parser.addOption( opt_ball_trail_3d );
+    QCommandLineOption opt_ball_trail_cycles_3d( "ball-trail-cycles-3d",
+                                                 "The 3D view: the trail is as long as the ball went in this many cycles, "
+                                                 + QString::number( MIN_BALL_TRAIL_CYCLES_3D ) + " to " + QString::number( MAX_BALL_TRAIL_CYCLES_3D )
+                                                 + ". (Default=" + QString::number( M_ball_trail_cycles_3d ) + ")",
+                                                 "cycles", QString::number( M_ball_trail_cycles_3d ) );
+    parser.addOption( opt_ball_trail_cycles_3d );
     QCommandLineOption opt_banners_3d( "banners-3d",
                                        "The 3D view: the banners behind the goals with the team names and logos. (Default=" + to_onoff( M_banners_3d ) + ")",
                                        "bool", to_onoff( M_banners_3d ) );
@@ -1456,6 +1520,21 @@ Options::parseCmdLine( int argc,
     if ( parser.isSet( opt_sky_3d ) ) M_sky_3d = to_bool( parser.value( opt_sky_3d ), M_sky_3d );
     if ( parser.isSet( opt_stands_3d ) ) M_stands_3d = to_bool( parser.value( opt_stands_3d ), M_stands_3d );
     if ( parser.isSet( opt_ball_pattern_3d ) ) M_ball_pattern_3d = to_bool( parser.value( opt_ball_pattern_3d ), M_ball_pattern_3d );
+    if ( parser.isSet( opt_ball_ring_3d ) ) M_ball_ring_3d = to_bool( parser.value( opt_ball_ring_3d ), M_ball_ring_3d );
+    if ( parser.isSet( opt_ball_ring_radius_3d ) )
+    {
+        const double r = parser.value( opt_ball_ring_radius_3d ).toDouble();
+        if ( in_range( r, MIN_BALL_RING_RADIUS_3D, MAX_BALL_RING_RADIUS_3D ) ) M_ball_ring_radius_3d = r;
+        else std::cerr << "Out of range: ball-ring-radius-3d " << parser.value( opt_ball_ring_radius_3d ).toStdString() << std::endl;
+    }
+    if ( parser.isSet( opt_ball_trail_3d ) ) M_ball_trail_3d = to_bool( parser.value( opt_ball_trail_3d ), M_ball_trail_3d );
+    if ( parser.isSet( opt_ball_trail_cycles_3d ) )
+    {
+        bool ok = false;
+        const int c = parser.value( opt_ball_trail_cycles_3d ).toInt( &ok );
+        if ( ok && in_range( c, MIN_BALL_TRAIL_CYCLES_3D, MAX_BALL_TRAIL_CYCLES_3D ) ) M_ball_trail_cycles_3d = c;
+        else std::cerr << "Out of range: ball-trail-cycles-3d " << parser.value( opt_ball_trail_cycles_3d ).toStdString() << std::endl;
+    }
     if ( parser.isSet( opt_banners_3d ) ) M_banners_3d = to_bool( parser.value( opt_banners_3d ), M_banners_3d );
     for ( const auto & g : { std::make_pair( &opt_compass_3d, &M_compass_3d ), std::make_pair( &opt_minimap_3d, &M_minimap_3d ) } )
     {

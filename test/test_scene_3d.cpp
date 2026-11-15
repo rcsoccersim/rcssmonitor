@@ -31,6 +31,8 @@
 #include <QtTest>
 
 #include "ball_3d.h"
+#include "ball_aids_3d.h"
+#include "frame_builder_3d.h"
 #include "cameras_3d.h"
 #include "disp_holder.h"
 #include "field_painter.h"
@@ -159,6 +161,8 @@ private slots:
     void realisticGrass();
     void stands();
     void ball();
+    void ballAids();
+    void topSwitch();
     void cleanupTestCase();
 };
 
@@ -1406,6 +1410,165 @@ TestScene3D::ball()
     double dark = 0.0;
     QVERIFY( agreement( shot( turn, true ), QQuaternion(), &dark ) < 0.9 );
 
+    scene.release();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  The ring and the trail seen from straight above without perspective: the
+  ring's line light, its fill faint, nothing outside it; the trail light
+  along its middle, fainter to its edges and to its tail, nothing beside
+  it; the same in every frame.
+*/
+void
+TestScene3D::ballAids()
+{
+    DispHolder holder;
+    FieldPainter painter( holder );
+    Scene3D scene;
+    QVERIFY( scene.initialize() );
+    scene.setGround( GroundTexture::draw( painter ) );
+
+    const int w = 200, h = 200;
+    QOpenGLFramebufferObjectFormat fbo_format;
+    fbo_format.setAttachment( QOpenGLFramebufferObject::Depth );
+    QOpenGLFramebufferObject fbo( w, h, fbo_format );
+
+    // 4 m across the screen around (20, 20), off the lines: 0.02 m a pixel
+    const QVector3D at( 20.0f, 0.0f, 20.0f );
+    CameraPose camera;
+    camera.position = at + QVector3D( 0.0f, 10.0f, 0.0f );
+    camera.target = at;
+    camera.up = QVector3D( 0.0f, 0.0f, -1.0f ); // the screen's right +x, its down +z
+    camera.ortho_half_height = 2.0f;
+    const float mpp = BallAids3D::metersPerPixel( camera, at, float( h ) );
+    QVERIFY( std::fabs( mpp - 0.02f ) < 1.0e-6f );
+    const auto pixel = [&]( const QImage & image, const float dx, const float dz ) {
+        return image.pixelColor( int( w * 0.5f + dx / mpp ), int( h * 0.5f + dz / mpp ) );
+    };
+    const auto shot = [&]( const SceneContent & content ) {
+        scene.render( fbo.handle(), w, h, camera, content );
+        return fbo.toImage();
+    };
+    const QImage bare = shot( SceneContent() );
+
+    // the ring, 1 m: its line 0.06 m (3 pixels) inside the radius
+    SceneContent ring;
+    BallAids3D::addRing( ring, at, 1.0f, mpp, Qt::white );
+    const QImage with_ring = shot( ring );
+    QCOMPARE( shot( ring ), with_ring );
+    for ( const QPointF & way : { QPointF( 1, 0 ), QPointF( 0, -1 ), QPointF( -0.6, 0.8 ) } )
+    {
+        const QColor line = pixel( with_ring, 0.97f * way.x(), 0.97f * way.y() );
+        QVERIFY2( line.lightness() > pixel( bare, 0.97f * way.x(), 0.97f * way.y() ).lightness() + 100, qPrintable( line.name() ) );
+        const QColor fill = pixel( with_ring, 0.5f * way.x(), 0.5f * way.y() );
+        const int d = distance( fill, pixel( bare, 0.5f * way.x(), 0.5f * way.y() ) );
+        QVERIFY2( d > 5 && d < 90, qPrintable( fill.name() ) );
+        QCOMPARE( pixel( with_ring, 1.15f * way.x(), 1.15f * way.y() ), pixel( bare, 1.15f * way.x(), 1.15f * way.y() ) );
+    }
+
+    // the trail along x: its head at +1.5 m, 0.8 m wide there, 5 cycles to -1.5 m
+    std::vector< BallAids3D::TrailPoint > points;
+    for ( int k = 0; k <= 5; ++k )
+    {
+        points.push_back( BallAids3D::TrailPoint{ at + QVector3D( 1.5f - 0.6f * k, 0.1f, 0.0f ), float( k ) } );
+    }
+    SceneContent trail;
+    BallAids3D::addTrail( trail, points, camera.position, 0.8f, 5, Qt::white );
+    const QImage with_trail = shot( trail );
+    QCOMPARE( shot( trail ), with_trail );
+    const auto lift = [&]( const float dx, const float dz ) {
+        return pixel( with_trail, dx, dz ).lightness() - pixel( bare, dx, dz ).lightness();
+    };
+    QVERIFY2( lift( 1.2f, 0.0f ) > 60, qPrintable( QString::number( lift( 1.2f, 0.0f ) ) ) );
+    QVERIFY( lift( 1.2f, 0.0f ) > lift( 1.2f, 0.25f ) ); // fainter to the edges
+    QVERIFY( lift( 1.2f, 0.25f ) > 0 );
+    QVERIFY( lift( 1.2f, 0.0f ) > lift( -0.6f, 0.0f ) + 20 ); // and to the tail
+    QCOMPARE( pixel( with_trail, 1.2f, 0.6f ), pixel( bare, 1.2f, 0.6f ) ); // nothing beside it
+    QCOMPARE( pixel( with_trail, 1.8f, 0.0f ), pixel( bare, 1.8f, 0.0f ) ); // nor ahead
+
+    scene.release();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  The first frame after switching to the top camera is the same as the
+  next one (docs/PLAN_3D-VIEW.md §11: 4; in the web version, the first one
+  drew the cylinders at the origin), and so after switching back, with
+  everything of Phase 8 on: frames of a log built by FrameBuilder3D.
+*/
+void
+TestScene3D::topSwitch()
+{
+    DispHolder holder;
+    for ( int f = 0; f < 10; ++f )
+    {
+        rcss::rcg::ShowInfoT show;
+        show.time_ = f;
+        show.ball_.x_ = 0.5f * f;
+        show.ball_.y_ = 1.0f;
+        for ( int i = 0; i < rcss::rcg::MAX_PLAYER * 2; ++i )
+        {
+            rcss::rcg::PlayerT & p = show.player_[i];
+            const bool left = ( i < rcss::rcg::MAX_PLAYER );
+            p.side_ = ( left ? 'l' : 'r' );
+            p.unum_ = static_cast< rcss::rcg::Int16 >( i % rcss::rcg::MAX_PLAYER + 1 );
+            p.state_ = rcss::rcg::STAND;
+            p.x_ = ( left ? -1.0f : 1.0f ) * ( 5.0f + 4.0f * float( i % rcss::rcg::MAX_PLAYER ) ) + 0.3f * f;
+            p.y_ = -20.0f + 3.5f * float( i % rcss::rcg::MAX_PLAYER );
+            p.body_ = ( left ? 0.0f : 180.0f );
+            p.stamina_ = 8000.0f;
+        }
+        holder.handleShow( show );
+    }
+    Options & opt = Options::instance();
+    opt.setPlayerModel3D( PlayerModel::Mannequin );
+    opt.setShadows3D( ShadowMode::Detailed );
+    opt.setGrass3D( GrassMode::Realistic );
+
+    FieldPainter painter( holder );
+    Scene3D scene;
+    QVERIFY( scene.initialize() );
+    scene.setGround( GroundTexture::draw( painter ) );
+
+    const int w = 320, h = 240;
+    QOpenGLFramebufferObjectFormat fbo_format;
+    fbo_format.setAttachment( QOpenGLFramebufferObject::Depth );
+    QOpenGLFramebufferObject fbo( w, h, fbo_format );
+
+    FrameBuilder3D builder;
+    Interpolate::Position p;
+    p.index = 5;
+    p.next = 6;
+    p.alpha = 0.4;
+    const auto shot = [&]( const CameraMode mode, const CameraPose & camera ) {
+        SceneContent content;
+        builder.build( holder, opt, p, mode, content );
+        builder.addBallAids( holder, opt, camera, float( h ), content );
+        if ( ! content.figures.empty() )
+        {
+            const Figures3D & figures = builder.figures();
+            for ( int k = 0; k < figures.bodyCount(); ++k )
+            {
+                scene.setFigureBody( k, figures.model( k ), figures.paints( k ), figures.uniformCuts( k ) );
+            }
+        }
+        scene.render( fbo.handle(), w, h, camera, content );
+        return fbo.toImage();
+    };
+
+    const CameraPose broadcast = Cameras3D::broadcast( float( w ) / h, 2.5f, 1.0f );
+    const CameraPose top = Cameras3D::top( float( w ) / h );
+    const QImage before = shot( CameraMode::Broadcast, broadcast );
+    QCOMPARE( shot( CameraMode::Broadcast, broadcast ), before );
+    const QImage first = shot( CameraMode::Top, top );
+    QCOMPARE( shot( CameraMode::Top, top ), first );
+    QVERIFY( first != before );
+    QCOMPARE( shot( CameraMode::Broadcast, broadcast ), before );
+
+    opt.setPlayerModel3D( Options::PLAYER_MODEL_3D );
+    opt.setShadows3D( Options::SHADOWS_3D );
+    opt.setGrass3D( GrassMode::Plain );
     scene.release();
 }
 

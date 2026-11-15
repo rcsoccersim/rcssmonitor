@@ -215,6 +215,9 @@ struct SceneContent {
     std::vector< Instance3D > rings; //!< 0.92 to 1.08 on the xz plane: the outline of a highlighted player
     std::vector< Instance3D > decay_rings; //!< 1.1 to 1.22 on the xz plane: the decay of effort or recovery
     std::vector< Instance3D > quads; //!< 1 x 1 on the xy plane, centered, both sides: the nets and the floors of the goals
+    std::vector< Instance3D > ball_rings; //!< 2 x 2 on the xz plane scaled by the radius: the ring around the ball (BallAids3D), over the circles
+    float ball_ring_radius = 0.0f; //!< the ring's radius (m)
+    float ball_ring_width = 0.0f; //!< its line's width as drawn (m)
 
     // unlit panels of the unit quad, by the end (0: left, 1: right): its
     // image on the front (+z), the back plain in the instance's color
@@ -226,6 +229,7 @@ struct SceneContent {
     std::vector< ColorVertex3D > lines; //!< each two vertices, a line: the overlays on the ground
     std::vector< ColorVertex3D > dotted_lines; //!< each two vertices, a dotted line
     std::vector< ColorVertex3D > points; //!< dots
+    std::vector< ColorVertex3D > ball_trail; //!< triangles, both sides: the trail behind the ball (BallAids3D), over the rest
 
     // written by the HUD (QPainter), not by OpenGL
     std::vector< OverlayText > texts; //!< the texts of the overlays
@@ -259,6 +263,10 @@ struct SceneContent {
           for ( auto & b : boards ) b.clear();
           for ( auto & b : banners ) b.clear();
           sectors.clear();
+          ball_trail.clear();
+          ball_rings.clear();
+          ball_ring_radius = 0.0f;
+          ball_ring_width = 0.0f;
           lines.clear();
           dotted_lines.clear();
           points.clear();

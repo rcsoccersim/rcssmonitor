@@ -47,6 +47,7 @@
 #include <functional>
 #include <iostream>
 #include <cassert>
+#include <cmath>
 
 
 /*-------------------------------------------------------------------*/
@@ -1885,7 +1886,9 @@ ConfigDialog::create3DTab()
     // ball
     {
         QGroupBox * group_box = new QGroupBox( tr( "Ball" ) );
+        QVBoxLayout * box = new QVBoxLayout();
         QHBoxLayout * layout = new QHBoxLayout();
+        layout->setContentsMargins( 0, 0, 0, 0 );
 
         M_ball_pattern_3d_cb = new QCheckBox( tr( "Pattern" ) );
         M_ball_pattern_3d_cb->setObjectName( "ball_pattern_3d" );
@@ -1897,10 +1900,62 @@ ConfigDialog::create3DTab()
                      changed3D();
                  } );
         layout->addWidget( M_ball_pattern_3d_cb );
+
+        M_ball_ring_3d_cb = new QCheckBox( tr( "Ring" ) );
+        M_ball_ring_3d_cb->setObjectName( "ball_ring_3d" );
+        M_ball_ring_3d_cb->setToolTip( tr( "A ring on the ground around the ball, over a faint fill, its line a few\n"
+                                           "pixels wide at least: the ball found where it is small." ) );
+        connect( M_ball_ring_3d_cb, &QCheckBox::clicked,
+                 this, [this]( bool on ) {
+                     Options::instance().setBallRing3D( on );
+                     changed3D();
+                 } );
+        layout->addWidget( M_ball_ring_3d_cb );
+
+        M_ball_trail_3d_cb = new QCheckBox( tr( "Trail" ) );
+        M_ball_trail_3d_cb->setObjectName( "ball_trail_3d" );
+        M_ball_trail_3d_cb->setToolTip( tr( "A trail behind the ball like a contrail, through where it was in the last\n"
+                                            "cycles, narrower and fainter the older. It breaks where the ball was placed." ) );
+        connect( M_ball_trail_3d_cb, &QCheckBox::clicked,
+                 this, [this]( bool on ) {
+                     Options::instance().setBallTrail3D( on );
+                     changed3D();
+                 } );
+        layout->addWidget( M_ball_trail_3d_cb );
         layout->addStretch();
 
-        group_box->setToolTip( tr( "How the ball looks, to be found and followed." ) );
-        group_box->setLayout( layout );
+        QGridLayout * numbers = new QGridLayout();
+        numbers->setContentsMargins( 0, 0, 0, 0 );
+        M_ball_ring_radius_3d
+            = addNumber( numbers, 0, 0, tr( "Ring Radius:" ),
+                         tr( "The ring's radius, in meters: 0.7 m by default, the default kickable margin.\n"
+                             "Only with Ring." ),
+                         Options::MIN_BALL_RING_RADIUS_3D, Options::MAX_BALL_RING_RADIUS_3D,
+                         0.1, 2, tr( " m" ), &M_ball_ring_radius_3d_label );
+        M_ball_ring_radius_3d->setObjectName( "ball_ring_radius_3d" );
+        connect( M_ball_ring_radius_3d, QOverload< double >::of( &QDoubleSpinBox::valueChanged ),
+                 this, [this]( double value ) {
+                     Options::instance().setBallRingRadius3D( value );
+                     changed3D();
+                 } );
+        M_ball_trail_cycles_3d
+            = addNumber( numbers, 0, 2, tr( "Trail Cycles:" ),
+                         tr( "How long the trail is: as far as the ball went in this many cycles.\n"
+                             "Only with Trail." ),
+                         Options::MIN_BALL_TRAIL_CYCLES_3D, Options::MAX_BALL_TRAIL_CYCLES_3D,
+                         1.0, 0, QString(), &M_ball_trail_cycles_3d_label );
+        M_ball_trail_cycles_3d->setObjectName( "ball_trail_cycles_3d" );
+        connect( M_ball_trail_cycles_3d, QOverload< double >::of( &QDoubleSpinBox::valueChanged ),
+                 this, [this]( double value ) {
+                     Options::instance().setBallTrailCycles3D( int( std::lround( value ) ) );
+                     changed3D();
+                 } );
+        numbers->setColumnStretch( 4, 1 );
+
+        box->addLayout( layout );
+        box->addLayout( numbers );
+        group_box->setToolTip( tr( "How the ball looks, and what helps to find it where it is small." ) );
+        group_box->setLayout( box );
         top_layout->addWidget( group_box );
     }
 
@@ -1992,7 +2047,8 @@ ConfigDialog::create3DTab()
         button->setObjectName( "default_3d" );
         button->setToolTip( tr( "Set the defaults: Close-up %1 m, %2\u00b0, Compass %3, Minimap %4,\n"
                                 "Model %5, Figure Scale %6, Bodies %9, Shadows %10, Boards %7, Banners %8,\n"
-                                "Ball Pattern %14, Stands %13, Grass %11, Sky %12" )
+                                "Ball Pattern %14, Ring %15 (%16 m), Trail %17 (%18 cycles),\n"
+                                "Stands %13, Grass %11, Sky %12" )
                             .arg( Options::CLOSEUP_DISTANCE_3D )
                             .arg( Options::CLOSEUP_ELEVATION_3D )
                             .arg( guideLabel( Options::COMPASS_3D ) )
@@ -2006,7 +2062,11 @@ ConfigDialog::create3DTab()
                             .arg( grassLabel( Options::GRASS_3D ) )
                             .arg( onOff( Options::SKY_3D ) )
                             .arg( onOff( Options::STANDS_3D ) )
-                            .arg( onOff( Options::BALL_PATTERN_3D ) ) );
+                            .arg( onOff( Options::BALL_PATTERN_3D ) )
+                            .arg( onOff( Options::BALL_RING_3D ) )
+                            .arg( Options::BALL_RING_RADIUS_3D )
+                            .arg( onOff( Options::BALL_TRAIL_3D ) )
+                            .arg( Options::BALL_TRAIL_CYCLES_3D ) );
         button->setAutoDefault( false );
         connect( button, &QPushButton::clicked,
                  this, [this]() {
@@ -2262,6 +2322,15 @@ ConfigDialog::update3D()
     set_choice( M_grass_3d, grassIndex( opt.grass3D() ) );
     M_stands_3d_cb->setChecked( opt.stands3D() );
     M_ball_pattern_3d_cb->setChecked( opt.ballPattern3D() );
+    M_ball_ring_3d_cb->setChecked( opt.ballRing3D() );
+    M_ball_trail_3d_cb->setChecked( opt.ballTrail3D() );
+    set_number( M_ball_ring_radius_3d, opt.ballRingRadius3D() );
+    set_number( M_ball_trail_cycles_3d, opt.ballTrailCycles3D() );
+    // the numbers of the ring and of the trail only with them
+    M_ball_ring_radius_3d->setEnabled( opt.ballRing3D() );
+    M_ball_ring_radius_3d_label->setEnabled( opt.ballRing3D() );
+    M_ball_trail_cycles_3d->setEnabled( opt.ballTrail3D() );
+    M_ball_trail_cycles_3d_label->setEnabled( opt.ballTrail3D() );
     M_sky_3d_cb->setChecked( opt.sky3D() );
 
     set_choice( M_player_camera_position, indexOf( positions(), pc.position ) );

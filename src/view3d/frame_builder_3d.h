@@ -99,6 +99,9 @@ struct View3DState {
     bool stands = false; //!< the stands were drawn (SceneContent::stands)
     bool ball_pattern = false; //!< the ball's pattern was drawn (SceneContent::ball_pattern)
     QQuaternion ball_turn; //!< how the ball was turned, as it rolled (BallSpin)
+    bool ball_ring = false; //!< the ring around the ball was drawn (SceneContent::ball_rings)
+    float ball_ring_width = 0.0f; //!< its line's width as drawn (m)
+    int ball_trail = 0; //!< the points of the trail behind the ball drawn (0: none)
     int blob_shadows = 0; //!< the simple shadows drawn (SceneContent::blob_shadows)
 };
 
@@ -156,6 +159,23 @@ public:
     double poseTime() const { return M_pose_time; }
 
     /*!
+      \brief the ring around the ball and its trail (BallAids3D), by the
+      options, where build() put the ball (none where it did not): after
+      the camera is known, as their widths are kept a few pixels on the
+      screen and the trail faces the camera
+      \param holder the frames, as given to build()
+      \param options the options of the 3D tab's Ball group
+      \param camera the camera that draws the frame
+      \param height the screen's height (logical pixels)
+      \param content the content built by build()
+    */
+    void addBallAids( const DispHolder & holder,
+                      const Options & options,
+                      const CameraPose & camera,
+                      const float height,
+                      SceneContent & content );
+
+    /*!
       \brief what was drawn: the counts of a content built by build() (and
       the labels added after it), with the figures' poses
       \param content the content
@@ -168,6 +188,7 @@ private:
     Figures3D M_figures;
     GaitTable M_gaits; //!< how far the players have walked, for the figures
     BallSpin M_spin; //!< how the ball has rolled
+    int M_trail_points = 0; //!< the points of the trail added by addBallAids()
     QQuaternion M_ball_turn; //!< how the ball is turned in the frame built
     rcss::rcg::ShowInfoT M_show;
     bool M_has_show = false;

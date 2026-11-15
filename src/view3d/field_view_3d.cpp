@@ -324,6 +324,8 @@ FieldView3D::paintGL()
             double( QFontInfo( Options::instance().playerFont() ).pixelSize() ),
         };
         SceneBuilder::addLabels( M_content, show, M_disp_holder, Options::instance(), M_label_atlas, label_view, seen );
+        // the ring around the ball and its trail, a few pixels wide at least
+        M_builder.addBallAids( M_disp_holder, opt, camera, float( height() ), M_content );
     }
     if ( M_label_atlas.takeChanged() )
     {

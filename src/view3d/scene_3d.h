@@ -182,12 +182,14 @@ private:
     ShaderProgram M_outside_program; //!< "outside": the ground beyond the ground image, in the haze far away
     ShaderProgram M_stand_program; //!< "stand": the stands, their images lit by the sun
     ShaderProgram M_ball_program; //!< "ball": the ball, lit as the solids, with its pattern
+    ShaderProgram M_ring_program; //!< "ring": the ring on the ground around the ball
 
     // the shapes (Meshes3D), each drawn in instances
     InstancedMesh M_ground; //!< the area of the ground image
     InstancedMesh M_cylinder; //!< the bodies, the goal posts and crossbars
     InstancedMesh M_sphere; //!< the heads
     InstancedMesh M_ball; //!< the ball: a sphere divided more finely (its outline is near the close cameras)
+    InstancedMesh M_ring_square; //!< 2 x 2 on the ground: the ring around the ball
     InstancedMesh M_cone; //!< the body and face directions
     InstancedMesh M_disc; //!< the circles under the players, the ball's shadow
     InstancedMesh M_ring; //!< the outline of a highlighted player
@@ -212,6 +214,7 @@ private:
     VertexBatch M_line_batch; //!< the lines on the ground
     VertexBatch M_dotted_batch; //!< the dotted lines on the ground
     VertexBatch M_point_batch; //!< the dots on the ground
+    VertexBatch M_trail_batch; //!< the trail behind the ball
 
     Texture2D M_ground_texture; //!< the image of the ground
     Texture2D M_grass_noise; //!< the noise of the realistic grass (Grass3D::noiseImage()), tiling both ways

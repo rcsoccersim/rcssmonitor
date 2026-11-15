@@ -32,6 +32,7 @@
 
 #include <QtTest>
 
+#include "ball_aids_3d.h"
 #include "frame_builder_3d.h"
 #include "scene_builder.h"
 #include "scenery_3d.h"
@@ -459,6 +460,95 @@ private slots:
           QCOMPARE( build( live_builder, live, at( live, 50, 0.3 ) ).ball_turn, s.ball_turn );
           fill( live, 52, 20 );
           QCOMPARE( build( live_builder, live, at( live, 50, 0.3 ) ).ball_turn, s.ball_turn );
+      }
+
+    /*!
+      the ring and the trail by the options, where the ball is drawn; the
+      ring's line wider far away; the trail as long as the cycles, from the
+      log (the same however the frame is reached); none without the ball
+    */
+    void ballAids()
+      {
+          Options & opt = Options::instance();
+          QVERIFY( opt.ballRing3D() && opt.ballTrail3D() ); // on by default
+          QCOMPARE( opt.ballTrailCycles3D(), 5 );
+          const auto aids = [&]( FrameBuilder3D & builder, const DispHolder & holder,
+                                 const Interpolate::Position & p, const CameraPose & camera ) {
+              SceneContent content;
+              builder.build( holder, opt, p, CameraMode::Broadcast, content );
+              builder.addBallAids( holder, opt, camera, 720.0f, content );
+              return std::make_pair( content, builder.state( content, camera ) );
+          };
+          CameraPose near_camera, far_camera;
+          near_camera.position = QVector3D( 20, 5, 15 );
+          near_camera.target = QVector3D( 20, 0, 0.3f );
+          far_camera.position = QVector3D( 20, 60, 150 );
+          far_camera.target = QVector3D( 20, 0, 0.3f );
+
+          FrameBuilder3D builder;
+          const Interpolate::Position frame = at( M_holder, 50, 0.3 ); // the ball rolling after the kick
+          const auto near_aids = aids( builder, M_holder, frame, near_camera );
+          const SceneContent & c = near_aids.first;
+          const View3DState & s = near_aids.second;
+          QVERIFY( s.ball_ring );
+          QCOMPARE( c.ball_rings.size(), std::size_t( 1 ) );
+          // around the ball drawn, on the ground
+          const QVector3D ball = c.balls[0].model.map( QVector3D() );
+          const QVector3D ring = c.ball_rings[0].model.map( QVector3D() );
+          QVERIFY( std::fabs( ring.x() - ball.x() ) < 1.0e-4f && std::fabs( ring.z() - ball.z() ) < 1.0e-4f );
+          QCOMPARE( c.ball_ring_radius, float( Options::BALL_RING_RADIUS_3D ) );
+          QCOMPARE( s.ball_ring_width, BallAids3D::RING_WIDTH );
+          // the trail: between frames, the place drawn, 5 frames and part of the way
+          QCOMPARE( s.ball_trail, 7 );
+          QCOMPARE( c.ball_trail.size(), std::size_t( 12 * 6 ) );
+          QVERIFY( ( c.ball_trail[1].position - ball ).length() < 1.0e-4f ); // its head at the ball
+          // far away: the ring's line some pixels wide
+          const auto far_aids = aids( builder, M_holder, frame, far_camera );
+          QVERIFY( far_aids.second.ball_ring_width > BallAids3D::RING_WIDTH );
+          // the same trail however the frame is reached
+          build( builder, M_holder, at( M_holder, 100 ) );
+          QCOMPARE( aids( builder, M_holder, frame, near_camera ).first.ball_trail.size(), c.ball_trail.size() );
+          FrameBuilder3D other;
+          const SceneContent again = aids( other, M_holder, frame, near_camera ).first;
+          for ( std::size_t k = 0; k < c.ball_trail.size(); ++k )
+          {
+              QCOMPARE( again.ball_trail[k].position, c.ball_trail[k].position );
+              QCOMPARE( again.ball_trail[k].color, c.ball_trail[k].color );
+          }
+          // still before the kick: the ring (the trail of a still ball has no length)
+          const auto still = aids( builder, M_holder, at( M_holder, 20 ), near_camera );
+          QVERIFY( still.second.ball_ring );
+
+          // the options within their ranges
+          opt.setBallRingRadius3D( 10.0 );
+          QCOMPARE( opt.ballRingRadius3D(), Options::MAX_BALL_RING_RADIUS_3D );
+          opt.setBallRingRadius3D( 0.0 );
+          QCOMPARE( opt.ballRingRadius3D(), Options::MIN_BALL_RING_RADIUS_3D );
+          opt.setBallTrailCycles3D( 99 );
+          QCOMPARE( opt.ballTrailCycles3D(), Options::MAX_BALL_TRAIL_CYCLES_3D );
+          opt.setBallTrailCycles3D( 0 );
+          QCOMPARE( opt.ballTrailCycles3D(), Options::MIN_BALL_TRAIL_CYCLES_3D );
+
+          // by the options
+          opt.setBallTrailCycles3D( 2 );
+          QCOMPARE( aids( builder, M_holder, at( M_holder, 50 ), near_camera ).second.ball_trail, 3 );
+          opt.setBallTrailCycles3D( Options::BALL_TRAIL_CYCLES_3D );
+          opt.setBallRingRadius3D( 2.0 );
+          QCOMPARE( aids( builder, M_holder, frame, near_camera ).first.ball_ring_radius, 2.0f );
+          opt.setBallRingRadius3D( Options::BALL_RING_RADIUS_3D );
+          opt.setBallRing3D( false );
+          QVERIFY( ! aids( builder, M_holder, frame, near_camera ).second.ball_ring );
+          opt.setBallRing3D( true );
+          opt.setBallTrail3D( false );
+          QCOMPARE( aids( builder, M_holder, frame, near_camera ).second.ball_trail, 0 );
+          opt.setBallTrail3D( true );
+          // without the ball drawn, neither
+          opt.toggleShowBall();
+          const auto none = aids( builder, M_holder, frame, near_camera );
+          opt.toggleShowBall();
+          QVERIFY( ! none.second.ball_ring );
+          QCOMPARE( none.second.ball_trail, 0 );
+          QVERIFY( none.first.ball_trail.empty() );
       }
 
     /*!

@@ -186,6 +186,10 @@ private:
     bool M_sky_3d; //!< the sky, and the haze over the far ground
     bool M_stands_3d; //!< the stands along the touch lines
     bool M_ball_pattern_3d; //!< the ball's pattern, which shows it rolling
+    bool M_ball_ring_3d; //!< a ring on the ground around the ball
+    double M_ball_ring_radius_3d; //!< the ring's radius (m)
+    bool M_ball_trail_3d; //!< a trail behind the ball
+    int M_ball_trail_cycles_3d; //!< the trail: as long as the ball went in this many cycles
     bool M_banners_3d; //!< the banners behind the goals in the team colors
     GuideMode M_compass_3d; //!< when the compass shows over the 3D view
     GuideMode M_minimap_3d; //!< when the minimap shows over the 3D view
@@ -439,6 +443,31 @@ public:
     //! the 3D view: the ball's pattern, twelve pentagons, which shows it rolling
     bool ballPattern3D() const { return M_ball_pattern_3d; }
     void setBallPattern3D( const bool on ) { M_ball_pattern_3d = on; }
+
+    static constexpr bool BALL_RING_3D = true;
+    //! the 3D view: a ring on the ground around the ball, to find it where it is small
+    bool ballRing3D() const { return M_ball_ring_3d; }
+    void setBallRing3D( const bool on ) { M_ball_ring_3d = on; }
+
+    //! the ring's radius by default: the default kickable_margin (m)
+    static constexpr double BALL_RING_RADIUS_3D = 0.7;
+    static constexpr double MIN_BALL_RING_RADIUS_3D = 0.1;
+    static constexpr double MAX_BALL_RING_RADIUS_3D = 5.0;
+    double ballRingRadius3D() const { return M_ball_ring_radius_3d; }
+    //! within MIN_BALL_RING_RADIUS_3D and MAX_BALL_RING_RADIUS_3D
+    void setBallRingRadius3D( const double radius );
+
+    static constexpr bool BALL_TRAIL_3D = true;
+    //! the 3D view: a trail behind the ball like a contrail, through its last cycles
+    bool ballTrail3D() const { return M_ball_trail_3d; }
+    void setBallTrail3D( const bool on ) { M_ball_trail_3d = on; }
+
+    static constexpr int BALL_TRAIL_CYCLES_3D = 5;
+    static constexpr int MIN_BALL_TRAIL_CYCLES_3D = 1;
+    static constexpr int MAX_BALL_TRAIL_CYCLES_3D = 30;
+    int ballTrailCycles3D() const { return M_ball_trail_cycles_3d; }
+    //! within MIN_BALL_TRAIL_CYCLES_3D and MAX_BALL_TRAIL_CYCLES_3D
+    void setBallTrailCycles3D( const int cycles );
     //! the 3D view: the banners high behind the goals, with the team names and logos
     bool banners3D() const { return M_banners_3d; }
     void setBanners3D( const bool on ) { M_banners_3d = on; }

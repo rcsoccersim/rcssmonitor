@@ -37,6 +37,7 @@
 #include "scene_3d.h"
 
 #include "ball_3d.h"
+#include "ball_aids_3d.h"
 #include "field_painter.h"
 #include "ground_texture.h"
 #include "meshes_3d.h"
@@ -120,7 +121,8 @@ Scene3D::initialize()
          || ! M_sky_program.load( "sky" )
          || ! M_outside_program.load( "outside" )
          || ! M_stand_program.load( "stand" )
-         || ! M_ball_program.load( "ball" ) )
+         || ! M_ball_program.load( "ball" )
+         || ! M_ring_program.load( "ring" ) )
     {
         M_ground_program.destroy();
         M_lit_program.destroy();
@@ -137,6 +139,7 @@ Scene3D::initialize()
         M_outside_program.destroy();
         M_stand_program.destroy();
         M_ball_program.destroy();
+        M_ring_program.destroy();
         return false;
     }
 
@@ -146,6 +149,7 @@ Scene3D::initialize()
     M_cylinder.create( *this, Meshes3D::cylinder( 20 ) );
     M_sphere.create( *this, Meshes3D::sphere( 24, 16 ) );
     M_ball.create( *this, Meshes3D::sphere( 32, 24 ) );
+    M_ring_square.create( *this, Meshes3D::ground( 2.0f, 2.0f ) );
     M_cone.create( *this, Meshes3D::cone( 12 ) );
     M_disc.create( *this, Meshes3D::ring( 0.0f, 1.0f, 32 ) );
     M_ring.create( *this, Meshes3D::ring( 0.92f, 1.08f, 40 ) );
@@ -163,7 +167,7 @@ Scene3D::initialize()
     // the realistic grass's noise, made once
     M_grass_noise.upload( *this, Grass3D::noiseImage(), true, true, false );
     M_billboards.create( *this );
-    for ( VertexBatch * b : { &M_sector_batch, &M_line_batch, &M_dotted_batch, &M_point_batch } )
+    for ( VertexBatch * b : { &M_sector_batch, &M_line_batch, &M_dotted_batch, &M_point_batch, &M_trail_batch } )
     {
         b->create( *this );
     }
@@ -179,7 +183,7 @@ Scene3D::release()
     {
         return;
     }
-    for ( InstancedMesh * m : { &M_ground, &M_cylinder, &M_sphere, &M_ball, &M_cone, &M_disc, &M_ring, &M_decay_ring, &M_quad, &M_panel, &M_shadow_plane, &M_far_ground,
+    for ( InstancedMesh * m : { &M_ground, &M_cylinder, &M_sphere, &M_ball, &M_ring_square, &M_cone, &M_disc, &M_ring, &M_decay_ring, &M_quad, &M_panel, &M_shadow_plane, &M_far_ground,
                               &M_stands[0], &M_stands[1], &M_stands[2], &M_stands[3] } )
     {
         m->destroy( *this );
@@ -189,7 +193,7 @@ Scene3D::release()
     M_billboards.destroy( *this );
     for ( SkinnedMesh & m : M_figures ) m.destroy( *this );
     M_gpu_timer.destroy( *this );
-    for ( VertexBatch * b : { &M_sector_batch, &M_line_batch, &M_dotted_batch, &M_point_batch } )
+    for ( VertexBatch * b : { &M_sector_batch, &M_line_batch, &M_dotted_batch, &M_point_batch, &M_trail_batch } )
     {
         b->destroy( *this );
     }
@@ -216,6 +220,7 @@ Scene3D::release()
     M_outside_program.destroy();
     M_stand_program.destroy();
     M_ball_program.destroy();
+    M_ring_program.destroy();
     M_initialized = false;
 }
 
@@ -521,6 +526,17 @@ Scene3D::render( GLuint fbo,
     M_disc.draw( *this, content.discs );
     M_ring.draw( *this, content.rings );
     M_decay_ring.draw( *this, content.decay_rings );
+    if ( ! content.ball_rings.empty() )
+    {
+        // the ring around the ball, over the circles (BallAids3D)
+        M_ring_program.bind();
+        M_ring_program.set( "uViewProj", view_proj );
+        M_ring_program.set( "uOuter", content.ball_ring_radius );
+        M_ring_program.set( "uWidth", content.ball_ring_width );
+        M_ring_program.set( "uOpacity", BallAids3D::RING_OPACITY );
+        M_ring_program.set( "uFill", BallAids3D::RING_FILL );
+        M_ring_square.draw( *this, content.ball_rings );
+    }
 
     M_colored_program.bind();
     M_colored_program.set( "uViewProj", view_proj );
@@ -534,6 +550,14 @@ Scene3D::render( GLuint fbo,
 
     M_flat_program.bind();
     M_quad.draw( *this, content.quads );
+
+    // the trail behind the ball, over the rest (BallAids3D)
+    if ( ! content.ball_trail.empty() )
+    {
+        M_colored_program.bind();
+        M_colored_program.set( "uDash", 0.0f );
+        M_trail_batch.draw( *this, content.ball_trail, VertexBatch::Primitive::Triangles );
+    }
 
     //
     // pass 4: the labels, over everything (as the 2D view writes the

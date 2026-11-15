@@ -272,7 +272,15 @@ TestConfigDialog::tabs3D()
     QVERIFY( ! child< QCheckBox >( dialog, "sky_3d" )->toolTip().isEmpty() );
     QVERIFY( ! child< QCheckBox >( dialog, "stands_3d" )->toolTip().isEmpty() );
     QVERIFY( ! child< QCheckBox >( dialog, "ball_pattern_3d" )->toolTip().isEmpty() );
-    QVERIFY( child< QPushButton >( dialog, "default_3d" )->toolTip().contains( "Ball Pattern On," ) );
+    QVERIFY( child< QPushButton >( dialog, "default_3d" )->toolTip().contains( "Ball Pattern On, Ring On (0.7 m), Trail On (5 cycles)," ) );
+    for ( const char * name : { "ball_ring_3d", "ball_trail_3d" } )
+    {
+        QVERIFY2( ! child< QCheckBox >( dialog, name )->toolTip().isEmpty(), name );
+    }
+    for ( const char * name : { "ball_ring_radius_3d", "ball_trail_cycles_3d" } )
+    {
+        QVERIFY2( child< QDoubleSpinBox >( dialog, name )->toolTip().contains( "Range:" ), name );
+    }
     QVERIFY( child< QPushButton >( dialog, "default_3d" )->toolTip().contains( "Stands On, Grass Stripes, Sky On" ) );
     QVERIFY( child< QPushButton >( dialog, "default_3d" )->toolTip().contains( "Close-up 12 m, 20" ) );
     QVERIFY( child< QPushButton >( dialog, "default_3d" )->toolTip().contains( "Model Simple, Figure Scale 1, Bodies Mixed, Shadows Simple," ) );
@@ -315,7 +323,11 @@ TestConfigDialog::view3DTab()
     QCheckBox * sky = child< QCheckBox >( dialog, "sky_3d" );
     QCheckBox * stands = child< QCheckBox >( dialog, "stands_3d" );
     QCheckBox * pattern = child< QCheckBox >( dialog, "ball_pattern_3d" );
-    QVERIFY( grass && sky && stands && pattern );
+    QCheckBox * ring = child< QCheckBox >( dialog, "ball_ring_3d" );
+    QCheckBox * trail = child< QCheckBox >( dialog, "ball_trail_3d" );
+    QDoubleSpinBox * ring_radius = child< QDoubleSpinBox >( dialog, "ball_ring_radius_3d" );
+    QDoubleSpinBox * trail_cycles = child< QDoubleSpinBox >( dialog, "ball_trail_cycles_3d" );
+    QVERIFY( grass && sky && stands && pattern && ring && trail && ring_radius && trail_cycles );
     QPushButton * defaults = child< QPushButton >( dialog, "default_3d" );
     QButtonGroup * model = child< QButtonGroup >( dialog, "player_model_3d" );
     QDoubleSpinBox * scale = child< QDoubleSpinBox >( dialog, "figure_scale_3d" );
@@ -335,6 +347,12 @@ TestConfigDialog::view3DTab()
     QVERIFY( sky->isChecked() );
     QVERIFY( stands->isChecked() );
     QVERIFY( pattern->isChecked() );
+    QVERIFY( ring->isChecked() );
+    QVERIFY( trail->isChecked() );
+    QCOMPARE( ring_radius->value(), Options::BALL_RING_RADIUS_3D );
+    QCOMPARE( trail_cycles->value(), double( Options::BALL_TRAIL_CYCLES_3D ) );
+    QCOMPARE( trail_cycles->decimals(), 0 );
+    QVERIFY( ring_radius->isEnabled() && trail_cycles->isEnabled() );
     QCOMPARE( model->checkedButton()->text(), QString( "Simple" ) );
     QCOMPARE( scale->value(), Options::FIGURE_SCALE_3D );
     // the scale is not for the cylinders, the bodies only for the human figures
@@ -403,10 +421,29 @@ TestConfigDialog::view3DTab()
     pattern->click();
     QVERIFY( ! opt.ballPattern3D() );
     QCOMPARE( spy.count(), 13 );
+    ring_radius->setValue( 2.5 );
+    QCOMPARE( opt.ballRingRadius3D(), 2.5 );
+    trail_cycles->setValue( 12.0 );
+    QCOMPARE( opt.ballTrailCycles3D(), 12 );
+    ring->click();
+    QVERIFY( ! opt.ballRing3D() );
+    QVERIFY( ! ring_radius->isEnabled() ); // the radius only with the ring
+    QVERIFY( trail_cycles->isEnabled() );
+    trail->click();
+    QVERIFY( ! opt.ballTrail3D() );
+    QVERIFY( ! trail_cycles->isEnabled() );
+    QCOMPARE( spy.count(), 17 );
 
     // Default: the options and the fields back
     defaults->click();
-    QCOMPARE( spy.count(), 14 );
+    QCOMPARE( spy.count(), 18 );
+    QVERIFY( opt.ballRing3D() && opt.ballTrail3D() );
+    QVERIFY( ring->isChecked() && trail->isChecked() );
+    QCOMPARE( opt.ballRingRadius3D(), Options::BALL_RING_RADIUS_3D );
+    QCOMPARE( opt.ballTrailCycles3D(), Options::BALL_TRAIL_CYCLES_3D );
+    QCOMPARE( ring_radius->value(), Options::BALL_RING_RADIUS_3D );
+    QCOMPARE( trail_cycles->value(), double( Options::BALL_TRAIL_CYCLES_3D ) );
+    QVERIFY( ring_radius->isEnabled() && trail_cycles->isEnabled() );
     QVERIFY( opt.stands3D() );
     QVERIFY( stands->isChecked() );
     QVERIFY( opt.ballPattern3D() );
@@ -437,7 +474,7 @@ TestConfigDialog::view3DTab()
     QCOMPARE( scale->value(), Options::FIGURE_SCALE_3D );
     QVERIFY( ! scale->isEnabled() );
     // the fields set back by Default do not set the options again
-    QCOMPARE( spy.count(), 14 );
+    QCOMPARE( spy.count(), 18 );
 #endif
 }
 

@@ -38,6 +38,7 @@
 
 #include "scenery_3d.h"
 
+#include "ball_aids_3d.h"
 #include "figure_actions.h"
 #include "overlay_builder.h"
 #include "scene_builder.h"
@@ -157,6 +158,7 @@ FrameBuilder3D::build( const DispHolder & holder,
 
     M_pose_time = 0.0;
     M_ball_turn = QQuaternion();
+    M_trail_points = 0;
     if ( ! M_has_show )
     {
         return;
@@ -198,6 +200,37 @@ FrameBuilder3D::build( const DispHolder & holder,
 }
 
 /*-------------------------------------------------------------------*/
+void
+FrameBuilder3D::addBallAids( const DispHolder & holder,
+                             const Options & opt,
+                             const CameraPose & camera,
+                             const float height,
+                             SceneContent & content )
+{
+    M_trail_points = 0;
+    if ( content.balls.empty() ) return; // not drawn, or not seen
+
+    const QVector3D center = content.balls.front().model.map( QVector3D() );
+    const float meters_per_pixel = BallAids3D::metersPerPixel( camera, center, height );
+    const QColor color = opt.ballBrush().color();
+    if ( opt.ballRing3D() )
+    {
+        BallAids3D::addRing( content, center, float( opt.ballRingRadius3D() ), meters_per_pixel, color );
+    }
+    if ( opt.ballTrail3D() )
+    {
+        const float radius = float( SceneBuilder::ballRadius( opt, holder.serverParam().ball_size_ ) );
+        const std::vector< BallAids3D::TrailPoint > points
+            = BallAids3D::trailPoints( holder.dispCont(), M_at.index, M_at.next, M_at.alpha,
+                                       opt.ballTrailCycles3D(), radius );
+        BallAids3D::addTrail( content, points, camera.position,
+                              std::max( BallAids3D::TRAIL_WIDTH * radius, BallAids3D::TRAIL_PIXELS * meters_per_pixel ),
+                              opt.ballTrailCycles3D(), color );
+        if ( ! content.ball_trail.empty() ) M_trail_points = int( points.size() );
+    }
+}
+
+/*-------------------------------------------------------------------*/
 View3DState
 FrameBuilder3D::state( const SceneContent & content,
                        const CameraPose & camera ) const
@@ -221,6 +254,9 @@ FrameBuilder3D::state( const SceneContent & content,
     s.stands = content.stands;
     s.ball_pattern = content.ball_pattern;
     s.ball_turn = M_ball_turn;
+    s.ball_ring = ! content.ball_rings.empty();
+    s.ball_ring_width = content.ball_ring_width;
+    s.ball_trail = ( content.ball_trail.empty() ? 0 : M_trail_points );
     s.blob_shadows = static_cast< int >( content.blob_shadows.size() );
 
     for ( const FigureInstance & figure : content.figures )
