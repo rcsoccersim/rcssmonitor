@@ -7,7 +7,7 @@
 | Reference implementation | rcssmonitor-web 20.0.0-beta.2 (tag `v20.0.0-beta.2`, ed36941). Its working tree is `../rcssmonitor-web`, next to this repository |
 | Server referred to | The asio version of rcssserver 19.x. Its working tree is `../rcssserver` (branch `feature/asio-migration`), next to this repository |
 | Japanese version | [PLAN_3D-VIEW.md](PLAN_3D-VIEW.md) (same content; §0.1) |
-| Status | Phase 7 done (2026-11-15). Working on Phase 8 (8-1 to 8-5, the tool bar and the FPS display done, 8-6 waiting for the user's check; §14). The work is on `feature/3d-view` |
+| Status | Phase 8 done (2026-11-15). Next, Phase 9 (figure packs). The work is on `feature/3d-view` |
 
 ## 0. How to use this plan
 
@@ -2161,3 +2161,13 @@ The two commits of the tool bar and the FPS display (aff2db3, 54ab962) were push
 - Four full games: 151 to 253 frames a game with a collision bit, most in the same cycle as the receiver's kick (a kick); 50 to 111 segments a game cut at a collision (25 to 46 from the velocity before).
 - Tests: added to test `ball_flight_3d`: cut at the frame of a collision bit, the next from there (even with no sign in the ball's move); a kick soon after a collision makes a foot's reach the highest, a kick long after a body's; a kick at the moment of a collision is a kick. Checked to fail with what is checked broken (4 ways: the bit ignored, a collision counted before a kick, the kick soon after ignored, always soon after).
 - With Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`), the clean builds and the tests pass (49 tests). `-DENABLE_3D=OFF` (19) and autotools also pass.
+
+#### 2026-11-15: The end of Phase 8 (`feature/3d-view`)
+
+The two commits of 8-6 (b4da4cf, 060b6a4) were pushed, and CI passed. The user checked 8-6 on the screen.
+
+**The conditions of Phase 8**
+- Everything can be turned on and off by the options: the three shadows, the three grasses, the sky, the stands, the ball's pattern, the ball flying, the ring, the trail (8-1 to 8-6). The tool bar and the FPS display, which the user added, are part of Phase 8 too.
+- The first frame after switching to the top camera is the same as the next one (§11: 4; test `scene_3d` and the real `FieldView3D`; 8-5).
+- 60 fps with everything on at 1920×1080 on the work machine's integrated GPU (GPU up to 7.4 ms; 8-5). The flying ball does not change the cost of drawing (its table once after a log is read, 3 to 6 ms).
+- The user checked 8-1 to 8-6 on the screen. The conditions of Phase 8 are met.
