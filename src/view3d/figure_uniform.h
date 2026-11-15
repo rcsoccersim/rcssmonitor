@@ -145,7 +145,7 @@ struct Cuts {
         COUNT,
     };
     std::array< QVector4D, COUNT > planes;
-    //! the hairstyle (FigureLooks::Hair bit) of each scalp of the vertices (SkinVertex::scalp), 0: none
+    //! the hairstyle (its bit of the body: FigureBodySpec::bitOf()) of each scalp of the vertices (SkinVertex::scalp), 0: none
     std::array< std::uint32_t, SCALP_HAIRS > scalp = { { 0, 0, 0, 0 } };
 
     //! how far a point is from the neck's middle line (NECK), across it (m)
@@ -257,7 +257,7 @@ struct Paint {
         Hair = 3, //!< in the figure's hair color (the eyebrows and the hairstyles)
     };
     int kind = Own;
-    //! Hair: only on the figures wearing this hairstyle (a FigureLooks::Hair bit); 0: on all
+    //! Hair: only on the figures wearing this hairstyle or extra (its bit of the body: FigureBodySpec::bitOf()); 0: on all
     std::uint32_t show = 0;
 };
 

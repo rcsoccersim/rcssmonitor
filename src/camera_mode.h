@@ -266,72 +266,37 @@ guideModeFromName( const QString & name,
 }
 
 /*!
-  \enum PlayerModel
-  \brief how the 3D view draws the players: cylinders and spheres, or
-  human figures (docs/PLAN_3D-VIEW.md §5.8): the mannequin, or a human body
-  in a uniform
+  \brief how the 3D view draws the players (docs/PLAN_3D-VIEW.md §5.8,
+  §5.9): as cylinders and spheres (PLAYER_MODEL_SIMPLE), or as human
+  figures of a figure pack, by its name (its folder's: FigurePacks), the
+  bundled ones the Mannequin (PLAYER_MODEL_MANNEQUIN) and the human bodies
+  in a uniform (PLAYER_MODEL_HUMAN)
 */
-enum class PlayerModel {
-    Simple,
-    Mannequin,
-    Human,
-};
-
-//! the player models, with their names in the options
-inline
-const std::array< std::pair< PlayerModel, const char * >, 3 > &
-playerModels()
-{
-    static const std::array< std::pair< PlayerModel, const char * >, 3 > list = { {
-            { PlayerModel::Simple, "simple" },
-            { PlayerModel::Mannequin, "mannequin" },
-            { PlayerModel::Human, "human" },
-        } };
-    return list;
-}
-
-//! the name of a player model in the options
-inline
-QString
-playerModelName( const PlayerModel model )
-{
-    for ( const auto & m : playerModels() )
-    {
-        if ( m.first == model ) return QString::fromLatin1( m.second );
-    }
-    return QString();
-}
+constexpr const char * PLAYER_MODEL_SIMPLE = "simple";
+constexpr const char * PLAYER_MODEL_MANNEQUIN = "mannequin";
+constexpr const char * PLAYER_MODEL_HUMAN = "human";
 
 /*!
-  \brief the player model of a name in the options
-  \return false if the name is unknown (model is left as it was)
+  \brief a player model's name as the options keep it: the cylinders if
+  empty, the Mannequin for the name it had before there were more figures
+  ("figure"), else as it is (a figure pack's name, whether there is such a
+  pack or not)
 */
 inline
-bool
-playerModelFromName( const QString & name,
-                     PlayerModel * model )
+QString
+normalizedPlayerModel( const QString & name )
 {
-    for ( const auto & m : playerModels() )
-    {
-        if ( name == QLatin1String( m.second ) )
-        {
-            *model = m.first;
-            return true;
-        }
-    }
-    // the name of the mannequin before there were more figures
-    if ( name == QLatin1String( "figure" ) )
-    {
-        *model = PlayerModel::Mannequin;
-        return true;
-    }
-    return false;
+    const QString n = name.trimmed();
+    if ( n.isEmpty() ) return QString::fromLatin1( PLAYER_MODEL_SIMPLE );
+    if ( n == QLatin1String( "figure" ) ) return QString::fromLatin1( PLAYER_MODEL_MANNEQUIN );
+    return n;
 }
 
 /*!
   \enum FigureBodies
-  \brief which bodies the human figures (PlayerModel::Human) have: men and
-  women mixed, men only or women only (docs/PLAN_3D-VIEW.md §5.8)
+  \brief which bodies the human figures have, of a figure pack with men's
+  and women's (the Human): men and women mixed, men only or women only
+  (docs/PLAN_3D-VIEW.md §5.8)
 */
 enum class FigureBodies {
     Mixed,

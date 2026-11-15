@@ -112,23 +112,40 @@ FrameBuilder3D::build( const DispHolder & holder,
         }
     }
 
-    // the players as human figures of the model, but not from the top
-    // camera (a map); as cylinders if the model cannot be read
-    bool figures = ( opt.playerModel3D() != PlayerModel::Simple
+    // the players as human figures of the figure pack, but not from the
+    // top camera (a map); as cylinders if the pack cannot be read (told
+    // once, tried again when the packs are looked for again)
+    bool figures = ( opt.figures3D()
                      && camera != CameraMode::Top
                      && M_figures.load() );
-    if ( figures
-         && ! M_figures.setModel( opt.playerModel3D() ) )
+    if ( figures )
     {
-        if ( ! M_model_failed )
+        const QString & id = opt.playerModel3D();
+        const FigurePack * pack = FigurePacks::find( id, opt.figureFolder3D() );
+        if ( ! pack
+             || ! M_figures.hasPack()
+             || M_figures.pack().id != pack->id
+             || M_figures.pack().dir != pack->dir )
         {
-            std::cerr << "(FrameBuilder3D) the figures of " << playerModelName( opt.playerModel3D() ).toStdString()
-                      << " are not available: " << M_figures.error().toStdString() << std::endl;
-            M_model_failed = true;
+            const QString attempt = ( pack ? pack->dir : id ) + QLatin1Char( '\n' )
+                + QString::number( FigurePacks::generation() );
+            if ( attempt != M_pack_failed )
+            {
+                QString why;
+                if ( ! pack ) why = QStringLiteral( "no figure pack \"" ) + id + QLatin1Char( '"' );
+                else if ( ! M_figures.setPack( *pack ) ) why = M_figures.error();
+                FigurePacks::noteError( id, why ); // none: drawn
+                if ( ! why.isEmpty() )
+                {
+                    std::cerr << "(FrameBuilder3D) the figures of " << id.toStdString()
+                              << " are not available: " << why.toStdString() << std::endl;
+                    M_pack_failed = attempt;
+                }
+            }
+            figures = ( pack && M_figures.hasPack() && M_figures.pack().dir == pack->dir );
         }
-        figures = false;
     }
-    M_model = ( figures ? M_figures.bodyModel() : PlayerModel::Simple );
+    M_model = ( figures ? M_figures.pack().id : QString::fromLatin1( PLAYER_MODEL_SIMPLE ) );
 
     // what the cameras follow: the ball, and the selected player in the show
     M_subject = CameraSubject();
@@ -189,7 +206,7 @@ FrameBuilder3D::build( const DispHolder & holder,
 
     QElapsedTimer clock;
     clock.start();
-    SceneBuilder::addShow( content, M_show, holder, opt, seen(), figures, M_ball_turn );
+    SceneBuilder::addShow( content, M_show, holder, opt, seen(), figures ? &M_figures.cast() : nullptr, M_ball_turn );
     // the simple shadows, an ellipse under each player drawn
     if ( shadows && opt.shadows3D() == ShadowMode::Simple )
     {
@@ -262,7 +279,7 @@ FrameBuilder3D::state( const SceneContent & content,
     s.figures = static_cast< int >( content.figures.size() );
     s.cylinders = s.players - s.figures;
     s.labels = static_cast< int >( content.labels.size() );
-    s.model = ( content.figures.empty() ? PlayerModel::Simple : M_model );
+    s.model = ( content.figures.empty() ? QString::fromLatin1( PLAYER_MODEL_SIMPLE ) : M_model );
     s.figures_ready = M_figures.ready();
     s.figure_joints = content.figure_joints;
     s.figure_bodies = content.figure_bodies;

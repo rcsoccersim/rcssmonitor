@@ -187,7 +187,7 @@ private:
     Scene3D M_scene; //!< the OpenGL drawing
     SceneContent M_content; //!< what to draw, reused in every frame
     bool M_ready; //!< Scene3D could be initialized
-    PlayerModel M_figure_model = PlayerModel::Simple; //!< the body of the figures sent to the GPU (Simple: none)
+    QString M_figure_pack; //!< the folder of the figure pack whose bodies were sent to the GPU (empty: none)
     QString M_ground_key; //!< what the ground was drawn with (GroundTexture::key())
     QString M_stadium_keys[2]; //!< what each end's boards and banner were drawn with (Stadium3D::TeamLook::key())
     QString M_stands_key; //!< what the stands' images were drawn with (the team colors and names)

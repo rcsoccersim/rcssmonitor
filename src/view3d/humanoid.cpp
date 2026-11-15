@@ -132,6 +132,26 @@ quaterniusBoneNames()
 }
 
 /*-------------------------------------------------------------------*/
+QStringList
+skeletonPresets()
+{
+    return QStringList( { QStringLiteral( "quaternius" ) } );
+}
+
+/*-------------------------------------------------------------------*/
+bool
+skeletonBoneNames( const QString & preset,
+                   HumanBoneNames * names )
+{
+    if ( preset == QLatin1String( "quaternius" ) )
+    {
+        *names = quaterniusBoneNames();
+        return true;
+    }
+    return false;
+}
+
+/*-------------------------------------------------------------------*/
 bool
 HumanoidRig::build( const GltfModel & model,
                     const HumanBoneNames & names,

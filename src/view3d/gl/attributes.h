@@ -87,7 +87,7 @@ constexpr unsigned int REST = 11; //!< vec3: where the rest pose puts it in the 
 constexpr unsigned int PART = 12; //!< vec2: how much the arms' and the legs' bones move it (FigureUniform::paintParts())
 // and of an instance (a figure): COLOR, and its looks (FigureLook)
 constexpr unsigned int SKIN = 13; //!< vec4: the color of its skin
-constexpr unsigned int HAIR = 14; //!< vec4: the color of its hair, with the hairstyles it wears in w (FigureLooks::Hair bits)
+constexpr unsigned int HAIR = 14; //!< vec4: the color of its hair, with the hairstyles it wears in w (bits of its body: FigureBodySpec::bitOf())
 // and of a vertex of a skinned mesh again
 constexpr unsigned int SCALP = 15; //!< vec4: under each hairstyle of the model or not (SkinVertex::scalp)
 

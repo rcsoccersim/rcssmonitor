@@ -42,7 +42,7 @@ namespace {
 QByteArray
 mannequin()
 {
-    QFile file( QStringLiteral( TEST_SOURCE_DIR "/resources/models/Mannequin.glb" ) );
+    QFile file( QStringLiteral( TEST_SOURCE_DIR "/resources/figures/mannequin/Mannequin.glb" ) );
     if ( ! file.open( QIODevice::ReadOnly ) ) return QByteArray();
     return file.readAll();
 }

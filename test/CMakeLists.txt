@@ -1,7 +1,9 @@
 # The tests run with HOME in the build tree, so that they never read or
 # write the user's ~/.rcssmonitor.conf (Options reads and writes it). Each
 # test removes the settings that an earlier run left there before it starts
-# (fresh_settings.cpp), when HOME is RCSSMONITOR_TEST_HOME.
+# (fresh_settings.cpp), when HOME is RCSSMONITOR_TEST_HOME. The XDG data
+# folders are there too, so that they never read the user's figure packs
+# (FigurePacks).
 set(TEST_HOME ${CMAKE_CURRENT_BINARY_DIR}/home)
 file(MAKE_DIRECTORY ${TEST_HOME})
 
@@ -37,7 +39,7 @@ function(rcssmonitor_add_test name)
   # skipped, not as passed
   set_tests_properties(${name}
     PROPERTIES
-    ENVIRONMENT "HOME=${TEST_HOME};RCSSMONITOR_TEST_HOME=${TEST_HOME};QT_QPA_PLATFORM=offscreen"
+    ENVIRONMENT "HOME=${TEST_HOME};RCSSMONITOR_TEST_HOME=${TEST_HOME};XDG_DATA_HOME=${TEST_HOME}/share;XDG_DATA_DIRS=${TEST_HOME}/share-system;QT_QPA_PLATFORM=offscreen"
     SKIP_REGULAR_EXPRESSION "\nSKIP   : "
     )
 endfunction()
@@ -67,6 +69,7 @@ if(HAVE_3D_VIEW)
   rcssmonitor_add_test(cameras_3d rcssmonitor_core)
   rcssmonitor_add_test(figure_actions rcssmonitor_core)
   rcssmonitor_add_test(figure_looks rcssmonitor_core)
+  rcssmonitor_add_test(figure_pack rcssmonitor_core)
   rcssmonitor_add_test(figure_uniform rcssmonitor_core)
   rcssmonitor_add_test(figures_3d rcssmonitor_core)
   rcssmonitor_add_test(frame_builder_3d rcssmonitor_core)

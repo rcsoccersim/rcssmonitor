@@ -41,6 +41,10 @@
 #include "disp_holder.h"
 #include "options.h"
 
+#include <QDir>
+#include <QFile>
+#include <QTemporaryDir>
+
 #include <cmath>
 
 namespace {
@@ -156,7 +160,7 @@ private slots:
     void init()
       {
           Options & opt = Options::instance();
-          opt.setPlayerModel3D( PlayerModel::Mannequin );
+          opt.setPlayerModel3D( QString( PLAYER_MODEL_MANNEQUIN ) );
           opt.setFigureScale3D( Options::FIGURE_SCALE_3D );
           opt.unselectPlayer();
       }
@@ -164,6 +168,76 @@ private slots:
     void cleanup()
       {
           Options::instance().setPlayerModel3D( Options::PLAYER_MODEL_3D );
+          Options::instance().setFigureFolder3D( QString() );
+      }
+
+    /*!
+      the players as the figures of a pack of the user's, in the folder of
+      the option; a pack of no name, or one that cannot be drawn, as
+      cylinders, told (FigurePacks::drawError()), tried again after the
+      packs are looked for again; the bundled ones again
+    */
+    void packs()
+      {
+          Options & opt = Options::instance();
+          QTemporaryDir folder;
+          QDir dir( folder.path() );
+          QVERIFY( dir.mkpath( "robot" ) && dir.mkpath( "broken" ) );
+          QVERIFY( QFile::copy( ":/figures/mannequin/Mannequin.glb", dir.filePath( "robot/Robot.glb" ) ) );
+          const QByteArray robot = "{ \"format\": 1, \"motion\": \"mannequin\",\n"
+              "  \"bodies\": [ { \"model\": \"Robot.glb\", \"paint\": { \"M_Main\": \"team\" } } ] }\n";
+          const auto write = [&dir]( const char * path, const QByteArray & data ) {
+              QFile f( dir.filePath( path ) );
+              return f.open( QIODevice::WriteOnly ) && f.write( data ) == data.size();
+          };
+          QVERIFY( write( "robot/figure.json", robot ) );
+          // read, but its model is not one
+          QVERIFY( write( "broken/figure.json", robot ) );
+          QVERIFY( write( "broken/Robot.glb", "not a model" ) );
+          opt.setFigureFolder3D( folder.path() );
+
+          FrameBuilder3D builder;
+          opt.setPlayerModel3D( "robot" );
+          View3DState s = build( builder, M_holder, at( M_holder, 10 ) );
+          QCOMPARE( s.model, QString( "robot" ) );
+          QCOMPARE( s.figures, 22 );
+          QCOMPARE( builder.figures().pack().dir, dir.filePath( "robot" ) );
+          QVERIFY( FigurePacks::drawError( "robot" ).isEmpty() );
+
+          // no such pack: cylinders, told
+          opt.setPlayerModel3D( "nobody" );
+          s = build( builder, M_holder, at( M_holder, 10 ) );
+          QCOMPARE( s.model, QString( PLAYER_MODEL_SIMPLE ) );
+          QCOMPARE( s.figures, 0 );
+          QCOMPARE( s.cylinders, 22 );
+          QCOMPARE( FigurePacks::drawError( "nobody" ), QString( "no figure pack \"nobody\"" ) );
+
+          // a model that cannot be read: cylinders, told; tried once only
+          opt.setPlayerModel3D( "broken" );
+          s = build( builder, M_holder, at( M_holder, 10 ) );
+          QCOMPARE( s.figures, 0 );
+          QVERIFY2( FigurePacks::drawError( "broken" ).startsWith( "broken: Robot.glb: " ),
+                    qPrintable( FigurePacks::drawError( "broken" ) ) );
+          FigurePacks::noteError( "broken", "not tried again" );
+          build( builder, M_holder, at( M_holder, 11 ) );
+          QCOMPARE( FigurePacks::drawError( "broken" ), QString( "not tried again" ) );
+
+          // mended, and the packs looked for again: drawn
+          QVERIFY( QFile::remove( dir.filePath( "broken/Robot.glb" ) ) );
+          QVERIFY( QFile::copy( ":/figures/mannequin/Mannequin.glb", dir.filePath( "broken/Robot.glb" ) ) );
+          FigurePacks::refresh();
+          s = build( builder, M_holder, at( M_holder, 10 ) );
+          QCOMPARE( s.model, QString( "broken" ) );
+          QCOMPARE( s.figures, 22 );
+          QVERIFY( FigurePacks::drawError( "broken" ).isEmpty() );
+
+          // the bundled ones again
+          opt.setPlayerModel3D( QString( PLAYER_MODEL_HUMAN ) );
+          s = build( builder, M_holder, at( M_holder, 10 ) );
+          QCOMPARE( s.model, QString( PLAYER_MODEL_HUMAN ) );
+          QCOMPARE( s.figures, 22 );
+          opt.setFigureFolder3D( QString() );
+          FigurePacks::refresh();
       }
 
     /*!
@@ -184,7 +258,7 @@ private slots:
           QCOMPARE( s.players, 22 );
           QCOMPARE( s.figures, 22 );
           QCOMPARE( s.cylinders, 0 );
-          QCOMPARE( s.model, PlayerModel::Mannequin );
+          QCOMPARE( s.model, QString( PLAYER_MODEL_MANNEQUIN ) );
           QCOMPARE( int( s.probes.size() ), 22 );
           QCOMPARE( s.figure_joints.size(), std::size_t( 22 * builder.figures().model().jointCount() * 16 ) );
           QCOMPARE( builder.time(), 10.5 * 0.1 );
@@ -202,19 +276,19 @@ private slots:
           s = build( builder, M_holder, at( M_holder, 10 ), CameraMode::Top );
           QCOMPARE( s.figures, 0 );
           QCOMPARE( s.cylinders, 22 );
-          QCOMPARE( s.model, PlayerModel::Simple );
+          QCOMPARE( s.model, QString( PLAYER_MODEL_SIMPLE ) );
           QVERIFY( s.probes.empty() );
           QVERIFY( s.figure_joints.empty() );
 
           // the simple model: cylinders
-          opt.setPlayerModel3D( PlayerModel::Simple );
+          opt.setPlayerModel3D( QString( PLAYER_MODEL_SIMPLE ) );
           s = build( builder, M_holder, at( M_holder, 10 ) );
           QCOMPARE( s.figures, 0 );
           QCOMPARE( s.cylinders, 22 );
-          QCOMPARE( s.model, PlayerModel::Simple );
+          QCOMPARE( s.model, QString( PLAYER_MODEL_SIMPLE ) );
 
           // no players shown
-          opt.setPlayerModel3D( PlayerModel::Mannequin );
+          opt.setPlayerModel3D( QString( PLAYER_MODEL_MANNEQUIN ) );
           opt.toggleShowPlayer();
           s = build( builder, M_holder, at( M_holder, 10 ) );
           opt.toggleShowPlayer();
@@ -321,17 +395,17 @@ private slots:
     void humanBodies()
       {
           Options & opt = Options::instance();
-          opt.setPlayerModel3D( PlayerModel::Human );
+          opt.setPlayerModel3D( QString( PLAYER_MODEL_HUMAN ) );
           FrameBuilder3D builder;
           for ( const FigureBodies bodies : { FigureBodies::Mixed, FigureBodies::Male, FigureBodies::Female } )
           {
               opt.setFigureBodies3D( bodies );
               const View3DState s = build( builder, M_holder, at( M_holder, 30, 0.5 ) );
-              QCOMPARE( s.model, PlayerModel::Human );
+              QCOMPARE( s.model, QString( PLAYER_MODEL_HUMAN ) );
               QCOMPARE( s.figures, 22 );
               QCOMPARE( int( s.figure_bodies.size() ), 22 );
               int women = 0;
-              for ( const int b : s.figure_bodies ) if ( b == FigureLooks::FEMALE ) ++women;
+              for ( const int b : s.figure_bodies ) if ( b == 1 ) ++women; // the Human pack's woman
               if ( bodies == FigureBodies::Mixed ) QVERIFY( women > 0 && women < 22 );
               if ( bodies == FigureBodies::Male ) QCOMPARE( women, 0 );
               if ( bodies == FigureBodies::Female ) QCOMPARE( women, 22 );
@@ -345,7 +419,7 @@ private slots:
           const View3DState first = build( builder, M_holder, at( M_holder, 38, 0.25 ) );
           build( builder, M_holder, at( M_holder, 100 ) );
           QCOMPARE( build( builder, M_holder, at( M_holder, 38, 0.25 ) ).figure_joints, first.figure_joints );
-          opt.setPlayerModel3D( PlayerModel::Mannequin );
+          opt.setPlayerModel3D( QString( PLAYER_MODEL_MANNEQUIN ) );
       }
 
     /*!
@@ -621,7 +695,7 @@ private slots:
           QVERIFY( builder.seen() );
           QVERIFY( builder.seen()->active );
           // as cylinders: of the default scale
-          opt.setPlayerModel3D( PlayerModel::Simple );
+          opt.setPlayerModel3D( QString( PLAYER_MODEL_SIMPLE ) );
           builder.build( M_holder, opt, at( M_holder, 20 ), CameraMode::Player, content );
           QVERIFY( std::fabs( builder.subject().player_scale - 1.0f ) < 1.0e-5f );
           opt.unselectPlayer();

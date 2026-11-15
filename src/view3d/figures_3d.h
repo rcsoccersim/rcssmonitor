@@ -33,19 +33,17 @@
 #ifndef RCSSMONITOR_FIGURES_3D_H
 #define RCSSMONITOR_FIGURES_3D_H
 
+#include "figure_pack.h"
 #include "figure_uniform.h"
 #include "gait_table.h"
 #include "gltf_model.h"
 #include "humanoid.h"
 #include "scene_content.h"
 
-#include "camera_mode.h"
-
 #include <QMatrix4x4>
 #include <QString>
 #include <QStringList>
 
-#include <array>
 #include <initializer_list>
 #include <memory>
 #include <utility>
@@ -71,19 +69,22 @@ struct GaitClip {
 
 /*!
   \class Figures3D
-  \brief the players as human figures (docs/PLAN_3D-VIEW.md §5.8): the
-  bundled models (resources/models, CC0) and the poses of the figures that
-  SceneBuilder put in a SceneContent. No OpenGL: Scene3D draws them.
+  \brief the players as human figures (docs/PLAN_3D-VIEW.md §5.8, §5.9):
+  the models and the motion of a figure pack (FigurePack, setPack()), and
+  the poses of the figures that SceneBuilder put in a SceneContent. No
+  OpenGL: Scene3D draws them.
 
-  The motion is the Mannequin's of Quaternius's Universal Animation
-  Library: its clips of standing, walking and running. The bodies drawn
-  are (setModel()) the Mannequin itself, all in the figure's color but the
-  joints, or the human bodies of the Universal Base Characters, a man's
-  and a woman's (the same skeleton, other proportions), each figure in its
-  own (FigureLook: its body, its hairstyle, the colors of its skin and its
-  hair) and in a uniform painted by FigureUniform. The motion goes from
-  one to the other through the humanoid layer, and the poses of the
-  actions are made on the body drawn.
+  A pack has a motion, its clips of standing, walking and running (the
+  bundled ones the Mannequin's of Quaternius's Universal Animation
+  Library), and the bodies drawn: the bundled ones the Mannequin itself,
+  all in the figure's color but the joints, or the human bodies of the
+  Universal Base Characters, a man's and a woman's (the same skeleton,
+  other proportions), each figure in its own (FigureLook: its body, its
+  hairstyle, the colors of its skin and its hair) and in a uniform painted
+  by FigureUniform. The motion goes from one to the other through the
+  humanoid layer, and the poses of the actions are made on the body drawn.
+  Each pack is read once (its motion once for the packs that share it),
+  and kept.
 
   A pose is decided from the log every frame, from the frame and the
   fraction to the next one only (FigureMotion, from GaitTable), so that a
@@ -157,7 +158,7 @@ public:
     Figures3D & operator=( const Figures3D & ) = delete;
 
     /*!
-      \brief read the motion and the Mannequin, the body drawn first (once)
+      \brief read the bundled Mannequin's pack, the one drawn first (once)
       \return false if it cannot be read; error() tells why
     */
     bool load();
@@ -166,17 +167,21 @@ public:
     const QString & error() const { return M_error; }
 
     /*!
-      \brief the bodies drawn: the Mannequin (also for Simple), or the
-      human bodies (FigureLooks::MALE, FEMALE), read the first time they are
-      asked for
-      \return false if they cannot be read (error() tells why): the bodies stay
+      \brief the figures of a pack: its motion and its bodies, read the
+      first time it is asked for (a pack of the same name and folder)
+      \return false if it cannot be read (error() tells why): the pack
+      drawn stays
     */
-    bool setModel( const PlayerModel model );
-    //! the bodies drawn
-    PlayerModel bodyModel() const { return M_body_model; }
+    bool setPack( const FigurePack & pack );
+    //! whether a pack is set
+    bool hasPack() const { return M_pack != nullptr; }
+    //! the pack drawn (an empty one if none)
+    const FigurePack & pack() const;
+    //! the bodies of the pack drawn, as the looks are drawn from them (SceneBuilder::addShow())
+    const FigureCast & cast() const;
     //! how many bodies are drawn (the Mannequin: 1; the human bodies: 2)
-    int bodyCount() const { return static_cast< int >( M_drawn.size() ); }
-    //! the body of a figure (an index of the bodies drawn): the human body of its looks
+    int bodyCount() const;
+    //! the body of a figure (an index of the bodies drawn): the body of its looks
     int bodyOf( const FigureInstance & figure ) const;
     /*!
       \brief how long a gait cycle of a body is, of the motion's for the
@@ -198,8 +203,8 @@ public:
     const GltfModel & model( const int body = 0 ) const;
     const HumanoidRig & rig( const int body = 0 ) const;
     //! the model of the motion (the clips) and its roles
-    const GltfModel & motionModel() const { return M_model; }
-    const HumanoidRig & motionRig() const { return M_rig; }
+    const GltfModel & motionModel() const;
+    const HumanoidRig & motionRig() const;
 
     /*!
       \brief read a clip of walking or running: when the left foot comes
@@ -223,7 +228,7 @@ public:
                              const HumanoidRig * body_rig = nullptr );
 
     //! the clips of walking and running, slowest first
-    const std::vector< GaitClip > & gaitClips() const { return M_gaits; }
+    const std::vector< GaitClip > & gaitClips() const;
 
     //! the clips' strides at their speeds, for GaitTable
     std::vector< GaitStride > strides() const;
@@ -324,28 +329,25 @@ private:
     bool M_loaded = false; //!< load() was tried
     bool M_ready = false;
     QString M_error;
-    GltfModel M_model; //!< the motion: the Mannequin with its clips
-    HumanoidRig M_rig; //!< its roles
-    int M_idle = -1; //!< the clip of standing
-    std::vector< GaitClip > M_gaits; //!< walking and running, slowest first
 
+    struct Motion;
     struct Body;
-    //! the bodies: the Mannequin, the man's and the woman's, read when first asked for
-    static constexpr int BODIES = 3;
-    std::array< std::unique_ptr< Body >, BODIES > M_bodies;
-    std::array< bool, BODIES > M_body_tried = { { false, false, false } };
-    std::vector< const Body * > M_drawn; //!< the bodies drawn
-    PlayerModel M_body_model = PlayerModel::Mannequin;
+    struct Pack;
+    std::vector< std::unique_ptr< Motion > > M_motions; //!< the motions read
+    std::vector< std::unique_ptr< Pack > > M_packs; //!< the packs read
+    const Pack * M_pack = nullptr; //!< the pack drawn
 
-    //! read a body if not yet (k: of M_bodies)
-    bool readBody( const int k );
+    //! the motion of the pack drawn
+    const Motion & motion() const;
     //! a figure's body
     const Body & bodyFor( const FigureInstance & figure ) const;
 
-    //! read a body (a model of the motion's skeleton)
-    std::unique_ptr< Body > loadBody( const char * path,
-                                      const QStringList & jersey,
-                                      const QStringList & uniform,
+    //! read a motion, or the one read before of the same model and clips
+    const Motion * motionOf( const FigureMotionSpec & spec,
+                             QString * error );
+    //! read a body (a model of a skeleton of the humanoid layer) for a motion
+    std::unique_ptr< Body > loadBody( const FigureBodySpec & spec,
+                                      const Motion & motion,
                                       QString * error ) const;
 
     //! a clip at a time, through the humanoid layer, and the nodes of the motion

@@ -71,10 +71,6 @@ const HairColor HAIRS[] = {
     { QVector4D( 0.46f, 0.19f, 0.08f, 1.0f ), 0.06 }, // red
 };
 
-//! the hairstyles of each body, each as often
-const std::uint32_t MALE_HAIRS[] = { SIMPLE_PARTED, BUZZED };
-const std::uint32_t FEMALE_HAIRS[] = { BUNS, LONG, BUZZED_FEMALE };
-
 /*!
   \class Lot
   \brief numbers drawn by lot from a seed (splitmix64): the same seed, the
@@ -114,6 +110,40 @@ seedOf( const rcss::rcg::Side side,
     return h;
 }
 
+/*!
+  \brief the bodies of a sex: its own and anyone's, in the order of the
+  pack; all of them if none is
+*/
+std::vector< int >
+bodiesOf( const FigureCast & cast,
+          const FigureSex sex )
+{
+    std::vector< int > list;
+    for ( std::size_t i = 0; i < cast.bodies.size(); ++i )
+    {
+        if ( cast.bodies[i].sex == sex
+             || cast.bodies[i].sex == FigureSex::Any )
+        {
+            list.push_back( int( i ) );
+        }
+    }
+    if ( list.empty() )
+    {
+        for ( std::size_t i = 0; i < cast.bodies.size(); ++i ) list.push_back( int( i ) );
+    }
+    return list;
+}
+
+//! one of a list by a number drawn from 0 up to 1
+template < typename T >
+const T &
+pick( const std::vector< T > & list,
+      const double along )
+{
+    const int n = static_cast< int >( list.size() );
+    return list[std::min( n - 1, std::max( 0, int( along * n ) ) )];
+}
+
 QVector4D
 mix( const QVector4D & a,
      const QVector4D & b,
@@ -125,38 +155,17 @@ mix( const QVector4D & a,
 }
 
 /*-------------------------------------------------------------------*/
-std::uint32_t
-hairBit( const QString & material )
-{
-    static const struct { const char * name; std::uint32_t bit; } HAIR_NAMES[] = {
-        { "Hair_SimpleParted", SIMPLE_PARTED },
-        { "Hair_Buzzed", BUZZED },
-        { "Hair_Beard", BEARD },
-        { "Hair_Buns", BUNS },
-        { "Hair_Long", LONG },
-        { "Hair_BuzzedFemale", BUZZED_FEMALE },
-    };
-    for ( const auto & h : HAIR_NAMES )
-    {
-        if ( material == QLatin1String( h.name ) ) return h.bit;
-    }
-    return 0;
-}
-
-/*-------------------------------------------------------------------*/
 FigureLook
-standard( const FigureBodies bodies )
+standard( const FigureBodies bodies,
+          const FigureCast & cast )
 {
     FigureLook look; // the standard colors
-    if ( bodies == FigureBodies::Female )
+    look.body = 0;
+    look.hair = 0;
+    if ( ! cast.bodies.empty() )
     {
-        look.body = FEMALE;
-        look.hair = BUZZED_FEMALE;
-    }
-    else
-    {
-        look.body = MALE;
-        look.hair = SIMPLE_PARTED;
+        look.body = bodiesOf( cast, bodies == FigureBodies::Female ? FigureSex::Female : FigureSex::Male ).front();
+        look.hair = cast.bodies[look.body].standard_hair;
     }
     return look;
 }
@@ -166,30 +175,46 @@ FigureLook
 of( const rcss::rcg::Side side,
     const int unum,
     const std::string & team,
-    const FigureBodies bodies )
+    const FigureBodies bodies,
+    const FigureCast & cast )
 {
     Lot lot( seedOf( side, unum, team ) );
     FigureLook look;
 
-    // the body, by the option
+    // the body, by the option: of men and women (each half), or of one of
+    // them; one of the bodies of that sex by the same number, so that as
+    // many numbers are drawn for any pack
     const double sex = lot.next();
-    look.body = ( bodies == FigureBodies::Female ? FEMALE
-                  : bodies == FigureBodies::Male ? MALE
-                  : sex < 0.5 ? FEMALE : MALE );
-
-    // the hairstyle of the body, and a man's beard
-    const double style = lot.next();
-    const double beard = lot.next();
-    if ( look.body == FEMALE )
+    look.body = 0;
+    if ( ! cast.bodies.empty() )
     {
-        const int n = sizeof( FEMALE_HAIRS ) / sizeof( FEMALE_HAIRS[0] );
-        look.hair = FEMALE_HAIRS[std::min( n - 1, int( style * n ) )];
+        if ( bodies == FigureBodies::Female )
+        {
+            look.body = pick( bodiesOf( cast, FigureSex::Female ), sex );
+        }
+        else if ( bodies == FigureBodies::Male )
+        {
+            look.body = pick( bodiesOf( cast, FigureSex::Male ), sex );
+        }
+        else if ( sex < 0.5 )
+        {
+            look.body = pick( bodiesOf( cast, FigureSex::Female ), sex / 0.5 );
+        }
+        else
+        {
+            look.body = pick( bodiesOf( cast, FigureSex::Male ), ( sex - 0.5 ) / 0.5 );
+        }
     }
-    else
+
+    // one of the body's hairstyles; the first extra (a man's beard) by the
+    // next number, the others after the colors
+    const double style = lot.next();
+    const double first_extra = lot.next();
+    const FigureCast::Body * body = ( cast.bodies.empty() ? nullptr : &cast.bodies[look.body] );
+    look.hair = 0;
+    if ( body && ! body->hairstyles.empty() )
     {
-        const int n = sizeof( MALE_HAIRS ) / sizeof( MALE_HAIRS[0] );
-        look.hair = MALE_HAIRS[std::min( n - 1, int( style * n ) )];
-        if ( beard < BEARD_CHANCE ) look.hair |= BEARD;
+        look.hair = pick( body->hairstyles, style );
     }
 
     // the skin anywhere along its colors
@@ -200,16 +225,25 @@ of( const rcss::rcg::Side side,
     // the hair's color by how often each is
     double total = 0.0;
     for ( const HairColor & h : HAIRS ) total += h.weight;
-    double pick = lot.next() * total;
+    double draw = lot.next() * total;
     look.hair_color = HAIRS[0].color;
     for ( const HairColor & h : HAIRS )
     {
-        if ( pick < h.weight )
+        if ( draw < h.weight )
         {
             look.hair_color = h.color;
             break;
         }
-        pick -= h.weight;
+        draw -= h.weight;
+    }
+
+    if ( body )
+    {
+        for ( std::size_t e = 0; e < body->extras.size(); ++e )
+        {
+            const double chance = ( e == 0 ? first_extra : lot.next() );
+            if ( chance < body->extras[e].chance ) look.hair |= body->extras[e].bit;
+        }
     }
     return look;
 }

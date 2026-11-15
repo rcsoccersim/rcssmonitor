@@ -42,6 +42,7 @@
 #include <vector>
 
 class QPushButton;
+class QAction;
 class QButtonGroup;
 class QCheckBox;
 class QCloseEvent;
@@ -51,6 +52,7 @@ class QGridLayout;
 class QLabel;
 class QLineEdit;
 class QListWidget;
+class QToolButton;
 class QPushButton;
 class QRadioButton;
 class QSlider;
@@ -221,7 +223,10 @@ private:
     QDoubleSpinBox * M_closeup_elevation_3d = nullptr;
     QButtonGroup * M_compass_3d = nullptr;
     QButtonGroup * M_minimap_3d = nullptr;
-    QButtonGroup * M_player_model_3d = nullptr;
+    QComboBox * M_player_model_3d = nullptr; //!< the cylinders or a figure pack (fillPacks())
+    QToolButton * M_figure_folder_3d = nullptr; //!< the folders of the figure packs
+    QAction * M_no_figure_folder_3d = nullptr;
+    QLabel * M_figure_credits_3d = nullptr; //!< the pack's credits, or why it cannot be drawn
     QButtonGroup * M_figure_bodies_3d = nullptr;
     QLabel * M_figure_bodies_3d_label = nullptr;
     QDoubleSpinBox * M_figure_scale_3d = nullptr;
@@ -297,6 +302,8 @@ private:
                                 const QString & unit,
                                 QLabel ** label_widget = nullptr );
     void changed3D();
+    //! the cylinders and the figure packs found, the one of the options chosen, and its credits
+    void fillPacks();
 
 protected:
 
@@ -381,6 +388,9 @@ public slots:
     void updateFieldScale();
     // the 3D tab and the Player Camera tab from the options
     void update3D();
+    // a folder of figure packs of the user's choice (empty: none); the packs looked for again
+    // emit configured()
+    void setFigureFolder( const QString & folder );
 
     // connect to other objects
     // emit configured()

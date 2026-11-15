@@ -34,6 +34,7 @@
 
 #include "cameras_3d.h"
 #include "disp_holder.h"
+#include "figure_pack.h"
 #include "label_atlas.h"
 #include "options.h"
 #include "player_style.h"
@@ -43,6 +44,14 @@
 #include <rcss/rcg/types.h>
 
 namespace {
+
+//! the bodies of the bundled Human pack, from which the figures' looks are drawn
+const FigureCast &
+humanCast()
+{
+    static const FigureCast cast = FigurePacks::builtin( "human" )->cast();
+    return cast;
+}
 
 //! all players standing in two lines, the ball at the center spot
 rcss::rcg::ShowInfoT
@@ -318,7 +327,7 @@ private slots:
           // turned as it rolled, about its center, still of radius r
           const QQuaternion turn = QQuaternion::fromAxisAndAngle( 1.0f, 2.0f, 3.0f, 70.0f );
           c.clear();
-          SceneBuilder::addShow( c, show, M_holder, opt, nullptr, false, turn );
+          SceneBuilder::addShow( c, show, M_holder, opt, nullptr, nullptr, turn );
           const QVector3D center( 3, 2.0f + float( r ), -4 );
           QVERIFY( near( at( c.balls.back() ), center ) );
           for ( const QVector3D & v : { QVector3D( 1, 0, 0 ), QVector3D( 0, 1, 0 ), QVector3D( 0, 0, 1 ) } )
@@ -620,7 +629,7 @@ private slots:
           SceneContent simple;
           SceneBuilder::addShow( simple, show, M_holder, opt );
           SceneContent c;
-          SceneBuilder::addShow( c, show, M_holder, opt, nullptr, true );
+          SceneBuilder::addShow( c, show, M_holder, opt, nullptr, &humanCast() );
           opt.unselectPlayer();
           const size_t n = rcss::rcg::MAX_PLAYER * 2;
           QCOMPARE( c.figures.size(), n );
@@ -652,7 +661,7 @@ private slots:
           seen.players.fill( PlayerSight::FULL );
           seen.players[2] = PlayerSight::FELT;
           c.clear();
-          SceneBuilder::addShow( c, show, M_holder, opt, &seen, true );
+          SceneBuilder::addShow( c, show, M_holder, opt, &seen, &humanCast() );
           QCOMPARE( c.figures.size(), n - 1 );
           QCOMPARE( c.cylinders.size(), size_t( 1 ) );
           QVERIFY( near( at( c.cylinders[0] ).x(), show.player_[2].x_ ) );
@@ -679,7 +688,7 @@ private slots:
           for ( const bool figures : { false, true } )
           {
               SceneContent c;
-              SceneBuilder::addShow( c, show, M_holder, opt, nullptr, figures );
+              SceneBuilder::addShow( c, show, M_holder, opt, nullptr, figures ? &humanCast() : nullptr );
               SceneBuilder::addBlobShadows( c );
               QCOMPARE( c.picks.size(), size_t( rcss::rcg::MAX_PLAYER * 2 - 1 ) );
               QCOMPARE( c.blob_shadows.size(), c.picks.size() );
@@ -729,12 +738,12 @@ private slots:
           {
               opt.setFigureBodies3D( bodies );
               SceneContent c;
-              SceneBuilder::addShow( c, show, M_holder, opt, nullptr, true );
+              SceneBuilder::addShow( c, show, M_holder, opt, nullptr, &humanCast() );
               QCOMPARE( c.figures.size(), size_t( rcss::rcg::MAX_PLAYER * 2 ) );
               for ( const FigureInstance & f : c.figures )
               {
                   const rcss::rcg::PlayerT & p = show.player_[f.player];
-                  const FigureLook own = FigureLooks::of( p.side(), p.unum_, names[p.side() == rcss::rcg::LEFT ? 0 : 1], bodies );
+                  const FigureLook own = FigureLooks::of( p.side(), p.unum_, names[p.side() == rcss::rcg::LEFT ? 0 : 1], bodies, humanCast() );
                   QCOMPARE( f.look.body, own.body );
                   QCOMPARE( f.look.hair, own.hair );
                   QCOMPARE( f.look.skin, own.skin );
@@ -744,9 +753,9 @@ private slots:
           opt.setFigureBodies3D( FigureBodies::Mixed );
           // men and women
           SceneContent c;
-          SceneBuilder::addShow( c, show, M_holder, opt, nullptr, true );
+          SceneBuilder::addShow( c, show, M_holder, opt, nullptr, &humanCast() );
           int women = 0;
-          for ( const FigureInstance & f : c.figures ) if ( f.look.body == FigureLooks::FEMALE ) ++women;
+          for ( const FigureInstance & f : c.figures ) if ( f.look.body == 1 ) ++women; // the Human pack's woman
           QVERIFY( women > 0 && women < int( c.figures.size() ) );
 
           // the player camera half sure of a number: the colors half way, the standard body and hair
@@ -755,15 +764,15 @@ private slots:
           seen.players.fill( PlayerSight::FULL );
           seen.players[3] = Perception{ true, 1.0f, 0.5f, true };
           c.clear();
-          SceneBuilder::addShow( c, show, M_holder, opt, &seen, true );
-          const FigureLook own = FigureLooks::of( show.player_[3].side(), show.player_[3].unum_, team, FigureBodies::Mixed );
-          const FigureLook plain = FigureLooks::standard( FigureBodies::Mixed );
+          SceneBuilder::addShow( c, show, M_holder, opt, &seen, &humanCast() );
+          const FigureLook own = FigureLooks::of( show.player_[3].side(), show.player_[3].unum_, team, FigureBodies::Mixed, humanCast() );
+          const FigureLook plain = FigureLooks::standard( FigureBodies::Mixed, humanCast() );
           const FigureInstance & f = c.figures[3];
           QCOMPARE( f.look.body, plain.body );
           QCOMPARE( f.look.hair, plain.hair );
           QVERIFY( ( f.look.skin - ( own.skin + plain.skin ) * 0.5f ).length() < 1.0e-5f );
           QVERIFY( ( f.look.hair_color - ( own.hair_color + plain.hair_color ) * 0.5f ).length() < 1.0e-5f );
-          QCOMPARE( c.figures[2].look.skin, FigureLooks::of( show.player_[2].side(), show.player_[2].unum_, team, FigureBodies::Mixed ).skin );
+          QCOMPARE( c.figures[2].look.skin, FigureLooks::of( show.player_[2].side(), show.player_[2].unum_, team, FigureBodies::Mixed, humanCast() ).skin );
       }
 
     /*!
@@ -832,7 +841,7 @@ private slots:
           // a figure: a person's height times the ratio times the scale
           opt.setFigureScale3D( 1.2 );
           c.clear();
-          SceneBuilder::addShow( c, show, holder, opt, nullptr, true );
+          SceneBuilder::addShow( c, show, holder, opt, nullptr, &humanCast() );
           QVERIFY( near( c.figures[3].height, SceneBuilder::PERSON_HEIGHT * ratio * 1.2f ) );
           QVERIFY( near( c.figures[2].height, SceneBuilder::PERSON_HEIGHT * 1.2f ) );
           // picked as tall: the head's top at the figure's top
@@ -856,17 +865,17 @@ private slots:
           QVERIFY( near( at( c.cylinders[3], QVector3D( 0, 0.5f, 0 ) ).y(), SceneBuilder::BODY_HEIGHT * half ) );
           QVERIFY( near( c.picks[3].head_height, SceneBuilder::BODY_HEIGHT * half + SceneBuilder::HEAD_GAP + SceneBuilder::HEAD_RADIUS ) );
           c.clear();
-          SceneBuilder::addShow( c, show, holder, opt, &seen, true );
+          SceneBuilder::addShow( c, show, holder, opt, &seen, &humanCast() );
           QVERIFY( near( c.figures[3].height, SceneBuilder::PERSON_HEIGHT * half * float( opt.figureScale3D() ) ) );
           // not at all sure: of the default height
           seen.players[3] = Perception{ true, 1.0f, 0.0f, true };
           c.clear();
-          SceneBuilder::addShow( c, show, holder, opt, &seen, true );
+          SceneBuilder::addShow( c, show, holder, opt, &seen, &humanCast() );
           QVERIFY( near( c.figures[3].height, SceneBuilder::PERSON_HEIGHT * float( opt.figureScale3D() ) ) );
           // a felt one (gray, a cylinder even with figures): of the default height
           seen.players[3] = PlayerSight::FELT;
           c.clear();
-          SceneBuilder::addShow( c, show, holder, opt, &seen, true );
+          SceneBuilder::addShow( c, show, holder, opt, &seen, &humanCast() );
           QCOMPARE( c.cylinders.size(), size_t( 1 ) );
           QVERIFY( near( at( c.cylinders[0], QVector3D( 0, 0.5f, 0 ) ).y(), SceneBuilder::BODY_HEIGHT ) );
           // sure of the number: by its type
@@ -891,7 +900,7 @@ private slots:
               QCOMPARE( SceneBuilder::figureHeight( SceneBuilder::heightRatio( type, M_holder.serverParam() ), opt ), SceneBuilder::PERSON_HEIGHT * float( scale ) );
 
               SceneContent c;
-              SceneBuilder::addShow( c, show, M_holder, opt, nullptr, true );
+              SceneBuilder::addShow( c, show, M_holder, opt, nullptr, &humanCast() );
               const float head_top = c.figures[0].height;
               QCOMPARE( head_top, SceneBuilder::PERSON_HEIGHT * float( scale ) );
 

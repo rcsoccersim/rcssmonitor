@@ -238,7 +238,7 @@ addShow( SceneContent & content,
          const DispHolder & holder,
          const Options & opt,
          const Perceptions * perceptions,
-         const bool figures,
+         const FigureCast * cast,
          const QQuaternion & ball_turn )
 {
     const rcss::rcg::ServerParamT & sp = holder.serverParam();
@@ -273,7 +273,7 @@ addShow( SceneContent & content,
             // opacity of its number): the height would tell
             const float ratio = 1.0f + ( heightRatio( type, sp ) - 1.0f ) * std::min( 1.0f, std::max( 0.0f, seen.unum ) );
             // a human figure, where its directions are known
-            const bool figure = ( figures && seen.facing );
+            const bool figure = ( cast && seen.facing );
             QMatrix4x4 m;
             float body_height = BODY_HEIGHT * ratio;
             float head_height = body_height + HEAD_GAP + HEAD_RADIUS;
@@ -286,8 +286,8 @@ addShow( SceneContent & content,
                 // player knows who it is, as the height
                 const std::string & team = team_names[p.side() == rcss::rcg::LEFT ? 0 : 1];
                 content.figures.back().look
-                    = FigureLooks::blend( FigureLooks::of( p.side(), p.unum_, team, opt.figureBodies3D() ),
-                                          FigureLooks::standard( opt.figureBodies3D() ),
+                    = FigureLooks::blend( FigureLooks::of( p.side(), p.unum_, team, opt.figureBodies3D(), *cast ),
+                                          FigureLooks::standard( opt.figureBodies3D(), *cast ),
                                           seen.unum );
                 // picked as a cylinder and a head of its height, as wide as the figure
                 head_height = height - HEAD_RADIUS;

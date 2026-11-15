@@ -195,7 +195,8 @@ private:
     GuideMode M_compass_3d; //!< when the compass shows over the 3D view
     GuideMode M_minimap_3d; //!< when the minimap shows over the 3D view
     bool M_fps_3d; //!< the frames per second over the 3D view
-    PlayerModel M_player_model_3d; //!< how the 3D view draws the players
+    QString M_player_model_3d; //!< how the 3D view draws the players: PLAYER_MODEL_SIMPLE, or a figure pack's name
+    QString M_figure_folder_3d; //!< a folder of figure packs of the user's choice (empty: none)
     double M_figure_scale_3d; //!< the human figures: how many times a person's height
     FigureBodies M_figure_bodies_3d; //!< the human bodies: men and women, or one of them
     ShadowMode M_shadows_3d; //!< the sun's shadows of the players (and the goal frames when detailed)
@@ -490,10 +491,20 @@ public:
     //! the 3D view: when the compass (a strip of the directions around the camera) shows
     GuideMode compass3D() const { return M_compass_3d; }
     void setCompass3D( const GuideMode mode ) { M_compass_3d = mode; }
-    //! the 3D view: how the players are drawn (the default: cylinders and spheres)
-    static constexpr PlayerModel PLAYER_MODEL_3D = PlayerModel::Simple;
-    PlayerModel playerModel3D() const { return M_player_model_3d; }
-    void setPlayerModel3D( const PlayerModel model ) { M_player_model_3d = model; }
+    /*!
+      the 3D view: how the players are drawn, cylinders and spheres
+      (PLAYER_MODEL_SIMPLE, the default) or the human figures of a figure
+      pack (its name: FigurePacks)
+    */
+    static constexpr const char * PLAYER_MODEL_3D = PLAYER_MODEL_SIMPLE;
+    const QString & playerModel3D() const { return M_player_model_3d; }
+    //! as normalizedPlayerModel(): empty for the cylinders, the old name of the Mannequin
+    void setPlayerModel3D( const QString & model ) { M_player_model_3d = normalizedPlayerModel( model ); }
+    //! whether the players are drawn as human figures (of a figure pack), not as cylinders
+    bool figures3D() const { return M_player_model_3d != QLatin1String( PLAYER_MODEL_SIMPLE ); }
+    //! the 3D view: a folder of figure packs of the user's choice, besides the bundled ones and the user's data folder (empty: none)
+    const QString & figureFolder3D() const { return M_figure_folder_3d; }
+    void setFigureFolder3D( const QString & folder ) { M_figure_folder_3d = folder; }
     //! the 3D view: the human figures are this many times a person's height (larger to be seen from afar)
     static constexpr double FIGURE_SCALE_3D = 1.0;
     static constexpr double MIN_FIGURE_SCALE_3D = 0.8;
@@ -501,7 +512,7 @@ public:
     double figureScale3D() const { return M_figure_scale_3d; }
     //! within MIN_FIGURE_SCALE_3D and MAX_FIGURE_SCALE_3D
     void setFigureScale3D( const double scale );
-    //! the 3D view: the human bodies (PlayerModel::Human) of men and women mixed, or of one of them
+    //! the 3D view: the human bodies of men and women mixed, or of one of them (of a figure pack with both: the Human)
     static constexpr FigureBodies FIGURE_BODIES_3D = FigureBodies::Mixed;
     FigureBodies figureBodies3D() const { return M_figure_bodies_3d; }
     void setFigureBodies3D( const FigureBodies bodies ) { M_figure_bodies_3d = bodies; }

@@ -38,6 +38,7 @@
 
 #include <QQuaternion>
 #include <QString>
+#include <QStringList>
 #include <QVector3D>
 
 #include <array>
@@ -94,6 +95,19 @@ using HumanBoneNames = std::array< QString, HUMAN_BONE_COUNT >;
   spine_01, thigh_l, ...
 */
 HumanBoneNames quaterniusBoneNames();
+
+/*!
+  \brief the presets of the bones' names that a figure pack can name as its
+  skeleton (FigureBodySpec::skeleton): "quaternius"
+*/
+QStringList skeletonPresets();
+
+/*!
+  \brief the bones' names of a preset (skeletonPresets())
+  \return false if there is no such preset (names is left as it was)
+*/
+bool skeletonBoneNames( const QString & preset,
+                        HumanBoneNames * names );
 
 /*!
   \struct HumanoidPose

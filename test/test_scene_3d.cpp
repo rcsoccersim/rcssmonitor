@@ -708,7 +708,12 @@ TestScene3D::humanFigure()
     FieldPainter painter( holder );
     Figures3D figures;
     QVERIFY2( figures.load(), qPrintable( figures.error() ) );
-    QVERIFY2( figures.setModel( PlayerModel::Human ), qPrintable( figures.error() ) );
+    QVERIFY( FigurePacks::builtin( "human" ) );
+    QVERIFY2( figures.setPack( *FigurePacks::builtin( "human" ) ), qPrintable( figures.error() ) );
+    // the hairstyles of each body: bits of its own
+    const auto bit = [&figures]( const int body, const char * material ) {
+        return figures.pack().bodies[body].bitOf( material );
+    };
     Scene3D scene;
     QVERIFY( scene.initialize() );
     scene.setGround( GroundTexture::draw( painter ) );
@@ -838,18 +843,18 @@ TestScene3D::humanFigure()
     const int eyebrows = count( fbo.toImage(), blue );
     QVERIFY2( eyebrows < parted_hair / 4, qPrintable( QString( "%1 %2" ).arg( eyebrows ).arg( parted_hair ) ) );
     // with a beard too: more
-    f.look.hair = FigureLooks::SIMPLE_PARTED | FigureLooks::BEARD;
+    f.look.hair = bit( 0, "Hair_SimpleParted" ) | bit( 0, "Hair_Beard" );
     scene.render( fbo.handle(), w, h, camera, content );
     QVERIFY( count( fbo.toImage(), blue ) > parted_hair + 20 );
-    // a woman's hairstyle on a man's body: none (not in his model)
-    f.look.hair = FigureLooks::LONG;
+    // a bit of no hairstyle of his body: none
+    f.look.hair = 1u << 5;
     scene.render( fbo.handle(), w, h, camera, content );
     QCOMPARE( count( fbo.toImage(), blue ), eyebrows );
 
     // the woman's body, with her long hair
     scene.setFigureBody( 1, figures.model( 1 ), figures.paints( 1 ), figures.uniformCuts( 1 ) );
-    f.look.body = FigureLooks::FEMALE;
-    f.look.hair = FigureLooks::LONG;
+    f.look.body = 1; // the woman's body
+    f.look.hair = bit( 1, "Hair_Long" );
     figures.pose( content, 0.0 );
     QCOMPARE( content.figure_bodies, std::vector< int >( { 1 } ) );
     scene.render( fbo.handle(), w, h, camera, content );
@@ -862,7 +867,7 @@ TestScene3D::humanFigure()
 
     // from behind, her short hair: no scalp through its gaps (2026-11-14)
     {
-        f.look.hair = FigureLooks::BUZZED_FEMALE;
+        f.look.hair = bit( 1, "Hair_BuzzedFemale" );
         figures.pose( content, 0.0 );
         std::vector< QMatrix4x4 > her;
         figures.worldNodes( f, 0.0, her );
@@ -1522,7 +1527,7 @@ TestScene3D::topSwitch()
         holder.handleShow( show );
     }
     Options & opt = Options::instance();
-    opt.setPlayerModel3D( PlayerModel::Mannequin );
+    opt.setPlayerModel3D( PLAYER_MODEL_MANNEQUIN );
     opt.setShadows3D( ShadowMode::Detailed );
     opt.setGrass3D( GrassMode::Realistic );
 

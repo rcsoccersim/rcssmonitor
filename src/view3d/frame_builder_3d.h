@@ -83,7 +83,7 @@ struct View3DState {
     int cylinders = 0; //!< of them, as cylinders (the others as figures)
     int labels = 0; //!< the number labels, the cards and the stamina bars drawn
 
-    PlayerModel model = PlayerModel::Simple; //!< how the players were drawn (Simple when not as figures)
+    QString model = QString::fromLatin1( PLAYER_MODEL_SIMPLE ); //!< how the players were drawn: the figure pack's name, PLAYER_MODEL_SIMPLE when not as figures
     bool figures_ready = false; //!< the model of the figures could be read
     int figures = 0; //!< the players drawn as figures
     //! the figures doing each action (its pose counting)
@@ -214,8 +214,8 @@ private:
     bool M_seen = false;
     double M_time = 0.0;
     double M_pose_time = 0.0;
-    PlayerModel M_model = PlayerModel::Simple; //!< the figures' model, Simple when not drawn as figures
-    bool M_model_failed = false; //!< a model could not be read (told once)
+    QString M_model = QString::fromLatin1( PLAYER_MODEL_SIMPLE ); //!< the figures' pack, PLAYER_MODEL_SIMPLE when not drawn as figures
+    QString M_pack_failed; //!< the pack that could not be drawn (told once, tried again when the packs are looked for again)
 };
 
 #endif

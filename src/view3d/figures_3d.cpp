@@ -40,27 +40,12 @@
 #include "scene_builder.h"
 
 #include <QFile>
+#include <QFileInfo>
 
 #include <algorithm>
 #include <cmath>
 
 namespace {
-
-//! the bundled models in the resources (resources/models/view3d_models.qrc):
-//! the Mannequin with its clips, and the human bodies (FigureLooks::MALE, FEMALE)
-const char * MODEL_PATH = ":/models/Mannequin.glb";
-const char * HUMAN_PATHS[] = { ":/models/BaseCharacterMale.glb", ":/models/BaseCharacterFemale.glb" };
-//! the human bodies' material of the skin, painted with the uniform
-const char * HUMAN_SKIN = "Body";
-//! their materials in the hair's color: the eyebrows, and the hairstyles (Hair_*)
-const char * HUMAN_EYEBROWS = "Eyebrows";
-const char * HUMAN_HAIR = "Hair_";
-//! the Mannequin's body, in the figure's color; its joints (M_Joints) keep their own
-const char * MANNEQUIN_BODY = "M_Main";
-//! its clip of standing
-const char * IDLE_CLIP = "Idle_Loop";
-//! its clips of walking and running
-const char * GAIT_CLIPS[] = { "Walk_Loop", "Jog_Fwd_Loop", "Sprint_Loop" };
 
 //! the points of a clip read by analyzeGait()
 constexpr int GAIT_SAMPLES = 240;
@@ -128,42 +113,99 @@ longestRun( const std::vector< bool > & down,
 
 }
 
+namespace {
+
+//! a file's name as told
+QString
+fileOf( const QString & path )
+{
+    return QFileInfo( path ).fileName();
+}
+
+//! the names of a list, quoted, joined
+QString
+namesOf( const QStringList & names )
+{
+    QStringList quoted;
+    for ( const QString & n : names ) quoted << QLatin1Char( '"' ) + n + QLatin1Char( '"' );
+    return quoted.join( QStringLiteral( ", " ) );
+}
+
 /*!
-  \brief read a model of the resources and its roles (outside the unnamed
-  namespace: Q_INIT_RESOURCE declares the function of the resources in
-  the namespace where it is used)
+  \brief the roles of a model's bones by a skeleton's preset, or by the
+  first preset whose bones it has (empty preset)
 */
-static
 bool
-readModel( const char * path,
+buildRig( const GltfModel & model,
+          const QString & preset,
+          HumanoidRig & rig,
+          QString * why )
+{
+    const QStringList presets = ( preset.isEmpty() ? skeletonPresets() : QStringList( preset ) );
+    QString first;
+    for ( const QString & p : presets )
+    {
+        HumanBoneNames names;
+        QString w;
+        if ( skeletonBoneNames( p, &names )
+             && rig.build( model, names, &w ) )
+        {
+            return true;
+        }
+        if ( first.isEmpty() ) first = w;
+    }
+    *why = ( preset.isEmpty()
+             ? QStringLiteral( "the bones are of no skeleton known (" ) + skeletonPresets().join( QStringLiteral( ", " ) )
+               + QStringLiteral( "): " ) + first
+             : first );
+    return false;
+}
+
+//! read a model of a pack and its roles
+bool
+readModel( const QString & path,
+           const QString & skeleton,
            GltfModel & model,
            HumanoidRig & rig,
            QString * error )
 {
-    // the resources of a static library must be registered before use
-    Q_INIT_RESOURCE( view3d_models );
-
-    QFile file( QString::fromLatin1( path ) );
+    QFile file( path );
     if ( ! file.open( QIODevice::ReadOnly ) )
     {
-        *error = QStringLiteral( "cannot open " ) + file.fileName();
+        *error = QStringLiteral( "cannot open " ) + fileOf( path );
         return false;
     }
     QString why;
     if ( ! model.load( file.readAll(), &why )
-         || ! rig.build( model, quaterniusBoneNames(), &why ) )
+         || ! buildRig( model, skeleton, rig, &why ) )
     {
-        *error = file.fileName() + QStringLiteral( ": " ) + why;
+        *error = fileOf( path ) + QStringLiteral( ": " ) + why;
         return false;
     }
     return true;
 }
 
+}
+
+/*!
+  \struct Figures3D::Motion
+  \brief a motion: a model with the clips of standing, walking and running
+*/
+struct Figures3D::Motion {
+    QString key; //!< the model and the clips: motions of the same are read once
+    QString source; //!< the model's file
+    GltfModel model;
+    HumanoidRig rig; //!< its roles
+    int idle = -1; //!< the clip of standing
+    std::vector< GaitClip > gaits; //!< walking and running, slowest first
+};
+
 /*!
   \struct Figures3D::Body
-  \brief a body to draw, of the motion's skeleton
+  \brief a body to draw, for a motion
 */
 struct Figures3D::Body {
+    FigureBodySpec spec; //!< as the pack tells: the materials' paints, the hairstyles
     GltfModel model;
     HumanoidRig rig; //!< its roles (on model: the body is not moved)
     //! from each limb's rest to hanging down, in the model: left, right
@@ -173,10 +215,18 @@ struct Figures3D::Body {
     bool motion_skeleton = false; //!< the motion's own model: its nodes taken as they are
     //! a gait cycle of the body is this many times the motion's for the same height (longer legs: longer strides)
     float stride = 1.0f;
-    QStringList jersey; //!< the materials in the figure's color
-    QStringList uniform; //!< the materials in the uniform
-    bool hair = false; //!< the eyebrows and the hairstyles in the hair's color (a human body)
     FigureUniform::Cuts cuts; //!< where the uniform ends
+};
+
+/*!
+  \struct Figures3D::Pack
+  \brief a pack read: its motion and its bodies
+*/
+struct Figures3D::Pack {
+    FigurePack spec;
+    const Motion * motion = nullptr;
+    std::vector< std::unique_ptr< Body > > bodies;
+    FigureCast cast;
 };
 
 /*-------------------------------------------------------------------*/
@@ -190,66 +240,109 @@ Figures3D::load()
     if ( M_loaded ) return M_ready;
     M_loaded = true;
 
-    QString error;
-    if ( ! readModel( MODEL_PATH, M_model, M_rig, &error ) )
+    const FigurePack * pack = FigurePacks::builtin( QString::fromLatin1( PLAYER_MODEL_MANNEQUIN ) );
+    if ( ! pack )
     {
-        M_error = error;
+        M_error = QStringLiteral( "no bundled pack " ) + PLAYER_MODEL_MANNEQUIN;
         return false;
     }
-    M_idle = M_model.clipIndex( QString::fromLatin1( IDLE_CLIP ) );
-    if ( M_idle < 0 )
+    M_ready = setPack( *pack );
+    return M_ready;
+}
+
+/*-------------------------------------------------------------------*/
+const Figures3D::Motion *
+Figures3D::motionOf( const FigureMotionSpec & spec,
+                     QString * error )
+{
+    const QString key = QStringList( { spec.model, spec.skeleton, spec.idle, spec.walk, spec.jog, spec.sprint } )
+        .join( QLatin1Char( '\n' ) );
+    for ( const std::unique_ptr< Motion > & m : M_motions )
     {
-        M_error = QString::fromLatin1( MODEL_PATH ) + QStringLiteral( ": no clip " ) + IDLE_CLIP;
-        return false;
+        if ( m->key == key ) return m.get();
     }
 
-    for ( const char * name : GAIT_CLIPS )
+    std::unique_ptr< Motion > m( new Motion );
+    m->key = key;
+    m->source = spec.model;
+    if ( ! readModel( spec.model, spec.skeleton, m->model, m->rig, error ) )
+    {
+        return nullptr;
+    }
+    QStringList clips;
+    for ( const GltfModel::Clip & c : m->model.clips ) clips << c.name;
+    const auto clipOf = [&]( const QString & name ) {
+        const int clip = m->model.clipIndex( name );
+        if ( clip < 0 )
+        {
+            *error = fileOf( spec.model ) + QStringLiteral( ": no clip \"" ) + name
+                + QStringLiteral( "\" (its clips: " ) + namesOf( clips ) + QLatin1Char( ')' );
+        }
+        return clip;
+    };
+    m->idle = clipOf( spec.idle );
+    if ( m->idle < 0 ) return nullptr;
+    for ( const QString & name : { spec.walk, spec.jog, spec.sprint } )
     {
         GaitClip gait;
-        if ( analyzeGait( M_model, M_rig, M_model.clipIndex( QString::fromLatin1( name ) ), &gait ) )
+        const int clip = clipOf( name );
+        if ( clip < 0 ) return nullptr;
+        if ( ! analyzeGait( m->model, m->rig, clip, &gait ) )
         {
-            M_gaits.push_back( gait );
+            *error = fileOf( spec.model ) + QStringLiteral( ": the clip \"" ) + name
+                + QStringLiteral( "\" is not of walking or running (the feet do not come down and go back)" );
+            return nullptr;
         }
+        m->gaits.push_back( gait );
     }
-    std::sort( M_gaits.begin(), M_gaits.end(),
+    std::sort( m->gaits.begin(), m->gaits.end(),
                []( const GaitClip & a, const GaitClip & b ) { return a.speed < b.speed; } );
-
-    // the Mannequin drawn first
-    M_ready = true;
-    if ( ! setModel( PlayerModel::Mannequin ) )
-    {
-        M_ready = false;
-        return false;
-    }
-    return true;
+    M_motions.push_back( std::move( m ) );
+    return M_motions.back().get();
 }
 
 /*-------------------------------------------------------------------*/
 std::unique_ptr< Figures3D::Body >
-Figures3D::loadBody( const char * path,
-                     const QStringList & jersey,
-                     const QStringList & uniform,
+Figures3D::loadBody( const FigureBodySpec & spec,
+                     const Motion & motion,
                      QString * error ) const
 {
     std::unique_ptr< Body > body( new Body );
-    if ( path == MODEL_PATH )
+    body->spec = spec;
+    if ( spec.model == motion.source )
     {
         // the motion's own model
-        body->model = M_model;
+        body->model = motion.model;
         body->motion_skeleton = true;
         QString why;
-        if ( ! body->rig.build( body->model, quaterniusBoneNames(), &why ) )
+        if ( ! buildRig( body->model, spec.skeleton, body->rig, &why ) )
         {
-            *error = why;
+            *error = fileOf( spec.model ) + QStringLiteral( ": " ) + why;
             return nullptr;
         }
     }
-    else if ( ! readModel( path, body->model, body->rig, error ) )
+    else if ( ! readModel( spec.model, spec.skeleton, body->model, body->rig, error ) )
     {
         return nullptr;
     }
-    body->jersey = jersey;
-    body->uniform = uniform;
+
+    // the materials that the pack paints are the model's
+    QStringList materials;
+    for ( const SkinPrimitive & p : body->model.primitives )
+    {
+        if ( ! materials.contains( p.material ) ) materials << p.material;
+    }
+    QStringList named = spec.team + spec.uniform + spec.hair + spec.hairstyles;
+    for ( const FigureBodySpec::Extra & e : spec.extras ) named << e.material;
+    for ( const QString & m : named )
+    {
+        if ( ! materials.contains( m ) )
+        {
+            *error = fileOf( spec.model ) + QStringLiteral( ": no material \"" ) + m
+                + QStringLiteral( "\" (its materials: " ) + namesOf( materials ) + QLatin1Char( ')' );
+            return nullptr;
+        }
+    }
 
     // each limb from its rest to hanging down
     std::vector< QMatrix4x4 > global;
@@ -270,7 +363,7 @@ Figures3D::loadBody( const char * path,
     // the bones of the motion by their names
     for ( const QString & name : body->model.node_names )
     {
-        body->motion_node.push_back( M_model.nodeIndex( name ) );
+        body->motion_node.push_back( motion.model.nodeIndex( name ) );
     }
     // the strides: the gait clips read on the body, of the same height
     // (longer legs, longer strides), their mean of the motion's
@@ -278,11 +371,11 @@ Figures3D::loadBody( const char * path,
     {
         float sum = 0.0f;
         int count = 0;
-        for ( const GaitClip & g : M_gaits )
+        for ( const GaitClip & g : motion.gaits )
         {
             GaitClip on_body;
             if ( g.speed > 0.0f
-                 && analyzeGait( M_model, M_rig, g.clip, &on_body, &body->model, &rig ) )
+                 && analyzeGait( motion.model, motion.rig, g.clip, &on_body, &body->model, &rig ) )
             {
                 sum += on_body.speed / g.speed;
                 ++count;
@@ -291,15 +384,15 @@ Figures3D::loadBody( const char * path,
         if ( count > 0 ) body->stride = sum / count;
     }
 
-    // the uniform, and the skin under the hairstyles (Hair_*)
-    if ( ! uniform.isEmpty() )
+    // the uniform, and the skin under the hairstyles and the extras
+    if ( ! spec.uniform.isEmpty() )
     {
         FigureUniform::paintParts( body->model, rig );
-        body->cuts = FigureUniform::cutsOf( body->model, rig, uniform );
+        body->cuts = FigureUniform::cutsOf( body->model, rig, spec.uniform );
         std::vector< std::pair< QString, std::uint32_t > > hairs;
         for ( const SkinPrimitive & p : body->model.primitives )
         {
-            const std::uint32_t bit = FigureLooks::hairBit( p.material );
+            const std::uint32_t bit = spec.bitOf( p.material );
             if ( bit != 0
                  && std::none_of( hairs.begin(), hairs.end(),
                                   [&p]( const std::pair< QString, std::uint32_t > & h ) { return h.first == p.material; } ) )
@@ -307,58 +400,110 @@ Figures3D::loadBody( const char * path,
                 hairs.emplace_back( p.material, bit );
             }
         }
-        FigureUniform::paintScalp( body->model, uniform, hairs, &body->cuts );
+        FigureUniform::paintScalp( body->model, spec.uniform, hairs, &body->cuts );
     }
     return body;
 }
 
 /*-------------------------------------------------------------------*/
 bool
-Figures3D::readBody( const int k )
+Figures3D::setPack( const FigurePack & pack )
 {
-    if ( M_bodies[k] ) return true;
-    if ( M_body_tried[k] ) return false;
-    M_body_tried[k] = true;
-    QString error;
-    if ( k == 0 )
+    if ( ! pack.ok() )
     {
-        M_bodies[k] = loadBody( MODEL_PATH, QStringList( { QString::fromLatin1( MANNEQUIN_BODY ) } ), QStringList(), &error );
+        M_error = pack.displayName() + QStringLiteral( ": " ) + pack.error;
+        return false;
     }
-    else
+    for ( const std::unique_ptr< Pack > & p : M_packs )
     {
-        M_bodies[k] = loadBody( HUMAN_PATHS[k - 1], QStringList(), QStringList( { QString::fromLatin1( HUMAN_SKIN ) } ), &error );
-        if ( M_bodies[k] ) M_bodies[k]->hair = true;
+        if ( p->spec.id == pack.id && p->spec.dir == pack.dir )
+        {
+            M_pack = p.get();
+            return true;
+        }
     }
-    if ( ! M_bodies[k] ) M_error = error;
-    return static_cast< bool >( M_bodies[k] );
+
+    std::unique_ptr< Pack > p( new Pack );
+    p->spec = pack;
+    QString why;
+    p->motion = motionOf( pack.motion, &why );
+    if ( ! p->motion )
+    {
+        M_error = pack.displayName() + QStringLiteral( ": " ) + why;
+        return false;
+    }
+    for ( const FigureBodySpec & spec : pack.bodies )
+    {
+        std::unique_ptr< Body > body = loadBody( spec, *p->motion, &why );
+        if ( ! body )
+        {
+            M_error = pack.displayName() + QStringLiteral( ": " ) + why;
+            return false;
+        }
+        p->bodies.push_back( std::move( body ) );
+    }
+    p->cast = pack.cast();
+    M_pack = p.get();
+    M_packs.push_back( std::move( p ) );
+    return true;
 }
 
 /*-------------------------------------------------------------------*/
-bool
-Figures3D::setModel( const PlayerModel model )
+const FigurePack &
+Figures3D::pack() const
 {
-    if ( ! M_ready ) return false;
-    if ( model == PlayerModel::Human )
-    {
-        // the man's and the woman's, both drawn
-        if ( ! readBody( 1 + FigureLooks::MALE ) || ! readBody( 1 + FigureLooks::FEMALE ) ) return false;
-        M_drawn = { M_bodies[1 + FigureLooks::MALE].get(), M_bodies[1 + FigureLooks::FEMALE].get() };
-        M_body_model = PlayerModel::Human;
-    }
-    else
-    {
-        if ( ! readBody( 0 ) ) return false;
-        M_drawn = { M_bodies[0].get() };
-        M_body_model = PlayerModel::Mannequin;
-    }
-    return true;
+    static const FigurePack none = FigurePack();
+    return ( M_pack ? M_pack->spec : none );
+}
+
+/*-------------------------------------------------------------------*/
+const FigureCast &
+Figures3D::cast() const
+{
+    static const FigureCast none = FigureCast();
+    return ( M_pack ? M_pack->cast : none );
+}
+
+/*-------------------------------------------------------------------*/
+const Figures3D::Motion &
+Figures3D::motion() const
+{
+    static const Motion none = Motion();
+    return ( M_pack ? *M_pack->motion : none );
+}
+
+/*-------------------------------------------------------------------*/
+const GltfModel &
+Figures3D::motionModel() const
+{
+    return motion().model;
+}
+
+/*-------------------------------------------------------------------*/
+const HumanoidRig &
+Figures3D::motionRig() const
+{
+    return motion().rig;
+}
+
+/*-------------------------------------------------------------------*/
+const std::vector< GaitClip > &
+Figures3D::gaitClips() const
+{
+    return motion().gaits;
+}
+
+/*-------------------------------------------------------------------*/
+int
+Figures3D::bodyCount() const
+{
+    return ( M_pack ? static_cast< int >( M_pack->bodies.size() ) : 0 );
 }
 
 /*-------------------------------------------------------------------*/
 int
 Figures3D::bodyOf( const FigureInstance & figure ) const
 {
-    if ( M_body_model != PlayerModel::Human ) return 0;
     return std::min( bodyCount() - 1, std::max( 0, figure.look.body ) );
 }
 
@@ -366,42 +511,42 @@ Figures3D::bodyOf( const FigureInstance & figure ) const
 const Figures3D::Body &
 Figures3D::bodyFor( const FigureInstance & figure ) const
 {
-    return *M_drawn[bodyOf( figure )];
+    return *M_pack->bodies[bodyOf( figure )];
 }
 
 /*-------------------------------------------------------------------*/
 const GltfModel &
 Figures3D::model( const int body ) const
 {
-    return ( body >= 0 && body < bodyCount() ? M_drawn[body]->model : M_model );
+    return ( body >= 0 && body < bodyCount() ? M_pack->bodies[body]->model : motionModel() );
 }
 
 /*-------------------------------------------------------------------*/
 const HumanoidRig &
 Figures3D::rig( const int body ) const
 {
-    return ( body >= 0 && body < bodyCount() ? M_drawn[body]->rig : M_rig );
+    return ( body >= 0 && body < bodyCount() ? M_pack->bodies[body]->rig : motionRig() );
 }
 
 /*-------------------------------------------------------------------*/
 float
 Figures3D::bodyStride( const int body ) const
 {
-    return ( body >= 0 && body < bodyCount() ? M_drawn[body]->stride : 1.0f );
+    return ( body >= 0 && body < bodyCount() ? M_pack->bodies[body]->stride : 1.0f );
 }
 
 /*-------------------------------------------------------------------*/
 QStringList
 Figures3D::jerseyMaterials( const int body ) const
 {
-    return ( body >= 0 && body < bodyCount() ? M_drawn[body]->jersey : QStringList() );
+    return ( body >= 0 && body < bodyCount() ? M_pack->bodies[body]->spec.team : QStringList() );
 }
 
 /*-------------------------------------------------------------------*/
 QStringList
 Figures3D::uniformMaterials( const int body ) const
 {
-    return ( body >= 0 && body < bodyCount() ? M_drawn[body]->uniform : QStringList() );
+    return ( body >= 0 && body < bodyCount() ? M_pack->bodies[body]->spec.uniform : QStringList() );
 }
 
 /*-------------------------------------------------------------------*/
@@ -410,29 +555,28 @@ Figures3D::paints( const int body ) const
 {
     std::vector< FigureUniform::Paint > paints;
     if ( body < 0 || body >= bodyCount() ) return paints;
-    const Body & b = *M_drawn[body];
+    const Body & b = *M_pack->bodies[body];
     for ( const SkinPrimitive & p : b.model.primitives )
     {
         FigureUniform::Paint paint;
-        if ( b.uniform.contains( p.material ) )
+        if ( b.spec.uniform.contains( p.material ) )
         {
             paint.kind = FigureUniform::Paint::Uniform;
         }
-        else if ( b.jersey.contains( p.material ) )
+        else if ( b.spec.team.contains( p.material ) )
         {
             paint.kind = FigureUniform::Paint::Figure;
         }
-        else if ( b.hair
-                  && ( p.material == QLatin1String( HUMAN_EYEBROWS )
-                       || p.material.startsWith( QLatin1String( HUMAN_HAIR ) ) ) )
+        else if ( b.spec.hair.contains( p.material ) )
         {
-            // the eyebrows on all, a hairstyle on those wearing it
+            // the eyebrows, on all
             paint.kind = FigureUniform::Paint::Hair;
-            paint.show = FigureLooks::hairBit( p.material );
-            if ( paint.show == 0 && p.material != QLatin1String( HUMAN_EYEBROWS ) )
-            {
-                paint.show = 0x80000000u; // a hairstyle not known: on none
-            }
+        }
+        else if ( const std::uint32_t bit = b.spec.bitOf( p.material ) )
+        {
+            // a hairstyle or an extra, on those wearing it
+            paint.kind = FigureUniform::Paint::Hair;
+            paint.show = bit;
         }
         paints.push_back( paint );
     }
@@ -444,7 +588,7 @@ const FigureUniform::Cuts &
 Figures3D::uniformCuts( const int body ) const
 {
     static const FigureUniform::Cuts none = FigureUniform::Cuts();
-    return ( body >= 0 && body < bodyCount() ? M_drawn[body]->cuts : none );
+    return ( body >= 0 && body < bodyCount() ? M_pack->bodies[body]->cuts : none );
 }
 
 /*-------------------------------------------------------------------*/
@@ -584,7 +728,7 @@ std::vector< GaitStride >
 Figures3D::strides() const
 {
     std::vector< GaitStride > strides;
-    for ( const GaitClip & g : M_gaits )
+    for ( const GaitClip & g : gaitClips() )
     {
         strides.push_back( { g.speed, g.stride() } );
     }
@@ -596,20 +740,21 @@ Figures3D::Mix
 Figures3D::mixAt( const float speed ) const
 {
     Mix mix;
-    if ( M_gaits.empty() ) return mix;
-    mix.moving = clamp01( speed / ( MOVING_FULL * M_gaits.front().speed ) );
-    const int last = static_cast< int >( M_gaits.size() ) - 1;
+    const std::vector< GaitClip > & gaits = gaitClips();
+    if ( gaits.empty() ) return mix;
+    mix.moving = clamp01( speed / ( MOVING_FULL * gaits.front().speed ) );
+    const int last = static_cast< int >( gaits.size() ) - 1;
     mix.from = mix.to = last; // faster than all: the fastest
     for ( int k = 0; k <= last; ++k )
     {
-        if ( speed <= M_gaits[k].speed )
+        if ( speed <= gaits[k].speed )
         {
             // at a clip's speed or below the slowest: that clip; else from the one before
             mix.to = k;
-            mix.from = ( k == 0 || speed == M_gaits[k].speed ? k : k - 1 );
+            mix.from = ( k == 0 || speed == gaits[k].speed ? k : k - 1 );
             if ( mix.from != mix.to )
             {
-                mix.t = ( speed - M_gaits[k - 1].speed ) / ( M_gaits[k].speed - M_gaits[k - 1].speed );
+                mix.t = ( speed - gaits[k - 1].speed ) / ( gaits[k].speed - gaits[k - 1].speed );
             }
             break;
         }
@@ -1011,9 +1156,10 @@ Figures3D::sample( const int clip,
                    const float time,
                    std::vector< NodeTransform > & motion ) const
 {
-    motion = M_model.rest;
-    M_model.sample( M_model.clips[clip], time, motion );
-    return M_rig.poseOf( motion );
+    const Motion & m = this->motion();
+    motion = m.model.rest;
+    m.model.sample( m.model.clips[clip], time, motion );
+    return m.rig.poseOf( motion );
 }
 
 /*-------------------------------------------------------------------*/
@@ -1023,7 +1169,7 @@ Figures3D::localPose( const FigureInstance & figure,
                       std::vector< NodeTransform > & local ) const
 {
     local = model( bodyOf( figure ) ).rest;
-    if ( ! M_ready || M_drawn.empty() ) return;
+    if ( bodyCount() == 0 ) return;
     const Body & body = bodyFor( figure );
 
     const FigureMotion & motion = figure.motion;
@@ -1035,7 +1181,7 @@ Figures3D::localPose( const FigureInstance & figure,
     std::vector< NodeTransform > nodes;
     if ( mix.moving < 1.0f )
     {
-        pose = sample( M_idle, static_cast< float >( time + figure.player * IDLE_OFFSET ), nodes );
+        pose = sample( this->motion().idle, static_cast< float >( time + figure.player * IDLE_OFFSET ), nodes );
     }
 
     // walking and running: the gait clips at the phase of the gait walked
@@ -1046,8 +1192,8 @@ Figures3D::localPose( const FigureInstance & figure,
         const double cycles = motion.gait * SceneBuilder::PERSON_HEIGHT
             / ( std::max( 0.1f, figure.height ) * body.stride );
         const float phase = static_cast< float >( cycles - std::floor( cycles ) );
-        const GaitClip & a = M_gaits[mix.from];
-        const GaitClip & b = M_gaits[mix.to];
+        const GaitClip & a = gaitClips()[mix.from];
+        const GaitClip & b = gaitClips()[mix.to];
         std::vector< NodeTransform > nodes_a, nodes_b;
         HumanoidPose moving = sample( a.clip, a.timeAt( phase ), nodes_a );
         if ( mix.to != mix.from && mix.t > 0.0f )
@@ -1088,8 +1234,9 @@ Figures3D::bodyNodes( const Body & body,
                       const std::vector< NodeTransform > & motion,
                       std::vector< NodeTransform > & local ) const
 {
+    const GltfModel & from = motionModel();
     if ( body.motion_skeleton
-         || motion.size() != M_model.rest.size() )
+         || motion.size() != from.rest.size() )
     {
         local = ( body.motion_skeleton ? motion : body.model.rest );
         return;
@@ -1101,7 +1248,7 @@ Figures3D::bodyNodes( const Body & body,
     {
         const int m = body.motion_node[i];
         if ( m < 0 ) continue;
-        local[i].r = ( local[i].r * M_model.rest[m].r.conjugated() * motion[m].r ).normalized();
+        local[i].r = ( local[i].r * from.rest[m].r.conjugated() * motion[m].r ).normalized();
     }
 }
 
@@ -1112,7 +1259,7 @@ Figures3D::worldNodes( const FigureInstance & figure,
                        std::vector< QMatrix4x4 > & world ) const
 {
     world.clear();
-    if ( ! M_ready ) return;
+    if ( bodyCount() == 0 ) return;
     std::vector< NodeTransform > local;
     localPose( figure, time, local );
     model( bodyOf( figure ) ).globals( local, world );
@@ -1127,7 +1274,7 @@ Figures3D::pose( SceneContent & content,
 {
     content.figure_joints.clear();
     content.figure_bodies.clear();
-    if ( ! M_ready || M_drawn.empty() ) return;
+    if ( bodyCount() == 0 ) return;
 
     // each figure's joints after the one before's (the bodies of one skeleton: as many joints)
     std::size_t offset = 0;

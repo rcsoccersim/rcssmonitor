@@ -39,8 +39,19 @@
 #include "disp_holder.h"
 #include "options.h"
 
+#ifdef HAVE_3D_VIEW
+#include "figure_pack.h"
+#endif
+
 #include <QButtonGroup>
 #include <QCheckBox>
+#include <QComboBox>
+#include <QDir>
+#include <QFile>
+#include <QMenu>
+#include <QStandardItemModel>
+#include <QTemporaryDir>
+#include <QToolButton>
 #include <QDoubleSpinBox>
 #include <QLabel>
 #include <QPushButton>
@@ -69,6 +80,7 @@ private slots:
     void view3DTab();
     void numberRange();
     void update3D();
+    void figurePacks();
     void playerCameraTab();
     void playerCameraDim();
 };
@@ -103,6 +115,16 @@ resetView3D()
 {
     Options::instance().setView3DDefaults();
     Options::instance().setPlayerCamera( PlayerCameraOptions() );
+    Options::instance().setFigureFolder3D( QString() );
+}
+
+//! write a file of a test's figure pack
+bool
+writeFile( const QString & path,
+           const QByteArray & data )
+{
+    QFile f( path );
+    return f.open( QIODevice::WriteOnly ) && f.write( data ) == data.size();
 }
 
 
@@ -226,7 +248,16 @@ TestConfigDialog::tabs3D()
         QVERIFY( spin );
         QVERIFY2( spin->toolTip().contains( "Range: " ), name );
     }
-    for ( const char * name : { "compass_3d", "minimap_3d", "player_model_3d", "figure_bodies_3d", "shadows_3d", "grass_3d", "player_camera_position",
+    {
+        QComboBox * model = child< QComboBox >( dialog, "player_model_3d" );
+        QVERIFY( model );
+        for ( int i = 0; i < model->count(); ++i )
+        {
+            QVERIFY2( ! model->itemData( i, Qt::ToolTipRole ).toString().isEmpty(), qPrintable( model->itemText( i ) ) );
+        }
+        QVERIFY( ! child< QToolButton >( dialog, "figure_folder_3d" )->toolTip().isEmpty() );
+    }
+    for ( const char * name : { "compass_3d", "minimap_3d", "figure_bodies_3d", "shadows_3d", "grass_3d", "player_camera_position",
                                 "player_camera_direction", "player_camera_motion",
                                 "player_camera_fov", "player_camera_sight" } )
     {
@@ -338,11 +369,12 @@ TestConfigDialog::view3DTab()
     QDoubleSpinBox * trail_cycles = child< QDoubleSpinBox >( dialog, "ball_trail_cycles_3d" );
     QVERIFY( grass && sky && stands && pattern && ring && trail && ring_radius && trail_cycles );
     QPushButton * defaults = child< QPushButton >( dialog, "default_3d" );
-    QButtonGroup * model = child< QButtonGroup >( dialog, "player_model_3d" );
+    QComboBox * model = child< QComboBox >( dialog, "player_model_3d" );
+    QLabel * credits = child< QLabel >( dialog, "figure_credits_3d" );
     QDoubleSpinBox * scale = child< QDoubleSpinBox >( dialog, "figure_scale_3d" );
     QButtonGroup * bodies = child< QButtonGroup >( dialog, "figure_bodies_3d" );
     QButtonGroup * shadows = child< QButtonGroup >( dialog, "shadows_3d" );
-    QVERIFY( distance && elevation && compass && minimap && boards && banners && defaults && model && scale && bodies && shadows );
+    QVERIFY( distance && elevation && compass && minimap && boards && banners && defaults && model && credits && scale && bodies && shadows );
 
     // the options at first
     QCOMPARE( distance->value(), Options::CLOSEUP_DISTANCE_3D );
@@ -362,7 +394,9 @@ TestConfigDialog::view3DTab()
     QCOMPARE( trail_cycles->value(), double( Options::BALL_TRAIL_CYCLES_3D ) );
     QCOMPARE( trail_cycles->decimals(), 0 );
     QVERIFY( ring_radius->isEnabled() && trail_cycles->isEnabled() );
-    QCOMPARE( model->checkedButton()->text(), QString( "Simple" ) );
+    QCOMPARE( model->currentText(), QString( "Simple" ) );
+    QCOMPARE( model->currentData().toString(), QString( "simple" ) );
+    QVERIFY( credits->text().isEmpty() ); // no credits of the cylinders
     QCOMPARE( scale->value(), Options::FIGURE_SCALE_3D );
     // the scale is not for the cylinders, the bodies only for the human figures
     QVERIFY( ! scale->isEnabled() );
@@ -375,11 +409,21 @@ TestConfigDialog::view3DTab()
         QVERIFY( b->isEnabled() ); // the cylinders cast them too
     }
 
-    // the players' model and the figures' scale (with a figure)
-    QCOMPARE( model->buttons().size(), 3 );
-    QCOMPARE( model->button( 1 )->text(), QString( "Mannequin" ) );
-    model->button( 2 )->click();
-    QCOMPARE( opt.playerModel3D(), PlayerModel::Human );
+    // the players' model (the cylinders, then the bundled packs, then
+    // those of the user's if any), and the figures' scale (with a figure)
+    QVERIFY( model->count() >= 3 );
+    QCOMPARE( model->itemText( 1 ), QString( "Mannequin" ) );
+    QCOMPARE( model->itemData( 1 ).toString(), QString( "mannequin" ) );
+    QCOMPARE( model->itemText( 2 ), QString( "Human" ) );
+    QCOMPARE( model->itemData( 2 ).toString(), QString( "human" ) );
+    model->setCurrentIndex( 2 );
+    emit model->activated( 2 );
+    QCOMPARE( opt.playerModel3D(), QString( "human" ) );
+    // its credits and its motion's (the Mannequin's), in short, in full in the tooltip
+    QCOMPARE( credits->text(), QString( "Credits: Quaternius (CC0 1.0)" ) );
+    QVERIFY( credits->toolTip().contains( "Universal Base Characters [Standard] by Quaternius (CC0 1.0)" ) );
+    QVERIFY( credits->toolTip().contains( "Universal Animation Library [Standard] by Quaternius (CC0 1.0)" ) );
+    QVERIFY( credits->toolTip().contains( "https://quaternius.com/" ) );
     QVERIFY( scale->isEnabled() );
     QVERIFY( bodies->button( 2 )->isEnabled() );
     QCOMPARE( bodies->button( 2 )->text(), QString( "Female" ) );
@@ -387,9 +431,12 @@ TestConfigDialog::view3DTab()
     QCOMPARE( opt.figureBodies3D(), FigureBodies::Female );
     bodies->button( 1 )->click();
     QCOMPARE( opt.figureBodies3D(), FigureBodies::Male );
-    model->button( 1 )->click();
-    QCOMPARE( opt.playerModel3D(), PlayerModel::Mannequin );
-    QVERIFY( ! bodies->button( 1 )->isEnabled() );
+    model->setCurrentIndex( 1 );
+    emit model->activated( 1 );
+    QCOMPARE( opt.playerModel3D(), QString( "mannequin" ) );
+    QVERIFY( ! bodies->button( 1 )->isEnabled() ); // one body of anyone's
+    QCOMPARE( credits->text(), QString( "Credits: Quaternius (CC0 1.0)" ) );
+    QVERIFY( ! credits->toolTip().contains( "Universal Base Characters" ) );
     QCOMPARE( spy.count(), 4 );
     scale->setValue( 1.25 );
     QCOMPARE( opt.figureScale3D(), 1.25 );
@@ -483,11 +530,11 @@ TestConfigDialog::view3DTab()
     QVERIFY( boards->isChecked() );
     QVERIFY( banners->isChecked() );
     QCOMPARE( shadows->checkedId(), 1 );
-    QCOMPARE( opt.playerModel3D(), Options::PLAYER_MODEL_3D );
+    QCOMPARE( opt.playerModel3D(), QString( Options::PLAYER_MODEL_3D ) );
     QCOMPARE( opt.figureScale3D(), Options::FIGURE_SCALE_3D );
     QCOMPARE( opt.figureBodies3D(), Options::FIGURE_BODIES_3D );
     QCOMPARE( bodies->checkedId(), 0 );
-    QCOMPARE( model->checkedId(), 0 );
+    QCOMPARE( model->currentIndex(), 0 );
     QCOMPARE( scale->value(), Options::FIGURE_SCALE_3D );
     QVERIFY( ! scale->isEnabled() );
     // the fields set back by Default do not set the options again
@@ -585,6 +632,128 @@ TestConfigDialog::update3D()
     QCOMPARE( opt.closeupDistance3D(), 12.0 / 1.5 / 1.5 ); // not rounded
 
     resetView3D();
+#endif
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  the figure packs in the list of the models: those of a folder of the
+  user's choice after the bundled ones, its name the folder's; one that
+  cannot be read told but not chosen, why in its tooltip; one that could
+  not be drawn told, and chosen to try it again; the credits of the one
+  chosen, or why it is wrong; a name of no pack; the bodies only for a
+  pack with men's and women's; no folder again
+*/
+void
+TestConfigDialog::figurePacks()
+{
+#ifndef HAVE_3D_VIEW
+    QSKIP( "without the 3D view" );
+#else
+    Options & opt = Options::instance();
+    resetView3D();
+
+    // a folder of two packs: a robot of the Mannequin's model and motion, and a broken one
+    QTemporaryDir folder;
+    QVERIFY( folder.isValid() );
+    QDir dir( folder.path() );
+    QVERIFY( dir.mkpath( "robot" ) && dir.mkpath( "broken" ) );
+    QVERIFY( QFile::copy( ":/figures/mannequin/Mannequin.glb", dir.filePath( "robot/Robot.glb" ) ) );
+    QVERIFY( writeFile( dir.filePath( "robot/figure.json" ),
+                        "{ \"format\": 1, \"name\": \"Robot\", \"description\": \"A robot.\",\n"
+                        "  \"credits\": [ { \"title\": \"Robot\", \"author\": \"Someone\", \"license\": \"CC BY 4.0\" } ],\n"
+                        "  \"motion\": \"mannequin\",\n"
+                        "  \"bodies\": [ { \"model\": \"Robot.glb\", \"paint\": { \"M_Main\": \"team\" } } ] }\n" ) );
+    QVERIFY( writeFile( dir.filePath( "broken/figure.json" ), "{ \"format\": 1,\n  \"name\": }\n" ) );
+
+    DispHolder holder;
+    ConfigDialog dialog( nullptr, holder );
+    dialog.show();
+    QSignalSpy spy( &dialog, SIGNAL( configured() ) );
+    QComboBox * model = child< QComboBox >( dialog, "player_model_3d" );
+    QLabel * credits = child< QLabel >( dialog, "figure_credits_3d" );
+    QToolButton * packs = child< QToolButton >( dialog, "figure_folder_3d" );
+    QButtonGroup * bodies = child< QButtonGroup >( dialog, "figure_bodies_3d" );
+    QVERIFY( model && credits && packs && bodies );
+    QVERIFY( packs->menu() );
+    QAction * no_folder = packs->menu()->findChild< QAction * >( "no_figure_folder_3d" );
+    QVERIFY( no_folder );
+    QVERIFY( ! no_folder->isEnabled() ); // no folder yet
+    QVERIFY( model->findData( "robot" ) < 0 );
+    const auto enabled = [model]( const int i ) {
+        const QStandardItemModel * items = qobject_cast< const QStandardItemModel * >( model->model() );
+        return items && items->item( i )->isEnabled();
+    };
+
+    // the folder: its packs after the bundled ones
+    dialog.setFigureFolder( folder.path() );
+    QCOMPARE( spy.count(), 1 );
+    QCOMPARE( opt.figureFolder3D(), folder.path() );
+    QVERIFY( no_folder->isEnabled() );
+    QVERIFY( packs->toolTip().contains( folder.path() ) );
+    int robot = model->findData( "robot" );
+    const int broken = model->findData( "broken" );
+    QVERIFY( robot > 2 && broken > 2 );
+    QCOMPARE( model->itemText( robot ), QString( "Robot" ) );
+    QVERIFY( enabled( robot ) );
+    QVERIFY( model->itemData( robot, Qt::ToolTipRole ).toString().contains( "A robot." ) );
+    QVERIFY( model->itemData( robot, Qt::ToolTipRole ).toString().contains( "Robot by Someone (CC BY 4.0)" ) );
+    QVERIFY( model->itemData( robot, Qt::ToolTipRole ).toString().contains( dir.filePath( "robot" ) ) );
+    QCOMPARE( model->itemText( broken ), QString( "broken (cannot be read)" ) );
+    QVERIFY( ! enabled( broken ) );
+    QVERIFY2( model->itemData( broken, Qt::ToolTipRole ).toString().contains( "figure.json" )
+              && model->itemData( broken, Qt::ToolTipRole ).toString().contains( "line 2" ),
+              qPrintable( model->itemData( broken, Qt::ToolTipRole ).toString() ) );
+
+    // a pack put while the dialog is open: looked for when it shows again
+    QVERIFY( dir.mkpath( "late" ) );
+    QVERIFY( QFile::copy( ":/figures/mannequin/Mannequin.glb", dir.filePath( "late/Robot.glb" ) ) );
+    QVERIFY( QFile::copy( dir.filePath( "robot/figure.json" ), dir.filePath( "late/figure.json" ) ) );
+    dialog.update3D();
+    QVERIFY( model->findData( "late" ) < 0 );
+    dialog.hide();
+    dialog.show();
+    QVERIFY( model->findData( "late" ) > 2 );
+    robot = model->findData( "robot" );
+
+    // chosen: its name is the folder's; its credits and its motion's
+    model->setCurrentIndex( robot );
+    emit model->activated( robot );
+    QCOMPARE( opt.playerModel3D(), QString( "robot" ) );
+    QCOMPARE( spy.count(), 2 );
+    QCOMPARE( credits->text(), QString( "Credits: Someone (CC BY 4.0); Quaternius (CC0 1.0)" ) );
+    QVERIFY( credits->styleSheet().isEmpty() );
+    QVERIFY( ! bodies->button( 0 )->isEnabled() ); // no men's and women's bodies
+
+    // one that could not be drawn: told, and it can be chosen again
+    FigurePacks::noteError( "robot", "Robot: Robot.glb: no clip \"Run\"" );
+    dialog.update3D();
+    QCOMPARE( model->itemText( model->currentIndex() ), QString( "Robot (cannot be drawn)" ) );
+    QVERIFY( enabled( model->currentIndex() ) );
+    QVERIFY( model->itemData( model->currentIndex(), Qt::ToolTipRole ).toString().startsWith( "Robot: Robot.glb: no clip" ) );
+    QVERIFY( credits->text().startsWith( "Cannot be drawn: Robot: Robot.glb" ) );
+    QVERIFY( ! credits->styleSheet().isEmpty() );
+    FigurePacks::noteError( "robot", QString() );
+    dialog.update3D();
+    QCOMPARE( model->itemText( model->currentIndex() ), QString( "Robot" ) );
+
+    // no folder again: the name of no pack, told, the players as cylinders
+    no_folder->trigger();
+    QVERIFY( opt.figureFolder3D().isEmpty() );
+    QCOMPARE( opt.playerModel3D(), QString( "robot" ) );
+    QVERIFY( model->findData( "broken" ) < 0 );
+    QCOMPARE( model->currentText(), QString( "robot (not found)" ) );
+    QVERIFY( ! enabled( model->currentIndex() ) );
+    QVERIFY( credits->text().startsWith( "No figure pack \"robot\"" ) );
+    QVERIFY( ! credits->styleSheet().isEmpty() );
+
+    // the Human: the bodies of men and women
+    model->setCurrentIndex( 2 );
+    emit model->activated( 2 );
+    QCOMPARE( opt.playerModel3D(), QString( "human" ) );
+    QVERIFY( bodies->button( 0 )->isEnabled() );
+    resetView3D();
+    FigurePacks::refresh();
 #endif
 }
 

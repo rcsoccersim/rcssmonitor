@@ -1,26 +1,10 @@
-# The model of the human figures
+# The Human: a figure pack of the 3D view
 
-- `Mannequin.glb`: the Mannequin and four animations (Idle_Loop, Walk_Loop,
-  Jog_Fwd_Loop, Sprint_Loop) of the Universal Animation Library [Standard] by
-  [Quaternius](https://quaternius.com/packs/universalanimationlibrary.html),
-  CC0 1.0. It is the `Mannequin.glb` of rcssmonitor-web 20.0.0-beta.2
-  (`src/view/render3d/figures/models/`, trimmed from `UAL1_Standard.glb`
-  with glTF-Transform), written again without EXT_meshopt_compression and
-  KHR_mesh_quantization, which a desktop application does not need to save
-  space for: 346 kB to 684 kB.
-- `decompress.mjs`: the script that wrote it, with glTF-Transform 4.5.1 and
-  meshoptimizer:
-
-  ```bash
-  npm install @gltf-transform/core@4 @gltf-transform/extensions@4 @gltf-transform/functions@4 meshoptimizer
-  node decompress.mjs <rcssmonitor-web>/src/view/render3d/figures/models/Mannequin.glb Mannequin.glb
-  ```
-
-The model has one mesh with two materials (M_Main, M_Joints), a skin of
-65 joints, and the four animations, each with the translation, rotation
-and scale of every joint.
-
-# The human bodies
+A figure pack bundled with rcssmonitor (`docs/FIGURE_PACKS.md`): men and
+women in a uniform of the player's color, each player with its own body,
+hairstyle and colors of the skin and the hair. `figure.json` tells the 3D
+view how to draw them; they move with the motion of the Mannequin pack
+(`../mannequin`).
 
 - `BaseCharacterMale.glb`, `BaseCharacterFemale.glb`: the male and the
   female bodies (`Superhero_Male_FullBody`, `Superhero_Female_FullBody`)
@@ -33,7 +17,7 @@ and scale of every joint.
   woman. The 3D view draws them with the Mannequin's clips: they have the
   same 65 joints (the same names and order), and no clips of their own.
   Each player wears one of its body's hairstyles (and a man a beard or
-  not; `FigureLooks`).
+  not), as `figure.json` lists them (`FigureLooks`).
 - `pack_base_character.py`: the script that wrote them from the pack's glTF
   files (Python's standard library only):
 

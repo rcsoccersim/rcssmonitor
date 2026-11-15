@@ -174,7 +174,7 @@ FieldView3D::initializeGL()
         std::cerr << "(FieldView3D) the human figures are not available: "
                   << M_builder.figures().error().toStdString() << std::endl;
     }
-    M_figure_model = PlayerModel::Simple;
+    M_figure_pack.clear();
     M_scene.setTiming( M_timing.on );
     M_gpu_timing = M_timing.on;
     M_ground_key.clear();
@@ -287,14 +287,14 @@ FieldView3D::paintGL()
     const rcss::rcg::ShowInfoT & show = M_builder.show();
     // the bodies of the figures to the GPU, when others are drawn
     if ( ! M_content.figures.empty()
-         && M_builder.figures().bodyModel() != M_figure_model )
+         && M_builder.figures().pack().dir != M_figure_pack )
     {
         const Figures3D & figures = M_builder.figures();
         for ( int k = 0; k < figures.bodyCount(); ++k )
         {
             M_scene.setFigureBody( k, figures.model( k ), figures.paints( k ), figures.uniformCuts( k ) );
         }
-        M_figure_model = figures.bodyModel();
+        M_figure_pack = figures.pack().dir;
     }
     const Perceptions * seen = M_builder.seen();
     const PlayerCameraOptions & player_camera = opt.playerCamera();
@@ -479,7 +479,7 @@ FieldView3D::reportTiming()
                   "(3D timing) %dx%d px, %s, %d figures: %.1f fps (longest %.1f ms);"
                   " CPU build %.3f ms (players %.3f), submit %.3f ms; GPU %.3f ms\n",
                   int( std::lround( width() * dpr ) ), int( std::lround( height() * dpr ) ),
-                  playerModelName( Options::instance().playerModel3D() ).toLatin1().constData(),
+                  Options::instance().playerModel3D().toUtf8().constData(),
                   M_timing.figures,
                   n / seconds, M_timing.longest,
                   M_timing.build / n, M_timing.players / n, M_timing.submit / n,

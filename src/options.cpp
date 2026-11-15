@@ -231,7 +231,8 @@ Options::Options()
     M_compass_3d( COMPASS_3D ),
     M_minimap_3d( MINIMAP_3D ),
     M_fps_3d( FPS_3D ),
-    M_player_model_3d( PLAYER_MODEL_3D ),
+    M_player_model_3d( QString::fromLatin1( PLAYER_MODEL_3D ) ),
+    M_figure_folder_3d(),
     M_figure_scale_3d( FIGURE_SCALE_3D ),
     M_figure_bodies_3d( FIGURE_BODIES_3D ),
     M_shadows_3d( SHADOWS_3D ),
@@ -774,8 +775,12 @@ Options::readSettings()
     val = settings.value( "fps_3d" );
     if ( val.isValid() ) M_fps_3d = val.toBool();
 
+    // a figure pack's name, whether there is such a pack now or not
     val = settings.value( "player_model_3d" );
-    if ( val.isValid() ) playerModelFromName( val.toString(), &M_player_model_3d );
+    if ( val.isValid() ) M_player_model_3d = normalizedPlayerModel( val.toString() );
+
+    val = settings.value( "figure_folder_3d" );
+    if ( val.isValid() ) M_figure_folder_3d = val.toString();
 
     val = settings.value( "figure_scale_3d" );
     if ( val.isValid() && in_range( val.toDouble(), MIN_FIGURE_SCALE_3D, MAX_FIGURE_SCALE_3D ) )
@@ -976,7 +981,8 @@ Options::writeSettings( bool all )
     settings.setValue( "compass_3d", guideModeName( M_compass_3d ) );
     settings.setValue( "minimap_3d", guideModeName( M_minimap_3d ) );
     settings.setValue( "fps_3d", M_fps_3d );
-    settings.setValue( "player_model_3d", playerModelName( M_player_model_3d ) );
+    settings.setValue( "player_model_3d", M_player_model_3d );
+    settings.setValue( "figure_folder_3d", M_figure_folder_3d );
     settings.setValue( "figure_scale_3d", M_figure_scale_3d );
     settings.setValue( "figure_bodies_3d", figureBodiesName( M_figure_bodies_3d ) );
     settings.setValue( "shadows_3d", shadowModeName( M_shadows_3d ) );
@@ -1036,7 +1042,7 @@ Options::setView3DDefaults()
     M_compass_3d = COMPASS_3D;
     M_minimap_3d = MINIMAP_3D;
     M_fps_3d = FPS_3D;
-    M_player_model_3d = PLAYER_MODEL_3D;
+    M_player_model_3d = QString::fromLatin1( PLAYER_MODEL_3D );
     M_figure_scale_3d = FIGURE_SCALE_3D;
     M_figure_bodies_3d = FIGURE_BODIES_3D;
     M_shadows_3d = SHADOWS_3D;
@@ -1251,10 +1257,15 @@ Options::parseCmdLine( int argc,
                                    "bool", to_onoff( M_fps_3d ) );
     parser.addOption( opt_fps_3d );
     QCommandLineOption opt_player_model_3d( "player-model-3d",
-                                            "The 3D view: how the players are drawn, simple (cylinders and spheres), mannequin or human (human figures). (Default="
-                                            + playerModelName( M_player_model_3d ) + ")",
-                                            "model", playerModelName( M_player_model_3d ) );
+                                            "The 3D view: how the players are drawn, simple (cylinders and spheres), or the human figures of a figure pack: mannequin, human, or the name of a pack of yours. (Default="
+                                            + M_player_model_3d + ")",
+                                            "model", M_player_model_3d );
     parser.addOption( opt_player_model_3d );
+    QCommandLineOption opt_figure_folder_3d( "figure-folder-3d",
+                                             "The 3D view: a folder of figure packs, besides the bundled ones and the user's data folder (rcssmonitor/figures). (Default="
+                                             + ( M_figure_folder_3d.isEmpty() ? QString( "none" ) : M_figure_folder_3d ) + ")",
+                                             "folder", M_figure_folder_3d );
+    parser.addOption( opt_figure_folder_3d );
     QCommandLineOption opt_figure_scale_3d( "figure-scale-3d",
                                             "The 3D view: the human figures are this many times a person's height, "
                                             + to_string( MIN_FIGURE_SCALE_3D ) + " to " + to_string( MAX_FIGURE_SCALE_3D )
@@ -1556,10 +1567,14 @@ Options::parseCmdLine( int argc,
     {
         std::cerr << "Unknown value of shadows-3d: " << parser.value( opt_shadows_3d ).toStdString() << std::endl;
     }
-    if ( parser.isSet( opt_player_model_3d )
-         && ! playerModelFromName( parser.value( opt_player_model_3d ), &M_player_model_3d ) )
+    // a figure pack's name: an unknown one is told when the 3D view draws (FrameBuilder3D)
+    if ( parser.isSet( opt_player_model_3d ) )
     {
-        std::cerr << "Unknown value of player-model-3d: " << parser.value( opt_player_model_3d ).toStdString() << std::endl;
+        M_player_model_3d = normalizedPlayerModel( parser.value( opt_player_model_3d ) );
+    }
+    if ( parser.isSet( opt_figure_folder_3d ) )
+    {
+        M_figure_folder_3d = parser.value( opt_figure_folder_3d );
     }
     {
         PlayerCameraOptions & pc = M_player_camera;

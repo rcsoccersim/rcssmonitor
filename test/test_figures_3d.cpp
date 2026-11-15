@@ -128,22 +128,33 @@ private slots:
           QVERIFY( M_figures.load() ); // once
       }
 
-    //! the option of the player model: simple by default, read by its names
+    /*!
+      the option of the player model: simple by default, else a figure
+      pack's name (any, whether there is such a pack or not), the
+      mannequin's name before for the Mannequin
+    */
     void option()
       {
-          QCOMPARE( Options::PLAYER_MODEL_3D, PlayerModel::Simple );
-          PlayerModel m = PlayerModel::Simple;
-          QVERIFY( playerModelFromName( "mannequin", &m ) );
-          QCOMPARE( m, PlayerModel::Mannequin );
-          QVERIFY( ! playerModelFromName( "robot", &m ) );
-          QCOMPARE( m, PlayerModel::Mannequin ); // unchanged
-          m = PlayerModel::Simple;
-          QVERIFY( playerModelFromName( "figure", &m ) ); // the mannequin's name before
-          QCOMPARE( m, PlayerModel::Mannequin );
-          QCOMPARE( playerModelName( PlayerModel::Simple ), QString( "simple" ) );
-          QCOMPARE( playerModelName( PlayerModel::Mannequin ), QString( "mannequin" ) );
-          QVERIFY( playerModelFromName( "human", &m ) );
-          QCOMPARE( m, PlayerModel::Human );
+          QCOMPARE( QString( Options::PLAYER_MODEL_3D ), QString( "simple" ) );
+          QCOMPARE( normalizedPlayerModel( "mannequin" ), QString( "mannequin" ) );
+          QCOMPARE( normalizedPlayerModel( "human" ), QString( "human" ) );
+          QCOMPARE( normalizedPlayerModel( "figure" ), QString( "mannequin" ) ); // the mannequin's name before
+          QCOMPARE( normalizedPlayerModel( "" ), QString( "simple" ) );
+          QCOMPARE( normalizedPlayerModel( " robot " ), QString( "robot" ) );
+          {
+              Options & opt = Options::instance();
+              const QString before = opt.playerModel3D();
+              opt.setPlayerModel3D( "figure" );
+              QCOMPARE( opt.playerModel3D(), QString( "mannequin" ) );
+              QVERIFY( opt.figures3D() );
+              opt.setPlayerModel3D( QString() );
+              QCOMPARE( opt.playerModel3D(), QString( "simple" ) );
+              QVERIFY( ! opt.figures3D() );
+              opt.setPlayerModel3D( "my pack" );
+              QCOMPARE( opt.playerModel3D(), QString( "my pack" ) );
+              QVERIFY( opt.figures3D() );
+              opt.setPlayerModel3D( before );
+          }
           // the human bodies: mixed by default
           QCOMPARE( Options::FIGURE_BODIES_3D, FigureBodies::Mixed );
           FigureBodies b = FigureBodies::Mixed;
@@ -923,11 +934,15 @@ private slots:
       {
           Figures3D human;
           QVERIFY2( human.load(), qPrintable( human.error() ) );
-          QCOMPARE( human.bodyModel(), PlayerModel::Mannequin );
+          QCOMPARE( human.pack().id, QString( "mannequin" ) );
           QCOMPARE( human.bodyStride(), 1.0f );
-          QVERIFY2( human.setModel( PlayerModel::Human ), qPrintable( human.error() ) );
-          QCOMPARE( human.bodyModel(), PlayerModel::Human );
-          QVERIFY( human.setModel( PlayerModel::Human ) ); // read once
+          const FigurePack * pack = FigurePacks::builtin( "human" );
+          QVERIFY( pack );
+          QVERIFY2( human.setPack( *pack ), qPrintable( human.error() ) );
+          QCOMPARE( human.pack().id, QString( "human" ) );
+          const GltfModel * first = &human.model();
+          QVERIFY( human.setPack( *pack ) ); // read once
+          QCOMPARE( &human.model(), first );
           const GltfModel & body = human.model();
           QCOMPARE( body.jointCount(), human.motionModel().jointCount() );
           QVERIFY( body.clips.empty() ); // the motion's clips play on it
@@ -1016,7 +1031,7 @@ private slots:
           // the woman's body too: of its own model, rig and strides
           QCOMPARE( human.bodyCount(), 2 );
           FigureInstance woman = figureAt( 3, 10.0f, -5.0f, 30.0f, 1.85f );
-          woman.look.body = FigureLooks::FEMALE;
+          woman.look.body = 1; // the Human pack's second body
           QCOMPARE( human.bodyOf( woman ), 1 );
           QCOMPARE( human.bodyOf( f ), 0 );
           FigureInstance odd = woman;
@@ -1073,13 +1088,11 @@ private slots:
                   else
                   {
                       QCOMPARE( paints[i].kind, int( FigureUniform::Paint::Hair ) );
-                      QCOMPARE( paints[i].show, FigureLooks::hairBit( material ) );
+                      QCOMPARE( paints[i].show, human.pack().bodies[b].bitOf( material ) );
                       styles |= paints[i].show;
                   }
               }
-              QCOMPARE( styles, b == 0
-                        ? std::uint32_t( FigureLooks::SIMPLE_PARTED | FigureLooks::BUZZED | FigureLooks::BEARD )
-                        : std::uint32_t( FigureLooks::BUNS | FigureLooks::LONG | FigureLooks::BUZZED_FEMALE ) );
+              QCOMPARE( styles, std::uint32_t( 1 | 2 | 4 ) ); // the hairstyles and the beard, each of its own
           }
           // the figures of both, each of its body
           content.figures = { f, woman };
@@ -1087,11 +1100,11 @@ private slots:
           QCOMPARE( content.figure_bodies, std::vector< int >( { 0, 1 } ) );
           QCOMPARE( content.figure_joints.size(), std::size_t( 2 * body.jointCount() * 16 ) );
 
-          // back to the Mannequin
-          QVERIFY( human.setModel( PlayerModel::Mannequin ) );
+          // back to the Mannequin (read before)
+          QVERIFY( human.setPack( *FigurePacks::builtin( "mannequin" ) ) );
           QCOMPARE( human.bodyCount(), 1 );
           QCOMPARE( human.bodyOf( woman ), 0 );
-          QCOMPARE( human.bodyModel(), PlayerModel::Mannequin );
+          QCOMPARE( human.pack().id, QString( "mannequin" ) );
           QCOMPARE( human.jerseyMaterials(), QStringList( { "M_Main" } ) );
           QVERIFY( std::fabs( nodeAt( human, f, 1.0, "hand_l" ).y() - mannequin_hand ) < 1.0e-5f );
       }

@@ -43,6 +43,10 @@
 #include "disp_holder.h"
 #include "options.h"
 
+#ifdef HAVE_3D_VIEW
+#include "figure_pack.h"
+#endif
+
 #include <algorithm>
 #include <functional>
 #include <iostream>
@@ -1516,21 +1520,35 @@ guideLabel( const GuideMode mode )
     return QString::fromUtf8( GUIDE_TEXTS[guideIndex( mode )].label );
 }
 
-//! the index of a player model in playerModels() (and MODEL_TEXTS)
-int
-modelIndex( const PlayerModel model )
+//! the user's own data folder of figure packs (none without the 3D view)
+QString
+userFigureFolder()
 {
-    for ( std::size_t i = 0; i < playerModels().size(); ++i )
-    {
-        if ( playerModels()[i].first == model ) return int( i );
-    }
-    return 0;
+#ifdef HAVE_3D_VIEW
+    return FigurePacks::userFolders().value( 0 );
+#else
+    return QString();
+#endif
 }
 
-QString
-modelLabel( const PlayerModel model )
+//! the text of a player model (MODEL_TEXTS: the cylinders and the bundled figure packs), or null
+const ChoiceText *
+modelText( const QString & model )
 {
-    return QString::fromUtf8( MODEL_TEXTS[modelIndex( model )].label );
+    const char * names[] = { PLAYER_MODEL_SIMPLE, PLAYER_MODEL_MANNEQUIN, PLAYER_MODEL_HUMAN };
+    for ( int i = 0; i < 3; ++i )
+    {
+        if ( model == QLatin1String( names[i] ) ) return &MODEL_TEXTS[i];
+    }
+    return nullptr;
+}
+
+//! the label of a player model: the cylinders', or a figure pack's name
+QString
+modelLabel( const QString & model )
+{
+    const ChoiceText * t = modelText( model );
+    return ( t ? QString::fromUtf8( t->label ) : model );
 }
 
 QString
@@ -1818,21 +1836,72 @@ ConfigDialog::create3DTab()
         QGridLayout * layout = new QGridLayout();
         layout->setContentsMargins( 0, 0, 0, 0 );
 
-        std::vector< std::pair< QString, QString > > choices;
-        for ( const ChoiceText & t : MODEL_TEXTS )
+        // the cylinders or the figure packs found (fillPacks()), and the folders of the packs
         {
-            choices.emplace_back( QString::fromUtf8( t.label ), QString::fromUtf8( t.summary ) );
+            const int row = layout->rowCount();
+            QLabel * l = new QLabel( tr( "Model:" ) );
+            l->setToolTip( tr( "How the players are drawn: cylinders, or the human figures of a figure\n"
+                               "pack (the bundled Mannequin and Human, or a pack of yours)." ) );
+            layout->addWidget( l, row, 0 );
+            QHBoxLayout * line = new QHBoxLayout();
+            line->setContentsMargins( 0, 0, 0, 0 );
+            M_player_model_3d = new QComboBox();
+            M_player_model_3d->setObjectName( "player_model_3d" );
+            M_player_model_3d->setSizeAdjustPolicy( QComboBox::AdjustToContents );
+            connect( M_player_model_3d, QOverload< int >::of( &QComboBox::activated ),
+                     this, [this]( int index ) {
+                         Options::instance().setPlayerModel3D( M_player_model_3d->itemData( index ).toString() );
+                         changed3D();
+                         // a pack that cannot be drawn is told after the view tries it
+                         QTimer::singleShot( 500, this, &ConfigDialog::update3D );
+                     } );
+            line->addWidget( M_player_model_3d );
+
+            M_figure_folder_3d = new QToolButton();
+            M_figure_folder_3d->setObjectName( "figure_folder_3d" );
+            M_figure_folder_3d->setText( tr( "Packs" ) );
+            M_figure_folder_3d->setToolTip( tr( "The folders of the figure packs." ) ); // in full by fillPacks()
+            M_figure_folder_3d->setPopupMode( QToolButton::InstantPopup );
+            QMenu * menu = new QMenu( M_figure_folder_3d );
+            QAction * choose = menu->addAction( tr( "Choose a Folder of Packs..." ) );
+            choose->setObjectName( "choose_figure_folder_3d" );
+            connect( choose, &QAction::triggered,
+                     this, [this]() {
+                         const QString & now = Options::instance().figureFolder3D();
+                         const QString dir = QFileDialog::getExistingDirectory( this, tr( "A Folder of Figure Packs" ),
+                                                                                now.isEmpty() ? userFigureFolder() : now );
+                         if ( ! dir.isEmpty() ) setFigureFolder( dir );
+                     } );
+            M_no_figure_folder_3d = menu->addAction( tr( "No Folder of Packs" ) );
+            M_no_figure_folder_3d->setObjectName( "no_figure_folder_3d" );
+            connect( M_no_figure_folder_3d, &QAction::triggered,
+                     this, [this]() { setFigureFolder( QString() ); } );
+            QAction * open = menu->addAction( tr( "Open the User's Folder of Packs" ) );
+            open->setObjectName( "open_figure_folder_3d" );
+            connect( open, &QAction::triggered,
+                     this, []() {
+                         const QString dir = userFigureFolder();
+                         if ( dir.isEmpty() ) return;
+                         QDir().mkpath( dir );
+                         QDesktopServices::openUrl( QUrl::fromLocalFile( dir ) );
+                     } );
+            QAction * again = menu->addAction( tr( "Look for Packs Again" ) );
+            again->setObjectName( "rescan_figure_packs_3d" );
+            connect( again, &QAction::triggered,
+                     this, [this]() {
+                         setFigureFolder( Options::instance().figureFolder3D() );
+                     } );
+            M_figure_folder_3d->setMenu( menu );
+            line->addWidget( M_figure_folder_3d );
+            line->addStretch();
+            layout->addLayout( line, row, 1, 1, 3 );
+
+            // the credits of the pack (in full in its tooltip), or why it cannot be drawn
+            M_figure_credits_3d = new QLabel();
+            M_figure_credits_3d->setObjectName( "figure_credits_3d" );
+            M_figure_credits_3d->setTextFormat( Qt::PlainText );
+            layout->addWidget( M_figure_credits_3d, row + 1, 1, 1, 3 );
         }
-        M_player_model_3d = addChoices( layout, tr( "Model:" ),
-                                        tr( "How the players are drawn." ),
-                                        choices );
-        setChoiceTooltips( M_player_model_3d, MODEL_TEXTS );
-        M_player_model_3d->setObjectName( "player_model_3d" );
-        connect( M_player_model_3d, &QButtonGroup::idClicked,
-                 this, [this]( int id ) {
-                     Options::instance().setPlayerModel3D( playerModels()[id].first );
-                     changed3D();
-                 } );
 
         std::vector< std::pair< QString, QString > > bodies;
         for ( const ChoiceText & t : BODIES_TEXTS )
@@ -1841,7 +1910,7 @@ ConfigDialog::create3DTab()
         }
         const int bodies_row = layout->rowCount();
         M_figure_bodies_3d = addChoices( layout, tr( "Bodies:" ),
-                                         tr( "The Human model's bodies: of men and women, or of one of them.\n"
+                                         tr( "The bodies of a pack with men's and women's (the Human): of both, or of one.\n"
                                              "The Player camera sees a player's own body, hairstyle and colors only\n"
                                              "as far as it knows who it is (its number); else the standard ones." ),
                                          bodies );
@@ -2081,7 +2150,7 @@ ConfigDialog::create3DTab()
                             .arg( Options::CLOSEUP_ELEVATION_3D )
                             .arg( guideLabel( Options::COMPASS_3D ) )
                             .arg( guideLabel( Options::MINIMAP_3D ) )
-                            .arg( modelLabel( Options::PLAYER_MODEL_3D ) )
+                            .arg( modelLabel( QString::fromLatin1( Options::PLAYER_MODEL_3D ) ) )
                             .arg( Options::FIGURE_SCALE_3D )
                             .arg( onOff( Options::BOARDS_3D ) )
                             .arg( onOff( Options::BANNERS_3D ) )
@@ -2304,6 +2373,124 @@ ConfigDialog::changed3D()
 
 */
 void
+ConfigDialog::setFigureFolder( const QString & folder )
+{
+#ifdef HAVE_3D_VIEW
+    Options::instance().setFigureFolder3D( folder );
+    FigurePacks::refresh();
+    changed3D();
+#else
+    Q_UNUSED( folder );
+#endif
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+void
+ConfigDialog::fillPacks()
+{
+#ifdef HAVE_3D_VIEW
+    if ( ! M_player_model_3d ) return;
+    const Options & opt = Options::instance();
+    const QString & current = opt.playerModel3D();
+    const QString & folder = opt.figureFolder3D();
+
+    const QSignalBlocker blocker( M_player_model_3d );
+    M_player_model_3d->clear();
+    QStandardItemModel * items = qobject_cast< QStandardItemModel * >( M_player_model_3d->model() );
+    const auto add = [&]( const QString & text, const QString & id, const QString & tip, const bool enabled ) {
+        M_player_model_3d->addItem( text, id );
+        const int i = M_player_model_3d->count() - 1;
+        M_player_model_3d->setItemData( i, tip, Qt::ToolTipRole );
+        if ( items && ! enabled ) items->item( i )->setEnabled( false );
+    };
+
+    // the cylinders, then the packs: a pack that cannot be read is told
+    // but not chosen; one that could not be drawn can be tried again
+    const ChoiceText & simple = *modelText( QString::fromLatin1( PLAYER_MODEL_SIMPLE ) );
+    add( QString::fromUtf8( simple.label ), QString::fromLatin1( PLAYER_MODEL_SIMPLE ), QString::fromUtf8( simple.tooltip ), true );
+    const std::vector< FigurePack > & packs = FigurePacks::packs( folder );
+    for ( const FigurePack & p : packs )
+    {
+        if ( ! p.ok() )
+        {
+            add( tr( "%1 (cannot be read)" ).arg( p.displayName() ), p.id,
+                 p.dir + QStringLiteral( ":\n" ) + p.error, false );
+            continue;
+        }
+        const ChoiceText * t = ( p.builtin ? modelText( p.id ) : nullptr );
+        QString tip = ( t && t->tooltip ? QString::fromUtf8( t->tooltip ) : p.description );
+        if ( ! p.creditText().isEmpty() ) tip += tr( "\n\nCredits:\n" ) + p.creditText();
+        if ( ! p.builtin ) tip += tr( "\n\nIn " ) + p.dir;
+        const QString why = FigurePacks::drawError( p.id );
+        if ( why.isEmpty() )
+        {
+            add( p.displayName(), p.id, tip.trimmed(), true );
+        }
+        else
+        {
+            add( tr( "%1 (cannot be drawn)" ).arg( p.displayName() ), p.id, ( why + QStringLiteral( "\n\n" ) + tip ).trimmed(), true );
+        }
+    }
+    int index = M_player_model_3d->findData( current );
+    if ( index < 0 )
+    {
+        add( tr( "%1 (not found)" ).arg( current ), current,
+             tr( "No figure pack of this name is found: the players are cylinders." ), false );
+        index = M_player_model_3d->count() - 1;
+    }
+    M_player_model_3d->setCurrentIndex( index );
+
+    // the credits of the pack, or why it cannot be drawn (in full in the tooltip)
+    const FigurePack * pack = ( opt.figures3D() ? FigurePacks::find( current, folder ) : nullptr );
+    QString line;
+    QString tip;
+    bool wrong = true;
+    if ( ! opt.figures3D() )
+    {
+        wrong = false;
+    }
+    else if ( ! pack )
+    {
+        line = tr( "No figure pack \"%1\": the players are cylinders." ).arg( current );
+    }
+    else if ( ! pack->ok() )
+    {
+        line = tr( "Cannot be read: " ) + pack->error;
+    }
+    else if ( ! FigurePacks::drawError( pack->id ).isEmpty() )
+    {
+        line = tr( "Cannot be drawn: " ) + FigurePacks::drawError( pack->id );
+    }
+    else
+    {
+        line = tr( "Credits: " ) + pack->creditLine();
+        tip = pack->creditText();
+        wrong = false;
+    }
+    if ( tip.isEmpty() ) tip = line;
+    const int width = std::max( 240, M_player_model_3d->sizeHint().width() + M_figure_folder_3d->sizeHint().width() + 120 );
+    M_figure_credits_3d->setText( M_figure_credits_3d->fontMetrics().elidedText( line, Qt::ElideRight, width ) );
+    M_figure_credits_3d->setToolTip( tip );
+    M_figure_credits_3d->setStyleSheet( wrong ? QStringLiteral( "color: #c03030;" ) : QString() );
+
+    M_no_figure_folder_3d->setEnabled( ! folder.isEmpty() );
+    M_figure_folder_3d->setToolTip( tr( "The figure packs: the bundled ones, those in a folder of your choice\n"
+                                        "(%1), and those in the user's folder (%2).\n"
+                                        "A pack is a folder with a figure.json (docs/FIGURE_PACKS.md); its name\n"
+                                        "is the folder's." )
+                                    .arg( folder.isEmpty() ? tr( "none" ) : folder,
+                                          FigurePacks::userFolders().value( 0 ) ) );
+#endif
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+void
 ConfigDialog::update3D()
 {
     if ( ! M_closeup_distance_3d )
@@ -2333,10 +2520,10 @@ ConfigDialog::update3D()
     set_choice( M_compass_3d, guideIndex( opt.compass3D() ) );
     set_choice( M_minimap_3d, guideIndex( opt.minimap3D() ) );
     M_fps_3d_cb->setChecked( opt.fps3D() );
-    set_choice( M_player_model_3d, modelIndex( opt.playerModel3D() ) );
+    fillPacks();
     set_number( M_figure_scale_3d, opt.figureScale3D() );
     // the scale of the figures, not of the cylinders
-    const bool figures = ( opt.playerModel3D() != PlayerModel::Simple );
+    const bool figures = opt.figures3D();
     M_figure_scale_3d->setEnabled( figures );
     M_figure_scale_3d_label->setEnabled( figures );
     // the bodies of the human ones
@@ -2344,9 +2531,14 @@ ConfigDialog::update3D()
     {
         if ( figureBodiesList()[i].first == opt.figureBodies3D() ) set_choice( M_figure_bodies_3d, int( i ) );
     }
-    const bool human = ( opt.playerModel3D() == PlayerModel::Human );
-    for ( QAbstractButton * b : M_figure_bodies_3d->buttons() ) b->setEnabled( human );
-    if ( M_figure_bodies_3d_label ) M_figure_bodies_3d_label->setEnabled( human );
+#ifdef HAVE_3D_VIEW
+    const FigurePack * pack = ( figures ? FigurePacks::find( opt.playerModel3D(), opt.figureFolder3D() ) : nullptr );
+    const bool sexes = ( pack && pack->ok() && pack->hasSexes() );
+#else
+    const bool sexes = false;
+#endif
+    for ( QAbstractButton * b : M_figure_bodies_3d->buttons() ) b->setEnabled( sexes );
+    if ( M_figure_bodies_3d_label ) M_figure_bodies_3d_label->setEnabled( sexes );
     set_choice( M_shadows_3d, shadowIndex( opt.shadows3D() ) );
     M_boards_3d_cb->setChecked( opt.boards3D() );
     M_banners_3d_cb->setChecked( opt.banners3D() );
@@ -2393,6 +2585,10 @@ ConfigDialog::update3D()
 void
 ConfigDialog::showEvent( QShowEvent * event )
 {
+#ifdef HAVE_3D_VIEW
+    // the figure packs may have been put or changed since
+    FigurePacks::refresh();
+#endif
     updateAll();
     event->accept();
 }

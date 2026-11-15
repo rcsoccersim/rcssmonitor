@@ -34,6 +34,7 @@
 #define RCSSMONITOR_SCENE_BUILDER_H
 
 #include "camera_3d.h"
+#include "figure_looks.h"
 #include "scene_content.h"
 #include "sight.h"
 
@@ -172,10 +173,12 @@ void addGoals( SceneContent & content,
   players its player does not see are not drawn, nor the ball; a player
   whose team it may not know fades to gray, without the highlights; one
   whose directions it does not know has no direction marks
-  \param figures the players as human figures (SceneContent::figures, posed
-  by Figures3D) in place of a cylinder and a sphere, without the direction
-  marks, which the figure shows itself. A player whose directions the
-  player camera does not know stays a cylinder: a figure would show them.
+  \param cast if not null, the players as human figures of a figure pack
+  whose bodies these are (SceneContent::figures, their looks drawn from
+  them: FigureLooks; posed by Figures3D) in place of a cylinder and a
+  sphere, without the direction marks, which the figure shows itself. A
+  player whose directions the player camera does not know stays a
+  cylinder: a figure would show them.
   \param ball_turn how the ball is turned, as it rolled (BallSpin)
 
   A player is as tall as its height ratio (heightRatio()): the body of the
@@ -188,7 +191,7 @@ void addShow( SceneContent & content,
               const DispHolder & holder,
               const Options & options,
               const Perceptions * perceptions = nullptr,
-              const bool figures = false,
+              const FigureCast * cast = nullptr,
               const QQuaternion & ball_turn = QQuaternion() );
 
 /*!

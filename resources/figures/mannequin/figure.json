@@ -1,0 +1,30 @@
+{
+    "format": 1,
+    "name": "Mannequin",
+    "description": "The Mannequin of the Universal Animation Library: all in the player's color but its joints.",
+    "credits": [
+        {
+            "title": "Universal Animation Library [Standard]",
+            "author": "Quaternius",
+            "license": "CC0 1.0",
+            "url": "https://quaternius.com/packs/universalanimationlibrary.html"
+        }
+    ],
+    "motion": {
+        "model": "Mannequin.glb",
+        "skeleton": "quaternius",
+        "clips": {
+            "idle": "Idle_Loop",
+            "walk": "Walk_Loop",
+            "jog": "Jog_Fwd_Loop",
+            "sprint": "Sprint_Loop"
+        }
+    },
+    "bodies": [
+        {
+            "model": "Mannequin.glb",
+            "skeleton": "quaternius",
+            "paint": { "M_Main": "team" }
+        }
+    ]
+}

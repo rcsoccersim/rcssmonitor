@@ -143,7 +143,8 @@ private slots:
     void initTestCase()
       {
           QVERIFY2( M_figures.load(), qPrintable( M_figures.error() ) );
-          QVERIFY2( M_figures.setModel( PlayerModel::Human ), qPrintable( M_figures.error() ) );
+          QVERIFY( FigurePacks::builtin( "human" ) );
+          QVERIFY2( M_figures.setPack( *FigurePacks::builtin( "human" ) ), qPrintable( M_figures.error() ) );
       }
 
     //! a plane through a point across a direction: positive beyond it, in meters
@@ -282,11 +283,13 @@ private slots:
           for ( int b = 0; b < 2; ++b )
           {
               const Cuts & c = f.uniformCuts( b );
-              const std::uint32_t expected[2][3] = {
-                  { FigureLooks::SIMPLE_PARTED, FigureLooks::BUZZED, FigureLooks::BEARD },
-                  { FigureLooks::BUNS, FigureLooks::LONG, FigureLooks::BUZZED_FEMALE },
+              const FigureBodySpec & spec = f.pack().bodies[b];
+              const char * styles[2][3] = {
+                  { "Hair_SimpleParted", "Hair_Buzzed", "Hair_Beard" },
+                  { "Hair_Buns", "Hair_Long", "Hair_BuzzedFemale" },
               };
-              for ( int k = 0; k < 3; ++k ) QCOMPARE( c.scalp[k], expected[b][k] );
+              // the scalps in the order of the model's parts, each of its hairstyle's bit
+              for ( int k = 0; k < 3; ++k ) QCOMPARE( c.scalp[k], spec.bitOf( styles[b][k] ) );
               QCOMPARE( c.scalp[3], 0u );
 
               const QVector3D head = boneAt( f, b, HumanBone::Head );
@@ -298,10 +301,11 @@ private slots:
               const QString body = QString( " of body %1" ).arg( b );
               for ( int k = 0; k < 3; ++k )
               {
-                  const bool beard = ( c.scalp[k] == FigureLooks::BEARD );
+                  const QString style = QString::fromLatin1( styles[b][k] );
+                  const bool beard = ( style == "Hair_Beard" );
                   // the short hair close on the scalp (the long one away from it covers it itself)
-                  const bool tight = ( c.scalp[k] == FigureLooks::SIMPLE_PARTED || c.scalp[k] == FigureLooks::BUZZED
-                                       || c.scalp[k] == FigureLooks::BUZZED_FEMALE );
+                  const bool tight = ( style == "Hair_SimpleParted" || style == "Hair_Buzzed"
+                                       || style == "Hair_BuzzedFemale" );
                   if ( tight ) QVERIFY2( back.scalp[k] == 1.0f, qPrintable( QString( "back of the head, hair %1" ).arg( k ) + body ) );
                   if ( beard ) QVERIFY2( back.scalp[k] == 0.0f, qPrintable( "back of the head under the beard" + body ) );
                   QVERIFY2( face.scalp[k] == 0.0f, qPrintable( QString( "face, hair %1" ).arg( k ) + body ) );

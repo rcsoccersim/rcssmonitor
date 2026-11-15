@@ -1,0 +1,585 @@
+// -*-c++-*-
+
+/*!
+  \file test_figure_pack.cpp
+  \brief unit test of the figure packs (FigurePack, FigurePacks, Figures3D::setPack()).
+*/
+
+/*
+ *Copyright:
+
+ Copyright (C) The RoboCup Soccer Server Maintenance Group.
+ Hidehisa AKIYAMA
+
+ This code is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3, or (at your option)
+ any later version.
+
+ This code is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this code; see the file COPYING.  If not, write to
+ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+
+ *EndCopyright:
+ */
+
+/////////////////////////////////////////////////////////////////////
+
+#include <QtTest>
+
+#include "figure_pack.h"
+#include "figures_3d.h"
+
+#include <QDir>
+#include <QFile>
+#include <QTemporaryDir>
+
+#include <cmath>
+
+namespace {
+
+//! write a file
+bool
+writeFile( const QString & path,
+           const QByteArray & data )
+{
+    QDir().mkpath( QFileInfo( path ).absolutePath() );
+    QFile f( path );
+    return f.open( QIODevice::WriteOnly ) && f.write( data ) == data.size();
+}
+
+//! a pack's folder: figure.json, and the Mannequin's model under these names
+QString
+makePack( const QString & folder,
+          const QString & name,
+          const QByteArray & json,
+          const QStringList & models = QStringList() )
+{
+    const QString dir = QDir( folder ).filePath( name );
+    QDir().mkpath( dir );
+    for ( const QString & m : models )
+    {
+        QFile::remove( QDir( dir ).filePath( m ) );
+        QFile::copy( ":/figures/mannequin/Mannequin.glb", QDir( dir ).filePath( m ) );
+    }
+    if ( ! json.isEmpty() ) writeFile( QDir( dir ).filePath( "figure.json" ), json );
+    return dir;
+}
+
+//! a figure.json of the format 1: the Mannequin's model (Body.glb) and the bundled motion, with more in the body
+QByteArray
+packJson( const QByteArray & body_extra = QByteArray(),
+          const QByteArray & motion = "\"mannequin\"",
+          const QByteArray & top_extra = QByteArray() )
+{
+    return "{ \"format\": 1, \"name\": \"A Pack\", " + top_extra + "\n"
+        "  \"motion\": " + motion + ",\n"
+        "  \"bodies\": [ { \"model\": \"Body.glb\", \"paint\": { \"M_Main\": \"team\" }" + body_extra + " } ] }\n";
+}
+
+//! the motion of the Mannequin's clips in the pack's own file
+const QByteArray OWN_MOTION = "{ \"model\": \"Motion.glb\", \"skeleton\": \"quaternius\", \"clips\": "
+    "{ \"idle\": \"Idle_Loop\", \"walk\": \"Walk_Loop\", \"jog\": \"Jog_Fwd_Loop\", \"sprint\": \"Sprint_Loop\" } }";
+
+const FigurePack *
+byId( const std::vector< FigurePack > & list,
+      const QString & id )
+{
+    for ( const FigurePack & p : list )
+    {
+        if ( p.id == id ) return &p;
+    }
+    return nullptr;
+}
+
+}
+
+/*!
+  \brief unit test of the figure packs
+*/
+class TestFigurePack
+    : public QObject {
+    Q_OBJECT
+
+private:
+    QTemporaryDir M_data; //!< the XDG data folders
+
+private slots:
+
+    void initTestCase()
+      {
+          QVERIFY( M_data.isValid() );
+          // the user's data folder of packs here, none of the system's
+          qputenv( "XDG_DATA_HOME", QFile::encodeName( M_data.filePath( "home" ) ) );
+          qputenv( "XDG_DATA_DIRS", QFile::encodeName( M_data.filePath( "system" ) ) );
+          QCOMPARE( FigurePacks::userFolders().value( 0 ), M_data.filePath( "home/rcssmonitor/figures" ) );
+          QVERIFY( FigurePacks::userFolders().contains( M_data.filePath( "system/rcssmonitor/figures" ) ) );
+      }
+
+    /*!
+      the bundled packs: the Mannequin with its motion, and the Human with
+      the Mannequin's motion (looked up: its model, its clips, its
+      credits); their bodies as figure.json tells
+    */
+    void builtins()
+      {
+          const std::vector< FigurePack > & list = FigurePacks::builtins();
+          QCOMPARE( int( list.size() ), 2 );
+          const FigurePack * m = FigurePacks::builtin( "mannequin" );
+          const FigurePack * h = FigurePacks::builtin( "human" );
+          QVERIFY( m && h );
+          QVERIFY( ! FigurePacks::builtin( "robot" ) );
+          QCOMPARE( &list[0], m );
+          QVERIFY2( m->ok(), qPrintable( m->error ) );
+          QVERIFY2( h->ok(), qPrintable( h->error ) );
+          QVERIFY( m->builtin && h->builtin );
+          QCOMPARE( m->dir, QString( ":/figures/mannequin" ) );
+          QCOMPARE( m->format, 1 );
+          QCOMPARE( m->displayName(), QString( "Mannequin" ) );
+          QCOMPARE( h->displayName(), QString( "Human" ) );
+
+          // the Mannequin's motion, its own
+          QCOMPARE( m->motion.pack, QString( "mannequin" ) );
+          QCOMPARE( m->motion.model, QString( ":/figures/mannequin/Mannequin.glb" ) );
+          QCOMPARE( m->motion.skeleton, QString( "quaternius" ) );
+          QCOMPARE( m->motion.idle, QString( "Idle_Loop" ) );
+          QCOMPARE( m->motion.walk, QString( "Walk_Loop" ) );
+          QCOMPARE( m->motion.jog, QString( "Jog_Fwd_Loop" ) );
+          QCOMPARE( m->motion.sprint, QString( "Sprint_Loop" ) );
+          QVERIFY( m->motion.credits.empty() );
+          QCOMPARE( int( m->bodies.size() ), 1 );
+          QCOMPARE( m->bodies[0].model, m->motion.model );
+          QCOMPARE( m->bodies[0].team, QStringList( { "M_Main" } ) );
+          QVERIFY( m->bodies[0].uniform.isEmpty() && m->bodies[0].hair.isEmpty() && m->bodies[0].hairstyles.isEmpty() );
+          QCOMPARE( m->bodies[0].sex, FigureSex::Any );
+          QVERIFY( ! m->hasSexes() );
+
+          // the Human: the Mannequin's motion, and its credits
+          QCOMPARE( h->motion.pack, QString( "mannequin" ) );
+          QCOMPARE( h->motion.model, m->motion.model );
+          QCOMPARE( h->motion.idle, m->motion.idle );
+          QCOMPARE( h->motion.sprint, m->motion.sprint );
+          QVERIFY( h->motion.credits == m->credits );
+          QCOMPARE( int( h->bodies.size() ), 2 );
+          const FigureBodySpec & man = h->bodies[0];
+          const FigureBodySpec & woman = h->bodies[1];
+          QCOMPARE( man.model, QString( ":/figures/human/BaseCharacterMale.glb" ) );
+          QCOMPARE( woman.model, QString( ":/figures/human/BaseCharacterFemale.glb" ) );
+          QCOMPARE( man.sex, FigureSex::Male );
+          QCOMPARE( woman.sex, FigureSex::Female );
+          QVERIFY( h->hasSexes() );
+          for ( const FigureBodySpec & b : h->bodies )
+          {
+              QCOMPARE( b.uniform, QStringList( { "Body" } ) );
+              QCOMPARE( b.hair, QStringList( { "Eyebrows" } ) );
+              QVERIFY( b.team.isEmpty() );
+          }
+          QCOMPARE( man.hairstyles, QStringList( { "Hair_SimpleParted", "Hair_Buzzed" } ) );
+          QCOMPARE( man.standard_hairstyle, 0 );
+          QCOMPARE( int( man.extras.size() ), 1 );
+          QCOMPARE( man.extras[0].material, QString( "Hair_Beard" ) );
+          QCOMPARE( man.extras[0].chance, 0.3 );
+          QCOMPARE( woman.hairstyles, QStringList( { "Hair_Buns", "Hair_Long", "Hair_BuzzedFemale" } ) );
+          QCOMPARE( woman.standard_hairstyle, 2 );
+          QVERIFY( woman.extras.empty() );
+      }
+
+    /*!
+      the bits of the hairstyles and the extras, and the cast of the bodies
+      as the looks are drawn from it (as test_figure_looks makes it)
+    */
+    void cast()
+      {
+          const FigurePack & h = *FigurePacks::builtin( "human" );
+          const FigureBodySpec & man = h.bodies[0];
+          QCOMPARE( man.bitOf( "Hair_SimpleParted" ), 1u );
+          QCOMPARE( man.bitOf( "Hair_Buzzed" ), 2u );
+          QCOMPARE( man.bitOf( "Hair_Beard" ), 4u );
+          QCOMPARE( man.bitOf( "Eyebrows" ), 0u );
+          QCOMPARE( man.bitOf( "Hair_Long" ), 0u );
+          QCOMPARE( h.bodies[1].bitOf( "Hair_BuzzedFemale" ), 4u );
+
+          const FigureCast c = h.cast();
+          QCOMPARE( int( c.bodies.size() ), 2 );
+          QCOMPARE( c.bodies[0].sex, FigureSex::Male );
+          QCOMPARE( c.bodies[0].hairstyles, std::vector< std::uint32_t >( { 1, 2 } ) );
+          QCOMPARE( c.bodies[0].standard_hair, 1u );
+          QCOMPARE( int( c.bodies[0].extras.size() ), 1 );
+          QCOMPARE( c.bodies[0].extras[0].bit, 4u );
+          QCOMPARE( c.bodies[0].extras[0].chance, 0.3 );
+          QCOMPARE( c.bodies[1].sex, FigureSex::Female );
+          QCOMPARE( c.bodies[1].hairstyles, std::vector< std::uint32_t >( { 1, 2, 4 } ) );
+          QCOMPARE( c.bodies[1].standard_hair, 4u );
+          QVERIFY( c.bodies[1].extras.empty() );
+
+          const FigureCast m = FigurePacks::builtin( "mannequin" )->cast();
+          QCOMPARE( int( m.bodies.size() ), 1 );
+          QCOMPARE( m.bodies[0].sex, FigureSex::Any );
+          QVERIFY( m.bodies[0].hairstyles.empty() );
+          QCOMPARE( m.bodies[0].standard_hair, 0u );
+      }
+
+    //! the credits: in short (each author and license once), in full with the URLs, the pack's and its motion's once each
+    void credits()
+      {
+          const FigurePack & h = *FigurePacks::builtin( "human" );
+          QCOMPARE( int( h.allCredits().size() ), 2 );
+          QCOMPARE( h.creditLine(), QString( "Quaternius (CC0 1.0)" ) );
+          QCOMPARE( h.creditText(),
+                    QString( "Universal Base Characters [Standard] by Quaternius (CC0 1.0)\n"
+                             "  https://quaternius.com/packs/universalbasecharacters.html\n"
+                             "Universal Animation Library [Standard] by Quaternius (CC0 1.0)\n"
+                             "  https://quaternius.com/packs/universalanimationlibrary.html" ) );
+          const FigurePack & m = *FigurePacks::builtin( "mannequin" );
+          QCOMPARE( int( m.allCredits().size() ), 1 );
+
+          FigurePack p;
+          p.credits = { FigureCredit{ "A", "X", "CC BY 4.0", QString() },
+                        FigureCredit{ "Just a line", QString(), QString(), QString() },
+                        FigureCredit{ "B", "X", "CC BY 4.0", "https://b" } };
+          p.motion.credits = { FigureCredit{ "A", "X", "CC BY 4.0", QString() } }; // once
+          QCOMPARE( int( p.allCredits().size() ), 3 );
+          QCOMPARE( p.creditLine(), QString( "X (CC BY 4.0); Just a line" ) );
+          QCOMPARE( p.creditText(), QString( "A by X (CC BY 4.0)\nJust a line\nB by X (CC BY 4.0)\n  https://b" ) );
+          const FigureCredit author_only{ QString(), "X", QString(), QString() };
+          const FigureCredit license_only{ QString(), QString(), "CC0", QString() };
+          QCOMPARE( author_only.text(), QString( "X" ) );
+          QCOMPARE( license_only.text(), QString( "CC0" ) );
+      }
+
+    /*!
+      a figure.json read: a pack of its folder's name; the keys not known
+      left alone (of a later version); the paints, the sexes, the
+      hairstyles and the extras of the bodies; a credit as a line
+    */
+    void readPack()
+      {
+          QTemporaryDir folder;
+          const QString dir = makePack( folder.path(), "robot",
+                                        packJson( ", \"sex\": \"female\", \"skeleton\": \"quaternius\", \"later\": 1,"
+                                                  " \"paint\": { \"M_Main\": \"uniform\", \"M_Joints\": \"hair\" },"
+                                                  " \"hairstyles\": [ \"H1\", \"H2\" ], \"standard_hairstyle\": \"H2\","
+                                                  " \"extras\": [ { \"material\": \"E1\", \"chance\": 0.25 }, { \"material\": \"E2\", \"chance\": 1 } ]",
+                                                  "\"mannequin\"",
+                                                  "\"credits\": [ \"A line\", { \"title\": \"T\", \"url\": \"https://t\" } ], \"later\": { \"x\": 1 }," ),
+                                        { "Body.glb" } );
+          const FigurePack p = FigurePack::read( dir, false );
+          QVERIFY2( p.ok(), qPrintable( p.error ) );
+          QCOMPARE( p.id, QString( "robot" ) );
+          QCOMPARE( p.dir, dir );
+          QVERIFY( ! p.builtin );
+          QCOMPARE( p.name, QString( "A Pack" ) );
+          QCOMPARE( p.motion.pack, QString( "mannequin" ) ); // looked up by scan()
+          QVERIFY( p.motion.model.isEmpty() );
+          QCOMPARE( int( p.credits.size() ), 2 );
+          QCOMPARE( p.credits[0].title, QString( "A line" ) );
+          QCOMPARE( p.credits[1].url, QString( "https://t" ) );
+          const FigureBodySpec & b = p.bodies.at( 0 );
+          QCOMPARE( b.model, QDir( dir ).filePath( "Body.glb" ) );
+          QCOMPARE( b.skeleton, QString( "quaternius" ) );
+          QCOMPARE( b.sex, FigureSex::Female );
+          QCOMPARE( b.uniform, QStringList( { "M_Main" } ) );
+          QCOMPARE( b.hair, QStringList( { "M_Joints" } ) );
+          QVERIFY( b.team.isEmpty() );
+          QCOMPARE( b.hairstyles, QStringList( { "H1", "H2" } ) );
+          QCOMPARE( b.standard_hairstyle, 1 );
+          QCOMPARE( b.bitOf( "E1" ), 4u );
+          QCOMPARE( b.bitOf( "E2" ), 8u );
+          QCOMPARE( b.extras[1].chance, 1.0 );
+          QCOMPARE( p.cast().bodies[0].standard_hair, 2u );
+
+          // no name: the folder's
+          const QString unnamed = makePack( folder.path(), "unnamed",
+                                            "{ \"format\": 1, \"motion\": \"mannequin\", \"bodies\": [ { \"model\": \"Body.glb\" } ] }",
+                                            { "Body.glb" } );
+          QCOMPARE( FigurePack::read( unnamed, false ).displayName(), QString( "unnamed" ) );
+          QVERIFY( FigurePack::read( unnamed, false ).ok() );
+      }
+
+    //! what is wrong with a figure.json, told with where it is
+    void readErrors_data()
+      {
+          QTest::addColumn< QByteArray >( "json" );
+          QTest::addColumn< QString >( "error" );
+          const QByteArray clips = "\"clips\": { \"idle\": \"I\", \"walk\": \"W\", \"jog\": \"J\", \"sprint\": \"S\" }";
+          QTest::newRow( "not json" ) << QByteArray( "{ \"format\": 1,\n  \"name\": }" ) << QString( "figure.json: " );
+          QTest::newRow( "not json: where" ) << QByteArray( "{ \"format\": 1,\n  \"name\": }" ) << QString( "(line 2, column " );
+          QTest::newRow( "not an object" ) << QByteArray( "[ 1 ]" ) << QString( "figure.json: not an object" );
+          QTest::newRow( "no format" ) << QByteArray( "{ \"motion\": \"mannequin\" }" ) << QString( "no \"format\" (1)" );
+          QTest::newRow( "format string" ) << QByteArray( "{ \"format\": \"1\" }" ) << QString( "no \"format\" (1)" );
+          QTest::newRow( "format 1.5" ) << QByteArray( "{ \"format\": 1.5 }" ) << QString( "no \"format\" (1)" );
+          QTest::newRow( "format later" ) << QByteArray( "{ \"format\": 2 }" ) << QString( "format: 2, but this rcssmonitor reads 1" );
+          QTest::newRow( "format 0" ) << QByteArray( "{ \"format\": 0 }" ) << QString( "format: 0, but this rcssmonitor reads 1" );
+          QTest::newRow( "name" ) << packJson( QByteArray(), "\"mannequin\"", "\"name\": 3," ) << QString( "name: not a string" );
+          QTest::newRow( "credits" ) << packJson( QByteArray(), "\"mannequin\"", "\"credits\": 3," ) << QString( "credits: not a list" );
+          QTest::newRow( "credit" ) << packJson( QByteArray(), "\"mannequin\"", "\"credits\": [ \"a\", 3 ]," ) << QString( "credits[1]: neither an object nor a string" );
+          QTest::newRow( "credit url" ) << packJson( QByteArray(), "\"mannequin\"", "\"credits\": [ { \"url\": 3 } ]," ) << QString( "credits[0].url: not a string" );
+          QTest::newRow( "no motion" ) << QByteArray( "{ \"format\": 1, \"bodies\": [ { \"model\": \"Body.glb\" } ] }" ) << QString( "no \"motion\"" );
+          QTest::newRow( "motion number" ) << packJson( QByteArray(), "3" ) << QString( "no \"motion\"" );
+          QTest::newRow( "motion empty" ) << packJson( QByteArray(), "\"\"" ) << QString( "motion: empty" );
+          QTest::newRow( "motion itself" ) << packJson( QByteArray(), "\"pack\"" ) << QString( "motion: the pack itself" );
+          QTest::newRow( "motion no model" ) << packJson( QByteArray(), "{ " + clips + " }" ) << QString( "motion: no \"model\"" );
+          QTest::newRow( "motion model" ) << packJson( QByteArray(), "{ \"model\": \"None.glb\", " + clips + " }" ) << QString( "motion.model: \"None.glb\" is not found in the pack's folder" );
+          QTest::newRow( "motion skeleton" ) << packJson( QByteArray(), "{ \"model\": \"Body.glb\", \"skeleton\": \"mixamo\", " + clips + " }" ) << QString( "motion.skeleton: \"mixamo\" is not one of quaternius" );
+          QTest::newRow( "motion no clips" ) << packJson( QByteArray(), "{ \"model\": \"Body.glb\" }" ) << QString( "motion: no \"clips\"" );
+          QTest::newRow( "motion no jog" ) << packJson( QByteArray(), "{ \"model\": \"Body.glb\", \"clips\": { \"idle\": \"I\", \"walk\": \"W\", \"sprint\": \"S\" } }" ) << QString( "motion.clips: no \"jog\"" );
+          QTest::newRow( "no bodies" ) << QByteArray( "{ \"format\": 1, \"motion\": \"mannequin\" }" ) << QString( "no \"bodies\"" );
+          QTest::newRow( "bodies empty" ) << QByteArray( "{ \"format\": 1, \"motion\": \"mannequin\", \"bodies\": [] }" ) << QString( "no \"bodies\"" );
+          QTest::newRow( "body not object" ) << QByteArray( "{ \"format\": 1, \"motion\": \"mannequin\", \"bodies\": [ 3 ] }" ) << QString( "bodies[0]: not an object" );
+          QTest::newRow( "body no model" ) << QByteArray( "{ \"format\": 1, \"motion\": \"mannequin\", \"bodies\": [ { } ] }" ) << QString( "bodies[0]: no \"model\"" );
+          QTest::newRow( "body model" ) << QByteArray( "{ \"format\": 1, \"motion\": \"mannequin\", \"bodies\": [ { \"model\": \"Body.glb\" }, { \"model\": \"x/None.glb\" } ] }" ) << QString( "bodies[1].model: \"x/None.glb\" is not found in the pack's folder" );
+          QTest::newRow( "body model empty" ) << QByteArray( "{ \"format\": 1, \"motion\": \"mannequin\", \"bodies\": [ { \"model\": \"\" } ] }" ) << QString( "bodies[0].model: empty" );
+          QTest::newRow( "sex" ) << packJson( ", \"sex\": \"other\"" ) << QString( "bodies[0].sex: \"other\" is not male or female" );
+          QTest::newRow( "paint" ) << packJson( ", \"paint\": { \"M_Main\": \"unifrom\" }" ) << QString( "bodies[0].paint: \"M_Main\": \"unifrom\" is not one of team, uniform, hair, model" );
+          QTest::newRow( "paint object" ) << packJson( ", \"paint\": 3" ) << QString( "bodies[0].paint: not an object" );
+          QTest::newRow( "paint hairstyle" ) << packJson( ", \"hairstyles\": [ \"H\" ], \"paint\": { \"H\": \"team\" }" ) << QString( "bodies[0].paint: \"H\" is a hairstyle or an extra, in the hair's color" );
+          QTest::newRow( "hairstyles twice" ) << packJson( ", \"hairstyles\": [ \"H\", \"H\" ]" ) << QString( "bodies[0].hairstyles: \"H\" is listed twice" );
+          QTest::newRow( "hairstyle name" ) << packJson( ", \"hairstyles\": [ 3 ]" ) << QString( "bodies[0].hairstyles[0]: not a name" );
+          QTest::newRow( "hairstyles list" ) << packJson( ", \"hairstyles\": \"H\"" ) << QString( "bodies[0].hairstyles: not a list" );
+          QTest::newRow( "standard hairstyle" ) << packJson( ", \"hairstyles\": [ \"H\" ], \"standard_hairstyle\": \"G\"" ) << QString( "bodies[0].standard_hairstyle: \"G\" is not one of the hairstyles" );
+          QTest::newRow( "extras list" ) << packJson( ", \"extras\": 3" ) << QString( "bodies[0].extras: not a list" );
+          QTest::newRow( "extra material" ) << packJson( ", \"extras\": [ { \"chance\": 0.5 } ]" ) << QString( "bodies[0].extras[0]: no \"material\"" );
+          QTest::newRow( "extra chance" ) << packJson( ", \"extras\": [ { \"material\": \"E\", \"chance\": 1.5 } ]" ) << QString( "bodies[0].extras[0]: no \"chance\" from 0 to 1" );
+          QTest::newRow( "extra no chance" ) << packJson( ", \"extras\": [ { \"material\": \"E\" } ]" ) << QString( "bodies[0].extras[0]: no \"chance\" from 0 to 1" );
+          QTest::newRow( "extra twice" ) << packJson( ", \"hairstyles\": [ \"H\" ], \"extras\": [ { \"material\": \"H\", \"chance\": 0.5 } ]" ) << QString( "bodies[0].extras[0]: \"H\" is listed twice" );
+          QTest::newRow( "too many hairs" ) << packJson( ", \"hairstyles\": [ \"A\", \"B\", \"C\" ], \"extras\": [ { \"material\": \"D\", \"chance\": 0.5 }, { \"material\": \"E\", \"chance\": 0.5 } ]" ) << QString( "bodies[0]: more than 4 hairstyles and extras" );
+          QTest::newRow( "skeleton" ) << packJson( ", \"skeleton\": \"vrm\"" ) << QString( "bodies[0].skeleton: \"vrm\" is not one of quaternius" );
+      }
+
+    void readErrors()
+      {
+          QFETCH( QByteArray, json );
+          QFETCH( QString, error );
+          QTemporaryDir folder;
+          const QString dir = makePack( folder.path(), "pack", json, { "Body.glb" } );
+          const FigurePack p = FigurePack::read( dir, false );
+          QVERIFY( ! p.ok() );
+          QVERIFY2( p.error.contains( error ), qPrintable( p.error ) );
+      }
+
+    //! a folder without figure.json is not a pack
+    void noFile()
+      {
+          QTemporaryDir folder;
+          const FigurePack p = FigurePack::read( folder.path(), false );
+          QCOMPARE( p.error, QString( "no figure.json" ) );
+          QCOMPARE( p.id, QDir( folder.path() ).dirName() );
+      }
+
+    /*!
+      the packs looked for: the bundled ones, the folder's (in the order of
+      their names), the user's; the first of a name the one; the name of
+      the cylinders taken; a folder without figure.json told; the motions
+      of other packs looked up, through them, or told why not; a folder
+      that is a pack itself
+    */
+    void scan()
+      {
+          QTemporaryDir folder;
+          const QString f = folder.path();
+          makePack( f, "robot", packJson( QByteArray(), OWN_MOTION ), { "Body.glb", "Motion.glb" } );
+          makePack( f, "uses_robot", packJson( QByteArray(), "\"robot\"" ), { "Body.glb" } );
+          makePack( f, "through", packJson( QByteArray(), "\"uses_robot\"" ), { "Body.glb" } );
+          makePack( f, "mannequin", packJson(), { "Body.glb" } );
+          makePack( f, "simple", packJson(), { "Body.glb" } );
+          makePack( f, "nobody", packJson( QByteArray(), "\"nobody_at_all\"" ), { "Body.glb" } );
+          makePack( f, "broken", "{ \"format\": 3 }" );
+          makePack( f, "uses_broken", packJson( QByteArray(), "\"broken\"" ), { "Body.glb" } );
+          makePack( f, "ping", packJson( QByteArray(), "\"pong\"" ), { "Body.glb" } );
+          makePack( f, "pong", packJson( QByteArray(), "\"ping\"" ), { "Body.glb" } );
+          QDir( f ).mkpath( "empty" );
+          // the user's folder: one more, and one of a name of the folder's
+          const QString user = FigurePacks::userFolders().value( 0 );
+          makePack( user, "xdg", packJson(), { "Body.glb" } );
+          makePack( user, "robot", packJson(), { "Body.glb" } );
+
+          const std::vector< FigurePack > list = FigurePacks::scan( f );
+          QStringList ids;
+          for ( const FigurePack & p : list ) ids << p.id;
+          QCOMPARE( ids, QStringList( { "mannequin", "human",
+                                        "broken", "empty", "mannequin", "nobody", "ping", "pong", "robot",
+                                        "simple", "through", "uses_broken", "uses_robot",
+                                        "robot", "xdg" } ) );
+          const auto error = [&list]( const int i ) { return list[i].error; };
+          QVERIFY( list[0].ok() && list[0].builtin );
+          QVERIFY( list[1].ok() && list[1].builtin );
+          QVERIFY2( error( 2 ).startsWith( "format: 3" ), qPrintable( error( 2 ) ) );
+          QCOMPARE( error( 3 ), QString( "no figure.json" ) );
+          QCOMPARE( error( 4 ), QString( "another pack has the same name: :/figures/mannequin" ) );
+          QCOMPARE( error( 5 ), QString( "motion: no pack \"nobody_at_all\"" ) );
+          QCOMPARE( error( 6 ), QString( "motion: the packs' motions refer to each other" ) );
+          QCOMPARE( error( 7 ), QString( "motion: the packs' motions refer to each other" ) );
+          QVERIFY2( list[8].ok(), qPrintable( error( 8 ) ) );
+          QCOMPARE( error( 9 ), QString( "\"simple\" is the name of the cylinders" ) );
+          QVERIFY2( list[10].ok(), qPrintable( error( 10 ) ) );
+          QVERIFY2( error( 11 ).startsWith( "motion: the pack \"broken\" cannot be read: format: 3" ), qPrintable( error( 11 ) ) );
+          QVERIFY2( list[12].ok(), qPrintable( error( 12 ) ) );
+          QCOMPARE( error( 13 ), "another pack has the same name: " + QDir( f ).filePath( "robot" ) );
+          QVERIFY2( list[14].ok(), qPrintable( error( 14 ) ) );
+          QCOMPARE( list[14].dir, QDir( user ).filePath( "xdg" ) );
+
+          // the motions: its own; another pack's, through one more
+          const FigurePack & robot = list[8];
+          QCOMPARE( robot.motion.pack, QString( "robot" ) );
+          QCOMPARE( robot.motion.model, QDir( f ).filePath( "robot/Motion.glb" ) );
+          for ( const int i : { 10, 12 } )
+          {
+              QCOMPARE( list[i].motion.pack, QString( "robot" ) );
+              QCOMPARE( list[i].motion.model, robot.motion.model );
+              QCOMPARE( list[i].motion.walk, QString( "Walk_Loop" ) );
+          }
+          QCOMPARE( list[14].motion.model, QString( ":/figures/mannequin/Mannequin.glb" ) );
+
+          // a folder that is a pack itself
+          const std::vector< FigurePack > one = FigurePacks::scan( QDir( f ).filePath( "robot" ) );
+          QVERIFY( byId( one, "robot" ) );
+          QCOMPARE( byId( one, "robot" )->dir, QDir( f ).filePath( "robot" ) );
+          QVERIFY( byId( one, "robot" )->ok() );
+          QVERIFY( ! byId( one, "xdg" ) || byId( one, "xdg" )->ok() );
+          // the user's folder chosen as the folder: once
+          const std::vector< FigurePack > users = FigurePacks::scan( user );
+          QCOMPARE( int( std::count_if( users.begin(), users.end(), []( const FigurePack & p ) { return p.id == "xdg"; } ) ), 1 );
+          QDir( user ).removeRecursively();
+      }
+
+    /*!
+      the packs looked for once: again when the folder changes, or after
+      refresh() (counted by generation()); why a pack could not be drawn,
+      kept until told otherwise
+    */
+    void cache()
+      {
+          QTemporaryDir a, b;
+          makePack( a.path(), "one", packJson(), { "Body.glb" } );
+          FigurePacks::refresh();
+          const std::vector< FigurePack > * list = &FigurePacks::packs( a.path() );
+          const int g = FigurePacks::generation();
+          QVERIFY( FigurePacks::find( "one", a.path() ) );
+          QVERIFY( FigurePacks::find( "mannequin", a.path() )->builtin );
+          QVERIFY( ! FigurePacks::find( "two", a.path() ) );
+          QCOMPARE( FigurePacks::generation(), g ); // not looked for again
+          QCOMPARE( &FigurePacks::packs( a.path() ), list );
+
+          makePack( a.path(), "two", packJson(), { "Body.glb" } );
+          QVERIFY( ! FigurePacks::find( "two", a.path() ) ); // not yet
+          FigurePacks::refresh();
+          QVERIFY( FigurePacks::find( "two", a.path() ) );
+          QCOMPARE( FigurePacks::generation(), g + 1 );
+          QVERIFY( ! FigurePacks::find( "one", b.path() ) ); // another folder: looked for again
+          QCOMPARE( FigurePacks::generation(), g + 2 );
+          QVERIFY( FigurePacks::find( "one", a.path() ) );
+
+          QVERIFY( FigurePacks::drawError( "one" ).isEmpty() );
+          FigurePacks::noteError( "one", "why" );
+          QCOMPARE( FigurePacks::drawError( "one" ), QString( "why" ) );
+          FigurePacks::refresh();
+          QCOMPARE( FigurePacks::drawError( "one" ), QString( "why" ) ); // kept, the pack tried again
+          FigurePacks::noteError( "one", QString() );
+          QVERIFY( FigurePacks::drawError( "one" ).isEmpty() );
+      }
+
+    /*!
+      a pack of the user's drawn (Figures3D::setPack()): a body of its own
+      file with the bundled motion moves as the Mannequin does; its own
+      motion; the skeleton found from the bones' names; each read once
+    */
+    void setPack()
+      {
+          QTemporaryDir folder;
+          const QString f = folder.path();
+          makePack( f, "robot", packJson(), { "Body.glb" } );
+          makePack( f, "own", packJson( QByteArray(), OWN_MOTION ), { "Body.glb", "Motion.glb" } );
+          const std::vector< FigurePack > list = FigurePacks::scan( f );
+
+          Figures3D mannequin;
+          QVERIFY2( mannequin.load(), qPrintable( mannequin.error() ) );
+          Figures3D figures;
+          QVERIFY( figures.load() );
+          QVERIFY2( figures.setPack( *byId( list, "robot" ) ), qPrintable( figures.error() ) );
+          QCOMPARE( figures.pack().id, QString( "robot" ) );
+          QCOMPARE( figures.bodyCount(), 1 );
+          QCOMPARE( figures.jerseyMaterials(), QStringList( { "M_Main" } ) );
+          // the same model in another file, with the bundled motion: the same poses
+          SceneContent a, b;
+          for ( SceneContent * c : { &a, &b } )
+          {
+              for ( int i = 0; i < 3; ++i )
+              {
+                  FigureInstance fi{ i, 3.0f * i, 1.0f, 30.0f * i, 1.85f, QVector4D( 1.0f, 0.0f, 0.0f, 1.0f ) };
+                  fi.motion.gait = 0.3 * i;
+                  fi.motion.vx = 1.5f * i;
+                  c->figures.push_back( fi );
+              }
+          }
+          mannequin.pose( a, 2.0 );
+          figures.pose( b, 2.0 );
+          QCOMPARE( a.figure_joints.size(), b.figure_joints.size() );
+          QVERIFY( std::fabs( figures.bodyStride() - 1.0f ) < 1.0e-4f );
+          for ( std::size_t i = 0; i < a.figure_joints.size(); ++i )
+          {
+              QVERIFY2( std::fabs( a.figure_joints[i] - b.figure_joints[i] ) < 1.0e-3f,
+                        qPrintable( QString( "%1: %2 %3" ).arg( i ).arg( a.figure_joints[i] ).arg( b.figure_joints[i] ) ) );
+          }
+
+          // its own motion, the skeleton found (none named for the body)
+          QVERIFY2( figures.setPack( *byId( list, "own" ) ), qPrintable( figures.error() ) );
+          QCOMPARE( figures.pack().id, QString( "own" ) );
+          QCOMPARE( int( figures.gaitClips().size() ), 3 );
+          QVERIFY( figures.gaitClips()[0].speed < figures.gaitClips()[2].speed );
+
+          // each read once
+          const GltfModel * robot_body = nullptr;
+          QVERIFY( figures.setPack( *byId( list, "robot" ) ) );
+          robot_body = &figures.model();
+          QVERIFY( figures.setPack( *byId( list, "own" ) ) );
+          QVERIFY( figures.setPack( *byId( list, "robot" ) ) );
+          QCOMPARE( &figures.model(), robot_body );
+      }
+
+    /*!
+      what only reading the models finds, told with the pack's and the
+      file's names: not a model, a clip not in it (with its clips), a clip
+      not of walking, a material not in it (with its materials), bones of
+      no skeleton known; a pack that cannot be read; the pack drawn stays
+    */
+    void setPackErrors()
+      {
+          QTemporaryDir folder;
+          const QString f = folder.path();
+          const QByteArray no_clip = "{ \"model\": \"Motion.glb\", \"clips\": "
+              "{ \"idle\": \"Idle_Loop\", \"walk\": \"Run_Loop\", \"jog\": \"Jog_Fwd_Loop\", \"sprint\": \"Sprint_Loop\" } }";
+          const QByteArray idle_walk = "{ \"model\": \"Motion.glb\", \"clips\": "
+              "{ \"idle\": \"Idle_Loop\", \"walk\": \"Idle_Loop\", \"jog\": \"Jog_Fwd_Loop\", \"sprint\": \"Sprint_Loop\" } }";
+          makePack( f, "garbage", packJson(), {} );
+          writeFile( QDir( f ).filePath( "garbage/Body.glb" ), "not a model" );
+          makePack( f, "no_clip", packJson( QByteArray(), no_clip ), { "Body.glb", "Motion.glb" } );
+          makePack( f, "idle_walk", packJson( QByteArray(), idle_walk ), { "Body.glb", "Motion.glb" } );
+          makePack( f, "no_material", packJson( ", \"hairstyles\": [ \"Hair_X\" ]" ), { "Body.glb" } );
+          makePack( f, "broken", "{ \"format\": 1 }" );
+          const std::vector< FigurePack > list = FigurePacks::scan( f );
+
+          Figures3D figures;
+          QVERIFY( figures.load() );
+          const auto fails = [&]( const char * id, const QString & why ) {
+              QVERIFY( byId( list, id ) );
+              QVERIFY( ! figures.setPack( *byId( list, id ) ) );
+              QVERIFY2( figures.error().contains( why ), qPrintable( figures.error() ) );
+              QCOMPARE( figures.pack().id, QString( "mannequin" ) ); // stays
+          };
+          fails( "garbage", "A Pack: Body.glb: " );
+          fails( "no_clip", "A Pack: Motion.glb: no clip \"Run_Loop\" (its clips: " );
+          fails( "no_clip", "\"Walk_Loop\"" );
+          fails( "idle_walk", "A Pack: Motion.glb: the clip \"Idle_Loop\" is not of walking or running" );
+          fails( "no_material", "A Pack: Body.glb: no material \"Hair_X\" (its materials: \"M_Main\", \"M_Joints\")" );
+          fails( "broken", "broken: no \"motion\"" );
+          QVERIFY( figures.setPack( *FigurePacks::builtin( "human" ) ) );
+      }
+};
+
+QTEST_MAIN( TestFigurePack )
+#include "test_figure_pack.moc"

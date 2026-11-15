@@ -60,6 +60,7 @@ if(HAVE_3D_VIEW)
     view3d/field_view_3d.cpp
     view3d/figure_actions.cpp
     view3d/figure_looks.cpp
+    view3d/figure_pack.cpp
     view3d/figure_uniform.cpp
     view3d/frame_builder_3d.cpp
     view3d/figures_3d.cpp
@@ -97,9 +98,9 @@ if(HAVE_3D_VIEW)
     view3d/gl/texture_2d.cpp
     view3d/gl/vertex_batch.cpp
     view3d/shaders/view3d_shaders.qrc
-    ${PROJECT_SOURCE_DIR}/resources/models/view3d_models.qrc
+    ${PROJECT_SOURCE_DIR}/resources/figures/view3d_figures.qrc
     )
-  # the shaders (ShaderProgram) and the models of the figures (Figures3D) in the resources
+  # the shaders (ShaderProgram) and the bundled figure packs (FigurePacks) in the resources
   set_target_properties(rcssmonitor_core PROPERTIES AUTORCC ON)
   target_include_directories(rcssmonitor_core PUBLIC ${PROJECT_SOURCE_DIR}/src/view3d)
   # cgltf (glTF loading, MIT), a single header: compiled in gltf_model.cpp
