@@ -777,6 +777,48 @@ refresh()
 }
 
 /*-------------------------------------------------------------------*/
+bool
+moveToTrash( const FigurePack & pack,
+             QString * error )
+{
+    const auto fail = [error]( const QString & why ) {
+        if ( error ) *error = why;
+        return false;
+    };
+    if ( pack.builtin || pack.dir.isEmpty() || pack.dir.startsWith( QLatin1Char( ':' ) ) )
+    {
+        return fail( QStringLiteral( "a bundled pack" ) );
+    }
+    const QFileInfo info( pack.dir );
+    if ( ! info.isDir() )
+    {
+        return fail( QStringLiteral( "no folder " ) + quoted( pack.dir ) );
+    }
+    // only a pack's own folder: never one holding other things too
+    if ( ! QFileInfo( QDir( pack.dir ).filePath( QLatin1String( FILE_NAME ) ) ).isFile() )
+    {
+        return fail( QStringLiteral( "no " ) + QLatin1String( FILE_NAME ) + QStringLiteral( " in " ) + quoted( pack.dir ) );
+    }
+    const QString path = info.canonicalFilePath();
+    bool own = ! QDir( path ).isRoot()
+        && path != QFileInfo( QDir::homePath() ).canonicalFilePath();
+    for ( const QString & d : userFolders() )
+    {
+        if ( QFileInfo( d ).exists() && QFileInfo( d ).canonicalFilePath() == path ) own = false;
+    }
+    if ( ! own )
+    {
+        return fail( quoted( pack.dir ) + QStringLiteral( " is not a pack's own folder" ) );
+    }
+    if ( ! QFile::moveToTrash( path ) )
+    {
+        return fail( QStringLiteral( "the trash does not take " ) + quoted( pack.dir ) );
+    }
+    refresh();
+    return true;
+}
+
+/*-------------------------------------------------------------------*/
 int
 generation()
 {

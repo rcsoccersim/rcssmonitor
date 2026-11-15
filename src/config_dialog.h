@@ -226,6 +226,7 @@ private:
     QComboBox * M_player_model_3d = nullptr; //!< the cylinders or a figure pack (fillPacks())
     QToolButton * M_figure_folder_3d = nullptr; //!< the folders of the figure packs
     QAction * M_no_figure_folder_3d = nullptr;
+    QMenu * M_trash_figure_pack_3d = nullptr; //!< the user's figure packs, to move to the trash (fillPacks())
     QLabel * M_figure_credits_3d = nullptr; //!< the pack's credits, or why it cannot be drawn
     QButtonGroup * M_figure_bodies_3d = nullptr;
     QLabel * M_figure_bodies_3d_label = nullptr;
@@ -391,6 +392,10 @@ public slots:
     // a folder of figure packs of the user's choice (empty: none); the packs looked for again
     // emit configured()
     void setFigureFolder( const QString & folder );
+    // a figure pack of the user's (by its folder) moved to the trash, if the user says so; not
+    // drawn any more (the cylinders if it was chosen), the packs looked for again
+    // emit configured()
+    void trashFigurePack( const QString & dir );
 
     // connect to other objects
     // emit configured()

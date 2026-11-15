@@ -211,6 +211,19 @@ const FigurePack * find( const QString & id,
 */
 void refresh();
 
+/*!
+  \brief move a pack of the user's to the trash: its folder, with all the
+  files in it (it can be restored from there). The packs are looked for
+  again the next time (refresh()).
+  \param pack the pack (of packs())
+  \param error why not, if not null
+  \return false if the pack is bundled, if its folder is not a pack's own
+  (no figure.json in it; the home folder, a root, or a user's data folder
+  of packs), or if the trash refuses it (nothing is deleted then)
+*/
+bool moveToTrash( const FigurePack & pack,
+                  QString * error = nullptr );
+
 //! counts the times the packs were looked for (one changed: the packs may have changed)
 int generation();
 

@@ -49,6 +49,9 @@
 #include <QDir>
 #include <QFile>
 #include <QMenu>
+#include <QMessageBox>
+#include <QStandardPaths>
+#include <QTimer>
 #include <QStandardItemModel>
 #include <QTemporaryDir>
 #include <QToolButton>
@@ -81,6 +84,7 @@ private slots:
     void numberRange();
     void update3D();
     void figurePacks();
+    void trashFigurePacks();
     void playerCameraTab();
     void playerCameraDim();
 };
@@ -126,6 +130,28 @@ writeFile( const QString & path,
     QFile f( path );
     return f.open( QIODevice::WriteOnly ) && f.write( data ) == data.size();
 }
+
+/*!
+  HOME and the XDG data folder in a folder of the test's, while it lives:
+  the user's figure packs and the trash there, whoever runs the test
+*/
+struct HomeIn {
+    QByteArray home;
+    QByteArray data;
+    explicit HomeIn( const QString & dir )
+        : home( qgetenv( "HOME" ) ),
+          data( qgetenv( "XDG_DATA_HOME" ) )
+      {
+          QDir().mkpath( dir + "/share" );
+          qputenv( "HOME", QFile::encodeName( dir ) );
+          qputenv( "XDG_DATA_HOME", QFile::encodeName( dir + "/share" ) );
+      }
+    ~HomeIn()
+      {
+          qputenv( "HOME", home );
+          qputenv( "XDG_DATA_HOME", data );
+      }
+};
 
 
 }
@@ -790,6 +816,153 @@ TestConfigDialog::figurePacks()
     emit model->activated( 2 );
     QCOMPARE( opt.playerModel3D(), QString( "human" ) );
     QVERIFY( bodies->button( 0 )->isEnabled() );
+    resetView3D();
+    FigurePacks::refresh();
+#endif
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  a figure pack of the user's moved to the trash from the Packs menu: the
+  user's packs listed (not the bundled ones), the folder told where two
+  have the same name, one that cannot be read too; asked first, Cancel
+  keeps it; Yes moves its folder to the trash, with its files; the one
+  chosen moved: the players as cylinders; the folder chosen, a pack
+  itself, moved: no folder; none of the user's left: the item off
+*/
+void
+TestConfigDialog::trashFigurePacks()
+{
+#ifndef HAVE_3D_VIEW
+    QSKIP( "without the 3D view" );
+#else
+    Options & opt = Options::instance();
+    resetView3D();
+    QTemporaryDir home;
+    QVERIFY( home.isValid() );
+    const HomeIn in( home.path() );
+    const QString user = FigurePacks::userFolders().value( 0 );
+    const QString trash = QStandardPaths::writableLocation( QStandardPaths::GenericDataLocation ) + "/Trash";
+    QCOMPARE( user, home.filePath( "share/rcssmonitor/figures" ) );
+    QCOMPARE( trash, home.filePath( "share/Trash" ) );
+
+    const auto pack = []( const QString & dir, const QByteArray & name ) {
+        return QDir().mkpath( dir )
+            && QFile::copy( ":/figures/mannequin/Mannequin.glb", dir + "/Robot.glb" )
+            && writeFile( dir + "/figure.json", "{ \"format\": 1, \"name\": \"" + name + "\", \"motion\": \"mannequin\",\n"
+                          "  \"bodies\": [ { \"model\": \"Robot.glb\" } ] }\n" );
+    };
+    // the user's: a pack, another of the same name, a broken one; a folder of the user's choice, a pack itself
+    QVERIFY( pack( user + "/doomed", "Doomed" ) );
+    QVERIFY( pack( user + "/twin", "Doomed" ) );
+    QVERIFY( QDir().mkpath( user + "/broken" ) && writeFile( user + "/broken/figure.json", "{ \"format\": 1,\n  \"name\": }\n" ) );
+    const QString chosen = home.filePath( "chosen" );
+    QVERIFY( pack( chosen, "Chosen" ) );
+    FigurePacks::refresh();
+
+    DispHolder holder;
+    ConfigDialog dialog( nullptr, holder );
+    dialog.show();
+    QSignalSpy spy( &dialog, SIGNAL( configured() ) );
+    QComboBox * model = child< QComboBox >( dialog, "player_model_3d" );
+    QToolButton * packs = child< QToolButton >( dialog, "figure_folder_3d" );
+    QVERIFY( model && packs && packs->menu() );
+    QMenu * menu = packs->menu()->findChild< QMenu * >( "trash_figure_pack_3d" );
+    QVERIFY( menu );
+    dialog.setFigureFolder( chosen );
+    const auto items = [menu]() {
+        QStringList list;
+        for ( QAction * a : menu->actions() ) list << a->text();
+        return list;
+    };
+    const auto actionOf = [menu]( const QString & dir ) -> QAction * {
+        for ( QAction * a : menu->actions() )
+        {
+            if ( a->data().toString() == dir ) return a;
+        }
+        return nullptr;
+    };
+    // the question answered when it shows (it is asked after the menu is done with the action)
+    QString asked;
+    const auto answer = [&asked]( const QMessageBox::StandardButton button ) {
+        asked.clear();
+        QTimer * t = new QTimer;
+        t->setInterval( 10 );
+        QObject::connect( t, &QTimer::timeout, [t, button, &asked]() {
+            QMessageBox * box = qobject_cast< QMessageBox * >( QApplication::activeModalWidget() );
+            if ( ! box || box->objectName() != "trash_figure_pack_3d_question" ) return;
+            asked = box->text() + "\n" + box->informativeText();
+            if ( box->defaultButton() != box->button( QMessageBox::Cancel ) ) asked += "\n(not Cancel by default)";
+            t->stop();
+            t->deleteLater();
+            box->button( button )->click();
+        } );
+        t->start();
+    };
+    const auto choose = [&]( const QString & id ) {
+        const int i = model->findData( id );
+        model->setCurrentIndex( i );
+        emit model->activated( i );
+    };
+
+    // the user's listed (by the folders where the names are the same), not the bundled ones
+    QVERIFY( menu->menuAction()->isEnabled() );
+    QCOMPARE( items(), QStringList( { "Chosen", "broken (cannot be read)",
+                                      "Doomed (" + user + "/doomed)", "Doomed (" + user + "/twin)" } ) );
+    QCOMPARE( actionOf( user + "/doomed" )->toolTip(), user + "/doomed" );
+    choose( "doomed" );
+    QCOMPARE( opt.playerModel3D(), QString( "doomed" ) );
+
+    // asked first: Cancel keeps it
+    const int count = spy.count();
+    answer( QMessageBox::Cancel );
+    actionOf( user + "/doomed" )->trigger();
+    QTRY_VERIFY( ! asked.isEmpty() );
+    QVERIFY2( asked.contains( "\"Doomed\"" ) && asked.contains( user + "/doomed" ), qPrintable( asked ) );
+    QVERIFY2( ! asked.contains( "not Cancel" ), qPrintable( asked ) ); // Enter does not move it
+    QVERIFY( QFileInfo( user + "/doomed/figure.json" ).isFile() );
+    QCOMPARE( opt.playerModel3D(), QString( "doomed" ) );
+    QCOMPARE( spy.count(), count );
+
+    // Yes: its folder with its files in the trash (restorable); it was chosen: the players as cylinders
+    answer( QMessageBox::Yes );
+    actionOf( user + "/doomed" )->trigger();
+    QTRY_VERIFY( ! asked.isEmpty() );
+    QVERIFY( ! QFileInfo::exists( user + "/doomed" ) );
+    QVERIFY( QFileInfo( trash + "/files/doomed/figure.json" ).isFile() );
+    QVERIFY( QFileInfo( trash + "/files/doomed/Robot.glb" ).isFile() );
+    QVERIFY( QFileInfo( trash + "/info/doomed.trashinfo" ).isFile() );
+    QCOMPARE( opt.playerModel3D(), QString( PLAYER_MODEL_SIMPLE ) );
+    QCOMPARE( model->currentIndex(), 0 );
+    QVERIFY( model->findData( "doomed" ) < 0 );
+    QVERIFY( spy.count() > count );
+    QCOMPARE( items(), QStringList( { "Chosen", "broken (cannot be read)", "Doomed" } ) ); // the other one alone now
+
+    // one not chosen (that cannot be read): the model stays
+    choose( "twin" );
+    answer( QMessageBox::Yes );
+    actionOf( user + "/broken" )->trigger();
+    QTRY_VERIFY( ! asked.isEmpty() );
+    QVERIFY( ! QFileInfo::exists( user + "/broken" ) );
+    QCOMPARE( opt.playerModel3D(), QString( "twin" ) );
+
+    // the folder chosen, a pack itself: no folder any more
+    answer( QMessageBox::Yes );
+    actionOf( chosen )->trigger();
+    QTRY_VERIFY( ! asked.isEmpty() );
+    QVERIFY( ! QFileInfo::exists( chosen ) );
+    QVERIFY( opt.figureFolder3D().isEmpty() );
+    QCOMPARE( opt.playerModel3D(), QString( "twin" ) );
+
+    // the last of the user's: none left, the item off
+    answer( QMessageBox::Yes );
+    actionOf( user + "/twin" )->trigger();
+    QTRY_VERIFY( ! asked.isEmpty() );
+    QCOMPARE( opt.playerModel3D(), QString( PLAYER_MODEL_SIMPLE ) );
+    QVERIFY( menu->actions().isEmpty() );
+    QVERIFY( ! menu->menuAction()->isEnabled() );
+    QVERIFY( QDir( user ).exists() ); // the user's folder of packs stays
+
     resetView3D();
     FigurePacks::refresh();
 #endif

@@ -1931,6 +1931,12 @@ ConfigDialog::create3DTab()
                      this, [this]() {
                          setFigureFolder( Options::instance().figureFolder3D() );
                      } );
+            // a pack of the user's moved to the trash (its folder with all the files in
+            // it): the user's packs listed by fillPacks()
+            menu->addSeparator();
+            M_trash_figure_pack_3d = menu->addMenu( tr( "Move a Pack to the Trash" ) );
+            M_trash_figure_pack_3d->setObjectName( "trash_figure_pack_3d" );
+            M_trash_figure_pack_3d->setToolTipsVisible( true );
             M_figure_folder_3d->setMenu( menu );
             line->addWidget( M_figure_folder_3d );
             line->addStretch();
@@ -2428,6 +2434,51 @@ ConfigDialog::setFigureFolder( const QString & folder )
 
 */
 void
+ConfigDialog::trashFigurePack( const QString & dir )
+{
+#ifdef HAVE_3D_VIEW
+    Options & opt = Options::instance();
+    const std::vector< FigurePack > & packs = FigurePacks::packs( opt.figureFolder3D() );
+    const auto it = std::find_if( packs.begin(), packs.end(),
+                                  [&]( const FigurePack & p ) { return ! p.builtin && p.dir == dir; } );
+    if ( it == packs.end() ) return; // gone meanwhile
+    const FigurePack pack = *it;
+
+    const QString title = tr( "Move a Figure Pack to the Trash" );
+    QMessageBox ask( QMessageBox::Question, title,
+                     tr( "Move the figure pack \"%1\" to the trash?" ).arg( pack.displayName() ),
+                     QMessageBox::Yes | QMessageBox::Cancel, this );
+    ask.setObjectName( "trash_figure_pack_3d_question" );
+    ask.setInformativeText( tr( "Its folder, with all the files in it, is moved to the trash, from where it\n"
+                                "can be restored:\n%1" ).arg( dir ) );
+    ask.setDefaultButton( QMessageBox::Cancel );
+    if ( ask.exec() != QMessageBox::Yes ) return;
+
+    // what the options name of it, told before it is gone
+    const FigurePack * chosen = ( opt.figures3D() ? FigurePacks::find( opt.playerModel3D(), opt.figureFolder3D() ) : nullptr );
+    const bool drawn = ( chosen && QFileInfo( chosen->dir ) == QFileInfo( dir ) );
+    const bool folder = ( ! opt.figureFolder3D().isEmpty() && QFileInfo( opt.figureFolder3D() ) == QFileInfo( dir ) );
+    QString why;
+    if ( ! FigurePacks::moveToTrash( pack, &why ) )
+    {
+        QMessageBox::warning( this, title,
+                              tr( "Cannot move the figure pack \"%1\" to the trash: %2." ).arg( pack.displayName(), why ) );
+        return;
+    }
+    if ( drawn ) opt.setPlayerModel3D( QString::fromLatin1( PLAYER_MODEL_SIMPLE ) );
+    if ( folder ) opt.setFigureFolder3D( QString() ); // the folder chosen was the pack itself
+    FigurePacks::refresh();
+    changed3D();
+#else
+    Q_UNUSED( dir );
+#endif
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+void
 ConfigDialog::fillPacks()
 {
 #ifdef HAVE_3D_VIEW
@@ -2515,6 +2566,34 @@ ConfigDialog::fillPacks()
     M_figure_credits_3d->setStyleSheet( wrong ? QStringLiteral( "color: #c03030;" ) : QString() );
 
     M_no_figure_folder_3d->setEnabled( ! folder.isEmpty() );
+
+    // the user's packs, to move to the trash (not the bundled ones); the
+    // folder told where two have the same name
+    M_trash_figure_pack_3d->clear();
+    std::vector< std::pair< QString, const FigurePack * > > own;
+    for ( const FigurePack & p : packs )
+    {
+        if ( p.builtin ) continue;
+        own.emplace_back( p.ok() ? p.displayName() : tr( "%1 (cannot be read)" ).arg( p.displayName() ), &p );
+    }
+    for ( const auto & o : own )
+    {
+        const int same = static_cast< int >( std::count_if( own.begin(), own.end(),
+                                                            [&]( const auto & x ) { return x.first == o.first; } ) );
+        QAction * act = M_trash_figure_pack_3d->addAction( same > 1 ? o.first + QStringLiteral( " (" ) + o.second->dir + QLatin1Char( ')' )
+                                                           : o.first );
+        act->setToolTip( o.second->dir );
+        act->setData( o.second->dir );
+        const QString dir = o.second->dir;
+        // after the menu is done with the action (the list is filled again then, the action deleted)
+        connect( act, &QAction::triggered,
+                 this, [this, dir]() { QTimer::singleShot( 0, this, [this, dir]() { trashFigurePack( dir ); } ); } );
+    }
+    M_trash_figure_pack_3d->menuAction()->setEnabled( ! own.empty() );
+    M_trash_figure_pack_3d->menuAction()->setToolTip( own.empty()
+                                                      ? tr( "No figure pack of yours." )
+                                                      : tr( "A figure pack of yours moved to the trash: its folder, with all the files\n"
+                                                            "in it. The bundled packs cannot be." ) );
     M_figure_folder_3d->setToolTip( tr( "The figure packs: the bundled ones, those in a folder of your choice\n"
                                         "(%1), and those in the user's folder (%2).\n"
                                         "A pack is a folder with a figure.json (docs/FIGURE_PACKS.md); its name\n"

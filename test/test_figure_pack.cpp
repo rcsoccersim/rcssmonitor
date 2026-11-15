@@ -38,6 +38,7 @@
 
 #include <QDir>
 #include <QFile>
+#include <QStandardPaths>
 #include <QTemporaryDir>
 
 #include <cmath>
@@ -500,6 +501,64 @@ private slots:
           QCOMPARE( FigurePacks::drawError( "one" ), QString( "why" ) ); // kept, the pack tried again
           FigurePacks::noteError( "one", QString() );
           QVERIFY( FigurePacks::drawError( "one" ).isEmpty() );
+      }
+
+    /*!
+      a pack of the user's moved to the trash: its folder with its files,
+      no longer found; not a bundled one, nor a folder that is not a
+      pack's own (without figure.json, the home folder, a user's data
+      folder of packs), nor one gone: refused, nothing touched
+    */
+    void moveToTrash()
+      {
+          // HOME in the temporary folder too: the trash in the XDG data folder there
+          const QByteArray real_home = qgetenv( "HOME" );
+          const QString home = M_data.filePath( "home" );
+          QDir().mkpath( home );
+          qputenv( "HOME", QFile::encodeName( home ) );
+          struct Back { QByteArray h; ~Back() { qputenv( "HOME", h ); } } back{ real_home };
+          const QString user = FigurePacks::userFolders().value( 0 );
+          const QString trash = QStandardPaths::writableLocation( QStandardPaths::GenericDataLocation ) + "/Trash";
+          QCOMPARE( trash, home + "/Trash" );
+
+          const QString dir = makePack( user, "gone", packJson(), { "Body.glb" } );
+          FigurePacks::refresh();
+          const FigurePack * pack = FigurePacks::find( "gone", QString() );
+          QVERIFY( pack && pack->ok() );
+          const FigurePack copy = *pack;
+          QString error;
+          QVERIFY2( FigurePacks::moveToTrash( copy, &error ), qPrintable( error ) );
+          QVERIFY( ! QFileInfo::exists( dir ) );
+          QVERIFY( QFileInfo( trash + "/files/gone/figure.json" ).isFile() );
+          QVERIFY( QFileInfo( trash + "/files/gone/Body.glb" ).isFile() );
+          QVERIFY( ! FigurePacks::find( "gone", QString() ) ); // looked for again
+          // gone already
+          QVERIFY( ! FigurePacks::moveToTrash( copy, &error ) );
+          QCOMPARE( error, "no folder \"" + dir + "\"" );
+
+          // a bundled one
+          QVERIFY( ! FigurePacks::moveToTrash( *FigurePacks::builtin( "mannequin" ), &error ) );
+          QCOMPARE( error, QString( "a bundled pack" ) );
+          FigurePack mine;
+          mine.id = "mine";
+          // without figure.json: not a pack's own folder
+          mine.dir = makePack( user, "plain", QByteArray(), { "Body.glb" } );
+          QVERIFY( ! FigurePacks::moveToTrash( mine, &error ) );
+          QCOMPARE( error, "no figure.json in \"" + mine.dir + "\"" );
+          QVERIFY( QFileInfo( mine.dir + "/Body.glb" ).isFile() );
+          // the home folder, a user's data folder of packs, each with a figure.json
+          for ( const QString & d : { home, user } )
+          {
+              QVERIFY( writeFile( d + "/figure.json", packJson() ) );
+              mine.dir = d;
+              QVERIFY( ! FigurePacks::moveToTrash( mine, &error ) );
+              QCOMPARE( error, "\"" + d + "\" is not a pack's own folder" );
+              QVERIFY( QFileInfo( d + "/figure.json" ).isFile() );
+              QFile::remove( d + "/figure.json" );
+          }
+          QDir( user + "/plain" ).removeRecursively();
+          QDir( trash ).removeRecursively();
+          FigurePacks::refresh();
       }
 
     /*!

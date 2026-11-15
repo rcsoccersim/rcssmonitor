@@ -31,8 +31,18 @@ does the following:
 - **Open the User's Folder of Packs**: opens your data folder of packs,
   and creates it if it does not exist.
 - **Look for Packs Again**: reads the packs again, after you change one.
+- **Move a Pack to the Trash**: lists your packs (not the bundled ones).
+  After you confirm, the chosen pack's folder, with all the files in it,
+  is moved to the trash, from where you can restore it. If it was the
+  pack in **Model**, the players are drawn as cylinders; if it was the
+  folder of your choice, that folder is no longer read.
 
 The dialog also reads the packs again each time it is shown.
+
+rcssmonitor reads a pack's files where they are and keeps no copy of
+them. Once its folder is gone (moved to the trash, or deleted by hand),
+nothing of the pack is left but its name in the settings, which a
+**Model** of another pack replaces.
 
 The same can be set in `~/.rcssmonitor.conf` (group `View3D`) or on the
 command line:
