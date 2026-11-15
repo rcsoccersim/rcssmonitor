@@ -181,11 +181,13 @@ private:
     ShaderProgram M_sky_program; //!< "sky": the sky dome around the camera
     ShaderProgram M_outside_program; //!< "outside": the ground beyond the ground image, in the haze far away
     ShaderProgram M_stand_program; //!< "stand": the stands, their images lit by the sun
+    ShaderProgram M_ball_program; //!< "ball": the ball, lit as the solids, with its pattern
 
     // the shapes (Meshes3D), each drawn in instances
     InstancedMesh M_ground; //!< the area of the ground image
     InstancedMesh M_cylinder; //!< the bodies, the goal posts and crossbars
-    InstancedMesh M_sphere; //!< the heads, the ball
+    InstancedMesh M_sphere; //!< the heads
+    InstancedMesh M_ball; //!< the ball: a sphere divided more finely (its outline is near the close cameras)
     InstancedMesh M_cone; //!< the body and face directions
     InstancedMesh M_disc; //!< the circles under the players, the ball's shadow
     InstancedMesh M_ring; //!< the outline of a highlighted player

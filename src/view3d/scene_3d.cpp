@@ -36,6 +36,7 @@
 
 #include "scene_3d.h"
 
+#include "ball_3d.h"
 #include "field_painter.h"
 #include "ground_texture.h"
 #include "meshes_3d.h"
@@ -118,7 +119,8 @@ Scene3D::initialize()
          || ! M_blob_program.load( "blob" )
          || ! M_sky_program.load( "sky" )
          || ! M_outside_program.load( "outside" )
-         || ! M_stand_program.load( "stand" ) )
+         || ! M_stand_program.load( "stand" )
+         || ! M_ball_program.load( "ball" ) )
     {
         M_ground_program.destroy();
         M_lit_program.destroy();
@@ -134,6 +136,7 @@ Scene3D::initialize()
         M_sky_program.destroy();
         M_outside_program.destroy();
         M_stand_program.destroy();
+        M_ball_program.destroy();
         return false;
     }
 
@@ -142,6 +145,7 @@ Scene3D::initialize()
     M_ground.create( *this, Meshes3D::ground( float( GroundTexture::length() ), float( GroundTexture::width() ) ) );
     M_cylinder.create( *this, Meshes3D::cylinder( 20 ) );
     M_sphere.create( *this, Meshes3D::sphere( 24, 16 ) );
+    M_ball.create( *this, Meshes3D::sphere( 32, 24 ) );
     M_cone.create( *this, Meshes3D::cone( 12 ) );
     M_disc.create( *this, Meshes3D::ring( 0.0f, 1.0f, 32 ) );
     M_ring.create( *this, Meshes3D::ring( 0.92f, 1.08f, 40 ) );
@@ -175,7 +179,7 @@ Scene3D::release()
     {
         return;
     }
-    for ( InstancedMesh * m : { &M_ground, &M_cylinder, &M_sphere, &M_cone, &M_disc, &M_ring, &M_decay_ring, &M_quad, &M_panel, &M_shadow_plane, &M_far_ground,
+    for ( InstancedMesh * m : { &M_ground, &M_cylinder, &M_sphere, &M_ball, &M_cone, &M_disc, &M_ring, &M_decay_ring, &M_quad, &M_panel, &M_shadow_plane, &M_far_ground,
                               &M_stands[0], &M_stands[1], &M_stands[2], &M_stands[3] } )
     {
         m->destroy( *this );
@@ -211,6 +215,7 @@ Scene3D::release()
     M_sky_program.destroy();
     M_outside_program.destroy();
     M_stand_program.destroy();
+    M_ball_program.destroy();
     M_initialized = false;
 }
 
@@ -383,8 +388,25 @@ Scene3D::render( GLuint fbo,
     M_lit_program.set( "uSun", Sun3D::direction() );
     M_cylinder.draw( *this, content.cylinders );
     M_sphere.draw( *this, content.spheres );
-    M_sphere.draw( *this, content.balls );
     M_cone.draw( *this, content.cones );
+
+    //
+    // pass 2-ball: the ball, lit as the solids, with its pattern (Ball3D)
+    // found from the direction on the ball, which turns with it
+    //
+    if ( ! content.balls.empty() )
+    {
+        const Ball3D::Pentagons & pentagons = Ball3D::pentagons();
+        M_ball_program.bind();
+        M_ball_program.set( "uViewProj", view_proj );
+        M_ball_program.set( "uSun", Sun3D::direction() );
+        M_ball_program.set( "uPatterned", content.ball_pattern ? 1 : 0 );
+        M_ball_program.setArray( "uCenters", pentagons.centers.data(), Ball3D::PENTAGONS );
+        M_ball_program.setArray( "uToward", pentagons.toward.data(), Ball3D::PENTAGONS );
+        M_ball_program.set( "uPentagon", Ball3D::PENTAGON );
+        M_ball_program.set( "uShade", Ball3D::PENTAGON_SHADE );
+        M_ball.draw( *this, content.balls );
+    }
 
     //
     // pass 2a: the human figures, lit as the solids, their skeletons posed

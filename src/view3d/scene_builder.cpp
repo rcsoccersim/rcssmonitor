@@ -238,7 +238,8 @@ addShow( SceneContent & content,
          const DispHolder & holder,
          const Options & opt,
          const Perceptions * perceptions,
-         const bool figures )
+         const bool figures,
+         const QQuaternion & ball_turn )
 {
     const rcss::rcg::ServerParamT & sp = holder.serverParam();
 
@@ -366,6 +367,7 @@ addShow( SceneContent & content,
 
         QMatrix4x4 m;
         m.translate( ball.x_, std::max( 0.0f, ball.z_ ) + r, ball.y_ );
+        m.rotate( ball_turn );
         m.scale( r );
         add( content.balls, m, rgba( opt.ballBrush().color() ) );
 

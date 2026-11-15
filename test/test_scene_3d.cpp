@@ -30,6 +30,7 @@
 
 #include <QtTest>
 
+#include "ball_3d.h"
 #include "cameras_3d.h"
 #include "disp_holder.h"
 #include "field_painter.h"
@@ -157,6 +158,7 @@ private slots:
     void sky();
     void realisticGrass();
     void stands();
+    void ball();
     void cleanupTestCase();
 };
 
@@ -1319,6 +1321,90 @@ TestScene3D::stands()
     const QColor wall = shot( behind, true ).pixelColor( w / 2, h / 2 );
     QVERIFY2( distance( wall, shot( behind, false ).pixelColor( w / 2, h / 2 ) ) > 30, qPrintable( wall.name() ) );
     QVERIFY( wall.saturation() < 60 ); // the concrete, not the grass
+
+    scene.release();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  The ball's pattern, seen from straight above without perspective: each
+  pixel of the ball dark where Ball3D::patternAt() says, at the direction
+  on the ball itself (turned back by how it rolled), and nowhere dark
+  without the pattern; the same in every frame.
+*/
+void
+TestScene3D::ball()
+{
+    DispHolder holder;
+    FieldPainter painter( holder );
+    Scene3D scene;
+    QVERIFY( scene.initialize() );
+    scene.setGround( GroundTexture::draw( painter ) );
+
+    const int w = 240, h = 240;
+    QOpenGLFramebufferObjectFormat fbo_format;
+    fbo_format.setAttachment( QOpenGLFramebufferObject::Depth );
+    QOpenGLFramebufferObject fbo( w, h, fbo_format );
+
+    const float r = 0.5f; // a large ball, for many pixels
+    CameraPose camera;
+    camera.position = QVector3D( 0.0f, 10.0f, 0.0f );
+    camera.target = QVector3D( 0.0f, 0.0f, 0.0f );
+    camera.up = QVector3D( 0.0f, 0.0f, -1.0f ); // the screen's right +x, its down +z
+    camera.ortho_half_height = 1.2f * r;
+
+    const auto shot = [&]( const QQuaternion & turn, const bool pattern ) {
+        SceneContent content;
+        Instance3D ball;
+        ball.model.translate( 0.0f, r, 0.0f );
+        ball.model.rotate( turn );
+        ball.model.scale( r );
+        ball.color = QVector4D( 1.0f, 1.0f, 1.0f, 1.0f );
+        content.balls.push_back( ball );
+        content.ball_pattern = pattern;
+        scene.render( fbo.handle(), w, h, camera, content );
+        return fbo.toImage();
+    };
+
+    // the share of the pixels of the ball (within 0.85 of its radius) dark
+    // where patternAt() says, and the share dark at all
+    const auto agreement = [&]( const QImage & image, const QQuaternion & turn, double * dark ) {
+        int agree = 0, count = 0, darks = 0;
+        for ( int y = 0; y < h; ++y )
+        {
+            for ( int x = 0; x < w; ++x )
+            {
+                const float wx = ( x + 0.5f - w * 0.5f ) / ( h * 0.5f ) * camera.ortho_half_height / r;
+                const float wz = ( y + 0.5f - h * 0.5f ) / ( h * 0.5f ) * camera.ortho_half_height / r;
+                if ( wx * wx + wz * wz > 0.85f * 0.85f ) continue;
+                const QVector3D world( wx, std::sqrt( 1.0f - wx * wx - wz * wz ), wz );
+                const bool expected = Ball3D::patternAt( turn.conjugated().rotatedVector( world ) ) < 0.5f;
+                const bool seen = image.pixelColor( x, y ).lightness() < 100;
+                if ( seen == expected ) ++agree;
+                if ( seen ) ++darks;
+                ++count;
+            }
+        }
+        *dark = double( darks ) / count;
+        return double( agree ) / count;
+    };
+
+    const QQuaternion turn = QQuaternion::fromAxisAndAngle( 1.0f, 2.0f, 3.0f, 50.0f );
+    for ( const QQuaternion & q : { QQuaternion(), turn } )
+    {
+        const QImage patterned = shot( q, true );
+        QCOMPARE( shot( q, true ), patterned );
+        double dark = 0.0;
+        const double agree = agreement( patterned, q, &dark );
+        QVERIFY2( agree > 0.97, qPrintable( QString::number( agree ) ) );
+        QVERIFY2( dark > 0.15 && dark < 0.5, qPrintable( QString::number( dark ) ) );
+        // plain: nothing dark on it
+        agreement( shot( q, false ), q, &dark );
+        QCOMPARE( dark, 0.0 );
+    }
+    // the turn shows: the turned ball does not look as the one not turned
+    double dark = 0.0;
+    QVERIFY( agreement( shot( turn, true ), QQuaternion(), &dark ) < 0.9 );
 
     scene.release();
 }

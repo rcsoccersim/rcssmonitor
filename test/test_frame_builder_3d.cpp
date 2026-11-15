@@ -33,6 +33,7 @@
 #include <QtTest>
 
 #include "frame_builder_3d.h"
+#include "scene_builder.h"
 #include "scenery_3d.h"
 
 #include "camera_mode.h"
@@ -300,9 +301,14 @@ private slots:
           opt.setStands3D( false );
           QVERIFY( ! build( builder, M_holder, at( M_holder, 10 ) ).stands );
           opt.setStands3D( Options::STANDS_3D );
+          QVERIFY( content.ball_pattern ); // on by default
+          opt.setBallPattern3D( false );
+          QVERIFY( ! build( builder, M_holder, at( M_holder, 10 ) ).ball_pattern );
+          opt.setBallPattern3D( Options::BALL_PATTERN_3D );
           content.realistic_grass = true;
           content.clear();
           QVERIFY( ! content.stands );
+          QVERIFY( ! content.ball_pattern );
           QVERIFY( ! content.sky );
           QVERIFY( ! content.realistic_grass );
       }
@@ -393,6 +399,7 @@ private slots:
               QCOMPARE( back.probes[k].left_knee, first.probes[k].left_knee );
               QCOMPARE( back.probes[k].head, first.probes[k].head );
           }
+          QCOMPARE( back.ball_turn, first.ball_turn );
           // another builder, straight to the frame
           FrameBuilder3D other;
           QCOMPARE( build( other, M_holder, frame ).figure_joints, first.figure_joints );
@@ -413,6 +420,45 @@ private slots:
           // and other frames have other poses (the figures move)
           QVERIFY( build( builder, M_holder, at( M_holder, 30 ) ).figure_joints != first.figure_joints );
           QVERIFY( build( builder, M_holder, at( M_holder, 38, 0.5 ) ).figure_joints != first.figure_joints );
+      }
+
+    /*!
+      the ball rolls from the kick on (not before: it stays), turned in its
+      instance; the same turn for a frame however it is reached
+    */
+    void ballSpin()
+      {
+          FrameBuilder3D builder;
+          SceneContent content;
+          // still before the kick
+          QCOMPARE( build( builder, M_holder, at( M_holder, 10 ) ).ball_turn, QQuaternion() );
+          QCOMPARE( build( builder, M_holder, at( M_holder, 38, 0.5 ) ).ball_turn, QQuaternion() );
+          // on the way after it, more and more
+          const Interpolate::Position frame = at( M_holder, 50, 0.3 );
+          builder.build( M_holder, Options::instance(), frame, CameraMode::Broadcast, content );
+          const View3DState s = builder.state( content, CameraPose() );
+          QVERIFY( s.ball_turn != QQuaternion() );
+          QVERIFY( build( builder, M_holder, at( M_holder, 50, 0.6 ) ).ball_turn != s.ball_turn );
+          // the instance turned so
+          QCOMPARE( content.balls.size(), std::size_t( 1 ) );
+          const float r = float( SceneBuilder::ballRadius( Options::instance(),
+                                                           M_holder.serverParam().ball_size_ ) );
+          const QVector3D center = content.balls[0].model.map( QVector3D() );
+          const QVector3D up = content.balls[0].model.map( QVector3D( 0, 1, 0 ) ) - center;
+          QVERIFY( ( up - s.ball_turn.rotatedVector( QVector3D( 0, 1, 0 ) ) * r ).length() < 1.0e-4f );
+          // again, after others, and by another builder
+          build( builder, M_holder, at( M_holder, 100 ) );
+          build( builder, M_holder, at( M_holder, 3 ) );
+          QCOMPARE( build( builder, M_holder, frame ).ball_turn, s.ball_turn );
+          FrameBuilder3D other;
+          QCOMPARE( build( other, M_holder, frame ).ball_turn, s.ball_turn );
+          // live, the frames coming after
+          DispHolder live;
+          fill( live, 0, 52 );
+          FrameBuilder3D live_builder;
+          QCOMPARE( build( live_builder, live, at( live, 50, 0.3 ) ).ball_turn, s.ball_turn );
+          fill( live, 52, 20 );
+          QCOMPARE( build( live_builder, live, at( live, 50, 0.3 ) ).ball_turn, s.ball_turn );
       }
 
     /*!

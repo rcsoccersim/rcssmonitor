@@ -76,6 +76,7 @@ FrameBuilder3D::build( const DispHolder & holder,
     content.sky = opt.sky3D();
     content.realistic_grass = ( opt.grass3D() == GrassMode::Realistic );
     content.stands = opt.stands3D();
+    content.ball_pattern = opt.ballPattern3D();
     content.far_ground = Scenery3D::farGroundColor( opt.fieldBrush().color() );
     // the sun's detailed shadows (the shadow map), but not from the top
     // camera: they would crowd the map (§11: 8)
@@ -155,14 +156,20 @@ FrameBuilder3D::build( const DispHolder & holder,
     }
 
     M_pose_time = 0.0;
+    M_ball_turn = QQuaternion();
     if ( ! M_has_show )
     {
         return;
     }
 
+    // how the ball has rolled, from the log (as the figures' gaits): the
+    // same at the same frame however it was reached
+    M_spin.update( frames, float( SceneBuilder::ballRadius( opt, sp.ball_size_ ) ) );
+    M_ball_turn = M_spin.turnAt( frames, at.index, at.next, at.alpha );
+
     QElapsedTimer clock;
     clock.start();
-    SceneBuilder::addShow( content, M_show, holder, opt, seen(), figures );
+    SceneBuilder::addShow( content, M_show, holder, opt, seen(), figures, M_ball_turn );
     // the simple shadows, an ellipse under each player drawn
     if ( shadows && opt.shadows3D() == ShadowMode::Simple )
     {
@@ -212,6 +219,8 @@ FrameBuilder3D::state( const SceneContent & content,
     s.sky = content.sky;
     s.realistic_grass = content.realistic_grass;
     s.stands = content.stands;
+    s.ball_pattern = content.ball_pattern;
+    s.ball_turn = M_ball_turn;
     s.blob_shadows = static_cast< int >( content.blob_shadows.size() );
 
     for ( const FigureInstance & figure : content.figures )

@@ -30,5 +30,7 @@
     <file>outside.frag</file>
     <file>stand.vert</file>
     <file>stand.frag</file>
+    <file>ball.vert</file>
+    <file>ball.frag</file>
   </qresource>
 </RCC>

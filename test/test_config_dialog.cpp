@@ -254,7 +254,7 @@ TestConfigDialog::tabs3D()
         QVERIFY( with != without );
     }
     // the notes of the groups in their tooltips, not below them (compact)
-    for ( const char * title : { "Close-up Camera", "Guides", "Players", "Stadium", "Player Sight" } )
+    for ( const char * title : { "Close-up Camera", "Guides", "Players", "Ball", "Stadium", "Player Sight" } )
     {
         bool found = false;
         for ( const QGroupBox * g : dialog.findChildren< QGroupBox * >() )
@@ -271,6 +271,8 @@ TestConfigDialog::tabs3D()
     QVERIFY( ! child< QCheckBox >( dialog, "banners_3d" )->toolTip().isEmpty() );
     QVERIFY( ! child< QCheckBox >( dialog, "sky_3d" )->toolTip().isEmpty() );
     QVERIFY( ! child< QCheckBox >( dialog, "stands_3d" )->toolTip().isEmpty() );
+    QVERIFY( ! child< QCheckBox >( dialog, "ball_pattern_3d" )->toolTip().isEmpty() );
+    QVERIFY( child< QPushButton >( dialog, "default_3d" )->toolTip().contains( "Ball Pattern On," ) );
     QVERIFY( child< QPushButton >( dialog, "default_3d" )->toolTip().contains( "Stands On, Grass Stripes, Sky On" ) );
     QVERIFY( child< QPushButton >( dialog, "default_3d" )->toolTip().contains( "Close-up 12 m, 20" ) );
     QVERIFY( child< QPushButton >( dialog, "default_3d" )->toolTip().contains( "Model Simple, Figure Scale 1, Bodies Mixed, Shadows Simple," ) );
@@ -312,7 +314,8 @@ TestConfigDialog::view3DTab()
     QButtonGroup * grass = child< QButtonGroup >( dialog, "grass_3d" );
     QCheckBox * sky = child< QCheckBox >( dialog, "sky_3d" );
     QCheckBox * stands = child< QCheckBox >( dialog, "stands_3d" );
-    QVERIFY( grass && sky && stands );
+    QCheckBox * pattern = child< QCheckBox >( dialog, "ball_pattern_3d" );
+    QVERIFY( grass && sky && stands && pattern );
     QPushButton * defaults = child< QPushButton >( dialog, "default_3d" );
     QButtonGroup * model = child< QButtonGroup >( dialog, "player_model_3d" );
     QDoubleSpinBox * scale = child< QDoubleSpinBox >( dialog, "figure_scale_3d" );
@@ -331,6 +334,7 @@ TestConfigDialog::view3DTab()
     QCOMPARE( grass->checkedButton()->text(), QString( "Stripes" ) );
     QVERIFY( sky->isChecked() );
     QVERIFY( stands->isChecked() );
+    QVERIFY( pattern->isChecked() );
     QCOMPARE( model->checkedButton()->text(), QString( "Simple" ) );
     QCOMPARE( scale->value(), Options::FIGURE_SCALE_3D );
     // the scale is not for the cylinders, the bodies only for the human figures
@@ -396,13 +400,17 @@ TestConfigDialog::view3DTab()
     QVERIFY( ! opt.sky3D() );
     stands->click();
     QVERIFY( ! opt.stands3D() );
-    QCOMPARE( spy.count(), 12 );
+    pattern->click();
+    QVERIFY( ! opt.ballPattern3D() );
+    QCOMPARE( spy.count(), 13 );
 
     // Default: the options and the fields back
     defaults->click();
-    QCOMPARE( spy.count(), 13 );
+    QCOMPARE( spy.count(), 14 );
     QVERIFY( opt.stands3D() );
     QVERIFY( stands->isChecked() );
+    QVERIFY( opt.ballPattern3D() );
+    QVERIFY( pattern->isChecked() );
     QCOMPARE( opt.grass3D(), GrassMode::Stripes );
     QVERIFY( opt.sky3D() );
     QCOMPARE( grass->checkedId(), 1 );
@@ -429,7 +437,7 @@ TestConfigDialog::view3DTab()
     QCOMPARE( scale->value(), Options::FIGURE_SCALE_3D );
     QVERIFY( ! scale->isEnabled() );
     // the fields set back by Default do not set the options again
-    QCOMPARE( spy.count(), 13 );
+    QCOMPARE( spy.count(), 14 );
 #endif
 }
 

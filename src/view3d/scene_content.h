@@ -187,7 +187,7 @@ struct SceneContent {
     // lit by the sun
     std::vector< Instance3D > cylinders; //!< radius 1, height 1 along y, centered: the bodies, the goal posts and crossbars
     std::vector< Instance3D > spheres; //!< radius 1: the heads
-    std::vector< Instance3D > balls; //!< radius 1: the ball (casts no shadow of the sun: its own disc below tells its height)
+    std::vector< Instance3D > balls; //!< radius 1, turned as it rolled (BallSpin): the ball (casts no shadow of the sun: its own disc below tells its height)
     std::vector< Instance3D > cones; //!< base of radius 1 at the origin, tip at x = 1: the body and face directions
     std::vector< FigureInstance > figures; //!< the players drawn as human figures (in place of a cylinder and a sphere)
     std::vector< float > figure_joints; //!< the skin matrices of the figures, in their order (Figures3D::pose(); 16 floats a joint)
@@ -199,6 +199,8 @@ struct SceneContent {
     bool realistic_grass = false;
     //! the stands along the touch lines (Stands3D): the option stands_3d
     bool stands = false;
+    //! the ball's pattern, twelve pentagons (Ball3D): the option ball_pattern_3d
+    bool ball_pattern = false;
     //! the color of the ground beyond the ground image (Scenery3D::farGroundColor())
     QVector4D far_ground = QVector4D( 0.1f, 0.54f, 0.1f, 1.0f );
 
@@ -247,6 +249,7 @@ struct SceneContent {
           sky = false;
           realistic_grass = false;
           stands = false;
+          ball_pattern = false;
           shadows = false;
           blob_shadows.clear();
           discs.clear();

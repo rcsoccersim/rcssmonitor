@@ -1882,6 +1882,28 @@ ConfigDialog::create3DTab()
         top_layout->addWidget( group_box );
     }
 
+    // ball
+    {
+        QGroupBox * group_box = new QGroupBox( tr( "Ball" ) );
+        QHBoxLayout * layout = new QHBoxLayout();
+
+        M_ball_pattern_3d_cb = new QCheckBox( tr( "Pattern" ) );
+        M_ball_pattern_3d_cb->setObjectName( "ball_pattern_3d" );
+        M_ball_pattern_3d_cb->setToolTip( tr( "Twelve dark pentagons on the ball, as on a football, which show it rolling\n"
+                                              "as far as it goes. Without them, a plain ball (which still rolls, unseen)." ) );
+        connect( M_ball_pattern_3d_cb, &QCheckBox::clicked,
+                 this, [this]( bool on ) {
+                     Options::instance().setBallPattern3D( on );
+                     changed3D();
+                 } );
+        layout->addWidget( M_ball_pattern_3d_cb );
+        layout->addStretch();
+
+        group_box->setToolTip( tr( "How the ball looks, to be found and followed." ) );
+        group_box->setLayout( layout );
+        top_layout->addWidget( group_box );
+    }
+
     // stadium
     {
         QGroupBox * group_box = new QGroupBox( tr( "Stadium" ) );
@@ -1970,7 +1992,7 @@ ConfigDialog::create3DTab()
         button->setObjectName( "default_3d" );
         button->setToolTip( tr( "Set the defaults: Close-up %1 m, %2\u00b0, Compass %3, Minimap %4,\n"
                                 "Model %5, Figure Scale %6, Bodies %9, Shadows %10, Boards %7, Banners %8,\n"
-                                "Stands %13, Grass %11, Sky %12" )
+                                "Ball Pattern %14, Stands %13, Grass %11, Sky %12" )
                             .arg( Options::CLOSEUP_DISTANCE_3D )
                             .arg( Options::CLOSEUP_ELEVATION_3D )
                             .arg( guideLabel( Options::COMPASS_3D ) )
@@ -1983,7 +2005,8 @@ ConfigDialog::create3DTab()
                             .arg( shadowLabel( Options::SHADOWS_3D ) )
                             .arg( grassLabel( Options::GRASS_3D ) )
                             .arg( onOff( Options::SKY_3D ) )
-                            .arg( onOff( Options::STANDS_3D ) ) );
+                            .arg( onOff( Options::STANDS_3D ) )
+                            .arg( onOff( Options::BALL_PATTERN_3D ) ) );
         button->setAutoDefault( false );
         connect( button, &QPushButton::clicked,
                  this, [this]() {
@@ -2238,6 +2261,7 @@ ConfigDialog::update3D()
     M_banners_3d_cb->setChecked( opt.banners3D() );
     set_choice( M_grass_3d, grassIndex( opt.grass3D() ) );
     M_stands_3d_cb->setChecked( opt.stands3D() );
+    M_ball_pattern_3d_cb->setChecked( opt.ballPattern3D() );
     M_sky_3d_cb->setChecked( opt.sky3D() );
 
     set_choice( M_player_camera_position, indexOf( positions(), pc.position ) );

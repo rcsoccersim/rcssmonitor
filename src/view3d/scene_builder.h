@@ -38,6 +38,7 @@
 #include "sight.h"
 
 #include <QColor>
+#include <QQuaternion>
 
 class DispHolder;
 class LabelAtlas;
@@ -175,6 +176,7 @@ void addGoals( SceneContent & content,
   by Figures3D) in place of a cylinder and a sphere, without the direction
   marks, which the figure shows itself. A player whose directions the
   player camera does not know stays a cylinder: a figure would show them.
+  \param ball_turn how the ball is turned, as it rolled (BallSpin)
 
   A player is as tall as its height ratio (heightRatio()): the body of the
   cylinder, with the head on it, or the figure. A player whose number the
@@ -186,7 +188,8 @@ void addShow( SceneContent & content,
               const DispHolder & holder,
               const Options & options,
               const Perceptions * perceptions = nullptr,
-              const bool figures = false );
+              const bool figures = false,
+              const QQuaternion & ball_turn = QQuaternion() );
 
 /*!
   \struct LabelView

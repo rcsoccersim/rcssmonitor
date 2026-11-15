@@ -247,6 +247,7 @@ Options::Options()
     M_grass_3d( GRASS_3D ),
     M_sky_3d( SKY_3D ),
     M_stands_3d( STANDS_3D ),
+    M_ball_pattern_3d( BALL_PATTERN_3D ),
     M_banners_3d( BANNERS_3D ),
     M_compass_3d( COMPASS_3D ),
     M_minimap_3d( MINIMAP_3D ),
@@ -756,6 +757,9 @@ Options::readSettings()
     val = settings.value( "stands_3d" );
     if ( val.isValid() ) M_stands_3d = val.toBool();
 
+    val = settings.value( "ball_pattern_3d" );
+    if ( val.isValid() ) M_ball_pattern_3d = val.toBool();
+
     val = settings.value( "banners_3d" );
     if ( val.isValid() ) M_banners_3d = val.toBool();
 
@@ -958,6 +962,7 @@ Options::writeSettings( bool all )
     settings.setValue( "grass_3d", grassModeName( M_grass_3d ) );
     settings.setValue( "sky_3d", M_sky_3d );
     settings.setValue( "stands_3d", M_stands_3d );
+    settings.setValue( "ball_pattern_3d", M_ball_pattern_3d );
     settings.setValue( "banners_3d", M_banners_3d );
     settings.setValue( "compass_3d", guideModeName( M_compass_3d ) );
     settings.setValue( "minimap_3d", guideModeName( M_minimap_3d ) );
@@ -1028,6 +1033,7 @@ Options::setView3DDefaults()
     M_grass_3d = GRASS_3D;
     M_sky_3d = SKY_3D;
     M_stands_3d = STANDS_3D;
+    M_ball_pattern_3d = BALL_PATTERN_3D;
     M_banners_3d = BANNERS_3D;
 }
 
@@ -1168,6 +1174,10 @@ Options::parseCmdLine( int argc,
                                       "The 3D view: the stands along the touch lines. (Default=" + to_onoff( M_stands_3d ) + ")",
                                       "bool", to_onoff( M_stands_3d ) );
     parser.addOption( opt_stands_3d );
+    QCommandLineOption opt_ball_pattern_3d( "ball-pattern-3d",
+                                            "The 3D view: the ball's pattern, which shows it rolling. (Default=" + to_onoff( M_ball_pattern_3d ) + ")",
+                                            "bool", to_onoff( M_ball_pattern_3d ) );
+    parser.addOption( opt_ball_pattern_3d );
     QCommandLineOption opt_banners_3d( "banners-3d",
                                        "The 3D view: the banners behind the goals with the team names and logos. (Default=" + to_onoff( M_banners_3d ) + ")",
                                        "bool", to_onoff( M_banners_3d ) );
@@ -1445,6 +1455,7 @@ Options::parseCmdLine( int argc,
     }
     if ( parser.isSet( opt_sky_3d ) ) M_sky_3d = to_bool( parser.value( opt_sky_3d ), M_sky_3d );
     if ( parser.isSet( opt_stands_3d ) ) M_stands_3d = to_bool( parser.value( opt_stands_3d ), M_stands_3d );
+    if ( parser.isSet( opt_ball_pattern_3d ) ) M_ball_pattern_3d = to_bool( parser.value( opt_ball_pattern_3d ), M_ball_pattern_3d );
     if ( parser.isSet( opt_banners_3d ) ) M_banners_3d = to_bool( parser.value( opt_banners_3d ), M_banners_3d );
     for ( const auto & g : { std::make_pair( &opt_compass_3d, &M_compass_3d ), std::make_pair( &opt_minimap_3d, &M_minimap_3d ) } )
     {

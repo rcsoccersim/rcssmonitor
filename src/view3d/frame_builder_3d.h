@@ -33,6 +33,7 @@
 #ifndef RCSSMONITOR_FRAME_BUILDER_3D_H
 #define RCSSMONITOR_FRAME_BUILDER_3D_H
 
+#include "ball_3d.h"
 #include "camera_3d.h"
 #include "cameras_3d.h"
 #include "figures_3d.h"
@@ -96,6 +97,8 @@ struct View3DState {
     bool sky = false; //!< the sky was drawn (SceneContent::sky)
     bool realistic_grass = false; //!< the realistic grass was drawn (SceneContent::realistic_grass)
     bool stands = false; //!< the stands were drawn (SceneContent::stands)
+    bool ball_pattern = false; //!< the ball's pattern was drawn (SceneContent::ball_pattern)
+    QQuaternion ball_turn; //!< how the ball was turned, as it rolled (BallSpin)
     int blob_shadows = 0; //!< the simple shadows drawn (SceneContent::blob_shadows)
 };
 
@@ -164,6 +167,8 @@ public:
 private:
     Figures3D M_figures;
     GaitTable M_gaits; //!< how far the players have walked, for the figures
+    BallSpin M_spin; //!< how the ball has rolled
+    QQuaternion M_ball_turn; //!< how the ball is turned in the frame built
     rcss::rcg::ShowInfoT M_show;
     bool M_has_show = false;
     Interpolate::Position M_at;

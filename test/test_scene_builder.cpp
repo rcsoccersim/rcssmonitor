@@ -314,6 +314,17 @@ private slots:
           QVERIFY( near( at( c.balls.back() ), QVector3D( 3, 2.0f + float( r ), -4 ) ) );
           QVERIFY( near( at( c.discs.back() ), QVector3D( 3, SceneBuilder::BALL_SHADOW_Y, -4 ) ) );
           QCOMPARE( c.discs.back().color.w(), 0.3f );
+
+          // turned as it rolled, about its center, still of radius r
+          const QQuaternion turn = QQuaternion::fromAxisAndAngle( 1.0f, 2.0f, 3.0f, 70.0f );
+          c.clear();
+          SceneBuilder::addShow( c, show, M_holder, opt, nullptr, false, turn );
+          const QVector3D center( 3, 2.0f + float( r ), -4 );
+          QVERIFY( near( at( c.balls.back() ), center ) );
+          for ( const QVector3D & v : { QVector3D( 1, 0, 0 ), QVector3D( 0, 1, 0 ), QVector3D( 0, 0, 1 ) } )
+          {
+              QVERIFY( near( at( c.balls.back(), v ), center + turn.rotatedVector( v ) * float( r ) ) );
+          }
       }
 
     void labelsFar()

@@ -115,6 +115,18 @@ public:
           M_program->setUniformValue( location( name ), value );
       }
 
+    /*!
+      \brief set a uniform array of vec3 of the bound program.
+      \param name its name in the shader, e.g. "uCenters"
+      \param values the values, count of them
+    */
+    void setArray( const char * name,
+                   const QVector3D * values,
+                   const int count )
+      {
+          M_program->setUniformValueArray( location( name ), values, count );
+      }
+
 private:
     std::unique_ptr< QOpenGLShaderProgram > M_program; //!< Qt compiles and links the shaders
     std::unordered_map< std::string, int > M_locations; //!< the locations of the uniforms by name
