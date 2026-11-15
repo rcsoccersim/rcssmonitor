@@ -36,14 +36,13 @@
 
 #include "figure_actions.h"
 
+#include "options.h"
+
 #include <algorithm>
 #include <cmath>
 #include <vector>
 
 namespace {
-
-//! the pitch's half length (m)
-constexpr float PITCH_HALF_LENGTH = 52.5f;
 
 //! frames with a bit, from first to last
 struct Run {
@@ -194,7 +193,8 @@ kickOf( const Frames & frames,
     {
         // toward the opponents' goal: the left team attacks +x
         const rcss::rcg::BallT & b = frames.show( strongest ).ball_;
-        const float goal_x = ( p.side() == rcss::rcg::LEFT ? PITCH_HALF_LENGTH : -PITCH_HALF_LENGTH );
+        const float half_length = float( Options::PITCH_HALF_LENGTH );
+        const float goal_x = ( p.side() == rcss::rcg::LEFT ? half_length : -half_length );
         const float to_goal = goal_x - b.x_;
         if ( dx * to_goal > 0.0f
              && std::fabs( to_goal ) <= FigureActionLog::SHOT_RANGE )

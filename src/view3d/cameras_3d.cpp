@@ -54,10 +54,10 @@ clamp( const float v,
 }
 
 // the pitch and the area of the ground image (m)
-const float HALF_LENGTH = float( Options::PITCH_HALF_LENGTH );
-const float HALF_WIDTH = float( Options::PITCH_HALF_WIDTH );
-const float AREA_HALF_LENGTH = float( Options::PITCH_HALF_LENGTH + Options::PITCH_MARGIN );
-const float AREA_HALF_WIDTH = float( Options::PITCH_HALF_WIDTH + Options::PITCH_MARGIN );
+constexpr float HALF_LENGTH = float( Options::PITCH_HALF_LENGTH );
+constexpr float HALF_WIDTH = float( Options::PITCH_HALF_WIDTH );
+constexpr float AREA_HALF_LENGTH = float( Options::PITCH_HALF_LENGTH + Options::PITCH_MARGIN );
+constexpr float AREA_HALF_WIDTH = float( Options::PITCH_HALF_WIDTH + Options::PITCH_MARGIN );
 
 /*!
   \brief the camera's right and up, as QMatrix4x4::lookAt() makes them:

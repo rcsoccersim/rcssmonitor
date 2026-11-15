@@ -70,32 +70,6 @@ const QString Options::CONF_FILE = QDir::currentPath() + QDir::separator() + QSt
 const QString Options::CONF_FILE = QDir::homePath() + QDir::separator() + QString( ".rcssmonitor.conf" );
 #endif
 
-const double Options::PITCH_LENGTH = 105.0;
-const double Options::PITCH_WIDTH = 68.0;
-const double Options::PITCH_HALF_LENGTH = Options::PITCH_LENGTH * 0.5;
-const double Options::PITCH_HALF_WIDTH = Options::PITCH_WIDTH * 0.5;
-const double Options::PITCH_MARGIN = 5.0;
-const double Options::CENTER_CIRCLE_R = 9.15;
-const double Options::PENALTY_AREA_LENGTH = 16.5;
-const double Options::PENALTY_AREA_WIDTH = 40.32;
-const double Options::PENALTY_CIRCLE_R = 9.15;
-const double Options::PENALTY_SPOT_DIST = 11.0;
-const double Options::GOAL_WIDTH = 14.02;
-const double Options::GOAL_HALF_WIDTH = Options::GOAL_WIDTH * 0.5;
-const double Options::GOAL_AREA_LENGTH = 5.5;
-const double Options::GOAL_AREA_WIDTH = 18.32;
-const double Options::GOAL_DEPTH = 2.44;
-const double Options::CORNER_ARC_R = 1.0;
-const double Options::GOAL_POST_RADIUS = 0.06;
-
-const double Options::MIN_FIELD_SCALE = 1.0;
-const double Options::MAX_FIELD_SCALE = 400.0;
-const double Options::ZOOM_RATIO = 1.5;
-const int Options::DEFAULT_TIMER_INTERVAL = 100;
-
-//const int Options::WAITING_ANIMATION_SIZE = 64;
-const int Options::WAITING_ANIMATION_SIZE = 96;
-
 const QColor Options::FIELD_COLOR( 31, 160, 31 );
 const QColor Options::LINE_COLOR( 255, 255, 255 );
 const QColor Options::MEASURE_LINE_COLOR( 0, 255, 255 );

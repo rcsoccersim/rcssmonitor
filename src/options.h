@@ -72,36 +72,36 @@ public:
         FOCUS_POINT, // include center
     };
 
-    static const double PITCH_LENGTH;
-    static const double PITCH_WIDTH;
-    static const double PITCH_HALF_LENGTH;
-    static const double PITCH_HALF_WIDTH;
-    static const double PITCH_MARGIN;
-    static const double CENTER_CIRCLE_R;
-    static const double PENALTY_AREA_LENGTH;
-    static const double PENALTY_AREA_WIDTH;
-    static const double PENALTY_CIRCLE_R;
-    static const double PENALTY_SPOT_DIST;
-    static const double GOAL_WIDTH;
-    static const double GOAL_HALF_WIDTH;
-    static const double GOAL_AREA_LENGTH;
-    static const double GOAL_AREA_WIDTH;
-    static const double GOAL_DEPTH;
-    static const double CORNER_ARC_R;
-    static const double GOAL_POST_RADIUS;
+    static constexpr double PITCH_LENGTH = 105.0;
+    static constexpr double PITCH_WIDTH = 68.0;
+    static constexpr double PITCH_HALF_LENGTH = PITCH_LENGTH * 0.5;
+    static constexpr double PITCH_HALF_WIDTH = PITCH_WIDTH * 0.5;
+    static constexpr double PITCH_MARGIN = 5.0;
+    static constexpr double CENTER_CIRCLE_R = 9.15;
+    static constexpr double PENALTY_AREA_LENGTH = 16.5;
+    static constexpr double PENALTY_AREA_WIDTH = 40.32;
+    static constexpr double PENALTY_CIRCLE_R = 9.15;
+    static constexpr double PENALTY_SPOT_DIST = 11.0;
+    static constexpr double GOAL_WIDTH = 14.02;
+    static constexpr double GOAL_HALF_WIDTH = GOAL_WIDTH * 0.5;
+    static constexpr double GOAL_AREA_LENGTH = 5.5;
+    static constexpr double GOAL_AREA_WIDTH = 18.32;
+    static constexpr double GOAL_DEPTH = 2.44;
+    static constexpr double CORNER_ARC_R = 1.0;
+    static constexpr double GOAL_POST_RADIUS = 0.06;
 
 
     //! minimum field scale
-    static const double MIN_FIELD_SCALE;
+    static constexpr double MIN_FIELD_SCALE = 1.0;
     //! maximum field scale
-    static const double MAX_FIELD_SCALE;
+    static constexpr double MAX_FIELD_SCALE = 400.0;
     //! zoom rate factor
-    static const double ZOOM_RATIO;
+    static constexpr double ZOOM_RATIO = 1.5;
 
     //! default logplayer timer step (ms).
-    static const int DEFAULT_TIMER_INTERVAL;
+    static constexpr int DEFAULT_TIMER_INTERVAL = 100;
 
-    static const int WAITING_ANIMATION_SIZE;
+    static constexpr int WAITING_ANIMATION_SIZE = 96;
 
     // default color settings
     static const QColor FIELD_COLOR;

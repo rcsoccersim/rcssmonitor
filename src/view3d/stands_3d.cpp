@@ -36,6 +36,8 @@
 
 #include "stands_3d.h"
 
+#include "options.h"
+
 #include <QVector2D>
 
 #include <algorithm>
@@ -46,9 +48,6 @@
 namespace Stands3D {
 
 namespace {
-
-constexpr float HALF_WIDTH = 34.0f; //!< the touch line from the center (m)
-constexpr float HALF_LENGTH = 52.5f; //!< the goal line from the center (m)
 
 //! the plain bands of the image, under the rows of seats (pixels high)
 constexpr int WALL_PX = 36;
@@ -175,13 +174,16 @@ place( const Stand & s,
 Stand
 stand( const int index )
 {
-    const float side_length = HALF_LENGTH + Stadium3D::BOARD_OFFSET; // as far as the boards
-    const float end_length = HALF_WIDTH + Stadium3D::BOARD_OFFSET;
+    // the touch lines and the goal lines from the center
+    const float half_width = float( Options::PITCH_HALF_WIDTH );
+    const float half_length = float( Options::PITCH_HALF_LENGTH );
+    const float side_length = half_length + Stadium3D::BOARD_OFFSET; // as far as the boards
+    const float end_length = half_width + Stadium3D::BOARD_OFFSET;
     switch ( index ) {
-    case 0: return { QVector3D( 0, 0, -1 ), QVector3D( 1, 0, 0 ), HALF_WIDTH + FRONT, side_length };
-    case 1: return { QVector3D( 0, 0, 1 ), QVector3D( -1, 0, 0 ), HALF_WIDTH + FRONT, side_length };
-    case 2: return { QVector3D( -1, 0, 0 ), QVector3D( 0, 0, -1 ), HALF_LENGTH + FRONT, end_length };
-    default: return { QVector3D( 1, 0, 0 ), QVector3D( 0, 0, 1 ), HALF_LENGTH + FRONT, end_length };
+    case 0: return { QVector3D( 0, 0, -1 ), QVector3D( 1, 0, 0 ), half_width + FRONT, side_length };
+    case 1: return { QVector3D( 0, 0, 1 ), QVector3D( -1, 0, 0 ), half_width + FRONT, side_length };
+    case 2: return { QVector3D( -1, 0, 0 ), QVector3D( 0, 0, -1 ), half_length + FRONT, end_length };
+    default: return { QVector3D( 1, 0, 0 ), QVector3D( 0, 0, 1 ), half_length + FRONT, end_length };
     }
 }
 
