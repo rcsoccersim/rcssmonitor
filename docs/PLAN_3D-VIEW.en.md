@@ -7,7 +7,7 @@
 | Reference implementation | rcssmonitor-web 20.0.0-beta.2 (tag `v20.0.0-beta.2`, ed36941). Its working tree is `../rcssmonitor-web`, next to this repository |
 | Server referred to | The asio version of rcssserver 19.x. Its working tree is `../rcssserver` (branch `feature/asio-migration`), next to this repository |
 | Japanese version | [PLAN_3D-VIEW.md](PLAN_3D-VIEW.md) (same content; §0.1) |
-| Status | Phase 7 done (2026-11-15). Working on Phase 8 (8-1 to 8-4 done, 8-5 waiting for the user's check; §14). The work is on `feature/3d-view` |
+| Status | Phase 7 done (2026-11-15). Working on Phase 8 (8-1 to 8-5 done, the tool bar and the FPS display waiting for the user's check; §14). The work is on `feature/3d-view` |
 
 ## 0. How to use this plan
 
@@ -389,6 +389,7 @@ Add to `Options` and save to `~/.rcssmonitor.conf`. The names follow the web ver
 | `player_camera_sight` | server | all / view / server |
 | `player_camera_time_constant`, `player_camera_max_turn`, `player_camera_fixed_fov` | 0.5, 90, 120 | 0–5 s, 1–3600 °/s, 20–120° (the eight of the player camera in the group `View3D`; on the command line by the same names, `--player-camera-position` and so on; 6-3) |
 | `compass_3d`, `minimap_3d` | off | off / player / all (the group `View3D`; `--compass-3d`, `--minimap-3d` on the command line; 6-5) |
+| `fps_3d` | off | the frames per second and the GPU's time of a frame at the bottom right of the 3D view (the group `View3D`; `--fps-3d` on the command line; 2026-11-15, user) |
 | `boards_3d`, `banners_3d` | on | (the group `View3D`; `--boards-3d`, `--banners-3d` on the command line; 6-4) |
 | `player_model_3d` | simple | simple / mannequin / human (in the group `View3D`; `--player-model-3d` on the command line; simple / figure in 7-1, figure renamed mannequin and human added in 7-4; figure is read as the mannequin) |
 | `figure_scale_3d` | 1.0 | 0.8 to 1.5: how many times a person's height the figures are (to be seen from afar; not for the cylinders; in the group `View3D`; `--figure-scale-3d` on the command line; 7-1) |
@@ -405,7 +406,7 @@ Settings dialog:
 - **Player Camera tab**: the 4 styles, time constant, maximum angular speed, fixed field of view, Player Sight, Default button.
 - Every item gets a detailed tooltip. Numeric fields state their range in the tooltip, and out-of-range values are clamped to the ends (error color while typing). Numeric fields not used by the selected style are dimmed.
 - In the web version, the 3D items grew and one tab became too tall, so Player Camera was split into its own tab. If the items grow further, split them likewise.
-- → 6-6 made the settings of 6-1 to 6-5 (Close-up Camera, Guides, Boards and Banners of Stadium, and all of the Player Camera tab). Players, Ball and the rest of Stadium come in Phases 7 and 8. The two tabs are only in a build with the 3D view. → 7-4 added Players (the three Models and Figure Scale). 8-1 added Shadows to Players. 8-2 added Grass Stripes and Sky to Stadium. 8-2b made Grass Stripes a choice of three, Grass. 8-3 added Stands to Stadium. 8-4 made the Ball group, with Pattern. 8-5 added Ring, Trail, Ring Radius and Trail Cycles to Ball. → 2026-11-15: the dialog had grown large, so the summaries under the rows of choices and the notes under the groups went into the tooltips (user; §14).
+- → 6-6 made the settings of 6-1 to 6-5 (Close-up Camera, Guides, Boards and Banners of Stadium, and all of the Player Camera tab). Players, Ball and the rest of Stadium come in Phases 7 and 8. The two tabs are only in a build with the 3D view. → 7-4 added Players (the three Models and Figure Scale). 8-1 added Shadows to Players. 8-2 added Grass Stripes and Sky to Stadium. 8-2b made Grass Stripes a choice of three, Grass. 8-3 added Stands to Stadium. 8-4 made the Ball group, with Pattern. 8-5 added Ring, Trail, Ring Radius and Trail Cycles to Ball. FPS was added to Guides (2026-11-15). → 2026-11-15: the dialog had grown large, so the summaries under the rows of choices and the notes under the groups went into the tooltips (user; §14).
 
 ### 5.8 Figures
 
@@ -689,6 +690,7 @@ Port the GL-independent calculations, using the web version's unit tests as mode
 | `view3d/stands_3d`, `shaders/stand.*` | Made in 8-3: the stands' shape and image (no GL), the shader of their lit image |
 | `view3d/ball_3d`, `shaders/ball.*` | Made in 8-4: the ball's pattern and the table of how it has turned rolling (no GL), the shader of the pattern |
 | `view3d/ball_aids_3d`, `shaders/ring.*` | Made in 8-5: the ring and the trail of the ball (the trail's points, the least widths on the screen, the ribbon's triangles; no GL), the shader of the ring |
+| `toolbar_icons`, `view3d/fps_meter` | Made on 2026-11-15: the toolbar icons drawn in code with the web version's shapes (open, connect, disconnect, kick off, loop); the frames per second and the GPU's time shown over the 3D view (no GL) |
 | `tooltip_marker` | A dotted underline under the texts of the items with a tooltip (labels, check boxes, radio buttons, group titles), as the web version (the settings dialog) |
 | `view3d/grass_3d` | Made in 8-2b: the realistic grass (the noise image, the stripes' light and dark by the way the camera looks, the wear, the patches and the wear painted into the ground image; no GL). Its shader is `ground.frag` |
 | `figure_pack`, `fbx_model`, `bvh_motion`, `vrm` and so on | Figure packs (Phase 9; §5.9) |
@@ -2057,3 +2059,36 @@ The two commits of 8-4 (2bf13c2, ce69bc7) were pushed with the record of the bac
 - In a window not shown on the screen, frame 3,000 of the full game's log was drawn from the ball's close-up (8 m), the broadcast and the top cameras.
 
 **The conditions of Phase 8**: everything can be turned on and off by the options (the three shadows, the three grasses, the sky, the stands, the ball's pattern, ring and trail). The first frame after switching to the top camera is the same as the next one (test `scene_3d`, and the real `FieldView3D`). 60 fps with everything on (the measurement above). Met once the user checks 8-5 on the screen.
+
+#### 2026-11-15: The tool bar as the web version's, and the FPS over the 3D view (`feature/3d-view`)
+
+The two commits of 8-5 (87e4773, 05d4c94) and the commit making the constants of `Options` constexpr (5a397f8) were pushed, and CI passed. The user checked 8-5 on the screen.
+
+**Decided (user)**
+- The tool bar as the web version's: buttons to open a file, connect, disconnect and kick off, loop playback, the cycle and the frame number, a field to go to a cycle, and the time per frame while playing. Not about 3D, but on `feature/3d-view`: the tool bar has the selector of the 3D cameras, and another branch would conflict with it.
+- Only the new buttons get icons of the web version's shapes (the XPM of the present buttons stay).
+- An option showing the FPS over the 3D view, off by default.
+- These are part of Phase 8 too, in one commit.
+- (After checking on the screen) With the slider's least width, the window had to be much wider to show the parts from the cycle label on. Show them as far as possible; two rows as the web version's are fine.
+
+**Made**
+- `src/toolbar_icons`: `drawnIcon()`, `drawnIconImage()`. The web version's 16 × 16 SVG icons (`icons.ts`) drawn with QPainter in the same shapes (the same stroke widths, joins and arc directions). Drawn at 16, 24, 32 and 48 pixels into a QIcon, sharp at any screen scale. In the text color of the palette, drawn again when the palette changes (as the present XPM icons).
+- The tool bar: first Open, Connect, Disconnect and Kick Off, then after a gap the present buttons from Live, Loop after the next score, and after the slider "cycle (frame / frames)" (`1746.3` in a stopped time), the cycle field and the time per frame (`100 ms`). In the web version's order.
+  - Kick Off can be pressed only while connected, as Disconnect (it could be pressed always and did nothing when not connected).
+  - Loop switches `auto_loop_mode`, which could be set only in the settings file and on the command line (`Options::setAutoLoopMode()` added). Also in the Monitor menu.
+  - The cycle field: digits only; with Enter, to the frame of the cycle, or the first one after it (as the web version and the present `LogPlayer::goToCycle()`). A cycle after the last frame turns the field red without going (typing takes it off). After going, the field is cleared and the keys go back to the view; Esc too.
+  - The time per frame: while playing, the interval made slower or faster; stopped, the option's interval (`LogPlayer::interval()` added).
+  - The slider's least width from 600 to 200 pixels, taking the rest of the width. With 600 the new fields did not fit in the window.
+  - The tool bar is split in two: the buttons (LogPlayer) and the slider with the parts after it (Position). When the window is too narrow for both, Position goes to a second row below the buttons (a tool bar break), and back to one row when it is wide enough (`MainWindow::updateToolBarRows()`: when the window is resized, when the buttons' width changes with the 3D view, when the tool bars are shown). It compares the buttons' wanted width and the least width with all of Position's parts shown (the sum of its parts' least widths). Position's `minimumSizeHint()` is a small value (230 pixels) for hiding the parts that do not fit behind the "»" menu; compared with it at first, it never went to two rows. Only for the two in one area (after the user moves a tool bar, it is left alone). View > Tool Bar shows and hides both.
+- `Options::setGameLogFile()` (for the tests: the game log opened at the start).
+- `src/view3d/fps_meter` (`FpsMeter`): the frames of the last second, and the GPU's time of a frame (the timer queries, a few frames late). The 3D view draws only while something moves, and Qt 6 stops at the screen's rate (60 fps), so the frames alone do not tell the room; the GPU's time with them ("60 fps · GPU 5.6 ms"). "- fps" with fewer than two frames in the second, and in the last frame before the view stops drawing (which stays on the screen).
+- The option `fps_3d` (off by default; group `View3D`) and the command line `--fps-3d`; FPS in Guides of the 3D tab of the settings dialog. `FieldView3D` takes the GPU's times with `RCSSMONITOR_3D_TIMING` or `fps_3d`, and writes it white on translucent black at the bottom right (over the minimap when it is shown).
+
+**Tests**
+- Test `toolbar` (new): the drawn icons (where the five shapes are and are not, the color, each its own, the loop's upper arc over the top), the buttons (the five in the tool bar, in the web version's order, Disconnect and Kick Off not pressable at first, the tooltips, Loop setting the option, drawn again with the palette), the labels and the field (with a log open, "cycle (number / count)" and the time per frame; to a cycle; a cycle without a frame to the one after it; after the last, red without going; typing takes the red off; Esc; digits only; the stopped time).
+- The two rows in test `toolbar` (one row at 1600 wide, two at 700 with the last part (the time per frame) in the window, back to one when wide, both shown and hidden by View > Tool Bar).
+- Test `fps_meter` (new): 60 fps and 30 fps, the frames leaving the window, still, the last frame, the GPU's time (the last kept when none came), the text.
+- Added to test `config_dialog`: the tooltip of FPS, off at first, the option changed by a click, back by Default, the tooltip of Default.
+- Every test was checked to fail with what it checks broken for a while (16 ways: the stopped time, the frame number from 1, no red after the last, Loop not setting the option, Kick Off pressable at first, not drawn again with the palette, the arc's direction, the icons not scaled, Esc, the red not taken off by typing, the FPS's last frame, the FPS's window, no GPU time, the dialog, Default, the time per frame). And the two rows in 5 ways (never two rows, always two, the parts' widths not counted, not looked at again on resizing, View > Tool Bar only one of them). First the test of the cycle field expected red for a cycle without a frame (3), but the web version and the present rcssmonitor both go to the first frame after it; the test was corrected. The test of the buttons' order shows the tool bar, hidden by default.
+- With Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`), the clean builds and the tests pass (48 tests). `-DENABLE_3D=OFF` (19) and autotools also pass.
+- In a window not shown on the screen, the main window with a log open was drawn in 2D and 3D, 900 and 1400 wide: at 900, two rows with all the parts after the slider shown; at 1400, one row. The FPS over the 3D view was drawn, over the minimap.
