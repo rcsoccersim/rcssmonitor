@@ -82,6 +82,9 @@ public:
 
     void startTimer();
 
+    //! the time per frame while playing (ms): the options' timer interval, or as made slower or faster
+    int interval() const;
+
 private:
 
     void stepBackwardImpl();

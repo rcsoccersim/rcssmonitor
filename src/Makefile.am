@@ -32,6 +32,7 @@ rcssmonitor_SOURCES = \
 	team_graphic.cpp \
 	team_graphic_painter.cpp \
 	tool_icon.cpp \
+	toolbar_icons.cpp \
 	tooltip_marker.cpp \
 	vector_2d.cpp \
 	main.cpp
@@ -80,6 +81,7 @@ noinst_HEADERS = \
 	team_graphic.h \
 	team_graphic_painter.h \
 	tool_icon.h \
+	toolbar_icons.h \
 	tooltip_marker.h \
 	vector_2d.h
 

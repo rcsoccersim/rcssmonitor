@@ -58,7 +58,9 @@ LogPlayerSlider::LogPlayerSlider( QWidget * parent )
     this->setValue( 1 );
     this->setTickInterval( 1 );
     //M_cycle_slider->setMaximumSize( 640, 640 );
-    this->setMinimumWidth( 600 );
+    // as wide as the tool bar leaves (it takes the rest), at least this
+    this->setMinimumWidth( 200 );
+    this->setSizePolicy( QSizePolicy::Expanding, QSizePolicy::Fixed );
 }
 
 

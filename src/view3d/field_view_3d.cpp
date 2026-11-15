@@ -176,6 +176,7 @@ FieldView3D::initializeGL()
     }
     M_figure_model = PlayerModel::Simple;
     M_scene.setTiming( M_timing.on );
+    M_gpu_timing = M_timing.on;
     M_ground_key.clear();
     M_stadium_keys[0].clear();
     M_stadium_keys[1].clear();
@@ -338,11 +339,27 @@ FieldView3D::paintGL()
     // scaled by 1.5, a widget of 100 logical pixels has 150 of them
     const qreal dpr = devicePixelRatioF();
     cpu.restart();
+    // the GPU's times, for the timing told or the frames per second shown
+    const bool gpu_timing = ( M_timing.on || opt.fps3D() );
+    if ( gpu_timing != M_gpu_timing )
+    {
+        M_scene.setTiming( gpu_timing );
+        M_gpu_timing = gpu_timing;
+    }
     M_scene.render( defaultFramebufferObject(),
                     static_cast< int >( std::lround( width() * dpr ) ),
                     static_cast< int >( std::lround( height() * dpr ) ),
                     camera,
                     M_content );
+    {
+        double gpu = 0.0;
+        const int gpu_frames = M_scene.takeGpuTime( &gpu );
+        M_timing.gpu += gpu;
+        M_timing.gpu_frames += gpu_frames;
+        M_fps.gpu( gpu, gpu_frames );
+        if ( ! M_fps_clock.isValid() ) M_fps_clock.start();
+        M_fps.frame( M_fps_clock.nsecsElapsed() * 1.0e-9 );
+    }
     if ( M_timing.on )
     {
         M_timing.submit += cpu.nsecsElapsed() * 1.0e-6;
@@ -415,6 +432,27 @@ FieldView3D::paintGL()
                 Guides3D::drawMinimap( painter, rect, scale, guide, &show, M_minimap_field, opt );
             }
         }
+
+        // the frames per second at the bottom right, over the minimap if shown;
+        // "-" in the last frame before the view stops drawing (it stays)
+        if ( opt.fps3D() )
+        {
+            const QString text = M_fps.text( M_fps_clock.nsecsElapsed() * 1.0e-9, ! M_moving );
+            painter.setFont( font() ); // the widget's, not the player font of the texts above
+            const QFontMetrics metrics( painter.font() );
+            const int margin = 4;
+            QRect box( 0, 0, metrics.horizontalAdvance( text ) + 2 * margin, metrics.height() + 2 * margin );
+            double scale = 1.0;
+            const int bottom = ( minimap
+                                 ? int( std::floor( Guides3D::minimapRect( width(), height(), &scale ).top() ) ) - margin
+                                 : height() - margin );
+            box.moveBottomRight( QPoint( width() - 1 - margin, bottom ) );
+            painter.setPen( Qt::NoPen );
+            painter.setBrush( QColor( 0, 0, 0, 140 ) );
+            painter.drawRect( box );
+            painter.setPen( Qt::white );
+            painter.drawText( box, Qt::AlignCenter, text );
+        }
     }
 }
 
@@ -432,8 +470,8 @@ FieldView3D::reportTiming()
     {
         return;
     }
-    double gpu = 0.0;
-    const int gpu_frames = M_scene.takeGpuTime( &gpu );
+    const double gpu = M_timing.gpu;
+    const int gpu_frames = M_timing.gpu_frames;
     const double n = M_timing.frames;
     const qreal dpr = devicePixelRatioF();
     std::fprintf( stderr,

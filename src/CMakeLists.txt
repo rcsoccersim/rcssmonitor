@@ -28,6 +28,7 @@ add_library(rcssmonitor_core STATIC
   team_graphic.cpp
   team_graphic_painter.cpp
   tool_icon.cpp
+  toolbar_icons.cpp
   tooltip_marker.cpp
   vector_2d.cpp
   )
@@ -82,6 +83,7 @@ if(HAVE_3D_VIEW)
     view3d/stands_3d.cpp
     view3d/ball_3d.cpp
     view3d/ball_aids_3d.cpp
+    view3d/fps_meter.cpp
     view3d/sun_3d.cpp
     view3d/gl/billboard_mesh.cpp
     view3d/gl/frame.cpp

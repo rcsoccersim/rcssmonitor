@@ -229,6 +229,7 @@ Options::Options()
     M_banners_3d( BANNERS_3D ),
     M_compass_3d( COMPASS_3D ),
     M_minimap_3d( MINIMAP_3D ),
+    M_fps_3d( FPS_3D ),
     M_player_model_3d( PLAYER_MODEL_3D ),
     M_figure_scale_3d( FIGURE_SCALE_3D ),
     M_figure_bodies_3d( FIGURE_BODIES_3D ),
@@ -766,6 +767,9 @@ Options::readSettings()
     val = settings.value( "minimap_3d" );
     if ( val.isValid() ) guideModeFromName( val.toString(), &M_minimap_3d );
 
+    val = settings.value( "fps_3d" );
+    if ( val.isValid() ) M_fps_3d = val.toBool();
+
     val = settings.value( "player_model_3d" );
     if ( val.isValid() ) playerModelFromName( val.toString(), &M_player_model_3d );
 
@@ -966,6 +970,7 @@ Options::writeSettings( bool all )
     settings.setValue( "banners_3d", M_banners_3d );
     settings.setValue( "compass_3d", guideModeName( M_compass_3d ) );
     settings.setValue( "minimap_3d", guideModeName( M_minimap_3d ) );
+    settings.setValue( "fps_3d", M_fps_3d );
     settings.setValue( "player_model_3d", playerModelName( M_player_model_3d ) );
     settings.setValue( "figure_scale_3d", M_figure_scale_3d );
     settings.setValue( "figure_bodies_3d", figureBodiesName( M_figure_bodies_3d ) );
@@ -1025,6 +1030,7 @@ Options::setView3DDefaults()
     M_closeup_elevation_3d = CLOSEUP_ELEVATION_3D;
     M_compass_3d = COMPASS_3D;
     M_minimap_3d = MINIMAP_3D;
+    M_fps_3d = FPS_3D;
     M_player_model_3d = PLAYER_MODEL_3D;
     M_figure_scale_3d = FIGURE_SCALE_3D;
     M_figure_bodies_3d = FIGURE_BODIES_3D;
@@ -1230,6 +1236,10 @@ Options::parseCmdLine( int argc,
                                        + guideModeName( M_minimap_3d ) + ")",
                                        "mode", guideModeName( M_minimap_3d ) );
     parser.addOption( opt_minimap_3d );
+    QCommandLineOption opt_fps_3d( "fps-3d",
+                                   "The 3D view: the frames per second and the GPU's time of a frame over it. (Default=" + to_onoff( M_fps_3d ) + ")",
+                                   "bool", to_onoff( M_fps_3d ) );
+    parser.addOption( opt_fps_3d );
     QCommandLineOption opt_player_model_3d( "player-model-3d",
                                             "The 3D view: how the players are drawn, simple (cylinders and spheres), mannequin or human (human figures). (Default="
                                             + playerModelName( M_player_model_3d ) + ")",
@@ -1510,6 +1520,7 @@ Options::parseCmdLine( int argc,
         else std::cerr << "Out of range: ball-trail-cycles-3d " << parser.value( opt_ball_trail_cycles_3d ).toStdString() << std::endl;
     }
     if ( parser.isSet( opt_banners_3d ) ) M_banners_3d = to_bool( parser.value( opt_banners_3d ), M_banners_3d );
+    if ( parser.isSet( opt_fps_3d ) ) M_fps_3d = to_bool( parser.value( opt_fps_3d ), M_fps_3d );
     for ( const auto & g : { std::make_pair( &opt_compass_3d, &M_compass_3d ), std::make_pair( &opt_minimap_3d, &M_minimap_3d ) } )
     {
         if ( parser.isSet( *g.first ) && ! guideModeFromName( parser.value( *g.first ), g.second ) )

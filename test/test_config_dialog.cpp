@@ -273,6 +273,8 @@ TestConfigDialog::tabs3D()
     QVERIFY( ! child< QCheckBox >( dialog, "stands_3d" )->toolTip().isEmpty() );
     QVERIFY( ! child< QCheckBox >( dialog, "ball_pattern_3d" )->toolTip().isEmpty() );
     QVERIFY( child< QPushButton >( dialog, "default_3d" )->toolTip().contains( "Ball Pattern On, Ring On (0.7 m), Trail On (5 cycles)," ) );
+    QVERIFY( child< QPushButton >( dialog, "default_3d" )->toolTip().contains( "Minimap Off, FPS Off," ) );
+    QVERIFY( ! child< QCheckBox >( dialog, "fps_3d" )->toolTip().isEmpty() );
     for ( const char * name : { "ball_ring_3d", "ball_trail_3d" } )
     {
         QVERIFY2( ! child< QCheckBox >( dialog, name )->toolTip().isEmpty(), name );
@@ -323,6 +325,9 @@ TestConfigDialog::view3DTab()
     QCheckBox * sky = child< QCheckBox >( dialog, "sky_3d" );
     QCheckBox * stands = child< QCheckBox >( dialog, "stands_3d" );
     QCheckBox * pattern = child< QCheckBox >( dialog, "ball_pattern_3d" );
+    QCheckBox * fps = child< QCheckBox >( dialog, "fps_3d" );
+    QVERIFY( fps );
+    QVERIFY( ! fps->isChecked() );
     QCheckBox * ring = child< QCheckBox >( dialog, "ball_ring_3d" );
     QCheckBox * trail = child< QCheckBox >( dialog, "ball_trail_3d" );
     QDoubleSpinBox * ring_radius = child< QDoubleSpinBox >( dialog, "ball_ring_radius_3d" );
@@ -432,11 +437,15 @@ TestConfigDialog::view3DTab()
     trail->click();
     QVERIFY( ! opt.ballTrail3D() );
     QVERIFY( ! trail_cycles->isEnabled() );
-    QCOMPARE( spy.count(), 17 );
+    fps->click();
+    QVERIFY( opt.fps3D() );
+    QCOMPARE( spy.count(), 18 );
 
     // Default: the options and the fields back
     defaults->click();
-    QCOMPARE( spy.count(), 18 );
+    QCOMPARE( spy.count(), 19 );
+    QVERIFY( ! opt.fps3D() );
+    QVERIFY( ! fps->isChecked() );
     QVERIFY( opt.ballRing3D() && opt.ballTrail3D() );
     QVERIFY( ring->isChecked() && trail->isChecked() );
     QCOMPARE( opt.ballRingRadius3D(), Options::BALL_RING_RADIUS_3D );
@@ -474,7 +483,7 @@ TestConfigDialog::view3DTab()
     QCOMPARE( scale->value(), Options::FIGURE_SCALE_3D );
     QVERIFY( ! scale->isEnabled() );
     // the fields set back by Default do not set the options again
-    QCOMPARE( spy.count(), 18 );
+    QCOMPARE( spy.count(), 19 );
 #endif
 }
 

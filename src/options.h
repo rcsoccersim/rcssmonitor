@@ -193,6 +193,7 @@ private:
     bool M_banners_3d; //!< the banners behind the goals in the team colors
     GuideMode M_compass_3d; //!< when the compass shows over the 3D view
     GuideMode M_minimap_3d; //!< when the minimap shows over the 3D view
+    bool M_fps_3d; //!< the frames per second over the 3D view
     PlayerModel M_player_model_3d; //!< how the 3D view draws the players
     double M_figure_scale_3d; //!< the human figures: how many times a person's height
     FigureBodies M_figure_bodies_3d; //!< the human bodies: men and women, or one of them
@@ -365,8 +366,12 @@ public:
     int autoReconnectWait() const { return M_auto_reconnect_wait; }
 
     bool autoLoopMode() const { return M_auto_loop_mode; }
+    //! play the log again from the start at its end (and from the end stepping back before the start)
+    void setAutoLoopMode( const bool on ) { M_auto_loop_mode = on; }
 
     const std::string & gameLogFile() const { return M_game_log_file; }
+    //! the game log to open at the start (MainWindow::init(); the command line gives it, and the tests)
+    void setGameLogFile( const std::string & path ) { M_game_log_file = path; }
 
     int timerInterval() const { return M_timer_interval; }
 
@@ -438,6 +443,11 @@ public:
     static constexpr bool STANDS_3D = true;
     bool stands3D() const { return M_stands_3d; }
     void setStands3D( const bool on ) { M_stands_3d = on; }
+
+    static constexpr bool FPS_3D = false;
+    //! the 3D view: the frames per second and the GPU's time of a frame over it (FpsMeter)
+    bool fps3D() const { return M_fps_3d; }
+    void setFps3D( const bool on ) { M_fps_3d = on; }
 
     static constexpr bool BALL_PATTERN_3D = true;
     //! the 3D view: the ball's pattern, twelve pentagons, which shows it rolling

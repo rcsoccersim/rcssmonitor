@@ -355,6 +355,13 @@ LogPlayer::goToLast()
 }
 
 /*-------------------------------------------------------------------*/
+int
+LogPlayer::interval() const
+{
+    return ( M_timer->isActive() ? M_timer->interval() : Options::instance().timerInterval() );
+}
+
+/*-------------------------------------------------------------------*/
 /*!
 
 */

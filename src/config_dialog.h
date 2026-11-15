@@ -232,6 +232,7 @@ private:
     QButtonGroup * M_grass_3d = nullptr;
     QCheckBox * M_stands_3d_cb = nullptr;
     QCheckBox * M_ball_pattern_3d_cb = nullptr;
+    QCheckBox * M_fps_3d_cb = nullptr;
     QCheckBox * M_ball_ring_3d_cb = nullptr;
     QCheckBox * M_ball_trail_3d_cb = nullptr;
     QDoubleSpinBox * M_ball_ring_radius_3d = nullptr;

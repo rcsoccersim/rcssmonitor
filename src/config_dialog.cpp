@@ -1791,6 +1791,20 @@ ConfigDialog::create3DTab()
                  } );
 
         box->addLayout( layout );
+
+        M_fps_3d_cb = new QCheckBox( tr( "FPS" ) );
+        M_fps_3d_cb->setObjectName( "fps_3d" );
+        M_fps_3d_cb->setToolTip( tr( "The frames per second and the GPU's time of a frame, at the bottom right:\n"
+                                     "how much room the GPU has for the settings (a frame of 60 fps is 16.7 ms).\n"
+                                     "The view draws only while something moves, and at most at the screen's\n"
+                                     "rate: \"- fps\" while still." ) );
+        connect( M_fps_3d_cb, &QCheckBox::clicked,
+                 this, [this]( bool on ) {
+                     Options::instance().setFps3D( on );
+                     changed3D();
+                 } );
+        box->addWidget( M_fps_3d_cb );
+
         group_box->setToolTip( tr( "Which way the camera looks, and where it is on the pitch; they show\n"
                                    "everything, whatever the Player Sight." ) );
         group_box->setLayout( box );
@@ -2045,7 +2059,7 @@ ConfigDialog::create3DTab()
     {
         QPushButton * button = new QPushButton( tr( "Default" ) );
         button->setObjectName( "default_3d" );
-        button->setToolTip( tr( "Set the defaults: Close-up %1 m, %2\u00b0, Compass %3, Minimap %4,\n"
+        button->setToolTip( tr( "Set the defaults: Close-up %1 m, %2\u00b0, Compass %3, Minimap %4, FPS %19,\n"
                                 "Model %5, Figure Scale %6, Bodies %9, Shadows %10, Boards %7, Banners %8,\n"
                                 "Ball Pattern %14, Ring %15 (%16 m), Trail %17 (%18 cycles),\n"
                                 "Stands %13, Grass %11, Sky %12" )
@@ -2066,7 +2080,8 @@ ConfigDialog::create3DTab()
                             .arg( onOff( Options::BALL_RING_3D ) )
                             .arg( Options::BALL_RING_RADIUS_3D )
                             .arg( onOff( Options::BALL_TRAIL_3D ) )
-                            .arg( Options::BALL_TRAIL_CYCLES_3D ) );
+                            .arg( Options::BALL_TRAIL_CYCLES_3D )
+                            .arg( onOff( Options::FPS_3D ) ) );
         button->setAutoDefault( false );
         connect( button, &QPushButton::clicked,
                  this, [this]() {
@@ -2302,6 +2317,7 @@ ConfigDialog::update3D()
     set_number( M_closeup_elevation_3d, opt.closeupElevation3D() );
     set_choice( M_compass_3d, guideIndex( opt.compass3D() ) );
     set_choice( M_minimap_3d, guideIndex( opt.minimap3D() ) );
+    M_fps_3d_cb->setChecked( opt.fps3D() );
     set_choice( M_player_model_3d, modelIndex( opt.playerModel3D() ) );
     set_number( M_figure_scale_3d, opt.figureScale3D() );
     // the scale of the figures, not of the cylinders

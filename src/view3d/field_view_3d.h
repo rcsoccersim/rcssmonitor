@@ -34,6 +34,7 @@
 #define RCSSMONITOR_FIELD_VIEW_3D_H
 
 #include "cameras_3d.h"
+#include "fps_meter.h"
 #include "frame_builder_3d.h"
 #include "interpolate.h"
 #include "label_atlas.h"
@@ -221,9 +222,14 @@ private:
         double submit = 0.0; //!< ms of the CPU: asking the GPU to draw (Scene3D::render())
         double longest = 0.0; //!< the longest time between two frames (ms)
         int figures = 0; //!< in the last frame
+        double gpu = 0.0; //!< ms of the GPU, of gpu_frames frames (Scene3D::takeGpuTime())
+        int gpu_frames = 0;
     };
     static constexpr double TIMING_PERIOD = 2.0;
     Timing M_timing;
+    bool M_gpu_timing = false; //!< the GPU's times are taken (M_timing.on, or the option fps_3d)
+    FpsMeter M_fps; //!< the frames per second shown over the view (the option fps_3d)
+    QElapsedTimer M_fps_clock; //!< the steady clock of M_fps
     //! tell the times, every TIMING_PERIOD seconds
     void reportTiming();
 

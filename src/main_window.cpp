@@ -265,6 +265,8 @@ MainWindow::createActionsFile()
     M_open_act = new QAction( tr( "Open Game Log") , this );
     M_open_act->setShortcut( Qt::CTRL | Qt::Key_O );
     M_open_act->setStatusTip( tr( "Open a game log file." ) );
+    M_open_act->setToolTip( tr( "Open a game log (" ) + M_open_act->shortcut().toString() + tr( ")" ) );
+    setDrawnIcon( M_open_act, DrawnIcon::Open );
     connect( M_open_act, SIGNAL( triggered() ),
              this, SLOT( openGameLogFile() ) );
     this->addAction( M_open_act );
@@ -289,6 +291,9 @@ MainWindow::createActionsMonitor()
     M_connect_monitor_act = new QAction( tr( "&Connect" ), this );
     M_connect_monitor_act->setShortcut( Qt::CTRL | Qt::Key_C );
     M_connect_monitor_act->setStatusTip( "Connect to the rcssserver on localhost" );
+    M_connect_monitor_act->setToolTip( tr( "Connect to the rcssserver (" ) + M_connect_monitor_act->shortcut().toString()
+                                       + tr( "; Monitor > Connect to ... for another host)" ) );
+    setDrawnIcon( M_connect_monitor_act, DrawnIcon::Connect );
     M_connect_monitor_act->setEnabled( true );
     connect( M_connect_monitor_act, SIGNAL( triggered() ),
              this, SLOT( connectMonitor() ) );
@@ -303,6 +308,8 @@ MainWindow::createActionsMonitor()
     //
     M_disconnect_monitor_act = new QAction( tr( "&Disconnect" ), this );
     M_disconnect_monitor_act->setStatusTip( tr( "Disonnect from rcssserver." ) );
+    M_disconnect_monitor_act->setToolTip( tr( "Disconnect from the rcssserver" ) );
+    setDrawnIcon( M_disconnect_monitor_act, DrawnIcon::Disconnect );
     M_disconnect_monitor_act->setEnabled( false );
     connect( M_disconnect_monitor_act, SIGNAL( triggered() ),
              this, SLOT( disconnectMonitor() ) );
@@ -448,6 +455,19 @@ MainWindow::createActionsLogPlayer()
 
         M_log_player_go_to_last_act = act;
     }
+    {
+        QAction * act = new QAction( tr( "Loop Playback" ), this );
+        act->setCheckable( true );
+        act->setChecked( Options::instance().autoLoopMode() );
+        setDrawnIcon( act, DrawnIcon::Loop );
+        act->setStatusTip( tr( "Play the log again from the start at its end." ) );
+        act->setToolTip( tr( "Loop playback" ) );
+        connect( act, SIGNAL( toggled( bool ) ),
+                 this, SLOT( toggleLoop( bool ) ) );
+        this->addAction( act );
+
+        M_loop_act = act;
+    }
 }
 
 /*-------------------------------------------------------------------*/
@@ -461,6 +481,9 @@ MainWindow::createActionsReferee()
     M_kick_off_act = new QAction( tr( "&KickOff" ), this );
     M_kick_off_act->setShortcut( Qt::CTRL | Qt::Key_K );
     M_kick_off_act->setStatusTip( tr( "Send kick-off command." ) );
+    M_kick_off_act->setToolTip( tr( "Kick off (" ) + M_kick_off_act->shortcut().toString() + tr( "; when connected)" ) );
+    setDrawnIcon( M_kick_off_act, DrawnIcon::KickOff );
+    M_kick_off_act->setEnabled( false ); // until connected
     connect( M_kick_off_act, SIGNAL( triggered() ),
              this, SLOT( kickOff() ) );
     this->addAction( M_kick_off_act );
@@ -696,6 +719,7 @@ MainWindow::createMenuMonitor()
     menu->addSeparator();
 
     menu->addAction( M_live_mode_act );
+    menu->addAction( M_loop_act );
 }
 
 /*-------------------------------------------------------------------*/
@@ -815,6 +839,17 @@ MainWindow::createToolBars()
     button_layout->setContentsMargins( 4, 4, 12, 4 );
     button_layout->setSpacing( 4 );
 
+    // the file and the server, as the web version's tool bar
+    for ( QAction * act : { M_open_act, M_connect_monitor_act, M_disconnect_monitor_act, M_kick_off_act } )
+    {
+        QToolButton * button = new QToolButton();
+        button->setIconSize( QSize( 16, 16 ) );
+        button->setDefaultAction( act );
+        button->setFocusPolicy( Qt::NoFocus );
+        button_layout->addWidget( button );
+    }
+    button_layout->addSpacing( 8 );
+
     {
         QToolButton * button = new QToolButton();
         button->setIconSize( QSize( 24, 24 ) );
@@ -865,6 +900,13 @@ MainWindow::createToolBars()
     }
     {
         QToolButton * button = new QToolButton();
+        button->setIconSize( QSize( 16, 16 ) );
+        button->setDefaultAction( M_loop_act );
+        button->setFocusPolicy( Qt::NoFocus );
+        button_layout->addWidget( button );
+    }
+    {
+        QToolButton * button = new QToolButton();
         button->setToolButtonStyle( Qt::ToolButtonTextOnly );
         button->setDefaultAction( M_toggle_view_3d_act );
         button_layout->addWidget( button );
@@ -907,21 +949,74 @@ MainWindow::createToolBars()
     control_panel->setLayout( button_layout );
     M_log_player_tool_bar->addWidget( control_panel );
 
+    // the position in the log: after the buttons, or in a second row below
+    // them when the window is too narrow for both (updateToolBarRows())
+    M_position_tool_bar = this->addToolBar( tr( "Position" ) );
+    M_position_tool_bar->setAllowedAreas( Qt::TopToolBarArea | Qt::BottomToolBarArea );
+
 
     //
     //
     //
 
     LogPlayerSlider * log_player_slider = new LogPlayerSlider();
-    M_log_player_tool_bar->addWidget( log_player_slider );
+    M_position_tool_bar->addWidget( log_player_slider );
 
     connect( log_player_slider, SIGNAL( valueChanged( int ) ),
              M_log_player, SLOT( goToIndex( int ) ) );
     connect( M_log_player, SIGNAL( indexUpdated( size_t, size_t ) ),
              log_player_slider, SLOT( updateIndex( size_t, size_t ) ) );
 
+    //
+    // after the slider, as the web version's tool bar: the cycle and the
+    // frame, a cycle to go to, and the time per frame
+    //
+
+    QFrame * info_panel = new QFrame();
+    QHBoxLayout * info_layout = new QHBoxLayout();
+    info_layout->setContentsMargins( 8, 4, 4, 4 );
+    info_layout->setSpacing( 8 );
+
+    M_frame_label = new QLabel();
+    M_frame_label->setObjectName( "frame_label" );
+    M_frame_label->setToolTip( tr( "The cycle (with the stopped time after a dot), and the frame of the frames" ) );
+    M_frame_label->setMinimumWidth( M_frame_label->fontMetrics().horizontalAdvance( "6000.10 (88888 / 88888)" ) );
+    info_layout->addWidget( M_frame_label );
+
+    M_cycle_edit = new QLineEdit();
+    M_cycle_edit->setObjectName( "cycle_edit" );
+    M_cycle_edit->setPlaceholderText( tr( "cycle" ) );
+    M_cycle_edit->setToolTip( tr( "Go to a cycle: its first frame, or the next one after it (Enter; Esc: back to the field)" ) );
+    M_cycle_edit->setValidator( new QIntValidator( 0, 999999, M_cycle_edit ) );
+    M_cycle_edit->setMaximumWidth( M_cycle_edit->fontMetrics().horizontalAdvance( "8888888" ) + 12 );
+    connect( M_cycle_edit, &QLineEdit::returnPressed,
+             this, &MainWindow::goToTypedCycle );
+    connect( M_cycle_edit, &QLineEdit::textEdited,
+             this, [this]( const QString & ) { M_cycle_edit->setPalette( QApplication::palette( M_cycle_edit ) ); } );
+    M_cycle_edit->installEventFilter( this );
+    info_layout->addWidget( M_cycle_edit );
+
+    M_interval_label = new QLabel();
+    M_interval_label->setObjectName( "interval_label" );
+    M_interval_label->setToolTip( tr( "Time per frame while playing" ) );
+    M_interval_label->setMinimumWidth( M_interval_label->fontMetrics().horizontalAdvance( "5000 ms" ) );
+    info_layout->addWidget( M_interval_label );
+
+    info_panel->setLayout( info_layout );
+    M_position_tool_bar->addWidget( info_panel );
+
+    connect( M_log_player, SIGNAL( indexUpdated( size_t, size_t ) ),
+             this, SLOT( updatePlayerLabels() ) );
+    for ( QAction * act : { M_log_player_play_or_stop_act, M_log_player_decelerate_act, M_log_player_accelerate_act } )
+    {
+        connect( act, SIGNAL( triggered() ),
+                 this, SLOT( updatePlayerLabels() ) );
+    }
+    updatePlayerLabels();
+
 
     M_log_player_tool_bar->setVisible( Options::instance().showToolBar() );
+    M_position_tool_bar->setVisible( Options::instance().showToolBar() );
 }
 
 /*-------------------------------------------------------------------*/
@@ -1315,12 +1410,172 @@ MainWindow::setToolIcon( QAction * act,
 
  */
 void
+MainWindow::setDrawnIcon( QAction * act,
+                          const DrawnIcon icon )
+{
+    M_drawn_icons.emplace_back( act, icon );
+    act->setIcon( drawnIcon( icon, this->palette() ) );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+void
 MainWindow::updateToolIcons()
 {
     for ( const std::pair< QAction *, const char * const * > & v : M_tool_icons )
     {
         v.first->setIcon( toolIcon( v.second, this->palette() ) );
     }
+    for ( const std::pair< QAction *, DrawnIcon > & v : M_drawn_icons )
+    {
+        v.first->setIcon( drawnIcon( v.second, this->palette() ) );
+    }
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+void
+MainWindow::resizeEvent( QResizeEvent * event )
+{
+    QMainWindow::resizeEvent( event );
+    updateToolBarRows();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+void
+MainWindow::updateToolBarRows()
+{
+    if ( ! M_log_player_tool_bar
+         || ! M_position_tool_bar )
+    {
+        return;
+    }
+    // only for the two in one area, as they are made (the user may move them)
+    if ( M_log_player_tool_bar->isHidden()
+         || M_position_tool_bar->isHidden()
+         || M_log_player_tool_bar->isFloating()
+         || M_position_tool_bar->isFloating()
+         || toolBarArea( M_log_player_tool_bar ) != toolBarArea( M_position_tool_bar ) )
+    {
+        return;
+    }
+    // The buttons as wide as they want, and the position as narrow as it
+    // can be with all its parts shown: its widgets' least widths, not the
+    // tool bar's minimumSizeHint(), which hides them behind its extension
+    // button.
+    const QStyle * style = M_position_tool_bar->style();
+    int position = style->pixelMetric( QStyle::PM_ToolBarHandleExtent, nullptr, M_position_tool_bar )
+        + 2 * ( style->pixelMetric( QStyle::PM_ToolBarFrameWidth, nullptr, M_position_tool_bar )
+                + style->pixelMetric( QStyle::PM_ToolBarItemMargin, nullptr, M_position_tool_bar ) );
+    for ( QAction * act : M_position_tool_bar->actions() )
+    {
+        if ( const QWidget * w = M_position_tool_bar->widgetForAction( act ) )
+        {
+            position += std::max( w->minimumWidth(), w->minimumSizeHint().width() )
+                + style->pixelMetric( QStyle::PM_ToolBarItemSpacing, nullptr, M_position_tool_bar );
+        }
+    }
+    const int margin = 8;
+    const bool wrap = ( M_log_player_tool_bar->sizeHint().width() + position + margin > width() );
+    if ( wrap != toolBarBreak( M_position_tool_bar ) )
+    {
+        if ( wrap ) insertToolBarBreak( M_position_tool_bar );
+        else removeToolBarBreak( M_position_tool_bar );
+    }
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  the tool bar's frame label ("cycle (frame / frames)", the stopped time
+  after a dot) and the time per frame while playing
+ */
+void
+MainWindow::updatePlayerLabels()
+{
+    if ( ! M_frame_label ) return;
+
+    const DispConstPtr disp = M_disp_holder.currentDisp();
+    const std::size_t count = M_disp_holder.dispCont().size();
+    if ( ! disp || count == 0 )
+    {
+        M_frame_label->clear();
+        M_interval_label->clear();
+        M_cycle_edit->setEnabled( false );
+        return;
+    }
+    const rcss::rcg::ShowInfoT & show = disp->show_;
+    const QString cycle = ( show.stime_ > 0
+                            ? QString( "%1.%2" ).arg( show.time_ ).arg( show.stime_ )
+                            : QString::number( show.time_ ) );
+    M_frame_label->setText( QString( "%1 (%2 / %3)" ).arg( cycle ).arg( M_disp_holder.currentIndex() + 1 ).arg( count ) );
+    M_interval_label->setText( QString( "%1 ms" ).arg( M_log_player->interval() ) );
+    M_cycle_edit->setEnabled( true );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  go to the cycle typed in the tool bar, and give the keys back to the
+  field; the field turns red if the log has no such cycle
+ */
+void
+MainWindow::goToTypedCycle()
+{
+    bool ok = false;
+    const int cycle = M_cycle_edit->text().trimmed().toInt( &ok );
+    if ( ! ok
+         || M_disp_holder.getIndex( cycle ) == DispHolder::INVALID_INDEX )
+    {
+        QPalette palette = QApplication::palette( M_cycle_edit );
+        const QColor base = palette.color( QPalette::Base );
+        const QColor error( 255, 64, 64 );
+        palette.setColor( QPalette::Base,
+                          QColor( ( base.red() * 6 + error.red() * 4 ) / 10,
+                                  ( base.green() * 6 + error.green() * 4 ) / 10,
+                                  ( base.blue() * 6 + error.blue() * 4 ) / 10 ) );
+        M_cycle_edit->setPalette( palette );
+        return;
+    }
+    M_log_player->goToCycle( cycle );
+    M_cycle_edit->setPalette( QApplication::palette( M_cycle_edit ) );
+    M_cycle_edit->clear();
+    if ( M_view_stack && M_view_stack->currentWidget() ) M_view_stack->currentWidget()->setFocus();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+void
+MainWindow::toggleLoop( bool on )
+{
+    Options::instance().setAutoLoopMode( on );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+bool
+MainWindow::eventFilter( QObject * watched,
+                         QEvent * event )
+{
+    if ( watched == M_cycle_edit
+         && event->type() == QEvent::KeyPress
+         && static_cast< QKeyEvent * >( event )->key() == Qt::Key_Escape )
+    {
+        M_cycle_edit->clear();
+        M_cycle_edit->setPalette( QApplication::palette( M_cycle_edit ) );
+        if ( M_view_stack && M_view_stack->currentWidget() ) M_view_stack->currentWidget()->setFocus();
+        return true;
+    }
+    return QMainWindow::eventFilter( watched, event );
 }
 
 /*-------------------------------------------------------------------*/
@@ -1596,6 +1851,7 @@ MainWindow::connectMonitorTo( const char * hostname )
 //     M_open_output_act->setEnabled( true );
 
     M_live_mode_act->setEnabled( true );
+    M_kick_off_act->setEnabled( true );
     M_connect_monitor_act->setEnabled( false );
     M_connect_monitor_to_act->setEnabled( false );
     M_disconnect_monitor_act->setEnabled( true );
@@ -1613,6 +1869,7 @@ MainWindow::connectMonitorTo( const char * hostname )
     if ( ! Options::instance().showToolBar() )
     {
         M_log_player_tool_bar->hide();
+        M_position_tool_bar->hide();
     }
 
     if ( QApplication::overrideCursor() )
@@ -1879,6 +2136,7 @@ MainWindow::disconnectMonitor()
     }
 
     M_live_mode_act->setEnabled( false );
+    M_kick_off_act->setEnabled( false );
     M_connect_monitor_act->setEnabled( true );
     M_connect_monitor_to_act->setEnabled( true );
     M_disconnect_monitor_act->setEnabled( false );
@@ -1924,6 +2182,8 @@ void
 MainWindow::toggleToolBar( bool checked )
 {
     M_log_player_tool_bar->setVisible( checked );
+    M_position_tool_bar->setVisible( checked );
+    updateToolBarRows();
 }
 
 /*-------------------------------------------------------------------*/
@@ -1984,6 +2244,8 @@ MainWindow::toggleView3D( bool on )
     shown->setFocus();
     M_camera_3d_combo->setVisible( on );
     M_viewpoint_button->setVisible( on );
+    // the buttons are wider with the 3D view's: one row or two again, once laid out
+    QTimer::singleShot( 0, this, [this]() { updateToolBarRows(); } );
     Options::instance().setView3D( on );
 #else
     Q_UNUSED( on );

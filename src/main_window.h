@@ -42,11 +42,13 @@
 #include "camera_mode.h"
 #include "disp_holder.h"
 #include "referee_target.h"
+#include "toolbar_icons.h"
 
 class QActionGroup;
 class QComboBox;
 class QToolButton;
 class QLabel;
+class QLineEdit;
 
 class ConfigDialog;
 class FieldCanvas;
@@ -69,7 +71,8 @@ private:
 
     DispHolder M_disp_holder;
 
-    QToolBar * M_log_player_tool_bar;
+    QToolBar * M_log_player_tool_bar; //!< the buttons
+    QToolBar * M_position_tool_bar = nullptr; //!< the slider, the frame label, the cycle field, the time per frame: in a second row when the window is narrow
 
     PlayerTypeDialog * M_player_type_dialog;
     ConfigDialog * M_config_dialog;
@@ -108,6 +111,12 @@ private:
     QAction * M_log_player_next_score_act;
     QAction * M_log_player_go_to_first_act;
     QAction * M_log_player_go_to_last_act;
+    QAction * M_loop_act = nullptr; //!< loop playback (the option auto_loop_mode)
+
+    // the tool bar's fields after the slider (as the web version's)
+    QLabel * M_frame_label = nullptr; //!< "cycle (frame / frames)"
+    QLineEdit * M_cycle_edit = nullptr; //!< a cycle to go to, with Enter
+    QLabel * M_interval_label = nullptr; //!< the time per frame while playing
 
     // view actions
     QAction * M_toggle_menu_bar_act;
@@ -130,6 +139,7 @@ private:
     //! the toolbar actions and their icons (XPM in black), drawn in the
     //! text color of the palette
     std::vector< std::pair< QAction *, const char * const * > > M_tool_icons;
+    std::vector< std::pair< QAction *, DrawnIcon > > M_drawn_icons; //!< the icons drawn in code (toolbar_icons.h)
 
     // not used
     MainWindow( const MainWindow & ) = delete;
@@ -170,14 +180,27 @@ private:
 
     void setToolIcon( QAction * act,
                       const char * const xpm[] );
+    //! the icon of a toolbar action drawn in code, drawn again when the palette changes
+    void setDrawnIcon( QAction * act,
+                       const DrawnIcon icon );
     void updateToolIcons();
+    /*!
+      \brief the position tool bar after the buttons in one row, or in a
+      second row below them when the window is too narrow for both (as the
+      web version's tool bar wraps)
+    */
+    void updateToolBarRows();
 
 protected:
 
     // overrided methods
     void changeEvent( QEvent * event ) override;
+    //! Esc in the tool bar's cycle field gives the keys back to the field
+    bool eventFilter( QObject * watched,
+                      QEvent * event ) override;
     void closeEvent( QCloseEvent * event );
-//     void resizeEvent( QResizeEvent * event );
+    //! the tool bars in one row or two, as the window's width allows
+    void resizeEvent( QResizeEvent * event ) override;
     void wheelEvent( QWheelEvent * event );
 
 //     void dragEnterEvent( QDragEnterEvent * event );
@@ -219,6 +242,13 @@ private:
     void createRefereeMenu();
 
 private slots:
+
+    //! the tool bar's frame label and time per frame
+    void updatePlayerLabels();
+    //! go to the cycle typed in the tool bar (the field turns red if the log has none)
+    void goToTypedCycle();
+    //! loop playback on or off
+    void toggleLoop( bool on );
 
     void about();
     void printShortcutKeys();
