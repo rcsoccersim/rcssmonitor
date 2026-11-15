@@ -1327,6 +1327,46 @@ ConfigDialog::createFontButtons()
 
 namespace {
 
+/*!
+  \class ElidedLabel
+  \brief a line of text drawn as wide as the label is, its end elided
+  ("...") if it is wider; the label asks for little width (sizeHint()), so
+  that a long text does not widen the dialog. text() is the whole text.
+*/
+class ElidedLabel
+    : public QLabel {
+public:
+    ElidedLabel()
+        : QLabel()
+      {
+          setTextFormat( Qt::PlainText );
+      }
+
+    QSize sizeHint() const override
+      {
+          return QSize( fontMetrics().averageCharWidth() * 20, QLabel::sizeHint().height() );
+      }
+
+    QSize minimumSizeHint() const override
+      {
+          return QSize( fontMetrics().averageCharWidth() * 8, QLabel::minimumSizeHint().height() );
+      }
+
+    //! the text as drawn in the present width
+    QString shownText() const
+      {
+          return fontMetrics().elidedText( text(), Qt::ElideRight, contentsRect().width() );
+      }
+
+protected:
+    void paintEvent( QPaintEvent * ) override
+      {
+          QPainter painter( this );
+          style()->drawItemText( &painter, contentsRect(), int( alignment() ), palette(), isEnabled(),
+                                 shownText(), foregroundRole() );
+      }
+};
+
 //! a choice of a row of radio buttons: the label, the line below the row, the tooltip
 struct ChoiceText {
     const char * label;
@@ -1897,9 +1937,8 @@ ConfigDialog::create3DTab()
             layout->addLayout( line, row, 1, 1, 3 );
 
             // the credits of the pack (in full in its tooltip), or why it cannot be drawn
-            M_figure_credits_3d = new QLabel();
+            M_figure_credits_3d = new ElidedLabel();
             M_figure_credits_3d->setObjectName( "figure_credits_3d" );
-            M_figure_credits_3d->setTextFormat( Qt::PlainText );
             layout->addWidget( M_figure_credits_3d, row + 1, 1, 1, 3 );
         }
 
@@ -2471,8 +2510,7 @@ ConfigDialog::fillPacks()
         wrong = false;
     }
     if ( tip.isEmpty() ) tip = line;
-    const int width = std::max( 240, M_player_model_3d->sizeHint().width() + M_figure_folder_3d->sizeHint().width() + 120 );
-    M_figure_credits_3d->setText( M_figure_credits_3d->fontMetrics().elidedText( line, Qt::ElideRight, width ) );
+    M_figure_credits_3d->setText( line ); // elided as wide as the dialog is (ElidedLabel)
     M_figure_credits_3d->setToolTip( tip );
     M_figure_credits_3d->setStyleSheet( wrong ? QStringLiteral( "color: #c03030;" ) : QString() );
 

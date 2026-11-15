@@ -665,6 +665,20 @@ TestConfigDialog::figurePacks()
                         "  \"motion\": \"mannequin\",\n"
                         "  \"bodies\": [ { \"model\": \"Robot.glb\", \"paint\": { \"M_Main\": \"team\" } } ] }\n" ) );
     QVERIFY( writeFile( dir.filePath( "broken/figure.json" ), "{ \"format\": 1,\n  \"name\": }\n" ) );
+    // and a pack of many credits
+    QVERIFY( dir.mkpath( "wordy" ) );
+    QVERIFY( QFile::copy( ":/figures/mannequin/Mannequin.glb", dir.filePath( "wordy/Robot.glb" ) ) );
+    {
+        QByteArray credits;
+        for ( int i = 0; i < 12; ++i )
+        {
+            credits += QByteArray( i == 0 ? "" : ", " ) + "{ \"author\": \"Someone With A Long Name " + QByteArray::number( i )
+                + "\", \"license\": \"CC BY 4.0\" }";
+        }
+        QVERIFY( writeFile( dir.filePath( "wordy/figure.json" ),
+                            "{ \"format\": 1, \"name\": \"Wordy\", \"credits\": [ " + credits + " ], \"motion\": \"mannequin\",\n"
+                            "  \"bodies\": [ { \"model\": \"Robot.glb\" } ] }\n" ) );
+    }
 
     DispHolder holder;
     ConfigDialog dialog( nullptr, holder );
@@ -724,6 +738,30 @@ TestConfigDialog::figurePacks()
     QCOMPARE( credits->text(), QString( "Credits: Someone (CC BY 4.0); Quaternius (CC0 1.0)" ) );
     QVERIFY( credits->styleSheet().isEmpty() );
     QVERIFY( ! bodies->button( 0 )->isEnabled() ); // no men's and women's bodies
+
+    // a long line of credits: as a whole (elided when drawn, as wide as the
+    // dialog is), not widening the dialog
+    // (the 3D tab shown: its layout of a fixed size settles in the event loop)
+    QTabWidget * tabs = dialog.findChild< QTabWidget * >();
+    QVERIFY( tabs );
+    tabs->setCurrentIndex( tabNames( dialog ).indexOf( "3D" ) );
+    const auto width = [&dialog, credits]() {
+        for ( int i = 0; i < 5; ++i ) QCoreApplication::processEvents(); // a layout, then its parent's
+        return std::make_pair( dialog.sizeHint().width(), credits->parentWidget()->parentWidget()->width() );
+    };
+    const std::pair< int, int > before = width();
+    const int dialog_width = before.first;
+    const int wordy = model->findData( "wordy" );
+    QVERIFY( wordy > 2 );
+    model->setCurrentIndex( wordy );
+    emit model->activated( wordy );
+    QVERIFY( credits->text().startsWith( "Credits: Someone With A Long Name 0 (CC BY 4.0); " ) );
+    QVERIFY( credits->text().endsWith( "Someone With A Long Name 11 (CC BY 4.0); Quaternius (CC0 1.0)" ) ); // and its motion's
+    QVERIFY( credits->fontMetrics().horizontalAdvance( credits->text() ) > 2 * dialog_width );
+    QVERIFY( width() == before );
+    model->setCurrentIndex( model->findData( "robot" ) );
+    emit model->activated( model->findData( "robot" ) );
+    QCOMPARE( opt.playerModel3D(), QString( "robot" ) );
 
     // one that could not be drawn: told, and it can be chosen again
     FigurePacks::noteError( "robot", "Robot: Robot.glb: no clip \"Run\"" );

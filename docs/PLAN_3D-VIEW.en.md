@@ -2238,3 +2238,8 @@ The plan of Phase 9 is committed with 9-1.
 
 **Found**
 - The function that makes the 3D tab (`ConfigDialog::create3DTab()`) is compiled in a build without the 3D view too (it is only not called). What uses the 3D parts there is enclosed by `HAVE_3D_VIEW`.
+
+**The CI's failure**
+- The two commits of 9-1 (b75d8d0, 5630554) were pushed. In the CI, only `config_dialog` of the job CMake, Qt5 failed: the line of the credits was elided to "Credits: Someone (CC BY 4.0); Quaternius (CC…". The cause: the line was put as a string elided to a width decided from the list's and the button's widths, which was too narrow with the CI's fonts (it fitted with the fonts here).
+- Fixed: the line of the credits is a label that keeps the whole string and elides it as wide as the label is when drawn (`ElidedLabel`). The label asks for a small width (20 average characters), so that long credits do not widen the dialog.
+- Tests: `config_dialog` checks, with a pack of many credits, that the line holds the whole credits and the dialog's width does not change (with the 3D tab shown, measured after the events have run until its layout of a fixed size has settled; once was not enough). It passes with 5 default fonts (DejaVu Sans, DejaVu Serif, Liberation Serif, DejaVu Sans Mono, Noto Sans CJK JP), and fails with every font when the elision before is put back. It fails too when the label asks for the whole width (at first, the horizontal size policy was also `Ignored`, and breaking either of the two passed, so the policy went). Clean builds and tests pass with Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`) (50 tests). `-DENABLE_3D=OFF` (19) and autotools pass too.
