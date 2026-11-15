@@ -175,15 +175,71 @@ readModel( const QString & path,
            const std::vector< std::pair< QString, QString > > & bones,
            GltfModel & model,
            HumanoidRig & rig,
-           QString * error )
+           QString * error,
+           const bool mesh_required = true )
 {
     QString why;
-    if ( ! model.loadFile( path, &why ) )
+    if ( ! model.loadFile( path, &why, mesh_required ) )
     {
         *error = fileOf( path ) + QStringLiteral( ": " ) + why;
         return false;
     }
     return rigModel( path, skeleton, bones, model, rig, error );
+}
+
+//! a clip taken as a root motion (not in place) if its hips go this far across it (hip heights)
+constexpr float ROOT_MOTION = 0.05f;
+
+//! a person's height for the height of the hips (the Mannequin: 1.829 m for 0.916 m)
+constexpr float HEIGHT_PER_HIPS = 2.0f;
+
+//! a model's height: its mesh's at rest, or else (a skeleton of clips, no mesh) from its hips
+float
+heightOf( const GltfModel & model,
+          const HumanoidRig & rig )
+{
+    return ( model.height() > 0.0f ? model.height() : rig.hipHeight() * HEIGHT_PER_HIPS );
+}
+
+/*!
+  \struct ClipSource
+  \brief a file of clips of a motion, read once: its skeleton and its roles
+*/
+struct ClipSource {
+    QString path;
+    GltfModel model;
+    HumanoidRig rig;
+};
+
+/*!
+  read a file of clips: a skeleton (a mesh not required) whose rest, if
+  saved in a pose (an FBX file without a skin), is the motion's model's of
+  the same bones; its roles by the motion's skeleton, else found
+*/
+bool
+readClips( const QString & path,
+           const FigureMotionSpec & spec,
+           const GltfModel & motion,
+           ClipSource & source,
+           QString * error )
+{
+    QString why;
+    source.path = path;
+    if ( ! source.model.loadFile( path, &why, false ) )
+    {
+        *error = fileOf( path ) + QStringLiteral( ": " ) + why;
+        return false;
+    }
+    if ( source.model.posed_rest ) restAs( source.model, motion );
+    if ( rigModel( path, spec.skeleton, spec.bones, source.model, source.rig, error ) ) return true;
+    const QString first = *error;
+    if ( ( ! spec.skeleton.isEmpty() || ! spec.bones.empty() )
+         && rigModel( path, QString(), {}, source.model, source.rig, error ) )
+    {
+        return true;
+    }
+    *error = first;
+    return false;
 }
 
 }
@@ -256,8 +312,13 @@ const Figures3D::Motion *
 Figures3D::motionOf( const FigureMotionSpec & spec,
                      QString * error )
 {
-    const QString key = QStringList( { spec.model, spec.skeleton, spec.idle, spec.walk, spec.jog, spec.sprint } )
-        .join( QLatin1Char( '\n' ) );
+    QStringList parts( { spec.model, spec.skeleton } );
+    for ( const auto & b : spec.bones ) parts << b.first + QLatin1Char( '=' ) + b.second;
+    for ( const FigureClipSpec * c : { &spec.idle, &spec.walk, &spec.jog, &spec.sprint } )
+    {
+        parts << c->file + QLatin1Char( '|' ) + c->clip;
+    }
+    const QString key = parts.join( QLatin1Char( '\n' ) );
     for ( const std::unique_ptr< Motion > & m : M_motions )
     {
         if ( m->key == key ) return m.get();
@@ -266,32 +327,75 @@ Figures3D::motionOf( const FigureMotionSpec & spec,
     std::unique_ptr< Motion > m( new Motion );
     m->key = key;
     m->source = spec.model;
-    if ( ! readModel( spec.model, spec.skeleton, spec.bones, m->model, m->rig, error ) )
+    // the model of the motion: a skeleton, a mesh not required (a file of clips)
+    if ( ! readModel( spec.model, spec.skeleton, spec.bones, m->model, m->rig, error, false ) )
     {
         return nullptr;
     }
-    QStringList clips;
-    for ( const GltfModel::Clip & c : m->model.clips ) clips << c.name;
-    const auto clipOf = [&]( const QString & name ) {
-        const int clip = m->model.clipIndex( name );
-        if ( clip < 0 )
+
+    // a clip of a model by its name, or its first own (of the first count: not one of another file added)
+    const auto indexOf = [error]( const GltfModel & model,
+                                  const std::size_t count,
+                                  const QString & path,
+                                  const QString & name ) {
+        const int clip = ( name.isEmpty() ? ( count == 0 ? -1 : 0 ) : model.clipIndex( name ) );
+        if ( clip < 0 && name.isEmpty() )
         {
-            *error = fileOf( spec.model ) + QStringLiteral( ": no clip \"" ) + name
+            *error = fileOf( path ) + QStringLiteral( ": no clips" );
+        }
+        else if ( clip < 0 )
+        {
+            QStringList clips;
+            for ( std::size_t k = 0; k < count; ++k ) clips << model.clips[k].name;
+            *error = fileOf( path ) + QStringLiteral( ": no clip \"" ) + name
                 + QStringLiteral( "\" (its clips: " ) + namesOf( clips ) + QLatin1Char( ')' );
         }
         return clip;
     };
+    // each clip: of the model, or of another file put on the model's
+    // skeleton (retargetClip()); in place (a root motion taken off)
+    std::vector< std::unique_ptr< ClipSource > > sources;
+    const std::size_t own = m->model.clips.size();
+    const auto clipOf = [&]( const FigureClipSpec & c ) -> int {
+        if ( c.file.isEmpty() || QFileInfo( c.file ) == QFileInfo( spec.model ) )
+        {
+            const int clip = indexOf( m->model, own, spec.model, c.clip );
+            if ( clip >= 0 && clipDrift( m->model, m->rig, m->model.clips[clip] ) > ROOT_MOTION )
+            {
+                const GltfModel::Clip own = m->model.clips[clip];
+                m->model.clips[clip] = retargetClip( m->model, m->rig, own, m->model, m->rig, true );
+            }
+            return clip;
+        }
+        ClipSource * source = nullptr;
+        for ( const std::unique_ptr< ClipSource > & s : sources )
+        {
+            if ( s->path == c.file ) source = s.get();
+        }
+        if ( ! source )
+        {
+            sources.emplace_back( new ClipSource );
+            source = sources.back().get();
+            if ( ! readClips( c.file, spec, m->model, *source, error ) ) return -1;
+        }
+        const int clip = indexOf( source->model, source->model.clips.size(), c.file, c.clip );
+        if ( clip < 0 ) return -1;
+        GltfModel::Clip put = retargetClip( source->model, source->rig, source->model.clips[clip], m->model, m->rig, true );
+        put.name = c.text();
+        m->model.clips.push_back( std::move( put ) );
+        return static_cast< int >( m->model.clips.size() ) - 1;
+    };
     m->idle = clipOf( spec.idle );
     if ( m->idle < 0 ) return nullptr;
-    for ( const QString & name : { spec.walk, spec.jog, spec.sprint } )
+    for ( const FigureClipSpec * c : { &spec.walk, &spec.jog, &spec.sprint } )
     {
         GaitClip gait;
-        const int clip = clipOf( name );
+        const int clip = clipOf( *c );
         if ( clip < 0 ) return nullptr;
         if ( ! analyzeGait( m->model, m->rig, clip, &gait ) )
         {
-            *error = fileOf( spec.model ) + QStringLiteral( ": the clip \"" ) + name
-                + QStringLiteral( "\" is not of walking or running (the feet do not come down and go back)" );
+            *error = ( c->file.isEmpty() ? fileOf( spec.model ) + QStringLiteral( ": the clip " ) : QStringLiteral( "the clip " ) )
+                + c->text() + QStringLiteral( " is not of walking or running (the feet do not come down and go back)" );
             return nullptr;
         }
         m->gaits.push_back( gait );
@@ -612,8 +716,8 @@ Figures3D::analyzeGait( const GltfModel & model,
     if ( clip < 0
          || clip >= static_cast< int >( model.clips.size() )
          || model.clips[clip].duration <= 0.0f
-         || model.height() <= 0.0f
-         || ( body && ( ! body_rig || body->height() <= 0.0f ) ) )
+         || heightOf( model, rig ) <= 0.0f
+         || ( body && ( ! body_rig || heightOf( *body, *body_rig ) <= 0.0f ) ) )
     {
         return false;
     }
@@ -669,7 +773,7 @@ Figures3D::analyzeGait( const GltfModel & model,
             h[k] = std::min( ankle_y[s][k] - ankle_min, toe_y[s][k] - toe_min );
         }
         const float high = *std::max_element( h.begin(), h.end() );
-        if ( high < FOOT_LIFT * feet_model.height() ) return false; // not lifted: not walking
+        if ( high < FOOT_LIFT * heightOf( feet_model, feet_rig ) ) return false; // not lifted: not walking
         std::vector< bool > down( GAIT_SAMPLES );
         for ( int k = 0; k < GAIT_SAMPLES; ++k ) down[k] = ( h[k] < FOOT_DOWN * high );
         int first = 0;
@@ -728,7 +832,7 @@ Figures3D::analyzeGait( const GltfModel & model,
     out->contact = contact;
     out->down = down_time;
     out->duration = c.duration;
-    out->speed = speed_sum * 0.5f * SceneBuilder::PERSON_HEIGHT / feet_model.height();
+    out->speed = speed_sum * 0.5f * SceneBuilder::PERSON_HEIGHT / heightOf( feet_model, feet_rig );
     return true;
 }
 

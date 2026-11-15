@@ -178,6 +178,50 @@ public:
       }
 
     /*!
+      a clip of the motion: the name of a clip of its model, the name of a
+      file of the pack (by its extension: a model's file) for its first
+      clip, or an object of a "file" and its "clip"
+    */
+    FigureClipSpec clip( const QJsonObject & o,
+                         const QString & parent,
+                         const char * key )
+      {
+          FigureClipSpec c;
+          const QJsonValue v = o.value( QLatin1String( key ) );
+          const QString where = pathOf( parent, QLatin1String( key ) );
+          if ( v.isUndefined() || v.isNull() )
+          {
+              fail( parent, QStringLiteral( "no " ) + quoted( QLatin1String( key ) ) );
+          }
+          else if ( v.isString() )
+          {
+              if ( v.toString().isEmpty() ) fail( where, QStringLiteral( "empty" ) );
+              else if ( isClipFile( v.toString() ) ) c.file = file( o, parent, key );
+              else c.clip = v.toString();
+          }
+          else if ( v.isObject() )
+          {
+              c.file = file( v.toObject(), where, "file" );
+              c.clip = string( v.toObject(), where, "clip" );
+          }
+          else
+          {
+              fail( where, QStringLiteral( "neither a clip's name, a file, nor an object of a \"file\" and a \"clip\"" ) );
+          }
+          return c;
+      }
+
+    //! a name of a file of clips (by its extension), not of a clip
+    static bool isClipFile( const QString & name )
+      {
+          for ( const char * e : { ".fbx", ".glb", ".gltf", ".vrm" } )
+          {
+              if ( name.endsWith( QLatin1String( e ), Qt::CaseInsensitive ) ) return true;
+          }
+          return false;
+      }
+
+    /*!
       a skeleton: a preset, which must be known, or the pack's own map of
       the roles (as VRM names them) to the bones
     */
@@ -351,6 +395,16 @@ FigureCredit::text() const
         s += ( s.isEmpty() ? license : QStringLiteral( " (" ) + license + QLatin1Char( ')' ) );
     }
     return s;
+}
+
+/*-------------------------------------------------------------------*/
+QString
+FigureClipSpec::text() const
+{
+    const QString name = QFileInfo( file ).fileName();
+    if ( file.isEmpty() ) return quoted( clip );
+    if ( clip.isEmpty() ) return name;
+    return name + QLatin1Char( ':' ) + quoted( clip );
 }
 
 /*-------------------------------------------------------------------*/
@@ -551,10 +605,10 @@ FigurePack::read( const QString & dir,
         }
         const QJsonObject c = clips.toObject();
         const QString at = pathOf( where, QStringLiteral( "clips" ) );
-        pack.motion.idle = r.string( c, at, "idle", true );
-        pack.motion.walk = r.string( c, at, "walk", true );
-        pack.motion.jog = r.string( c, at, "jog", true );
-        pack.motion.sprint = r.string( c, at, "sprint", true );
+        pack.motion.idle = r.clip( c, at, "idle" );
+        pack.motion.walk = r.clip( c, at, "walk" );
+        pack.motion.jog = r.clip( c, at, "jog" );
+        pack.motion.sprint = r.clip( c, at, "sprint" );
     }
     else
     {

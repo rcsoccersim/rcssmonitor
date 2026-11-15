@@ -67,6 +67,7 @@ if(HAVE_3D_VIEW)
     view3d/gait_table.cpp
     view3d/grass_3d.cpp
     view3d/gltf_model.cpp
+    view3d/fbx_model.cpp
     view3d/ground_texture.cpp
     view3d/guides_3d.cpp
     view3d/humanoid.cpp
@@ -99,12 +100,15 @@ if(HAVE_3D_VIEW)
     view3d/gl/vertex_batch.cpp
     view3d/shaders/view3d_shaders.qrc
     ${PROJECT_SOURCE_DIR}/resources/figures/view3d_figures.qrc
+    ${PROJECT_SOURCE_DIR}/third_party/ufbx/ufbx.c
     )
   # the shaders (ShaderProgram) and the bundled figure packs (FigurePacks) in the resources
   set_target_properties(rcssmonitor_core PROPERTIES AUTORCC ON)
   target_include_directories(rcssmonitor_core PUBLIC ${PROJECT_SOURCE_DIR}/src/view3d)
   # cgltf (glTF loading, MIT), a single header: compiled in gltf_model.cpp
   target_include_directories(rcssmonitor_core PRIVATE ${PROJECT_SOURCE_DIR}/third_party/cgltf)
+  # ufbx (FBX loading, MIT or Unlicense), compiled from its own C file
+  target_include_directories(rcssmonitor_core PRIVATE ${PROJECT_SOURCE_DIR}/third_party/ufbx)
   target_link_libraries(rcssmonitor_core PUBLIC ${QT_3D_VIEW_LIBRARIES})
 endif()
 

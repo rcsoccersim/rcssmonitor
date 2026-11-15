@@ -65,6 +65,20 @@ struct Node {
     int parent = -1;
     QVector3D t;
     QQuaternion r;
+    QVector3D s = QVector3D( 1.0f, 1.0f, 1.0f );
+};
+
+//! a clip: the keys of nodes' translations (3 floats a key), rotations (4: x, y, z, w) or scales
+struct Animation {
+    struct Channel {
+        int node = -1;
+        QString path; //!< "translation", "rotation", "scale"
+        std::vector< float > times;
+        std::vector< float > values;
+        bool step = false;
+    };
+    QString name;
+    std::vector< Channel > channels;
 };
 
 struct Material {
@@ -106,6 +120,7 @@ public:
     std::vector< QImage > images;
     std::vector< Mesh > meshes;
     std::vector< Skin > skins;
+    std::vector< Animation > animations;
     QJsonObject extensions; //!< the root's (VRM, VRMC_vrm)
     QStringList required; //!< extensionsRequired
 
@@ -216,6 +231,7 @@ private:
               QJsonObject o{ { "name", n.name },
                              { "translation", QJsonArray{ n.t.x(), n.t.y(), n.t.z() } },
                              { "rotation", QJsonArray{ n.r.x(), n.r.y(), n.r.z(), n.r.scalar() } } };
+              if ( n.s != QVector3D( 1.0f, 1.0f, 1.0f ) ) o.insert( "scale", QJsonArray{ n.s.x(), n.s.y(), n.s.z() } );
               QJsonArray children;
               for ( std::size_t c = 0; c < nodes.size(); ++c )
               {
@@ -325,6 +341,22 @@ private:
               json_materials.append( o );
           }
 
+          QJsonArray json_animations;
+          for ( const Animation & a : animations )
+          {
+              QJsonArray samplers, channels;
+              for ( const Animation::Channel & c : a.channels )
+              {
+                  const int n = int( c.values.size() / std::max< std::size_t >( 1, c.times.size() ) );
+                  const int input = floats( c.times, 1, "SCALAR", 0, true );
+                  const int output = floats( c.values, n, n == 4 ? "VEC4" : "VEC3", 0, false );
+                  samplers.append( QJsonObject{ { "input", input }, { "output", output },
+                                                { "interpolation", c.step ? "STEP" : "LINEAR" } } );
+                  channels.append( QJsonObject{ { "sampler", samplers.size() - 1 },
+                                                { "target", QJsonObject{ { "node", c.node }, { "path", c.path } } } } );
+              }
+              json_animations.append( QJsonObject{ { "name", a.name }, { "samplers", samplers }, { "channels", channels } } );
+          }
           QJsonArray roots;
           for ( std::size_t i = 0; i < nodes.size(); ++i )
           {
@@ -340,6 +372,7 @@ private:
                            { "accessors", accessors },
                            { "bufferViews", views } };
           if ( ! json_skins.isEmpty() ) doc.insert( "skins", json_skins );
+          if ( ! json_animations.isEmpty() ) doc.insert( "animations", json_animations );
           if ( ! json_images.isEmpty() )
           {
               doc.insert( "images", json_images );
@@ -544,6 +577,73 @@ humanoid( const GltfModel & mannequin,
         QJsonArray bones;
         for ( const int b : roles ) bones.append( QJsonObject{ { "bone", humanBoneName( HumanBone( b ) ) }, { "node", node_of[b] } } );
         f.extensions.insert( "VRM", QJsonObject{ { "humanoid", QJsonObject{ { "humanBones", bones } } } } );
+    }
+    return f;
+}
+
+/*!
+  \brief a model read, as a file again: its nodes at rest, its skin (all
+  its joints), its meshes (one a part, each on a node of its own), its
+  materials (their colors), its clips
+*/
+inline
+File
+fromModel( const GltfModel & m )
+{
+    File f;
+    for ( std::size_t i = 0; i < m.rest.size(); ++i )
+    {
+        f.nodes.push_back( Node{ m.node_names[i], m.parent[i], m.rest[i].t, m.rest[i].r, m.rest[i].s } );
+    }
+    Skin skin;
+    skin.joints = m.joint_nodes;
+    skin.inverse_bind = m.inverse_bind;
+    f.skins.push_back( skin );
+    for ( const SkinPrimitive & p : m.primitives )
+    {
+        // (a node a mesh)
+        const int body = int( f.nodes.size() );
+        f.nodes.push_back( Node{ QStringLiteral( "Body_" ) + p.material, -1, QVector3D(), QQuaternion() } );
+        Material mat;
+        mat.name = p.material;
+        mat.color = p.base_color;
+        f.materials.push_back( mat );
+        Mesh mesh;
+        mesh.node = body;
+        mesh.skin = 0;
+        mesh.material = int( f.materials.size() ) - 1;
+        std::vector< int > local( m.vertices.size(), -1 );
+        for ( int k = p.first_index; k < p.first_index + p.index_count; ++k )
+        {
+            const std::uint32_t v = m.indices[k];
+            if ( local[v] < 0 )
+            {
+                const SkinVertex & sv = m.vertices[v];
+                local[v] = int( mesh.positions.size() );
+                mesh.positions.push_back( QVector3D( sv.position[0], sv.position[1], sv.position[2] ) );
+                mesh.normals.push_back( QVector3D( sv.normal[0], sv.normal[1], sv.normal[2] ) );
+                mesh.joints.push_back( { sv.joints[0], sv.joints[1], sv.joints[2], sv.joints[3] } );
+                mesh.weights.push_back( QVector4D( sv.weights[0], sv.weights[1], sv.weights[2], sv.weights[3] ) );
+            }
+            mesh.indices.push_back( std::uint32_t( local[v] ) );
+        }
+        f.meshes.push_back( mesh );
+    }
+    for ( const GltfModel::Clip & c : m.clips )
+    {
+        Animation a;
+        a.name = c.name;
+        for ( std::size_t i = 0; i < c.nodes.size(); ++i )
+        {
+            const auto add = [&]( const GltfModel::Channel & ch, const char * path ) {
+                if ( ch.empty() ) return;
+                a.channels.push_back( Animation::Channel{ int( i ), QString::fromLatin1( path ), ch.times, ch.values, ch.step } );
+            };
+            add( c.nodes[i].t, "translation" );
+            add( c.nodes[i].r, "rotation" );
+            add( c.nodes[i].s, "scale" );
+        }
+        f.animations.push_back( a );
     }
     return f;
 }

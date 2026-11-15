@@ -598,6 +598,162 @@ private slots:
           }
       }
 
+    //! a bone's name without its skeleton's prefix
+    void boneKeys()
+      {
+          QCOMPARE( boneKey( "mixamorig:Hips" ), QString( "Hips" ) );
+          QCOMPARE( boneKey( "mixamorig1:LeftArm" ), QString( "LeftArm" ) );
+          QCOMPARE( boneKey( "a:b:c" ), QString( "c" ) );
+          QCOMPARE( boneKey( "pelvis" ), QString( "pelvis" ) );
+          QCOMPARE( boneKey( "J_Bip_C_Hips" ), QString( "J_Bip_C_Hips" ) );
+      }
+
+    /*!
+      a clip put on another skeleton (retargetClip()): keys at the rate to
+      the clip's end; at each, every role's bone turned and the hips placed
+      as the pose put on it directly (apply()); on the same skeleton, the
+      bones without a role of the same names (the fingers) as the clip's
+    */
+    void retargetClips()
+      {
+          const GltfModel::Clip & walk = M_model.clips[M_model.clipIndex( "Walk_Loop" )];
+          TestGltf::HumanoidOptions o;
+          o.preset = "mixamo";
+          o.arm_down = 40.0f;
+          const GltfModel box = boxes( o );
+          const HumanoidRig rig = rigOf( box );
+          const GltfModel::Clip put = retargetClip( M_model, M_rig, walk, box, rig, false );
+          QCOMPARE( put.duration, walk.duration );
+          const int steps = int( std::ceil( walk.duration * 30.0f - 1.0e-3f ) );
+          const int hips = rig.node( HumanBone::Hips );
+          QCOMPARE( int( put.nodes[hips].t.times.size() ), steps + 1 );
+          QCOMPARE( put.nodes[hips].r.times.back(), walk.duration );
+          QVERIFY( put.nodes[box.nodeIndex( "Body" )].empty() ); // no role, no name of the clip's
+          const float end = walk.duration - 1.0e-4f;
+          for ( const int k : { 0, 7, steps / 2, steps } )
+          {
+              const float t = ( k == steps ? end : walk.duration * k / steps );
+              std::vector< NodeTransform > local = M_model.rest;
+              M_model.sample( walk, t, local );
+              std::vector< NodeTransform > want = box.rest;
+              rig.apply( M_rig.poseOf( local ), want );
+              std::vector< NodeTransform > got = box.rest;
+              box.sample( put, t, got );
+              for ( int b = 0; b < HUMAN_BONE_COUNT; ++b )
+              {
+                  const int n = rig.node( HumanBone( b ) );
+                  if ( n < 0 ) continue;
+                  QVERIFY2( std::fabs( QQuaternion::dotProduct( got[n].r, want[n].r ) ) > 0.99999f,
+                            qPrintable( QString( "%1 %2" ).arg( k ).arg( humanBoneName( HumanBone( b ) ) ) ) );
+              }
+              QVERIFY( ( got[hips].t - want[hips].t ).length() < 1.0e-4f );
+          }
+          // on itself: the roles as they were, the fingers too
+          const GltfModel::Clip self = retargetClip( M_model, M_rig, walk, M_model, M_rig, false );
+          const int finger = M_model.nodeIndex( "index_02_l" );
+          QVERIFY( finger >= 0 && ! self.nodes[finger].r.empty() );
+          std::vector< NodeTransform > want = M_model.rest;
+          M_model.sample( walk, 0.4f, want );
+          std::vector< NodeTransform > got = M_model.rest;
+          M_model.sample( self, 0.4f, got );
+          for ( const int n : { finger, M_rig.node( HumanBone::LeftLowerArm ), M_rig.node( HumanBone::RightFoot ) } )
+          {
+              QVERIFY2( std::fabs( QQuaternion::dotProduct( got[n].r, want[n].r ) ) > 0.9999f, qPrintable( M_model.node_names[n] ) );
+          }
+      }
+
+    /*!
+      a clip not in place (its root going forward a stride: a root motion):
+      its drift (clipDrift()) the stride in hip heights; put in place, none,
+      the rest of the motion as it was (the hips' height and sway kept);
+      not in place, the drift kept
+    */
+    void inPlace()
+      {
+          const GltfModel::Clip & walk = M_model.clips[M_model.clipIndex( "Walk_Loop" )];
+          QVERIFY( clipDrift( M_model, M_rig, walk ) < 1.0e-3f );
+          GltfModel::Clip forward = walk;
+          const int root = M_model.nodeIndex( "root" );
+          QVERIFY( root >= 0 );
+          // +z of the model in the root's parent's frame
+          std::vector< QMatrix4x4 > global;
+          M_model.globals( M_model.rest, global );
+          const int p = M_model.parent[root];
+          const QVector3D ahead = ( p >= 0 ? global[p].inverted().mapVector( QVector3D( 0.0f, 0.0f, 1.28f ) )
+                                    : QVector3D( 0.0f, 0.0f, 1.28f ) );
+          // (its keys sampled, the stride added in a line)
+          GltfModel::Channel & ch = forward.nodes[root].t;
+          ch = GltfModel::Channel();
+          for ( int k = 0; k <= 40; ++k )
+          {
+              const float t = walk.duration * k / 40;
+              std::vector< NodeTransform > local = M_model.rest;
+              M_model.sample( walk, std::min( t, walk.duration - 1.0e-4f ), local );
+              const QVector3D at = local[root].t + ahead * ( float( k ) / 40 );
+              ch.times.push_back( t );
+              ch.values.insert( ch.values.end(), { at.x(), at.y(), at.z() } );
+          }
+          const float drift = clipDrift( M_model, M_rig, forward ) * M_rig.hipHeight();
+          QVERIFY2( std::fabs( drift - 1.28f ) < 0.01f, qPrintable( QString::number( drift ) ) );
+
+          const GltfModel::Clip put = retargetClip( M_model, M_rig, forward, M_model, M_rig, true );
+          QVERIFY( clipDrift( M_model, M_rig, put ) < 1.0e-3f );
+          for ( const float t : { 0.0f, 0.4f, 0.8f, 1.2f } )
+          {
+              std::vector< NodeTransform > local = M_model.rest;
+              M_model.sample( put, t, local );
+              const HumanoidPose got = M_rig.poseOf( local );
+              local = M_model.rest;
+              M_model.sample( walk, t, local );
+              const HumanoidPose want = M_rig.poseOf( local );
+              QVERIFY2( ( got.hips - want.hips ).length() < 1.0e-3f, qPrintable( QString::number( t ) ) );
+          }
+          const GltfModel::Clip kept = retargetClip( M_model, M_rig, forward, M_model, M_rig, false );
+          QVERIFY( std::fabs( clipDrift( M_model, M_rig, kept ) * M_rig.hipHeight() - 1.28f ) < 0.01f );
+      }
+
+    /*!
+      a skeleton saved in a pose, turned as another at rest (restAs()):
+      each bone of the same name (the prefix aside) turned and placed as
+      the other's; a bone of its own kept
+    */
+    void restLike()
+      {
+          TestGltf::HumanoidOptions o;
+          o.preset = "mixamo";
+          o.prefix = "mixamorig:";
+          const TestGltf::File f = TestGltf::humanoid( TestGltf::mannequin(), o );
+          GltfModel rest;
+          QVERIFY( rest.load( f.glb() ) );
+          TestGltf::File posed = f;
+          for ( TestGltf::Node & n : posed.nodes )
+          {
+              n.name.replace( "mixamorig:", "mixamorig1:" );
+              n.r = n.r * QQuaternion::fromAxisAndAngle( 1.0f, 0.2f, 0.0f, 25.0f );
+              n.t += QVector3D( 0.01f, 0.02f, 0.0f );
+          }
+          const QQuaternion own = QQuaternion::fromAxisAndAngle( 0.0f, 1.0f, 0.0f, 30.0f );
+          posed.nodes.push_back( TestGltf::Node{ "Extra", 2, QVector3D( 0.0f, 0.1f, 0.0f ), own } );
+          GltfModel m;
+          QVERIFY( m.load( posed.glb() ) );
+          QCOMPARE( restAs( m, rest ), int( rest.rest.size() ) );
+          std::vector< QMatrix4x4 > want, got;
+          rest.globals( rest.rest, want );
+          m.globals( m.rest, got );
+          for ( std::size_t i = 0; i < rest.rest.size(); ++i )
+          {
+              const int j = m.nodeIndex( QString( rest.node_names[i] ).replace( "mixamorig:", "mixamorig1:" ) );
+              QVERIFY( j >= 0 );
+              for ( int k = 0; k < 16; ++k )
+              {
+                  QVERIFY2( std::fabs( got[j].constData()[k] - want[i].constData()[k] ) < 1.0e-4f, qPrintable( rest.node_names[i] ) );
+              }
+          }
+          const int extra = m.nodeIndex( "Extra" );
+          QVERIFY( std::fabs( QQuaternion::dotProduct( m.rest[extra].r, own ) ) > 0.99999f );
+          QVERIFY( ( m.rest[extra].t - QVector3D( 0.0f, 0.1f, 0.0f ) ).length() < 1.0e-6f );
+      }
+
     //! the bones without a role keep what the caller gave them
     void otherBones()
       {

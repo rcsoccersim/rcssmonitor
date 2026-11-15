@@ -14,10 +14,15 @@ You can add packs of your own, for example with models that cannot be
 bundled because of their licenses.
 
 This document describes format 1 of `figure.json`. In this version a pack
-can use glTF 2.0 models (`.glb`, `.gltf`, and VRM 0.x and 1.0 `.vrm`) with
-their textures, whose bones are named as Quaternius's, Mixamo's or VRoid's
-rigs, or have VRM's roles, or are mapped by the pack. Later versions will
-read FBX models and BVH and VRM Animation motions.
+can use glTF 2.0 models (`.glb`, `.gltf`, and VRM 0.x and 1.0 `.vrm`) and
+FBX models (`.fbx`, as Mixamo gives them) with their textures, whose bones
+are named as Quaternius's, Mixamo's or VRoid's rigs, or have VRM's roles,
+or are mapped by the pack. The clips of the motion may come from other
+files, of other skeletons too. Later versions will read BVH and VRM
+Animation motions.
+
+To make a pack of a character and animations of Mixamo, see
+[FIGURE_PACKS_MIXAMO.md](FIGURE_PACKS_MIXAMO.md).
 
 ## Choosing a pack
 
@@ -135,19 +140,39 @@ written for a later version.
 
 | Key | Required | Value |
 |---|---|---|
-| `model` | yes | The model with the clips (a glTF file), in the pack's folder. |
+| `model` | yes | The model of the motion's skeleton (a glTF or FBX file), in the pack's folder. It needs no mesh, but its rest should be the skeleton's T pose (see below). |
 | `skeleton` | no | Which bones play which roles (below). Without it, they are found from the model. |
-| `clips` | yes | The names of the clips: `idle` (standing), `walk`, `jog` and `sprint`. All four are required. |
+| `clips` | yes | The clips: `idle` (standing), `walk`, `jog` and `sprint`. All four are required. |
 
-The clips of walking and running must play in place, facing +z: the 3D
-view moves the figure by the log. rcssmonitor reads from the clips how fast
-each one goes (the feet on the ground), so that the feet do not slide.
+Each clip is one of these:
+
+- The name of a clip of the motion's model: `"Walk_Loop"`.
+- The name of a file of the pack, told by its extension (`.fbx`, `.glb`,
+  `.gltf`, `.vrm`): its first clip. `"walk.fbx"`.
+- An object of a `file` and the name of its `clip`:
+  `{ "file": "anims.glb", "clip": "Jog_Fwd_Loop" }`. Without `clip`, the
+  file's first clip.
+
+A clip of another file is put on the motion's skeleton through the bones'
+roles, so the file may be of another skeleton (another rig, other
+proportions). Its bones are found by the motion's `skeleton`, or else from
+its own names. A file of clips without a skin (an FBX file of Mixamo
+downloaded "Without Skin") does not tell its rest pose: its bones of the
+same names as the motion's model's (the prefix before a `:` aside, as in
+`mixamorig:Hips`) are taken at rest as the motion's model's are.
+
+The 3D view moves the figure by the log, so the clips play in place: a
+clip whose hips go forward across it (a "root motion", as a Mixamo
+animation downloaded without "In Place") is put in place, its hips'
+horizontal drift taken off. The clips of walking and running face +z.
+rcssmonitor reads from the clips how fast each one goes (the feet on the
+ground), so that the feet do not slide.
 
 ### A body
 
 | Key | Required | Value |
 |---|---|---|
-| `model` | yes | The model of the body (`.glb`, `.gltf` or `.vrm`), in the pack's folder. It may be the motion's own file. |
+| `model` | yes | The model of the body (`.glb`, `.gltf`, `.vrm` or `.fbx`), in the pack's folder. It may be the motion's own file. |
 | `skeleton` | no | As for the motion. A body may have another skeleton than the motion's, as long as both are humanoid: the motion goes through the bones' roles (hips, spine, upper arm, and so on). |
 | `sex` | no | `male` or `female`. A pack with both men's and women's bodies can be limited to one of them (the **Bodies** setting). Without it, the body is anyone's. |
 | `paint` | no | How each material of the model is painted (below): `model`, `team`, `tint`, `uniform`, `skin` or `hair`. A material not named is painted `model`. |
@@ -223,8 +248,8 @@ smaller.
 ### The models
 
 A model can be a glTF binary (`.glb`), a glTF JSON file (`.gltf`) with its
-buffers and images in files beside it or inside it, or a VRM (`.vrm`, 0.x
-or 1.0). All its meshes are drawn: the skinned ones move with their bones,
+buffers and images in files beside it or inside it, a VRM (`.vrm`, 0.x
+or 1.0), or an FBX file (`.fbx`, binary or ASCII). All its meshes are drawn: the skinned ones move with their bones,
 and one fixed to a bone (a hat on the head) moves with it. A mesh without
 normals gets smooth ones. Texture coordinates moved by
 KHR_texture_transform are read.
@@ -234,6 +259,15 @@ not read, such as a compression of its meshes or textures
 (KHR_draco_mesh_compression, EXT_meshopt_compression, KHR_texture_basisu),
 cannot be read; the reason names the extension. Export it without the
 compression.
+
+An FBX file is converted to glTF's space: y up, a person facing +z, in
+meters (an FBX file may be in centimeters, z up, or turned by its root).
+Its rest is the bind pose of its skin. Its materials give their diffuse
+(or base) color and its texture: embedded in the file, or a file beside it
+(as the file names it, or by its name alone, also in `<name>.fbm`). A
+texture with transparent pixels is taken as a mask (cut off at 0.5) and
+drawn from both sides; a material with an opacity below 1 is taken as
+`BLEND`. Its takes are its clips.
 
 ### Paths
 

@@ -602,3 +602,158 @@ HumanoidRig::setTurnedInModel( HumanoidPose & pose,
     const QQuaternion above = ( p >= 0 ? turnedInModel( pose, HumanBone( p ) ) : QQuaternion() );
     pose.rotations[b] = ( above.conjugated() * turned ).normalized();
 }
+
+/*-------------------------------------------------------------------*/
+QString
+boneKey( const QString & name )
+{
+    const int colon = name.lastIndexOf( QLatin1Char( ':' ) );
+    return ( colon >= 0 ? name.mid( colon + 1 ) : name );
+}
+
+namespace {
+
+//! a clip's time near its end, not looped back to its start
+float
+endOf( const GltfModel::Clip & clip )
+{
+    return std::max( 0.0f, clip.duration - std::min( 1.0e-4f, clip.duration * 0.01f ) );
+}
+
+}
+
+/*-------------------------------------------------------------------*/
+float
+clipDrift( const GltfModel & model,
+           const HumanoidRig & rig,
+           const GltfModel::Clip & clip )
+{
+    std::vector< NodeTransform > local = model.rest;
+    model.sample( clip, 0.0f, local );
+    const QVector3D start = rig.poseOf( local ).hips;
+    local = model.rest;
+    model.sample( clip, endOf( clip ), local );
+    const QVector3D drift = rig.poseOf( local ).hips - start;
+    return std::hypot( drift.x(), drift.z() );
+}
+
+/*-------------------------------------------------------------------*/
+GltfModel::Clip
+retargetClip( const GltfModel & source,
+              const HumanoidRig & source_rig,
+              const GltfModel::Clip & clip,
+              const GltfModel & target,
+              const HumanoidRig & target_rig,
+              const bool in_place,
+              const float rate )
+{
+    GltfModel::Clip out;
+    out.name = clip.name;
+    out.duration = clip.duration;
+    out.nodes.resize( target.rest.size() );
+    const int steps = std::max( 1, static_cast< int >( std::ceil( clip.duration * rate - 1.0e-3f ) ) );
+
+    // the bones without a role of the same names in both
+    std::vector< int > same( target.rest.size(), -1 );
+    for ( std::size_t j = 0; j < target.rest.size(); ++j )
+    {
+        if ( target_rig.roleOf( static_cast< int >( j ) ) >= 0 ) continue;
+        const QString key = boneKey( target.node_names[j] );
+        if ( key.isEmpty() ) continue;
+        for ( std::size_t i = 0; i < source.rest.size(); ++i )
+        {
+            if ( source_rig.roleOf( static_cast< int >( i ) ) < 0 && boneKey( source.node_names[i] ) == key )
+            {
+                same[j] = static_cast< int >( i );
+                break;
+            }
+        }
+    }
+
+    // the poses at the samples (the last one at the clip's end)
+    std::vector< HumanoidPose > poses( steps + 1 );
+    std::vector< std::vector< NodeTransform > > locals( steps + 1 );
+    for ( int k = 0; k <= steps; ++k )
+    {
+        locals[k] = source.rest;
+        source.sample( clip, ( k == steps ? endOf( clip ) : clip.duration * k / steps ), locals[k] );
+        poses[k] = source_rig.poseOf( locals[k] );
+    }
+    // in place: the hips' horizontal drift taken off in a line (so the end meets the start)
+    if ( in_place )
+    {
+        QVector3D drift = poses[steps].hips - poses[0].hips;
+        drift.setY( 0.0f );
+        for ( int k = 0; k <= steps; ++k ) poses[k].hips -= drift * ( float( k ) / steps );
+    }
+
+    // on the target: the roles' bones, the hips' place, the bones of the same names
+    for ( int k = 0; k <= steps; ++k )
+    {
+        std::vector< NodeTransform > local = target.rest;
+        for ( std::size_t j = 0; j < same.size(); ++j )
+        {
+            if ( same[j] < 0 ) continue;
+            const QQuaternion turn = source.rest[same[j]].r.conjugated() * locals[k][same[j]].r;
+            local[j].r = ( target.rest[j].r * turn ).normalized();
+        }
+        target_rig.apply( poses[k], local );
+        const float time = clip.duration * k / steps;
+        for ( std::size_t j = 0; j < local.size(); ++j )
+        {
+            const int role = target_rig.roleOf( static_cast< int >( j ) );
+            if ( role < 0 && same[j] < 0 ) continue;
+            GltfModel::Channel & r = out.nodes[j].r;
+            r.times.push_back( time );
+            r.values.insert( r.values.end(), { local[j].r.x(), local[j].r.y(), local[j].r.z(), local[j].r.scalar() } );
+            if ( role == static_cast< int >( HumanBone::Hips ) )
+            {
+                GltfModel::Channel & t = out.nodes[j].t;
+                t.times.push_back( time );
+                t.values.insert( t.values.end(), { local[j].t.x(), local[j].t.y(), local[j].t.z() } );
+            }
+        }
+    }
+    return out;
+}
+
+/*-------------------------------------------------------------------*/
+int
+restAs( GltfModel & model,
+        const GltfModel & like )
+{
+    // each bone of the other at rest in the model: its rotation (through
+    // its parents) and its place
+    std::vector< QQuaternion > like_rotation( like.rest.size() );
+    for ( const int i : like.order )
+    {
+        const int p = like.parent[i];
+        like_rotation[i] = ( p >= 0 ? like_rotation[p] : QQuaternion() ) * like.rest[i].r;
+    }
+    std::vector< QMatrix4x4 > like_global;
+    like.globals( like.rest, like_global );
+
+    std::vector< QQuaternion > rotation( model.rest.size() );
+    std::vector< QMatrix4x4 > global( model.rest.size() );
+    int matched = 0;
+    for ( const int i : model.order )
+    {
+        const int p = model.parent[i];
+        const QQuaternion above = ( p >= 0 ? rotation[p] : QQuaternion() );
+        const QMatrix4x4 above_global = ( p >= 0 ? global[p] : QMatrix4x4() );
+        const QString key = boneKey( model.node_names[i] );
+        for ( std::size_t j = 0; j < like.rest.size() && ! key.isEmpty(); ++j )
+        {
+            if ( boneKey( like.node_names[j] ) == key )
+            {
+                model.rest[i].r = ( above.conjugated() * like_rotation[j] ).normalized();
+                model.rest[i].t = ( above_global.inverted() * like_global[j].column( 3 ) ).toVector3D();
+                ++matched;
+                break;
+            }
+        }
+        rotation[i] = above * model.rest[i].r;
+        global[i] = above_global * model.rest[i].matrix();
+    }
+    return matched;
+}

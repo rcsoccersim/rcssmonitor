@@ -225,6 +225,12 @@ public:
     //! the node of a role, or -1
     int node( const HumanBone bone ) const { return M_node[static_cast< int >( bone )]; }
 
+    //! the role of a node, or -1 (a bone without a role: a finger, the root)
+    int roleOf( const int node ) const
+      {
+          return ( node >= 0 && node < static_cast< int >( M_role_of.size() ) ? M_role_of[node] : -1 );
+      }
+
     //! the height of the hips at rest above the lowest point of the mesh (m)
     float hipHeight() const { return M_hip_height; }
 
@@ -282,5 +288,54 @@ private:
     QVector3D M_rest_hips; //!< where the hips are in the model at rest
     float M_hip_height = 1.0f;
 };
+
+/*!
+  \brief a bone's name without the prefix of its skeleton: after the last
+  ':' (Mixamo's "mixamorig:Hips", "mixamorig1:Hips"), as it is otherwise.
+  Bones of two files of one skeleton are matched by it.
+*/
+QString boneKey( const QString & name );
+
+/*!
+  \brief how far the hips go across a clip, horizontally, in hip heights:
+  a clip not in place (a "root motion": a walk going forward), or about 0
+*/
+float clipDrift( const GltfModel & model,
+                 const HumanoidRig & rig,
+                 const GltfModel::Clip & clip );
+
+/*!
+  \brief a clip of one skeleton put on another, through the humanoid
+  roles: sampled at a rate, each pose read on the one (poseOf()) and put on
+  the other (apply()); the bones without a role (the fingers) of the same
+  names (boneKey()) by their turns from rest. So clips of other files, and
+  of other skeletons, go into a motion's model.
+  \param source the skeleton of the clip, and its roles
+  \param clip the clip (of source)
+  \param target the skeleton to put it on, and its roles
+  \param in_place the hips' horizontal drift across the clip taken off
+  (a root motion: the clip then goes in place, and loops)
+  \param rate samples a second
+  \return the clip, for target's nodes
+*/
+GltfModel::Clip retargetClip( const GltfModel & source,
+                              const HumanoidRig & source_rig,
+                              const GltfModel::Clip & clip,
+                              const GltfModel & target,
+                              const HumanoidRig & target_rig,
+                              const bool in_place,
+                              const float rate = 30.0f );
+
+/*!
+  \brief the rest of a skeleton saved in a pose (GltfModel::posed_rest: an
+  FBX file of clips without a skin) turned as another skeleton's rest, bone
+  by bone of the same names (boneKey()): each such bone's rotation in the
+  model, and its place, made the other's.
+  \param model the skeleton to change
+  \param like the skeleton at rest (a T pose)
+  \return how many bones were matched
+*/
+int restAs( GltfModel & model,
+            const GltfModel & like );
 
 #endif

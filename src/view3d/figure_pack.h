@@ -91,6 +91,21 @@ struct FigureBodySpec {
 };
 
 /*!
+  \struct FigureClipSpec
+  \brief a clip of a motion: of the motion's model by its name, or of
+  another file (its first clip, or the one of the name), put on the
+  motion's skeleton through the humanoid roles (retargetClip())
+*/
+struct FigureClipSpec {
+    QString file; //!< the file of the clip (a path); empty: the motion's model
+    QString clip; //!< the clip's name; empty: the file's first clip
+
+    bool operator==( const FigureClipSpec & other ) const { return file == other.file && clip == other.clip; }
+    //! the clip and its file, to be told
+    QString text() const;
+};
+
+/*!
   \struct FigureMotionSpec
   \brief the motion of a figure pack: the model with the clips, and the
   clips of standing, walking, jogging and sprinting (its own, or of the
@@ -101,10 +116,10 @@ struct FigureMotionSpec {
     QString model; //!< the model with the clips (a path); empty while another pack's is not looked up
     QString skeleton; //!< its bones' roles (as FigureBodySpec::skeleton)
     std::vector< std::pair< QString, QString > > bones; //!< or the pack's own map (as FigureBodySpec::bones)
-    QString idle; //!< the clips
-    QString walk;
-    QString jog;
-    QString sprint;
+    FigureClipSpec idle; //!< the clips
+    FigureClipSpec walk;
+    FigureClipSpec jog;
+    FigureClipSpec sprint;
     std::vector< FigureCredit > credits; //!< of the pack whose motion it is, if another pack's
 };
 

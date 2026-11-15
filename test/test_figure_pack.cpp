@@ -41,6 +41,7 @@
 #include <QStandardPaths>
 #include <QTemporaryDir>
 
+#include <algorithm>
 #include <cmath>
 
 namespace {
@@ -149,10 +150,11 @@ private slots:
           QCOMPARE( m->motion.pack, QString( "mannequin" ) );
           QCOMPARE( m->motion.model, QString( ":/figures/mannequin/Mannequin.glb" ) );
           QCOMPARE( m->motion.skeleton, QString( "quaternius" ) );
-          QCOMPARE( m->motion.idle, QString( "Idle_Loop" ) );
-          QCOMPARE( m->motion.walk, QString( "Walk_Loop" ) );
-          QCOMPARE( m->motion.jog, QString( "Jog_Fwd_Loop" ) );
-          QCOMPARE( m->motion.sprint, QString( "Sprint_Loop" ) );
+          QCOMPARE( m->motion.idle.clip, QString( "Idle_Loop" ) );
+          QVERIFY( m->motion.idle.file.isEmpty() );
+          QCOMPARE( m->motion.walk.clip, QString( "Walk_Loop" ) );
+          QCOMPARE( m->motion.jog.clip, QString( "Jog_Fwd_Loop" ) );
+          QCOMPARE( m->motion.sprint.clip, QString( "Sprint_Loop" ) );
           QVERIFY( m->motion.credits.empty() );
           QCOMPARE( int( m->bodies.size() ), 1 );
           QCOMPARE( m->bodies[0].model, m->motion.model );
@@ -309,6 +311,23 @@ private slots:
           QCOMPARE( m.bodies[0].skin, QStringList( { "M_Main" } ) );
           QCOMPARE( m.bodies[0].tint, QStringList( { "M_Joints" } ) );
 
+          // the clips: of the motion's model by their names, of files by
+          // their names (by the extension), of a file by an object
+          const QString clips = makePack( folder.path(), "clips",
+                                          packJson( QByteArray(), "{ \"model\": \"Body.glb\", \"clips\": { \"idle\": \"Idle_Loop\","
+                                                    " \"walk\": \"Walk.FBX\", \"jog\": { \"file\": \"Body.glb\", \"clip\": \"Jog_Fwd_Loop\" },"
+                                                    " \"sprint\": { \"file\": \"Walk.FBX\" } } }" ),
+                                          { "Body.glb", "Walk.FBX" } );
+          const FigurePack c = FigurePack::read( clips, false );
+          QVERIFY2( c.ok(), qPrintable( c.error ) );
+          QCOMPARE( c.motion.idle, ( FigureClipSpec{ QString(), "Idle_Loop" } ) );
+          QCOMPARE( c.motion.walk, ( FigureClipSpec{ QDir( clips ).filePath( "Walk.FBX" ), QString() } ) );
+          QCOMPARE( c.motion.jog, ( FigureClipSpec{ QDir( clips ).filePath( "Body.glb" ), "Jog_Fwd_Loop" } ) );
+          QCOMPARE( c.motion.sprint, ( FigureClipSpec{ QDir( clips ).filePath( "Walk.FBX" ), QString() } ) );
+          QCOMPARE( c.motion.idle.text(), QString( "\"Idle_Loop\"" ) );
+          QCOMPARE( c.motion.walk.text(), QString( "Walk.FBX" ) );
+          QCOMPARE( c.motion.jog.text(), QString( "Body.glb:\"Jog_Fwd_Loop\"" ) );
+
           // no name: the folder's
           const QString unnamed = makePack( folder.path(), "unnamed",
                                             "{ \"format\": 1, \"motion\": \"mannequin\", \"bodies\": [ { \"model\": \"Body.glb\" } ] }",
@@ -344,6 +363,17 @@ private slots:
           QTest::newRow( "motion skeleton" ) << packJson( QByteArray(), "{ \"model\": \"Body.glb\", \"skeleton\": \"biped\", " + clips + " }" ) << QString( "motion.skeleton: \"biped\" is not one of quaternius, mixamo, vroid, vrm, nor a map of the roles to the bones" );
           QTest::newRow( "motion no clips" ) << packJson( QByteArray(), "{ \"model\": \"Body.glb\" }" ) << QString( "motion: no \"clips\"" );
           QTest::newRow( "motion no jog" ) << packJson( QByteArray(), "{ \"model\": \"Body.glb\", \"clips\": { \"idle\": \"I\", \"walk\": \"W\", \"sprint\": \"S\" } }" ) << QString( "motion.clips: no \"jog\"" );
+          const auto clip = []( const QByteArray & walk ) {
+              return packJson( QByteArray(), "{ \"model\": \"Body.glb\", \"clips\": { \"idle\": \"I\", \"walk\": " + walk
+                               + ", \"jog\": \"J\", \"sprint\": \"S\" } }" );
+          };
+          QTest::newRow( "clip number" ) << clip( "3" ) << QString( "motion.clips.walk: neither a clip's name, a file, nor an object of a \"file\" and a \"clip\"" );
+          QTest::newRow( "clip empty" ) << clip( "\"\"" ) << QString( "motion.clips.walk: empty" );
+          QTest::newRow( "clip file" ) << clip( "\"Walk.fbx\"" ) << QString( "motion.clips.walk: \"Walk.fbx\" is not found in the pack's folder" );
+          QTest::newRow( "clip file case" ) << clip( "\"Walk.GLTF\"" ) << QString( "motion.clips.walk: \"Walk.GLTF\" is not found in the pack's folder" );
+          QTest::newRow( "clip object no file" ) << clip( "{ \"clip\": \"W\" }" ) << QString( "motion.clips.walk: no \"file\"" );
+          QTest::newRow( "clip object file" ) << clip( "{ \"file\": \"Walk.vrm\" }" ) << QString( "motion.clips.walk.file: \"Walk.vrm\" is not found in the pack's folder" );
+          QTest::newRow( "clip object clip" ) << clip( "{ \"file\": \"Body.glb\", \"clip\": 3 }" ) << QString( "motion.clips.walk.clip: not a string" );
           QTest::newRow( "no bodies" ) << QByteArray( "{ \"format\": 1, \"motion\": \"mannequin\" }" ) << QString( "no \"bodies\"" );
           QTest::newRow( "bodies empty" ) << QByteArray( "{ \"format\": 1, \"motion\": \"mannequin\", \"bodies\": [] }" ) << QString( "no \"bodies\"" );
           QTest::newRow( "body not object" ) << QByteArray( "{ \"format\": 1, \"motion\": \"mannequin\", \"bodies\": [ 3 ] }" ) << QString( "bodies[0]: not an object" );
@@ -451,7 +481,7 @@ private slots:
           {
               QCOMPARE( list[i].motion.pack, QString( "robot" ) );
               QCOMPARE( list[i].motion.model, robot.motion.model );
-              QCOMPARE( list[i].motion.walk, QString( "Walk_Loop" ) );
+              QCOMPARE( list[i].motion.walk.clip, QString( "Walk_Loop" ) );
           }
           QCOMPARE( list[14].motion.model, QString( ":/figures/mannequin/Mannequin.glb" ) );
 
@@ -501,6 +531,172 @@ private slots:
           QCOMPARE( FigurePacks::drawError( "one" ), QString( "why" ) ); // kept, the pack tried again
           FigurePacks::noteError( "one", QString() );
           QVERIFY( FigurePacks::drawError( "one" ).isEmpty() );
+      }
+
+    /*!
+      a pack of FBX files, as of Mixamo: the body and the motion's model an
+      FBX file (its unit and axes converted, its roles by Mixamo's names),
+      the walk a file of a skeleton without a skin (its rest as saved, taken
+      as the motion's), not in place (put in place), the other clips of
+      another file and skeleton (the Mannequin's glTF; its bones not of the
+      motion's skeleton, found by their own names): the figure moves as
+      the Mannequin does, at the same speeds; a clip of the motion's own
+      model not in place is put in place too; what is wrong, told
+    */
+    void fbxPacks()
+      {
+          QTemporaryDir folder;
+          const QString dir = QDir( folder.path() ).filePath( "mixamo" );
+          QVERIFY( QDir().mkpath( dir ) );
+          const QString data = QStringLiteral( TEST_SOURCE_DIR "/test/data/fbx/" );
+          QVERIFY( QFile::copy( data + "figure.fbx", dir + "/Character.fbx" ) );
+          QVERIFY( QFile::copy( data + "walk.fbx", dir + "/Walking.fbx" ) );
+          QVERIFY( QFile::copy( ":/figures/mannequin/Mannequin.glb", dir + "/Mannequin.glb" ) );
+          const auto json = []( const QByteArray & idle, const QByteArray & walk ) {
+              return "{ \"format\": 1, \"motion\": { \"model\": \"Character.fbx\", \"skeleton\": \"mixamo\", \"clips\": {\n"
+                  "  \"idle\": " + idle + ", \"walk\": " + walk + ",\n"
+                  "  \"jog\": { \"file\": \"Mannequin.glb\", \"clip\": \"Jog_Fwd_Loop\" },\n"
+                  "  \"sprint\": { \"file\": \"Mannequin.glb\", \"clip\": \"Sprint_Loop\" } } },\n"
+                  "  \"bodies\": [ { \"model\": \"Character.fbx\", \"paint\": { \"M_Main\": \"team\" } } ] }\n";
+          };
+          const QByteArray idle = "{ \"file\": \"Mannequin.glb\", \"clip\": \"Idle_Loop\" }";
+          QVERIFY( writeFile( dir + "/figure.json", json( idle, "\"Walking.fbx\"" ) ) );
+          const FigurePack pack = FigurePack::read( dir, false );
+          QVERIFY2( pack.ok(), qPrintable( pack.error ) );
+
+          Figures3D mannequin;
+          QVERIFY( mannequin.load() );
+          Figures3D figures;
+          QVERIFY( figures.load() );
+          QVERIFY2( figures.setPack( pack ), qPrintable( figures.error() ) );
+          QCOMPARE( figures.model().images.size(), std::size_t( 1 ) ); // the texture embedded
+          QCOMPARE( figures.paints()[0].kind, int( FigureUniform::Paint::Figure ) );
+          // the same speeds and strides as the Mannequin's clips
+          QCOMPARE( figures.gaitClips().size(), mannequin.gaitClips().size() );
+          for ( std::size_t k = 0; k < figures.gaitClips().size(); ++k )
+          {
+              const GaitClip & got = figures.gaitClips()[k];
+              const GaitClip & want = mannequin.gaitClips()[k];
+              QVERIFY2( std::fabs( got.speed / want.speed - 1.0f ) < 0.02f,
+                        qPrintable( QString( "%1: %2 %3" ).arg( k ).arg( got.speed ).arg( want.speed ) ) );
+              QVERIFY( std::fabs( got.duration - want.duration ) < 0.02f );
+          }
+          // walking: its limbs as the Mannequin's
+          const auto limbOf = []( const Figures3D & f, const FigureInstance & fi, const double time,
+                                  const HumanBone upper, const HumanBone lower ) {
+              std::vector< QMatrix4x4 > world;
+              f.worldNodes( fi, time, world );
+              const HumanoidRig & rig = f.rig( f.bodyOf( fi ) );
+              return ( world[rig.node( lower )].column( 3 ) - world[rig.node( upper )].column( 3 ) ).toVector3D().normalized();
+          };
+          FigureInstance fi{ 0, 0.0f, 0.0f, 0.0f, 1.85f, QVector4D( 1.0f, 0.0f, 0.0f, 1.0f ) };
+          fi.motion.vx = 1.0f; // walking (1 m/s, ahead)
+          for ( const double time : { 0.0, 0.3, 0.9 } )
+          {
+              fi.motion.gait = time * 0.75;
+              for ( const auto & limb : { std::make_pair( HumanBone::LeftUpperLeg, HumanBone::LeftLowerLeg ),
+                                          std::make_pair( HumanBone::RightLowerLeg, HumanBone::RightFoot ),
+                                          std::make_pair( HumanBone::LeftUpperArm, HumanBone::LeftLowerArm ) } )
+              {
+                  const float dot = QVector3D::dotProduct( limbOf( figures, fi, time, limb.first, limb.second ),
+                                                           limbOf( mannequin, fi, time, limb.first, limb.second ) );
+                  QVERIFY2( dot > 0.995f, qPrintable( QString( "%1 %2: %3" ).arg( time ).arg( humanBoneName( limb.first ) ).arg( dot ) ) );
+              }
+          }
+
+          // the template of a Mixamo pack (docs/figure_packs/mixamo), with these files as Mixamo's
+          {
+              const QString mixamo = QDir( folder.path() ).filePath( "template" );
+              QVERIFY( QDir().mkpath( mixamo ) );
+              QVERIFY( QFile::copy( QStringLiteral( TEST_SOURCE_DIR "/docs/figure_packs/mixamo/figure.json" ), mixamo + "/figure.json" ) );
+              QVERIFY( QFile::copy( data + "figure.fbx", mixamo + "/Character.fbx" ) );
+              for ( const char * clip : { "idle.fbx", "walk.fbx", "jog.fbx", "sprint.fbx" } )
+              {
+                  QVERIFY( QFile::copy( data + "walk.fbx", mixamo + "/" + clip ) );
+              }
+              const FigurePack t = FigurePack::read( mixamo, false );
+              QVERIFY2( t.ok(), qPrintable( t.error ) );
+              Figures3D templated;
+              QVERIFY( templated.load() );
+              QVERIFY2( templated.setPack( t ), qPrintable( templated.error() ) );
+          }
+
+          // the motion's own model with a clip not in place: in place
+          {
+              TestGltf::File f = TestGltf::fromModel( TestGltf::mannequin() );
+              const GltfModel & glb = TestGltf::mannequin();
+              const int root = glb.nodeIndex( "root" );
+              const int walk = glb.clipIndex( "Walk_Loop" );
+              TestGltf::Animation & a = f.animations[walk];
+              const float duration = glb.clips[walk].duration;
+              a.channels.erase( std::remove_if( a.channels.begin(), a.channels.end(),
+                                                [root]( const TestGltf::Animation::Channel & c ) { return c.node == root && c.path == "translation"; } ),
+                                a.channels.end() );
+              // the root's keys sampled, a stride ahead (+z of the model, in its parent's frame) added in a line
+              std::vector< QMatrix4x4 > global;
+              glb.globals( glb.rest, global );
+              const int above = glb.parent[root];
+              const QVector3D ahead = ( above >= 0 ? global[above].inverted().mapVector( QVector3D( 0.0f, 0.0f, 1.28f ) )
+                                        : QVector3D( 0.0f, 0.0f, 1.28f ) );
+              TestGltf::Animation::Channel forward{ root, "translation", {}, {}, false };
+              for ( int k = 0; k <= 40; ++k )
+              {
+                  const float t = duration * k / 40;
+                  std::vector< NodeTransform > local = glb.rest;
+                  glb.sample( glb.clips[walk], std::min( t, duration - 1.0e-4f ), local );
+                  const QVector3D at = local[root].t + ahead * ( float( k ) / 40 );
+                  forward.times.push_back( t );
+                  forward.values.insert( forward.values.end(), { at.x(), at.y(), at.z() } );
+              }
+              a.channels.push_back( forward );
+              const QString own = QDir( folder.path() ).filePath( "own" );
+              QVERIFY( QDir().mkpath( own ) );
+              QVERIFY( TestGltf::File::write( own + "/Forward.glb", f.glb() ) );
+              QVERIFY( writeFile( own + "/figure.json", "{ \"format\": 1, \"motion\": { \"model\": \"Forward.glb\", \"clips\": {"
+                                  " \"idle\": \"Idle_Loop\", \"walk\": \"Walk_Loop\", \"jog\": \"Jog_Fwd_Loop\", \"sprint\": \"Sprint_Loop\" } },"
+                                  " \"bodies\": [ { \"model\": \"Forward.glb\" } ] }" ) );
+              Figures3D forwards;
+              QVERIFY( forwards.load() );
+              QVERIFY2( forwards.setPack( FigurePack::read( own, false ) ), qPrintable( forwards.error() ) );
+              const GltfModel & m = forwards.motionModel();
+              QVERIFY( clipDrift( m, forwards.motionRig(), m.clips[m.clipIndex( "Walk_Loop" )] ) < 1.0e-3f );
+
+              // a motion's model of a skeleton only (no mesh; glTF, its rest at rest), the body another file
+              TestGltf::File skeleton = f;
+              skeleton.meshes.clear();
+              skeleton.materials.clear();
+              skeleton.skins.clear();
+              QVERIFY( TestGltf::File::write( own + "/Skeleton.glb", skeleton.glb() ) );
+              QVERIFY( QFile::copy( ":/figures/mannequin/Mannequin.glb", own + "/Mannequin.glb" ) );
+              QVERIFY( writeFile( own + "/figure.json", "{ \"format\": 1, \"motion\": { \"model\": \"Skeleton.glb\", \"clips\": {"
+                                  " \"idle\": \"Idle_Loop\", \"walk\": \"Walk_Loop\", \"jog\": \"Jog_Fwd_Loop\", \"sprint\": \"Sprint_Loop\" } },"
+                                  " \"bodies\": [ { \"model\": \"Mannequin.glb\" } ] }" ) );
+              Figures3D bare;
+              QVERIFY( bare.load() );
+              QVERIFY2( bare.setPack( FigurePack::read( own, false ) ), qPrintable( bare.error() ) );
+              QVERIFY( bare.motionModel().vertices.empty() );
+              QVERIFY( std::fabs( bare.gaitClips()[0].speed / mannequin.gaitClips()[0].speed - 1.0f ) < 0.02f );
+              for ( std::size_t k = 0; k < forwards.gaitClips().size(); ++k )
+              {
+                  QVERIFY2( std::fabs( forwards.gaitClips()[k].speed / mannequin.gaitClips()[k].speed - 1.0f ) < 0.02f,
+                            qPrintable( QString( "%1: %2 %3" ).arg( k ).arg( forwards.gaitClips()[k].speed ).arg( mannequin.gaitClips()[k].speed ) ) );
+              }
+          }
+
+          // what is wrong: a file of no clips, a clip not in a file, a file not of FBX, a clip not of walking
+          const auto why = [&]( const QByteArray & walk ) {
+              writeFile( dir + "/figure.json", json( idle, walk ) );
+              Figures3D f;
+              f.load();
+              const FigurePack p = FigurePack::read( dir, false );
+              if ( ! p.ok() ) return p.error;
+              return f.setPack( p ) ? QString() : f.error();
+          };
+          QVERIFY( writeFile( dir + "/Text.fbx", "not an FBX file" ) );
+          QCOMPARE( why( "\"Character.fbx\"" ), QString( "mixamo: Character.fbx: no clips" ) );
+          QCOMPARE( why( "{ \"file\": \"Walking.fbx\", \"clip\": \"Run\" }" ), QString( "mixamo: Walking.fbx: no clip \"Run\" (its clips: \"Scene\")" ) );
+          QVERIFY2( why( "\"Text.fbx\"" ).startsWith( "mixamo: Text.fbx: not an FBX file (" ), qPrintable( why( "\"Text.fbx\"" ) ) );
+          QCOMPARE( why( idle ), QString( "mixamo: the clip Mannequin.glb:\"Idle_Loop\" is not of walking or running (the feet do not come down and go back)" ) );
       }
 
     /*!

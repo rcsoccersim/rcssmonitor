@@ -104,8 +104,8 @@ struct SkinPrimitive {
 
 /*!
   \class GltfModel
-  \brief a skinned model of a glTF 2.0 file (.glb, .gltf, .vrm) and its
-  clips, as plain data: the nodes (bones) with their rest transforms, the
+  \brief a skinned model of a glTF 2.0 file (.glb, .gltf, .vrm), or of an
+  FBX file (FbxModel), and its clips, as plain data: the nodes (bones) with their rest transforms, the
   joints (which nodes, and their inverse bind matrices: the skins of the
   file joined, and the nodes that meshes are fixed to), the meshes, the
   materials and their textures, and the keyframes of the clips. No
@@ -161,6 +161,9 @@ public:
     //! VRM's humanoid bones (a role's name as VRM writes it, and its node), if the file is a VRM
     std::vector< std::pair< QString, int > > humanoid_bones;
     int vrm_version = -1; //!< 0 for VRM 0.x, 1 for VRM 1.0, -1 if not a VRM
+    //! the rest may be a pose, not the bind pose: an FBX file without a skin
+    //! (its nodes as saved, often a clip's first frame; restAs() turns it)
+    bool posed_rest = false;
 
     float min_y = 0.0f; //!< the lowest point of the skinned mesh at rest (m)
     float max_y = 0.0f; //!< the highest
@@ -177,19 +180,33 @@ public:
       \param data the file
       \param error what went wrong, if not null
       \param path where the file is (a file or a resource), to find the
-      files it names; empty: none
-      \return false if it cannot be read, or has no mesh
+      files it names; empty: none. An FBX file (FbxModel::isFbx()) is read
+      by FbxModel::read().
+      \param mesh_required false for a file of clips (a skeleton without a mesh)
+      \return false if it cannot be read, or has no mesh (if one is required)
     */
     bool load( const QByteArray & data,
                QString * error = nullptr,
-               const QString & path = QString() );
+               const QString & path = QString(),
+               const bool mesh_required = true );
 
     /*!
-      \brief read a glTF file by its path (a file or a resource): load()
+      \brief read a glTF or FBX file by its path (a file or a resource): load()
       \return false if it cannot be opened or read
     */
     bool loadFile( const QString & path,
-                   QString * error = nullptr );
+                   QString * error = nullptr,
+                   const bool mesh_required = true );
+
+    //! empty: no nodes, no mesh, no clips
+    void clear();
+
+    /*!
+      \brief add a texture's image: made smaller if larger than
+      MAX_IMAGE_SIZE, with its mean luminance (image_luminance)
+      \return its index in images
+    */
+    int addImage( QImage image );
 
     /*!
       \brief turn the whole model (its skeleton, so its mesh and its clips

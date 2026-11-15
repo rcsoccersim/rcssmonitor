@@ -40,6 +40,8 @@
 
 #include "gltf_model.h"
 
+#include "fbx_model.h"
+
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonArray>
@@ -280,7 +282,8 @@ compute_normals( std::vector< SkinVertex > & vertices,
 /*-------------------------------------------------------------------*/
 bool
 GltfModel::loadFile( const QString & path,
-                     QString * error )
+                     QString * error,
+                     const bool mesh_required )
 {
     QFile file( path );
     if ( ! file.open( QIODevice::ReadOnly ) )
@@ -288,19 +291,66 @@ GltfModel::loadFile( const QString & path,
         if ( error ) *error = QStringLiteral( "cannot open " ) + QFileInfo( path ).fileName();
         return false;
     }
-    return load( file.readAll(), error, path );
+    return load( file.readAll(), error, path, mesh_required );
+}
+
+/*-------------------------------------------------------------------*/
+void
+GltfModel::clear()
+{
+    node_names.clear();
+    parent.clear();
+    rest.clear();
+    order.clear();
+    joint_nodes.clear();
+    inverse_bind.clear();
+    vertices.clear();
+    uvs.clear();
+    indices.clear();
+    primitives.clear();
+    images.clear();
+    image_luminance.clear();
+    clips.clear();
+    humanoid_bones.clear();
+    vrm_version = -1;
+    posed_rest = false;
+    min_y = max_y = 0.0f;
+}
+
+/*-------------------------------------------------------------------*/
+int
+GltfModel::addImage( QImage image )
+{
+    if ( image.width() > MAX_IMAGE_SIZE || image.height() > MAX_IMAGE_SIZE )
+    {
+        image = image.scaled( std::min( image.width(), MAX_IMAGE_SIZE ), std::min( image.height(), MAX_IMAGE_SIZE ),
+                              Qt::KeepAspectRatio, Qt::SmoothTransformation );
+    }
+    image_luminance.push_back( image.isNull() ? 1.0f : mean_luminance( image ) );
+    images.push_back( image );
+    return static_cast< int >( images.size() ) - 1;
 }
 
 /*-------------------------------------------------------------------*/
 bool
 GltfModel::load( const QByteArray & bytes,
                  QString * error,
-                 const QString & path )
+                 const QString & path,
+                 const bool mesh_required )
 {
     const auto fail = [error]( const QString & what ) {
         if ( error ) *error = what;
         return false;
     };
+
+    // an FBX file: by ufbx, into the same data
+    if ( FbxModel::isFbx( bytes, path ) )
+    {
+        if ( ! FbxModel::read( bytes, path, *this, error ) ) return false;
+        if ( mesh_required && vertices.empty() ) return fail( QStringLiteral( "no mesh" ) );
+        computeRest();
+        return true;
+    }
 
     cgltf_options options{};
     options.file.read = &read_file;
@@ -401,14 +451,7 @@ GltfModel::load( const QByteArray & bytes,
     const QString dir = ( path.isEmpty() ? QString() : QFileInfo( path ).path() );
     for ( cgltf_size k = 0; k < data->images_count; ++k )
     {
-        QImage image = QImage::fromData( image_bytes( data->images[k], dir ) );
-        if ( image.width() > MAX_IMAGE_SIZE || image.height() > MAX_IMAGE_SIZE )
-        {
-            image = image.scaled( std::min( image.width(), MAX_IMAGE_SIZE ), std::min( image.height(), MAX_IMAGE_SIZE ),
-                                  Qt::KeepAspectRatio, Qt::SmoothTransformation );
-        }
-        image_luminance.push_back( image.isNull() ? 1.0f : mean_luminance( image ) );
-        images.push_back( image );
+        addImage( QImage::fromData( image_bytes( data->images[k], dir ) ) );
     }
     const auto image_of = [&data]( const cgltf_texture_view & view ) {
         if ( ! view.texture || ! view.texture->image ) return -1;
@@ -556,7 +599,7 @@ GltfModel::load( const QByteArray & bytes,
             primitives.push_back( sp );
         }
     }
-    if ( vertices.empty() )
+    if ( vertices.empty() && mesh_required )
     {
         return fail( QStringLiteral( "no mesh" ) );
     }
@@ -618,6 +661,7 @@ GltfModel::load( const QByteArray & bytes,
     // VRM's humanoid bones: VRM 1.0 (VRMC_vrm) before VRM 0.x (VRM)
     humanoid_bones.clear();
     vrm_version = -1;
+    posed_rest = false; // glTF: the nodes' transforms are the rest
     for ( const int version : { 1, 0 } )
     {
         for ( cgltf_size e = 0; e < data->data_extensions_count && vrm_version < 0; ++e )
@@ -683,6 +727,7 @@ GltfModel::computeRest()
         min_y = std::min( min_y, v.rest[1] );
         max_y = std::max( max_y, v.rest[1] );
     }
+    if ( vertices.empty() ) min_y = max_y = 0.0f; // a skeleton of clips
 }
 
 /*-------------------------------------------------------------------*/
