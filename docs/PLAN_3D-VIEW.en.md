@@ -7,7 +7,7 @@
 | Reference implementation | rcssmonitor-web 20.0.0-beta.2 (tag `v20.0.0-beta.2`, ed36941). Its working tree is `../rcssmonitor-web`, next to this repository |
 | Server referred to | The asio version of rcssserver 19.x. Its working tree is `../rcssserver` (branch `feature/asio-migration`), next to this repository |
 | Japanese version | [PLAN_3D-VIEW.md](PLAN_3D-VIEW.md) (same content; §0.1) |
-| Status | Phase 7 done (2026-11-15). Working on Phase 8 (8-1 to 8-5 done, the tool bar and the FPS display waiting for the user's check; §14). The work is on `feature/3d-view` |
+| Status | Phase 7 done (2026-11-15). Working on Phase 8 (8-1 to 8-5, the tool bar and the FPS display done, 8-6 waiting for the user's check; §14). The work is on `feature/3d-view` |
 
 ## 0. How to use this plan
 
@@ -398,6 +398,7 @@ Add to `Options` and save to `~/.rcssmonitor.conf`. The names follow the web ver
 | `grass_3d` | stripes | plain / stripes / realistic: the grass (stripes: light and dark stripes; realistic: stripes light or dark by the way the camera looks, the blades and patches of the grass, the wear; in the group `View3D`; `--grass-3d` on the command line; 8-2b replaced 8-2's `grass_stripes_3d`) |
 | `sky_3d`, `stands_3d`, `ball_pattern_3d` | on | (in the group `View3D`; the same names on the command line) |
 | `ball_ring_3d`, `ball_ring_radius_3d` | on, 0.7 | 0.1–5 m (group `View3D`; the command line by the same names; 8-5) |
+| `ball_flight_3d` | off | in log replay, the ball flies in the air virtually (from the kick's initial speed, the time and distance to the next touch, and the opponents on the pass's line; group `View3D`; `--ball-flight-3d` on the command line; 8-6) |
 | `ball_trail_3d`, `ball_trail_cycles_3d` | on, 5 | 1–30 (integer; group `View3D`; the command line by the same names; 8-5) |
 
 Settings dialog:
@@ -406,7 +407,7 @@ Settings dialog:
 - **Player Camera tab**: the 4 styles, time constant, maximum angular speed, fixed field of view, Player Sight, Default button.
 - Every item gets a detailed tooltip. Numeric fields state their range in the tooltip, and out-of-range values are clamped to the ends (error color while typing). Numeric fields not used by the selected style are dimmed.
 - In the web version, the 3D items grew and one tab became too tall, so Player Camera was split into its own tab. If the items grow further, split them likewise.
-- → 6-6 made the settings of 6-1 to 6-5 (Close-up Camera, Guides, Boards and Banners of Stadium, and all of the Player Camera tab). Players, Ball and the rest of Stadium come in Phases 7 and 8. The two tabs are only in a build with the 3D view. → 7-4 added Players (the three Models and Figure Scale). 8-1 added Shadows to Players. 8-2 added Grass Stripes and Sky to Stadium. 8-2b made Grass Stripes a choice of three, Grass. 8-3 added Stands to Stadium. 8-4 made the Ball group, with Pattern. 8-5 added Ring, Trail, Ring Radius and Trail Cycles to Ball. FPS was added to Guides (2026-11-15). → 2026-11-15: the dialog had grown large, so the summaries under the rows of choices and the notes under the groups went into the tooltips (user; §14).
+- → 6-6 made the settings of 6-1 to 6-5 (Close-up Camera, Guides, Boards and Banners of Stadium, and all of the Player Camera tab). Players, Ball and the rest of Stadium come in Phases 7 and 8. The two tabs are only in a build with the 3D view. → 7-4 added Players (the three Models and Figure Scale). 8-1 added Shadows to Players. 8-2 added Grass Stripes and Sky to Stadium. 8-2b made Grass Stripes a choice of three, Grass. 8-3 added Stands to Stadium. 8-4 made the Ball group, with Pattern. 8-5 added Ring, Trail, Ring Radius and Trail Cycles to Ball. FPS was added to Guides (2026-11-15). 8-6 added Flight to Ball. → 2026-11-15: the dialog had grown large, so the summaries under the rows of choices and the notes under the groups went into the tooltips (user; §14).
 
 ### 5.8 Figures
 
@@ -586,7 +587,7 @@ Each phase proceeds on a feature branch and is merged into develop when it is do
 
 ### Phase 8: Appearance and ball aids
 
-**Work**: shadows (§4.3), grass stripes, sky and fog, stands, ball pattern and rolling, ball ring and trail. Settings and the dialog. → Steps (2026-11-15): 8-1 shadows. 8-2 grass stripes, sky and fog, the ground outside. 8-2b realistic grass (added by the user). 8-3 stands. 8-4 the ball's pattern and rolling. 8-5 the ball ring and trail, and a measurement with everything on. Each step adds its settings and its items of the dialog.
+**Work**: shadows (§4.3), grass stripes, sky and fog, stands, ball pattern and rolling, ball ring and trail. Settings and the dialog. → Steps (2026-11-15): 8-1 shadows. 8-2 grass stripes, sky and fog, the ground outside. 8-2b realistic grass (added by the user). 8-3 stands. 8-4 the ball's pattern and rolling. 8-5 the ball ring and trail, and a measurement with everything on. 8-6 the ball flying in the air, virtually (log replay only; added by the user, 2026-11-15). Each step adds its settings and its items of the dialog.
 
 **Done when**: each one can be switched in the settings. The first frame after switching to the top camera equals the next frame (§11 item 4). 60 fps holds at 1920×1080 on a desktop GPU with everything on (measurement recorded in §14).
 
@@ -691,6 +692,7 @@ Port the GL-independent calculations, using the web version's unit tests as mode
 | `view3d/ball_3d`, `shaders/ball.*` | Made in 8-4: the ball's pattern and the table of how it has turned rolling (no GL), the shader of the pattern |
 | `view3d/ball_aids_3d`, `shaders/ring.*` | Made in 8-5: the ring and the trail of the ball (the trail's points, the least widths on the screen, the ribbon's triangles; no GL), the shader of the ring |
 | `toolbar_icons`, `view3d/fps_meter` | Made on 2026-11-15: the toolbar icons drawn in code with the web version's shapes (open, connect, disconnect, kick off, loop); the frames per second and the GPU's time shown over the 3D view (no GL) |
+| `view3d/ball_flight_3d` | Made in 8-6: the ball flying in the air in log replay, virtually (the segments, the reasons to loft, the upward speed from the constraints, the flight and the bounces; no GL) |
 | `tooltip_marker` | A dotted underline under the texts of the items with a tooltip (labels, check boxes, radio buttons, group titles), as the web version (the settings dialog) |
 | `view3d/grass_3d` | Made in 8-2b: the realistic grass (the noise image, the stripes' light and dark by the way the camera looks, the wear, the patches and the wear painted into the ground image; no GL). Its shader is `ground.frag` |
 | `figure_pack`, `fbx_model`, `bvh_motion`, `vrm` and so on | Figure packs (Phase 9; §5.9) |
@@ -2092,3 +2094,70 @@ The two commits of 8-5 (87e4773, 05d4c94) and the commit making the constants of
 - Every test was checked to fail with what it checks broken for a while (16 ways: the stopped time, the frame number from 1, no red after the last, Loop not setting the option, Kick Off pressable at first, not drawn again with the palette, the arc's direction, the icons not scaled, Esc, the red not taken off by typing, the FPS's last frame, the FPS's window, no GPU time, the dialog, Default, the time per frame). And the two rows in 5 ways (never two rows, always two, the parts' widths not counted, not looked at again on resizing, View > Tool Bar only one of them). First the test of the cycle field expected red for a cycle without a frame (3), but the web version and the present rcssmonitor both go to the first frame after it; the test was corrected. The test of the buttons' order shows the tool bar, hidden by default.
 - With Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`), the clean builds and the tests pass (48 tests). `-DENABLE_3D=OFF` (19) and autotools also pass.
 - In a window not shown on the screen, the main window with a log open was drawn in 2D and 3D, 900 and 1400 wide: at 900, two rows with all the parts after the slider shown; at 1400, one row. The FPS over the 3D view was drawn, over the minimap.
+
+#### 2026-11-15: Step 8-6, the ball flying in the air, virtually (`feature/3d-view`)
+
+The two commits of the tool bar and the FPS display (aff2db3, 54ab962) were pushed, and CI passed.
+
+**Decided (user)**
+- Today's rcssserver is 2D and the ball never flies, but in log replay at least, the ball should fly in the air virtually: from the initial speed of a kick and the time and distance to the next touch, a decoration making the segment fly, bounce and so on. Reference: Hatakeyama et al., "Log visualization system for soccer analysis" (JSAI SIG-SAI-047-05, 2024).
+- Step 8-6 of Phase 8. The option `ball_flight_3d` off by default (a decoration guessing what the log does not have: only when the user chooses it).
+- The paper's formulation (the highest point after n bounces under a threshold, $h_n = (v_0 e^n)^2/2g \le h_\theta$, and the time to it within the time to the next kick, $t_{0\sim n} = \frac{2v_0}{g}\cdot\frac{1-e^n}{1-e} \le t_{pass}$) checks whether an initial speed meets the conditions; it decides neither whether to loft nor a single initial speed. Made by the following method, which Claude proposed.
+
+**Decided (the method)**
+- The way on the ground is the log's; only the height is added (no gap with the 2D view and the overlays).
+- The segments: the log is cut at the moments of the touches (the frame before the bit of a kick, a tackle or a catch, as the figures' actions), where the ball hit a player (the frame of the player's `BALL_COLLIDE` bit; added after the user's remark below), at a change of the ball's velocity its decay does not explain (a post; larger than the jitter of `ball_rand`), at a play mode change and at a placement (a jump farther than 4 m). But not at a set piece's kick, which changes the play mode itself (corner_kick to play_on). A tackle's bit stays, so only its start is a touch.
+- The reasons to loft (rcssserver slows the ball on the ground and in the air alike, so the horizontal move does not tell; decided from the cues of the scenes where a real player lofts the ball): a kick at least 1.5 m/cycle fast going at least 10 m to the next touch, and one of:
+  - a set piece: a corner kick, a goal kick of 20 m or more;
+  - a cross: from a wing (|y| ≥ 18, x ≥ 25 toward the goal attacked) into the penalty area;
+  - a shot: from 12 m or more, to the line of the goal attacked (ending with a play mode change or a catch, within 4 m of the posts); only a little;
+  - opponents on the pass's line: an opponent within 2.5 m of the ball's way that did not touch it (from 3 cycles after the kick to 3 before the next touch); it went over;
+  - a long ball: 20 m or more. In four full games, the fast kicks (1.5 m/cycle or more) go 11 to 14 m in the median, and 40 to 59 a game (about a tenth) 20 m or more.
+- The shape of the height: a flight under gravity (9.8 m/s², a cycle 0.1 s), the bounces (restitution 0.6: going up 0.6 times as fast), rolling below a bounce of 2 cm; the paper's geometric series of the bounces.
+- The upward speed: of those meeting the constraints below, the one whose highest point is nearest the one preferred for the segment (1,500 steps from 0 to the speed of a 12 m top; coarse steps miss a narrow window of speeds). With none, on the ground.
+  - At the next touch, no higher than the toucher reaches: a foot 0.5 m, a tackle 0.3 m, a goalkeeper's catch 2.3 m, a body 1.8 m. Everyone kicks with a foot in a 2D log: no kick of a ball 2 m up.
+  - Where it crosses the goal line between the posts, the ball's top under the crossbar (2.44 m) (a goal in the 2D server).
+  - At an opponent on the pass's line, over its head (2.0 m or more).
+  - The preferred highest point: a tenth of the distance (1.5 to 8 m); 6% for a shot (0.8 to 2 m); 0.3 m over a head when only for the opponents on the line.
+- Continuity: a segment starts at the height the one before ended at (a volley). The paper starts each from the ground, so a ball kicked back in the air jumps to the ground. From the ground after a play mode change or a placement. When a segment ends at a placement (a jump), its distance is up to the frame before (not to the place it was put).
+- From the frames of the log alone, once per segment (§5.2): the same height paused, stepped back or jumped to. Between two frames, the height at the time of the fraction (on the arc; without the fraction where the interpolation does not move the ball). 1 to 2 ms for a full game.
+- Not live (the next touch is not known yet). With heights in the log (a 2.5D server), those.
+- The height works wherever the 3D view uses one: the ball drawn, its shadow right below (fainter with height), the trail (an arc: its points at the virtual heights), the goalkeeper's catch (crouching or the hands up by the height at the catch).
+- The close-up camera of the ball still looks at the ball's place on the ground (a high ball goes up in the view). The IK of the kicking foot stays on the ground (at most 0.5 m at the receiver).
+- The option `ball_flight_3d` (off by default; group `View3D`) and the command line `--ball-flight-3d`. Flight in Ball of the 3D tab of the settings dialog.
+
+**Made**
+- `src/view3d/ball_flight_3d` (`BallFlight`): `update()`, `clear()`, `active()`, `segments()`, `heightAt()`, `heightAtFrame()`, `height()` (a segment's height). All constants in the header. No GL.
+- `FrameBuilder3D`: `setLive()`, `flight()`. With the option and not live, it makes the table and puts the height in the interpolated show's ball. `View3DState::ball_flight`, `ball_height`. `FieldView3D` tells whether live.
+- An argument for the virtual heights (`const BallFlight *`) of `FigureActionLog::read()` and `BallAids3D::trailPoints()`.
+- `ball_flight_3d` of `Options`, Flight of `ConfigDialog`.
+
+**Tests**
+- Test `ball_flight_3d` (new): the shape (the flight, its top, the bounces' heights and lengths, rolling, never under the ground, dropped from a height), a long ball (lofted, its top near the preferred, under 0.5 m at the receiver, the next segment from there, continuous on the arc between frames, under 2.3 m for a catch), on the ground (a short pass, a slow kick, a tackle's touch, over an opponent without room to come down to the receiver), opponents on the line (over the head; not for a teammate), set pieces and crosses (a corner kick not cut, a cross, the opposite way for the right team), shots (a little in the air, under the crossbar, from the ground after a placement, a long ball into the own goal under the crossbar too, a shot over a defender just before the goal that cannot pass under the bar stays on the ground), a long ball ending at a placement as high as the way before it asks, the cuts (a play mode change, a jump, one touch for a tackle's bit that stays, a body), the frames (the same not made again, more made again, the log's heights used, empty), the readers (the catch at the virtual height, the trail's points at the virtual heights).
+- Added to tests `frame_builder_3d` (on the ground without the option, in the air with it and the ball drawn at the height, on the ground before the kick, the same however reached, on the ground live) and `config_dialog` (the tooltip of Flight, off at first, the option changed by a click, back by Default).
+- Every test was checked to fail with what it checks broken for a while (23 ways: no bounce, gravity's formula, the receiver's reach, the crossbar, over the head, teammates counted as opponents, cutting at a set piece's kick, the continuity, the height kept after a placement, no collision, the cross's direction, no long ball, the log's heights ignored, not made again with more frames, the fraction between frames, the catch's height, the trail's height, live, the option, the dialog, a tackle's bit that stays, no shot, the distance before a placement). The crossbar, the tackle's bit that stays and the shot were missed at first (no scene where the crossbar binds or a tackle's bit stays, and the test of shots passed with long balls too); a scene for each was added.
+- Found while making it: a set piece's kick was cut at its play mode change as a placement (no corner or goal kick flew in the full games); a segment ending at a placement measured its distance to the place it was put; the test logs had players near the ball's way.
+- Four full games: 38 to 62 kicks a game lofted (3 to 5% of the kicks); highest points 1.8 to 2.3 m on average, 3 to 7 m at most; the table made in 1 to 2 ms.
+- With Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`), the clean builds and the tests pass (49 tests). `-DENABLE_3D=OFF` (19) and autotools also pass.
+- In a window not shown on the screen, a long ball (the broadcast camera and the ball's close-up) and a cross (the ball's close-up) of the full games were drawn: the ball flies on an arc, the trail arcs too, and the shadow and the ring stay on the ground.
+
+**The user's check and the change (8-6)**
+- The user checked it on the screen: the flight is fine, but the lofted balls are almost all taken directly, and they rarely bounce halfway. The shorter moves should go up a little too, and the ones of 20 m or more should mix in bounces.
+- The cause: choosing the highest point near the one for the distance, under 0.5 m at the receiver, gave flights that land first near the receiver. Of the lofted kicks, under 40% landed more than a cycle before the receiver.
+- Changed:
+  - Of the long ones (long balls, set pieces, crosses), 60% (`BOUNCE_SHARE`) are chosen by their first landing near 50 to 75% (`MIN_LANDING` to `MAX_LANDING`) of the segment's time (bouncing on to the receiver); the rest by their highest point as before (direct). The constraint at the receiver stays, so where landing at the preferred time would bounce too high, the nearest time.
+  - A fast kick without a reason to loft (1.2 m/cycle or more, 6 m or more) goes a little up (`Loft::Lift`; highest point 0.2 to 0.7 m), lands and bounces low. It ignores the opponents on the line (it passes low).
+  - Which, what time and what height vary from kick to kick by its time and its kicker (`BallFlight::variety()`: 0 to 1 by the mixing of MurmurHash3's finalizer). Not at random: the same paused or rewound.
+- Four full games: 37 to 61 long ones a game, 26 to 37 of them bouncing halfway and 7 to 25 direct; 182 to 430 passes a game going up a little (0.45 m high on average). About half of the lofted ones land before the receiver. The table in 3 to 6 ms.
+- Tests: added to test `ball_flight_3d`: the same kick the same value and each kick its own; the long ones split into bouncing and direct by the time (the bouncing at the preferred time, or before it under the receiver's constraint, and up again; the direct no higher than the preferred); the lift of a short pass (its top the kick's value). The test on the ground uses a slow short pass now, and the scene with a teammate goes up a little. Checked to fail with what is checked broken (8 ways: no bounce, the landing time unused, a fixed lift, a constant variety, slow kicks lifted, kicks without a reason not lifted (two places), bouncing for the opponents on the line too).
+- With Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`), the clean builds and the tests pass (49 tests). `-DENABLE_3D=OFF` (19) and autotools also pass. A long ball bouncing halfway was drawn from a low close-up in a window not shown on the screen.
+
+**The user's remark and the change (8-6, collisions)**
+- The user's remark: whether the ball was touched does not include the ball colliding with a player.
+- Checked: the touches guessed collisions only from changes of the ball's velocity its decay does not explain, without the players' state bits. The log has the bit `BALL_COLLIDE` for a player that collided with the ball. A cycle of rcssserver goes: the commands (kicks...), moving the ball and the players, resolving the collisions (`Stadium::collisions()`: `BALL_TO_PLAYER | BALL_COLLIDE` for a player overlapping the ball, telling the referees it touched the ball), writing the log, clearing the states. A kick's bit tells it kicked before the move into its frame, so the moment is the frame before the bit; a collision's bit tells it hit during the move into its frame, the ball there already back from the body, so the moment is the frame of the bit itself.
+- Changed:
+  - Segments are cut at a frame with a player's `BALL_COLLIDE` bit (the moment: that frame). When the same frame is a kick's (or another touch's) moment, it is a kick (the ball hit the receiver, which kicked it at once). A ball hitting a post has no bit, so the changes of the velocity are still looked for.
+  - The highest at a collision is a body's (1.8 m), but when a kick, a tackle or a catch follows within 3 cycles (`TRAP_CYCLES`), that touch's (0.5 m for a foot): a trap, not a ball stopped at the chest and kicked 0.1 s later. Each segment has its highest at the end (`Segment::reach`), found when the segments are made.
+- Four full games: 151 to 253 frames a game with a collision bit, most in the same cycle as the receiver's kick (a kick); 50 to 111 segments a game cut at a collision (25 to 46 from the velocity before).
+- Tests: added to test `ball_flight_3d`: cut at the frame of a collision bit, the next from there (even with no sign in the ball's move); a kick soon after a collision makes a foot's reach the highest, a kick long after a body's; a kick at the moment of a collision is a kick. Checked to fail with what is checked broken (4 ways: the bit ignored, a collision counted before a kick, the kick soon after ignored, always soon after).
+- With Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`), the clean builds and the tests pass (49 tests). `-DENABLE_3D=OFF` (19) and autotools also pass.
