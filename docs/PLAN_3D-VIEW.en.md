@@ -2586,3 +2586,52 @@ Pushed the two commits of 9-5a (d95c985, 20e007e); the CI passed (checked by the
 - With Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`), the build and the tests pass (52 tests). `-DENABLE_3D=OFF` (19) passes too.
 - The user's check: played at half speed, the motion looks fairly good (the poses come from the frame and the fraction only, so the interpolation does not change; the server's players turn nearly 180° in a cycle, faster than people). This is committed as a compromise for now, and a fast turn as a pivot (turning on one foot, the other leg swung once widely) is to be tried (user).
 - Tried (each compared by the user side by side with the version committed, which the user found better, so they were discarded): (1) a quick turn as a pivot (the legs 30° to 75° behind, the leg on the side turned to lifted and turned with the hips, in place of the steps): it spun on one foot like a skater, and looked stranger. (2) Turning the head, the chest and then the hips (with the hips' turn held at 45°, in a turn of nearly 180° the legs on screen turn about 100° in the first 0.1 s; the hips following the legs' direction by up to 135°, the chest up to 45° ahead of them, the head at the body direction), with fewer steps: a step each 120°, at most 0.5 steps a cycle.
+
+#### 2026-11-16: The goalie's dive and tackle (a consultation)
+
+The record of the trials of 9-5b (85e36a9) was pushed.
+
+**Looked into**
+- The user's question: is the goalie's dive made?
+- The bundled packs have no clip of a dive. By the pose made here, the hands go out to the ball at a catch, and with the ball more than 0.5 m to the side of the body the figure leans that way (35° at most, from 2 m). A pack with `dive_right` or `dive_left` mixes in the clip of a dive with the ball from 0.8 m to 1.2 m to the side (9-5a).
+- In four full game logs, the goalies catch 0 to 3 times a game (7 in all). The ball is at most 0.80 m to the side; no catch is beyond 0.8 m. Even with a clip of a dive, the present values would not show it (the lean is about 7° at most).
+- The CC0 material that can be bundled has no jump forward and no punching. UAL1 Standard has jumps straight up on the spot (Jump_Start, Jump_Loop, Jump_Land), a roll forward (Roll) and boxing punches (Punch_Jab, Punch_Cross); UAL2 Standard has NinjaJump, Shield_Dash, Sword_Dash and so on.
+- The goalies tackle twice in all in the four full game logs (the others 20 to 42 times a game). It is drawn as the others' slide.
+
+**Decided (user)**
+- In the simulation a tackle works much as a dive does, so the dive stays as it is (the lean only).
+
+**What remains (a task for later, user)**
+- The goalie's tackle as a jump forward punching the ball away. By a pose made here (jumping forward, both fists thrust forward and up, landing and getting up), or by an optional clip of a pack (e.g. `goalie_tackle`).
+
+### Phase 9 (continued)
+
+#### 2026-11-16: Step 9-6, finishing (measuring) (`feature/3d-view`)
+
+**Decided (user)**
+- 9-6 goes in the order of measuring, looking over the documents, and the user's check. The user's Mixamo pack (`test-mixamo`: the Y Bot body and four Mixamo motions) may be read, only, for measuring (no Mixamo material in the results).
+
+**How it was measured**
+- The real `FieldView3D` in a window not shown (logical 1920×1080; 2480×1395 physical at the screen's scale of 1.29), playing a full game log at the normal speed from frame 3,000, drawn every 16 ms (`RCSSMONITOR_3D_TIMING`). 22 figures, the broadcast camera, realistic grass, the sky, the stands, the boards and the banners, the ball's pattern, ring, trail and flight. Simple shadows (the default) and detailed ones.
+- The heavy packs: the bundled male body subdivided in Blender (once: 105k triangles; twice: 420k), each of its six materials with a texture of 2048 px (in the work's temporary place; not in the repository).
+- Noticed: this integrated GPU seems to lower its clock under a light load, so the same conditions give other times on other days (7.7 ms today for the 5.6 ms of 8-5). The commit of 9-2 (be711a2) built and measured in turn with the present build gives the same (3.9 to 4.2 ms), so the program did not get slower. Times are compared only between those measured together.
+
+**Results (Release, the work machine's integrated GPU (radeonsi), the GPU's time of a frame)**
+
+| Pack | A body's vertices / triangles | Loading | Simple shadows | Detailed shadows |
+|---|---|---|---|---|
+| Mannequin | 9k / 14k | (bundled; at start) | 4.0 ms | 7.1 ms |
+| Human (men and women) | 10k to 16k / 17k to 22k | 40 ms | 4.6 ms | 7.7 ms |
+| test-mixamo (Y Bot) | 35k / 55k | 44 to 60 ms | 9.6 ms | 17.2 ms (52 fps) |
+| Heavy 1 | 53k / 105k | 300 to 400 ms | 18.9 ms (48 fps) | 30.8 ms (30 fps) |
+| Heavy 2 | 211k / 420k | 350 to 440 ms | 57 ms (15 fps) | 104 ms (9 fps) |
+
+- The CPU's building takes 0.7 to 1.0 ms a frame with any pack.
+- The cause looked into: with a window of a sixteenth of the pixels, the figures' time hardly lessens (5.6 ms to 5 ms for Y Bot); without multisampling, the same; with less work in the vertex shader (no inverse matrix for the normals, no reading of joints of weight 0), about a tenth less. On this integrated GPU, handling many small triangles moved by bones is itself heavy, and the time goes roughly with the vertices and the triangles. Detailed shadows draw the figures once more, into the shadow map: nearly twice.
+- The triangles' order (the vertices moved by bones for each triangle drawn; the GPU reuses the vertices just done): the Mannequin 0.82, Human 1.45, Y Bot 1.17, the heavy packs 0.75 to 0.85 (0.6 to 0.7 at best).
+
+**Fixed**
+- At loading, the triangles of each part of a mesh are ordered (`GltfModel::orderTriangles()`; Tipsify: Sander, Nehab and Barczak 2007; looking the same: the triangles and their winding kept, only their order changed). For glTF, VRM and FBX alike. Then: the Mannequin 0.72, Human 0.71 to 0.81, Y Bot 0.74, the heavy packs 0.65 to 0.67.
+- The gain (measured together): Human, detailed shadows 7.7 to 6.8 ms, simple 4.6 to 4.2 ms; Y Bot, detailed 17.2 to 16.4 ms (55 fps), simple 9.6 to 9.1 ms; Heavy 1, simple 18.9 to 18.0 ms.
+- Tests: `gltf_model` (`triangleOrder()`): the triangles of a 40×40 grid shuffled and turned round (over 2) come under 0.75, the same triangles with their winding; too few triangles, and a triangle of a vertex twice; each part of the Human male body read under 0.9, all of it under 0.72 (0.708). `fbx_model` (`figure()`): `figure.fbx` shares few vertices (1.9 a triangle), so within 0.15 of the vertices it uses (2.10 as read, 2.00 ordered). Each was checked to fail with what it checks broken (6 ways: not ordered for glTF, nor for FBX, no priority, the winding changed, no going back to the dead ends, the next fan not from the candidates). At first the FBX test's bar was absolute (under 0.9) and did not pass (the vertices not shared), and not going back to the dead ends could not be told; the bars were fixed.
+- With Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`), the build and the tests pass (52 tests). `-DENABLE_3D=OFF` (19) passes too.
