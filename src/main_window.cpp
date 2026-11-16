@@ -1064,6 +1064,15 @@ MainWindow::createFieldCanvas()
     M_view_stack->addWidget( M_field_canvas );
     this->setCentralWidget( M_view_stack );
     M_field_canvas->setFocus();
+    // its size and place: the pixel below the 3D view or not (updateViewMargins()),
+    // black when shown
+    M_view_stack->installEventFilter( this );
+    {
+        QPalette palette = M_view_stack->palette();
+        palette.setColor( QPalette::Window, Qt::black );
+        M_view_stack->setPalette( palette );
+        M_view_stack->setAutoFillBackground( true );
+    }
 
     connect( this, SIGNAL( viewUpdated() ),
              M_field_canvas, SLOT( update() ) );
@@ -1567,6 +1576,12 @@ bool
 MainWindow::eventFilter( QObject * watched,
                          QEvent * event )
 {
+    if ( watched == M_view_stack
+         && ( event->type() == QEvent::Resize
+              || event->type() == QEvent::Move ) )
+    {
+        updateViewMargins();
+    }
     if ( watched == M_cycle_edit
          && event->type() == QEvent::KeyPress
          && static_cast< QKeyEvent * >( event )->key() == Qt::Key_Escape )
@@ -1589,6 +1604,11 @@ MainWindow::changeEvent( QEvent * event )
     if ( event->type() == QEvent::PaletteChange )
     {
         updateToolIcons();
+    }
+    // full screen or not (the views' stack may keep its size)
+    if ( event->type() == QEvent::WindowStateChange )
+    {
+        updateViewMargins();
     }
 
     QMainWindow::changeEvent( event );
@@ -2259,8 +2279,13 @@ MainWindow::toggleView3D( bool on )
     }
 
     QWidget * shown = ( on ? M_field_view_3d : M_field_canvas );
+    // the focus off the 2D view first: from a page with the focus, the
+    // stack gives it to the page shown, and the 3D view's container would
+    // ask its window (which takes no focus) to be activated
+    if ( on ) M_view_stack->setFocus();
     M_view_stack->setCurrentWidget( shown );
     focusView();
+    updateViewMargins();
     M_camera_3d_combo->setVisible( on );
     M_viewpoint_button->setVisible( on );
     // the buttons are wider with the 3D view's: one row or two again, once laid out
@@ -2305,6 +2330,33 @@ MainWindow::shownView3D() const
     }
 #endif
     return nullptr;
+}
+
+/*-------------------------------------------------------------------*/
+QMargins
+MainWindow::viewMargins( const bool view_3d,
+                         const bool full_screen,
+                         const QRect & views,
+                         const QRect & window )
+{
+    return ( view_3d && full_screen && views.contains( window )
+             ? QMargins( 0, 0, 0, 1 )
+             : QMargins() );
+}
+
+/*-------------------------------------------------------------------*/
+void
+MainWindow::updateViewMargins()
+{
+    if ( ! M_view_stack ) return;
+    const QMargins margins = viewMargins( shownView3D() != nullptr,
+                                          this->isFullScreen(),
+                                          M_view_stack->geometry(),
+                                          this->rect() );
+    if ( M_view_stack->contentsMargins() != margins )
+    {
+        M_view_stack->setContentsMargins( margins );
+    }
 }
 
 /*-------------------------------------------------------------------*/

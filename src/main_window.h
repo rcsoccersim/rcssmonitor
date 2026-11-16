@@ -153,6 +153,25 @@ public:
 
     void init();
 
+    /*!
+      \brief the margins of the views' stack: a pixel at the bottom when the
+      3D view is shown and the stack covers all of a full screen window, or
+      none. Covering all of the screen, the 3D view's window stopped being
+      drawn (GNOME, Qt 6.4; on Wayland, and through XWayland at times): Qt
+      waited forever for the compositor's word to draw the next frame, as
+      if the compositor put that window straight on the screen. With a
+      pixel of the main window shown, the compositor puts them together as
+      usual.
+      \param view_3d the 3D view shown
+      \param full_screen the window full screen
+      \param views the stack's geometry in the window
+      \param window the window's rectangle
+    */
+    static QMargins viewMargins( const bool view_3d,
+                                 const bool full_screen,
+                                 const QRect & views,
+                                 const QRect & window );
+
 private:
 
     void readSettings();
@@ -223,6 +242,9 @@ private:
 
     //! the keyboard focus to the view shown: the 2D view, or the views' stack (the 3D view's window takes none)
     void focusView();
+
+    //! a pixel of the window below the 3D view when it would cover all of a full screen window (viewMargins())
+    void updateViewMargins();
 
     //! the wheel steps the frames, over the 2D view or the 3D view
     void stepByWheel( const int delta );

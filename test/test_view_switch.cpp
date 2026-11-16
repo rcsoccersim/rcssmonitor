@@ -40,7 +40,9 @@
 #include <QKeySequence>
 #include <QMenu>
 #include <QStackedWidget>
+#include <QMenuBar>
 #include <QStatusBar>
+#include <QToolBar>
 #include <QToolButton>
 
 /*
@@ -102,6 +104,8 @@ private slots:
     void zoomKeys2D();
     void viewpointMenu();
     void staminaKey();
+    void viewMargins();
+    void viewMarginsOf2D();
 };
 
 /*-------------------------------------------------------------------*/
@@ -292,6 +296,56 @@ TestViewSwitch::staminaKey()
         QCOMPARE( opt.showStamina(), shown.first );
         QCOMPARE( opt.showStaminaCapacity(), shown.second );
     }
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  A pixel at the bottom of the views' stack only when the 3D view is shown
+  and the stack covers all of a full screen window (on GNOME the 3D view's
+  window stopped being drawn when it covered all of the screen)
+*/
+void
+TestViewSwitch::viewMargins()
+{
+    const QRect window( 0, 0, 2973, 1672 );
+    const QMargins pixel( 0, 0, 0, 1 );
+    // all of the window: the bars hidden
+    QCOMPARE( MainWindow::viewMargins( true, true, window, window ), pixel );
+    // not the 3D view, or not full screen
+    QCOMPARE( MainWindow::viewMargins( false, true, window, window ), QMargins() );
+    QCOMPARE( MainWindow::viewMargins( true, false, window, window ), QMargins() );
+    // a bar shown: the stack below the menu bar, above the status bar, beside a tool bar
+    QCOMPARE( MainWindow::viewMargins( true, true, QRect( 0, 23, 2973, 1649 ), window ), QMargins() );
+    QCOMPARE( MainWindow::viewMargins( true, true, QRect( 0, 0, 2973, 1649 ), window ), QMargins() );
+    QCOMPARE( MainWindow::viewMargins( true, true, QRect( 40, 0, 2933, 1672 ), window ), QMargins() );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  The 2D view keeps all of a full screen window with the bars hidden; the
+  views' stack paints black (the pixel below the 3D view)
+*/
+void
+TestViewSwitch::viewMarginsOf2D()
+{
+    Options::instance().setView3D( false );
+    MainWindow window;
+    QStackedWidget * stack = window.findChild< QStackedWidget * >();
+    QVERIFY( stack );
+    QCOMPARE( stack->palette().color( QPalette::Window ), QColor( Qt::black ) );
+    QVERIFY( stack->autoFillBackground() );
+    window.menuBar()->hide();
+    window.statusBar()->hide();
+    for ( QToolBar * bar : window.findChildren< QToolBar * >() )
+    {
+        bar->hide();
+    }
+    window.showFullScreen();
+    QVERIFY( QTest::qWaitForWindowExposed( &window ) );
+    QCoreApplication::processEvents();
+    QCOMPARE( stack->geometry(), window.rect() );
+    QCOMPARE( stack->contentsMargins(), QMargins() );
+    QCOMPARE( stack->currentWidget()->geometry(), stack->rect() );
 }
 
 QTEST_MAIN( TestViewSwitch )
