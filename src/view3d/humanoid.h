@@ -105,14 +105,14 @@ using HumanBoneNodes = std::array< int, HUMAN_BONE_COUNT >;
 /*!
   \brief the presets of the skeletons that a figure pack can name
   (FigureBodySpec::skeleton): "quaternius" (and Unreal's mannequin),
-  "mixamo", "vroid" (VRoid's J_Bip_ names) and "vrm" (the roles that a VRM
-  file tells)
+  "mixamo", "vroid" (VRoid's J_Bip_ names), "xsens" (XSens MVN's BVH, as
+  100STYLE's) and "vrm" (the roles that a VRM or VRM Animation file tells)
 */
 QStringList skeletonPresets();
 
 /*!
-  \brief the bones' names of a preset of names (quaternius, mixamo, vroid;
-  not vrm, whose roles are in the file)
+  \brief the bones' names of a preset of names (quaternius, mixamo, vroid,
+  xsens; not vrm, whose roles are in the file)
   \return false if there is no such preset (names is left as it was)
 */
 bool skeletonBoneNames( const QString & preset,
@@ -219,6 +219,14 @@ public:
       person faces +z with its left at +x)
     */
     float facingAngle() const;
+
+    /*!
+      \brief which way is up in the model: of the six ways along its axes
+      (+x, -x, +y, -y, +z, -z), the nearest to the way from the hips to the
+      head at rest. +y for a model upright as glTF's; +z for a skeleton of
+      a file written z up (some BVH files).
+    */
+    QVector3D upAxis() const;
 
     const GltfModel * model() const { return M_model; }
 
@@ -337,5 +345,26 @@ GltfModel::Clip retargetClip( const GltfModel & source,
 */
 int restAs( GltfModel & model,
             const GltfModel & like );
+
+/*!
+  \brief a motion capture (GltfModel::capture: a BVH file) settled in the
+  figures' space: its rest standing on y = 0 (the body's lowest bone at
+  0, the hips above the origin), and each clip moved and turned about the
+  vertical so that it starts with the hips above the origin, faces +z (its
+  mean heading, from the hips' left side), and comes down to y = 0 (the
+  body's lowest bone across it). The body is the hips and the bones below
+  them. What is moved is the highest of the hips and the bones above them
+  that a clip moves (a root above the hips, or the hips themselves), by
+  its translation keys (a clip without them stays). A capture's root is
+  placed in the room it was taken in (its OFFSET often at the origin with
+  the legs below it, its positions far from it, its heading any way); a
+  figure wants a clip in place, facing +z, on the ground. Call it with the
+  model upright (+y up), and build the rig again after it.
+  \param model the skeleton and its clips
+  \param rig its roles
+  \return false without the hips and the upper legs
+*/
+bool settleCapture( GltfModel & model,
+                    const HumanoidRig & rig );
 
 #endif

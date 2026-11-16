@@ -648,6 +648,44 @@ fromModel( const GltfModel & m )
     return f;
 }
 
+/*!
+  \brief a VRM Animation (.vrma) of a clip of a model: its nodes (named
+  "bone<index>": the roles told by VRMC_vrm_animation only), no mesh, the
+  clip
+  \param m the model
+  \param rig its roles
+  \param clip the clip's name
+*/
+inline
+File
+animationOf( const GltfModel & m,
+             const HumanoidRig & rig,
+             const QString & clip )
+{
+    File f;
+    for ( std::size_t i = 0; i < m.rest.size(); ++i )
+    {
+        f.nodes.push_back( Node{ QStringLiteral( "bone%1" ).arg( i ), m.parent[i], m.rest[i].t, m.rest[i].r, m.rest[i].s } );
+    }
+    const GltfModel::Clip & c = m.clips[m.clipIndex( clip )];
+    Animation a;
+    a.name = c.name;
+    for ( std::size_t i = 0; i < c.nodes.size(); ++i )
+    {
+        if ( ! c.nodes[i].t.empty() ) a.channels.push_back( Animation::Channel{ int( i ), "translation", c.nodes[i].t.times, c.nodes[i].t.values, false } );
+        if ( ! c.nodes[i].r.empty() ) a.channels.push_back( Animation::Channel{ int( i ), "rotation", c.nodes[i].r.times, c.nodes[i].r.values, false } );
+    }
+    f.animations.push_back( a );
+    QJsonObject bones;
+    for ( int b = 0; b < HUMAN_BONE_COUNT; ++b )
+    {
+        if ( rig.node( HumanBone( b ) ) >= 0 ) bones.insert( humanBoneName( HumanBone( b ) ), QJsonObject{ { "node", rig.node( HumanBone( b ) ) } } );
+    }
+    f.extensions.insert( "VRMC_vrm_animation", QJsonObject{ { "specVersion", "1.0" },
+                                                            { "humanoid", QJsonObject{ { "humanBones", bones } } } } );
+    return f;
+}
+
 //! the bundled Mannequin, read
 inline
 const GltfModel &

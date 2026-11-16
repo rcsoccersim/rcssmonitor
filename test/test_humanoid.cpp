@@ -350,13 +350,17 @@ private slots:
     */
     void findBones()
       {
-          QCOMPARE( skeletonPresets(), QStringList( { "quaternius", "mixamo", "vroid", "vrm" } ) );
+          QCOMPARE( skeletonPresets(), QStringList( { "quaternius", "mixamo", "vroid", "xsens", "vrm" } ) );
           QCOMPARE( humanBoneOf( "leftUpperArm" ), int( HumanBone::LeftUpperArm ) );
           QCOMPARE( humanBoneOf( "lefthand" ), -1 );
           HumanBoneNames names;
           QVERIFY( skeletonBoneNames( "mixamo", &names ) );
           QCOMPARE( names[int( HumanBone::LeftUpperArm )], QString( "LeftArm" ) );
           QCOMPARE( names[int( HumanBone::Chest )], QString( "Spine1" ) );
+          QVERIFY( skeletonBoneNames( "xsens", &names ) );
+          QCOMPARE( names[int( HumanBone::LeftShoulder )], QString( "LeftCollar" ) );
+          QCOMPARE( names[int( HumanBone::LeftUpperArm )], QString( "LeftShoulder" ) );
+          QCOMPARE( names[int( HumanBone::UpperChest )], QString( "Chest4" ) );
           QVERIFY( ! skeletonBoneNames( "vrm", &names ) );
           QVERIFY( ! skeletonBoneNames( "biped", &names ) );
 
@@ -367,7 +371,7 @@ private slots:
           };
           for ( const Case & c : { Case{ "quaternius", "", "pelvis" }, Case{ "mixamo", "", "Hips" },
                                    Case{ "mixamo", "mixamorig:", "mixamorig:Hips" }, Case{ "mixamo", "mixamorig_", "mixamorig_Hips" },
-                                   Case{ "vroid", "", "J_Bip_C_Hips" } } )
+                                   Case{ "vroid", "", "J_Bip_C_Hips" }, Case{ "xsens", "", "Hips" } } )
           {
               TestGltf::HumanoidOptions o;
               o.preset = c.preset;
@@ -443,7 +447,7 @@ private slots:
           GltfModel m;
           QVERIFY( m.load( odd.glb() ) );
           QVERIFY( ! findHumanBones( m, QString(), {}, &nodes, &error ) );
-          QVERIFY2( error.startsWith( "the bones are of no skeleton known (quaternius, mixamo, vroid, vrm): no bone for hips," ), qPrintable( error ) );
+          QVERIFY2( error.startsWith( "the bones are of no skeleton known (quaternius, mixamo, vroid, xsens, vrm): no bone for hips," ), qPrintable( error ) );
       }
 
     /*!

@@ -24,11 +24,34 @@ compare what is drawn (`test_scene_3d`, `test_frame_builder_3d`).
 |---|---|---|
 | glTF 2.0 (`.glb`, `.gltf`), VRM 0.x and 1.0 (`.vrm`) | cgltf (`third_party/cgltf`), `src/view3d/gltf_model.cpp` | No mesh compression (Draco, meshopt) |
 | FBX (`.fbx`, binary or ASCII) | ufbx (`third_party/ufbx`), `src/view3d/fbx_model.cpp` | Converted to y up, +z ahead, meters |
+| BVH (`.bvh`) | `src/view3d/bvh_model.cpp` | A skeleton and one clip, no mesh; its unit and axes as written |
+| VRM Animation (`.vrma`) | cgltf, `src/view3d/gltf_model.cpp` | The roles of `VRMC_vrm_animation`; no mesh |
 
-Both are read into the same plain data (`GltfModel`). The bones go
+All are read into the same plain data (`GltfModel`). The bones go
 through the humanoid roles (`HumanoidRig`): the poses of one skeleton play
 on another, and a clip of another file is put on the motion's skeleton
-(`retargetClip()`), in place.
+(`retargetClip()`), in place. A skeleton is stood upright (the axis
+nearest to the way from its hips to its head taken as up) and turned to
+face +z when its roles are found (`rigModel()` in `figures_3d.cpp`): a BVH
+file may be written z up or facing any way.
+
+BVH sets no unit and no axes. The rest of its joints is their `OFFSET`s,
+not turned; its rotation channels are composed in the order written
+(`Zrotation Xrotation Yrotation`: R = Rz Rx Ry), as Blender's BVH
+importer reads them; a position channel replaces the `OFFSET`. A BVH
+model is marked a capture (`GltfModel::capture`): its root is placed in
+the room it was taken in (100STYLE: the root's `OFFSET` at the origin, the
+hips about 0.97 m up and meters across in the positions). `settleCapture()`
+(`humanoid.cpp`, after the model is stood upright) puts its rest on y = 0
+above the origin, and moves and turns its clip to start above the origin,
+facing +z (the mean heading of its hips), coming down to y = 0: by the
+highest of the hips and the bones above them that the clip moves, the
+ground measured on the hips and the bones below them.
+
+The reading was checked against Blender's (5.3): 400 frames of
+100STYLE's `Neutral_FW.bvh` imported by Blender and exported as glTF put
+every joint within 0.1 cm of where rcssmonitor reads the BVH file, in
+every frame (Blender's glTF starts its keys one frame later).
 
 ## Converting an FBX file to glTF with Blender
 
@@ -73,3 +96,20 @@ blender -b --factory-startup --python test/data/fbx/make_fbx.py -- \
 
 Blender writes a date into each file, so the files change whenever the
 script runs; run it only when the files must change.
+
+`test/data/bvh/walk.bvh` is the Mannequin's walk written by Blender's BVH
+exporter, made by `test/data/bvh/make_bvh.py`:
+
+```bash
+blender -b --factory-startup --python test/data/bvh/make_bvh.py -- \
+    resources/figures/mannequin/Mannequin.glb test/data/bvh
+```
+
+It has the role bones under Blender's `root`, z up (Blender's axes), in
+centimeters, the rotations Y X Z, positions on every joint.
+
+The other BVH and VRMA files of the tests are written by the tests
+themselves from the Mannequin (`test/test_bvh.h`: its role bones, not
+turned at rest, any unit, axes, rotation order and placing in a capture
+room; `TestGltf::animationOf()` in `test/test_gltf.h`). Played on the
+Mannequin, all of them must give its own clips back.

@@ -568,6 +568,37 @@ private slots:
       }
 
     /*!
+      a VRM Animation (.vrma): its humanoid bones (as VRM 1.0 writes them),
+      not a VRM; no mesh, its clip; read though it says it needs the extension
+    */
+    void vrma()
+      {
+          const GltfModel & glb = TestGltf::mannequin();
+          HumanoidRig rig;
+          QVERIFY( rig.build( glb, quaterniusBoneNames() ) );
+          TestGltf::File f = TestGltf::animationOf( glb, rig, "Walk_Loop" );
+          f.required << "VRMC_vrm_animation";
+          GltfModel m;
+          QString error;
+          QVERIFY( ! m.load( f.glb(), &error ) );
+          QCOMPARE( error, QString( "no mesh" ) );
+          QVERIFY2( m.load( f.glb(), &error, "walk.vrma", false ), qPrintable( error ) );
+          QCOMPARE( m.vrm_version, -1 );
+          QCOMPARE( int( m.humanoid_bones.size() ), 22 );
+          for ( const auto & b : m.humanoid_bones )
+          {
+              QCOMPARE( b.second, rig.node( HumanBone( humanBoneOf( b.first ) ) ) );
+          }
+          QCOMPARE( int( m.clips.size() ), 1 );
+          QCOMPARE( m.clips[0].name, QString( "Walk_Loop" ) );
+          // its roles found by them (the bones' names are of no skeleton)
+          HumanBoneNodes nodes;
+          QVERIFY2( findHumanBones( m, QString(), {}, &nodes, &error ), qPrintable( error ) );
+          QCOMPARE( m.node_names[nodes[int( HumanBone::Hips )]], QString( "bone%1" ).arg( glb.nodeIndex( "pelvis" ) ) );
+          QVERIFY( findHumanBones( m, "vrm", {}, &nodes, &error ) );
+      }
+
+    /*!
       the model turned about its origin: a root above the roots, its
       vertices at rest turned, the bones and the clips kept
     */

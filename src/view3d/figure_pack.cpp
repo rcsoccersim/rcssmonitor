@@ -214,7 +214,7 @@ public:
     //! a name of a file of clips (by its extension), not of a clip
     static bool isClipFile( const QString & name )
       {
-          for ( const char * e : { ".fbx", ".glb", ".gltf", ".vrm" } )
+          for ( const char * e : { ".fbx", ".glb", ".gltf", ".vrm", ".vrma", ".bvh" } )
           {
               if ( name.endsWith( QLatin1String( e ), Qt::CaseInsensitive ) ) return true;
           }

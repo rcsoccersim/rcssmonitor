@@ -136,8 +136,9 @@ constexpr float FACING_TOLERANCE = 2.0f;
 
 /*!
   \brief the roles of a model's bones (by a pack's map, a preset, or found:
-  findHumanBones()), the model turned to face +z if it does not (a VRM
-  0.x model faces -z)
+  findHumanBones()), the model turned upright (+y up) if it is not (a BVH
+  file written z up), and to face +z if it does not (a VRM 0.x model faces
+  -z); a motion capture settled (settleCapture())
 */
 bool
 rigModel( const QString & path,
@@ -155,10 +156,34 @@ rigModel( const QString & path,
         *error = fileOf( path ) + QStringLiteral( ": " ) + why;
         return false;
     }
+    const QVector3D up = rig.upAxis();
+    if ( up != QVector3D( 0.0f, 1.0f, 0.0f ) )
+    {
+        // a quarter or a half turn, about +x (or +z for a model on its side)
+        QQuaternion turn;
+        if ( up.z() != 0.0f ) turn = QQuaternion::fromAxisAndAngle( 1.0f, 0.0f, 0.0f, up.z() > 0.0f ? -90.0f : 90.0f );
+        else if ( up.x() != 0.0f ) turn = QQuaternion::fromAxisAndAngle( 0.0f, 0.0f, 1.0f, up.x() > 0.0f ? 90.0f : -90.0f );
+        else turn = QQuaternion::fromAxisAndAngle( 1.0f, 0.0f, 0.0f, 180.0f );
+        model.turnAbout( turn );
+        if ( ! rig.build( model, nodes, &why ) )
+        {
+            *error = fileOf( path ) + QStringLiteral( ": " ) + why;
+            return false;
+        }
+    }
     const float facing = rig.facingAngle();
     if ( std::fabs( facing ) > FACING_TOLERANCE )
     {
         model.turnAbout( QQuaternion::fromAxisAndAngle( 0.0f, 1.0f, 0.0f, -facing ) );
+        if ( ! rig.build( model, nodes, &why ) )
+        {
+            *error = fileOf( path ) + QStringLiteral( ": " ) + why;
+            return false;
+        }
+    }
+    // a motion capture: its rest and its motion where a figure wants them
+    if ( model.capture && settleCapture( model, rig ) )
+    {
         if ( ! rig.build( model, nodes, &why ) )
         {
             *error = fileOf( path ) + QStringLiteral( ": " ) + why;

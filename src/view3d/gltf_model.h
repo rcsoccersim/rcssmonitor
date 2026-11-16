@@ -104,8 +104,8 @@ struct SkinPrimitive {
 
 /*!
   \class GltfModel
-  \brief a skinned model of a glTF 2.0 file (.glb, .gltf, .vrm), or of an
-  FBX file (FbxModel), and its clips, as plain data: the nodes (bones) with their rest transforms, the
+  \brief a skinned model of a glTF 2.0 file (.glb, .gltf, .vrm, .vrma), or
+  of an FBX file (FbxModel) or a BVH file (BvhModel), and its clips, as plain data: the nodes (bones) with their rest transforms, the
   joints (which nodes, and their inverse bind matrices: the skins of the
   file joined, and the nodes that meshes are fixed to), the meshes, the
   materials and their textures, and the keyframes of the clips. No
@@ -159,11 +159,15 @@ public:
     std::vector< Clip > clips;
 
     //! VRM's humanoid bones (a role's name as VRM writes it, and its node), if the file is a VRM
+    //! or a VRM Animation (.vrma)
     std::vector< std::pair< QString, int > > humanoid_bones;
     int vrm_version = -1; //!< 0 for VRM 0.x, 1 for VRM 1.0, -1 if not a VRM
     //! the rest may be a pose, not the bind pose: an FBX file without a skin
     //! (its nodes as saved, often a clip's first frame; restAs() turns it)
     bool posed_rest = false;
+    //! a motion capture (a BVH file): its root's rest (its OFFSET) not where its
+    //! motion stands in the room it was taken in (settleCapture() moves it)
+    bool capture = false;
 
     float min_y = 0.0f; //!< the lowest point of the skinned mesh at rest (m)
     float max_y = 0.0f; //!< the highest
@@ -176,12 +180,13 @@ public:
       its buffers and images inside or in files beside it. All the meshes
       are read: those skinned (the skins joined into one list of joints)
       and those fixed to a node, which move with it; the materials with
-      their base color textures; the clips; VRM's humanoid bones.
+      their base color textures; the clips; VRM's humanoid bones (of a VRM
+      or a VRM Animation).
       \param data the file
       \param error what went wrong, if not null
       \param path where the file is (a file or a resource), to find the
       files it names; empty: none. An FBX file (FbxModel::isFbx()) is read
-      by FbxModel::read().
+      by FbxModel::read(), a BVH file (BvhModel::isBvh()) by BvhModel::read().
       \param mesh_required false for a file of clips (a skeleton without a mesh)
       \return false if it cannot be read, or has no mesh (if one is required)
     */
@@ -191,7 +196,7 @@ public:
                const bool mesh_required = true );
 
     /*!
-      \brief read a glTF or FBX file by its path (a file or a resource): load()
+      \brief read a glTF, FBX or BVH file by its path (a file or a resource): load()
       \return false if it cannot be opened or read
     */
     bool loadFile( const QString & path,

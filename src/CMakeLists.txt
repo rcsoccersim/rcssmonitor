@@ -67,6 +67,7 @@ if(HAVE_3D_VIEW)
     view3d/gait_table.cpp
     view3d/grass_3d.cpp
     view3d/gltf_model.cpp
+    view3d/bvh_model.cpp
     view3d/fbx_model.cpp
     view3d/ground_texture.cpp
     view3d/guides_3d.cpp

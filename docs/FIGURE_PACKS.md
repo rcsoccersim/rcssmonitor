@@ -16,10 +16,10 @@ bundled because of their licenses.
 This document describes format 1 of `figure.json`. In this version a pack
 can use glTF 2.0 models (`.glb`, `.gltf`, and VRM 0.x and 1.0 `.vrm`) and
 FBX models (`.fbx`, as Mixamo gives them) with their textures, whose bones
-are named as Quaternius's, Mixamo's or VRoid's rigs, or have VRM's roles,
-or are mapped by the pack. The clips of the motion may come from other
-files, of other skeletons too. Later versions will read BVH and VRM
-Animation motions.
+are named as Quaternius's, Mixamo's or VRoid's rigs or 100STYLE's motion
+capture, or have VRM's roles, or are mapped by the pack. The clips of the
+motion may come from other files, of other skeletons too, including motion
+capture (`.bvh`) and VRM Animation (`.vrma`) files.
 
 To make a pack of a character and animations of Mixamo, see
 [FIGURE_PACKS_MIXAMO.md](FIGURE_PACKS_MIXAMO.md).
@@ -140,7 +140,7 @@ written for a later version.
 
 | Key | Required | Value |
 |---|---|---|
-| `model` | yes | The model of the motion's skeleton (a glTF or FBX file), in the pack's folder. It needs no mesh, but its rest should be the skeleton's T pose (see below). |
+| `model` | yes | The model of the motion's skeleton (a glTF, FBX or BVH file, or a VRM Animation), in the pack's folder. It needs no mesh, but its rest should be the skeleton's T pose (see below). |
 | `skeleton` | no | Which bones play which roles (below). Without it, they are found from the model. |
 | `clips` | yes | The clips: `idle` (standing), `walk`, `jog` and `sprint`. All four are required. |
 
@@ -148,7 +148,8 @@ Each clip is one of these:
 
 - The name of a clip of the motion's model: `"Walk_Loop"`.
 - The name of a file of the pack, told by its extension (`.fbx`, `.glb`,
-  `.gltf`, `.vrm`): its first clip. `"walk.fbx"`.
+  `.gltf`, `.vrm`, `.vrma`, `.bvh`): its first clip. `"walk.fbx"`. A BVH
+  file has one clip, named after the file (`walk` for `walk.bvh`).
 - An object of a `file` and the name of its `clip`:
   `{ "file": "anims.glb", "clip": "Jog_Fwd_Loop" }`. Without `clip`, the
   file's first clip.
@@ -200,7 +201,8 @@ are required.
 | `quaternius` | Quaternius's rig (the bundled models): `pelvis`, `spine_01`, `upperarm_l`, ... |
 | `mixamo` | Mixamo's: `Hips`, `Spine`, `LeftArm`, `LeftForeArm`, `LeftUpLeg`, ... |
 | `vroid` | VRoid Studio's: `J_Bip_C_Hips`, `J_Bip_L_UpperArm`, ... |
-| `vrm` | The roles that a VRM file tells |
+| `xsens` | XSens MVN's motion capture (as 100STYLE's BVH files): `Hips`, `Chest`, `LeftCollar`, `LeftShoulder` (the upper arm), `LeftHip` (the upper leg), ... |
+| `vrm` | The roles that a VRM or VRM Animation file tells |
 
 A preset's names may also follow a prefix that ends with `:` or `_`, such
 as `mixamorig:Hips`. Or `skeleton` is the pack's own map from the roles to
@@ -214,9 +216,12 @@ Without `skeleton`, a VRM file's roles are used; otherwise the first
 preset whose bones the model has.
 
 The figure's rest pose should be a T pose (the arms straight out
-sideways), facing +z. A model whose arms are more than 10° off that (an A
-pose) is taken as if they were straight out, and a model facing another
-way (a VRM 0.x model faces -z) is turned to face +z, both by itself.
+sideways), y up, facing +z. A model whose arms are more than 10° off that
+(an A pose) is taken as if they were straight out, a model with another
+axis up (a BVH file written z up) is stood upright (the axis nearest to
+the way from its hips to its head taken as up), and a model facing
+another way (a VRM 0.x model faces -z) is turned to face +z, all by
+itself.
 
 ### The materials
 
@@ -268,6 +273,33 @@ Its rest is the bind pose of its skin. Its materials give their diffuse
 texture with transparent pixels is taken as a mask (cut off at 0.5) and
 drawn from both sides; a material with an opacity below 1 is taken as
 `BLEND`. Its takes are its clips.
+
+Two formats hold motions only, for the motion's `model` or its clips:
+
+- A BVH file (`.bvh`, motion capture): its joints are the bones, at rest
+  where their `OFFSET`s put them, not turned (the skeleton's pose at rest
+  should be a T pose); an End Site is a bone named `<its joint>_End`. Its
+  motion is one clip. The rotation channels turn a bone in the order
+  written (`Zrotation Xrotation Yrotation`: about z, then x, then y, in
+  the bone's frame), and the position channels place it in its parent in
+  place of its `OFFSET`. Its unit does not matter (the figure takes lengths
+  relative to the height of the hips), and its axes are found as above. A
+  file cut short in its motion keeps the frames it has whole.
+
+  Motion capture places the skeleton in the room it was taken in: the
+  root's `OFFSET` often at the origin with the legs below it, the motion
+  meters away from it, going any way. So a BVH skeleton is settled: its
+  rest stands on the ground (the lowest bone of the hips and below)
+  above the origin, and its clip is moved and turned about the vertical
+  so that it starts above the origin, faces +z on the whole (the mean way
+  its hips face) and comes down to the ground (the lowest bone across the
+  clip). What is moved is the root that moves the skeleton: the hips, or
+  a root above them (a reference node, or Blender's `root`). A clip of walking
+  or running should go straight; a clip going forward is then put in
+  place as any other.
+- A VRM Animation (`.vrma`): a glTF file of a skeleton whose bones' roles
+  it tells (`VRMC_vrm_animation`), at rest in the VRM T pose. Its first
+  clip is read; its expressions and gaze are not.
 
 ### Paths
 

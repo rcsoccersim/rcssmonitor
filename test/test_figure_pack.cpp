@@ -34,6 +34,7 @@
 
 #include "figure_pack.h"
 #include "figures_3d.h"
+#include "test_bvh.h"
 #include "test_gltf.h"
 
 #include <QDir>
@@ -360,7 +361,7 @@ private slots:
           QTest::newRow( "motion itself" ) << packJson( QByteArray(), "\"pack\"" ) << QString( "motion: the pack itself" );
           QTest::newRow( "motion no model" ) << packJson( QByteArray(), "{ " + clips + " }" ) << QString( "motion: no \"model\"" );
           QTest::newRow( "motion model" ) << packJson( QByteArray(), "{ \"model\": \"None.glb\", " + clips + " }" ) << QString( "motion.model: \"None.glb\" is not found in the pack's folder" );
-          QTest::newRow( "motion skeleton" ) << packJson( QByteArray(), "{ \"model\": \"Body.glb\", \"skeleton\": \"biped\", " + clips + " }" ) << QString( "motion.skeleton: \"biped\" is not one of quaternius, mixamo, vroid, vrm, nor a map of the roles to the bones" );
+          QTest::newRow( "motion skeleton" ) << packJson( QByteArray(), "{ \"model\": \"Body.glb\", \"skeleton\": \"biped\", " + clips + " }" ) << QString( "motion.skeleton: \"biped\" is not one of quaternius, mixamo, vroid, xsens, vrm, nor a map of the roles to the bones" );
           QTest::newRow( "motion no clips" ) << packJson( QByteArray(), "{ \"model\": \"Body.glb\" }" ) << QString( "motion: no \"clips\"" );
           QTest::newRow( "motion no jog" ) << packJson( QByteArray(), "{ \"model\": \"Body.glb\", \"clips\": { \"idle\": \"I\", \"walk\": \"W\", \"sprint\": \"S\" } }" ) << QString( "motion.clips: no \"jog\"" );
           const auto clip = []( const QByteArray & walk ) {
@@ -371,6 +372,8 @@ private slots:
           QTest::newRow( "clip empty" ) << clip( "\"\"" ) << QString( "motion.clips.walk: empty" );
           QTest::newRow( "clip file" ) << clip( "\"Walk.fbx\"" ) << QString( "motion.clips.walk: \"Walk.fbx\" is not found in the pack's folder" );
           QTest::newRow( "clip file case" ) << clip( "\"Walk.GLTF\"" ) << QString( "motion.clips.walk: \"Walk.GLTF\" is not found in the pack's folder" );
+          QTest::newRow( "clip file bvh" ) << clip( "\"Walk.bvh\"" ) << QString( "motion.clips.walk: \"Walk.bvh\" is not found in the pack's folder" );
+          QTest::newRow( "clip file vrma" ) << clip( "\"Walk.vrma\"" ) << QString( "motion.clips.walk: \"Walk.vrma\" is not found in the pack's folder" );
           QTest::newRow( "clip object no file" ) << clip( "{ \"clip\": \"W\" }" ) << QString( "motion.clips.walk: no \"file\"" );
           QTest::newRow( "clip object file" ) << clip( "{ \"file\": \"Walk.vrm\" }" ) << QString( "motion.clips.walk.file: \"Walk.vrm\" is not found in the pack's folder" );
           QTest::newRow( "clip object clip" ) << clip( "{ \"file\": \"Body.glb\", \"clip\": 3 }" ) << QString( "motion.clips.walk.clip: not a string" );
@@ -394,7 +397,7 @@ private slots:
           QTest::newRow( "extra no chance" ) << packJson( ", \"extras\": [ { \"material\": \"E\" } ]" ) << QString( "bodies[0].extras[0]: no \"chance\" from 0 to 1" );
           QTest::newRow( "extra twice" ) << packJson( ", \"hairstyles\": [ \"H\" ], \"extras\": [ { \"material\": \"H\", \"chance\": 0.5 } ]" ) << QString( "bodies[0].extras[0]: \"H\" is listed twice" );
           QTest::newRow( "too many hairs" ) << packJson( ", \"hairstyles\": [ \"A\", \"B\", \"C\" ], \"extras\": [ { \"material\": \"D\", \"chance\": 0.5 }, { \"material\": \"E\", \"chance\": 0.5 } ]" ) << QString( "bodies[0]: more than 4 hairstyles and extras" );
-          QTest::newRow( "skeleton" ) << packJson( ", \"skeleton\": \"biped\"" ) << QString( "bodies[0].skeleton: \"biped\" is not one of quaternius, mixamo, vroid, vrm" );
+          QTest::newRow( "skeleton" ) << packJson( ", \"skeleton\": \"biped\"" ) << QString( "bodies[0].skeleton: \"biped\" is not one of quaternius, mixamo, vroid, xsens, vrm" );
           QTest::newRow( "skeleton role" ) << packJson( ", \"skeleton\": { \"hips\": \"pelvis\", \"lefthand\": \"hand_l\" }" ) << QString( "bodies[0].skeleton: \"lefthand\" is not one of hips, spine, chest, upperChest, neck, head, leftShoulder, leftUpperArm, leftLowerArm, leftHand," );
           QTest::newRow( "skeleton bone" ) << packJson( ", \"skeleton\": { \"hips\": 3 }" ) << QString( "bodies[0].skeleton.hips: not a bone's name" );
           QTest::newRow( "skeleton empty" ) << packJson( ", \"skeleton\": { }" ) << QString( "bodies[0].skeleton: empty" );
@@ -697,6 +700,146 @@ private slots:
           QCOMPARE( why( "{ \"file\": \"Walking.fbx\", \"clip\": \"Run\" }" ), QString( "mixamo: Walking.fbx: no clip \"Run\" (its clips: \"Scene\")" ) );
           QVERIFY2( why( "\"Text.fbx\"" ).startsWith( "mixamo: Text.fbx: not an FBX file (" ), qPrintable( why( "\"Text.fbx\"" ) ) );
           QCOMPARE( why( idle ), QString( "mixamo: the clip Mannequin.glb:\"Idle_Loop\" is not of walking or running (the feet do not come down and go back)" ) );
+      }
+
+    /*!
+      clips of BVH and VRM Animation files: BVH files written z up in
+      centimeters as captured (the root's OFFSET at the origin, the motion
+      across a room going another way: settled), or -x up facing back
+      (stood upright and turned to face +z), and a VRMA file, mixed with the
+      Mannequin's clips: the same speeds, limbs and feet as the Mannequin's. A BVH file as the motion's model
+      itself (a skeleton without a mesh, its own clip), with clips of files
+      written -z, -y and +x up. The walk as Blender's BVH exporter writes it
+    */
+    void motionFiles()
+      {
+          QTemporaryDir folder;
+          const QString dir = QDir( folder.path() ).filePath( "capture" );
+          QVERIFY( QDir().mkpath( dir ) );
+          QVERIFY( QFile::copy( ":/figures/mannequin/Mannequin.glb", dir + "/Mannequin.glb" ) );
+          const GltfModel & glb = TestGltf::mannequin();
+          HumanoidRig glb_rig;
+          QVERIFY( glb_rig.build( glb, quaterniusBoneNames() ) );
+          TestBvh::Options zup; // z up, in centimeters, turned, as captured (the root's OFFSET at the origin, the motion across a room, going another way)
+          zup.z_up = true;
+          zup.scale = 100.0f;
+          zup.facing = 30.0f;
+          zup.origin_root = true;
+          zup.room = QVector3D( 3.0f, 0.0f, -2.0f );
+          zup.heading = 70.0f;
+          QVERIFY( writeFile( dir + "/Walk.bvh", TestBvh::bvhOf( glb, &glb.clips[glb.clipIndex( "Walk_Loop" )], zup ) ) );
+          TestBvh::Options turned; // up -x, facing back
+          turned.facing = 180.0f;
+          turned.turn = QQuaternion::fromAxisAndAngle( 0.0f, 0.0f, 1.0f, 90.0f );
+          turned.order = "XYZ";
+          QVERIFY( writeFile( dir + "/Sprint.bvh", TestBvh::bvhOf( glb, &glb.clips[glb.clipIndex( "Sprint_Loop" )], turned ) ) );
+          // the other ways up: -z, -y (upside down), +x
+          const auto other = [&]( const char * name, const char * clip, const QQuaternion & turn ) {
+              TestBvh::Options o;
+              o.turn = turn;
+              return writeFile( dir + "/" + name, TestBvh::bvhOf( glb, &glb.clips[glb.clipIndex( clip )], o ) );
+          };
+          QVERIFY( other( "WalkUnder.bvh", "Walk_Loop", QQuaternion::fromAxisAndAngle( 1.0f, 0.0f, 0.0f, -90.0f ) ) );
+          QVERIFY( other( "JogDown.bvh", "Jog_Fwd_Loop", QQuaternion::fromAxisAndAngle( 1.0f, 0.0f, 0.0f, 180.0f ) ) );
+          QVERIFY( other( "SprintSide.bvh", "Sprint_Loop", QQuaternion::fromAxisAndAngle( 0.0f, 0.0f, 1.0f, -90.0f ) ) );
+          QVERIFY( TestGltf::File::write( dir + "/Jog.vrma", TestGltf::animationOf( glb, glb_rig, "Jog_Fwd_Loop" ).glb() ) );
+          QVERIFY( writeFile( dir + "/figure.json",
+                              "{ \"format\": 1, \"motion\": { \"model\": \"Mannequin.glb\", \"skeleton\": \"quaternius\", \"clips\": {\n"
+                              "  \"idle\": \"Idle_Loop\", \"walk\": \"Walk.bvh\", \"jog\": \"Jog.vrma\", \"sprint\": \"Sprint.bvh\" } },\n"
+                              "  \"bodies\": [ { \"model\": \"Mannequin.glb\", \"paint\": { \"M_Main\": \"team\" } } ] }\n" ) );
+          const FigurePack pack = FigurePack::read( dir, false );
+          QVERIFY2( pack.ok(), qPrintable( pack.error ) );
+
+          Figures3D mannequin;
+          QVERIFY( mannequin.load() );
+          const auto same = [&mannequin]( const Figures3D & figures ) {
+              if ( figures.gaitClips().size() != mannequin.gaitClips().size() ) return QString( "clips" );
+              for ( std::size_t k = 0; k < figures.gaitClips().size(); ++k )
+              {
+                  const GaitClip & got = figures.gaitClips()[k];
+                  const GaitClip & want = mannequin.gaitClips()[k];
+                  if ( std::fabs( got.speed / want.speed - 1.0f ) > 0.02f || std::fabs( got.duration - want.duration ) > 0.04f )
+                  {
+                      return QString( "clip %1: %2 m/s %3 s, not %4 m/s %5 s" ).arg( k ).arg( got.speed ).arg( got.duration ).arg( want.speed ).arg( want.duration );
+                  }
+              }
+              const auto limbOf = []( const Figures3D & f, const FigureInstance & fi, const double time,
+                                      const HumanBone upper, const HumanBone lower ) {
+                  std::vector< QMatrix4x4 > world;
+                  f.worldNodes( fi, time, world );
+                  const HumanoidRig & rig = f.rig( f.bodyOf( fi ) );
+                  return ( world[rig.node( lower )].column( 3 ) - world[rig.node( upper )].column( 3 ) ).toVector3D().normalized();
+              };
+              FigureInstance fi{ 0, 0.0f, 0.0f, 0.0f, 1.85f, QVector4D( 1.0f, 0.0f, 0.0f, 1.0f ) };
+              for ( const float speed : { 1.0f, 3.0f, 6.0f, 8.6f } ) // walking, between walking and jogging, between jogging and sprinting, sprinting
+              {
+                  fi.motion.vx = speed;
+                  for ( const double time : { 0.0, 0.3, 0.9 } )
+                  {
+                      fi.motion.gait = time * 0.75;
+                      for ( const auto & limb : { std::make_pair( HumanBone::LeftUpperLeg, HumanBone::LeftLowerLeg ),
+                                                  std::make_pair( HumanBone::RightLowerLeg, HumanBone::RightFoot ),
+                                                  std::make_pair( HumanBone::LeftUpperArm, HumanBone::LeftLowerArm ) } )
+                      {
+                          const float dot = QVector3D::dotProduct( limbOf( figures, fi, time, limb.first, limb.second ),
+                                                                   limbOf( mannequin, fi, time, limb.first, limb.second ) );
+                          if ( dot < 0.995f )
+                          {
+                              return QString( "%1 m/s %2 s %3: %4" ).arg( speed ).arg( time ).arg( humanBoneName( limb.first ) ).arg( dot );
+                          }
+                      }
+                      // the feet where the Mannequin's are: on the ground, under the figure
+                      for ( const HumanBone foot : { HumanBone::LeftFoot, HumanBone::RightFoot } )
+                      {
+                          const auto at = [&]( const Figures3D & f ) {
+                              std::vector< QMatrix4x4 > world;
+                              f.worldNodes( fi, time, world );
+                              return world[f.rig( f.bodyOf( fi ) ).node( foot )].column( 3 ).toVector3D();
+                          };
+                          const float off = ( at( figures ) - at( mannequin ) ).length();
+                          if ( off > 0.06f )
+                          {
+                              return QString( "%1 m/s %2 s %3: %4 m off" ).arg( speed ).arg( time ).arg( humanBoneName( foot ) ).arg( off );
+                          }
+                      }
+                  }
+              }
+              return QString();
+          };
+          Figures3D figures;
+          QVERIFY( figures.load() );
+          QVERIFY2( figures.setPack( pack ), qPrintable( figures.error() ) );
+          QCOMPARE( same( figures ), QString() );
+
+          // a BVH file as the motion's model: its own clip (named after the file), the body another model
+          QVERIFY( writeFile( dir + "/figure.json",
+                              "{ \"format\": 1, \"motion\": { \"model\": \"WalkUnder.bvh\", \"clips\": {\n"
+                              "  \"idle\": { \"file\": \"Mannequin.glb\", \"clip\": \"Idle_Loop\" }, \"walk\": \"WalkUnder\",\n"
+                              "  \"jog\": \"JogDown.bvh\", \"sprint\": \"SprintSide.bvh\" } },\n"
+                              "  \"bodies\": [ { \"model\": \"Mannequin.glb\", \"paint\": { \"M_Main\": \"team\" } } ] }\n" ) );
+          const FigurePack bare = FigurePack::read( dir, false );
+          QVERIFY2( bare.ok(), qPrintable( bare.error ) );
+          Figures3D skeleton;
+          QVERIFY( skeleton.load() );
+          QVERIFY2( skeleton.setPack( bare ), qPrintable( skeleton.error() ) );
+          QVERIFY( skeleton.motionModel().vertices.empty() );
+          QCOMPARE( skeleton.motionRig().upAxis(), QVector3D( 0.0f, 1.0f, 0.0f ) ); // stood upright
+          QVERIFY( std::fabs( skeleton.motionRig().facingAngle() ) < 2.0f ); // and turned to face +z
+          QCOMPARE( same( skeleton ), QString() );
+
+          // the walk as Blender's BVH exporter writes it (test/data/bvh: z up, in centimeters, Y X Z,
+          // a root "root" above the hips, positions on every joint)
+          QVERIFY( QFile::copy( QStringLiteral( TEST_SOURCE_DIR "/test/data/bvh/walk.bvh" ), dir + "/BlenderWalk.bvh" ) );
+          QVERIFY( writeFile( dir + "/figure.json",
+                              "{ \"format\": 1, \"motion\": { \"model\": \"Mannequin.glb\", \"skeleton\": \"quaternius\", \"clips\": {\n"
+                              "  \"idle\": \"Idle_Loop\", \"walk\": \"BlenderWalk.bvh\", \"jog\": \"Jog_Fwd_Loop\", \"sprint\": \"Sprint_Loop\" } },\n"
+                              "  \"bodies\": [ { \"model\": \"Mannequin.glb\", \"paint\": { \"M_Main\": \"team\" } } ] }\n" ) );
+          const FigurePack blender = FigurePack::read( dir, false );
+          QVERIFY2( blender.ok(), qPrintable( blender.error ) );
+          Figures3D blended;
+          QVERIFY( blended.load() );
+          QVERIFY2( blended.setPack( blender ), qPrintable( blended.error() ) );
+          QCOMPARE( same( blended ), QString() );
       }
 
     /*!

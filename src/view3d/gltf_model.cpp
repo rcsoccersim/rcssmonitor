@@ -40,6 +40,7 @@
 
 #include "gltf_model.h"
 
+#include "bvh_model.h"
 #include "fbx_model.h"
 
 #include <QFile>
@@ -314,6 +315,7 @@ GltfModel::clear()
     humanoid_bones.clear();
     vrm_version = -1;
     posed_rest = false;
+    capture = false;
     min_y = max_y = 0.0f;
 }
 
@@ -348,6 +350,14 @@ GltfModel::load( const QByteArray & bytes,
     {
         if ( ! FbxModel::read( bytes, path, *this, error ) ) return false;
         if ( mesh_required && vertices.empty() ) return fail( QStringLiteral( "no mesh" ) );
+        computeRest();
+        return true;
+    }
+    // a BVH file: a skeleton and its motion, no mesh
+    if ( BvhModel::isBvh( bytes, path ) )
+    {
+        if ( ! BvhModel::read( bytes, path, *this, error ) ) return false;
+        if ( mesh_required ) return fail( QStringLiteral( "no mesh (a BVH file has a motion only)" ) );
         computeRest();
         return true;
     }
@@ -658,17 +668,22 @@ GltfModel::load( const QByteArray & bytes,
         clips.push_back( std::move( clip ) );
     }
 
-    // VRM's humanoid bones: VRM 1.0 (VRMC_vrm) before VRM 0.x (VRM)
+    // VRM's humanoid bones: VRM 1.0 (VRMC_vrm) before VRM 0.x (VRM); a VRM
+    // Animation (VRMC_vrm_animation, .vrma) names them as VRM 1.0 does (its
+    // role nodes at rest in the VRM T-pose), but is not a VRM
     humanoid_bones.clear();
     vrm_version = -1;
     posed_rest = false; // glTF: the nodes' transforms are the rest
-    for ( const int version : { 1, 0 } )
+    capture = false;
+    bool found = false;
+    for ( const int version : { 1, 0, 2 } )
     {
-        for ( cgltf_size e = 0; e < data->data_extensions_count && vrm_version < 0; ++e )
+        static const char * const extension[] = { "VRM", "VRMC_vrm", "VRMC_vrm_animation" };
+        for ( cgltf_size e = 0; e < data->data_extensions_count && ! found; ++e )
         {
             const cgltf_extension & ext = data->data_extensions[e];
             if ( ! ext.name || ! ext.data
-                 || std::strcmp( ext.name, version == 1 ? "VRMC_vrm" : "VRM" ) != 0 )
+                 || std::strcmp( ext.name, extension[version] ) != 0 )
             {
                 continue;
             }
@@ -678,7 +693,7 @@ GltfModel::load( const QByteArray & bytes,
             const auto add = [&]( const QString & role, const int node ) {
                 if ( ! role.isEmpty() && node >= 0 && node < node_count ) humanoid_bones.emplace_back( role, node );
             };
-            if ( version == 1 ) // an object: the role, {"node": index}
+            if ( version != 0 ) // an object: the role, {"node": index}
             {
                 const QJsonObject o = bones.toObject();
                 for ( auto it = o.begin(); it != o.end(); ++it )
@@ -694,7 +709,8 @@ GltfModel::load( const QByteArray & bytes,
                     add( o.value( QStringLiteral( "bone" ) ).toString(), o.value( QStringLiteral( "node" ) ).toInt( -1 ) );
                 }
             }
-            vrm_version = version;
+            if ( version != 2 ) vrm_version = version;
+            found = true;
         }
     }
 

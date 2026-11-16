@@ -37,11 +37,13 @@
 
 #include "humanoid.h"
 
+#include <QMatrix3x3>
 #include <QStringList>
 #include <QVector4D>
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace {
 
@@ -137,7 +139,9 @@ namespace {
 /*!
   \brief the bones' names of each named preset, by the role (empty: none).
   Mixamo's: its own bones (Spine, Spine1, Spine2 for the spine, the chest
-  and the upper chest). VRoid's: J_Bip_ and C (center), L or R.
+  and the upper chest). VRoid's: J_Bip_ and C (center), L or R. XSens
+  MVN's (motion capture, 100STYLE's BVH files): the Collar a shoulder, the
+  Shoulder an upper arm.
 */
 HumanBoneNames
 presetNames( const QString & preset )
@@ -168,6 +172,19 @@ presetNames( const QString & preset )
             "J_Bip_R_UpperLeg", "J_Bip_R_LowerLeg", "J_Bip_R_Foot", "J_Bip_R_ToeBase",
         };
         for ( int b = 0; b < HUMAN_BONE_COUNT; ++b ) names[b] = QString::fromLatin1( vroid[b] );
+    }
+    else if ( preset == QLatin1String( "xsens" ) )
+    {
+        // XSens MVN's BVH (100STYLE): four bones of the spine, the collars
+        // on the last; Chest3 has no role
+        const char * xsens[HUMAN_BONE_COUNT] = {
+            "Hips", "Chest", "Chest2", "Chest4", "Neck", "Head",
+            "LeftCollar", "LeftShoulder", "LeftElbow", "LeftWrist",
+            "RightCollar", "RightShoulder", "RightElbow", "RightWrist",
+            "LeftHip", "LeftKnee", "LeftAnkle", "LeftToe",
+            "RightHip", "RightKnee", "RightAnkle", "RightToe",
+        };
+        for ( int b = 0; b < HUMAN_BONE_COUNT; ++b ) names[b] = QString::fromLatin1( xsens[b] );
     }
     return names;
 }
@@ -258,7 +275,7 @@ QStringList
 skeletonPresets()
 {
     return QStringList( { QStringLiteral( "quaternius" ), QStringLiteral( "mixamo" ),
-                          QStringLiteral( "vroid" ), QStringLiteral( "vrm" ) } );
+                          QStringLiteral( "vroid" ), QStringLiteral( "xsens" ), QStringLiteral( "vrm" ) } );
 }
 
 /*-------------------------------------------------------------------*/
@@ -464,6 +481,29 @@ HumanoidRig::facingAngle() const
     if ( left.lengthSquared() < 1.0e-8f ) return 0.0f;
     // facing = left x up: (-z, 0, x) of the left
     return std::atan2( -left.z(), left.x() ) * 180.0f / 3.14159265f;
+}
+
+/*-------------------------------------------------------------------*/
+QVector3D
+HumanoidRig::upAxis() const
+{
+    if ( ! M_model ) return QVector3D( 0.0f, 1.0f, 0.0f );
+    std::vector< QMatrix4x4 > global;
+    M_model->globals( M_model->rest, global );
+    const QVector3D up = global[node( HumanBone::Head )].column( 3 ).toVector3D()
+        - global[node( HumanBone::Hips )].column( 3 ).toVector3D();
+    QVector3D axis( 0.0f, 1.0f, 0.0f );
+    float best = 0.0f;
+    for ( int a = 0; a < 3; ++a )
+    {
+        if ( std::fabs( up[a] ) > best )
+        {
+            best = std::fabs( up[a] );
+            axis = QVector3D();
+            axis[a] = ( up[a] < 0.0f ? -1.0f : 1.0f );
+        }
+    }
+    return axis;
 }
 
 /*-------------------------------------------------------------------*/
@@ -756,4 +796,119 @@ restAs( GltfModel & model,
         global[i] = above_global * model.rest[i].matrix();
     }
     return matched;
+}
+
+/*-------------------------------------------------------------------*/
+bool
+settleCapture( GltfModel & model,
+               const HumanoidRig & rig )
+{
+    const int hips = rig.node( HumanBone::Hips );
+    const int left = rig.node( HumanBone::LeftUpperLeg );
+    const int right = rig.node( HumanBone::RightUpperLeg );
+    if ( hips < 0 || left < 0 || right < 0 ) return false;
+
+    // the bone that places the skeleton: the highest of the hips and the
+    // bones above them that a clip moves (a root above the hips, as a
+    // reference node or Blender's root, or the hips themselves)
+    int mover = hips;
+    for ( int n = hips; n >= 0; n = model.parent[n] )
+    {
+        for ( const GltfModel::Clip & c : model.clips )
+        {
+            if ( n < static_cast< int >( c.nodes.size() ) && ! c.nodes[n].empty() ) mover = n;
+        }
+    }
+    // the body: the hips and the bones below them (a root may lie anywhere)
+    std::vector< bool > body( model.rest.size(), false );
+    for ( const int i : model.order )
+    {
+        body[i] = ( i == hips || ( model.parent[i] >= 0 && body[model.parent[i]] ) );
+    }
+    const auto lowestOf = [&body]( const std::vector< QMatrix4x4 > & g ) {
+        float y = std::numeric_limits< float >::max();
+        for ( std::size_t i = 0; i < g.size(); ++i )
+        {
+            if ( body[i] ) y = std::min( y, g[i]( 1, 3 ) );
+        }
+        return y;
+    };
+
+    std::vector< QMatrix4x4 > global;
+    model.globals( model.rest, global );
+    const QMatrix4x4 above = ( model.parent[mover] >= 0 ? global[model.parent[mover]] : QMatrix4x4() );
+    const QMatrix4x4 into = above.inverted();
+
+    // the rest: the hips above the origin, the body's lowest bone at y = 0
+    const QVector3D rest_hips = global[hips].column( 3 ).toVector3D();
+    const QVector3D shift( -rest_hips.x(), -lowestOf( global ), -rest_hips.z() );
+    model.rest[mover].t += into.mapVector( shift );
+
+    // each clip moving the mover: where the hips start, how low the body
+    // comes, which way the hips face; the mover moved and turned so
+    QMatrix3x3 r3;
+    for ( int col = 0; col < 3; ++col )
+    {
+        const QVector3D axis = above.column( col ).toVector3D().normalized(); // (the scale off)
+        for ( int row = 0; row < 3; ++row ) r3( row, col ) = axis[row];
+    }
+    const QQuaternion above_turn = QQuaternion::fromRotationMatrix( r3 ).normalized();
+    for ( GltfModel::Clip & c : model.clips )
+    {
+        if ( mover >= static_cast< int >( c.nodes.size() ) || c.nodes[mover].t.empty() ) continue;
+        GltfModel::Channel & t = c.nodes[mover].t;
+        float floor = std::numeric_limits< float >::max();
+        QVector3D start;
+        QVector3D side; // the left side, summed across the clip
+        std::vector< NodeTransform > local;
+        std::vector< QMatrix4x4 > g;
+        for ( std::size_t k = 0; k < t.times.size(); ++k )
+        {
+            local = model.rest;
+            model.sample( c, std::min( t.times[k], std::max( 0.0f, c.duration - 1.0e-4f ) ), local );
+            model.globals( local, g );
+            floor = std::min( floor, lowestOf( g ) );
+            if ( k == 0 ) start = g[hips].column( 3 ).toVector3D();
+            QVector3D l = ( g[left].column( 3 ) - g[right].column( 3 ) ).toVector3D();
+            l.setY( 0.0f );
+            if ( l.lengthSquared() > 1.0e-12f ) side += l.normalized();
+        }
+        // facing = left x up: (-z, 0, x) of the left; turned back to +z
+        const float facing = ( side.lengthSquared() > 1.0e-12f
+                               ? std::atan2( -side.z(), side.x() ) * 180.0f / 3.14159265f
+                               : 0.0f );
+        const QQuaternion turn = QQuaternion::fromAxisAndAngle( 0.0f, 1.0f, 0.0f, -facing );
+        const QVector3D from( start.x(), floor, start.z() );
+        for ( std::size_t k = 0; k < t.times.size(); ++k )
+        {
+            const QVector3D at = above.map( QVector3D( t.values[k * 3], t.values[k * 3 + 1], t.values[k * 3 + 2] ) );
+            const QVector3D back = into.map( turn.rotatedVector( at - from ) );
+            t.values[k * 3] = back.x();
+            t.values[k * 3 + 1] = back.y();
+            t.values[k * 3 + 2] = back.z();
+        }
+        // the mover's rotation in the model turned too: above * r -> turn * above * r
+        GltfModel::Channel & r = c.nodes[mover].r;
+        const QQuaternion change = ( above_turn.conjugated() * turn * above_turn ).normalized();
+        if ( r.empty() && ! turn.isIdentity() )
+        {
+            // keys of the rest's rotation, turned (at the translation's times)
+            r.times = t.times;
+            r.values.clear();
+            const QQuaternion q = ( change * model.rest[mover].r ).normalized();
+            for ( std::size_t k = 0; k < t.times.size(); ++k ) r.values.insert( r.values.end(), { q.x(), q.y(), q.z(), q.scalar() } );
+        }
+        else
+        {
+            for ( std::size_t k = 0; k < r.times.size(); ++k )
+            {
+                const QQuaternion q = ( change * QQuaternion( r.values[k * 4 + 3], r.values[k * 4], r.values[k * 4 + 1], r.values[k * 4 + 2] ) ).normalized();
+                r.values[k * 4] = q.x();
+                r.values[k * 4 + 1] = q.y();
+                r.values[k * 4 + 2] = q.z();
+                r.values[k * 4 + 3] = q.scalar();
+            }
+        }
+    }
+    return true;
 }
