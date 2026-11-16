@@ -267,7 +267,7 @@ The "3D view" section of the web version's README and the "New: the 3D view" sec
 MainWindow
  └ QStackedWidget (central)
      ├ FieldCanvas      (2D; as is)
-     └ FieldView3D      (3D; QOpenGLWidget)
+     └ FieldView3D      (3D; a QOpenGLWindow in a container; a QOpenGLWidget until 9-6)
           ├ Scene3D      scene assembly and drawing (GL)
           ├ Cameras3D / PlayerCamera3D / Sight / Interpolate  (math only; no GL dependency)
           ├ Figures3D    figures (cgltf, pose computation, bone matrices)
@@ -284,7 +284,7 @@ DispHolder / LogPlayer / Options  (shared with 2D)
 - The current `LogPlayer` only advances one frame at a time with a `QTimer` and has no position between frames. 3D draws from the current frame, the next frame, and the fraction between them (alpha). Add to `LogPlayer` a function that returns "time since the last advance / interval" (`QElapsedTimer`). When stopped, alpha = 0.
 - Interpolation: positions linearly, angles the short way round. No interpolation around play mode changes and big jumps (a player moving over 2 m in one cycle, the ball over 5 m, etc.) (the web version's `interpolate.ts`).
 - Live: draw one cycle behind and interpolate between the latest and the one before (to smooth the motion). → Now two cycles behind (for the wind-ups of the figures' actions; §14, 2026-11-14).
-- Draw calls: while playing, while the camera moves, and while figure poses change, `update()` every frame (request the next one after `QOpenGLWidget::frameSwapped`). Stop calling when nothing moves.
+- Draw calls: while playing, while the camera moves, and while figure poses change, `update()` every frame (request the next one after `frameSwapped`). Stop calling when nothing moves.
 - **Poses, ball rotation, and trails are determined only from the log frames and alpha** (no state accumulated per draw). Stopping, or stepping back, shows the same thing for the same frame. In the web version, accumulating time per draw made the legs slide frozen when rewinding, and the pose changed even for the same frame (§11).
 
 ### 5.3 Rendering infrastructure
@@ -327,6 +327,7 @@ The structure of the rendering infrastructure (4-3b, §14).
 | `gl/render_state` | How to draw (depth test and write, culling back faces, translucency). Every pass applies its whole state and does not depend on what the pass before left |
 | `gl/vertex_batch` | Vertices with their own colors, made again in every frame, drawn as lines, points or triangles; the shader leaves the gaps of dotted lines by the vertices' distances. The overlays and the view areas (5-1) |
 | `gl/frame` | The start and the end of a frame (`GLFrame::begin()`, `end()`): the framebuffer to draw into and clearing it, resetting the state that QPainter (the HUD) may leave, and the state handed to QPainter (4-5) |
+| `gl/render_target` | Where smooth edges (multisampling) are drawn: renderbuffers of color and depth with samples, copied into the window's framebuffer (9-6) |
 | `meshes_3d` | The vertices of the shapes (GL-independent; unit tests check the winding of the triangles and the normals) |
 
 ### 5.4 Components
@@ -350,7 +351,7 @@ Read the corresponding web version file and build with the same values and the s
 
 ### 5.5 HUD
 
-- At the end of `paintGL` of the `QOpenGLWidget`, draw the 2D overlay with `QPainter`: score board (the same painter as 2D), team logos, area values, compass strip, minimap, messages.
+- At the end of `paintGL` of the 3D view (a QOpenGLWindow from 9-6), draw the 2D overlay with `QPainter`: score board (the same painter as 2D), team logos, area values, compass strip, minimap, messages.
 - Compass strip: top center, up to 480 px wide. The camera direction at the center, clockwise to the right. Both goals (L, R in team colors) and the ball direction (`guides.ts`).
 - Minimap: bottom right, the same pitch as 2D. Players, ball, camera position, and the visible area.
 - Both have the setting "off / player view only / all cameras". The compass strip is not shown in the top camera.
@@ -390,6 +391,7 @@ Add to `Options` and save to `~/.rcssmonitor.conf`. The names follow the web ver
 | `player_camera_time_constant`, `player_camera_max_turn`, `player_camera_fixed_fov` | 0.5, 90, 120 | 0–5 s, 1–3600 °/s, 20–120° (the eight of the player camera in the group `View3D`; on the command line by the same names, `--player-camera-position` and so on; 6-3) |
 | `compass_3d`, `minimap_3d` | off | off / player / all (the group `View3D`; `--compass-3d`, `--minimap-3d` on the command line; 6-5) |
 | `fps_3d` | off | the frames per second and the GPU's time of a frame at the bottom right of the 3D view (the group `View3D`; `--fps-3d` on the command line; 2026-11-15, user) |
+| `antialias_3d` | on | smooth edges (multisampling, 4 samples); off, less work for the GPU (the group `View3D`; `--antialias-3d` on the command line; 9-6) |
 | `boards_3d`, `banners_3d` | on | (the group `View3D`; `--boards-3d`, `--banners-3d` on the command line; 6-4) |
 | `player_model_3d` | simple | simple (cylinders), or the name of a figure pack (its folder's name: the bundled mannequin and human, or a pack of the user's; §5.9) (in the group `View3D`; `--player-model-3d` on the command line; simple / figure in 7-1, figure renamed mannequin and human added in 7-4; figure is read as the mannequin; a pack's name since 9-1; the name of a pack that is not there is read too, and told when drawn as cylinders) |
 | `figure_folder_3d` | (none) | A folder of figure packs of the user's choice (in the group `View3D`; `--figure-folder-3d` on the command line; 9-1) |
@@ -701,7 +703,7 @@ Port the GL-independent calculations, using the web version's unit tests as mode
 
 | File | Content |
 |---|---|
-| `field_view_3d.{h,cpp}` | QOpenGLWidget: input, time, draw calls, inspection state |
+| `field_view_3d.{h,cpp}` | The 3D view (a QOpenGLWindow from 9-6): input, time, draw calls, inspection state |
 | `scene_3d.{h,cpp}` | Scene assembly and drawing |
 | `gl/*.{h,cpp}`, `shaders/*.vert`, `*.frag`, `meshes_3d.{h,cpp}` | Rendering infrastructure (shaders, buffers, textures, render states, shapes; §5.3; made in 4-3b; the shadow map in Phase 8) |
 | `cameras_3d.{h,cpp}`, `player_camera_3d.{h,cpp}`, `sight.{h,cpp}`, `interpolate.{h,cpp}`, `scene_math.{h,cpp}` | Calculations (no GL dependency) |
@@ -724,6 +726,7 @@ Port the GL-independent calculations, using the web version's unit tests as mode
 | `view3d/frame_builder_3d` | Made in 7-4: what a frame draws (the show between the frames, the players and the figures' poses, the overlays, what the cameras follow), built without the widget and OpenGL; it gives the inspection state (`View3DState`) |
 | `view3d/figure_uniform`, `shaders/skinned.frag` | Made in 7-4: the uniform painted on the human body (the parts and the planes of the edges; no GL), and the shader that paints it for every pixel |
 | `view3d/gl/gpu_timer` | Made in 7-4: the GPU's time to draw (timer queries) |
+| `view3d/gl/render_target` | Made in 9-6: where smooth edges (multisampling) are drawn |
 | `resources/figures/human/BaseCharacterMale.glb`, `BaseCharacterFemale.glb`, `pack_base_character.py` | Made in 7-4, split into a man's and a woman's in 7-5: the human bodies and hairstyles (CC0) and the script that wrote them. Moved in 9-1 from `resources/models/` to the folder of the bundled figure pack human |
 | `view3d/figure_looks` | Made in 7-5: each player's looks (the body, the hairstyle, the skin and hair colors), and how they blend with the standard ones for the player camera (no GL) |
 | `view3d/sun_3d`, `gl/shadow_map`, `shaders/depth.*`, `shaders/shadow.*`, `shaders/blob.*` | Made in 8-1: the sun's direction, the camera of the shadow map, the ellipses of the simple shadows (no GL), the shadow map (a depth texture and a framebuffer), the shaders that draw only depths, the shaders of the plane of the shadows, the shaders of the simple shadows |
@@ -2635,3 +2638,37 @@ The record of the trials of 9-5b (85e36a9) was pushed.
 - The gain (measured together): Human, detailed shadows 7.7 to 6.8 ms, simple 4.6 to 4.2 ms; Y Bot, detailed 17.2 to 16.4 ms (55 fps), simple 9.6 to 9.1 ms; Heavy 1, simple 18.9 to 18.0 ms.
 - Tests: `gltf_model` (`triangleOrder()`): the triangles of a 40×40 grid shuffled and turned round (over 2) come under 0.75, the same triangles with their winding; too few triangles, and a triangle of a vertex twice; each part of the Human male body read under 0.9, all of it under 0.72 (0.708). `fbx_model` (`figure()`): `figure.fbx` shares few vertices (1.9 a triangle), so within 0.15 of the vertices it uses (2.10 as read, 2.00 ordered). Each was checked to fail with what it checks broken (6 ways: not ordered for glTF, nor for FBX, no priority, the winding changed, no going back to the dead ends, the next fan not from the candidates). At first the FBX test's bar was absolute (under 0.9) and did not pass (the vertices not shared), and not going back to the dead ends could not be told; the bars were fixed.
 - With Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`), the build and the tests pass (52 tests). `-DENABLE_3D=OFF` (19) passes too.
+
+#### 2026-11-17: Step 9-6, the speed on screens of high resolution (`feature/3d-view`)
+
+The two commits of the measuring (0720c49, a93aad9) were pushed.
+
+**The user's remark**
+- Maximized on a 4K screen (3840×2160, the screen's scale 1.29), the Mannequin with simple shadows makes about 36 fps, and even the cylinders do not reach 40. Is a screen of high resolution hopeless with a GPU in the CPU?
+
+**Looked into**
+- Measured in a window not shown at 3840×2160 physical, the GPU draws the 3D scene in 4.4 ms with the cylinders and 6.2 ms with the Mannequin; without multisampling, or with grass in stripes and no stands, not much less.
+- Measured by the user on the real screen (`RCSSMONITOR_3D_TIMING`) at 3840×2069 physical: CPU 0.7 ms and GPU 6.2 to 6.5 ms, yet 32 fps (about 31 ms a frame). The rest went to Qt putting the frame drawn on the screen (a QOpenGLWidget draws into an image of its own, its multisampling resolved, and Qt puts it together with the main window's image on the screen: a few copies of the whole view in every frame).
+- With a test program (a main window with a tool bar, drawing all the time a picture that takes the GPU about 5 ms at 4K; in the work's temporary place), the user measured, maximized on the 4K screen:
+
+| Way | Multisampling 4x | None |
+|---|---|---|
+| QOpenGLWidget (as it was) | 30.7 fps | 41.5 fps |
+| A QOpenGLWindow embedded | 48.3 fps | 55.7 fps |
+
+**Decided (user)**
+- The 3D view draws straight into a window (QOpenGLWindow). Smooth edges (multisampling) can be turned off by an option.
+
+**Made**
+- `FieldView3D` is a QOpenGLWindow, put in the main window by `QWidget::createWindowContainer()`. It takes no keyboard focus (`Qt::WindowDoesNotAcceptFocus`; nor does its container; the keys are all the main window's shortcuts). The focus goes to the 2D view or the stack of the views (QStackedWidget) (`MainWindow::focusView()`). The events of an embedded window do not go up to its parent, so the 3D view tells of the wheel (`FieldView3D::wheelTurned()`), and the main window steps the frames as for the 2D view (`MainWindow::stepByWheel()`). A QWindow has no context menu events, so the referee's menu shows on the right button's press.
+- Smooth edges by the window's format would make the window again at every change, so they are drawn into a multisampled framebuffer of our own (`gl/render_target`, `RenderTarget`: renderbuffers of color, depth and stencil; at most the GPU's samples) and copied into the window's (without samples) (`Scene3D::render()`'s `samples`). Turned on and off as the frames go.
+- An option `antialias_3d` (on by default, 4 samples; group `View3D`) and the command line's `--antialias-3d`. Smooth Edges in the Guides of the dialog's 3D tab; back by Default. The measuring line (`RCSSMONITOR_3D_TIMING`) says ` smooth` with smooth edges.
+
+**Tests**
+- `scene_3d` (`smoothEdges()`): a scene with detailed shadows too, drawn without samples and with 4: with 4, all of the framebuffer drawn over (magenta first, none left), other only at the edges (more than 100 pixels, less than a tenth of all), there between the colors around (the samples averaged), the head's middle the same, the same in every frame, and without samples again as before. `config_dialog`: Smooth Edges' tooltip, on at first, the option changed by a click, back by Default, Default's tooltip.
+- Each was checked to fail with what it checks broken (6 ways: not copied, not smoothed, half copied, the wrong framebuffer after the shadow map, the dialog not changing the option, Default not setting it back). One sample could not be told on this driver (it seems to take more samples than asked). At first, half copied (the frame before was left in the framebuffer) and the wrong framebuffer after the shadow map (the scene had no detailed shadows) were missed; tests were added.
+- With Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`), the build and the tests pass (52 tests). `-DENABLE_3D=OFF` (19) and autotools pass too.
+
+**The user's check**
+- The keys, the mouse (turning, moving, nearer, the wheel), the referee's menu, switching 2D and 3D, the dialogs and menus over the view, and the HUD's places are fine.
+- Maximized on the 4K screen (3840×2069 physical): 42 to 54 fps with smooth edges, about 44 without (32 fps before). Making the window larger, from some size it suddenly cannot keep 60 fps. The GPU's time goes nearly with the pixels (about 1.3 to 1.5 ms a million pixels): 2.8 ms at 1345×889, 5.4 ms at 2415×1573, 9.3 ms at 3006×1912, 9.4 to 11.8 ms at 3840×2069. The desktop's (GNOME's) compositing uses the same GPU, and a frame over 16.7 ms in all waits for the next refresh (33 ms): beyond 5 to 6 million pixels it falls suddenly. At 4K, without smooth edges the GPU's time is hardly less (drawing the grass, the sky and so on over the whole screen is itself heavy). Without smooth edges in a small window, `submit` takes about 10 ms: waiting for the screen's refresh (60 fps).
