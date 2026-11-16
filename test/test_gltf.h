@@ -52,6 +52,7 @@
 #include <QVector2D>
 #include <QVector3D>
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <cstring>
@@ -767,6 +768,29 @@ mannequin()
         return m;
     }();
     return model;
+}
+
+/*!
+  \brief how many vertices the GPU transforms per triangle, by a cache of
+  the last few vertices (first in, first out), for indices [first, first + count)
+*/
+inline
+double
+vertexCacheMisses( const std::vector< std::uint32_t > & indices,
+                   const std::size_t first,
+                   const std::size_t count,
+                   const std::size_t cache = GltfModel::VERTEX_CACHE )
+{
+    std::vector< std::uint32_t > fifo;
+    long misses = 0;
+    for ( std::size_t i = first; i < first + count; ++i )
+    {
+        if ( std::find( fifo.begin(), fifo.end(), indices[i] ) != fifo.end() ) continue;
+        ++misses;
+        fifo.push_back( indices[i] );
+        if ( fifo.size() > cache ) fifo.erase( fifo.begin() );
+    }
+    return count < 3 ? 0.0 : double( misses ) / double( count / 3 );
 }
 
 }

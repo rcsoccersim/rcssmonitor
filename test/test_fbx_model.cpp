@@ -40,6 +40,7 @@
 #include <QTemporaryDir>
 
 #include <cmath>
+#include <set>
 
 /*
   The files (test/data/fbx, made from the bundled Mannequin by
@@ -117,6 +118,17 @@ private slots:
           QVERIFY( m.vertices.size() > 300 && m.vertices.size() < glb.vertices.size() / 2 );
           QCOMPARE( m.uvs.size(), m.vertices.size() * 2 );
           QVERIFY( m.clips.empty() );
+          // the triangles of each part ordered for the GPU's cache
+          // (GltfModel::orderTriangles()): this body shares few vertices (made
+          // with fewer triangles), so near the least, each vertex once (2.10 as read)
+          for ( const SkinPrimitive & p : m.primitives )
+          {
+              const auto from = m.indices.begin() + p.first_index;
+              const std::set< std::uint32_t > used( from, from + p.index_count );
+              const double least = double( used.size() ) / ( p.index_count / 3 );
+              const double misses = TestGltf::vertexCacheMisses( m.indices, std::size_t( p.first_index ), std::size_t( p.index_count ) );
+              QVERIFY2( misses - least < 0.15, qPrintable( QString( "%1: %2 of %3" ).arg( p.material ).arg( misses ).arg( least ) ) );
+          }
           QVERIFY2( std::fabs( m.height() - glb.height() ) < 0.01f, qPrintable( QString::number( m.height() ) ) );
           QVERIFY( std::fabs( m.min_y ) < 0.01f );
           for ( const auto & n : NAMES )

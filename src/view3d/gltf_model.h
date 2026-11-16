@@ -220,6 +220,24 @@ public:
     */
     void turnAbout( const QQuaternion & turn );
 
+    //! the size of the GPU's cache of transformed vertices that orderTriangles() orders for
+    static constexpr int VERTEX_CACHE = 16;
+
+    /*!
+      \brief order triangles so that the GPU transforms (skins) fewer of
+      their vertices again: those that share vertices close together, from
+      fan to fan (Tipsify: Sander, Nehab and Barczak, "Fast Triangle
+      Reordering for Vertex Locality and Reduced Overdraw", 2007). The
+      triangles and their winding stay; only their order changes. load()
+      does it for each part of the mesh.
+      \param indices 3 a triangle
+      \param count the indices (3 a triangle)
+      \param vertex_count more than any index
+    */
+    static void orderTriangles( std::uint32_t * indices,
+                                const std::size_t count,
+                                const std::size_t vertex_count );
+
     //! the index of the node of the name, or -1
     int nodeIndex( const QString & name ) const;
 
@@ -266,6 +284,8 @@ public:
 private:
     //! where the rest pose puts the vertices (SkinVertex::rest), and the lowest and highest of them
     void computeRest();
+    //! the triangles of each part in an order for the GPU's cache (orderTriangles())
+    void orderParts();
 };
 
 #endif

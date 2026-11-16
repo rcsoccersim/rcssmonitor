@@ -350,6 +350,7 @@ GltfModel::load( const QByteArray & bytes,
     {
         if ( ! FbxModel::read( bytes, path, *this, error ) ) return false;
         if ( mesh_required && vertices.empty() ) return fail( QStringLiteral( "no mesh" ) );
+        orderParts();
         computeRest();
         return true;
     }
@@ -714,8 +715,102 @@ GltfModel::load( const QByteArray & bytes,
         }
     }
 
+    orderParts();
     computeRest();
     return true;
+}
+
+/*-------------------------------------------------------------------*/
+void
+GltfModel::orderParts()
+{
+    for ( const SkinPrimitive & p : primitives )
+    {
+        orderTriangles( indices.data() + p.first_index, static_cast< std::size_t >( p.index_count ), vertices.size() );
+    }
+}
+
+/*-------------------------------------------------------------------*/
+void
+GltfModel::orderTriangles( std::uint32_t * indices,
+                           const std::size_t count,
+                           const std::size_t vertex_count )
+{
+    const std::size_t triangles = count / 3;
+    if ( triangles < 2 ) return;
+
+    // each vertex's triangles, and how many of them are left to put out
+    std::vector< int > live( vertex_count, 0 );
+    for ( std::size_t i = 0; i < triangles * 3; ++i ) ++live[indices[i]];
+    std::vector< int > start( vertex_count + 1, 0 );
+    for ( std::size_t v = 0; v < vertex_count; ++v ) start[v + 1] = start[v] + live[v];
+    std::vector< int > around( triangles * 3 );
+    {
+        std::vector< int > fill( start.begin(), start.end() - 1 );
+        for ( std::size_t t = 0; t < triangles; ++t )
+        {
+            for ( int c = 0; c < 3; ++c ) around[fill[indices[t * 3 + c]]++] = static_cast< int >( t );
+        }
+    }
+
+    // when each vertex last came into the cache (a time; in the cache while
+    // within VERTEX_CACHE of the time now)
+    std::vector< int > stamp( vertex_count, 0 );
+    int time = VERTEX_CACHE + 1;
+    std::vector< char > emitted( triangles, 0 );
+    std::vector< std::uint32_t > out;
+    out.reserve( triangles * 3 );
+    std::vector< std::uint32_t > dead_ends; // the vertices put out, the latest last
+    std::vector< std::uint32_t > candidates;
+    std::size_t cursor = 0; // the vertices in their order, for a new start
+    long fan = indices[0];
+    while ( fan >= 0 )
+    {
+        // all the triangles left around the fan's vertex
+        candidates.clear();
+        for ( int k = start[fan]; k < start[fan + 1]; ++k )
+        {
+            const int t = around[k];
+            if ( emitted[t] ) continue;
+            for ( int c = 0; c < 3; ++c )
+            {
+                const std::uint32_t v = indices[t * 3 + c];
+                out.push_back( v );
+                dead_ends.push_back( v );
+                candidates.push_back( v );
+                --live[v];
+                if ( time - stamp[v] > VERTEX_CACHE ) stamp[v] = time++;
+            }
+            emitted[t] = 1;
+        }
+        // the next fan: a vertex put out with triangles left, still in the
+        // cache after them, the earliest in it
+        fan = -1;
+        int best = -1;
+        for ( const std::uint32_t v : candidates )
+        {
+            if ( live[v] <= 0 ) continue;
+            const int priority = ( time - stamp[v] + 2 * live[v] <= VERTEX_CACHE ? time - stamp[v] : 0 );
+            if ( priority > best )
+            {
+                best = priority;
+                fan = v;
+            }
+        }
+        // or else, a vertex put out lately with triangles left, or the next with any
+        while ( fan < 0 && ! dead_ends.empty() )
+        {
+            const std::uint32_t d = dead_ends.back();
+            dead_ends.pop_back();
+            if ( live[d] > 0 ) fan = d;
+        }
+        while ( fan < 0 && cursor < vertex_count )
+        {
+            if ( live[cursor] > 0 ) fan = static_cast< long >( cursor );
+            ++cursor;
+        }
+    }
+    std::copy( out.begin(), out.end(), indices );
 }
 
 /*-------------------------------------------------------------------*/

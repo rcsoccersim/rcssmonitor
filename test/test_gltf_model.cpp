@@ -37,7 +37,10 @@
 
 #include <QTemporaryDir>
 
+#include <algorithm>
+#include <array>
 #include <cmath>
+#include <random>
 
 namespace {
 
@@ -644,6 +647,85 @@ private slots:
           GltfModel m;
           QVERIFY( m.load( TestGltf::humanoid( TestGltf::mannequin(), o ).glb() ) );
           QCOMPARE( m.images[0].size(), QSize( GltfModel::MAX_IMAGE_SIZE, GltfModel::MAX_IMAGE_SIZE / 2 ) );
+      }
+
+    /*!
+      the triangles ordered for the GPU's cache of transformed vertices: a
+      grid's triangles shuffled come back close together (far fewer
+      vertices transformed again), the same triangles with their winding;
+      too few to order as they are; and the models read are ordered, part by
+      part (the bundled human body was not: 1.45 vertices a triangle)
+    */
+    void triangleOrder()
+      {
+          // a grid of 40 x 40 squares, two triangles each, shuffled and each turned round
+          const int n = 40;
+          std::vector< std::uint32_t > grid;
+          for ( int y = 0; y < n; ++y )
+          {
+              for ( int x = 0; x < n; ++x )
+              {
+                  const std::uint32_t a = y * ( n + 1 ) + x, b = a + 1, c = a + n + 1, d = c + 1;
+                  grid.insert( grid.end(), { a, b, d, a, d, c } );
+              }
+          }
+          const std::size_t triangles = grid.size() / 3;
+          std::mt19937 rng( 3 );
+          std::vector< std::size_t > order( triangles );
+          for ( std::size_t t = 0; t < triangles; ++t ) order[t] = t;
+          std::shuffle( order.begin(), order.end(), rng );
+          std::vector< std::uint32_t > shuffled;
+          for ( const std::size_t t : order )
+          {
+              const int r = int( rng() % 3 );
+              for ( int c = 0; c < 3; ++c ) shuffled.push_back( grid[t * 3 + ( c + r ) % 3] );
+          }
+          // a triangle as it is wound, from its least vertex
+          const auto wound = []( const std::vector< std::uint32_t > & idx ) {
+              std::vector< std::array< std::uint32_t, 3 > > all;
+              for ( std::size_t t = 0; t < idx.size() / 3; ++t )
+              {
+                  std::array< std::uint32_t, 3 > tri = { idx[t * 3], idx[t * 3 + 1], idx[t * 3 + 2] };
+                  while ( tri[0] > tri[1] || tri[0] > tri[2] ) tri = { tri[1], tri[2], tri[0] };
+                  all.push_back( tri );
+              }
+              std::sort( all.begin(), all.end() );
+              return all;
+          };
+          const double before = TestGltf::vertexCacheMisses( shuffled, 0, shuffled.size() );
+          std::vector< std::uint32_t > ordered = shuffled;
+          GltfModel::orderTriangles( ordered.data(), ordered.size(), std::size_t( ( n + 1 ) * ( n + 1 ) ) );
+          const double after = TestGltf::vertexCacheMisses( ordered, 0, ordered.size() );
+          QVERIFY2( before > 2.0 && after < 0.75, qPrintable( QString( "%1 -> %2" ).arg( before ).arg( after ) ) );
+          QVERIFY( wound( ordered ) == wound( shuffled ) );
+
+          // too few, and a triangle of a vertex twice: as they are
+          std::vector< std::uint32_t > one = { 2, 0, 1 };
+          GltfModel::orderTriangles( one.data(), one.size(), 3 );
+          QVERIFY( ( one == std::vector< std::uint32_t >{ 2, 0, 1 } ) );
+          std::vector< std::uint32_t > odd = { 0, 0, 1, 1, 2, 3, 3, 2, 1 };
+          GltfModel::orderTriangles( odd.data(), odd.size(), 4 );
+          QVERIFY( wound( odd ) == wound( std::vector< std::uint32_t >{ 0, 0, 1, 1, 2, 3, 3, 2, 1 } ) );
+
+          // the models read: each part ordered; the human body in all, 0.708
+          // (0.739 without going back to the vertices put out lately)
+          GltfModel human;
+          QVERIFY( human.loadFile( QStringLiteral( TEST_SOURCE_DIR "/resources/figures/human/BaseCharacterMale.glb" ) ) );
+          for ( const GltfModel * m : { &human, &M_model } )
+          {
+              double all = 0.0;
+              for ( const SkinPrimitive & p : m->primitives )
+              {
+                  const double misses = TestGltf::vertexCacheMisses( m->indices, std::size_t( p.first_index ), std::size_t( p.index_count ) );
+                  QVERIFY2( misses < 0.9, qPrintable( QString( "%1: %2" ).arg( p.material ).arg( misses ) ) );
+                  all += misses * ( p.index_count / 3 );
+              }
+              if ( m == &human )
+              {
+                  all /= double( human.indices.size() / 3 );
+                  QVERIFY2( all < 0.72, qPrintable( QString::number( all ) ) );
+              }
+          }
       }
 };
 
