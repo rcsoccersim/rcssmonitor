@@ -231,6 +231,7 @@ Options::Options()
     M_compass_3d( COMPASS_3D ),
     M_minimap_3d( MINIMAP_3D ),
     M_fps_3d( FPS_3D ),
+    M_antialias_3d( ANTIALIAS_3D ),
     M_player_model_3d( QString::fromLatin1( PLAYER_MODEL_3D ) ),
     M_figure_folder_3d(),
     M_figure_scale_3d( FIGURE_SCALE_3D ),
@@ -775,6 +776,9 @@ Options::readSettings()
     val = settings.value( "fps_3d" );
     if ( val.isValid() ) M_fps_3d = val.toBool();
 
+    val = settings.value( "antialias_3d" );
+    if ( val.isValid() ) M_antialias_3d = val.toBool();
+
     // a figure pack's name, whether there is such a pack now or not
     val = settings.value( "player_model_3d" );
     if ( val.isValid() ) M_player_model_3d = normalizedPlayerModel( val.toString() );
@@ -981,6 +985,7 @@ Options::writeSettings( bool all )
     settings.setValue( "compass_3d", guideModeName( M_compass_3d ) );
     settings.setValue( "minimap_3d", guideModeName( M_minimap_3d ) );
     settings.setValue( "fps_3d", M_fps_3d );
+    settings.setValue( "antialias_3d", M_antialias_3d );
     settings.setValue( "player_model_3d", M_player_model_3d );
     settings.setValue( "figure_folder_3d", M_figure_folder_3d );
     settings.setValue( "figure_scale_3d", M_figure_scale_3d );
@@ -1042,6 +1047,7 @@ Options::setView3DDefaults()
     M_compass_3d = COMPASS_3D;
     M_minimap_3d = MINIMAP_3D;
     M_fps_3d = FPS_3D;
+    M_antialias_3d = ANTIALIAS_3D;
     M_player_model_3d = QString::fromLatin1( PLAYER_MODEL_3D );
     M_figure_scale_3d = FIGURE_SCALE_3D;
     M_figure_bodies_3d = FIGURE_BODIES_3D;
@@ -1256,6 +1262,10 @@ Options::parseCmdLine( int argc,
                                    "The 3D view: the frames per second and the GPU's time of a frame over it. (Default=" + to_onoff( M_fps_3d ) + ")",
                                    "bool", to_onoff( M_fps_3d ) );
     parser.addOption( opt_fps_3d );
+    QCommandLineOption opt_antialias_3d( "antialias-3d",
+                                         "The 3D view: smooth edges (multisampling); off, the GPU has less to do. (Default=" + to_onoff( M_antialias_3d ) + ")",
+                                         "bool", to_onoff( M_antialias_3d ) );
+    parser.addOption( opt_antialias_3d );
     QCommandLineOption opt_player_model_3d( "player-model-3d",
                                             "The 3D view: how the players are drawn, simple (cylinders and spheres), or the human figures of a figure pack: mannequin, human, or the name of a pack of yours. (Default="
                                             + M_player_model_3d + ")",
@@ -1543,6 +1553,7 @@ Options::parseCmdLine( int argc,
     }
     if ( parser.isSet( opt_banners_3d ) ) M_banners_3d = to_bool( parser.value( opt_banners_3d ), M_banners_3d );
     if ( parser.isSet( opt_fps_3d ) ) M_fps_3d = to_bool( parser.value( opt_fps_3d ), M_fps_3d );
+    if ( parser.isSet( opt_antialias_3d ) ) M_antialias_3d = to_bool( parser.value( opt_antialias_3d ), M_antialias_3d );
     for ( const auto & g : { std::make_pair( &opt_compass_3d, &M_compass_3d ), std::make_pair( &opt_minimap_3d, &M_minimap_3d ) } )
     {
         if ( parser.isSet( *g.first ) && ! guideModeFromName( parser.value( *g.first ), g.second ) )

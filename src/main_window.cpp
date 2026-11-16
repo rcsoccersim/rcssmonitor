@@ -1545,7 +1545,7 @@ MainWindow::goToTypedCycle()
     M_log_player->goToCycle( cycle );
     M_cycle_edit->setPalette( QApplication::palette( M_cycle_edit ) );
     M_cycle_edit->clear();
-    if ( M_view_stack && M_view_stack->currentWidget() ) M_view_stack->currentWidget()->setFocus();
+    focusView();
 }
 
 /*-------------------------------------------------------------------*/
@@ -1572,7 +1572,7 @@ MainWindow::eventFilter( QObject * watched,
     {
         M_cycle_edit->clear();
         M_cycle_edit->setPalette( QApplication::palette( M_cycle_edit ) );
-        if ( M_view_stack && M_view_stack->currentWidget() ) M_view_stack->currentWidget()->setFocus();
+        focusView();
         return true;
     }
     return QMainWindow::eventFilter( watched, event );
@@ -1612,7 +1612,17 @@ MainWindow::closeEvent( QCloseEvent * event )
 void
 MainWindow::wheelEvent( QWheelEvent * event )
 {
-    const int delta = event->angleDelta().y();
+    stepByWheel( event->angleDelta().y() );
+    event->accept();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  down: a frame forward; up: back
+ */
+void
+MainWindow::stepByWheel( const int delta )
+{
     if ( delta < 0 )
     {
         M_log_player_step_forward_act->trigger();
@@ -1621,8 +1631,6 @@ MainWindow::wheelEvent( QWheelEvent * event )
     {
         M_log_player_step_backward_act->trigger();
     }
-
-    event->accept();
 }
 
 /*-------------------------------------------------------------------*/
@@ -2225,23 +2233,31 @@ MainWindow::toggleView3D( bool on )
             return;
         }
 
+        // the view is a window of its own (drawn straight to the screen), in a
+        // container widget, which takes no focus (the keys are the actions')
         FieldView3D * view = new FieldView3D( M_disp_holder, *M_log_player );
         view->setCameraMode( Options::instance().camera3D() );
-        M_view_stack->addWidget( view );
-        connect( this, SIGNAL( viewUpdated() ),
-                 view, SLOT( update() ) );
+        QWidget * container = QWidget::createWindowContainer( view );
+        container->setFocusPolicy( Qt::NoFocus );
+        M_view_stack->addWidget( container );
+        connect( this, &MainWindow::viewUpdated,
+                 view, [view]() { view->update(); } );
         // the mouse made the camera the free camera
         connect( view, &FieldView3D::cameraModeChanged,
                  this, [this]( CameraMode mode ) { setCamera3D( mode ); } );
         // the referee's menu of a right click, at the player or the ground aimed at
         connect( view, &FieldView3D::refereeMenuRequested,
                  M_referee_menu, &RefereeMenu::exec );
-        M_field_view_3d = view;
+        // the wheel over it steps the frames, as over the 2D view
+        connect( view, &FieldView3D::wheelTurned,
+                 this, [this]( int delta ) { stepByWheel( delta ); } );
+        M_field_view_3d = container;
+        M_view_3d = view;
     }
 
     QWidget * shown = ( on ? M_field_view_3d : M_field_canvas );
     M_view_stack->setCurrentWidget( shown );
-    shown->setFocus();
+    focusView();
     M_camera_3d_combo->setVisible( on );
     M_viewpoint_button->setVisible( on );
     // the buttons are wider with the 3D view's: one row or two again, once laid out
@@ -2282,10 +2298,30 @@ MainWindow::shownView3D() const
     if ( M_field_view_3d
          && M_view_stack->currentWidget() == M_field_view_3d )
     {
-        return qobject_cast< FieldView3D * >( M_field_view_3d );
+        return M_view_3d;
     }
 #endif
     return nullptr;
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  the keyboard focus to the view shown: the 2D view, or the stack of the
+  views over the 3D view (whose window takes no focus: the keys go to the
+  actions of this window)
+ */
+void
+MainWindow::focusView()
+{
+    if ( ! M_view_stack ) return;
+    if ( M_view_stack->currentWidget() == M_field_canvas )
+    {
+        M_field_canvas->setFocus();
+    }
+    else
+    {
+        M_view_stack->setFocus();
+    }
 }
 
 /*-------------------------------------------------------------------*/
@@ -2421,9 +2457,9 @@ MainWindow::setCamera3D( const CameraMode mode )
         M_camera_3d_combo->setCurrentIndex( M_camera_3d_combo->findData( static_cast< int >( mode ) ) );
     }
 #ifdef HAVE_3D_VIEW
-    if ( FieldView3D * view = qobject_cast< FieldView3D * >( M_field_view_3d ) )
+    if ( M_view_3d )
     {
-        view->setCameraMode( mode );
+        M_view_3d->setCameraMode( mode );
     }
 #endif
 }

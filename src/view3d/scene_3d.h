@@ -39,6 +39,7 @@
 #include "gl/instanced_mesh.h"
 #include "gl/shader_program.h"
 #include "gl/gpu_timer.h"
+#include "gl/render_target.h"
 #include "gl/shadow_map.h"
 #include "gl/skinned_mesh.h"
 #include "figure_uniform.h"
@@ -54,8 +55,9 @@
 /*!
   \class Scene3D
   \brief the scene of the 3D view, drawn with OpenGL 3.3 core and our own
-  shaders (D1) into a framebuffer: that of a QOpenGLWidget, or an offscreen
-  one for the tests. It knows nothing of the widget.
+  shaders (D1) into a framebuffer: that of the view's window
+  (QOpenGLWindow), or an offscreen one for the tests. It knows nothing of
+  the window.
 
   How a frame is drawn:
   - SceneBuilder decides what to draw where (SceneContent: lists of
@@ -73,7 +75,7 @@
 
   OpenGL works on the "current context", which belongs to one window or
   offscreen surface: initialize(), release(), setGround() and render() must
-  be called with it current (QOpenGLWidget makes it current around
+  be called with it current (QOpenGLWindow makes it current around
   initializeGL() and paintGL()).
 
   It inherits QOpenGLFunctions_3_3_Core, Qt's table of the OpenGL 3.3
@@ -152,16 +154,20 @@ public:
     /*!
       \brief draw the scene.
       \param fbo the framebuffer to draw into: OpenGL's number of the
-      widget's (QOpenGLWidget::defaultFramebufferObject()) or of an offscreen one
+      view's (QOpenGLWindow::defaultFramebufferObject()) or of an offscreen one
       \param width, height its size in device pixels (physical pixels of the screen)
       \param camera the camera
       \param content what to draw where (SceneBuilder)
+      \param samples smooth edges (multisampling): the samples per pixel,
+      drawn into a framebuffer of them (RenderTarget) and averaged into fbo;
+      0 or 1: drawn straight into fbo
     */
     void render( GLuint fbo,
                  int width,
                  int height,
                  const CameraPose & camera,
-                 const SceneContent & content );
+                 const SceneContent & content,
+                 const int samples = 0 );
 
 private:
     bool M_initialized = false;
@@ -210,6 +216,7 @@ private:
     std::array< std::vector< SkinnedMesh::Instance >, FIGURE_BODIES > M_figure_instances; //!< the figures of each body in a frame
     std::array< std::vector< float >, FIGURE_BODIES > M_figure_joints; //!< and their skin matrices
     GpuTimer M_gpu_timer; //!< the GPU's time of a frame, when timed
+    RenderTarget M_target; //!< where a frame of smooth edges is drawn (render()'s samples)
 
     // made again in every frame (OverlayBuilder)
     VertexBatch M_sector_batch; //!< the view areas

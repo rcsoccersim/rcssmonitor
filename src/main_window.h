@@ -78,7 +78,8 @@ private:
     ConfigDialog * M_config_dialog;
     FieldCanvas * M_field_canvas;
     QStackedWidget * M_view_stack; //!< the 2D view and the 3D view
-    QWidget * M_field_view_3d; //!< the 3D view (FieldView3D), made when it is first shown
+    QWidget * M_field_view_3d; //!< the container of the 3D view's window, made when it is first shown
+    FieldView3D * M_view_3d = nullptr; //!< the 3D view: a window in M_field_view_3d
     MonitorClient * M_monitor_client;
     LogPlayer * M_log_player;
     //LogPlayerSlider * M_log_player_slider;
@@ -219,6 +220,12 @@ private:
 
     //! the 3D view if it is shown, or null
     FieldView3D * shownView3D() const;
+
+    //! the keyboard focus to the view shown: the 2D view, or the views' stack (the 3D view's window takes none)
+    void focusView();
+
+    //! the wheel steps the frames, over the 2D view or the 3D view
+    void stepByWheel( const int delta );
 
     //! put the free camera of the 3D view at a viewpoint of the whole pitch (only says it is for 3D in 2D)
     void viewFrom( const Viewpoint viewpoint );

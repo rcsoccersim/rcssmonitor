@@ -2,7 +2,7 @@
 
 /*!
   \file field_view_3d.h
-  \brief the 3D view: a QOpenGLWidget. Header File.
+  \brief the 3D view: a window drawn by OpenGL (QOpenGLWindow). Header File.
 */
 
 /*
@@ -43,7 +43,7 @@
 #include "scene_content.h"
 
 #include <QElapsedTimer>
-#include <QOpenGLWidget>
+#include <QOpenGLWindow>
 #include <QPoint>
 #include <QString>
 #include <QSurfaceFormat>
@@ -64,20 +64,30 @@ struct DispInfoT;
 
 /*!
   \class FieldView3D
-  \brief the 3D view (docs/PLAN_3D-VIEW.md §5.1): the widget, which draws
-  the scene of Scene3D and handles the input. It shares the frames
+  \brief the 3D view (docs/PLAN_3D-VIEW.md §5.1): the window, which draws
+  the scene of Scene3D and handles the mouse. It shares the frames
   (DispHolder) and the options with the 2D view. Between two frames, it
   draws the positions on the way (docs/PLAN_3D-VIEW.md §5.2), and while they
   move, it draws again as soon as a frame is shown.
 
-  QOpenGLWidget gives the widget an OpenGL context and a framebuffer, and
-  calls, with the context current:
-  - initializeGL() once, before the first paint (and again if the widget
-    moves to another window): makes the GPU's resources (Scene3D::initialize()).
-  - paintGL() whenever the widget is drawn (after update()): draws a frame
-    into its framebuffer, which Qt then shows in the window.
+  It is a window of its own (QOpenGLWindow), put in the main window by a
+  container widget (QWidget::createWindowContainer(), MainWindow): it draws
+  straight into the window's framebuffer, which the screen shows. A
+  QOpenGLWidget draws into an image that Qt then puts into the main
+  window's, a few more copies of the whole view in every frame: on a 4K
+  screen with a GPU in the CPU, 31 frames a second instead of 48 (§14).
+
+  QOpenGLWindow gives the window an OpenGL context, and calls, with the
+  context current:
+  - initializeGL() once, before the first paint: makes the GPU's resources
+    (Scene3D::initialize()).
+  - paintGL() whenever the window is drawn (after update()): draws a frame
+    into its framebuffer, which the screen then shows.
   Outside them, makeCurrent() and doneCurrent() make the context current
   and not (the destructor).
+
+  It takes no keyboard focus (the keys are the main window's actions), and
+  the wheel steps the frames there (wheelTurned()), as over the 2D view.
 
   Over the scene, QPainter draws the HUD as the 2D view does (the score
   board and the team logos, with the 2D painters).
@@ -90,12 +100,16 @@ struct DispInfoT;
   keys of the zoom (Z, X) zoom the camera (zoomCamera()). I and Ctrl+I put
   the free camera at a viewpoint of the whole pitch (viewFrom()).
 
-  A right click asks for the referee's menu (refereeMenuRequested()), at
-  the player or the point of the ground under the mouse, as last drawn
+  The right button asks for the referee's menu (refereeMenuRequested()),
+  at the player or the point of the ground under the mouse, as last drawn
   (targetAt()).
+
+  Smooth edges (the option antialias_3d) are drawn by Scene3D into a
+  framebuffer of samples, and averaged into the window's, which has none
+  (surfaceFormat()): turned on and off as the frames go.
 */
 class FieldView3D
-    : public QOpenGLWidget {
+    : public QOpenGLWindow {
 
     Q_OBJECT
 
@@ -104,12 +118,13 @@ public:
     explicit
     FieldView3D( DispHolder & disp_holder,
                  const LogPlayer & log_player,
-                 QWidget * parent = nullptr );
+                 QWindow * parent = nullptr );
     ~FieldView3D() override;
 
     /*!
       \brief what the 3D view asks of OpenGL: version 3.3 "core" (without the
-      old functions), a depth buffer, and 4x multisampling (smooth edges)
+      old functions), a depth buffer and a stencil (for QPainter); no
+      multisampling: the smooth edges are Scene3D's own (RenderTarget)
     */
     static QSurfaceFormat surfaceFormat();
 
@@ -160,20 +175,27 @@ signals:
     void refereeMenuRequested( const RefereeTarget & target,
                                const QPoint & global_pos );
 
+    /*!
+      \brief the wheel turned over the view, to step the frames as over the
+      2D view (a window of its own: its events do not go up to the main window)
+      \param delta QWheelEvent::angleDelta().y()
+    */
+    void wheelTurned( int delta );
+
 protected:
 
-    //! make the GPU's resources (QOpenGLWidget calls it with the context current)
+    //! make the GPU's resources (QOpenGLWindow calls it with the context current)
     void initializeGL() override;
 
-    //! draw a frame (QOpenGLWidget calls it with the context current)
+    //! draw a frame (QOpenGLWindow calls it with the context current)
     void paintGL() override;
 
-    // the mouse moves the camera
+    //! the mouse moves the camera; the right button: the referee's menu
     void mousePressEvent( QMouseEvent * event ) override;
     void mouseMoveEvent( QMouseEvent * event ) override;
 
-    //! the right button: the referee's menu
-    void contextMenuEvent( QContextMenuEvent * event ) override;
+    //! the wheel: the frames (wheelTurned())
+    void wheelEvent( QWheelEvent * event ) override;
 
 private:
 

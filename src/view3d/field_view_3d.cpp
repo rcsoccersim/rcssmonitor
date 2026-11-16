@@ -2,7 +2,7 @@
 
 /*!
   \file field_view_3d.cpp
-  \brief the 3D view: a QOpenGLWidget. Source File.
+  \brief the 3D view: a window drawn by OpenGL (QOpenGLWindow). Source File.
 */
 
 /*
@@ -53,7 +53,6 @@
 #include "score_board_painter.h"
 #include "team_graphic_painter.h"
 
-#include <QContextMenuEvent>
 #include <QFontInfo>
 #include <QGuiApplication>
 #include <QMouseEvent>
@@ -61,6 +60,7 @@
 #include <QOpenGLContext>
 #include <QOpenGLFunctions_3_3_Core>
 #include <QPainter>
+#include <QWheelEvent>
 
 #include <cmath>
 #include <cstdio>
@@ -69,8 +69,8 @@
 /*-------------------------------------------------------------------*/
 FieldView3D::FieldView3D( DispHolder & disp_holder,
                           const LogPlayer & log_player,
-                          QWidget * parent )
-    : QOpenGLWidget( parent ),
+                          QWindow * parent )
+    : QOpenGLWindow( QOpenGLWindow::NoPartialUpdate, parent ),
       M_disp_holder( disp_holder ),
       M_log_player( log_player ),
       M_field_painter( new FieldPainter( disp_holder ) ),
@@ -81,7 +81,8 @@ FieldView3D::FieldView3D( DispHolder & disp_holder,
       M_moving( false )
 {
     setFormat( surfaceFormat() );
-    setFocusPolicy( Qt::WheelFocus );
+    // the keys are the main window's actions: the focus stays there
+    setFlag( Qt::WindowDoesNotAcceptFocus );
 
     // While things move, a frame is drawn as soon as the one before is
     // shown: paced by the display (60 times a second on most screens),
@@ -111,7 +112,6 @@ FieldView3D::surfaceFormat()
     format.setProfile( QSurfaceFormat::CoreProfile );
     format.setDepthBufferSize( 24 );
     format.setStencilBufferSize( 8 );
-    format.setSamples( 4 );
     return format;
 }
 
@@ -336,9 +336,9 @@ FieldView3D::paintGL()
 
     const double build_time = cpu.nsecsElapsed() * 1.0e-6;
 
-    // draw into the widget's framebuffer, in physical pixels: on a screen
-    // scaled by 1.5, a widget of 100 logical pixels has 150 of them
-    const qreal dpr = devicePixelRatioF();
+    // draw into the window's framebuffer, in physical pixels: on a screen
+    // scaled by 1.5, a window of 100 logical pixels has 150 of them
+    const qreal dpr = devicePixelRatio();
     cpu.restart();
     // the GPU's times, for the timing told or the frames per second shown
     const bool gpu_timing = ( M_timing.on || opt.fps3D() );
@@ -351,7 +351,8 @@ FieldView3D::paintGL()
                     static_cast< int >( std::lround( width() * dpr ) ),
                     static_cast< int >( std::lround( height() * dpr ) ),
                     camera,
-                    M_content );
+                    M_content,
+                    opt.antialias3D() ? Options::ANTIALIAS_SAMPLES_3D : 0 );
     {
         double gpu = 0.0;
         const int gpu_frames = M_scene.takeGpuTime( &gpu );
@@ -383,12 +384,13 @@ FieldView3D::paintGL()
     {
         Options::instance().updateFieldSize( width(), height() );
         QPainter painter( this );
-        // on a scaled screen, a painter of QOpenGLWidget has its window in
-        // physical pixels while it draws in logical ones: the score board,
+        // on a scaled screen, a painter of an OpenGL view may have its window
+        // in physical pixels while it draws in logical ones: the score board,
         // placed at the bottom of the window, fell off the view. The window
         // in logical pixels, as a painter of the 2D view has it.
-        painter.setViewport( rect() );
-        painter.setWindow( rect() );
+        const QRect logical( QPoint( 0, 0 ), size() );
+        painter.setViewport( logical );
+        painter.setWindow( logical );
         M_score_board_painter->draw( painter );
         M_team_graphic_painter->draw( painter );
 
@@ -439,7 +441,7 @@ FieldView3D::paintGL()
         if ( opt.fps3D() )
         {
             const QString text = M_fps.text( M_fps_clock.nsecsElapsed() * 1.0e-9, ! M_moving );
-            painter.setFont( font() ); // the widget's, not the player font of the texts above
+            painter.setFont( QGuiApplication::font() ); // the application's, not the player font of the texts above
             const QFontMetrics metrics( painter.font() );
             const int margin = 4;
             QRect box( 0, 0, metrics.horizontalAdvance( text ) + 2 * margin, metrics.height() + 2 * margin );
@@ -474,11 +476,12 @@ FieldView3D::reportTiming()
     const double gpu = M_timing.gpu;
     const int gpu_frames = M_timing.gpu_frames;
     const double n = M_timing.frames;
-    const qreal dpr = devicePixelRatioF();
+    const qreal dpr = devicePixelRatio();
     std::fprintf( stderr,
-                  "(3D timing) %dx%d px, %s, %d figures: %.1f fps (longest %.1f ms);"
+                  "(3D timing) %dx%d px%s, %s, %d figures: %.1f fps (longest %.1f ms);"
                   " CPU build %.3f ms (players %.3f), submit %.3f ms; GPU %.3f ms\n",
                   int( std::lround( width() * dpr ) ), int( std::lround( height() * dpr ) ),
+                  Options::instance().antialias3D() ? " smooth" : "",
                   Options::instance().playerModel3D().toUtf8().constData(),
                   M_timing.figures,
                   n / seconds, M_timing.longest,
@@ -523,9 +526,16 @@ FieldView3D::zoomCamera( const double factor )
 void
 FieldView3D::mousePressEvent( QMouseEvent * event )
 {
-    // where a drag starts (the right button is left for the menu, Phase 5)
+    // the right button: the referee's menu, at the player or the ground aimed at
+    if ( event->button() == Qt::RightButton )
+    {
+        emit refereeMenuRequested( targetAt( event->pos() ), mapToGlobal( event->pos() ) );
+        event->accept();
+        return;
+    }
+    // where a drag starts
     M_last_mouse = event->pos();
-    QOpenGLWidget::mousePressEvent( event );
+    QOpenGLWindow::mousePressEvent( event );
 }
 
 /*-------------------------------------------------------------------*/
@@ -557,7 +567,7 @@ FieldView3D::mouseMoveEvent( QMouseEvent * event )
     }
     else
     {
-        QOpenGLWidget::mouseMoveEvent( event );
+        QOpenGLWindow::mouseMoveEvent( event );
         return;
     }
 
@@ -600,13 +610,10 @@ FieldView3D::state() const
 
 /*-------------------------------------------------------------------*/
 void
-FieldView3D::contextMenuEvent( QContextMenuEvent * event )
+FieldView3D::wheelEvent( QWheelEvent * event )
 {
-    // only a right click, as the 2D view (not the menu key)
-    if ( event->reason() == QContextMenuEvent::Mouse )
-    {
-        emit refereeMenuRequested( targetAt( event->pos() ), event->globalPos() );
-    }
+    emit wheelTurned( event->angleDelta().y() );
+    event->accept();
 }
 
 /*-------------------------------------------------------------------*/

@@ -95,6 +95,7 @@ if(HAVE_3D_VIEW)
     view3d/gl/instanced_mesh.cpp
     view3d/gl/render_state.cpp
     view3d/gl/shader_program.cpp
+    view3d/gl/render_target.cpp
     view3d/gl/shadow_map.cpp
     view3d/gl/skinned_mesh.cpp
     view3d/gl/texture_2d.cpp

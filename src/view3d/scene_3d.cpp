@@ -192,6 +192,7 @@ Scene3D::release()
     }
     for ( Texture2D & t : M_stand_textures ) t.destroy( *this );
     M_shadow_map.destroy( *this );
+    M_target.destroy( *this );
     M_billboards.destroy( *this );
     for ( SkinnedMesh & m : M_figures ) m.destroy( *this );
     M_gpu_timer.destroy( *this );
@@ -304,7 +305,8 @@ Scene3D::render( GLuint fbo,
                  int width,
                  int height,
                  const CameraPose & camera,
-                 const SceneContent & content )
+                 const SceneContent & content,
+                 const int samples )
 {
     if ( ! M_initialized )
     {
@@ -313,6 +315,19 @@ Scene3D::render( GLuint fbo,
 
     // the camera: one matrix that takes a point of the world to the screen
     const QMatrix4x4 view_proj = camera.projection( float( width ) / std::max( 1, height ) ) * camera.view();
+
+    // smooth edges: the frame drawn into a framebuffer of samples, and
+    // averaged into fbo at the end (or else straight into fbo)
+    const GLuint view_fbo = fbo;
+    const bool smooth = ( samples > 1 && M_target.prepare( *this, width, height, samples ) );
+    if ( smooth )
+    {
+        fbo = M_target.framebuffer();
+    }
+    else if ( M_target.created() )
+    {
+        M_target.destroy( *this );
+    }
 
     // start the frame: into the framebuffer, cleared to the horizon (the
     // sky covers it) or the background without the sky
@@ -585,7 +600,12 @@ Scene3D::render( GLuint fbo,
         M_billboards.draw( *this, content.labels );
     }
 
-    // end the frame: OpenGL as QPainter expects it, for the HUD over the scene
+    // end the frame: averaged into the view's framebuffer if of smooth edges,
+    // and OpenGL as QPainter expects it, for the HUD over the scene
+    if ( smooth )
+    {
+        M_target.resolve( *this, view_fbo );
+    }
     M_gpu_timer.end( *this );
     GLFrame::end( *this );
 }

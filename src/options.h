@@ -195,6 +195,7 @@ private:
     GuideMode M_compass_3d; //!< when the compass shows over the 3D view
     GuideMode M_minimap_3d; //!< when the minimap shows over the 3D view
     bool M_fps_3d; //!< the frames per second over the 3D view
+    bool M_antialias_3d; //!< smooth edges of the 3D view (multisampling)
     QString M_player_model_3d; //!< how the 3D view draws the players: PLAYER_MODEL_SIMPLE, or a figure pack's name
     QString M_figure_folder_3d; //!< a folder of figure packs of the user's choice (empty: none)
     double M_figure_scale_3d; //!< the human figures: how many times a person's height
@@ -450,6 +451,13 @@ public:
     //! the 3D view: the frames per second and the GPU's time of a frame over it (FpsMeter)
     bool fps3D() const { return M_fps_3d; }
     void setFps3D( const bool on ) { M_fps_3d = on; }
+
+    static constexpr bool ANTIALIAS_3D = true;
+    //! the samples of a pixel with smooth edges
+    static constexpr int ANTIALIAS_SAMPLES_3D = 4;
+    //! the 3D view: smooth edges (multisampling); off, a GPU has less to do (a screen of high resolution)
+    bool antialias3D() const { return M_antialias_3d; }
+    void setAntialias3D( const bool on ) { M_antialias_3d = on; }
 
     static constexpr bool BALL_PATTERN_3D = true;
     //! the 3D view: the ball's pattern, twelve pentagons, which shows it rolling

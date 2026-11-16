@@ -39,9 +39,9 @@
 /*!
   \brief the start and the end of drawing a frame (Scene3D::render()).
 
-  A frame is drawn into a "framebuffer": the image that the widget shows
-  (QOpenGLWidget::defaultFramebufferObject()), or an offscreen one in the
-  tests. OpenGL keeps its settings from frame to frame, and QPainter (the
+  A frame is drawn into a "framebuffer": the image that the view's window
+  shows (QOpenGLWindow::defaultFramebufferObject()), one of smooth edges
+  (RenderTarget), or an offscreen one in the tests. OpenGL keeps its settings from frame to frame, and QPainter (the
   HUD drawn over the last frame) may have changed some, so a frame starts
   from a known state, and ends in the state that QPainter expects.
 */

@@ -1863,6 +1863,18 @@ ConfigDialog::create3DTab()
                  } );
         box->addWidget( M_fps_3d_cb );
 
+        M_antialias_3d_cb = new QCheckBox( tr( "Smooth Edges" ) );
+        M_antialias_3d_cb->setObjectName( "antialias_3d" );
+        M_antialias_3d_cb->setToolTip( tr( "Smooth the edges of the lines and the solids (4x multisampling).\n"
+                                           "Off, they are stairs, but the GPU has less to do: faster on a screen of\n"
+                                           "high resolution (4K) with a GPU in the CPU." ) );
+        connect( M_antialias_3d_cb, &QCheckBox::clicked,
+                 this, [this]( bool on ) {
+                     Options::instance().setAntialias3D( on );
+                     changed3D();
+                 } );
+        box->addWidget( M_antialias_3d_cb );
+
         group_box->setToolTip( tr( "Which way the camera looks, and where it is on the pitch; they show\n"
                                    "everything, whatever the Player Sight." ) );
         group_box->setLayout( box );
@@ -2187,7 +2199,7 @@ ConfigDialog::create3DTab()
     {
         QPushButton * button = new QPushButton( tr( "Default" ) );
         button->setObjectName( "default_3d" );
-        button->setToolTip( tr( "Set the defaults: Close-up %1 m, %2\u00b0, Compass %3, Minimap %4, FPS %19,\n"
+        button->setToolTip( tr( "Set the defaults: Close-up %1 m, %2\u00b0, Compass %3, Minimap %4, FPS %19, Smooth Edges %21,\n"
                                 "Model %5, Figure Scale %6, Bodies %9, Shadows %10, Boards %7, Banners %8,\n"
                                 "Ball Pattern %14, Flight %20, Ring %15 (%16 m), Trail %17 (%18 cycles),\n"
                                 "Stands %13, Grass %11, Sky %12" )
@@ -2210,7 +2222,8 @@ ConfigDialog::create3DTab()
                             .arg( onOff( Options::BALL_TRAIL_3D ) )
                             .arg( Options::BALL_TRAIL_CYCLES_3D )
                             .arg( onOff( Options::FPS_3D ) )
-                            .arg( onOff( Options::BALL_FLIGHT_3D ) ) );
+                            .arg( onOff( Options::BALL_FLIGHT_3D ) )
+                            .arg( onOff( Options::ANTIALIAS_3D ) ) );
         button->setAutoDefault( false );
         connect( button, &QPushButton::clicked,
                  this, [this]() {
@@ -2637,6 +2650,7 @@ ConfigDialog::update3D()
     set_choice( M_compass_3d, guideIndex( opt.compass3D() ) );
     set_choice( M_minimap_3d, guideIndex( opt.minimap3D() ) );
     M_fps_3d_cb->setChecked( opt.fps3D() );
+    M_antialias_3d_cb->setChecked( opt.antialias3D() );
     fillPacks();
     set_number( M_figure_scale_3d, opt.figureScale3D() );
     // the scale of the figures, not of the cylinders

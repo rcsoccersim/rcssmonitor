@@ -168,6 +168,7 @@ private slots:
     void ball();
     void ballAids();
     void topSwitch();
+    void smoothEdges();
     void cleanupTestCase();
 };
 
@@ -1833,6 +1834,113 @@ TestScene3D::texturedFigure()
 }
 
 /*-------------------------------------------------------------------*/
+/*!
+  smooth edges (multisampling, the option antialias_3d): the frame drawn
+  into a framebuffer of samples (RenderTarget) and averaged into the one
+  given, a single sampled one. Only at the edges is it other than drawn
+  without: there, each pixel is a mix of the colors around it (the samples
+  averaged). Without samples again, as before.
+*/
+void
+TestScene3D::smoothEdges()
+{
+    {
+        QOpenGLFunctions_3_3_Core gl;
+        QVERIFY( gl.initializeOpenGLFunctions() );
+        GLint most = 0;
+        gl.glGetIntegerv( GL_MAX_SAMPLES, &most );
+        if ( most < 2 ) QSKIP( "no multisampling here" );
+    }
+    DispHolder holder;
+    FieldPainter painter( holder );
+    Scene3D scene;
+    QVERIFY( scene.initialize() );
+    scene.setGround( GroundTexture::draw( painter ) );
+
+    const int w = 400, h = 300;
+    QOpenGLFramebufferObjectFormat fbo_format;
+    fbo_format.setAttachment( QOpenGLFramebufferObject::CombinedDepthStencil );
+    QOpenGLFramebufferObject fbo( w, h, fbo_format );
+
+    // a player and the ball from 10 m above, as in content()
+    rcss::rcg::ShowInfoT show;
+    rcss::rcg::PlayerT & p = show.player_[0];
+    p.side_ = 'l';
+    p.unum_ = 1;
+    p.state_ = rcss::rcg::STAND;
+    p.body_ = 90.0f;
+    show.ball_.x_ = 3.0f;
+    show.ball_.z_ = 2.0f;
+    SceneContent content;
+    SceneBuilder::addGoals( content );
+    SceneBuilder::addShow( content, show, holder, Options::instance() );
+    content.shadows = true; // the shadow map drawn too, then the frame again
+    CameraPose camera;
+    camera.position = QVector3D( 0.0f, 10.0f, 0.0f );
+    camera.target = QVector3D( 0.0f, 0.0f, 0.0f );
+    camera.up = QVector3D( 0.0f, 0.0f, -1.0f );
+
+    scene.render( fbo.handle(), w, h, camera, content );
+    const QImage plain = fbo.toImage();
+    // the framebuffer given all magenta first: all of it drawn over
+    {
+        QOpenGLFunctions_3_3_Core gl;
+        QVERIFY( gl.initializeOpenGLFunctions() );
+        gl.glBindFramebuffer( GL_FRAMEBUFFER, fbo.handle() );
+        gl.glClearColor( 1.0f, 0.0f, 1.0f, 1.0f );
+        gl.glClear( GL_COLOR_BUFFER_BIT );
+    }
+    scene.render( fbo.handle(), w, h, camera, content, Options::ANTIALIAS_SAMPLES_3D );
+    const QImage smooth = fbo.toImage();
+    for ( int y = 0; y < h; ++y )
+    {
+        for ( int x = 0; x < w; ++x )
+        {
+            QVERIFY2( smooth.pixel( x, y ) != qRgb( 255, 0, 255 ), qPrintable( QString( "%1 %2" ).arg( x ).arg( y ) ) );
+        }
+    }
+    scene.render( fbo.handle(), w, h, camera, content, Options::ANTIALIAS_SAMPLES_3D );
+    QCOMPARE( smooth, fbo.toImage() ); // the same in every frame
+
+    // other only at the edges, there mixed of the colors around
+    int changed = 0, mixed = 0;
+    for ( int y = 1; y < h - 1; ++y )
+    {
+        for ( int x = 1; x < w - 1; ++x )
+        {
+            const QRgb s = smooth.pixel( x, y );
+            if ( s == plain.pixel( x, y ) ) continue;
+            ++changed;
+            int lo[3] = { 255, 255, 255 }, hi[3] = { 0, 0, 0 };
+            for ( int dy = -1; dy <= 1; ++dy )
+            {
+                for ( int dx = -1; dx <= 1; ++dx )
+                {
+                    const QRgb a = plain.pixel( x + dx, y + dy );
+                    const int c[3] = { qRed( a ), qGreen( a ), qBlue( a ) };
+                    for ( int k = 0; k < 3; ++k )
+                    {
+                        lo[k] = std::min( lo[k], c[k] );
+                        hi[k] = std::max( hi[k], c[k] );
+                    }
+                }
+            }
+            const int c[3] = { qRed( s ), qGreen( s ), qBlue( s ) };
+            bool within = true;
+            for ( int k = 0; k < 3; ++k ) within = within && c[k] >= lo[k] - 3 && c[k] <= hi[k] + 3;
+            if ( within ) ++mixed;
+        }
+    }
+    QVERIFY2( changed > 100 && changed < w * h / 10, qPrintable( QString::number( changed ) ) );
+    QVERIFY2( mixed > changed * 9 / 10, qPrintable( QString( "%1 of %2" ).arg( mixed ).arg( changed ) ) );
+    // the head's middle, away from the edges: the same
+    QCOMPARE( smooth.pixel( w / 2, h / 2 ), plain.pixel( w / 2, h / 2 ) );
+
+    // without samples again: as before
+    scene.render( fbo.handle(), w, h, camera, content );
+    QCOMPARE( fbo.toImage(), plain );
+}
+
 void
 TestScene3D::cleanupTestCase()
 {
