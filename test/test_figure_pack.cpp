@@ -1599,9 +1599,10 @@ private slots:
               QVERIFY2( std::fabs( acts.turn_angle[side] - 90.0f ) < 1.0f, qPrintable( QString::number( acts.turn_angle[side] ) ) );
               QCOMPARE( int( acts.turn_times[side].size() ), int( acts.turn_angle[side] ) + 1 );
               QCOMPARE( acts.turn_times[side][0], 0.0f );
-              QVERIFY2( std::fabs( acts.turn_times[side][45] - 0.5f ) < 0.03f, qPrintable( QString::number( acts.turn_times[side][45] ) ) );
-              // a quarter of the way at the time the eased turn reaches it, not a quarter of the time
-              QVERIFY2( std::fabs( acts.turn_times[side][22] - 0.32f ) < 0.03f, qPrintable( QString::number( acts.turn_times[side][22] ) ) );
+              QVERIFY2( std::fabs( acts.turn_times[side][45] - 0.5f ) < 0.002f, qPrintable( QString::number( acts.turn_times[side][45] ) ) );
+              // a quarter of the way at the time the eased turn reaches it, not a quarter of
+              // the time: t * t * ( 3 - 2 t ) = 22 / 90 at 0.3219 (between the times read)
+              QVERIFY2( std::fabs( acts.turn_times[side][22] - 0.3219f ) < 0.002f, qPrintable( QString::number( acts.turn_times[side][22] ) ) );
           }
           QVERIFY( std::fabs( Figures3D::turnAngle( motion, figures.motionRig(), acts.turn.clip, nullptr ) - 90.0f ) < 1.0f );
           QVERIFY( std::fabs( Figures3D::turnAngle( motion, figures.motionRig(), acts.turn.other, nullptr ) + 90.0f ) < 1.0f );
@@ -1623,8 +1624,12 @@ private slots:
           const float ground = at( fi, "foot_l" ).y();
           QVERIFY( std::fabs( at( fi, "foot_r" ).y() - ground ) < 0.05f ); // standing, not turning
           fi.motion.turn_rate = 2.0f * Figures3D::TURN_RATE_FULL;
-          fi.motion.steps = 45.0 / GaitTable::TURN_STEP_ANGLE;
-          QVERIFY2( std::fabs( hipsFacing( fi ) ) < 2.0f, qPrintable( QString::number( hipsFacing( fi ) ) ) );
+          // its own turn off at any time: the times in a line between those read
+          for ( const double degrees : { 10.0, 30.0, 60.0, 80.0, 45.0 } )
+          {
+              fi.motion.steps = degrees / GaitTable::TURN_STEP_ANGLE;
+              QVERIFY2( std::fabs( hipsFacing( fi ) ) < 0.1f, qPrintable( QString( "%1: %2" ).arg( degrees ).arg( hipsFacing( fi ) ) ) );
+          }
           QVERIFY2( at( fi, "foot_l" ).y() > at( fi, "foot_r" ).y() + 0.1f,
                     qPrintable( QString( "%1 %2" ).arg( at( fi, "foot_l" ).y() ).arg( at( fi, "foot_r" ).y() ) ) );
           const QVector3D left = at( fi, "foot_l" );

@@ -1524,14 +1524,26 @@ Figures3D::turnAngle( const GltfModel & model,
     const float angle = ( turns.empty() ? 0.0f : turns.back().second );
     if ( times )
     {
-        // the first time it has turned each whole degree its way
+        // the first time it has turned each whole degree its way, in a line
+        // between the times read (not the time read after: as late as a
+        // time apart, 2 degrees where it turns fast)
         times->clear();
         const float sign = ( angle < 0.0f ? -1.0f : 1.0f );
         std::size_t k = 0;
         for ( int degree = 0; degree <= static_cast< int >( std::fabs( angle ) ); ++degree )
         {
             while ( k + 1 < turns.size() && sign * turns[k].second < degree ) ++k;
-            times->push_back( turns[k].first );
+            float time = turns[k].first;
+            if ( k > 0 )
+            {
+                const float a = sign * turns[k - 1].second;
+                const float b = sign * turns[k].second;
+                if ( a < degree && degree <= b )
+                {
+                    time = turns[k - 1].first + ( turns[k].first - turns[k - 1].first ) * ( degree - a ) / ( b - a );
+                }
+            }
+            times->push_back( time );
         }
     }
     return angle;
