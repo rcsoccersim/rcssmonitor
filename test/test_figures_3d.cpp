@@ -99,15 +99,18 @@ angleBetween( const float a,
 
 /*!
   a bundled pack with its forward clips only: the classic way (backward,
-  the forward clips played backward; sideways, the hips turned)
+  the forward clips played backward; sideways, the hips turned), and the
+  actions' poses made by Figures3D (no clips of them)
 */
 FigurePack
 forwardOnly( const char * id )
 {
     FigurePack pack = *FigurePacks::builtin( id );
     pack.id += QStringLiteral( "-forward" );
-    for ( FigureClipSpec * c : { &pack.motion.walk_back, &pack.motion.jog_back, &pack.motion.walk_left,
-                                 &pack.motion.walk_right, &pack.motion.jog_left, &pack.motion.jog_right } )
+    FigureMotionSpec & m = pack.motion;
+    for ( FigureClipSpec * c : { &m.walk_back, &m.jog_back, &m.walk_left, &m.walk_right, &m.jog_left, &m.jog_right,
+                                 &m.kick, &m.kick_tap, &m.kick_pass, &m.kick_shot, &m.tackle, &m.tackle_up,
+                                 &m.fall, &m.get_up, &m.catch_low, &m.catch_high, &m.dive_left, &m.dive_right } )
     {
         *c = FigureClipSpec();
         c->given = false;
@@ -137,7 +140,7 @@ class TestFigures3D
 
 private:
     Figures3D M_figures; //!< the bundled Mannequin: with clips of walking backward and sideways
-    Figures3D M_forward; //!< the Mannequin with its forward clips only (the classic way)
+    Figures3D M_forward; //!< the Mannequin with its forward clips only (the classic way), the actions made by Figures3D
 
 private slots:
 
@@ -1066,24 +1069,24 @@ private slots:
     void downs()
       {
           FigureInstance f = figureAt( 0, 0.0f, 0.0f, 0.0f, 1.85f );
-          const float hips = nodeAt( M_figures, f, 0.0, "pelvis" ).y();
+          const float hips = nodeAt( M_forward, f, 0.0, "pelvis" ).y();
           f.actions.tackle = FigureRun{ true, 1.0f, 5.0f };
-          QVERIFY( nodeAt( M_figures, f, 0.0, "pelvis" ).y() < 0.6f * hips );
-          QVERIFY( nodeAt( M_figures, f, 0.0, "foot_r" ).x() > 0.5f );
-          QVERIFY( nodeAt( M_figures, f, 0.0, "Head" ).x() < nodeAt( M_figures, f, 0.0, "pelvis" ).x() ); // leaning back
+          QVERIFY( nodeAt( M_forward, f, 0.0, "pelvis" ).y() < 0.6f * hips );
+          QVERIFY( nodeAt( M_forward, f, 0.0, "foot_r" ).x() > 0.5f );
+          QVERIFY( nodeAt( M_forward, f, 0.0, "Head" ).x() < nodeAt( M_forward, f, 0.0, "pelvis" ).x() ); // leaning back
 
           f.actions.fouled = FigureRun{ true, 3.0f, 5.0f }; // over the tackle, down
-          const QVector3D pelvis = nodeAt( M_figures, f, 0.0, "pelvis" );
+          const QVector3D pelvis = nodeAt( M_forward, f, 0.0, "pelvis" );
           QVERIFY( pelvis.y() < 0.25f );
-          QVERIFY( nodeAt( M_figures, f, 0.0, "Head" ).x() < pelvis.x() - 0.2f );
+          QVERIFY( nodeAt( M_forward, f, 0.0, "Head" ).x() < pelvis.x() - 0.2f );
           for ( const char * name : { "foot_l", "foot_r" } )
           {
-              const QVector3D foot = nodeAt( M_figures, f, 0.0, name );
+              const QVector3D foot = nodeAt( M_forward, f, 0.0, name );
               QVERIFY2( foot.x() > pelvis.x() + 0.4f && std::fabs( foot.y() ) < 0.1f, name );
           }
           for ( const char * name : { "hand_l", "hand_r" } )
           {
-              const QVector3D hand = nodeAt( M_figures, f, 0.0, name );
+              const QVector3D hand = nodeAt( M_forward, f, 0.0, name );
               QVERIFY2( hand.x() < pelvis.x() && std::fabs( hand.y() ) < 0.1f, name );
           }
       }
@@ -1246,16 +1249,106 @@ private slots:
     void actionMixed()
       {
           FigureInstance f = figureAt( 0, 0.0f, 0.0f, 0.0f, 1.85f );
-          const float standing = nodeAt( M_figures, f, 0.0, "pelvis" ).y();
+          const float standing = nodeAt( M_forward, f, 0.0, "pelvis" ).y();
           f.actions.fouled = FigureRun{ true, 3.0f, 5.0f };
-          const float down = nodeAt( M_figures, f, 0.0, "pelvis" ).y();
+          const float down = nodeAt( M_forward, f, 0.0, "pelvis" ).y();
           // halfway down
           f.actions.fouled.phase = FigureActionLog::FOULED_START + 0.5f * FigureActionLog::FOULED_FALL;
-          const float half = nodeAt( M_figures, f, 0.0, "pelvis" ).y();
+          const float half = nodeAt( M_forward, f, 0.0, "pelvis" ).y();
           QVERIFY( std::fabs( half - 0.5f * ( standing + down ) ) < 0.02f );
           // still standing at the foul's moment, while the tackler slides in
           f.actions.fouled.phase = 0.5f;
-          QVERIFY( std::fabs( nodeAt( M_figures, f, 0.0, "pelvis" ).y() - standing ) < 1.0e-4f );
+          QVERIFY( std::fabs( nodeAt( M_forward, f, 0.0, "pelvis" ).y() - standing ) < 1.0e-4f );
+      }
+
+    /*!
+      when a clip of getting up plays: at its own speed as late as it can,
+      ending with the action; faster when the time is short; at most
+      UP_SPEED_MAX times as fast, its start left out then; no time, none
+    */
+    void upSchedule()
+      {
+          const auto ends = []( const Figures3D::UpSchedule & s,
+                                const float duration,
+                                const float end ) {
+              return std::fabs( s.offset + s.speed * Figures3D::CYCLE_TIME * ( end - s.start ) - duration ) < 1.0e-4f;
+          };
+          // the slide's getting up (0.5 s) after a tackle held 10 cycles
+          Figures3D::UpSchedule s = Figures3D::upSchedule( 0.5f, 0.0f, 11.5f );
+          QCOMPARE( s.speed, 1.0f );
+          QVERIFY( std::fabs( s.start - 6.5f ) < 1.0e-4f );
+          QCOMPARE( s.offset, 0.0f );
+          QVERIFY( ends( s, 0.5f, 11.5f ) );
+          // not the time: faster, from the body down
+          s = Figures3D::upSchedule( 0.5f, 0.0f, 3.5f );
+          QVERIFY( std::fabs( s.speed - 5.0f / 3.5f ) < 1.0e-4f );
+          QVERIFY( std::fabs( s.start ) < 1.0e-4f );
+          QCOMPARE( s.offset, 0.0f );
+          QVERIFY( ends( s, 0.5f, 3.5f ) );
+          // far from the time: twice as fast, its start left out
+          s = Figures3D::upSchedule( 1.5f, 1.8f, 6.8f );
+          QCOMPARE( s.speed, Figures3D::UP_SPEED_MAX );
+          QCOMPARE( s.start, 1.8f );
+          QVERIFY( std::fabs( s.offset - 0.5f ) < 1.0e-4f );
+          QVERIFY( ends( s, 1.5f, 6.8f ) );
+          // no time
+          s = Figures3D::upSchedule( 0.5f, 3.0f, 2.0f );
+          QCOMPARE( s.start, 2.0f );
+          QCOMPARE( s.offset, 0.5f );
+      }
+
+    /*!
+      the bundled clips of the actions (Universal Animation Library 2): the
+      sliding tackle, down on the ground from its moment, getting up by the
+      slide's clip to end with the action; a fall after a foul as the pose
+      made here (sitting down), getting up by the clip from the ground
+    */
+    void bundledActions()
+      {
+          const ActionClips & a = M_figures.actionClips();
+          QVERIFY( a.tackle.valid() );
+          QVERIFY( a.tackle_up.valid() );
+          QVERIFY( a.get_up.valid() );
+          QVERIFY( ! a.fall.valid() );
+          QVERIFY( ! a.catch_low.valid() && ! a.catch_high.valid() && ! a.dive.valid() );
+          for ( const ActionClip & k : a.kick ) QVERIFY( ! k.valid() );
+          QVERIFY2( a.tackle.moment > 0.15f && a.tackle.moment < 0.35f, qPrintable( QString::number( a.tackle.moment ) ) );
+          QCOMPARE( a.tackle.down, a.tackle.moment );
+          QVERIFY( std::fabs( a.tackle_up.duration - 0.5f ) < 0.01f );
+          QVERIFY( std::fabs( a.get_up.duration - 1.533f ) < 0.01f );
+          QVERIFY( ! M_forward.actionClips().tackle.valid() );
+
+          // a tackle held 10 cycles: sliding feet first from the moment, up by its end
+          FigureInstance f = figureAt( 0, 0.0f, 0.0f, 0.0f, 1.85f );
+          const float standing = nodeAt( M_figures, f, 0.0, "pelvis" ).y();
+          f.actions.tackle = FigureRun{ true, 0.5f, 9.0f };
+          QVERIFY( nodeAt( M_figures, f, 0.0, "pelvis" ).y() < 0.3f * standing );
+          QVERIFY( nodeAt( M_figures, f, 0.0, "foot_r" ).x() > 0.4f ); // facing +x
+          const float end = 9.0f + FigureActionLog::TACKLE_TAIL;
+          const Figures3D::UpSchedule up = Figures3D::upSchedule( a.tackle_up.duration, 0.0f, end );
+          f.actions.tackle.phase = up.start - 0.5f;
+          QVERIFY( nodeAt( M_figures, f, 0.0, "pelvis" ).y() < 0.3f * standing ); // still sliding
+          f.actions.tackle.phase = end - 1.2f;
+          QVERIFY2( nodeAt( M_figures, f, 0.0, "pelvis" ).y() > 0.55f * standing,
+                    qPrintable( QString::number( nodeAt( M_figures, f, 0.0, "pelvis" ).y() ) ) );
+          // a foul's tackle (one cycle): getting up at once, faster
+          f.actions.tackle = FigureRun{ true, 0.3f, 0.0f };
+          const float slid = nodeAt( M_figures, f, 0.0, "pelvis" ).y();
+          f.actions.tackle.phase = 1.8f;
+          QVERIFY2( nodeAt( M_figures, f, 0.0, "pelvis" ).y() > slid + 0.3f,
+                    qPrintable( QString( "%1 %2" ).arg( slid ).arg( nodeAt( M_figures, f, 0.0, "pelvis" ).y() ) ) );
+
+          // fouled: standing while the tackler slides in, sitting, getting up by the clip
+          FigureInstance g = figureAt( 0, 0.0f, 0.0f, 0.0f, 1.85f );
+          g.actions.fouled = FigureRun{ true, 0.5f, 4.0f };
+          QVERIFY( std::fabs( nodeAt( M_figures, g, 0.0, "pelvis" ).y() - standing ) < 1.0e-4f );
+          g.actions.fouled.phase = FigureActionLog::FOULED_START + FigureActionLog::FOULED_FALL;
+          const float seated = nodeAt( M_figures, g, 0.0, "pelvis" ).y();
+          QVERIFY( seated < 0.25f );
+          QVERIFY( std::fabs( seated - nodeAt( M_forward, g, 0.0, "pelvis" ).y() ) < 1.0e-4f ); // the pose made here
+          g.actions.fouled.phase = 4.0f + FigureActionLog::FOULED_TAIL - 1.3f;
+          QVERIFY2( nodeAt( M_figures, g, 0.0, "pelvis" ).y() > seated + 0.3f,
+                    qPrintable( QString::number( nodeAt( M_figures, g, 0.0, "pelvis" ).y() ) ) );
       }
 
     /*!
@@ -1350,12 +1443,12 @@ private slots:
           k.actions.kick = kick;
           QVERIFY( ( nodeAt( human, k, 0.0, "ball_r" ) - Figures3D::kickTarget( kick ) ).length() < 0.03f );
 
-          // sitting after a foul: the hands and the feet near the ground, as the Mannequin
+          // sitting after a foul (the pose made by Figures3D): the hands and the feet near the ground, as the Mannequin
           FigureInstance s = figureAt( 0, 0.0f, 0.0f, 0.0f, 1.85f );
           s.actions.fouled = FigureRun{ true, 3.0f, 5.0f };
           for ( const char * name : { "hand_l", "hand_r", "foot_l", "foot_r" } )
           {
-              const float y = nodeAt( human, s, 0.0, name ).y();
+              const float y = nodeAt( human_forward, s, 0.0, name ).y();
               QVERIFY2( y > -0.08f && y < 0.25f, qPrintable( QString( "%1 %2" ).arg( name ).arg( y ) ) );
           }
 

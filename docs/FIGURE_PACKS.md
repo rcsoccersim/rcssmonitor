@@ -7,7 +7,8 @@ bundled with rcssmonitor:
 - **Mannequin** (`mannequin`): the Mannequin of Quaternius's Universal
   Animation Library, all in the team color but its joints. Its motion has
   clips of walking and jogging backward and sideways too, cut from the
-  100STYLE dataset (Ian Mason, CC BY 4.0).
+  100STYLE dataset (Ian Mason, CC BY 4.0), and the sliding tackle and
+  getting up of Quaternius's Universal Animation Library 2.
 - **Human** (`human`): men and women of Quaternius's Universal Base
   Characters in a uniform. Each player has its own body, hairstyle, and
   skin and hair colors. They move with the Mannequin's motion.
@@ -144,7 +145,7 @@ written for a later version.
 |---|---|---|
 | `model` | yes | The model of the motion's skeleton (a glTF, FBX or BVH file, or a VRM Animation), in the pack's folder. It needs no mesh, but its rest should be the skeleton's T pose (see below). |
 | `skeleton` | no | Which bones play which roles (below). Without it, they are found from the model. |
-| `clips` | yes | The clips: `idle` (standing), `walk`, `jog` and `sprint`, all four required; and, if you have them, `walk_back`, `jog_back`, `walk_left`, `walk_right`, `jog_left` and `jog_right` (below). |
+| `clips` | yes | The clips: `idle` (standing), `walk`, `jog` and `sprint`, all four required; and, if you have them, `walk_back`, `jog_back`, `walk_left`, `walk_right`, `jog_left` and `jog_right` (below), and the clips of the actions (below). |
 
 Each clip is one of these:
 
@@ -154,7 +155,7 @@ Each clip is one of these:
   file has one clip, named after the file (`walk` for `walk.bvh`).
 - An object of a `file` and the name of its `clip`:
   `{ "file": "anims.glb", "clip": "Jog_Fwd_Loop" }`. Without `clip`, the
-  file's first clip.
+  file's first clip. A clip of an action may tell its `moment` too (below).
 
 A clip of another file is put on the motion's skeleton through the bones'
 roles, so the file may be of another skeleton (another rig, other
@@ -204,6 +205,50 @@ so that they loop: one cycle (two steps) is enough. rcssmonitor reads how
 fast each one goes, as the forward ones. A clip that does not go its way
 (its feet on the ground do not go against it) is told and the pack is
 not drawn.
+
+#### The actions
+
+These optional clips play the actions read from the log, in place of the
+poses rcssmonitor makes for them. Any of them may be left out: an action
+without its clip keeps its pose.
+
+| Key | The action | Its moment, found from the clip |
+|---|---|---|
+| `kick` | A kick: a pass and a shot without their own clips | When a foot swings forward fastest |
+| `kick_tap` | A touch (dribbling, holding the ball); without it, the pose made here, not `kick` | As `kick` |
+| `kick_pass`, `kick_shot` | A pass (a ball sent at 1 m a cycle or faster), a shot (2 m a cycle or faster, toward the goal) | As `kick` |
+| `tackle` | The sliding tackle, down to the ground | When the hips come down to 40 % of their height (on the ground) |
+| `tackle_up` | Getting up from the slide; without it, `get_up` | |
+| `fall` | Falling after a foul by an opponent | When the hips come down to 40 % of their height |
+| `get_up` | Getting up from the ground: after a foul, a tackle, a dive | |
+| `catch_low`, `catch_high` | The goalie's catch of a low ball (30 cm high or lower) and of a high one (1.5 m or higher), mixed between | When the hands reach farthest from the chest |
+| `dive_left`, `dive_right` | The goalie's dive for a ball to the side (from 0.8 m, all a dive from 1.2 m); a side left out is the other side's mirrored | As the catch |
+
+A kick's clip may be of either foot: rcssmonitor finds which foot swings,
+and plays the clip mirrored for a kick with the other foot. A kick's foot
+goes to the ball around its moment, as it does without a clip.
+
+Each clip plays at its own speed, its moment at the action's moment in the
+log: the foot meeting the ball, the slide reaching it, the hands at the
+ball. The server moves a player again soon after a tackle or a foul (in a
+few cycles), so a clip of getting up plays to end then: as late as it can
+at its own speed, after the body is down; faster if that is not enough
+(up to twice its speed); and, if that is not enough either, from later in
+it (a long clip of getting up from lying shows its last part, from
+sitting up). The actions keep the timing of the poses made here: a kick
+starts at most a cycle before the ball moves (the log tells no more), so
+a long swing back of a kick's clip shows only its end.
+
+If the moment found is not the one you want, tell it, in seconds from the
+clip's start: `{ "file": "Kick.fbx", "moment": 0.62 }`. A clip of a kick
+where no foot swings forward, and a clip of the tackle or a fall where the
+hips do not come down, are told and the pack is not drawn, unless their
+moment is told.
+
+The actions are done where the player is, so a clip going somewhere (its
+hips farther than 30 % of their height from where they start, as a slide or
+a dive going across the floor) has its hips kept horizontally where they
+start.
 
 ### A body
 

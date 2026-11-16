@@ -714,6 +714,45 @@ private slots:
           }
           const GltfModel::Clip kept = retargetClip( M_model, M_rig, forward, M_model, M_rig, false );
           QVERIFY( std::fabs( clipDrift( M_model, M_rig, kept ) * M_rig.hipHeight() - 1.28f ) < 0.01f );
+
+          // a clip going there and back: no drift, but its travel
+          GltfModel::Clip there = walk;
+          GltfModel::Channel & t = there.nodes[root].t;
+          t = GltfModel::Channel();
+          for ( int k = 0; k <= 40; ++k )
+          {
+              const float time = walk.duration * k / 40;
+              std::vector< NodeTransform > local = M_model.rest;
+              M_model.sample( walk, std::min( time, walk.duration - 1.0e-4f ), local );
+              const QVector3D at = local[root].t + ahead * std::sin( float( M_PI ) * k / 40 );
+              t.times.push_back( time );
+              t.values.insert( t.values.end(), { at.x(), at.y(), at.z() } );
+          }
+          QVERIFY( clipDrift( M_model, M_rig, there ) < 1.0e-3f );
+          const float travel = clipTravel( M_model, M_rig, there ) * M_rig.hipHeight();
+          QVERIFY2( std::fabs( travel - 1.28f ) < 0.02f, qPrintable( QString::number( travel ) ) );
+          QVERIFY( clipTravel( M_model, M_rig, forward ) >= clipDrift( M_model, M_rig, forward ) - 1.0e-4f );
+          // pinned: the hips kept horizontally where they start, their height as it goes
+          const GltfModel::Clip pinned = retargetClip( M_model, M_rig, there, M_model, M_rig, ClipPlace::Pinned );
+          QVERIFY( clipTravel( M_model, M_rig, pinned ) < 1.0e-3f );
+          std::vector< NodeTransform > local = M_model.rest;
+          M_model.sample( there, 0.0f, local );
+          const QVector3D start = M_rig.poseOf( local ).hips;
+          for ( const float time : { 0.2f, 0.5f, 0.9f } )
+          {
+              local = M_model.rest;
+              M_model.sample( pinned, time, local );
+              const HumanoidPose got = M_rig.poseOf( local );
+              local = M_model.rest;
+              M_model.sample( walk, time, local );
+              const HumanoidPose want = M_rig.poseOf( local );
+              QVERIFY( std::fabs( got.hips.x() - start.x() ) < 1.0e-3f );
+              QVERIFY( std::fabs( got.hips.z() - start.z() ) < 1.0e-3f );
+              QVERIFY( std::fabs( got.hips.y() - want.hips.y() ) < 1.0e-3f );
+          }
+          // as it is: the same travel
+          const GltfModel::Clip as = retargetClip( M_model, M_rig, there, M_model, M_rig, ClipPlace::AsItIs );
+          QVERIFY( std::fabs( clipTravel( M_model, M_rig, as ) * M_rig.hipHeight() - travel ) < 0.01f );
       }
 
     /*!

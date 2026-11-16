@@ -14,6 +14,12 @@
             "author": "Ian Mason",
             "license": "CC BY 4.0",
             "url": "https://www.ianxmason.com/100style/"
+        },
+        {
+            "title": "Universal Animation Library 2 [Standard] (the slide and getting up)",
+            "author": "Quaternius",
+            "license": "CC0 1.0",
+            "url": "https://quaternius.com/packs/universalanimationlibrary2.html"
         }
     ],
     "motion": {
@@ -27,7 +33,10 @@
             "walk_back": "WalkBack.bvh",
             "jog_back": "JogBack.bvh",
             "walk_right": "WalkRight.bvh",
-            "jog_left": "JogLeft.bvh"
+            "jog_left": "JogLeft.bvh",
+            "tackle": { "file": "Actions.glb", "clip": "Slide_Start" },
+            "tackle_up": { "file": "Actions.glb", "clip": "Slide_Exit" },
+            "get_up": { "file": "Actions.glb", "clip": "LayToIdle" }
         }
     },
     "bodies": [

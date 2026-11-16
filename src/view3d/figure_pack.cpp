@@ -208,6 +208,19 @@ public:
           {
               c.file = file( v.toObject(), where, "file" );
               c.clip = string( v.toObject(), where, "clip" );
+              // an action's moment in the clip, if told
+              const QJsonValue m = v.toObject().value( QStringLiteral( "moment" ) );
+              if ( ! m.isUndefined() && ! m.isNull() )
+              {
+                  if ( ! m.isDouble() || m.toDouble() < 0.0 )
+                  {
+                      fail( pathOf( where, QStringLiteral( "moment" ) ), QStringLiteral( "not a time in seconds (0 or more)" ) );
+                  }
+                  else
+                  {
+                      c.moment = static_cast< float >( m.toDouble() );
+                  }
+              }
           }
           else
           {
@@ -430,6 +443,25 @@ FigureMotionSpec::optionalClips() const
 }
 
 /*-------------------------------------------------------------------*/
+const std::vector< const char * > &
+FigureMotionSpec::actionKeys()
+{
+    static const std::vector< const char * > keys = {
+        "kick", "kick_tap", "kick_pass", "kick_shot", "tackle", "tackle_up",
+        "fall", "get_up", "catch_low", "catch_high", "dive_left", "dive_right",
+    };
+    return keys;
+}
+
+/*-------------------------------------------------------------------*/
+std::vector< const FigureClipSpec * >
+FigureMotionSpec::actionClips() const
+{
+    return { &kick, &kick_tap, &kick_pass, &kick_shot, &tackle, &tackle_up,
+             &fall, &get_up, &catch_low, &catch_high, &dive_left, &dive_right };
+}
+
+/*-------------------------------------------------------------------*/
 std::uint32_t
 FigureBodySpec::bitOf( const QString & material ) const
 {
@@ -637,6 +669,18 @@ FigurePack::read( const QString & dir,
         pack.motion.walk_right = r.clip( c, at, "walk_right", true );
         pack.motion.jog_left = r.clip( c, at, "jog_left", true );
         pack.motion.jog_right = r.clip( c, at, "jog_right", true );
+        pack.motion.kick = r.clip( c, at, "kick", true );
+        pack.motion.kick_tap = r.clip( c, at, "kick_tap", true );
+        pack.motion.kick_pass = r.clip( c, at, "kick_pass", true );
+        pack.motion.kick_shot = r.clip( c, at, "kick_shot", true );
+        pack.motion.tackle = r.clip( c, at, "tackle", true );
+        pack.motion.tackle_up = r.clip( c, at, "tackle_up", true );
+        pack.motion.fall = r.clip( c, at, "fall", true );
+        pack.motion.get_up = r.clip( c, at, "get_up", true );
+        pack.motion.catch_low = r.clip( c, at, "catch_low", true );
+        pack.motion.catch_high = r.clip( c, at, "catch_high", true );
+        pack.motion.dive_left = r.clip( c, at, "dive_left", true );
+        pack.motion.dive_right = r.clip( c, at, "dive_right", true );
     }
     else
     {

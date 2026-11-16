@@ -41,3 +41,16 @@ and scale of every joint.
   ```
 
   The cycles it cuts are in the script, and in `docs/FIGURE_ASSETS.md`.
+- `Actions.glb`: the skeleton (no mesh) and three animations of the
+  [Universal Animation Library 2](https://quaternius.com/packs/universalanimationlibrary2.html)
+  [Standard] by Quaternius, CC0 1.0, from its file without root motion
+  (`UAL2_Standard.glb`): `Slide_Start` (the sliding tackle), `Slide_Exit`
+  (getting up from it) and `LayToIdle` (getting up from the ground, after a
+  foul). Their skeleton is the Mannequin's. A channel that keeps its node at
+  rest is left out.
+- `pack_ual2_actions.py`: the script that wrote it (Python's standard
+  library only):
+
+  ```bash
+  python3 pack_ual2_actions.py "Unreal-Godot/UAL2_Standard.glb" Actions.glb
+  ```

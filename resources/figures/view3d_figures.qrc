@@ -7,6 +7,7 @@
   <qresource prefix="/figures">
     <file>mannequin/figure.json</file>
     <file>mannequin/Mannequin.glb</file>
+    <file>mannequin/Actions.glb</file>
     <file>mannequin/WalkBack.bvh</file>
     <file>mannequin/JogBack.bvh</file>
     <file>mannequin/WalkRight.bvh</file>

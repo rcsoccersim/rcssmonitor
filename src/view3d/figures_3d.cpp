@@ -282,6 +282,7 @@ struct Figures3D::Motion {
     int idle = -1; //!< the clip of standing
     std::array< std::vector< GaitClip >, 4 > ways; //!< walking and running by the way (GaitWays::Way), slowest first: wayClips()
     GaitWays strides; //!< their strides
+    ActionClips actions; //!< the clips of the actions, if told
 };
 
 /*!
@@ -349,6 +350,12 @@ Figures3D::motionOf( const FigureMotionSpec & spec,
     {
         parts << ( c->given ? c->file + QLatin1Char( '|' ) + c->clip : QStringLiteral( "-" ) );
     }
+    for ( const FigureClipSpec * c : spec.actionClips() )
+    {
+        parts << ( c->given
+                   ? c->file + QLatin1Char( '|' ) + c->clip + QLatin1Char( '|' ) + QString::number( c->moment )
+                   : QStringLiteral( "-" ) );
+    }
     const QString key = parts.join( QLatin1Char( '\n' ) );
     for ( const std::unique_ptr< Motion > & m : M_motions )
     {
@@ -387,8 +394,21 @@ Figures3D::motionOf( const FigureMotionSpec & spec,
     // skeleton (retargetClip()); in place (a root motion taken off)
     std::vector< std::unique_ptr< ClipSource > > sources;
     const std::size_t own = m->model.clips.size();
+    // a file of clips, read once
+    const auto sourceOf = [&]( const QString & path ) -> ClipSource * {
+        for ( const std::unique_ptr< ClipSource > & s : sources )
+        {
+            if ( s->path == path ) return s.get();
+        }
+        sources.emplace_back( new ClipSource );
+        ClipSource * source = sources.back().get();
+        return ( readClips( path, spec, m->model, *source, error ) ? source : nullptr );
+    };
+    const auto ownFile = [&spec]( const FigureClipSpec & c ) {
+        return c.file.isEmpty() || QFileInfo( c.file ) == QFileInfo( spec.model );
+    };
     const auto clipOf = [&]( const FigureClipSpec & c ) -> int {
-        if ( c.file.isEmpty() || QFileInfo( c.file ) == QFileInfo( spec.model ) )
+        if ( ownFile( c ) )
         {
             const int clip = indexOf( m->model, own, spec.model, c.clip );
             if ( clip >= 0 && clipDrift( m->model, m->rig, m->model.clips[clip] ) > ROOT_MOTION )
@@ -398,20 +418,36 @@ Figures3D::motionOf( const FigureMotionSpec & spec,
             }
             return clip;
         }
-        ClipSource * source = nullptr;
-        for ( const std::unique_ptr< ClipSource > & s : sources )
-        {
-            if ( s->path == c.file ) source = s.get();
-        }
-        if ( ! source )
-        {
-            sources.emplace_back( new ClipSource );
-            source = sources.back().get();
-            if ( ! readClips( c.file, spec, m->model, *source, error ) ) return -1;
-        }
+        ClipSource * source = sourceOf( c.file );
+        if ( ! source ) return -1;
         const int clip = indexOf( source->model, source->model.clips.size(), c.file, c.clip );
         if ( clip < 0 ) return -1;
         GltfModel::Clip put = retargetClip( source->model, source->rig, source->model.clips[clip], m->model, m->rig, true );
+        put.name = c.text();
+        m->model.clips.push_back( std::move( put ) );
+        return static_cast< int >( m->model.clips.size() ) - 1;
+    };
+    // a clip of an action: as it goes, but pinned if it goes somewhere (a
+    // slide, a dive: done where the player is)
+    const auto actionOf = [&]( const FigureClipSpec & c ) -> int {
+        if ( ownFile( c ) )
+        {
+            const int clip = indexOf( m->model, own, spec.model, c.clip );
+            if ( clip >= 0 && clipTravel( m->model, m->rig, m->model.clips[clip] ) > ACTION_TRAVEL )
+            {
+                const GltfModel::Clip as = m->model.clips[clip];
+                m->model.clips[clip] = retargetClip( m->model, m->rig, as, m->model, m->rig, ClipPlace::Pinned );
+            }
+            return clip;
+        }
+        ClipSource * source = sourceOf( c.file );
+        if ( ! source ) return -1;
+        const int clip = indexOf( source->model, source->model.clips.size(), c.file, c.clip );
+        if ( clip < 0 ) return -1;
+        const GltfModel::Clip & from = source->model.clips[clip];
+        GltfModel::Clip put = retargetClip( source->model, source->rig, from, m->model, m->rig,
+                                            clipTravel( source->model, source->rig, from ) > ACTION_TRAVEL
+                                            ? ClipPlace::Pinned : ClipPlace::AsItIs );
         put.name = c.text();
         m->model.clips.push_back( std::move( put ) );
         return static_cast< int >( m->model.clips.size() ) - 1;
@@ -504,6 +540,100 @@ Figures3D::motionOf( const FigureMotionSpec & spec,
     {
         for ( const GaitClip & g : m->ways[w] ) m->strides.strides[w].push_back( { g.speed, g.stride() } );
     }
+
+    // the clips of the actions, if told
+    ActionClips & acts = m->actions;
+    const auto actionClip = [&]( const int clip ) {
+        ActionClip a;
+        a.clip = clip;
+        a.duration = m->model.clips[clip].duration;
+        a.down = downTime( m->model, m->rig, clip );
+        return a;
+    };
+    // a kick: with its foot, and the other foot's mirrored
+    const auto kickOf = [&]( const FigureClipSpec & c,
+                             ActionClip & a ) {
+        if ( ! c.given ) return true;
+        const int clip = actionOf( c );
+        if ( clip < 0 ) return false;
+        float moment = 0.0f;
+        bool right = true;
+        if ( ! kickMoment( m->model, m->rig, clip, &moment, &right ) && c.moment < 0.0f )
+        {
+            *error = clipText( c ) + QStringLiteral( " is not of kicking (no foot swings forward)" );
+            return false;
+        }
+        a = actionClip( clip );
+        a.moment = ( c.moment >= 0.0f ? c.moment : moment );
+        const int mirror = mirrored( clip );
+        a.clip = ( right ? clip : mirror );
+        a.other = ( right ? mirror : clip );
+        return true;
+    };
+    ActionClip kick;
+    if ( ! kickOf( spec.kick, kick )
+         || ! kickOf( spec.kick_tap, acts.kick[static_cast< int >( KickKind::Tap )] )
+         || ! kickOf( spec.kick_pass, acts.kick[static_cast< int >( KickKind::Pass )] )
+         || ! kickOf( spec.kick_shot, acts.kick[static_cast< int >( KickKind::Shot )] ) )
+    {
+        return nullptr;
+    }
+    for ( const KickKind k : { KickKind::Pass, KickKind::Shot } )
+    {
+        if ( ! acts.kick[static_cast< int >( k )].valid() ) acts.kick[static_cast< int >( k )] = kick;
+    }
+    // going down to the ground: the moment on it
+    const auto fallOf = [&]( const FigureClipSpec & c,
+                             ActionClip & a ) {
+        if ( ! c.given ) return true;
+        const int clip = actionOf( c );
+        if ( clip < 0 ) return false;
+        a = actionClip( clip );
+        if ( a.down < 0.0f && c.moment < 0.0f )
+        {
+            *error = clipText( c ) + QStringLiteral( " is not of falling (the hips do not come down)" );
+            return false;
+        }
+        a.moment = ( c.moment >= 0.0f ? c.moment : a.down );
+        if ( a.down < 0.0f ) a.down = a.moment;
+        return true;
+    };
+    // getting up: as it goes; a catch: the moment the hands reach farthest
+    const auto plainOf = [&]( const FigureClipSpec & c,
+                              ActionClip & a,
+                              const bool reach ) {
+        if ( ! c.given ) return true;
+        const int clip = actionOf( c );
+        if ( clip < 0 ) return false;
+        a = actionClip( clip );
+        a.moment = ( c.moment >= 0.0f ? c.moment : reach ? reachMoment( m->model, m->rig, clip ) : 0.0f );
+        return true;
+    };
+    if ( ! fallOf( spec.tackle, acts.tackle )
+         || ! fallOf( spec.fall, acts.fall )
+         || ! plainOf( spec.tackle_up, acts.tackle_up, false )
+         || ! plainOf( spec.get_up, acts.get_up, false )
+         || ! plainOf( spec.catch_low, acts.catch_low, true )
+         || ! plainOf( spec.catch_high, acts.catch_high, true ) )
+    {
+        return nullptr;
+    }
+    // a dive: to the right, and to the left (a side not told: the other's mirrored)
+    if ( spec.dive_left.given || spec.dive_right.given )
+    {
+        ActionClip left;
+        ActionClip right;
+        if ( ! plainOf( spec.dive_left, left, true )
+             || ! plainOf( spec.dive_right, right, true ) )
+        {
+            return nullptr;
+        }
+        acts.dive = ( right.valid() ? right : left );
+        acts.dive.clip = ( right.valid() ? right.clip : mirrored( left.clip ) );
+        acts.dive.other = ( left.valid() ? left.clip : mirrored( right.clip ) );
+        if ( acts.dive.down < 0.0f ) acts.dive.down = acts.dive.duration;
+    }
+
     M_motions.push_back( std::move( m ) );
     return M_motions.back().get();
 }
@@ -1158,7 +1288,192 @@ Figures3D::rollOf( const FigureInstance & figure ) const
     if ( ! c.on || figure.actions.fouled.on ) return 0.0f;
     // a ball more than half a meter to the side: leaning to it, most from 2 m
     const float reach = clamp01( ( std::fabs( c.side ) - 0.5f ) / 1.5f );
-    return weightsOf( figure.actions ).caught * reach * CATCH_ROLL * ( c.side < 0.0f ? -1.0f : 1.0f );
+    // a dive's clip lays the body down to the side itself
+    return weightsOf( figure.actions ).caught * reach * CATCH_ROLL * ( c.side < 0.0f ? -1.0f : 1.0f )
+        * ( 1.0f - diveOf( figure.actions ) );
+}
+
+/*-------------------------------------------------------------------*/
+const ActionClips &
+Figures3D::actionClips() const
+{
+    return motion().actions;
+}
+
+namespace {
+
+//! samples a second of a clip read for an action
+constexpr float ACTION_SAMPLES = 60.0f;
+
+//! the times of an action's clip, at ACTION_SAMPLES a second (the last one kept in it)
+std::vector< float >
+actionTimes( const GltfModel::Clip & clip )
+{
+    const int steps = std::max( 2, static_cast< int >( std::ceil( clip.duration * ACTION_SAMPLES - 1.0e-3f ) ) );
+    ActionClip a;
+    a.duration = clip.duration;
+    std::vector< float > times;
+    for ( int k = 0; k <= steps; ++k ) times.push_back( a.at( clip.duration * k / steps ) );
+    return times;
+}
+
+}
+
+/*-------------------------------------------------------------------*/
+bool
+Figures3D::kickMoment( const GltfModel & model,
+                       const HumanoidRig & rig,
+                       const int clip,
+                       float * moment,
+                       bool * right )
+{
+    const GltfModel::Clip & c = model.clips[clip];
+    // the toes, or else the foot, of each leg
+    int feet[2];
+    for ( int r = 0; r < 2; ++r )
+    {
+        const int toes = rig.node( r ? HumanBone::RightToes : HumanBone::LeftToes );
+        feet[r] = ( toes >= 0 ? toes : rig.node( r ? HumanBone::RightFoot : HumanBone::LeftFoot ) );
+    }
+    const std::vector< float > times = actionTimes( c );
+    std::vector< NodeTransform > local;
+    std::vector< QMatrix4x4 > global;
+    float before[2] = { 0.0f, 0.0f };
+    float fastest = -1.0f;
+    *moment = 0.0f;
+    *right = true;
+    for ( std::size_t k = 0; k < times.size(); ++k )
+    {
+        local = model.rest;
+        model.sample( c, times[k], local );
+        model.globals( local, global );
+        for ( int r = 0; r < 2; ++r )
+        {
+            const float z = global[feet[r]].column( 3 ).z();
+            if ( k > 0 && times[k] > times[k - 1] )
+            {
+                // forward: +z in the model
+                const float speed = ( z - before[r] ) / ( times[k] - times[k - 1] ) / rig.hipHeight();
+                if ( speed > fastest )
+                {
+                    fastest = speed;
+                    *moment = 0.5f * ( times[k] + times[k - 1] );
+                    *right = ( r == 1 );
+                }
+            }
+            before[r] = z;
+        }
+    }
+    return fastest >= KICK_SPEED;
+}
+
+/*-------------------------------------------------------------------*/
+float
+Figures3D::downTime( const GltfModel & model,
+                     const HumanoidRig & rig,
+                     const int clip )
+{
+    const GltfModel::Clip & c = model.clips[clip];
+    std::vector< NodeTransform > local;
+    for ( const float t : actionTimes( c ) )
+    {
+        local = model.rest;
+        model.sample( c, t, local );
+        // the hips' place from their rest, in hip heights
+        if ( rig.poseOf( local ).hips.y() <= DOWN_HIPS - 1.0f ) return t;
+    }
+    return -1.0f;
+}
+
+/*-------------------------------------------------------------------*/
+float
+Figures3D::reachMoment( const GltfModel & model,
+                        const HumanoidRig & rig,
+                        const int clip )
+{
+    const GltfModel::Clip & c = model.clips[clip];
+    const int chest = rig.node( rig.node( HumanBone::UpperChest ) >= 0 ? HumanBone::UpperChest : HumanBone::Chest );
+    const int hands[2] = { rig.node( HumanBone::LeftHand ), rig.node( HumanBone::RightHand ) };
+    std::vector< NodeTransform > local;
+    std::vector< QMatrix4x4 > global;
+    float farthest = -1.0f;
+    float moment = 0.0f;
+    for ( const float t : actionTimes( c ) )
+    {
+        local = model.rest;
+        model.sample( c, t, local );
+        model.globals( local, global );
+        const QVector3D reach = 0.5f * ( global[hands[0]].column( 3 ).toVector3D() + global[hands[1]].column( 3 ).toVector3D() )
+            - global[chest].column( 3 ).toVector3D();
+        if ( reach.length() > farthest )
+        {
+            farthest = reach.length();
+            moment = t;
+        }
+    }
+    return moment;
+}
+
+/*-------------------------------------------------------------------*/
+Figures3D::UpSchedule
+Figures3D::upSchedule( const float duration,
+                       const float ground,
+                       const float end )
+{
+    UpSchedule s;
+    const float room = end - ground; // cycles from the body down to the action's end
+    if ( room <= 0.0f )
+    {
+        // no time: down to the end (the pose then goes over to walking)
+        s.start = end;
+        s.offset = duration;
+        return s;
+    }
+    const float length = duration / CYCLE_TIME; // cycles at its own speed
+    s.speed = std::min( UP_SPEED_MAX, std::max( 1.0f, length / room ) );
+    const float played = length / s.speed;
+    if ( played <= room )
+    {
+        s.start = end - played;
+    }
+    else
+    {
+        // its start left out
+        s.start = ground;
+        s.offset = duration - s.speed * CYCLE_TIME * room;
+    }
+    return s;
+}
+
+/*-------------------------------------------------------------------*/
+float
+Figures3D::diveOf( const FigureActions & actions ) const
+{
+    if ( ! actions.caught.on || ! motion().actions.dive.valid() ) return 0.0f;
+    return clamp01( ( std::fabs( actions.caught.side ) - DIVE_FROM ) / ( DIVE_FULL - DIVE_FROM ) );
+}
+
+/*-------------------------------------------------------------------*/
+HumanoidPose
+Figures3D::rise( const HumanoidPose & down,
+                 const ActionClip & up,
+                 const float phase,
+                 const float ground,
+                 const float end ) const
+{
+    std::vector< NodeTransform > nodes;
+    HumanoidPose pose = down;
+    if ( up.valid() )
+    {
+        const UpSchedule s = upSchedule( up.duration, ground, end );
+        if ( phase > s.start )
+        {
+            const HumanoidPose rise = sample( up.clip, up.at( s.offset + s.speed * CYCLE_TIME * ( phase - s.start ) ), nodes );
+            const float blend = std::max( 1.0e-3f, std::min( UP_BLEND, 0.5f * ( end - s.start ) ) );
+            pose = HumanoidPose::mix( pose, rise, curve( { { 0.0f, 0.0f }, { blend, 1.0f } }, phase - s.start ) );
+        }
+    }
+    return pose;
 }
 
 /*-------------------------------------------------------------------*/
@@ -1231,91 +1546,153 @@ Figures3D::act( const Body & b,
             b.rig.turnInModel( target, HumanBone::Chest, aboutX( 0.5f * lean ) );
         };
 
-    // the body: one action at a time, the fall after a foul first
+    // the body: one action at a time, the fall after a foul first; by the
+    // clips of the pack's motion if told, or else the poses made here
+    const ActionClips & clips = motion().actions;
+    std::vector< NodeTransform > nodes; // an action clip's nodes (the bones without a role: the walk's)
     if ( w.fouled > 0.0f )
     {
-        // sitting on the ground, leaning back on the hands
+        // sitting on the ground, leaning back on the hands (or falling by
+        // the clip), from when the tackler has slid in; getting up by the
+        // clip to end with the action (the player goes then)
+        const FigureRun & f = actions.fouled;
         HumanoidPose target = pose;
-        body( target, 0.80f, -70.0f );
-        setLeg( b, target, 0, { 88.0f, -8.0f, 15.0f } );
-        setLeg( b, target, 1, { 90.0f, 8.0f, 20.0f } );
-        setArm( b, target, 0, { -50.0f, -25.0f, 10.0f } );
-        setArm( b, target, 1, { -50.0f, 25.0f, 10.0f } );
+        float ground = FigureActionLog::FOULED_START + FigureActionLog::FOULED_FALL;
+        if ( clips.fall.valid() )
+        {
+            target = sample( clips.fall.clip, clips.fall.at( CYCLE_TIME * ( f.phase - FigureActionLog::FOULED_START ) ), nodes );
+            ground = FigureActionLog::FOULED_START + clips.fall.moment / CYCLE_TIME;
+        }
+        else
+        {
+            body( target, 0.80f, -70.0f );
+            setLeg( b, target, 0, { 88.0f, -8.0f, 15.0f } );
+            setLeg( b, target, 1, { 90.0f, 8.0f, 20.0f } );
+            setArm( b, target, 0, { -50.0f, -25.0f, 10.0f } );
+            setArm( b, target, 1, { -50.0f, 25.0f, 10.0f } );
+        }
+        target = rise( target, clips.get_up, f.phase, ground, f.last + FigureActionLog::FOULED_TAIL );
         pose = HumanoidPose::mix( pose, target, w.fouled );
     }
     else if ( w.tackle > 0.0f )
     {
-        // sliding with the right leg ahead
+        // sliding with the right leg ahead (or by the clip, on the ground at
+        // the moment); getting up by the clip to end with the action
+        const FigureRun & t = actions.tackle;
+        const ActionClip & tackle = clips.tackle;
         HumanoidPose target = pose;
-        body( target, 0.45f, -35.0f );
-        setLeg( b, target, 1, { 80.0f, 0.0f, 5.0f } );
-        setLeg( b, target, 0, { 25.0f, 0.0f, 110.0f } );
-        setArm( b, target, 0, { -40.0f, -20.0f, 20.0f } );
-        setArm( b, target, 1, { -40.0f, 20.0f, 20.0f } );
+        float ground = 0.0f;
+        if ( tackle.valid() )
+        {
+            target = sample( tackle.clip, tackle.at( tackle.moment + CYCLE_TIME * t.phase ), nodes );
+            ground = std::max( 0.0f, ( tackle.down - tackle.moment ) / CYCLE_TIME );
+        }
+        else
+        {
+            body( target, 0.45f, -35.0f );
+            setLeg( b, target, 1, { 80.0f, 0.0f, 5.0f } );
+            setLeg( b, target, 0, { 25.0f, 0.0f, 110.0f } );
+            setArm( b, target, 0, { -40.0f, -20.0f, 20.0f } );
+            setArm( b, target, 1, { -40.0f, 20.0f, 20.0f } );
+        }
+        target = rise( target, clips.tackle_up.valid() ? clips.tackle_up : clips.get_up,
+                       t.phase, ground, t.last + FigureActionLog::TACKLE_TAIL );
         pose = HumanoidPose::mix( pose, target, w.tackle );
     }
     else if ( w.kick > 0.0f )
     {
-        // the leg on the ball's side swings back, through the ball at the
-        // moment, and on; the other arm out for balance
         const FigureKick & kick = actions.kick;
-        const float k = kick.phase;
-        const int leg = ( kick.right ? 1 : 0 );
-        const float out = ( leg ? -1.0f : 1.0f ); // the other arm's outward, to its side
-        HumanoidPose target = pose;
-        LimbPose swing;
-        LimbPose arm;
-        switch ( kick.kind ) {
-        case KickKind::Shot:
-            swing.pitch = curve( { { -1.0f, 0.0f }, { -0.45f, -50.0f }, { 0.0f, 25.0f }, { 0.6f, 85.0f }, { 1.5f, 0.0f } }, k );
-            swing.bend = curve( { { -1.0f, 0.0f }, { -0.45f, 100.0f }, { 0.0f, 10.0f }, { 0.6f, 20.0f }, { 1.5f, 0.0f } }, k );
-            swing.yaw = clampTo( kick.way, 30.0f );
-            arm = { 50.0f, 40.0f * out, 20.0f };
-            break;
-        case KickKind::Pass:
-            // with the inside of the foot: the leg turned outward
-            swing.pitch = curve( { { -0.9f, 0.0f }, { -0.4f, -30.0f }, { 0.0f, 20.0f }, { 0.5f, 50.0f }, { 1.3f, 0.0f } }, k );
-            swing.bend = curve( { { -0.9f, 0.0f }, { -0.4f, 70.0f }, { 0.0f, 15.0f }, { 0.5f, 15.0f }, { 1.3f, 0.0f } }, k );
-            swing.yaw = clampTo( kick.way, 45.0f );
-            swing.turn = 30.0f;
-            arm = { 35.0f, 30.0f * out, 20.0f };
-            break;
-        case KickKind::Tap:
-        default:
-            swing.pitch = curve( { { -0.6f, 0.0f }, { -0.3f, -10.0f }, { 0.0f, 20.0f }, { 0.3f, 25.0f }, { 0.8f, 0.0f } }, k );
-            swing.bend = curve( { { -0.6f, 0.0f }, { -0.3f, 40.0f }, { 0.0f, 15.0f }, { 0.8f, 0.0f } }, k );
-            swing.yaw = clampTo( kick.way, 45.0f );
-            break;
+        const ActionClip & clip = clips.kick[static_cast< int >( kick.kind )];
+        if ( clip.valid() )
+        {
+            // the foot meeting the ball at the moment (the clip of the other foot mirrored)
+            const HumanoidPose target = sample( kick.right ? clip.clip : clip.other,
+                                                clip.at( clip.moment + CYCLE_TIME * kick.phase ), nodes );
+            pose = HumanoidPose::mix( pose, target, w.kick );
         }
-        setLeg( b, target, leg, swing );
-        setLeg( b, target, 1 - leg, { -5.0f, 0.0f, 15.0f } );
-        if ( kick.kind != KickKind::Tap ) setArm( b, target, 1 - leg, arm );
-        pose = HumanoidPose::mix( pose, target, w.kick );
+        else
+        {
+            // the leg on the ball's side swings back, through the ball at the
+            // moment, and on; the other arm out for balance
+            const float k = kick.phase;
+            const int leg = ( kick.right ? 1 : 0 );
+            const float out = ( leg ? -1.0f : 1.0f ); // the other arm's outward, to its side
+            HumanoidPose target = pose;
+            LimbPose swing;
+            LimbPose arm;
+            switch ( kick.kind ) {
+            case KickKind::Shot:
+                swing.pitch = curve( { { -1.0f, 0.0f }, { -0.45f, -50.0f }, { 0.0f, 25.0f }, { 0.6f, 85.0f }, { 1.5f, 0.0f } }, k );
+                swing.bend = curve( { { -1.0f, 0.0f }, { -0.45f, 100.0f }, { 0.0f, 10.0f }, { 0.6f, 20.0f }, { 1.5f, 0.0f } }, k );
+                swing.yaw = clampTo( kick.way, 30.0f );
+                arm = { 50.0f, 40.0f * out, 20.0f };
+                break;
+            case KickKind::Pass:
+                // with the inside of the foot: the leg turned outward
+                swing.pitch = curve( { { -0.9f, 0.0f }, { -0.4f, -30.0f }, { 0.0f, 20.0f }, { 0.5f, 50.0f }, { 1.3f, 0.0f } }, k );
+                swing.bend = curve( { { -0.9f, 0.0f }, { -0.4f, 70.0f }, { 0.0f, 15.0f }, { 0.5f, 15.0f }, { 1.3f, 0.0f } }, k );
+                swing.yaw = clampTo( kick.way, 45.0f );
+                swing.turn = 30.0f;
+                arm = { 35.0f, 30.0f * out, 20.0f };
+                break;
+            case KickKind::Tap:
+            default:
+                swing.pitch = curve( { { -0.6f, 0.0f }, { -0.3f, -10.0f }, { 0.0f, 20.0f }, { 0.3f, 25.0f }, { 0.8f, 0.0f } }, k );
+                swing.bend = curve( { { -0.6f, 0.0f }, { -0.3f, 40.0f }, { 0.0f, 15.0f }, { 0.8f, 0.0f } }, k );
+                swing.yaw = clampTo( kick.way, 45.0f );
+                break;
+            }
+            setLeg( b, target, leg, swing );
+            setLeg( b, target, 1 - leg, { -5.0f, 0.0f, 15.0f } );
+            if ( kick.kind != KickKind::Tap ) setArm( b, target, 1 - leg, arm );
+            pose = HumanoidPose::mix( pose, target, w.kick );
+        }
     }
 
     // the arms: toward the ball for the goalie's catch, bending down for a
-    // low one, up for a high one; or the right one pointing
+    // low one, up for a high one (by the clips of a catch and a dive if
+    // told); or the right one pointing
     if ( w.caught > 0.0f && w.fouled <= 0.0f )
     {
-        const float yaw = clampTo( actions.caught.way, 50.0f );
-        const float high = clamp01( ( actions.caught.height - CATCH_LOW ) / ( CATCH_HIGH - CATCH_LOW ) );
+        const FigureCatch & c = actions.caught;
+        const float high = clamp01( ( c.height - CATCH_LOW ) / ( CATCH_HIGH - CATCH_LOW ) );
         HumanoidPose target = pose;
-        const float low = 1.0f - high;
-        // low: crouching deep (the feet under the hips, which go down as
-        // much), leaning far forward, the hands down near the ground
-        // bending at the hips too (the legs are set after it, in the model's directions)
-        b.rig.turnInModel( target, HumanBone::Hips, aboutX( 40.0f * low ) );
-        body( target, 0.35f * low, 45.0f * low + 5.0f * high );
-        if ( low > 0.0f )
+        if ( ! clips.catch_low.valid() && ! clips.catch_high.valid() && ! clips.dive.valid() )
         {
-            setLeg( b, target, 0, { 60.0f * low, 0.0f, 110.0f * low } );
-            setLeg( b, target, 1, { 60.0f * low, 0.0f, 110.0f * low } );
+            catchPose( b, actions, high, target );
         }
-        // the arms' swing is from the chest, leaned with it: 85 from the
-        // chest leaned 85 is hanging straight down to the ground
-        const LimbPose arm{ 85.0f + ( 150.0f - 85.0f ) * high, yaw, 10.0f };
-        setArm( b, target, 0, arm );
-        setArm( b, target, 1, arm );
+        else
+        {
+            // a height by its clip (the body turned toward the ball), or else the pose made here
+            const auto at = [&]( const ActionClip & a,
+                                 const float h ) {
+                HumanoidPose p = pose;
+                if ( a.valid() )
+                {
+                    p = sample( a.clip, a.at( a.moment + CYCLE_TIME * c.phase ), nodes );
+                    b.rig.turnInModel( p, HumanBone::Hips, aboutY( -clampTo( c.way, CATCH_TURN ) ) );
+                }
+                else
+                {
+                    catchPose( b, actions, h, p );
+                }
+                return p;
+            };
+            target = ( high <= 0.0f ? at( clips.catch_low, 0.0f )
+                       : high >= 1.0f ? at( clips.catch_high, 1.0f )
+                       : HumanoidPose::mix( at( clips.catch_low, 0.0f ), at( clips.catch_high, 1.0f ), high ) );
+            // a ball to the side by a dive, down at its moment, getting up to end with the catch
+            const float dive = diveOf( actions );
+            if ( dive > 0.0f )
+            {
+                const ActionClip & d = clips.dive;
+                const HumanoidPose diving = rise( sample( c.side >= 0.0f ? d.clip : d.other, d.at( d.moment + CYCLE_TIME * c.phase ), nodes ),
+                                                  clips.get_up, c.phase,
+                                                  std::max( 0.0f, ( d.down - d.moment ) / CYCLE_TIME ),
+                                                  c.hold + FigureActionLog::CATCH_TAIL );
+                target = HumanoidPose::mix( target, diving, dive );
+            }
+        }
         pose = HumanoidPose::mix( pose, target, w.caught );
     }
     else if ( actions.pointing
@@ -1339,6 +1716,36 @@ Figures3D::act( const Body & b,
                                       std::atan2( actions.point_distance, POINT_SHOULDER ) * 180.0f / float( M_PI ) );
         setArm( b, pose, arm, { pitch, way, 10.0f }, true );
     }
+}
+
+/*-------------------------------------------------------------------*/
+void
+Figures3D::catchPose( const Body & b,
+                      const FigureActions & actions,
+                      const float high,
+                      HumanoidPose & target ) const
+{
+    const float yaw = clampTo( actions.caught.way, CATCH_TURN );
+    const float low = 1.0f - high;
+    // low: crouching deep (the feet under the hips, which go down as
+    // much), leaning far forward, the hands down near the ground
+    // bending at the hips too (the legs are set after it, in the model's directions)
+    b.rig.turnInModel( target, HumanBone::Hips, aboutX( 40.0f * low ) );
+    // the hips down by part of their height, the upper body leaned forward
+    const float lean = 45.0f * low + 5.0f * high;
+    target.hips.setY( target.hips.y() - 0.35f * low );
+    b.rig.turnInModel( target, HumanBone::Spine, aboutX( 0.5f * lean ) );
+    b.rig.turnInModel( target, HumanBone::Chest, aboutX( 0.5f * lean ) );
+    if ( low > 0.0f )
+    {
+        setLeg( b, target, 0, { 60.0f * low, 0.0f, 110.0f * low } );
+        setLeg( b, target, 1, { 60.0f * low, 0.0f, 110.0f * low } );
+    }
+    // the arms' swing is from the chest, leaned with it: 85 from the
+    // chest leaned 85 is hanging straight down to the ground
+    const LimbPose arm{ 85.0f + ( 150.0f - 85.0f ) * high, yaw, 10.0f };
+    setArm( b, target, 0, arm );
+    setArm( b, target, 1, arm );
 }
 
 /*-------------------------------------------------------------------*/

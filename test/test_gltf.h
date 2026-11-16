@@ -55,6 +55,7 @@
 #include <array>
 #include <cstdint>
 #include <cstring>
+#include <functional>
 #include <limits>
 #include <vector>
 
@@ -683,6 +684,75 @@ animationOf( const GltfModel & m,
     }
     f.extensions.insert( "VRMC_vrm_animation", QJsonObject{ { "specVersion", "1.0" },
                                                             { "humanoid", QJsonObject{ { "humanBones", bones } } } } );
+    return f;
+}
+
+/*!
+  \brief a clip of a model made of poses (HumanoidPose) at 30 a second:
+  the rotations of its roles' nodes, and the translation of the hips
+  \param m the model
+  \param rig its roles
+  \param name the clip's name
+  \param duration s
+  \param pose the pose at a time
+*/
+inline
+Animation
+poseAnimation( const GltfModel & m,
+               const HumanoidRig & rig,
+               const QString & name,
+               const float duration,
+               const std::function< HumanoidPose( float ) > & pose )
+{
+    std::vector< Animation::Channel > turns( m.rest.size() );
+    Animation::Channel moves;
+    const int hips = rig.node( HumanBone::Hips );
+    const int steps = std::max( 1, int( std::lround( duration * 30.0f ) ) );
+    for ( int k = 0; k <= steps; ++k )
+    {
+        const float t = duration * k / steps;
+        std::vector< NodeTransform > local = m.rest;
+        rig.apply( pose( t ), local );
+        for ( int b = 0; b < HUMAN_BONE_COUNT; ++b )
+        {
+            const int n = rig.node( HumanBone( b ) );
+            if ( n < 0 ) continue;
+            turns[n].times.push_back( t );
+            turns[n].values.insert( turns[n].values.end(), { local[n].r.x(), local[n].r.y(), local[n].r.z(), local[n].r.scalar() } );
+        }
+        moves.times.push_back( t );
+        moves.values.insert( moves.values.end(), { local[hips].t.x(), local[hips].t.y(), local[hips].t.z() } );
+    }
+    Animation a;
+    a.name = name;
+    for ( std::size_t n = 0; n < turns.size(); ++n )
+    {
+        if ( turns[n].times.empty() ) continue;
+        turns[n].node = int( n );
+        turns[n].path = QStringLiteral( "rotation" );
+        a.channels.push_back( turns[n] );
+    }
+    moves.node = hips;
+    moves.path = QStringLiteral( "translation" );
+    a.channels.push_back( moves );
+    return a;
+}
+
+/*!
+  \brief a file of a model's skeleton and clips: its nodes at rest (their
+  names), no skin, no mesh
+*/
+inline
+File
+skeletonFile( const GltfModel & m,
+              const std::vector< Animation > & clips )
+{
+    File f;
+    for ( std::size_t i = 0; i < m.rest.size(); ++i )
+    {
+        f.nodes.push_back( Node{ m.node_names[i], m.parent[i], m.rest[i].t, m.rest[i].r, m.rest[i].s } );
+    }
+    f.animations = clips;
     return f;
 }
 

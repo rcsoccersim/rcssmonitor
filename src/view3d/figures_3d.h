@@ -44,6 +44,7 @@
 #include <QString>
 #include <QStringList>
 
+#include <algorithm>
 #include <initializer_list>
 #include <memory>
 #include <utility>
@@ -73,6 +74,42 @@ struct GaitClip {
       {
           return ( reverse ? contact + down - phase * duration : contact + phase * duration );
       }
+};
+
+/*!
+  \struct ActionClip
+  \brief a clip of an action, as read from its motion (Figures3D): where
+  in it the action's moment is, and when the body is down on the ground
+*/
+struct ActionClip {
+    int clip = -1; //!< in the motion model's clips (-1: none): a kick with the right foot, a dive to the right
+    int other = -1; //!< the clip of the other foot or side (the other's mirrored, if not told)
+    float duration = 0.0f; //!< s
+    float moment = 0.0f; //!< s from its start: a kick's foot meeting the ball, a slide on the ground, a fall on the ground, the hands reaching for the ball
+    float down = -1.0f; //!< s from its start: when the body comes down to the ground (negative: it does not)
+
+    bool valid() const { return clip >= 0; }
+    //! a time of it, kept in it (not looped back to its start)
+    float at( const float time ) const
+      {
+          return std::min( std::max( 0.0f, time ), std::max( 0.0f, duration - std::min( 1.0e-4f, duration * 0.01f ) ) );
+      }
+};
+
+/*!
+  \struct ActionClips
+  \brief the clips of the actions of a motion (docs/FIGURE_PACKS.md): those
+  not told are not valid (the poses made by Figures3D instead)
+*/
+struct ActionClips {
+    ActionClip kick[3]; //!< by KickKind: a touch (kick_tap), a pass (kick_pass, or else kick), a shot (kick_shot, or else kick)
+    ActionClip tackle; //!< the slide; its moment on the ground (the foot meeting the ball)
+    ActionClip tackle_up; //!< getting up from it (or else get_up)
+    ActionClip fall; //!< falling after a foul; its moment on the ground
+    ActionClip get_up;
+    ActionClip catch_low;
+    ActionClip catch_high;
+    ActionClip dive; //!< to the right (clip) and to the left (other)
 };
 
 /*!
@@ -133,9 +170,18 @@ struct GaitClip {
   catch (crouching with the hands near the ground for a low ball, the arms
   up for a high one, leaning to the side for a ball to the side), and the
   arm on the side it points to pointing (the chest turning for a point far
-  to the side or behind). The model has no clips of them, so they are
-  poses made here (the web version's pose.ts): each limb by its swing from
-  hanging down, its turn to the right and its bend.
+  to the side or behind). Without clips of them, they are poses made here
+  (the web version's pose.ts): each limb by its swing from hanging down,
+  its turn to the right and its bend.
+
+  With clips of the actions (9-5, ActionClips; the bundled ones the slide
+  and getting up of the Universal Animation Library 2), an action plays
+  its clip by the same weights, at its own speed with its moment at the
+  action's: a kick (the clip of the other foot mirrored), the slide, a
+  fall, the goalie's catch (turned toward the ball) and dive (by how far
+  to the side the ball is). Down on the ground, a clip of getting up plays
+  to end with the action, when the player can go again (upSchedule(),
+  rise()), from the pose down of the clip or made here.
 */
 class Figures3D {
 public:
@@ -170,6 +216,24 @@ public:
     //! a ball to catch this high (m) or lower is caught bending down, this high or higher with the arms up
     static constexpr float CATCH_LOW = 0.3f;
     static constexpr float CATCH_HIGH = 1.5f;
+    //! the goalie turns toward a ball to catch by at most this much (degree)
+    static constexpr float CATCH_TURN = 50.0f;
+
+    //! seconds of a cycle of the game, for the clips of the actions
+    static constexpr float CYCLE_TIME = 0.1f;
+    //! the hips at this part of their height or lower: the body down on the ground
+    static constexpr float DOWN_HIPS = 0.4f;
+    //! an action's clip whose hips go farther than this (hip heights) is pinned: done where the player is
+    static constexpr float ACTION_TRAVEL = 0.3f;
+    //! a foot swinging forward at least this fast (hip heights a second) kicks
+    static constexpr float KICK_SPEED = 2.0f;
+    //! a clip of getting up plays at most this many times as fast, to end when the player can go
+    static constexpr float UP_SPEED_MAX = 2.0f;
+    //! cycles over which a pose goes over to a clip of getting up
+    static constexpr float UP_BLEND = 1.0f;
+    //! a ball to catch this far to the side (m) starts to be caught by a dive (with its clip), from DIVE_FULL all
+    static constexpr float DIVE_FROM = 0.8f;
+    static constexpr float DIVE_FULL = 1.2f;
 
     Figures3D();
     ~Figures3D();
@@ -336,6 +400,51 @@ public:
     //! how far a goalie leans to its right to catch a ball to the side (degree; left: negative)
     float rollOf( const FigureInstance & figure ) const;
 
+    //! the clips of the actions of the motion drawn
+    const ActionClips & actionClips() const;
+    /*!
+      \brief a kick's moment in a clip: when a foot swings forward fastest
+      (its toes, or else the foot), and which foot
+      \return false if no foot swings forward at KICK_SPEED
+    */
+    static bool kickMoment( const GltfModel & model,
+                            const HumanoidRig & rig,
+                            const int clip,
+                            float * moment,
+                            bool * right );
+    //! when the body comes down to the ground in a clip: the hips to DOWN_HIPS of their height (s; negative: never)
+    static float downTime( const GltfModel & model,
+                           const HumanoidRig & rig,
+                           const int clip );
+    //! when the hands reach farthest from the chest in a clip (s): a catch's moment
+    static float reachMoment( const GltfModel & model,
+                              const HumanoidRig & rig,
+                              const int clip );
+    /*!
+      \struct UpSchedule
+      \brief when a clip of getting up plays: from start (cycles of the
+      action's phase), at speed times its own, from offset (s) into it
+    */
+    struct UpSchedule {
+        float start = 0.0f;
+        float speed = 1.0f;
+        float offset = 0.0f;
+    };
+    /*!
+      \brief when a clip of getting up plays, to end when the action does
+      (the player can go then): as late as it can at its own speed, after
+      the body is down; faster if there is not the time, up to
+      UP_SPEED_MAX; its start left out if that is not enough
+      \param duration the clip's (s)
+      \param ground when the body is down (cycles of the phase)
+      \param end when the action ends (cycles of the phase)
+    */
+    static UpSchedule upSchedule( const float duration,
+                                  const float ground,
+                                  const float end );
+    //! how much a goalie's catch is a dive (0 to 1): by how far to the side the ball is, with a clip of a dive
+    float diveOf( const FigureActions & actions ) const;
+
     /*!
       \brief how much the kicking foot goes to the ball (0 to 1): most at
       the kick's moment, from REACH_BEFORE before it to REACH_AFTER after it
@@ -459,6 +568,26 @@ private:
     void act( const Body & body,
               const FigureInstance & figure,
               HumanoidPose & pose ) const;
+    /*!
+      \brief a pose of an action down on the ground getting up again: the
+      pose down (of the action's clip, or made here), going over to a
+      clip of getting up (upSchedule()) when it plays
+      \param down the pose down at the time
+      \param up the clip of getting up (none if not valid: down as it is)
+      \param phase the action's phase (cycles)
+      \param ground when the body is down (cycles of the phase)
+      \param end when the action ends (cycles of the phase)
+    */
+    HumanoidPose rise( const HumanoidPose & down,
+                       const ActionClip & up,
+                       const float phase,
+                       const float ground,
+                       const float end ) const;
+    //! the goalie's catch made here (the arms toward the ball, bending down for a low ball, up for a high one) over a pose
+    void catchPose( const Body & body,
+                    const FigureActions & actions,
+                    const float high,
+                    HumanoidPose & target ) const;
 
     //! where a figure of a body's model is in the world (modelMatrix())
     QMatrix4x4 modelMatrix( const GltfModel & body,

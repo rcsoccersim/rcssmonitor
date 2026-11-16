@@ -714,6 +714,27 @@ clipDrift( const GltfModel & model,
     return std::hypot( drift.x(), drift.z() );
 }
 
+/*-------------------------------------------------------------------*/
+float
+clipTravel( const GltfModel & model,
+            const HumanoidRig & rig,
+            const GltfModel::Clip & clip )
+{
+    const int steps = std::max( 1, static_cast< int >( std::ceil( clip.duration * 30.0f - 1.0e-3f ) ) );
+    std::vector< NodeTransform > local;
+    QVector3D start;
+    float most = 0.0f;
+    for ( int k = 0; k <= steps; ++k )
+    {
+        local = model.rest;
+        model.sample( clip, ( k == steps ? endOf( clip ) : clip.duration * k / steps ), local );
+        const QVector3D hips = rig.poseOf( local ).hips;
+        if ( k == 0 ) start = hips;
+        most = std::max( most, std::hypot( hips.x() - start.x(), hips.z() - start.z() ) );
+    }
+    return most;
+}
+
 namespace {
 
 //! retargetClip(), and the poses mirrored if told (mirrorClip())
@@ -723,7 +744,7 @@ putClip( const GltfModel & source,
          const GltfModel::Clip & clip,
          const GltfModel & target,
          const HumanoidRig & target_rig,
-         const bool in_place,
+         const ClipPlace place,
          const float rate,
          const bool mirror )
 {
@@ -760,12 +781,21 @@ putClip( const GltfModel & source,
         poses[k] = source_rig.poseOf( locals[k] );
         if ( mirror ) poses[k] = poses[k].mirrored();
     }
-    // in place: the hips' horizontal drift taken off in a line (so the end meets the start)
-    if ( in_place )
+    // in place: the hips' horizontal drift taken off in a line (so the end
+    // meets the start); pinned: the hips kept where they start
+    if ( place == ClipPlace::InPlace )
     {
         QVector3D drift = poses[steps].hips - poses[0].hips;
         drift.setY( 0.0f );
         for ( int k = 0; k <= steps; ++k ) poses[k].hips -= drift * ( float( k ) / steps );
+    }
+    else if ( place == ClipPlace::Pinned )
+    {
+        for ( int k = 0; k <= steps; ++k )
+        {
+            poses[k].hips.setX( poses[0].hips.x() );
+            poses[k].hips.setZ( poses[0].hips.z() );
+        }
     }
 
     // on the target: the roles' bones, the hips' place, the bones of the same names
@@ -810,7 +840,21 @@ retargetClip( const GltfModel & source,
               const bool in_place,
               const float rate )
 {
-    return putClip( source, source_rig, clip, target, target_rig, in_place, rate, false );
+    return putClip( source, source_rig, clip, target, target_rig,
+                    in_place ? ClipPlace::InPlace : ClipPlace::AsItIs, rate, false );
+}
+
+/*-------------------------------------------------------------------*/
+GltfModel::Clip
+retargetClip( const GltfModel & source,
+              const HumanoidRig & source_rig,
+              const GltfModel::Clip & clip,
+              const GltfModel & target,
+              const HumanoidRig & target_rig,
+              const ClipPlace place,
+              const float rate )
+{
+    return putClip( source, source_rig, clip, target, target_rig, place, rate, false );
 }
 
 /*-------------------------------------------------------------------*/
@@ -820,7 +864,7 @@ mirrorClip( const GltfModel & model,
             const GltfModel::Clip & clip,
             const float rate )
 {
-    return putClip( model, rig, clip, model, rig, false, rate, true );
+    return putClip( model, rig, clip, model, rig, ClipPlace::AsItIs, rate, true );
 }
 
 /*-------------------------------------------------------------------*/

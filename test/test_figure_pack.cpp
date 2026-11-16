@@ -32,6 +32,7 @@
 
 #include <QtTest>
 
+#include "figure_actions.h"
 #include "figure_pack.h"
 #include "figures_3d.h"
 #include "test_bvh.h"
@@ -168,6 +169,23 @@ private slots:
           QCOMPARE( int( FigureMotionSpec::optionalKeys().size() ), 6 );
           QCOMPARE( QString( FigureMotionSpec::optionalKeys()[2] ), QString( "walk_left" ) );
           QCOMPARE( m->motion.optionalClips()[2], &m->motion.walk_left );
+          // the clips of the actions of the Universal Animation Library 2: the slide and getting up
+          QCOMPARE( m->motion.tackle.file, QString( ":/figures/mannequin/Actions.glb" ) );
+          QCOMPARE( m->motion.tackle.clip, QString( "Slide_Start" ) );
+          QCOMPARE( m->motion.tackle.moment, -1.0f );
+          QCOMPARE( m->motion.tackle_up.clip, QString( "Slide_Exit" ) );
+          QCOMPARE( m->motion.get_up.clip, QString( "LayToIdle" ) );
+          for ( const FigureClipSpec * c : { &m->motion.kick, &m->motion.kick_tap, &m->motion.kick_pass, &m->motion.kick_shot,
+                                             &m->motion.fall, &m->motion.catch_low, &m->motion.catch_high,
+                                             &m->motion.dive_left, &m->motion.dive_right } )
+          {
+              QVERIFY( ! c->given );
+          }
+          QCOMPARE( int( FigureMotionSpec::actionKeys().size() ), 12 );
+          QCOMPARE( QString( FigureMotionSpec::actionKeys()[4] ), QString( "tackle" ) );
+          QCOMPARE( m->motion.actionClips()[4], &m->motion.tackle );
+          QCOMPARE( QString( FigureMotionSpec::actionKeys()[11] ), QString( "dive_right" ) );
+          QCOMPARE( m->motion.actionClips()[11], &m->motion.dive_right );
           QVERIFY( m->motion.credits.empty() );
           QCOMPARE( int( m->bodies.size() ), 1 );
           QCOMPARE( m->bodies[0].model, m->motion.model );
@@ -245,7 +263,7 @@ private slots:
     void credits()
       {
           const FigurePack & h = *FigurePacks::builtin( "human" );
-          QCOMPARE( int( h.allCredits().size() ), 3 );
+          QCOMPARE( int( h.allCredits().size() ), 4 );
           QCOMPARE( h.creditLine(), QString( "Quaternius (CC0 1.0); Ian Mason (CC BY 4.0)" ) );
           QCOMPARE( h.creditText(),
                     QString( "Universal Base Characters [Standard] by Quaternius (CC0 1.0)\n"
@@ -254,9 +272,11 @@ private slots:
                              "  https://quaternius.com/packs/universalanimationlibrary.html\n"
                              "The 100STYLE Dataset (Neutral: a cycle each of walking and jogging backward and sideways, "
                              "cut, looped and thinned to 30 fps) by Ian Mason (CC BY 4.0)\n"
-                             "  https://www.ianxmason.com/100style/" ) );
+                             "  https://www.ianxmason.com/100style/\n"
+                             "Universal Animation Library 2 [Standard] (the slide and getting up) by Quaternius (CC0 1.0)\n"
+                             "  https://quaternius.com/packs/universalanimationlibrary2.html" ) );
           const FigurePack & m = *FigurePacks::builtin( "mannequin" );
-          QCOMPARE( int( m.allCredits().size() ), 2 );
+          QCOMPARE( int( m.allCredits().size() ), 3 );
 
           FigurePack p;
           p.credits = { FigureCredit{ "A", "X", "CC BY 4.0", QString() },
@@ -390,6 +410,31 @@ private slots:
           {
               QVERIFY( *human.motion.optionalClips()[k] == *mannequin.motion.optionalClips()[k] );
           }
+          for ( std::size_t k = 0; k < human.motion.actionClips().size(); ++k )
+          {
+              QVERIFY( *human.motion.actionClips()[k] == *mannequin.motion.actionClips()[k] );
+          }
+
+          // the clips of the actions: not told, none; an action's moment if told
+          for ( const FigureClipSpec * c : a.motion.actionClips() ) QVERIFY( ! c->given );
+          const QByteArray acts = "{ \"model\": \"Motion.glb\", \"clips\": { \"idle\": \"Idle_Loop\", \"walk\": \"Walk_Loop\", "
+              "\"jog\": \"Jog_Fwd_Loop\", \"sprint\": \"Sprint_Loop\", \"tackle\": \"Slide\", \"get_up\": \"Side.glb\", "
+              "\"kick\": { \"file\": \"Side.glb\", \"clip\": \"Kick\", \"moment\": 0.4 }, \"dive_left\": { \"file\": \"Side.glb\", \"moment\": 0 } } }";
+          const QString with = makePack( folder.path(), "acts", packJson( QByteArray(), acts ), { "Body.glb", "Motion.glb", "Side.glb" } );
+          const FigurePack c = FigurePack::read( with, false );
+          QVERIFY2( c.ok(), qPrintable( c.error ) );
+          QVERIFY( c.motion.tackle.given );
+          QCOMPARE( c.motion.tackle.clip, QString( "Slide" ) );
+          QCOMPARE( c.motion.tackle.moment, -1.0f );
+          QCOMPARE( c.motion.get_up.file, QDir( with ).filePath( "Side.glb" ) );
+          QCOMPARE( c.motion.kick.clip, QString( "Kick" ) );
+          QCOMPARE( c.motion.kick.moment, 0.4f );
+          QCOMPARE( c.motion.dive_left.moment, 0.0f );
+          QVERIFY( ! c.motion.dive_right.given );
+          QVERIFY( ! c.motion.kick_pass.given );
+          FigureClipSpec later = c.motion.kick;
+          later.moment = 0.5f;
+          QVERIFY( ! ( later == c.motion.kick ) ); // the moment counts
       }
 
     void readErrors_data()
@@ -440,6 +485,11 @@ private slots:
           QTest::newRow( "jog_left number" ) << optional( "jog_left", "3" ) << QString( "motion.clips.jog_left: neither a clip's name" );
           QTest::newRow( "walk_right file" ) << optional( "walk_right", "\"Side.bvh\"" ) << QString( "motion.clips.walk_right: \"Side.bvh\" is not found in the pack's folder" );
           QTest::newRow( "jog_back no file" ) << optional( "jog_back", "{ \"clip\": \"B\" }" ) << QString( "motion.clips.jog_back: no \"file\"" );
+          QTest::newRow( "tackle empty" ) << optional( "tackle", "\"\"" ) << QString( "motion.clips.tackle: empty" );
+          QTest::newRow( "kick file" ) << optional( "kick", "\"Kick.fbx\"" ) << QString( "motion.clips.kick: \"Kick.fbx\" is not found in the pack's folder" );
+          QTest::newRow( "dive_right no file" ) << optional( "dive_right", "{ \"clip\": \"D\" }" ) << QString( "motion.clips.dive_right: no \"file\"" );
+          QTest::newRow( "moment negative" ) << optional( "kick", "{ \"file\": \"Body.glb\", \"moment\": -0.1 }" ) << QString( "motion.clips.kick.moment: not a time in seconds (0 or more)" );
+          QTest::newRow( "moment string" ) << optional( "catch_low", "{ \"file\": \"Body.glb\", \"moment\": \"0.3\" }" ) << QString( "motion.clips.catch_low.moment: not a time in seconds (0 or more)" );
           QTest::newRow( "no bodies" ) << QByteArray( "{ \"format\": 1, \"motion\": \"mannequin\" }" ) << QString( "no \"bodies\"" );
           QTest::newRow( "bodies empty" ) << QByteArray( "{ \"format\": 1, \"motion\": \"mannequin\", \"bodies\": [] }" ) << QString( "no \"bodies\"" );
           QTest::newRow( "body not object" ) << QByteArray( "{ \"format\": 1, \"motion\": \"mannequin\", \"bodies\": [ 3 ] }" ) << QString( "bodies[0]: not an object" );
@@ -1232,6 +1282,252 @@ private slots:
           fails( "not_side", "A Pack: Motion.glb: the clip \"Walk_Loop\" mirrored is not of walking or running to the left" );
           fails( "not_side_told", "A Pack: Motion.glb: the clip \"Walk_Loop\" is not of walking or running to the right" );
           QCOMPARE( figures.pack().id, QString( "plain" ) ); // stays
+      }
+
+    /*!
+      the clips of the actions, made of poses on the Mannequin's skeleton:
+      a kick with the left foot (its moment when the foot swings forward
+      fastest; the right foot's mirrored; a pass and a shot by it, a touch
+      not), its moment told; a slide going forward (pinned, its moment
+      when the hips come down), getting up (the general one for the
+      tackle); a catch (its moment when the hands reach farthest), turned
+      toward the ball; a dive to the right (the left mirrored), by how far
+      to the side the ball is; each played at its moment; clips that are
+      not of their actions told why, unless their moment is told
+    */
+    void actionPacks()
+      {
+          const GltfModel & m = TestGltf::mannequin();
+          HumanoidRig rig;
+          QVERIFY( rig.build( m, quaterniusBoneNames() ) );
+          const auto ease = []( const float a,
+                                const float b,
+                                const float x ) {
+              const float t = std::min( 1.0f, std::max( 0.0f, ( x - a ) / ( b - a ) ) );
+              return t * t * ( 3.0f - 2.0f * t );
+          };
+          const auto about = []( const float x,
+                                 const float y,
+                                 const float z,
+                                 const float degree ) {
+              return QQuaternion::fromAxisAndAngle( x, y, z, degree );
+          };
+          // the arms from the sides to the front (the hands farthest from the chest at f = 1)
+          const auto arms = [&]( HumanoidPose & p,
+                                 const float f ) {
+              p[HumanBone::LeftUpperArm] = about( 0.0f, 1.0f, 0.0f, -90.0f * f );
+              p[HumanBone::RightUpperArm] = about( 0.0f, 1.0f, 0.0f, 90.0f * f );
+          };
+          std::vector< TestGltf::Animation > clips;
+          clips.push_back( TestGltf::poseAnimation( m, rig, "KickL", 1.0f, [&]( const float t ) {
+              HumanoidPose p;
+              // the left leg back, then forward fast through 0.5 s
+              const float pitch = -50.0f * ease( 0.0f, 0.35f, t ) + 130.0f * ease( 0.35f, 0.65f, t ) - 80.0f * ease( 0.65f, 1.0f, t );
+              p[HumanBone::LeftUpperLeg] = about( 1.0f, 0.0f, 0.0f, -pitch );
+              return p;
+          } ) );
+          clips.push_back( TestGltf::poseAnimation( m, rig, "Slide", 1.0f, [&]( const float t ) {
+              HumanoidPose p;
+              // down from 0.1 s to 0.4 s, going forward two hip heights
+              p.hips = QVector3D( 0.0f, -0.85f * ease( 0.1f, 0.4f, t ), 2.0f * t );
+              p[HumanBone::LeftUpperLeg] = p[HumanBone::RightUpperLeg] = about( 1.0f, 0.0f, 0.0f, -70.0f * ease( 0.1f, 0.4f, t ) );
+              return p;
+          } ) );
+          clips.push_back( TestGltf::poseAnimation( m, rig, "Up", 1.0f, [&]( const float t ) {
+              HumanoidPose p;
+              p.hips = QVector3D( 0.0f, -0.85f * ( 1.0f - ease( 0.0f, 1.0f, t ) ), 0.0f );
+              return p;
+          } ) );
+          clips.push_back( TestGltf::poseAnimation( m, rig, "Catch", 1.0f, [&]( const float t ) {
+              HumanoidPose p;
+              arms( p, ease( 0.0f, 0.4f, t ) - 0.7f * ease( 0.4f, 1.0f, t ) );
+              return p;
+          } ) );
+          clips.push_back( TestGltf::poseAnimation( m, rig, "Dive", 1.0f, [&]( const float t ) {
+              HumanoidPose p;
+              // to the right (-x), down on the right side, the head to the right
+              p.hips = QVector3D( -1.5f * ease( 0.0f, 0.5f, t ), -0.8f * ease( 0.1f, 0.5f, t ), 0.0f );
+              p[HumanBone::Hips] = about( 0.0f, 0.0f, 1.0f, 80.0f * ease( 0.1f, 0.5f, t ) );
+              arms( p, ease( 0.0f, 0.35f, t ) - 0.7f * ease( 0.35f, 1.0f, t ) );
+              return p;
+          } ) );
+          const QByteArray glb = TestGltf::skeletonFile( m, clips ).glb();
+
+          QTemporaryDir folder;
+          const QString f = folder.path();
+          const auto motionWith = []( const QByteArray & more ) {
+              return "{ \"model\": \"Motion.glb\", \"skeleton\": \"quaternius\", \"clips\": { \"idle\": \"Idle_Loop\", "
+                  "\"walk\": \"Walk_Loop\", \"jog\": \"Jog_Fwd_Loop\", \"sprint\": \"Sprint_Loop\", " + more + " } }";
+          };
+          const auto withActions = [&]( const char * name,
+                                        const QByteArray & more ) {
+              const QString dir = makePack( f, name, packJson( QByteArray(), motionWith( more ) ), { "Body.glb", "Motion.glb" } );
+              QVERIFY( writeFile( QDir( dir ).filePath( "Actions.glb" ), glb ) );
+          };
+          const auto told = []( const char * key,
+                                const char * clip ) {
+              return QByteArray( "\"" ) + key + "\": { \"file\": \"Actions.glb\", \"clip\": \"" + clip + "\" }";
+          };
+          withActions( "all", told( "kick", "KickL" ) + ", \"kick_shot\": { \"file\": \"Actions.glb\", \"clip\": \"KickL\", \"moment\": 0.3 }, "
+                       + told( "tackle", "Slide" ) + ", " + told( "get_up", "Up" ) + ", " + told( "catch_low", "Catch" ) + ", "
+                       + told( "dive_right", "Dive" ) );
+          withActions( "kick_only", told( "kick", "KickL" ) );
+          withActions( "dive_up", told( "dive_right", "Catch" ) + ", " + told( "get_up", "Up" ) );
+          {
+              // the slide in the motion's own model
+              TestGltf::File own = TestGltf::fromModel( m );
+              own.animations.push_back( clips[1] );
+              const QString dir = makePack( f, "own_slide", packJson( QByteArray(), motionWith( "\"tackle\": \"Slide\"" ) ), { "Body.glb" } );
+              QVERIFY( TestGltf::File::write( QDir( dir ).filePath( "Motion.glb" ), own.glb() ) );
+          }
+          withActions( "later", told( "kick", "KickL" ).replace( "\" }", "\", \"moment\": 0.6 }" ) );
+          withActions( "not_kick", "\"kick\": \"Idle_Loop\"" );
+          withActions( "not_fall", "\"tackle\": \"Idle_Loop\"" );
+          withActions( "told_kick", "\"kick\": { \"file\": \"Motion.glb\", \"clip\": \"Idle_Loop\", \"moment\": 0.2 }" );
+          const std::vector< FigurePack > list = FigurePacks::scan( f );
+          Figures3D figures;
+          QVERIFY( figures.load() );
+          QVERIFY2( figures.setPack( *byId( list, "all" ) ), qPrintable( figures.error() ) );
+          const ActionClips & acts = figures.actionClips();
+          const GltfModel & motion = figures.motionModel();
+          const auto name = [&]( const int clip ) { return motion.clips[clip].name; };
+
+          // the kick: the left foot's clip, the right foot's mirrored
+          const ActionClip & pass = acts.kick[static_cast< int >( KickKind::Pass )];
+          QVERIFY( pass.valid() );
+          QVERIFY( ! acts.kick[static_cast< int >( KickKind::Tap )].valid() );
+          QCOMPARE( name( pass.other ), QString( "Actions.glb:\"KickL\"" ) );
+          QCOMPARE( name( pass.clip ), QString( "Actions.glb:\"KickL\" (mirrored)" ) );
+          QVERIFY2( std::fabs( pass.moment - 0.5f ) < 0.04f, qPrintable( QString::number( pass.moment ) ) );
+          QCOMPARE( acts.kick[static_cast< int >( KickKind::Shot )].moment, 0.3f );
+          float moment = 0.0f;
+          bool right = false;
+          QVERIFY( Figures3D::kickMoment( motion, figures.motionRig(), pass.clip, &moment, &right ) );
+          QVERIFY( right ); // the mirrored one, with the right foot
+          QVERIFY( ! Figures3D::kickMoment( motion, figures.motionRig(), motion.clipIndex( "Idle_Loop" ), &moment, &right ) );
+
+          // the slide: pinned, on the ground at its moment
+          QVERIFY( acts.tackle.valid() );
+          QVERIFY2( std::fabs( acts.tackle.moment - 0.29f ) < 0.03f, qPrintable( QString::number( acts.tackle.moment ) ) );
+          QCOMPARE( acts.tackle.down, acts.tackle.moment );
+          QVERIFY( clipTravel( motion, figures.motionRig(), motion.clips[acts.tackle.clip] ) < 1.0e-3f );
+          QVERIFY( ! acts.tackle_up.valid() && acts.get_up.valid() );
+          QCOMPARE( Figures3D::downTime( motion, figures.motionRig(), acts.get_up.clip ), 0.0f );
+          QVERIFY( Figures3D::downTime( motion, figures.motionRig(), motion.clipIndex( "Idle_Loop" ) ) < 0.0f );
+
+          // the catch and the dive: their moments when the hands reach farthest
+          QVERIFY2( std::fabs( acts.catch_low.moment - 0.4f ) < 0.04f, qPrintable( QString::number( acts.catch_low.moment ) ) );
+          QVERIFY( ! acts.catch_high.valid() );
+          QVERIFY( acts.dive.valid() );
+          QCOMPARE( name( acts.dive.clip ), QString( "Actions.glb:\"Dive\"" ) );
+          QCOMPARE( name( acts.dive.other ), QString( "Actions.glb:\"Dive\" (mirrored)" ) );
+          QVERIFY2( std::fabs( acts.dive.moment - 0.35f ) < 0.04f, qPrintable( QString::number( acts.dive.moment ) ) );
+
+          // a node of the posed figure from its pelvis, in the model; and of a clip at a time
+          const auto posed = [&]( const FigureInstance & fi,
+                                  const char * node ) {
+              std::vector< NodeTransform > local;
+              figures.localPose( fi, 0.0, local );
+              std::vector< QMatrix4x4 > global;
+              figures.model().globals( local, global );
+              return ( global[figures.model().nodeIndex( node )].column( 3 )
+                       - global[figures.model().nodeIndex( "pelvis" )].column( 3 ) ).toVector3D();
+          };
+          const auto clipped = [&]( const int clip,
+                                    const float time,
+                                    const char * node ) {
+              std::vector< NodeTransform > local = motion.rest;
+              motion.sample( motion.clips[clip], time, local );
+              std::vector< QMatrix4x4 > global;
+              motion.globals( local, global );
+              return ( global[motion.nodeIndex( node )].column( 3 )
+                       - global[motion.nodeIndex( "pelvis" )].column( 3 ) ).toVector3D();
+          };
+          FigureInstance fi{ 0, 0.0f, 0.0f, 0.0f, 1.85f, QVector4D( 1.0f, 0.0f, 0.0f, 1.0f ) };
+          // a pass before the foot goes to the ball (no IK): the clip at its moment's time
+          FigureKick kick{ true, -0.45f, KickKind::Pass, true, 0.0f };
+          fi.actions.kick = kick;
+          QVERIFY( ( posed( fi, "foot_r" ) - clipped( pass.clip, pass.moment - 0.045f, "foot_r" ) ).length() < 2.0e-3f );
+          fi.actions.kick.right = false;
+          QVERIFY( ( posed( fi, "foot_l" ) - clipped( pass.other, pass.moment - 0.045f, "foot_l" ) ).length() < 2.0e-3f );
+          fi.actions.kick = FigureKick();
+
+          // the tackle: down on the ground at once, getting up by the general clip to end with it
+          fi.actions.tackle = FigureRun{ true, 0.5f, 9.0f };
+          QVERIFY( ( posed( fi, "Head" ) - clipped( acts.tackle.clip, acts.tackle.moment + 0.05f, "Head" ) ).length() < 2.0e-3f );
+          const Figures3D::UpSchedule up = Figures3D::upSchedule( acts.get_up.duration, 0.0f, 9.0f + FigureActionLog::TACKLE_TAIL );
+          QVERIFY( std::fabs( up.start - 1.5f ) < 1.0e-3f ); // the general clip's second
+          fi.actions.tackle.phase = 5.0f;
+          QVERIFY( ( posed( fi, "Head" ) - clipped( acts.get_up.clip, 0.35f, "Head" ) ).length() < 2.0e-3f );
+          // over to it in a cycle: halfway, between the slide and getting up (the foot on an arc, the legs turned halfway)
+          fi.actions.tackle.phase = up.start + 0.5f * Figures3D::UP_BLEND;
+          const float slid = clipped( acts.tackle.clip, acts.tackle.moment + Figures3D::CYCLE_TIME * fi.actions.tackle.phase, "foot_r" ).z();
+          const float rising = clipped( acts.get_up.clip, 0.05f, "foot_r" ).z();
+          const float between = posed( fi, "foot_r" ).z();
+          QVERIFY2( between > rising + 0.25f * ( slid - rising ) && between < slid - 0.25f * ( slid - rising ),
+                    qPrintable( QString( "%1 %2 %3" ).arg( slid ).arg( rising ).arg( between ) ) );
+          fi.actions.tackle = FigureRun();
+
+          // the catch: the clip at its moment, turned toward the ball
+          fi.actions.caught = FigureCatch{ true, 0.0f, 5.0f, 0.0f, 0.0f, 0.0f };
+          const QVector3D hand = posed( fi, "hand_l" );
+          QVERIFY( ( hand - clipped( acts.catch_low.clip, acts.catch_low.moment, "hand_l" ) ).length() < 2.0e-3f );
+          fi.actions.caught.way = 40.0f; // to the right: the body turned that way about the vertical
+          const QVector3D turned = posed( fi, "hand_l" );
+          const float a0 = std::atan2( hand.x(), hand.z() );
+          const float a1 = std::atan2( turned.x(), turned.z() );
+          QVERIFY2( std::fabs( std::remainder( ( a0 - a1 ) * 180.0f / float( M_PI ), 360.0f ) - 40.0f ) < 1.0f,
+                    qPrintable( QString( "%1 %2" ).arg( a0 ).arg( a1 ) ) );
+          fi.actions.caught.way = 0.0f;
+
+          // the dive: by how far to the side; to the right, the head to the right; to the left, mirrored
+          fi.actions.caught.side = 0.8f;
+          QCOMPARE( figures.diveOf( fi.actions ), 0.0f );
+          fi.actions.caught.side = -1.0f;
+          QVERIFY( std::fabs( figures.diveOf( fi.actions ) - 0.5f ) < 1.0e-4f );
+          fi.actions.caught.side = 1.5f;
+          QCOMPARE( figures.diveOf( fi.actions ), 1.0f );
+          QCOMPARE( figures.rollOf( fi ), 0.0f ); // the clip lays the body down
+          // (at its moment: getting up starts when the body is down, the time short for the test's clip of a second)
+          QVERIFY( ( posed( fi, "Head" ) - clipped( acts.dive.clip, acts.dive.moment, "Head" ) ).length() < 2.0e-3f );
+          QVERIFY( posed( fi, "Head" ).x() < -0.3f );
+          fi.actions.caught.side = -1.5f;
+          QVERIFY( ( posed( fi, "Head" ) - clipped( acts.dive.other, acts.dive.moment, "Head" ) ).length() < 2.0e-3f );
+          QVERIFY( posed( fi, "Head" ).x() > 0.3f );
+          FigureInstance procedural = fi;
+          Figures3D plain;
+          QVERIFY( plain.load() );
+          QVERIFY( plain.rollOf( procedural ) < -1.0f ); // leaning without a dive's clip
+
+          // a moment told: the kick's clip, read again (the same motion but the moment)
+          QVERIFY2( figures.setPack( *byId( list, "kick_only" ) ), qPrintable( figures.error() ) );
+          QVERIFY( std::fabs( figures.actionClips().kick[static_cast< int >( KickKind::Pass )].moment - 0.5f ) < 0.04f );
+          FigurePack moved = *byId( list, "kick_only" );
+          moved.id = QStringLiteral( "moved" );
+          moved.motion.kick.moment = 0.7f;
+          QVERIFY2( figures.setPack( moved ), qPrintable( figures.error() ) );
+          QCOMPARE( figures.actionClips().kick[static_cast< int >( KickKind::Pass )].moment, 0.7f );
+          QVERIFY2( figures.setPack( *byId( list, "later" ) ), qPrintable( figures.error() ) );
+          QCOMPARE( figures.actionClips().kick[static_cast< int >( KickKind::Pass )].moment, 0.6f );
+          QVERIFY2( figures.setPack( *byId( list, "told_kick" ) ), qPrintable( figures.error() ) );
+          QCOMPARE( figures.actionClips().kick[static_cast< int >( KickKind::Pass )].moment, 0.2f );
+
+          // a dive not going down: getting up after it
+          QVERIFY2( figures.setPack( *byId( list, "dive_up" ) ), qPrintable( figures.error() ) );
+          QCOMPARE( figures.actionClips().dive.down, figures.actionClips().dive.duration );
+          // a clip of the motion's own model going somewhere: pinned too
+          QVERIFY2( figures.setPack( *byId( list, "own_slide" ) ), qPrintable( figures.error() ) );
+          const ActionClip & own = figures.actionClips().tackle;
+          QCOMPARE( figures.motionModel().clips[own.clip].name, QString( "Slide" ) );
+          QVERIFY( clipTravel( figures.motionModel(), figures.motionRig(), figures.motionModel().clips[own.clip] ) < 1.0e-3f );
+
+          // not of its action
+          QVERIFY( ! figures.setPack( *byId( list, "not_kick" ) ) );
+          QVERIFY2( figures.error().contains( "Motion.glb: the clip \"Idle_Loop\" is not of kicking (no foot swings forward)" ),
+                    qPrintable( figures.error() ) );
+          QVERIFY( ! figures.setPack( *byId( list, "not_fall" ) ) );
+          QVERIFY2( figures.error().contains( "Motion.glb: the clip \"Idle_Loop\" is not of falling (the hips do not come down)" ),
+                    qPrintable( figures.error() ) );
       }
 
     void setPackErrors()

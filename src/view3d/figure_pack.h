@@ -100,10 +100,12 @@ struct FigureClipSpec {
     QString file; //!< the file of the clip (a path); empty: the motion's model
     QString clip; //!< the clip's name; empty: the file's first clip
     bool given = true; //!< told (an optional clip not told: none)
+    float moment = -1.0f; //!< an action's clip: its moment (s from its start) as told; negative: found from the clip
 
     bool operator==( const FigureClipSpec & other ) const
       {
-          return file == other.file && clip == other.clip && given == other.given;
+          return file == other.file && clip == other.clip && given == other.given
+              && moment == other.moment;
       }
     //! the clip and its file, to be told
     QString text() const;
@@ -114,7 +116,9 @@ struct FigureClipSpec {
   \brief the motion of a figure pack: the model with the clips, and the
   clips of standing, walking, jogging and sprinting (its own, or of the
   pack whose motion it uses); and, if told, of walking and jogging
-  backward and sideways (a side not told: the other side's mirrored)
+  backward and sideways (a side not told: the other side's mirrored), and
+  of the actions (a kick, the slide, a fall, getting up, the goalie's
+  catch and dive)
 */
 struct FigureMotionSpec {
     QString pack; //!< whose motion it is: the pack's own name, or another pack's
@@ -131,12 +135,28 @@ struct FigureMotionSpec {
     FigureClipSpec walk_right;
     FigureClipSpec jog_left;
     FigureClipSpec jog_right;
+    FigureClipSpec kick; //!< the optional clips of the actions (FigureClipSpec::given): a kick (a pass and a shot without their own)
+    FigureClipSpec kick_tap; //!< a touch (without it: the pose made by Figures3D)
+    FigureClipSpec kick_pass;
+    FigureClipSpec kick_shot;
+    FigureClipSpec tackle; //!< the sliding tackle, down to the ground
+    FigureClipSpec tackle_up; //!< getting up from it (without it: get_up)
+    FigureClipSpec fall; //!< falling after a foul
+    FigureClipSpec get_up; //!< getting up from the ground
+    FigureClipSpec catch_low; //!< the goalie's catch of a low ball
+    FigureClipSpec catch_high; //!< and of a high one
+    FigureClipSpec dive_left; //!< the goalie's dive (a side not told: the other side's mirrored)
+    FigureClipSpec dive_right;
     std::vector< FigureCredit > credits; //!< of the pack whose motion it is, if another pack's
 
     //! the optional clips' keys in figure.json, in the order of optionalClips()
     static const std::vector< const char * > & optionalKeys();
-    //! the optional clips, in the order of their keys
+    //! the optional clips (of walking and jogging), in the order of their keys
     std::vector< const FigureClipSpec * > optionalClips() const;
+    //! the action clips' keys in figure.json, in the order of actionClips()
+    static const std::vector< const char * > & actionKeys();
+    //! the optional clips of the actions, in the order of their keys
+    std::vector< const FigureClipSpec * > actionClips() const;
 };
 
 /*!

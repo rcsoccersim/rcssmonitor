@@ -320,6 +320,25 @@ float clipDrift( const GltfModel & model,
                  const GltfModel::Clip & clip );
 
 /*!
+  \brief how far the hips go at most across a clip, horizontally from where
+  they start, in hip heights: an action going somewhere (a slide, a dive)
+  goes far even if it comes back
+*/
+float clipTravel( const GltfModel & model,
+                  const HumanoidRig & rig,
+                  const GltfModel::Clip & clip );
+
+/*!
+  \enum ClipPlace
+  \brief where a clip put on a skeleton goes across the floor
+*/
+enum class ClipPlace {
+    AsItIs, //!< as the clip goes
+    InPlace, //!< the hips' horizontal drift across the clip taken off in a line (a root motion: the clip then goes in place, and loops)
+    Pinned, //!< the hips kept horizontally where they start (an action going somewhere: done where the player is)
+};
+
+/*!
   \brief a clip of one skeleton put on another, through the humanoid
   roles: sampled at a rate, each pose read on the one (poseOf()) and put on
   the other (apply()); the bones without a role (the fingers) of the same
@@ -339,6 +358,15 @@ GltfModel::Clip retargetClip( const GltfModel & source,
                               const GltfModel & target,
                               const HumanoidRig & target_rig,
                               const bool in_place,
+                              const float rate = 30.0f );
+
+//! retargetClip(), the clip going across the floor as told
+GltfModel::Clip retargetClip( const GltfModel & source,
+                              const HumanoidRig & source_rig,
+                              const GltfModel::Clip & clip,
+                              const GltfModel & target,
+                              const HumanoidRig & target_rig,
+                              const ClipPlace place,
                               const float rate = 30.0f );
 
 /*!

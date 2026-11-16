@@ -13,7 +13,9 @@ and license:
   without mesh compression by `decompress.mjs` (glTF-Transform); and four
   clips of walking and jogging backward and sideways cut from the 100STYLE
   dataset (Ian Mason, CC BY 4.0: the credits tell it, and what was done to
-  it), by `cut_100style.py` (below).
+  it), by `cut_100style.py` (below); and `Actions.glb`, three clips of
+  Quaternius's Universal Animation Library 2 [Standard] (CC0 1.0) for the
+  actions, by `pack_ual2_actions.py` (below).
 - `human/`: `BaseCharacterMale.glb` and `BaseCharacterFemale.glb`, bodies
   and hairstyles of Quaternius's Universal Base Characters [Standard],
   written by `pack_base_character.py` (Python's standard library only).
@@ -54,6 +56,33 @@ side's is mirrored (`mirrorClip()`). The speeds are of the actor
 and 1.36 m/s): the actor backpedals and shuffles with the feet low (they
 lift 3 to 10 cm), so a foot counts as lifted from 1 % of the figure's
 height (`FOOT_LIFT` in `figures_3d.cpp`; 2 % before).
+
+### The clips of the actions
+
+`Actions.glb` is the skeleton (no mesh, no skin) and three clips of the
+Universal Animation Library 2 [Standard]
+(<https://quaternius.com/packs/universalanimationlibrary2.html>, its file
+without root motion, `Unreal-Godot/UAL2_Standard.glb`), written by
+`resources/figures/mannequin/pack_ual2_actions.py` (Python's standard
+library only):
+
+```bash
+python3 resources/figures/mannequin/pack_ual2_actions.py \
+    UAL2_Standard.glb resources/figures/mannequin/Actions.glb
+```
+
+| Clip | Length | Played as |
+|---|---|---|
+| `Slide_Start` | 0.83 s | `tackle`: from running, feet first onto the ground (on it at about 0.24 s, its moment) |
+| `Slide_Exit` | 0.50 s | `tackle_up`: getting up from the slide |
+| `LayToIdle` | 1.53 s | `get_up`: getting up from lying on the back (after a foul, from its last part) |
+
+A channel keeping its node at rest all through a clip is left out
+(120 kB). Its skeleton is the Mannequin's (the same 65 bones). Its
+`Hit_Knockback` (a fall back) is not taken: the figure flies back with its
+feet higher than a meter, unlike a player tripped by a foul, who keeps the
+pose made by `Figures3D` (sitting down). The library has no kick, catch
+or dive in its Standard part.
 
 ## Formats read
 

@@ -5,7 +5,9 @@ women in a uniform of the player's color, each player with its own body,
 hairstyle and colors of the skin and the hair. `figure.json` tells the 3D
 view how to draw them; they move with the motion of the Mannequin pack
 (`../mannequin`), whose clips of walking and jogging backward and sideways
-come from the 100STYLE dataset (CC BY 4.0; its README tells them).
+come from the 100STYLE dataset (CC BY 4.0), and of the sliding tackle and
+getting up from the Universal Animation Library 2 (CC0 1.0; its README
+tells them).
 
 - `BaseCharacterMale.glb`, `BaseCharacterFemale.glb`: the male and the
   female bodies (`Superhero_Male_FullBody`, `Superhero_Female_FullBody`)
