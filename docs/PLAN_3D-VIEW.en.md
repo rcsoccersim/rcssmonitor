@@ -2722,3 +2722,26 @@ The two commits of the QOpenGLWindow (393f02d, fd35a21) were pushed.
 
 **Left to do**
 - On Wayland, in full screen, the menus of the menu bar show a little off vertically. Just after going full screen, the first right click's menu also showed off once (2D and 3D; not again). Seemingly a fault of Qt 6.4 on Wayland (on GNOME the application draws the window's decorations); not fixed.
+
+#### 2026-11-17: Step 9-6, the 3D view stopping in full screen (`feature/3d-view`)
+
+The fix of the menus (cbbb392) and the record (aadad3b) were pushed, and the CI passed.
+
+**The user's remark**
+- On Wayland, full screen at 4K makes 60 fps. But in the 3D view, full screen with the tool bar and the menu bar hidden (the status bar was hidden already), the view freezes. Only the switch to 2D works, and back in 3D it shows right. Through XWayland it freezes too. Maximized, it does not. In full screen with only the menu bar hidden, it does not.
+
+**Looked into**
+- The user ran a tool (in the work's temporary place) that does the steps by timers and writes, every half second, what the 3D view gets (whether it is exposed, the update requests, its size) and the frames it draws.
+- While frozen, Qt kept the 3D view exposed (`isExposed()` true), and not one update request (UpdateRequest) reached it. The log kept playing, and the main window called `update()` 10 times a second. Qt does not ask again while the last request waits for the compositor's word to draw the next frame.
+- It freezes only when the 3D view covers all of a full screen window (the tool bar, the status bar and the menu bar all hidden). The compositor (GNOME 46) may put a surface covering the whole screen straight on it, without putting the windows together, and then seems to give no word (not confirmed).
+- Not drawing with the log stopped is as made (no drawing once the camera stops). At first it looked as if a stopped scene were drawn on while a tool bar or the status bar was shown, but the camera was still moving.
+- Tried: with one pixel of the main window left below the 3D view, it does not freeze, on Wayland nor through XWayland. With this tool, it did not freeze through XWayland even without the pixel (it did when the user tried by hand).
+
+**Fixed**
+- When the 3D view is shown, the window is full screen and the views' stack (QStackedWidget) covers all of the window, the stack keeps a margin of one pixel at its bottom (`MainWindow::viewMargins()`, `updateViewMargins()`). Looked at again when the stack's size or place changes, when the window's state changes, and when 2D and 3D are switched. The stack is painted black (the pixel of the margin is black).
+- The warning at every switch from 2D to 3D, `requestActivate() called for FieldView3D ... which has Qt::WindowDoesNotAcceptFocus set.`: switched from a page with the focus, a QStackedWidget gives the focus to the new page (the 3D view's container), which asks its embedded window to be activated. The focus goes to the views' stack before the switch to 3D. A correction: the last record's "the clicks while the menu stayed open seem to have caused the warning" was wrong; it did not show under gdb because 2D and 3D were not switched then.
+
+**Tests**
+- Added to `view_switch`: the margin only with the 3D view, in full screen, with the stack covering all of the window (none with the menu bar, the status bar or a tool bar shown). The 2D view covers all of a full screen window with the bars hidden. The stack is black. Each was checked to fail with what it checks broken (6 ways: always the margin, the 3D view not looked at, full screen not looked at, the stack's size not looked at, not black, the margin in 2D too). The tests without a screen cannot make the 3D view, so the margin with the 3D view and the focus's move are not checked there.
+- With Qt 6.4.2 and Qt 5.15.13, the build and the tests pass (53 tests). `-DENABLE_3D=OFF` (19) and autotools pass too.
+- Checked by the user on Wayland and through XWayland: full screen with all the bars hidden while the log plays, it does not freeze. The line of one pixel is not a bother. Switching 2D and 3D, no warning.
