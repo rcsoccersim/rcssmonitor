@@ -7,7 +7,7 @@
 | Reference implementation | rcssmonitor-web 20.0.0-beta.2 (tag `v20.0.0-beta.2`, ed36941). Its working tree is `../rcssmonitor-web`, next to this repository |
 | Server referred to | The asio version of rcssserver 19.x. Its working tree is `../rcssserver` (branch `feature/asio-migration`), next to this repository |
 | Japanese version | [PLAN_3D-VIEW.md](PLAN_3D-VIEW.md) (same content; §0.1) |
-| Status | Phase 8 done (2026-11-15). Phase 9 (figure packs) under way (9-5b made). The work is on `feature/3d-view` |
+| Status | Phase 8 done (2026-11-15). Phase 9 (figure packs) under way (9-6 under way). The work is on `feature/3d-view` |
 
 ## 0. How to use this plan
 
@@ -358,7 +358,7 @@ Read the corresponding web version file and build with the same values and the s
 
 ### 5.6 Input
 
-- Mouse: in the free camera, left-drag orbits, Shift (or Ctrl) + left-drag pans, the wheel and the middle button zoom (the web version uses three.js OrbitControls; write the same operations ourselves). Dragging in any other camera switches to free. In the close-up cameras, the wheel changes the distance, which is kept in the settings. Right-click is the referee menu. → 4-4: in 2D the wheel steps the frames, so a 3D camera that does not take the wheel (the top camera) steps the frames as before.
+- Mouse: in the free camera, left-drag orbits, Shift (or Ctrl) + left-drag pans, the wheel and the middle button zoom (the web version uses three.js OrbitControls; write the same operations ourselves). Dragging in any other camera switches to free. In the close-up cameras, the wheel changes the distance, which is kept in the settings. Right-click is the referee menu. → 4-4: in 2D the wheel steps the frames, so a 3D camera that does not take the wheel (the top camera) steps the frames as before. → 9-6: on Wayland, the clicks on the 3D view reach it while a menu is open, so such a click closes the menu (`PopupCloser`).
 - **The same operations as 2D (user, 2026-11-12, 5-1b)**: with the wheel moving the camera in 3D, the operations differ from 2D (the wheel steps the frames, Z and X zoom) and confuse. They follow 2D, even if they differ from usual 3D viewers. In 3D too, the wheel steps the frames. Z brings the camera nearer, X and Ctrl+Z farther (by 1.5, as 2D). A following camera keeps following at the new distance; the top camera shows a different height, and when nearer, shows around the ball (within the ground image); the free camera moves toward what it looks at. A change of the camera sets the zoom back. I sets the zoom back (replaced by the viewpoint of the whole pitch in 6-2). The distance of the close-up cameras (Phase 6) is changed with Z and X too, not the wheel. Mouse drags (turn, move, middle button to zoom) stay. The web version will follow the same operations later (§0.2).
 - Keys (the web version's `docs/parity.md` §8 and `src/ui/shortcuts.ts`):
 
@@ -641,7 +641,7 @@ Each phase proceeds on a feature branch and is merged into develop when it is do
 
 ### Phase 10: Documents and release
 
-**Work**: README (3D, keys, settings, Qt6 build), ChangeLog and NEWS (including the removal of qmake, D11), the version per D8. Put the files that only CMake builds (`src/view3d/`, `test/`, `data/` etc.; missing as of 2026-11-12) into the tarball that autotools makes with `make dist`, or change how the tarball is made (the 19.0.1 tarball was made with `make dist`). Delete master's `main.yml` and `utils/appimage/` (D10; done in the merge into master). Write in NEWS and the README that the AppImage was dropped, how to build from source, and a pointer to the browser version. The user merges into master and tags the release.
+**Work**: README (3D, keys, settings, Qt6 build; that in a Wayland session with a screen of high resolution, `QT_QPA_PLATFORM=wayland` makes the 3D view smooth (9-6)), ChangeLog and NEWS (including the removal of qmake, D11), the version per D8. Put the files that only CMake builds (`src/view3d/`, `test/`, `data/` etc.; missing as of 2026-11-12) into the tarball that autotools makes with `make dist`, or change how the tarball is made (the 19.0.1 tarball was made with `make dist`). Delete master's `main.yml` and `utils/appimage/` (D10; done in the merge into master). Write in NEWS and the README that the AppImage was dropped, how to build from source, and a pointer to the browser version. The user merges into master and tags the release.
 
 **Done when**: it is released.
 
@@ -727,6 +727,7 @@ Port the GL-independent calculations, using the web version's unit tests as mode
 | `view3d/figure_uniform`, `shaders/skinned.frag` | Made in 7-4: the uniform painted on the human body (the parts and the planes of the edges; no GL), and the shader that paints it for every pixel |
 | `view3d/gl/gpu_timer` | Made in 7-4: the GPU's time to draw (timer queries) |
 | `view3d/gl/render_target` | Made in 9-6: where smooth edges (multisampling) are drawn |
+| `view3d/popup_closer` | Made in 9-6: a click on the 3D view closes the menus open (Wayland) |
 | `resources/figures/human/BaseCharacterMale.glb`, `BaseCharacterFemale.glb`, `pack_base_character.py` | Made in 7-4, split into a man's and a woman's in 7-5: the human bodies and hairstyles (CC0) and the script that wrote them. Moved in 9-1 from `resources/models/` to the folder of the bundled figure pack human |
 | `view3d/figure_looks` | Made in 7-5: each player's looks (the body, the hairstyle, the skin and hair colors), and how they blend with the standard ones for the player camera (no GL) |
 | `view3d/sun_3d`, `gl/shadow_map`, `shaders/depth.*`, `shaders/shadow.*`, `shaders/blob.*` | Made in 8-1: the sun's direction, the camera of the shadow map, the ellipses of the simple shadows (no GL), the shadow map (a depth texture and a framebuffer), the shaders that draw only depths, the shaders of the plane of the shadows, the shaders of the simple shadows |
@@ -2672,3 +2673,52 @@ The two commits of the measuring (0720c49, a93aad9) were pushed.
 **The user's check**
 - The keys, the mouse (turning, moving, nearer, the wheel), the referee's menu, switching 2D and 3D, the dialogs and menus over the view, and the HUD's places are fine.
 - Maximized on the 4K screen (3840×2069 physical): 42 to 54 fps with smooth edges, about 44 without (32 fps before). Making the window larger, from some size it suddenly cannot keep 60 fps. The GPU's time goes nearly with the pixels (about 1.3 to 1.5 ms a million pixels): 2.8 ms at 1345×889, 5.4 ms at 2415×1573, 9.3 ms at 3006×1912, 9.4 to 11.8 ms at 3840×2069. The desktop's (GNOME's) compositing uses the same GPU, and a frame over 16.7 ms in all waits for the next refresh (33 ms): beyond 5 to 6 million pixels it falls suddenly. At 4K, without smooth edges the GPU's time is hardly less (drawing the grass, the sky and so on over the whole screen is itself heavy). Without smooth edges in a small window, `submit` takes about 10 ms: waiting for the screen's refresh (60 fps).
+
+#### 2026-11-17: Step 9-6, the CI's failure, XWayland and Wayland, the right click on Wayland (`feature/3d-view`)
+
+The two commits of the QOpenGLWindow (393f02d, fd35a21) were pushed.
+
+**The CI's failure**
+- In every push after 9-5b, only `figure_pack` (`turnPacks()`) of the jobs CMake, Qt6 and CMake, Qt5 (Ubuntu 26.04) failed (the hips off by 2.25°, 2° allowed). The jobs of Ubuntu 22.04 and autotools passed.
+- The cause: the table of "the time it has turned each degree" of a clip of turning (`Figures3D::turnAngle()`) was made of the times the clip was read at, every 1/60 s, the first past each degree. Not in a line between them, as late as one time apart: 2.25° where it turns fastest. Whether the times fall just right at 45° was split by small differences of calculation: 0° here, 2.25° on the CI.
+- Fixed: in a line between the times read (less than 0.0001° at any degree). The test checks less than 0.1° at a few degrees from 10° to 80°, and two values of the table within 0.002 s. It was checked to fail without the line between. With commit 657bfba, the CI's four jobs passed.
+
+**Drawing at a lower resolution (tried, not taken)**
+- As a 4K screen does not reach 60 fps, an option `resolution_3d` was made to draw the 3D picture at Full, 3/4 or 1/2 and make it larger to the screen's size (drawn small into the `RenderTarget`, copied by `GL_LINEAR`; with smooth edges, resolved at the same size first, then made larger).
+- Measured by the user on the 4K screen, with smooth edges: Full 40 fps (GPU 10.2 ms), 3/4 43 fps (11.3 ms), 1/2 47 fps (8.5 ms). The GPU's time is hardly less.
+- Measured without a window, the same scene drawn into a framebuffer of 3840×2160 (a tool in the work's temporary place; with smooth edges / without):
+
+| Resolution | With smooth edges | Without |
+|---|---|---|
+| Full | 9.95 ms | 5.52 ms |
+| 3/4 | 8.08 ms | 5.41 ms |
+| 1/2 | 5.47 ms | 4.19 ms |
+
+- Found: Full without smooth edges takes about the time of 1/2 with them, and is sharp. Copying from a lower resolution larger to 4K takes about 1.5 ms (drawing into a framebuffer of nearly the whole size takes 1.4 to 1.7 ms more than drawing straight), and the shapes of the figures and the stands cost the same at any resolution (even with cylinders and no stands, 1.4 ms at 1/4). Without a window it draws 91 to 229 frames a second, so the window's 40 to 47 fps are set by the way to the screen more than by the drawing. That the GPU's time in the window is not less at a lower resolution is guessed to be the GPU's clock going down with less load (not confirmed).
+- A correction: the last record's "at 4K, without smooth edges the GPU's time is hardly less" came from times measured in the window. Measured without a window, smooth edges take about 4.4 ms at 4K. The GPU's times measured in the window are not fit for comparing.
+
+**XWayland and Wayland**
+- On the work machine, Qt 6.4 picks XWayland (xcb) even in GNOME's Wayland session. Qt's plugin of Wayland (qt6-wayland) is installed.
+- The test program (an embedded QOpenGLWindow drawing all the time a picture that takes the GPU about 5 ms at 4K), measured by the user maximized at 4K:
+
+| Platform | Multisampling 4x | None |
+|---|---|---|
+| xcb (XWayland) | 43.7 fps | 50.2 fps |
+| wayland | 59.8 fps | 59.8 fps |
+
+- rcssmonitor with `QT_QPA_PLATFORM=wayland`: 59 to 60 fps at 4K (3840×2090) even with smooth edges (GPU 9.6 ms, as through XWayland). XWayland was the cause of the slowness at 4K.
+
+**Decided (user)**
+- No option to draw at a lower resolution (on Wayland, Full makes 60 fps; it does what turning smooth edges off does). The changes made were thrown away.
+- Running on Wayland is told in the README (Phase 10): in a Wayland session with a screen of high resolution such as 4K, `QT_QPA_PLATFORM=wayland` makes the 3D view smooth. rcssmonitor does not pick Wayland by itself (Qt 6.4 picks XWayland on GNOME on purpose; the menus show off in full screen; newer Qt may decide by itself).
+
+**The right click on Wayland**
+- The user's remark: on Wayland, the right click's menu of the 3D view cannot be closed (that of the 2D view can). A right click on the 3D view also warned `requestActivate() called for FieldView3D ... which has Qt::WindowDoesNotAcceptFocus set.`
+- The cause: on Wayland, while a menu (xdg_popup) is open, the clicks on the application's own surfaces go to them. Qt closes the menu on a click on a widget, but the 3D view is an embedded window, not a widget, so Qt 6.4 does not. Through X11 (XWayland too), the menu grabs the mouse, so it does not happen.
+- Fixed: `PopupCloser` (`src/view3d/popup_closer`): an event filter on the 3D view's window. A press on the view (a double click too) while a menu (and its submenus) is open closes them, the click going no further (as through X11). While one is open, the wheel goes no further either (no frames stepped). The main window puts it on the 3D view when it makes it. It works for the menus of the menu bar and the tool bar too.
+- Tests: `popup_closer` (new): with no menu, the press, the release, the double click and the wheel reach the window. With a menu open, the wheel does not reach it and the menu stays open; a right press closes the menu and does not reach the window; so does a double click; closed, they reach it again. A menu and its submenu both closed. A menu opened by `exec()` (as the referee's) ends by the click, with no item. Each was checked to fail with what it checks broken (5 ways: the click passed on, not closed, only one closed, the wheel passed on, the double click not seen). That the main window puts the filter on is not checked (the tests without a screen cannot make the 3D view).
+- With Qt 6.4.2 and Qt 5.15.13, the build and the tests pass (53 tests). `-DENABLE_3D=OFF` (19) and autotools pass too.
+- Checked by the user on Wayland: a click on the 3D view closes the right click's menu, its items can be chosen, a click on the tool bar closes it, and a click on the 3D view closes the menus of the menu bar too. Run under gdb with a breakpoint at `QWindow::requestActivate()`: not called, and no warning (the clicks while the menu stayed open seem to have caused the warning).
+
+**Left to do**
+- On Wayland, in full screen, the menus of the menu bar show a little off vertically. Just after going full screen, the first right click's menu also showed off once (2D and 3D; not again). Seemingly a fault of Qt 6.4 on Wayland (on GNOME the application draws the window's decorations); not fixed.
