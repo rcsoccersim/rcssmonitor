@@ -52,6 +52,7 @@
 #include "tool_icon.h"
 #ifdef HAVE_3D_VIEW
 #include "field_view_3d.h"
+#include "popup_closer.h"
 #endif
 
 #include <rcss/rcg/util.h>
@@ -2239,6 +2240,8 @@ MainWindow::toggleView3D( bool on )
         view->setCameraMode( Options::instance().camera3D() );
         QWidget * container = QWidget::createWindowContainer( view );
         container->setFocusPolicy( Qt::NoFocus );
+        // a click on it closes the menus open, as on the widgets (Wayland)
+        view->installEventFilter( new PopupCloser( view ) );
         M_view_stack->addWidget( container );
         connect( this, &MainWindow::viewUpdated,
                  view, [view]() { view->update(); } );

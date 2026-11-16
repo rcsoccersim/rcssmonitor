@@ -67,6 +67,7 @@ rcssmonitor_add_test(gl_isolation Qt${QT_VERSION_MAJOR}::Core)
 
 if(HAVE_3D_VIEW)
   rcssmonitor_add_test(cameras_3d rcssmonitor_core)
+  rcssmonitor_add_test(popup_closer rcssmonitor_core)
   rcssmonitor_add_test(figure_actions rcssmonitor_core)
   rcssmonitor_add_test(figure_looks rcssmonitor_core)
   rcssmonitor_add_test(figure_pack rcssmonitor_core)
