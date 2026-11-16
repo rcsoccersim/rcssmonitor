@@ -156,6 +156,18 @@ private slots:
           QCOMPARE( m->motion.walk.clip, QString( "Walk_Loop" ) );
           QCOMPARE( m->motion.jog.clip, QString( "Jog_Fwd_Loop" ) );
           QCOMPARE( m->motion.sprint.clip, QString( "Sprint_Loop" ) );
+          // the optional clips of 100STYLE: backward, to the right walking, to the left jogging
+          QVERIFY( m->motion.walk_back.given );
+          QCOMPARE( m->motion.walk_back.file, QString( ":/figures/mannequin/WalkBack.bvh" ) );
+          QVERIFY( m->motion.walk_back.clip.isEmpty() );
+          QCOMPARE( m->motion.jog_back.file, QString( ":/figures/mannequin/JogBack.bvh" ) );
+          QCOMPARE( m->motion.walk_right.file, QString( ":/figures/mannequin/WalkRight.bvh" ) );
+          QCOMPARE( m->motion.jog_left.file, QString( ":/figures/mannequin/JogLeft.bvh" ) );
+          QVERIFY( ! m->motion.walk_left.given );
+          QVERIFY( ! m->motion.jog_right.given );
+          QCOMPARE( int( FigureMotionSpec::optionalKeys().size() ), 6 );
+          QCOMPARE( QString( FigureMotionSpec::optionalKeys()[2] ), QString( "walk_left" ) );
+          QCOMPARE( m->motion.optionalClips()[2], &m->motion.walk_left );
           QVERIFY( m->motion.credits.empty() );
           QCOMPARE( int( m->bodies.size() ), 1 );
           QCOMPARE( m->bodies[0].model, m->motion.model );
@@ -233,15 +245,18 @@ private slots:
     void credits()
       {
           const FigurePack & h = *FigurePacks::builtin( "human" );
-          QCOMPARE( int( h.allCredits().size() ), 2 );
-          QCOMPARE( h.creditLine(), QString( "Quaternius (CC0 1.0)" ) );
+          QCOMPARE( int( h.allCredits().size() ), 3 );
+          QCOMPARE( h.creditLine(), QString( "Quaternius (CC0 1.0); Ian Mason (CC BY 4.0)" ) );
           QCOMPARE( h.creditText(),
                     QString( "Universal Base Characters [Standard] by Quaternius (CC0 1.0)\n"
                              "  https://quaternius.com/packs/universalbasecharacters.html\n"
                              "Universal Animation Library [Standard] by Quaternius (CC0 1.0)\n"
-                             "  https://quaternius.com/packs/universalanimationlibrary.html" ) );
+                             "  https://quaternius.com/packs/universalanimationlibrary.html\n"
+                             "The 100STYLE Dataset (Neutral: a cycle each of walking and jogging backward and sideways, "
+                             "cut, looped and thinned to 30 fps) by Ian Mason (CC BY 4.0)\n"
+                             "  https://www.ianxmason.com/100style/" ) );
           const FigurePack & m = *FigurePacks::builtin( "mannequin" );
-          QCOMPARE( int( m.allCredits().size() ), 1 );
+          QCOMPARE( int( m.allCredits().size() ), 2 );
 
           FigurePack p;
           p.credits = { FigureCredit{ "A", "X", "CC BY 4.0", QString() },
@@ -338,6 +353,45 @@ private slots:
       }
 
     //! what is wrong with a figure.json, told with where it is
+    /*!
+      the optional clips of the other ways: not told, none; told as the
+      four, by a clip's name, a file, or an object; the keys of another
+      pack's motion with it (the Human's, the Mannequin's)
+    */
+    void readOptional()
+      {
+          QTemporaryDir folder;
+          const QString none = makePack( folder.path(), "none", packJson( QByteArray(), OWN_MOTION ), { "Body.glb", "Motion.glb" } );
+          const FigurePack a = FigurePack::read( none, false );
+          QVERIFY2( a.ok(), qPrintable( a.error ) );
+          for ( const FigureClipSpec * c : a.motion.optionalClips() ) QVERIFY( ! c->given );
+          QVERIFY( a.motion.walk.given );
+          const QByteArray told = "{ \"model\": \"Motion.glb\", \"clips\": { \"idle\": \"Idle_Loop\", \"walk\": \"Walk_Loop\", "
+              "\"jog\": \"Jog_Fwd_Loop\", \"sprint\": \"Sprint_Loop\", \"walk_back\": \"Back\", "
+              "\"jog_left\": \"Side.glb\", \"walk_right\": { \"file\": \"Side.glb\", \"clip\": \"Right\" }, \"jog_right\": null } }";
+          const QString dir = makePack( folder.path(), "told", packJson( QByteArray(), told ), { "Body.glb", "Motion.glb", "Side.glb" } );
+          const FigurePack b = FigurePack::read( dir, false );
+          QVERIFY2( b.ok(), qPrintable( b.error ) );
+          QVERIFY( b.motion.walk_back.given );
+          QCOMPARE( b.motion.walk_back.clip, QString( "Back" ) );
+          QVERIFY( b.motion.walk_back.file.isEmpty() );
+          QVERIFY( b.motion.jog_left.given );
+          QCOMPARE( b.motion.jog_left.file, QDir( dir ).filePath( "Side.glb" ) );
+          QCOMPARE( b.motion.walk_right.file, QDir( dir ).filePath( "Side.glb" ) );
+          QCOMPARE( b.motion.walk_right.clip, QString( "Right" ) );
+          QVERIFY( ! b.motion.jog_back.given );
+          QVERIFY( ! b.motion.walk_left.given );
+          QVERIFY( ! b.motion.jog_right.given ); // null: not told
+          QVERIFY( ! ( b.motion.jog_back == b.motion.walk_back ) );
+          // another pack's motion: its clips with it
+          const FigurePack & human = *FigurePacks::builtin( "human" );
+          const FigurePack & mannequin = *FigurePacks::builtin( "mannequin" );
+          for ( std::size_t k = 0; k < human.motion.optionalClips().size(); ++k )
+          {
+              QVERIFY( *human.motion.optionalClips()[k] == *mannequin.motion.optionalClips()[k] );
+          }
+      }
+
     void readErrors_data()
       {
           QTest::addColumn< QByteArray >( "json" );
@@ -377,6 +431,15 @@ private slots:
           QTest::newRow( "clip object no file" ) << clip( "{ \"clip\": \"W\" }" ) << QString( "motion.clips.walk: no \"file\"" );
           QTest::newRow( "clip object file" ) << clip( "{ \"file\": \"Walk.vrm\" }" ) << QString( "motion.clips.walk.file: \"Walk.vrm\" is not found in the pack's folder" );
           QTest::newRow( "clip object clip" ) << clip( "{ \"file\": \"Body.glb\", \"clip\": 3 }" ) << QString( "motion.clips.walk.clip: not a string" );
+          const auto optional = []( const QByteArray & key,
+                                    const QByteArray & value ) {
+              return packJson( QByteArray(), "{ \"model\": \"Body.glb\", \"clips\": { \"idle\": \"I\", \"walk\": \"W\", "
+                               "\"jog\": \"J\", \"sprint\": \"S\", \"" + key + "\": " + value + " } }" );
+          };
+          QTest::newRow( "walk_back empty" ) << optional( "walk_back", "\"\"" ) << QString( "motion.clips.walk_back: empty" );
+          QTest::newRow( "jog_left number" ) << optional( "jog_left", "3" ) << QString( "motion.clips.jog_left: neither a clip's name" );
+          QTest::newRow( "walk_right file" ) << optional( "walk_right", "\"Side.bvh\"" ) << QString( "motion.clips.walk_right: \"Side.bvh\" is not found in the pack's folder" );
+          QTest::newRow( "jog_back no file" ) << optional( "jog_back", "{ \"clip\": \"B\" }" ) << QString( "motion.clips.jog_back: no \"file\"" );
           QTest::newRow( "no bodies" ) << QByteArray( "{ \"format\": 1, \"motion\": \"mannequin\" }" ) << QString( "no \"bodies\"" );
           QTest::newRow( "bodies empty" ) << QByteArray( "{ \"format\": 1, \"motion\": \"mannequin\", \"bodies\": [] }" ) << QString( "no \"bodies\"" );
           QTest::newRow( "body not object" ) << QByteArray( "{ \"format\": 1, \"motion\": \"mannequin\", \"bodies\": [ 3 ] }" ) << QString( "bodies[0]: not an object" );
@@ -1090,6 +1153,87 @@ private slots:
       not of walking, a material not in it (with its materials), bones of
       no skeleton known; a pack that cannot be read; the pack drawn stays
     */
+    /*!
+      packs of clips of other ways: backward only, the gait going on
+      backward and the hips turning going diagonally; one side only, the
+      other side's mirrored, the forward clips played backward; a motion
+      of the same model and clips but the optional ones read again; a
+      clip that does not go its way told why
+    */
+    void wayPacks()
+      {
+          QTemporaryDir folder;
+          const QString f = folder.path();
+          const auto motionWith = []( const QByteArray & more ) {
+              return "{ \"model\": \"Motion.glb\", \"skeleton\": \"quaternius\", \"clips\": { \"idle\": \"Idle_Loop\", "
+                  "\"walk\": \"Walk_Loop\", \"jog\": \"Jog_Fwd_Loop\", \"sprint\": \"Sprint_Loop\", " + more + " } }";
+          };
+          const auto withClips = [&]( const char * name,
+                                      const QByteArray & more ) {
+              const QString dir = makePack( f, name, packJson( QByteArray(), motionWith( more ) ), { "Body.glb", "Motion.glb" } );
+              for ( const char * bvh : { "WalkBack.bvh", "JogBack.bvh", "WalkRight.bvh", "JogLeft.bvh" } )
+              {
+                  QFile::copy( QStringLiteral( ":/figures/mannequin/" ) + bvh, QDir( dir ).filePath( bvh ) );
+              }
+          };
+          withClips( "back", "\"walk_back\": \"WalkBack.bvh\"" );
+          withClips( "left", "\"jog_left\": \"JogLeft.bvh\"" );
+          withClips( "not_back", "\"walk_back\": \"Walk_Loop\"" );
+          withClips( "not_side", "\"jog_right\": \"Walk_Loop\"" );
+          withClips( "not_side_told", "\"jog_right\": \"Walk_Loop\", \"jog_left\": \"JogLeft.bvh\"" );
+          const std::vector< FigurePack > list = FigurePacks::scan( f );
+          Figures3D figures;
+          QVERIFY( figures.load() );
+          const auto names = [&]( const int way ) {
+              QStringList n;
+              for ( const GaitClip & g : figures.wayClips( way ) ) n << figures.motionModel().clips[g.clip].name + ( g.reverse ? " <" : "" );
+              return n;
+          };
+
+          // backward only: forward and backward mixed about sideways, the hips turned
+          QVERIFY2( figures.setPack( *byId( list, "back" ) ), qPrintable( figures.error() ) );
+          // (the forward walk faster than the backward one)
+          QCOMPARE( names( GaitWays::Backward ), QStringList( { "WalkBack.bvh", "Walk_Loop <", "Jog_Fwd_Loop <", "Sprint_Loop <" } ) );
+          QVERIFY( names( GaitWays::Left ).isEmpty() && names( GaitWays::Right ).isEmpty() );
+          QVERIFY( figures.gaitWays().directional() );
+          QVERIFY( ! figures.gaitWays().sideways() );
+          FigureInstance diagonal{ 0, 0.0f, 0.0f, 0.0f, 1.85f, QVector4D( 1.0f, 0.0f, 0.0f, 1.0f ) };
+          diagonal.motion.vx = diagonal.motion.vy = 2.0f;
+          QVERIFY( std::fabs( figures.twistOf( diagonal ) - Figures3D::TWIST_MAX ) < 1.0e-3f );
+          diagonal.motion.vx = -2.0f;
+          diagonal.motion.vy = 0.0f;
+          QCOMPARE( figures.gaitOf( diagonal ).ways.b, int( GaitWays::Backward ) );
+          QCOMPARE( figures.gaitOf( diagonal ).ways.t, 1.0f );
+
+          // one side only: the other mirrored, backward the forward ones played backward
+          QVERIFY2( figures.setPack( *byId( list, "left" ) ), qPrintable( figures.error() ) );
+          QCOMPARE( names( GaitWays::Left ), QStringList( { "JogLeft.bvh" } ) );
+          QCOMPARE( names( GaitWays::Right ), QStringList( { "JogLeft.bvh (mirrored)" } ) );
+          QCOMPARE( names( GaitWays::Backward ), QStringList( { "Walk_Loop <", "Jog_Fwd_Loop <", "Sprint_Loop <" } ) );
+          QVERIFY( figures.gaitWays().sideways() );
+          diagonal.motion.vx = diagonal.motion.vy = 2.0f;
+          QVERIFY( std::fabs( figures.twistOf( diagonal ) - 22.5f ) < 1.0e-3f ); // 45 degrees: halfway from 30 to sideways
+
+          // the same motion but the optional clips: read again
+          FigurePack plain = *byId( list, "left" );
+          plain.id = QStringLiteral( "plain" );
+          plain.motion.jog_left.given = false;
+          QVERIFY2( figures.setPack( plain ), qPrintable( figures.error() ) );
+          QVERIFY( figures.wayClips( GaitWays::Left ).empty() );
+          QVERIFY( ! figures.gaitWays().directional() );
+
+          // not going its way
+          const auto fails = [&]( const char * id, const QString & why ) {
+              QVERIFY( ! figures.setPack( *byId( list, id ) ) );
+              QVERIFY2( figures.error().contains( why ), qPrintable( figures.error() ) );
+          };
+          fails( "not_back", "A Pack: Motion.glb: the clip \"Walk_Loop\" is not of walking or running backward "
+                 "(the feet do not come down and go against the way)" );
+          fails( "not_side", "A Pack: Motion.glb: the clip \"Walk_Loop\" mirrored is not of walking or running to the left" );
+          fails( "not_side_told", "A Pack: Motion.glb: the clip \"Walk_Loop\" is not of walking or running to the right" );
+          QCOMPARE( figures.pack().id, QString( "plain" ) ); // stays
+      }
+
     void setPackErrors()
       {
           QTemporaryDir folder;

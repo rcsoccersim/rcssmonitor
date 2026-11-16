@@ -8,6 +8,12 @@
             "author": "Quaternius",
             "license": "CC0 1.0",
             "url": "https://quaternius.com/packs/universalanimationlibrary.html"
+        },
+        {
+            "title": "The 100STYLE Dataset (Neutral: a cycle each of walking and jogging backward and sideways, cut, looped and thinned to 30 fps)",
+            "author": "Ian Mason",
+            "license": "CC BY 4.0",
+            "url": "https://www.ianxmason.com/100style/"
         }
     ],
     "motion": {
@@ -17,7 +23,11 @@
             "idle": "Idle_Loop",
             "walk": "Walk_Loop",
             "jog": "Jog_Fwd_Loop",
-            "sprint": "Sprint_Loop"
+            "sprint": "Sprint_Loop",
+            "walk_back": "WalkBack.bvh",
+            "jog_back": "JogBack.bvh",
+            "walk_right": "WalkRight.bvh",
+            "jog_left": "JogLeft.bvh"
         }
     },
     "bodies": [

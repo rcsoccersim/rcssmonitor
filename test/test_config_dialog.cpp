@@ -446,10 +446,12 @@ TestConfigDialog::view3DTab()
     emit model->activated( 2 );
     QCOMPARE( opt.playerModel3D(), QString( "human" ) );
     // its credits and its motion's (the Mannequin's), in short, in full in the tooltip
-    QCOMPARE( credits->text(), QString( "Credits: Quaternius (CC0 1.0)" ) );
+    QCOMPARE( credits->text(), QString( "Credits: Quaternius (CC0 1.0); Ian Mason (CC BY 4.0)" ) );
     QVERIFY( credits->toolTip().contains( "Universal Base Characters [Standard] by Quaternius (CC0 1.0)" ) );
     QVERIFY( credits->toolTip().contains( "Universal Animation Library [Standard] by Quaternius (CC0 1.0)" ) );
     QVERIFY( credits->toolTip().contains( "https://quaternius.com/" ) );
+    QVERIFY( credits->toolTip().contains( "The 100STYLE Dataset" ) );
+    QVERIFY( credits->toolTip().contains( "https://www.ianxmason.com/100style/" ) );
     QVERIFY( scale->isEnabled() );
     QVERIFY( bodies->button( 2 )->isEnabled() );
     QCOMPARE( bodies->button( 2 )->text(), QString( "Female" ) );
@@ -461,7 +463,7 @@ TestConfigDialog::view3DTab()
     emit model->activated( 1 );
     QCOMPARE( opt.playerModel3D(), QString( "mannequin" ) );
     QVERIFY( ! bodies->button( 1 )->isEnabled() ); // one body of anyone's
-    QCOMPARE( credits->text(), QString( "Credits: Quaternius (CC0 1.0)" ) );
+    QCOMPARE( credits->text(), QString( "Credits: Quaternius (CC0 1.0); Ian Mason (CC BY 4.0)" ) );
     QVERIFY( ! credits->toolTip().contains( "Universal Base Characters" ) );
     QCOMPARE( spy.count(), 4 );
     scale->setValue( 1.25 );
@@ -761,7 +763,7 @@ TestConfigDialog::figurePacks()
     emit model->activated( robot );
     QCOMPARE( opt.playerModel3D(), QString( "robot" ) );
     QCOMPARE( spy.count(), 2 );
-    QCOMPARE( credits->text(), QString( "Credits: Someone (CC BY 4.0); Quaternius (CC0 1.0)" ) );
+    QCOMPARE( credits->text(), QString( "Credits: Someone (CC BY 4.0); Quaternius (CC0 1.0); Ian Mason (CC BY 4.0)" ) );
     QVERIFY( credits->styleSheet().isEmpty() );
     QVERIFY( ! bodies->button( 0 )->isEnabled() ); // no men's and women's bodies
 
@@ -782,7 +784,7 @@ TestConfigDialog::figurePacks()
     model->setCurrentIndex( wordy );
     emit model->activated( wordy );
     QVERIFY( credits->text().startsWith( "Credits: Someone With A Long Name 0 (CC BY 4.0); " ) );
-    QVERIFY( credits->text().endsWith( "Someone With A Long Name 11 (CC BY 4.0); Quaternius (CC0 1.0)" ) ); // and its motion's
+    QVERIFY( credits->text().endsWith( "Someone With A Long Name 11 (CC BY 4.0); Quaternius (CC0 1.0); Ian Mason (CC BY 4.0)" ) ); // and its motion's
     QVERIFY( credits->fontMetrics().horizontalAdvance( credits->text() ) > 2 * dialog_width );
     QVERIFY( width() == before );
     model->setCurrentIndex( model->findData( "robot" ) );

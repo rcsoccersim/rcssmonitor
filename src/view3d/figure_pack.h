@@ -99,8 +99,12 @@ struct FigureBodySpec {
 struct FigureClipSpec {
     QString file; //!< the file of the clip (a path); empty: the motion's model
     QString clip; //!< the clip's name; empty: the file's first clip
+    bool given = true; //!< told (an optional clip not told: none)
 
-    bool operator==( const FigureClipSpec & other ) const { return file == other.file && clip == other.clip; }
+    bool operator==( const FigureClipSpec & other ) const
+      {
+          return file == other.file && clip == other.clip && given == other.given;
+      }
     //! the clip and its file, to be told
     QString text() const;
 };
@@ -109,7 +113,8 @@ struct FigureClipSpec {
   \struct FigureMotionSpec
   \brief the motion of a figure pack: the model with the clips, and the
   clips of standing, walking, jogging and sprinting (its own, or of the
-  pack whose motion it uses)
+  pack whose motion it uses); and, if told, of walking and jogging
+  backward and sideways (a side not told: the other side's mirrored)
 */
 struct FigureMotionSpec {
     QString pack; //!< whose motion it is: the pack's own name, or another pack's
@@ -120,7 +125,18 @@ struct FigureMotionSpec {
     FigureClipSpec walk;
     FigureClipSpec jog;
     FigureClipSpec sprint;
+    FigureClipSpec walk_back; //!< the optional clips (FigureClipSpec::given)
+    FigureClipSpec jog_back;
+    FigureClipSpec walk_left;
+    FigureClipSpec walk_right;
+    FigureClipSpec jog_left;
+    FigureClipSpec jog_right;
     std::vector< FigureCredit > credits; //!< of the pack whose motion it is, if another pack's
+
+    //! the optional clips' keys in figure.json, in the order of optionalClips()
+    static const std::vector< const char * > & optionalKeys();
+    //! the optional clips, in the order of their keys
+    std::vector< const FigureClipSpec * > optionalClips() const;
 };
 
 /*!

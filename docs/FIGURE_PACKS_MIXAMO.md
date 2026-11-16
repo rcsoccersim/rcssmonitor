@@ -37,6 +37,16 @@ Download each:
 
 Save them as `idle.fbx`, `walk.fbx`, `jog.fbx` and `sprint.fbx`.
 
+If you like, find also animations of walking and jogging backward and
+sideways (search with words such as "backward" and "strafe"), and save
+them as `walk_back.fbx`, `jog_back.fbx`, `walk_left.fbx`,
+`walk_right.fbx`, `jog_left.fbx` and `jog_right.fbx`, the same way. Each
+is optional, and one side is enough (the other side is mirrored); add
+them to `clips` of `figure.json` (`"walk_back": "walk_back.fbx"`, ...).
+Without them, the figures play the forward animations backward going
+backward. See "Walking backward and sideways" in
+[FIGURE_PACKS.md](FIGURE_PACKS.md).
+
 ## 3. Make the pack
 
 1. Make a folder for the pack in your folder of packs. Its name is the
@@ -103,6 +113,7 @@ clothes and its face.
 |---|---|
 | `walk.fbx: no clips` | The file has no animation: download it again with the animation. |
 | `the clip walk.fbx is not of walking or running ...` | The animation does not walk in place facing forward: choose another (straight forward, looping). |
+| `the clip walk_back.fbx is not of walking or running backward ...` | The animation does not go its way (backward, to the left, to the right) facing forward: choose another, or check that `walk_left` goes to the character's left. |
 | `Character.fbx: the bones are of no skeleton known ...` | Not a Mixamo skeleton: use `skeleton` with a map of the roles to its bones (FIGURE_PACKS.md). |
 | `Character.fbx: no material "..." (its materials: ...)` | A name in `paint` is not one of the character's materials: use the names listed (section 4). |
 | `... is not found in the pack's folder` | A file named in `figure.json` is missing, or its name differs (upper and lower case count). |

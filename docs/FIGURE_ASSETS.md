@@ -6,17 +6,54 @@ and tested. For users, see [FIGURE_PACKS.md](FIGURE_PACKS.md).
 ## The bundled packs
 
 Both are in `resources/figures/`, each with a README telling its source
-and license (CC0 1.0):
+and license:
 
 - `mannequin/`: `Mannequin.glb`, the Mannequin and four clips of
-  Quaternius's Universal Animation Library [Standard], written without
-  mesh compression by `decompress.mjs` (glTF-Transform).
+  Quaternius's Universal Animation Library [Standard] (CC0 1.0), written
+  without mesh compression by `decompress.mjs` (glTF-Transform); and four
+  clips of walking and jogging backward and sideways cut from the 100STYLE
+  dataset (Ian Mason, CC BY 4.0: the credits tell it, and what was done to
+  it), by `cut_100style.py` (below).
 - `human/`: `BaseCharacterMale.glb` and `BaseCharacterFemale.glb`, bodies
   and hairstyles of Quaternius's Universal Base Characters [Standard],
   written by `pack_base_character.py` (Python's standard library only).
 
 A bundled model must look and move the same in every release: the tests
 compare what is drawn (`test_scene_3d`, `test_frame_builder_3d`).
+
+### The clips of 100STYLE
+
+`WalkBack.bvh`, `JogBack.bvh`, `WalkRight.bvh` and `JogLeft.bvh` are one
+cycle each of the style Neutral of 100STYLE
+(<https://www.ianxmason.com/100style/>, the BVH files of
+<https://zenodo.org/records/8127870>), cut by
+`resources/figures/mannequin/cut_100style.py` (Python's standard library
+only):
+
+```bash
+python3 resources/figures/mannequin/cut_100style.py 100STYLE.zip resources/figures/mannequin
+```
+
+| File | From | Frames (60 fps) | Cycle | Speed | Way from facing |
+|---|---|---|---|---|---|
+| `WalkBack.bvh` | `Neutral_BW.bvh` | 6514 to 6585 | 1.18 s | 0.56 m/s | 179° |
+| `JogBack.bvh` | `Neutral_BR.bvh` | 2755 to 2795 | 0.67 s | 1.00 m/s | 174° |
+| `WalkRight.bvh` | `Neutral_SW.bvh` | 5064 to 5133 | 1.15 s | 0.51 m/s | 88° to the right |
+| `JogLeft.bvh` | `Neutral_SR.bvh` | 547 to 591 | 0.73 s | 1.44 m/s | 88° to the left |
+
+Each cycle runs from the left foot coming down to it coming down again,
+where the actor went straight the clip's way: of the cycles found from the
+feet and the hips, the one nearest to the clip's way with the least
+turning (the room is small, so the actor turns often). The script loops
+it (what each channel is off at the end from the start, but where the
+hips go across the floor, taken off in a line over the cycle), resamples
+it at as many frames as fit the cycle near 30 a second, and writes it with
+the file's own skeleton. The pack tells one clip of each side; the other
+side's is mirrored (`mirrorClip()`). The speeds are of the actor
+(normalized for a figure 1.85 m high, rcssmonitor reads 0.54, 1.00, 0.42
+and 1.36 m/s): the actor backpedals and shuffles with the feet low (they
+lift 3 to 10 cm), so a foot counts as lifted from 1 % of the figure's
+height (`FOOT_LIFT` in `figures_3d.cpp`; 2 % before).
 
 ## Formats read
 

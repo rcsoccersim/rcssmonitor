@@ -39,6 +39,7 @@
 #include "test_gltf.h"
 
 #include <QTemporaryDir>
+#include <QVector2D>
 
 #include <cmath>
 
@@ -365,6 +366,71 @@ private slots:
           const QVector3D hips = m.rest[nodes[int( HumanBone::Hips )]].t;
           QVERIFY2( hips.z() > 85.0f && hips.z() < 95.0f, qPrintable( QString::number( hips.z() ) ) ); // cm, z up
           QVERIFY( ! m.clips[0].nodes[nodes[int( HumanBone::Hips )]].t.empty() ); // the hips move
+      }
+
+    /*!
+      the bundled clips of 100STYLE (resources/figures/mannequin,
+      cut_100style.py): XSens MVN's skeleton in centimeters, y up; a cycle
+      each of about 30 frames a second, its end meeting its start (each
+      joint turned as at the start, the hips as high), the hips going
+      across the floor the way of the clip (from the hips' left side:
+      backward, to the right, to the left)
+    */
+    void bundled()
+      {
+          Q_INIT_RESOURCE( view3d_figures ); // of the library
+          const struct { const char * file; float way; } clips[] = {
+              { "WalkBack", 180.0f }, { "JogBack", 180.0f }, { "WalkRight", -90.0f }, { "JogLeft", 90.0f },
+          };
+          for ( const auto & c : clips )
+          {
+              GltfModel m;
+              QString error;
+              const QString path = QStringLiteral( ":/figures/mannequin/" ) + c.file + QStringLiteral( ".bvh" );
+              QVERIFY2( m.loadFile( path, &error, false ), qPrintable( error ) );
+              QCOMPARE( m.clips.size(), std::size_t( 1 ) );
+              QCOMPARE( m.clips[0].name, QString( c.file ) );
+              HumanBoneNodes nodes;
+              HumanoidRig rig;
+              QVERIFY2( findHumanBones( m, QString(), {}, &nodes, &error ), qPrintable( error ) );
+              QCOMPARE( m.node_names[nodes[int( HumanBone::UpperChest )]], QString( "Chest4" ) ); // xsens
+              QVERIFY( rig.build( m, nodes ) );
+              QCOMPARE( rig.upAxis(), QVector3D( 0.0f, 1.0f, 0.0f ) );
+              const GltfModel::Clip & clip = m.clips[0];
+              const int hips = nodes[int( HumanBone::Hips )];
+              const GltfModel::Channel & r = clip.nodes[hips].r;
+              const int keys = int( r.times.size() );
+              QVERIFY2( clip.duration > 0.4f && clip.duration < 1.5f, qPrintable( QString::number( clip.duration ) ) );
+              const float rate = ( keys - 1 ) / clip.duration;
+              QVERIFY2( std::fabs( rate - 30.0f ) < 1.0f, qPrintable( QString::number( rate ) ) );
+              // the end meets the start: every joint's turn, the hips' height
+              for ( std::size_t n = 0; n < clip.nodes.size(); ++n )
+              {
+                  const GltfModel::Channel & ch = clip.nodes[n].r;
+                  if ( ch.times.empty() ) continue;
+                  const std::size_t last = ( ch.times.size() - 1 ) * 4;
+                  const QQuaternion first( ch.values[3], ch.values[0], ch.values[1], ch.values[2] );
+                  const QQuaternion end( ch.values[last + 3], ch.values[last], ch.values[last + 1], ch.values[last + 2] );
+                  QVERIFY2( std::fabs( QQuaternion::dotProduct( first, end ) ) > 0.99999f,
+                            qPrintable( QString( "%1 %2" ).arg( c.file, m.node_names[n] ) ) );
+              }
+              const GltfModel::Channel & t = clip.nodes[hips].t;
+              const std::size_t last = ( t.times.size() - 1 ) * 3;
+              QVERIFY( std::fabs( t.values[1] - t.values[last + 1] ) < 1.0e-3f );
+              // across the floor (cm), the way of the clip from the hips' heading at the start
+              const QVector2D across( t.values[last] - t.values[0], t.values[last + 2] - t.values[2] );
+              QVERIFY2( across.length() > 30.0f, qPrintable( QString::number( across.length() ) ) );
+              std::vector< NodeTransform > local = m.rest;
+              m.sample( clip, 0.0f, local );
+              std::vector< QMatrix4x4 > global;
+              m.globals( local, global );
+              const QVector3D left = ( global[nodes[int( HumanBone::LeftUpperLeg )]].column( 3 )
+                                       - global[nodes[int( HumanBone::RightUpperLeg )]].column( 3 ) ).toVector3D();
+              const float facing = std::atan2( -left.z(), left.x() ); // a person faces +z with its left at +x
+              const float going = std::atan2( across.x(), across.y() );
+              const float off = std::remainder( ( going - facing ) * 180.0f / float( M_PI ) - c.way, 360.0f );
+              QVERIFY2( std::fabs( off ) < 15.0f, qPrintable( QString( "%1: %2" ).arg( c.file ).arg( off ) ) );
+          }
       }
 
     /*!

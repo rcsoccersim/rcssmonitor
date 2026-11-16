@@ -43,6 +43,7 @@
 #include <QFileInfo>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 
 namespace {
@@ -51,8 +52,8 @@ namespace {
 constexpr int GAIT_SAMPLES = 240;
 //! a foot is down while it is this part of its highest above its lowest
 constexpr float FOOT_DOWN = 0.15f;
-//! a foot of a walk is lifted at least this part of the model's height
-constexpr float FOOT_LIFT = 0.02f;
+//! a foot of a walk is lifted at least this part of the model's height (a shuffle backward: 1.5 to 2.5 %)
+constexpr float FOOT_LIFT = 0.01f;
 //! a foot is on the ground while it goes back at this part of its usual speed while low
 constexpr double FOOT_BACK = 0.5;
 
@@ -279,7 +280,8 @@ struct Figures3D::Motion {
     GltfModel model;
     HumanoidRig rig; //!< its roles
     int idle = -1; //!< the clip of standing
-    std::vector< GaitClip > gaits; //!< walking and running, slowest first
+    std::array< std::vector< GaitClip >, 4 > ways; //!< walking and running by the way (GaitWays::Way), slowest first: wayClips()
+    GaitWays strides; //!< their strides
 };
 
 /*!
@@ -342,6 +344,10 @@ Figures3D::motionOf( const FigureMotionSpec & spec,
     for ( const FigureClipSpec * c : { &spec.idle, &spec.walk, &spec.jog, &spec.sprint } )
     {
         parts << c->file + QLatin1Char( '|' ) + c->clip;
+    }
+    for ( const FigureClipSpec * c : spec.optionalClips() )
+    {
+        parts << ( c->given ? c->file + QLatin1Char( '|' ) + c->clip : QStringLiteral( "-" ) );
     }
     const QString key = parts.join( QLatin1Char( '\n' ) );
     for ( const std::unique_ptr< Motion > & m : M_motions )
@@ -412,21 +418,92 @@ Figures3D::motionOf( const FigureMotionSpec & spec,
     };
     m->idle = clipOf( spec.idle );
     if ( m->idle < 0 ) return nullptr;
+
+    // a clip of walking or running of a way: how it goes (analyzeGait())
+    const auto clipText = [&spec]( const FigureClipSpec & c ) {
+        return ( c.file.isEmpty() ? fileOf( spec.model ) + QStringLiteral( ": the clip " ) : QStringLiteral( "the clip " ) ) + c.text();
+    };
+    const auto addGait = [&]( const int clip,
+                              const int way,
+                              const QString & text ) {
+        // the way each goes in the model: forward +z, to the left +x
+        static const QVector3D travel[4] = { QVector3D( 0.0f, 0.0f, 1.0f ), QVector3D( -1.0f, 0.0f, 0.0f ),
+                                             QVector3D( 0.0f, 0.0f, -1.0f ), QVector3D( 1.0f, 0.0f, 0.0f ) };
+        static const char * const name[4] = { "", " to the right", " backward", " to the left" };
+        GaitClip gait;
+        if ( ! analyzeGait( m->model, m->rig, clip, &gait, nullptr, nullptr, travel[way] ) )
+        {
+            *error = text + QStringLiteral( " is not of walking or running" ) + QLatin1String( name[way] )
+                + ( way == GaitWays::Forward
+                    ? QStringLiteral( " (the feet do not come down and go back)" )
+                    : QStringLiteral( " (the feet do not come down and go against the way)" ) );
+            return false;
+        }
+        m->ways[way].push_back( gait );
+        return true;
+    };
     for ( const FigureClipSpec * c : { &spec.walk, &spec.jog, &spec.sprint } )
     {
-        GaitClip gait;
         const int clip = clipOf( *c );
-        if ( clip < 0 ) return nullptr;
-        if ( ! analyzeGait( m->model, m->rig, clip, &gait ) )
+        if ( clip < 0 || ! addGait( clip, GaitWays::Forward, clipText( *c ) ) ) return nullptr;
+    }
+
+    // the clips of the other ways, if told: backward; sideways, a side not
+    // told the other side's mirrored
+    for ( const FigureClipSpec * c : { &spec.walk_back, &spec.jog_back } )
+    {
+        if ( ! c->given ) continue;
+        const int clip = clipOf( *c );
+        if ( clip < 0 || ! addGait( clip, GaitWays::Backward, clipText( *c ) ) ) return nullptr;
+    }
+    const auto mirrored = [&]( const int clip ) {
+        GltfModel::Clip mirror = mirrorClip( m->model, m->rig, m->model.clips[clip] );
+        mirror.name = m->model.clips[clip].name + QStringLiteral( " (mirrored)" );
+        m->model.clips.push_back( std::move( mirror ) );
+        return static_cast< int >( m->model.clips.size() ) - 1;
+    };
+    for ( const std::pair< const FigureClipSpec *, const FigureClipSpec * > & side
+              : { std::make_pair( &spec.walk_left, &spec.walk_right ), std::make_pair( &spec.jog_left, &spec.jog_right ) } )
+    {
+        const FigureClipSpec & left = *side.first;
+        const FigureClipSpec & right = *side.second;
+        if ( ! left.given && ! right.given ) continue;
+        int l = ( left.given ? clipOf( left ) : -1 );
+        int r = ( right.given ? clipOf( right ) : -1 );
+        if ( ( left.given && l < 0 ) || ( right.given && r < 0 ) ) return nullptr;
+        const QString l_text = ( left.given ? clipText( left ) : clipText( right ) + QStringLiteral( " mirrored" ) );
+        const QString r_text = ( right.given ? clipText( right ) : clipText( left ) + QStringLiteral( " mirrored" ) );
+        if ( l < 0 ) l = mirrored( r );
+        if ( r < 0 ) r = mirrored( l );
+        if ( ! addGait( l, GaitWays::Left, l_text )
+             || ! addGait( r, GaitWays::Right, r_text ) )
         {
-            *error = ( c->file.isEmpty() ? fileOf( spec.model ) + QStringLiteral( ": the clip " ) : QStringLiteral( "the clip " ) )
-                + c->text() + QStringLiteral( " is not of walking or running (the feet do not come down and go back)" );
             return nullptr;
         }
-        m->gaits.push_back( gait );
     }
-    std::sort( m->gaits.begin(), m->gaits.end(),
-               []( const GaitClip & a, const GaitClip & b ) { return a.speed < b.speed; } );
+    for ( std::vector< GaitClip > & clips : m->ways )
+    {
+        std::sort( clips.begin(), clips.end(),
+                   []( const GaitClip & a, const GaitClip & b ) { return a.speed < b.speed; } );
+    }
+    // backward, with clips of other ways: then the forward ones played
+    // backward, faster than the backward ones
+    std::vector< GaitClip > & back = m->ways[GaitWays::Backward];
+    if ( ! back.empty() || ! m->ways[GaitWays::Left].empty() )
+    {
+        const float fastest = ( back.empty() ? -1.0f : back.back().speed );
+        for ( const GaitClip & g : m->ways[GaitWays::Forward] )
+        {
+            if ( g.speed <= fastest ) continue;
+            GaitClip reversed = g;
+            reversed.reverse = true;
+            back.push_back( reversed );
+        }
+    }
+    for ( std::size_t w = 0; w < m->ways.size(); ++w )
+    {
+        for ( const GaitClip & g : m->ways[w] ) m->strides.strides[w].push_back( { g.speed, g.stride() } );
+    }
     M_motions.push_back( std::move( m ) );
     return M_motions.back().get();
 }
@@ -501,7 +578,7 @@ Figures3D::loadBody( const FigureBodySpec & spec,
     {
         float sum = 0.0f;
         int count = 0;
-        for ( const GaitClip & g : motion.gaits )
+        for ( const GaitClip & g : motion.ways[GaitWays::Forward] )
         {
             GaitClip on_body;
             if ( g.speed > 0.0f
@@ -620,7 +697,22 @@ Figures3D::motionRig() const
 const std::vector< GaitClip > &
 Figures3D::gaitClips() const
 {
-    return motion().gaits;
+    return motion().ways[GaitWays::Forward];
+}
+
+/*-------------------------------------------------------------------*/
+const std::vector< GaitClip > &
+Figures3D::wayClips( const int way ) const
+{
+    static const std::vector< GaitClip > none;
+    return ( way >= 0 && way < 4 ? motion().ways[way] : none );
+}
+
+/*-------------------------------------------------------------------*/
+GaitWays
+Figures3D::gaitWays() const
+{
+    return motion().strides;
 }
 
 /*-------------------------------------------------------------------*/
@@ -736,7 +828,8 @@ Figures3D::analyzeGait( const GltfModel & model,
                         const int clip,
                         GaitClip * out,
                         const GltfModel * body,
-                        const HumanoidRig * body_rig )
+                        const HumanoidRig * body_rig,
+                        const QVector3D & travel )
 {
     if ( clip < 0
          || clip >= static_cast< int >( model.clips.size() )
@@ -753,8 +846,8 @@ Figures3D::analyzeGait( const GltfModel & model,
     const HumanBone feet[2] = { HumanBone::LeftFoot, HumanBone::RightFoot };
     const HumanBone toes[2] = { HumanBone::LeftToes, HumanBone::RightToes };
 
-    // the ankles and the toes over the cycle
-    std::vector< float > ankle_y[2], toe_y[2], z[2];
+    // the ankles and the toes over the cycle (how far along the way gone)
+    std::vector< float > ankle_y[2], toe_y[2], along[2];
     std::vector< NodeTransform > local, body_local;
     std::vector< QMatrix4x4 > global;
     for ( int k = 0; k < GAIT_SAMPLES; ++k )
@@ -779,7 +872,7 @@ Figures3D::analyzeGait( const GltfModel & model,
                                     : ankle );
             ankle_y[s].push_back( ankle.y() );
             toe_y[s].push_back( toe.y() );
-            z[s].push_back( ( ankle.z() + toe.z() ) * 0.5f );
+            along[s].push_back( QVector3D::dotProduct( ( ankle + toe ) * 0.5f, travel ) );
         }
     }
 
@@ -811,8 +904,8 @@ Figures3D::analyzeGait( const GltfModel & model,
         auto back = [&]( const int i )
             {
                 const int k = ( first + i ) % GAIT_SAMPLES;
-                const double before = z[s][( k + GAIT_SAMPLES - 1 ) % GAIT_SAMPLES];
-                const double after = z[s][( k + 1 ) % GAIT_SAMPLES];
+                const double before = along[s][( k + GAIT_SAMPLES - 1 ) % GAIT_SAMPLES];
+                const double after = along[s][( k + 1 ) % GAIT_SAMPLES];
                 return ( before - after ) / ( 2.0 * dt );
             };
         auto median = [&]( const int from, const int count )
@@ -877,10 +970,19 @@ Figures3D::strides() const
 Figures3D::Mix
 Figures3D::mixAt( const float speed ) const
 {
-    Mix mix;
     const std::vector< GaitClip > & gaits = gaitClips();
+    Mix mix = mixOf( gaits, speed );
+    if ( ! gaits.empty() ) mix.moving = clamp01( speed / ( MOVING_FULL * gaits.front().speed ) );
+    return mix;
+}
+
+/*-------------------------------------------------------------------*/
+Figures3D::Mix
+Figures3D::mixOf( const std::vector< GaitClip > & gaits,
+                  const float speed )
+{
+    Mix mix;
     if ( gaits.empty() ) return mix;
-    mix.moving = clamp01( speed / ( MOVING_FULL * gaits.front().speed ) );
     const int last = static_cast< int >( gaits.size() ) - 1;
     mix.from = mix.to = last; // faster than all: the fastest
     for ( int k = 0; k <= last; ++k )
@@ -901,16 +1003,45 @@ Figures3D::mixAt( const float speed ) const
 }
 
 /*-------------------------------------------------------------------*/
+Figures3D::Gait
+Figures3D::gaitOf( const FigureInstance & figure ) const
+{
+    Gait gait;
+    const Motion & m = motion();
+    if ( m.ways[GaitWays::Forward].empty() ) return gait;
+    const float speed = std::hypot( figure.motion.vx, figure.motion.vy );
+    const float toward = ( speed < 1.0e-3f
+                           ? 0.0f
+                           : std::atan2( figure.motion.vy, figure.motion.vx ) - figure.body * float( M_PI ) / 180.0f );
+    gait.ways = m.strides.mixAt( speed, toward );
+    const std::vector< GaitClip > & a = wayClips( gait.ways.a );
+    const std::vector< GaitClip > & b = wayClips( gait.ways.b );
+    gait.a = mixOf( a, speed );
+    gait.b = mixOf( b, speed );
+    // standing mixed in below the slowest of the ways mixed
+    const float slowest = a.front().speed + ( b.front().speed - a.front().speed ) * gait.ways.t;
+    gait.moving = clamp01( speed / ( MOVING_FULL * slowest ) );
+    return gait;
+}
+
+/*-------------------------------------------------------------------*/
 float
 Figures3D::twistOf( const FigureInstance & figure ) const
 {
     const float speed = std::hypot( figure.motion.vx, figure.motion.vy );
     if ( speed < 1.0e-3f ) return 0.0f;
     const float toward = std::atan2( figure.motion.vy, figure.motion.vx ) - figure.body * float( M_PI ) / 180.0f;
+    const GaitWays & ways = motion().strides;
+    if ( ways.sideways() )
+    {
+        // up to GaitWays::TWIST_FULL from forward or backward, the clips
+        // mixed for the rest (as the gait table takes their strides)
+        return ways.twistAt( toward ) * 180.0f / float( M_PI ) * gaitOf( figure ).moving;
+    }
     // toward 45 degrees from the body, the hips turn as far: the most;
     // toward 90 (sideways, where the gait turns between forward and
     // backward), not at all, so that they do not jump there
-    return TWIST_MAX * std::sin( 2.0f * toward ) * mixAt( speed ).moving;
+    return TWIST_MAX * std::sin( 2.0f * toward ) * gaitOf( figure ).moving;
 }
 
 /*-------------------------------------------------------------------*/
@@ -1311,13 +1442,13 @@ Figures3D::localPose( const FigureInstance & figure,
     const Body & body = bodyFor( figure );
 
     const FigureMotion & motion = figure.motion;
-    const Mix mix = mixAt( std::hypot( motion.vx, motion.vy ) );
+    const Gait gait = gaitOf( figure );
 
     // standing: the idle clip at the game's time, each player at its own
     // point of it
     HumanoidPose pose;
     std::vector< NodeTransform > nodes;
-    if ( mix.moving < 1.0f )
+    if ( gait.moving < 1.0f )
     {
         pose = sample( this->motion().idle, static_cast< float >( time + figure.player * IDLE_OFFSET ), nodes );
     }
@@ -1325,24 +1456,44 @@ Figures3D::localPose( const FigureInstance & figure,
     // walking and running: the gait clips at the phase of the gait walked
     // for the figure's height (a taller one takes longer strides, and so
     // does a body of longer legs), the left foot coming down at its start
-    if ( mix.moving > 0.0f )
+    if ( gait.moving > 0.0f )
     {
         const double cycles = motion.gait * SceneBuilder::PERSON_HEIGHT
             / ( std::max( 0.1f, figure.height ) * body.stride );
         const float phase = static_cast< float >( cycles - std::floor( cycles ) );
-        const GaitClip & a = gaitClips()[mix.from];
-        const GaitClip & b = gaitClips()[mix.to];
-        std::vector< NodeTransform > nodes_a, nodes_b;
-        HumanoidPose moving = sample( a.clip, a.timeAt( phase ), nodes_a );
-        if ( mix.to != mix.from && mix.t > 0.0f )
+        // each way's clips mixed by the speed, then the two ways; the
+        // bones without a role (the fingers) of the clip that counts most
+        float most = -1.0f;
+        std::vector< NodeTransform > clip_nodes;
+        const auto wayPose = [&]( const int way,
+                                  const Mix & mix,
+                                  const float weight ) {
+            const std::vector< GaitClip > & clips = wayClips( way );
+            const GaitClip & a = clips[mix.from];
+            const GaitClip & b = clips[mix.to];
+            HumanoidPose p = sample( a.clip, a.timeAt( phase ), clip_nodes );
+            if ( weight * ( 1.0f - mix.t ) > most )
+            {
+                most = weight * ( 1.0f - mix.t );
+                if ( gait.moving >= 0.5f ) nodes = clip_nodes;
+            }
+            if ( mix.to != mix.from && mix.t > 0.0f )
+            {
+                p = HumanoidPose::mix( p, sample( b.clip, b.timeAt( phase ), clip_nodes ), mix.t );
+                if ( weight * mix.t > most )
+                {
+                    most = weight * mix.t;
+                    if ( gait.moving >= 0.5f ) nodes = clip_nodes;
+                }
+            }
+            return p;
+        };
+        HumanoidPose moving = wayPose( gait.ways.a, gait.a, 1.0f - gait.ways.t );
+        if ( gait.ways.b != gait.ways.a && gait.ways.t > 0.0f )
         {
-            moving = HumanoidPose::mix( moving,
-                                        sample( b.clip, b.timeAt( phase ), nodes_b ),
-                                        mix.t );
+            moving = HumanoidPose::mix( moving, wayPose( gait.ways.b, gait.b, gait.ways.t ), gait.ways.t );
         }
-        pose = ( mix.moving < 1.0f ? HumanoidPose::mix( pose, moving, mix.moving ) : moving );
-        // the bones without a role (the fingers) of the clip that counts most
-        if ( mix.moving >= 0.5f ) nodes.swap( mix.t > 0.5f && ! nodes_b.empty() ? nodes_b : nodes_a );
+        pose = ( gait.moving < 1.0f ? HumanoidPose::mix( pose, moving, gait.moving ) : moving );
 
         // the hips toward the way the figure goes, the chest keeping the
         // body direction. A field angle is the model's turned the other

@@ -5,7 +5,9 @@ models and the motion of the figures come in *figure packs*. Two packs are
 bundled with rcssmonitor:
 
 - **Mannequin** (`mannequin`): the Mannequin of Quaternius's Universal
-  Animation Library, all in the team color but its joints.
+  Animation Library, all in the team color but its joints. Its motion has
+  clips of walking and jogging backward and sideways too, cut from the
+  100STYLE dataset (Ian Mason, CC BY 4.0).
 - **Human** (`human`): men and women of Quaternius's Universal Base
   Characters in a uniform. Each player has its own body, hairstyle, and
   skin and hair colors. They move with the Mannequin's motion.
@@ -142,7 +144,7 @@ written for a later version.
 |---|---|---|
 | `model` | yes | The model of the motion's skeleton (a glTF, FBX or BVH file, or a VRM Animation), in the pack's folder. It needs no mesh, but its rest should be the skeleton's T pose (see below). |
 | `skeleton` | no | Which bones play which roles (below). Without it, they are found from the model. |
-| `clips` | yes | The clips: `idle` (standing), `walk`, `jog` and `sprint`. All four are required. |
+| `clips` | yes | The clips: `idle` (standing), `walk`, `jog` and `sprint`, all four required; and, if you have them, `walk_back`, `jog_back`, `walk_left`, `walk_right`, `jog_left` and `jog_right` (below). |
 
 Each clip is one of these:
 
@@ -168,6 +170,40 @@ animation downloaded without "In Place") is put in place, its hips'
 horizontal drift taken off. The clips of walking and running face +z.
 rcssmonitor reads from the clips how fast each one goes (the feet on the
 ground), so that the feet do not slide.
+
+#### Walking backward and sideways
+
+The six optional clips are of walking and jogging backward (`walk_back`,
+`jog_back`), to the figure's left (`walk_left`, `jog_left`) and to its
+right (`walk_right`, `jog_right`), facing +z as the others (a clip to the
+left goes toward +x). Each is told as the four are, and any of them may
+be left out:
+
+- With none of them, a figure going backward plays the forward clips
+  backward, and going diagonally turns its hips toward the way it goes.
+- A side of which a clip is left out takes the other side's clip of the
+  same speed (`walk_left` and `walk_right`, `jog_left` and `jog_right`)
+  mirrored. One clip of a side is enough for both sides.
+- Faster than the backward clips, a figure going backward plays the
+  forward clips backward; without backward clips, it does so at any speed.
+
+With clips of other ways, the clips of the two ways nearest to the way a
+player goes are mixed: forward and to its right going forward and to the
+right, to its right and backward going backward and to the right, and so
+on, each way's clips by the speed as the forward ones. They are mixed by
+how far each way's feet go in a cycle, so that the feet on the ground go
+the way the player goes. Going a little off forward or backward (up to 30
+degrees), the figure turns its hips that way instead, playing the forward
+(or backward) clips: a player running a little off its body direction
+runs forward. A player going faster sideways than the clips of walking
+sideways go takes quicker steps. With backward clips and no sideways
+ones, the forward and backward clips are mixed about sideways.
+
+The clips should be of steady walking and jogging, a cycle or more each,
+so that they loop: one cycle (two steps) is enough. rcssmonitor reads how
+fast each one goes, as the forward ones. A clip that does not go its way
+(its feet on the ground do not go against it) is told and the pack is
+not drawn.
 
 ### A body
 

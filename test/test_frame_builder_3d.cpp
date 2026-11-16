@@ -410,9 +410,11 @@ private slots:
               if ( bodies == FigureBodies::Male ) QCOMPARE( women, 0 );
               if ( bodies == FigureBodies::Female ) QCOMPARE( women, 22 );
               // the knees where the players are
-              for ( const FigureProbe & p : s.probes )
+              for ( std::size_t k = 0; k < s.probes.size(); ++k )
               {
-                  QVERIFY( p.left_knee.y() > 0.2f && p.left_knee.y() < 0.8f );
+                  const FigureProbe & p = s.probes[k];
+                  QVERIFY2( p.left_knee.y() > 0.2f && p.left_knee.y() < 0.9f, // (up to a sprint's knee)
+                            qPrintable( QString( "%1: %2" ).arg( k ).arg( p.left_knee.y() ) ) );
               }
           }
           opt.setFigureBodies3D( FigureBodies::Mixed );

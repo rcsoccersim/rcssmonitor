@@ -769,6 +769,75 @@ private slots:
           M_rig.apply( M_rig.poseOf( motion ), local );
           QVERIFY( same( local[finger].r, QQuaternion::fromAxisAndAngle( 1.0f, 0.0f, 0.0f, 30.0f ) ) );
       }
+
+    /*!
+      a pose mirrored left to right: each role takes the other side's
+      rotation mirrored across x = 0 (its axis (x, y, z) to (x, -y, -z)),
+      the middle ones their own, the hips' move to the other side; twice:
+      the pose again
+    */
+    void mirrored()
+      {
+          std::vector< NodeTransform > motion = M_model.rest;
+          M_model.sample( M_model.clips[M_model.clipIndex( "Jog_Fwd_Loop" )], 0.3f, motion );
+          HumanoidPose pose = M_rig.poseOf( motion );
+          pose.hips = QVector3D( 0.1f, -0.05f, 0.2f );
+          const HumanoidPose m = pose.mirrored();
+          const auto mirror = []( const QQuaternion & q ) { return QQuaternion( q.scalar(), q.x(), -q.y(), -q.z() ); };
+          QVERIFY( same( m[HumanBone::LeftUpperLeg], mirror( pose[HumanBone::RightUpperLeg] ) ) );
+          QVERIFY( same( m[HumanBone::RightLowerArm], mirror( pose[HumanBone::LeftLowerArm] ) ) );
+          QVERIFY( same( m[HumanBone::LeftShoulder], mirror( pose[HumanBone::RightShoulder] ) ) );
+          QVERIFY( same( m[HumanBone::RightToes], mirror( pose[HumanBone::LeftToes] ) ) );
+          QVERIFY( same( m[HumanBone::Spine], mirror( pose[HumanBone::Spine] ) ) );
+          QVERIFY( same( m[HumanBone::Head], mirror( pose[HumanBone::Head] ) ) );
+          QCOMPARE( m.hips, QVector3D( -0.1f, -0.05f, 0.2f ) );
+          const HumanoidPose back = m.mirrored();
+          for ( int b = 0; b < HUMAN_BONE_COUNT; ++b ) QVERIFY( same( back.rotations[b], pose.rotations[b] ) );
+          QCOMPARE( back.hips, pose.hips );
+          // a turn to the left (about +y) mirrored: to the right; a bow (about +x): a bow
+          HumanoidPose turn;
+          turn[HumanBone::Hips] = QQuaternion::fromAxisAndAngle( 0.0f, 1.0f, 0.0f, 30.0f );
+          turn[HumanBone::Chest] = QQuaternion::fromAxisAndAngle( 1.0f, 0.0f, 0.0f, 20.0f );
+          QVERIFY( same( turn.mirrored()[HumanBone::Hips], QQuaternion::fromAxisAndAngle( 0.0f, 1.0f, 0.0f, -30.0f ) ) );
+          QVERIFY( same( turn.mirrored()[HumanBone::Chest], QQuaternion::fromAxisAndAngle( 1.0f, 0.0f, 0.0f, 20.0f ) ) );
+      }
+
+    /*!
+      a clip mirrored: at each time, each role's bone where the other
+      side's is in the clip, mirrored across x = 0 (the Mannequin at rest
+      its own mirror); the keys at the rate; the bones without a role
+      as they are
+    */
+    void mirrorClip()
+      {
+          const GltfModel::Clip & walk = M_model.clips[M_model.clipIndex( "Walk_Loop" )];
+          const GltfModel::Clip m = ::mirrorClip( M_model, M_rig, walk );
+          QCOMPARE( m.duration, walk.duration );
+          const int hips = M_rig.node( HumanBone::Hips );
+          QCOMPARE( int( m.nodes[hips].r.times.size() ), int( std::ceil( walk.duration * 30.0f - 1.0e-3f ) ) + 1 );
+          const auto mirror = []( const QVector3D & v ) { return QVector3D( -v.x(), v.y(), v.z() ); };
+          for ( const float t : { 0.0f, 0.37f, 0.8f, 1.1f } )
+          {
+              std::vector< NodeTransform > a = M_model.rest, b = M_model.rest;
+              M_model.sample( walk, t, a );
+              M_model.sample( m, t, b );
+              const struct { HumanBone from; HumanBone to; } pairs[] = {
+                  { HumanBone::LeftFoot, HumanBone::RightFoot }, { HumanBone::RightFoot, HumanBone::LeftFoot },
+                  { HumanBone::LeftHand, HumanBone::RightHand }, { HumanBone::LeftLowerLeg, HumanBone::RightLowerLeg },
+                  { HumanBone::Head, HumanBone::Head }, { HumanBone::Hips, HumanBone::Hips },
+              };
+              for ( const auto & p : pairs )
+              {
+                  const QVector3D was = modelPosition( M_model, a, M_rig.node( p.from ) );
+                  const QVector3D now = modelPosition( M_model, b, M_rig.node( p.to ) );
+                  QVERIFY2( ( now - mirror( was ) ).length() < 0.005f,
+                            qPrintable( QString( "%1 at %2: %3" ).arg( humanBoneName( p.to ) ).arg( t ).arg( ( now - mirror( was ) ).length() ) ) );
+              }
+              // the fingers as the clip has them
+              const int finger = M_model.nodeIndex( "index_02_l" );
+              QVERIFY( same( b[finger].r, a[finger].r, 1.0e-3f ) );
+          }
+      }
 };
 
 QTEST_MAIN( TestHumanoid )

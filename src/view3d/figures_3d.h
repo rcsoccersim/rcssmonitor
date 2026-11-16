@@ -62,9 +62,17 @@ struct GaitClip {
     float down = 0.0f; //!< how long the left foot stays down (s)
     float duration = 0.0f; //!< one cycle of the gait (two steps, s)
     float speed = 0.0f; //!< m/s, for a figure of a person's height
+    bool reverse = false; //!< played backward (a forward clip, for going backward)
     float stride() const { return speed * duration; } //!< m per cycle
-    //! the clip's time at a phase of the gait (0 to 1, the left foot coming down at 0)
-    float timeAt( const float phase ) const { return contact + phase * duration; }
+    /*!
+      \brief the clip's time at a phase of the gait (0 to 1, the left foot
+      coming down at 0); played backward, the left foot comes down where it
+      leaves the ground played forward
+    */
+    float timeAt( const float phase ) const
+      {
+          return ( reverse ? contact + down - phase * duration : contact + phase * duration );
+      }
 };
 
 /*!
@@ -102,6 +110,17 @@ struct GaitClip {
   the chest keeps the body direction; going backward, the clips play
   backward. The figure leans toward its acceleration, about its feet:
   forward when speeding up, back when slowing down, in when turning.
+
+  With clips of walking and jogging backward and sideways (9-4b, the
+  bundled ones cut from 100STYLE), the clips of each way are mixed by the
+  speed as the forward ones, and those of the two ways nearest to the way
+  the figure goes by GaitWays::mixAt(), the gait going on whichever way
+  (gaitOf()): backward, the backward clips, then the forward ones played
+  backward faster than them; sideways, the clips of the side (a side not
+  told: the other's mirrored), faster than them as fast as needed. Nearly
+  forward or backward (to GaitWays::TWIST_FULL), the hips turn toward the
+  way gone instead (a figure running a little off its body direction runs
+  forward), the clips of the two ways mixed for the rest.
 
   Actions (7-3, FigureActions from FigureActionLog): over the clips, the
   head turns by the neck (spread over the chest, the neck and the head),
@@ -218,6 +237,8 @@ public:
       \param body if not null, the clip read on this body (through the
       humanoid layer), of the speed for its proportions
       \param body_rig the body's roles
+      \param travel the way the clip goes in the model (forward: +z; to the
+      left: +x), against which a foot on the ground goes
       \return false if the feet do not come down and go back
     */
     static bool analyzeGait( const GltfModel & model,
@@ -225,7 +246,8 @@ public:
                              const int clip,
                              GaitClip * out,
                              const GltfModel * body = nullptr,
-                             const HumanoidRig * body_rig = nullptr );
+                             const HumanoidRig * body_rig = nullptr,
+                             const QVector3D & travel = QVector3D( 0.0f, 0.0f, 1.0f ) );
 
     //! the clips of walking and running, slowest first
     const std::vector< GaitClip > & gaitClips() const;
@@ -244,14 +266,49 @@ public:
         float t = 0.0f; //!< how far toward to
     };
 
-    //! how the clips are mixed at a speed (m/s)
+    //! how the clips are mixed at a speed (m/s), going forward
     Mix mixAt( const float speed ) const;
+
+    //! how clips of walking and running (slowest first) are mixed at a speed (m/s; moving left 0)
+    static Mix mixOf( const std::vector< GaitClip > & clips,
+                      const float speed );
+
+    /*!
+      \brief the clips of walking and running of a way (GaitWays::Way),
+      slowest first: forward, gaitClips(); backward, the clips of walking
+      backward, then the forward ones played backward faster than them;
+      sideways, the clips of the side (a side not told: the other side's
+      mirrored). The ways but forward are empty without clips of other ways
+      (the classic way), and the sideways ones without sideways clips.
+    */
+    const std::vector< GaitClip > & wayClips( const int way ) const;
+
+    //! the strides of the clips by the way, for GaitTable
+    GaitWays gaitWays() const;
+
+    /*!
+      \struct Gait
+      \brief how the clips are mixed for a figure: walking or running over
+      standing, the two ways mixed, and each way's clips by the speed
+    */
+    struct Gait {
+        float moving = 0.0f; //!< walking or running (1) over standing (0)
+        GaitWays::Mix ways; //!< the ways a and b, b by t
+        Mix a; //!< the clips of way a (wayClips())
+        Mix b; //!< the clips of way b
+    };
+
+    //! how the clips are mixed for a figure, by its velocity and its body direction
+    Gait gaitOf( const FigureInstance & figure ) const;
 
     /*!
       \brief how far the hips turn toward the way the figure goes (degree,
       as the field's angles): most going diagonally, none going straight
       forward, backward or sideways (where the gait turns between forward
-      and backward), less when slower than a walk
+      and backward), less when slower than a walk. With sideways clips, as
+      far as the way from forward or backward up to GaitWays::TWIST_FULL,
+      then less to none sideways (GaitWays::twistAt()), less when slower
+      than a walk.
     */
     float twistOf( const FigureInstance & figure ) const;
 

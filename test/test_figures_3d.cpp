@@ -39,6 +39,7 @@
 #include "options.h"
 #include "scene_builder.h"
 
+#include <algorithm>
 #include <cmath>
 #include <memory>
 
@@ -96,6 +97,24 @@ angleBetween( const float a,
     return std::remainder( a - b, 360.0f );
 }
 
+/*!
+  a bundled pack with its forward clips only: the classic way (backward,
+  the forward clips played backward; sideways, the hips turned)
+*/
+FigurePack
+forwardOnly( const char * id )
+{
+    FigurePack pack = *FigurePacks::builtin( id );
+    pack.id += QStringLiteral( "-forward" );
+    for ( FigureClipSpec * c : { &pack.motion.walk_back, &pack.motion.jog_back, &pack.motion.walk_left,
+                                 &pack.motion.walk_right, &pack.motion.jog_left, &pack.motion.jog_right } )
+    {
+        *c = FigureClipSpec();
+        c->given = false;
+    }
+    return pack;
+}
+
 //! a figure 2.22 m high (1.2 times a person's height) unless told
 FigureInstance
 figureAt( const int player,
@@ -117,7 +136,8 @@ class TestFigures3D
     Q_OBJECT
 
 private:
-    Figures3D M_figures;
+    Figures3D M_figures; //!< the bundled Mannequin: with clips of walking backward and sideways
+    Figures3D M_forward; //!< the Mannequin with its forward clips only (the classic way)
 
 private slots:
 
@@ -126,6 +146,8 @@ private slots:
           QVERIFY2( M_figures.load(), qPrintable( M_figures.error() ) );
           QVERIFY( M_figures.ready() );
           QVERIFY( M_figures.load() ); // once
+          QVERIFY2( M_forward.setPack( forwardOnly( "mannequin" ) ), qPrintable( M_forward.error() ) );
+          QVERIFY( ! M_forward.gaitWays().directional() );
       }
 
     /*!
@@ -420,13 +442,13 @@ private slots:
       the feet do not slide: going at a clip's speed, the left foot stays
       where it came down in the middle half of its time down, for a figure
       of a person's height and a taller one (longer strides), forward and
-      backward
+      backward (the classic way: the clips played backward)
     */
     void feetStay()
       {
-          for ( const GaitClip & g : M_figures.gaitClips() )
+          for ( const GaitClip & g : M_forward.gaitClips() )
           {
-              const QString name = M_figures.model().clips[g.clip].name;
+              const QString name = M_forward.model().clips[g.clip].name;
               for ( const float height : { SceneBuilder::PERSON_HEIGHT, 2.22f } )
               {
                   for ( const float way : { 1.0f, -1.0f } )
@@ -444,7 +466,7 @@ private slots:
                           f.motion.vx = way * g.speed * 0.6f;
                           f.motion.vy = way * g.speed * 0.8f;
                           if ( way < 0.0f ) f.body = 53.13f; // still facing the same way
-                          const QVector3D foot = leftFoot( M_figures, f );
+                          const QVector3D foot = leftFoot( M_forward, f );
                           const float d = foot.x() * 0.6f + foot.z() * 0.8f; // along the way
                           low = std::min( low, d );
                           high = std::max( high, d );
@@ -459,10 +481,11 @@ private slots:
     /*!
       the same through the gait table: a player going steadily at the
       jog's speed, drawn between the frames; and backward at the walk's
+      (the classic way)
     */
     void feetStayOnTheLog()
       {
-          const std::vector< GaitClip > & gaits = M_figures.gaitClips();
+          const std::vector< GaitClip > & gaits = M_forward.gaitClips();
           for ( const int which : { 1, 0 } )
           {
               const GaitClip & g = gaits[which];
@@ -480,7 +503,7 @@ private slots:
                   frames.push_back( d );
               }
               GaitTable table;
-              table.setStrides( M_figures.strides() );
+              table.setWays( M_forward.gaitWays() );
               table.update( frames, 0.1 );
 
               // drawn 20 times a cycle; the first time the left foot is in
@@ -501,7 +524,7 @@ private slots:
                       continue;
                   }
                   ++down;
-                  const float x = leftFoot( M_figures, f ).x();
+                  const float x = leftFoot( M_forward, f ).x();
                   low = std::min( low, x );
                   high = std::max( high, x );
               }
@@ -512,11 +535,12 @@ private slots:
 
     /*!
       going diagonally, the hips turn toward the way, the chest keeps the
-      body direction; straight forward or sideways, no turn
+      body direction; straight forward or sideways, no turn (the classic
+      way; with sideways clips, no turn: waysTwist())
     */
     void twist()
       {
-          const float speed = M_figures.gaitClips()[1].speed;
+          const float speed = M_forward.gaitClips()[1].speed;
           auto facings = [&]( const float way, float * hips, float * chest )
               {
                   FigureInstance f = figureAt( 0, 0.0f, 0.0f, 20.0f );
@@ -524,9 +548,9 @@ private slots:
                   const float rad = ( 20.0f + way ) * float( M_PI ) / 180.0f;
                   f.motion.vx = speed * std::cos( rad );
                   f.motion.vy = speed * std::sin( rad );
-                  *hips = facing( nodeAt( M_figures, f, 0.0, "thigh_l" ), nodeAt( M_figures, f, 0.0, "thigh_r" ) );
-                  *chest = facing( nodeAt( M_figures, f, 0.0, "upperarm_l" ), nodeAt( M_figures, f, 0.0, "upperarm_r" ) );
-                  return M_figures.twistOf( f );
+                  *hips = facing( nodeAt( M_forward, f, 0.0, "thigh_l" ), nodeAt( M_forward, f, 0.0, "thigh_r" ) );
+                  *chest = facing( nodeAt( M_forward, f, 0.0, "upperarm_l" ), nodeAt( M_forward, f, 0.0, "upperarm_r" ) );
+                  return M_forward.twistOf( f );
               };
           float hips0, chest0;
           QCOMPARE( facings( 0.0f, &hips0, &chest0 ), 0.0f );
@@ -544,7 +568,317 @@ private slots:
           // slower than a walk, less
           FigureInstance slow = figureAt( 0, 0.0f, 0.0f, 0.0f );
           slow.motion.vx = slow.motion.vy = 0.1f;
-          QVERIFY( M_figures.twistOf( slow ) < 0.5f * Figures3D::TWIST_MAX );
+          QVERIFY( M_forward.twistOf( slow ) < 0.5f * Figures3D::TWIST_MAX );
+      }
+
+    /*!
+      the bundled clips by the way: forward the Mannequin's; backward the
+      walk and the jog of 100STYLE, then the forward jog and sprint played
+      backward; to the right the walk of 100STYLE and its jog to the left
+      mirrored; to the left the walk mirrored and the jog. A pack of the
+      forward clips only: none of the other ways.
+    */
+    void ways()
+      {
+          const GltfModel & m = M_figures.motionModel();
+          auto names = [&]( const int way ) {
+              QStringList n;
+              for ( const GaitClip & g : M_figures.wayClips( way ) ) n << m.clips[g.clip].name + ( g.reverse ? " <" : "" );
+              return n;
+          };
+          QCOMPARE( names( GaitWays::Forward ), QStringList( { "Walk_Loop", "Jog_Fwd_Loop", "Sprint_Loop" } ) );
+          QCOMPARE( names( GaitWays::Backward ), QStringList( { "WalkBack.bvh", "JogBack.bvh", "Jog_Fwd_Loop <", "Sprint_Loop <" } ) );
+          QCOMPARE( names( GaitWays::Right ), QStringList( { "WalkRight.bvh", "JogLeft.bvh (mirrored)" } ) );
+          QCOMPARE( names( GaitWays::Left ), QStringList( { "WalkRight.bvh (mirrored)", "JogLeft.bvh" } ) );
+          QVERIFY( M_figures.wayClips( 4 ).empty() );
+          for ( int w = 0; w < 4; ++w )
+          {
+              const std::vector< GaitClip > & clips = M_figures.wayClips( w );
+              for ( std::size_t k = 1; k < clips.size(); ++k ) QVERIFY( clips[k - 1].speed < clips[k].speed );
+              for ( const GaitClip & g : clips )
+              {
+                  QVERIFY( g.contact >= 0.0f && g.contact < g.duration );
+                  QVERIFY( g.down > 0.0f && g.down < g.duration );
+              }
+          }
+          // slow, as people walk and jog backward and sideways (m/s)
+          const std::vector< GaitClip > & back = M_figures.wayClips( GaitWays::Backward );
+          QVERIFY2( back[0].speed > 0.4f && back[0].speed < 0.8f, qPrintable( QString::number( back[0].speed ) ) );
+          QVERIFY2( back[1].speed > 0.8f && back[1].speed < 1.3f, qPrintable( QString::number( back[1].speed ) ) );
+          for ( const int w : { int( GaitWays::Right ), int( GaitWays::Left ) } )
+          {
+              const std::vector< GaitClip > & side = M_figures.wayClips( w );
+              QVERIFY2( side[0].speed > 0.3f && side[0].speed < 0.7f, qPrintable( QString::number( side[0].speed ) ) );
+              QVERIFY2( side[1].speed > 1.0f && side[1].speed < 1.8f, qPrintable( QString::number( side[1].speed ) ) );
+          }
+          // a mirrored clip as fast as the one it mirrors, as long
+          QVERIFY( std::fabs( M_figures.wayClips( GaitWays::Left )[0].speed / M_figures.wayClips( GaitWays::Right )[0].speed - 1.0f ) < 0.02f );
+          QVERIFY( std::fabs( M_figures.wayClips( GaitWays::Right )[1].speed / M_figures.wayClips( GaitWays::Left )[1].speed - 1.0f ) < 0.02f );
+          QCOMPARE( M_figures.wayClips( GaitWays::Left )[0].duration, M_figures.wayClips( GaitWays::Right )[0].duration );
+          // the forward ones played backward: as fast, as long
+          QCOMPARE( back[2].clip, M_figures.gaitClips()[1].clip );
+          QCOMPARE( back[2].speed, M_figures.gaitClips()[1].speed );
+
+          // the strides for the gait table
+          const GaitWays ways = M_figures.gaitWays();
+          QVERIFY( ways.directional() );
+          QVERIFY( ways.sideways() );
+          for ( int w = 0; w < 4; ++w )
+          {
+              QCOMPARE( ways.strides[w].size(), M_figures.wayClips( w ).size() );
+              for ( std::size_t k = 0; k < ways.strides[w].size(); ++k )
+              {
+                  QCOMPARE( ways.strides[w][k].speed, M_figures.wayClips( w )[k].speed );
+                  QCOMPARE( ways.strides[w][k].stride, M_figures.wayClips( w )[k].stride() );
+              }
+          }
+          QCOMPARE( ways.strides[GaitWays::Forward].size(), M_figures.strides().size() );
+
+          // the forward clips only: the classic way
+          for ( const int w : { int( GaitWays::Right ), int( GaitWays::Backward ), int( GaitWays::Left ) } )
+          {
+              QVERIFY( M_forward.wayClips( w ).empty() );
+          }
+          QCOMPARE( M_forward.wayClips( GaitWays::Forward ).size(), std::size_t( 3 ) );
+      }
+
+    /*!
+      a clip played backward: the left foot comes down at the phase 0
+      where it leaves the ground played forward, the phase going back
+      through the clip
+    */
+    void reversed()
+      {
+          GaitClip clip;
+          clip.contact = 0.3f;
+          clip.down = 0.5f;
+          clip.duration = 1.2f;
+          clip.reverse = true;
+          QCOMPARE( clip.timeAt( 0.0f ), 0.8f );
+          QVERIFY( std::fabs( clip.timeAt( 0.25f ) - 0.5f ) < 1.0e-6f );
+          QVERIFY( std::fabs( clip.timeAt( 1.0f ) - ( 0.8f - 1.2f ) ) < 1.0e-6f );
+          // the bundled jog played backward: its left foot down from the phase 0 to its time down
+          const GaitClip & g = M_figures.wayClips( GaitWays::Backward )[2];
+          QVERIFY( g.reverse );
+          const GltfModel & m = M_figures.motionModel();
+          auto leftLower = [&]( const float phase ) {
+              std::vector< NodeTransform > local = m.rest;
+              m.sample( m.clips[g.clip], g.timeAt( phase ), local );
+              std::vector< QMatrix4x4 > global;
+              m.globals( local, global );
+              return global[m.nodeIndex( "foot_l" )].column( 3 ).y() < global[m.nodeIndex( "foot_r" )].column( 3 ).y();
+          };
+          QVERIFY( leftLower( 0.5f * g.down / g.duration ) );
+          QVERIFY( ! leftLower( 0.5f * g.down / g.duration + 0.5f ) );
+      }
+
+    /*!
+      with clips of other ways, the feet do not slide: going straight each
+      way at the speed of each of its clips (and of the forward ones played
+      backward), for a figure of a person's height and a taller one, the
+      left foot stays where it came down in the middle half of its time
+      down; going diagonally, mixed, it slides a little
+    */
+    void feetStayWays()
+      {
+          const GaitWays ways = M_figures.gaitWays();
+          const float body = 30.0f;
+          auto spread = [&]( const float toward,
+                             const float speed,
+                             const float height,
+                             const double from,
+                             const double to ) {
+              const float rad = ( body + toward ) * float( M_PI ) / 180.0f;
+              const QVector3D way( std::cos( rad ), 0.0f, std::sin( rad ) );
+              const float stride = ways.mixAt( speed, toward * float( M_PI ) / 180.0f ).stride;
+              const float scale = height / SceneBuilder::PERSON_HEIGHT;
+              QVector3D low( 1.0e9f, 0.0f, 1.0e9f ), high( -1.0e9f, 0.0f, -1.0e9f );
+              for ( int k = 0; k <= 10; ++k )
+              {
+                  const double phase = from + ( to - from ) * k / 10.0;
+                  const double gait = phase * scale;
+                  const float along = float( gait ) * stride;
+                  FigureInstance f = figureAt( 0, 3.0f + along * way.x(), -2.0f + along * way.z(), body, height );
+                  f.motion.gait = gait;
+                  f.motion.vx = way.x() * speed;
+                  f.motion.vy = way.z() * speed;
+                  const QVector3D foot = leftFoot( M_figures, f );
+                  const float a = foot.x() * way.x() + foot.z() * way.z(); // along the way
+                  const float c = foot.z() * way.x() - foot.x() * way.z(); // across it
+                  low = QVector3D( std::min( low.x(), a ), 0.0f, std::min( low.z(), c ) );
+                  high = QVector3D( std::max( high.x(), a ), 0.0f, std::max( high.z(), c ) );
+              }
+              return std::max( high.x() - low.x(), high.z() - low.z() );
+          };
+          const float toward[4] = { 0.0f, 90.0f, 180.0f, -90.0f };
+          for ( int w = 1; w < 4; ++w )
+          {
+              for ( const GaitClip & g : M_figures.wayClips( w ) )
+              {
+                  for ( const float height : { SceneBuilder::PERSON_HEIGHT, 2.22f } )
+                  {
+                      const double from = 0.25 * g.down / g.duration;
+                      const double to = 0.75 * g.down / g.duration;
+                      const float d = spread( toward[w], g.speed, height, from, to );
+                      QVERIFY2( d < 0.03f * height / SceneBuilder::PERSON_HEIGHT,
+                                qPrintable( M_figures.motionModel().clips[g.clip].name
+                                            + QString( " way %1 height %2: %3 m" ).arg( w ).arg( height ).arg( d ) ) );
+                  }
+              }
+          }
+          // diagonally: between the two ways, by the speed; the left foot
+          // down where it is low in the mix (two cycles, the middle of the
+          // longest time low)
+          for ( const float t : { 45.0f, 135.0f, -45.0f, -135.0f } )
+          {
+              for ( const float speed : { 0.8f, 1.5f, 3.0f } )
+              {
+                  std::vector< float > y;
+                  for ( int k = 0; k < 200; ++k )
+                  {
+                      const double gait = 2.0 * k / 200;
+                      const float rad = ( body + t ) * float( M_PI ) / 180.0f;
+                      const float along = float( gait ) * ways.mixAt( speed, t * float( M_PI ) / 180.0f ).stride;
+                      FigureInstance f = figureAt( 0, along * std::cos( rad ), along * std::sin( rad ), body, SceneBuilder::PERSON_HEIGHT );
+                      f.motion.gait = gait;
+                      f.motion.vx = std::cos( rad ) * speed;
+                      f.motion.vy = std::sin( rad ) * speed;
+                      y.push_back( leftFoot( M_figures, f ).y() );
+                  }
+                  const float lowest = *std::min_element( y.begin(), y.end() );
+                  int best = 0, first = 0;
+                  for ( int k = 1; k < 200; ++k )
+                  {
+                      if ( y[k] >= lowest + 0.015f || y[k - 1] < lowest + 0.015f ) continue;
+                      int n = 0;
+                      while ( k + n < 200 && y[k + n] < lowest + 0.015f ) ++n;
+                      if ( k + n < 200 && n > best ) { best = n; first = k; }
+                  }
+                  QVERIFY( best > 8 );
+                  const float d = spread( t, speed, SceneBuilder::PERSON_HEIGHT,
+                                          2.0 * ( first + 0.25 * best ) / 200, 2.0 * ( first + 0.75 * best ) / 200 );
+                  // (most at 135 degrees at 1.5 m/s, 11 cm: the backward jog and
+                  // the forward jog played backward mixed, of other times down)
+                  QVERIFY2( d < 0.12f, qPrintable( QString( "%1 at %2 m/s: %3 m" ).arg( t ).arg( speed ).arg( d ) ) );
+              }
+          }
+      }
+
+    /*!
+      the same through the gait table: a player going steadily backward at
+      the backward jog's speed, and to its left at the walk's, drawn
+      between the frames; its gait going on, not back
+    */
+    void feetStayWaysOnTheLog()
+      {
+          for ( const int w : { int( GaitWays::Backward ), int( GaitWays::Left ) } )
+          {
+              const GaitClip & g = M_figures.wayClips( w )[w == GaitWays::Backward ? 1 : 0];
+              // facing +x; backward -x, to the left (the field's -y)
+              const float vx = ( w == GaitWays::Backward ? -g.speed : 0.0f );
+              const float vy = ( w == GaitWays::Backward ? 0.0f : -g.speed );
+              DispCont frames;
+              for ( int i = 0; i < 80; ++i )
+              {
+                  auto d = std::make_shared< rcss::rcg::DispInfoT >();
+                  rcss::rcg::PlayerT & p = d->show_.player_[0];
+                  p.side_ = 'l';
+                  p.unum_ = 1;
+                  p.state_ = 1;
+                  p.x_ = vx * 0.1f * i;
+                  p.y_ = vy * 0.1f * i;
+                  p.body_ = 0.0f;
+                  frames.push_back( d );
+              }
+              GaitTable table;
+              table.setWays( M_figures.gaitWays() );
+              table.update( frames, 0.1 );
+              QVERIFY( table.motion( 0, 60, 60, 0.0 ).gait > table.motion( 0, 20, 20, 0.0 ).gait + 1.0 );
+
+              float low = 1.0e9f, high = -1.0e9f;
+              int down = 0;
+              for ( int k = 200; k < 1200; ++k )
+              {
+                  const std::size_t index = k / 20;
+                  const double alpha = ( k % 20 ) / 20.0;
+                  FigureInstance f = figureAt( 0, vx * 0.1f * float( index + alpha ), vy * 0.1f * float( index + alpha ),
+                                               0.0f, SceneBuilder::PERSON_HEIGHT );
+                  f.motion = table.motion( 0, index, index + 1, alpha );
+                  const double phase = ( f.motion.gait - std::floor( f.motion.gait ) ) * g.duration;
+                  const bool in = ( phase > 0.3 * g.down && phase < 0.7 * g.down );
+                  if ( ! in )
+                  {
+                      if ( down > 0 ) break;
+                      continue;
+                  }
+                  ++down;
+                  const QVector3D foot = leftFoot( M_figures, f );
+                  const float along = ( w == GaitWays::Backward ? foot.x() : foot.z() );
+                  low = std::min( low, along );
+                  high = std::max( high, along );
+              }
+              QVERIFY( down > 3 );
+              QVERIFY2( high - low < 0.04f, qPrintable( QString( "way %1: %2" ).arg( w ).arg( high - low ) ) );
+          }
+      }
+
+    /*!
+      with sideways clips, the hips turn toward the way gone as the gait
+      table takes it (GaitWays::twistAt()), the chest keeping the body
+      direction; the clips of the two ways are mixed for the rest, as the
+      gait table mixes their strides
+    */
+    void waysMixed()
+      {
+          const float speed = 1.2f;
+          auto at = [&]( const float toward, const char * node ) {
+              FigureInstance f = figureAt( 0, 0.0f, 0.0f, 20.0f );
+              f.motion.gait = 0.3;
+              const float rad = ( 20.0f + toward ) * float( M_PI ) / 180.0f;
+              f.motion.vx = speed * std::cos( rad );
+              f.motion.vy = speed * std::sin( rad );
+              return nodeAt( M_figures, f, 0.0, node );
+          };
+          for ( const float toward : { 60.0f, -60.0f, 120.0f } )
+          {
+              FigureInstance f = figureAt( 0, 0.0f, 0.0f, 20.0f );
+              const float rad = ( 20.0f + toward ) * float( M_PI ) / 180.0f;
+              f.motion.vx = speed * std::cos( rad );
+              f.motion.vy = speed * std::sin( rad );
+              const float twist = M_figures.gaitWays().twistAt( toward * float( M_PI ) / 180.0f ) * 180.0f / float( M_PI );
+              QVERIFY( std::fabs( twist ) > 5.0f );
+              QVERIFY( std::fabs( M_figures.twistOf( f ) - twist ) < 1.0e-3f );
+              const Figures3D::Gait gait = M_figures.gaitOf( f );
+              const GaitWays::Mix ways = M_figures.gaitWays().mixAt( speed, toward * float( M_PI ) / 180.0f );
+              QCOMPARE( gait.ways.a, ways.a );
+              QCOMPARE( gait.ways.b, ways.b );
+              QCOMPARE( gait.ways.t, ways.t );
+              QVERIFY( gait.ways.t > 0.1f && gait.ways.t < 0.9f );
+              QCOMPARE( gait.moving, 1.0f );
+              // the hips turned, the chest keeping the body direction
+              // (the clips turn them a little: compared with straight forward)
+              const float hips = facing( at( toward, "thigh_l" ), at( toward, "thigh_r" ) );
+              const float chest = facing( at( toward, "upperarm_l" ), at( toward, "upperarm_r" ) );
+              QVERIFY2( std::fabs( angleBetween( hips, 20.0f + twist ) ) < 12.0f, qPrintable( QString( "%1: %2" ).arg( toward ).arg( hips ) ) );
+              QVERIFY2( std::fabs( angleBetween( chest, 20.0f ) ) < 12.0f, qPrintable( QString( "%1: %2" ).arg( toward ).arg( chest ) ) );
+              // the left foot between the two ways' (each alone)
+              const float a = ( ways.a == GaitWays::Forward ? 0.0f : ( toward > 0.0f ? 90.0f : -90.0f ) );
+              const float b = ( ways.b == GaitWays::Backward ? 180.0f : ( toward > 0.0f ? 90.0f : -90.0f ) );
+              const QVector3D mixed = at( toward, "foot_l" );
+              QVERIFY( ( mixed - at( a, "foot_l" ) ).length() > 0.01f );
+              QVERIFY( ( mixed - at( b, "foot_l" ) ).length() > 0.01f );
+          }
+          // standing mixed in below the slowest way's walk
+          FigureInstance slow = figureAt( 0, 0.0f, 0.0f, 0.0f );
+          const float back_walk = M_figures.wayClips( GaitWays::Backward )[0].speed;
+          slow.motion.vx = -0.5f * Figures3D::MOVING_FULL * back_walk;
+          QVERIFY( std::fabs( M_figures.gaitOf( slow ).moving - 0.5f ) < 1.0e-4f );
+          slow.motion.vx = -back_walk;
+          QCOMPARE( M_figures.gaitOf( slow ).moving, 1.0f );
+          // forward only, the forward clips' walk (as mixAt())
+          slow.motion.vx = 0.3f;
+          QCOMPARE( M_forward.gaitOf( slow ).moving, M_forward.mixAt( 0.3f ).moving );
+          QCOMPARE( M_forward.gaitOf( slow ).ways.b, int( GaitWays::Forward ) );
       }
 
     /*!
@@ -977,8 +1311,11 @@ private slots:
           QVERIFY2( std::fabs( hand - mannequin_hand ) < 0.1f, qPrintable( QString( "%1 %2" ).arg( hand ).arg( mannequin_hand ) ) );
 
           // walking and running: the left foot stays in the middle of its time
-          // down, with the body's strides
-          for ( const GaitClip & g : human.gaitClips() )
+          // down, with the body's strides (backward the classic way)
+          Figures3D human_forward;
+          QVERIFY2( human_forward.setPack( forwardOnly( "human" ) ), qPrintable( human_forward.error() ) );
+          QCOMPARE( human_forward.bodyStride(), human.bodyStride() );
+          for ( const GaitClip & g : human_forward.gaitClips() )
           {
               for ( const float way : { 1.0f, -1.0f } )
               {
@@ -992,7 +1329,7 @@ private slots:
                       FigureInstance w = figureAt( 0, along, 0.0f, 0.0f, 1.85f );
                       w.motion.gait = gait;
                       w.motion.vx = way * g.speed; // the clip alone (the mix is by the speed)
-                      const float d = leftFoot( human, w ).x();
+                      const float d = leftFoot( human_forward, w ).x();
                       low = std::min( low, d );
                       high = std::max( high, d );
                   }

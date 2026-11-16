@@ -162,6 +162,13 @@ struct HumanoidPose {
     static HumanoidPose mix( const HumanoidPose & a,
                              const HumanoidPose & b,
                              const float t );
+
+    /*!
+      \brief the pose mirrored left to right (across the model's plane x = 0,
+      a person at rest being its own mirror): each role takes its other
+      side's rotation, mirrored, and the hips move the other way sideways
+    */
+    HumanoidPose mirrored() const;
 };
 
 /*!
@@ -333,6 +340,21 @@ GltfModel::Clip retargetClip( const GltfModel & source,
                               const HumanoidRig & target_rig,
                               const bool in_place,
                               const float rate = 30.0f );
+
+/*!
+  \brief a clip mirrored left to right (HumanoidPose::mirrored()): a walk
+  to the right made a walk to the left. Sampled at a rate on the skeleton
+  of the clip, each pose mirrored and put on it again; the bones without a
+  role (the fingers) as they are.
+  \param model the skeleton of the clip, and its roles
+  \param clip the clip (of model)
+  \param rate samples a second
+  \return the clip mirrored, for model's nodes
+*/
+GltfModel::Clip mirrorClip( const GltfModel & model,
+                            const HumanoidRig & rig,
+                            const GltfModel::Clip & clip,
+                            const float rate = 30.0f );
 
 /*!
   \brief the rest of a skeleton saved in a pose (GltfModel::posed_rest: an

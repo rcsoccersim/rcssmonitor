@@ -184,12 +184,17 @@ public:
     */
     FigureClipSpec clip( const QJsonObject & o,
                          const QString & parent,
-                         const char * key )
+                         const char * key,
+                         const bool optional = false )
       {
           FigureClipSpec c;
           const QJsonValue v = o.value( QLatin1String( key ) );
           const QString where = pathOf( parent, QLatin1String( key ) );
-          if ( v.isUndefined() || v.isNull() )
+          if ( ( v.isUndefined() || v.isNull() ) && optional )
+          {
+              c.given = false;
+          }
+          else if ( v.isUndefined() || v.isNull() )
           {
               fail( parent, QStringLiteral( "no " ) + quoted( QLatin1String( key ) ) );
           }
@@ -408,6 +413,23 @@ FigureClipSpec::text() const
 }
 
 /*-------------------------------------------------------------------*/
+const std::vector< const char * > &
+FigureMotionSpec::optionalKeys()
+{
+    static const std::vector< const char * > keys = {
+        "walk_back", "jog_back", "walk_left", "walk_right", "jog_left", "jog_right",
+    };
+    return keys;
+}
+
+/*-------------------------------------------------------------------*/
+std::vector< const FigureClipSpec * >
+FigureMotionSpec::optionalClips() const
+{
+    return { &walk_back, &jog_back, &walk_left, &walk_right, &jog_left, &jog_right };
+}
+
+/*-------------------------------------------------------------------*/
 std::uint32_t
 FigureBodySpec::bitOf( const QString & material ) const
 {
@@ -609,6 +631,12 @@ FigurePack::read( const QString & dir,
         pack.motion.walk = r.clip( c, at, "walk" );
         pack.motion.jog = r.clip( c, at, "jog" );
         pack.motion.sprint = r.clip( c, at, "sprint" );
+        pack.motion.walk_back = r.clip( c, at, "walk_back", true );
+        pack.motion.jog_back = r.clip( c, at, "jog_back", true );
+        pack.motion.walk_left = r.clip( c, at, "walk_left", true );
+        pack.motion.walk_right = r.clip( c, at, "walk_right", true );
+        pack.motion.jog_left = r.clip( c, at, "jog_left", true );
+        pack.motion.jog_right = r.clip( c, at, "jog_right", true );
     }
     else
     {

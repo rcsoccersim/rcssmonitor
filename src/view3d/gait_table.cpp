@@ -40,37 +40,171 @@
 #include <cmath>
 
 /*-------------------------------------------------------------------*/
-void
-GaitTable::setStrides( const std::vector< GaitStride > & strides )
+bool
+GaitWays::operator==( const GaitWays & other ) const
 {
-    const bool same = ( strides.size() == M_strides.size()
-                        && std::equal( strides.begin(), strides.end(), M_strides.begin(),
-                                       []( const GaitStride & a, const GaitStride & b )
-                                         {
-                                             return a.speed == b.speed && a.stride == b.stride;
-                                         } ) );
-    if ( same ) return;
-    M_strides = strides;
-    clear();
+    for ( std::size_t w = 0; w < strides.size(); ++w )
+    {
+        const std::vector< GaitStride > & a = strides[w];
+        const std::vector< GaitStride > & b = other.strides[w];
+        if ( a.size() != b.size()
+             || ! std::equal( a.begin(), a.end(), b.begin(),
+                              []( const GaitStride & x, const GaitStride & y )
+                                {
+                                    return x.speed == y.speed && x.stride == y.stride;
+                                } ) )
+        {
+            return false;
+        }
+    }
+    return true;
 }
 
 /*-------------------------------------------------------------------*/
 float
-GaitTable::strideAt( const float speed ) const
+GaitWays::strideAt( const std::vector< GaitStride > & strides,
+                    const float speed )
 {
-    if ( M_strides.empty() ) return 1.0f;
-    if ( speed <= M_strides.front().speed ) return M_strides.front().stride;
-    for ( std::size_t k = 1; k < M_strides.size(); ++k )
+    if ( strides.empty() ) return 1.0f;
+    if ( speed <= strides.front().speed ) return strides.front().stride;
+    for ( std::size_t k = 1; k < strides.size(); ++k )
     {
-        const GaitStride & a = M_strides[k - 1];
-        const GaitStride & b = M_strides[k];
+        const GaitStride & a = strides[k - 1];
+        const GaitStride & b = strides[k];
         if ( speed <= b.speed )
         {
             const float t = ( speed - a.speed ) / std::max( 1.0e-6f, b.speed - a.speed );
             return a.stride + ( b.stride - a.stride ) * t;
         }
     }
-    return M_strides.back().stride;
+    return strides.back().stride;
+}
+
+/*-------------------------------------------------------------------*/
+namespace {
+
+//! the twist and the clips' way of a way gone (radian, to the right positive)
+void
+twistAndWay( const float toward,
+             float * twist,
+             float * way )
+{
+    const float full = GaitWays::TWIST_FULL * float( M_PI ) / 180.0f;
+    const float quarter = 0.5f * float( M_PI );
+    const float r = std::remainder( toward, float( 2.0 * M_PI ) );
+    const float side = ( r < 0.0f ? -1.0f : 1.0f );
+    const float d = std::fabs( r );
+    // from forward (e: from backward), the hips' turn up to full, then less
+    // to none sideways; the clips' way from the hips what is left
+    const float e = ( d <= quarter ? d : float( M_PI ) - d );
+    const float turn = ( e <= full ? e : full * ( quarter - e ) / ( quarter - full ) );
+    const float left = ( e <= full ? 0.0f : quarter * ( e - full ) / ( quarter - full ) );
+    if ( d <= quarter )
+    {
+        *twist = side * turn;
+        *way = side * left;
+    }
+    else
+    {
+        *twist = -side * turn; // the hips' back toward the way gone
+        *way = side * ( float( M_PI ) - left );
+    }
+}
+
+}
+
+/*-------------------------------------------------------------------*/
+float
+GaitWays::twistAt( const float toward ) const
+{
+    if ( ! sideways() ) return 0.0f;
+    float twist, way;
+    twistAndWay( toward, &twist, &way );
+    return twist;
+}
+
+/*-------------------------------------------------------------------*/
+float
+GaitWays::clipWay( const float toward )
+{
+    float twist, way;
+    twistAndWay( toward, &twist, &way );
+    return way;
+}
+
+/*-------------------------------------------------------------------*/
+GaitWays::Mix
+GaitWays::mixAt( const float speed,
+                 const float toward ) const
+{
+    Mix mix;
+    const std::vector< GaitStride > & back = ( strides[Backward].empty() ? strides[Forward] : strides[Backward] );
+    const float forward_stride = strideAt( strides[Forward], speed );
+    mix.stride = forward_stride;
+    if ( ! directional() ) return mix;
+
+    if ( ! sideways() )
+    {
+        // the way gone from the body direction, from 0 to 180 degrees
+        const float d = std::fabs( std::remainder( toward, float( 2.0 * M_PI ) ) );
+        // forward, or backward, mixed in a band about sideways
+        const float band = BACK_BAND * float( M_PI ) / 180.0f;
+        const float u = std::min( 1.0f, std::max( 0.0f, ( d - ( 0.5f * float( M_PI ) - band ) ) / ( 2.0f * band ) ) );
+        mix.b = Backward;
+        mix.t = u * u * ( 3.0f - 2.0f * u );
+        mix.stride = forward_stride + ( strideAt( back, speed ) - forward_stride ) * mix.t;
+        return mix;
+    }
+
+    // between the two ways around the clips' way from the hips turned:
+    // forward and a side, or a side and backward
+    const float w = std::fabs( clipWay( toward ) );
+    const int side = ( std::remainder( toward, float( 2.0 * M_PI ) ) >= 0.0f ? Right : Left );
+    float theta = w;
+    if ( w <= 0.5f * float( M_PI ) )
+    {
+        mix.a = Forward;
+        mix.b = side;
+    }
+    else
+    {
+        mix.a = side;
+        mix.b = Backward;
+        theta = w - 0.5f * float( M_PI );
+    }
+    const float sa = ( mix.a == Forward ? forward_stride : strideAt( strides[mix.a], speed ) );
+    const float sb = ( mix.b == Backward ? strideAt( back, speed ) : strideAt( strides[mix.b], speed ) );
+    const float sin_t = std::sin( theta );
+    const float cos_t = std::cos( theta );
+    const float den = std::max( 1.0e-6f, sa * sin_t + sb * cos_t );
+    mix.t = std::min( 1.0f, std::max( 0.0f, sa * sin_t / den ) );
+    mix.stride = sa * sb / den;
+    return mix;
+}
+
+/*-------------------------------------------------------------------*/
+void
+GaitTable::setWays( const GaitWays & ways )
+{
+    if ( ways == M_ways ) return;
+    M_ways = ways;
+    clear();
+}
+
+/*-------------------------------------------------------------------*/
+void
+GaitTable::setStrides( const std::vector< GaitStride > & strides )
+{
+    GaitWays ways;
+    ways.strides[GaitWays::Forward] = strides;
+    setWays( ways );
+}
+
+/*-------------------------------------------------------------------*/
+float
+GaitTable::strideAt( const float speed ) const
+{
+    return GaitWays::strideAt( M_ways.strides[GaitWays::Forward], speed );
 }
 
 /*-------------------------------------------------------------------*/
@@ -152,10 +286,18 @@ GaitTable::extend( const DispCont & frames )
             const double dy = b.y_ - a.y_;
             const double d = std::sqrt( dx * dx + dy * dy );
             if ( d < 1.0e-4 || d >= TELEPORT ) continue;
-            // backward: away from the body direction
             const double toward = std::atan2( dy, dx ) - a.body_ * M_PI / 180.0;
-            const double sign = ( std::cos( toward ) < 0.0 ? -1.0 : 1.0 );
-            e.gait += sign * d / strideAt( static_cast< float >( d / step ) );
+            if ( M_ways.directional() )
+            {
+                // on whichever way, by the stride of the clips mixed for it
+                e.gait += d / M_ways.mixAt( static_cast< float >( d / step ), static_cast< float >( toward ) ).stride;
+            }
+            else
+            {
+                // backward: away from the body direction, the cycles taken back
+                const double sign = ( std::cos( toward ) < 0.0 ? -1.0 : 1.0 );
+                e.gait += sign * d / strideAt( static_cast< float >( d / step ) );
+            }
             e.vx = static_cast< float >( dx / step );
             e.vy = static_cast< float >( dy / step );
         }

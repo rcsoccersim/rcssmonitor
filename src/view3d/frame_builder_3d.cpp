@@ -217,7 +217,7 @@ FrameBuilder3D::build( const DispHolder & holder,
     // next one
     if ( ! content.figures.empty() )
     {
-        M_gaits.setStrides( M_figures.strides() );
+        M_gaits.setWays( M_figures.gaitWays() );
         M_gaits.update( frames, step );
         const float ball_radius = float( SceneBuilder::ballRadius( opt, sp.ball_size_ ) );
         for ( FigureInstance & figure : content.figures )

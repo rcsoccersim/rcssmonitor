@@ -35,6 +35,8 @@
 
 #include "gait_table.h"
 
+#include <QVector2D>
+
 #include <cmath>
 #include <memory>
 
@@ -290,6 +292,207 @@ private slots:
           QVERIFY( near( t.motion( 0, 4, 4, 0.0 ).gait, 0.2 ) );
           t.setStrides( { { 1.0f, 2.0f } } ); // the same: kept
           QCOMPARE( t.frameCount(), std::size_t( 5 ) );
+      }
+
+    /*!
+      the ways mixed: forward only (the classic way), whichever way the
+      forward stride; with backward clips only, forward and backward mixed
+      in a band about sideways; with sideways clips, the two ways around
+      the way gone, by weights that move a foot on the ground along it
+    */
+    void waysMixed()
+      {
+          const auto rad = []( const float degree ) { return degree * float( M_PI ) / 180.0f; };
+          GaitWays ways;
+          ways.strides[GaitWays::Forward] = strides();
+          QVERIFY( ! ways.directional() );
+          QVERIFY( ! ways.sideways() );
+          for ( const float d : { 0.0f, 45.0f, 90.0f, 180.0f, -120.0f } )
+          {
+              const GaitWays::Mix m = ways.mixAt( 3.0f, rad( d ) );
+              QCOMPARE( m.a, int( GaitWays::Forward ) );
+              QCOMPARE( m.b, int( GaitWays::Forward ) );
+              QCOMPARE( m.t, 0.0f );
+              QVERIFY( near( m.stride, 2.5 ) );
+          }
+          QCOMPARE( GaitWays::strideAt( {}, 2.0f ), 1.0f );
+          QVERIFY( near( GaitWays::strideAt( strides(), 3.0f ), 2.5 ) );
+
+          // backward only: forward, the band (smoothly), backward
+          ways.strides[GaitWays::Backward] = { { 0.5f, 0.5f }, { 2.0f, 1.5f } };
+          QVERIFY( ways.directional() );
+          QVERIFY( ! ways.sideways() );
+          const float band = GaitWays::BACK_BAND;
+          for ( const float side : { 1.0f, -1.0f } )
+          {
+              QCOMPARE( ways.mixAt( 1.0f, rad( side * ( 90.0f - band - 1.0f ) ) ).t, 0.0f );
+              QCOMPARE( ways.mixAt( 1.0f, rad( side * ( 90.0f + band + 1.0f ) ) ).t, 1.0f );
+              const GaitWays::Mix m = ways.mixAt( 1.0f, rad( side * 90.0f ) );
+              QCOMPARE( m.a, int( GaitWays::Forward ) );
+              QCOMPARE( m.b, int( GaitWays::Backward ) );
+              QVERIFY( near( m.t, 0.5 ) );
+              QVERIFY( near( m.stride, 0.5 * ( 1.0 + ( 0.5 + 1.0 / 3.0 ) ) ) ); // halfway between the strides
+              const float quarter = ways.mixAt( 1.0f, rad( side * ( 90.0f - 0.5f * band ) ) ).t;
+              QVERIFY( near( quarter, 0.15625 ) ); // smoothstep(1/4)
+          }
+          QVERIFY( near( ways.mixAt( 1.0f, rad( 180.0f ) ).stride, 0.5 + 0.5 / 1.5 ) );
+
+          // sideways too
+          ways.strides[GaitWays::Right] = { { 0.5f, 0.4f }, { 1.5f, 1.0f } };
+          ways.strides[GaitWays::Left] = { { 0.5f, 0.4f }, { 1.5f, 1.0f } };
+          QVERIFY( ways.sideways() );
+          QVERIFY( ways.directional() );
+          const struct { float d; int a; int b; } around[] = {
+              { 0.0f, GaitWays::Forward, GaitWays::Right },
+              { 30.0f, GaitWays::Forward, GaitWays::Right },
+              { 89.0f, GaitWays::Forward, GaitWays::Right },
+              { 91.0f, GaitWays::Right, GaitWays::Backward },
+              { 170.0f, GaitWays::Right, GaitWays::Backward },
+              { -30.0f, GaitWays::Forward, GaitWays::Left },
+              { -120.0f, GaitWays::Left, GaitWays::Backward },
+              { 330.0f, GaitWays::Forward, GaitWays::Left }, // -30
+          };
+          for ( const float speed : { 0.3f, 1.0f, 4.0f } )
+          {
+              for ( const auto & w : around )
+              {
+                  const GaitWays::Mix m = ways.mixAt( speed, rad( w.d ) );
+                  QCOMPARE( m.a, w.a );
+                  QCOMPARE( m.b, w.b );
+                  // a foot on the ground goes against the way gone: the
+                  // ways' feet by their weights and strides, along it, as
+                  // far as the stride of the mix
+                  const auto unit = []( const int way ) {
+                      static const QVector2D u[4] = { { 1.0f, 0.0f }, { 0.0f, 1.0f }, { -1.0f, 0.0f }, { 0.0f, -1.0f } };
+                      return u[way]; // forward, to the right (+y on the field), ...
+                  };
+                  const auto strideOf = [&]( const int way ) {
+                      return GaitWays::strideAt( ways.strides[way], speed );
+                  };
+                  const QVector2D foot = unit( m.a ) * ( ( 1.0f - m.t ) * strideOf( m.a ) )
+                      + unit( m.b ) * ( m.t * strideOf( m.b ) );
+                  // (the clips' way from the hips turned)
+                  const float clip = GaitWays::clipWay( rad( w.d ) );
+                  const QVector2D way( std::cos( clip ), std::sin( clip ) );
+                  QVERIFY2( std::fabs( foot.x() * way.y() - foot.y() * way.x() ) < 1.0e-4f,
+                            qPrintable( QString( "%1 at %2" ).arg( w.d ).arg( speed ) ) );
+                  QVERIFY( near( QVector2D::dotProduct( foot, way ), m.stride ) );
+                  QVERIFY( m.t >= 0.0f && m.t <= 1.0f );
+              }
+              // straight each way: that way alone, its stride; left and right alike
+              QCOMPARE( ways.mixAt( speed, 0.0f ).t, 0.0f );
+              QVERIFY( near( ways.mixAt( speed, 0.0f ).stride, GaitWays::strideAt( ways.strides[0], speed ) ) );
+              for ( const float side : { 1.0f, -1.0f } )
+              {
+                  const GaitWays::Mix m = ways.mixAt( speed, rad( side * 90.0f ) );
+                  QVERIFY( ( m.b == ( side > 0.0f ? GaitWays::Right : GaitWays::Left ) && near( m.t, 1.0 ) )
+                           || ( m.a == ( side > 0.0f ? GaitWays::Right : GaitWays::Left ) && near( m.t, 0.0 ) ) );
+                  QVERIFY( near( m.stride, GaitWays::strideAt( ways.strides[GaitWays::Right], speed ) ) );
+                  const GaitWays::Mix l = ways.mixAt( speed, rad( side * 45.0f ) );
+                  const GaitWays::Mix r = ways.mixAt( speed, rad( -side * 45.0f ) );
+                  QVERIFY( near( l.t, r.t ) && near( l.stride, r.stride ) );
+              }
+              QVERIFY( near( ways.mixAt( speed, rad( 180.0f ) ).t, 1.0 ) );
+              QVERIFY( near( ways.mixAt( speed, rad( 180.0f ) ).stride, GaitWays::strideAt( ways.strides[GaitWays::Backward], speed ) ) );
+          }
+          // without backward ones, sideways mixed with the forward ones (played backward)
+          GaitWays side_only = ways;
+          side_only.strides[GaitWays::Backward].clear();
+          QVERIFY( side_only.directional() );
+          QVERIFY( near( side_only.mixAt( 3.0f, rad( 180.0f ) ).stride, 2.5 ) );
+          // one side only: not sideways
+          GaitWays one_side;
+          one_side.strides[GaitWays::Forward] = strides();
+          one_side.strides[GaitWays::Left] = ways.strides[GaitWays::Left];
+          QVERIFY( ! one_side.sideways() );
+          QVERIFY( ! one_side.directional() );
+      }
+
+    /*!
+      with sideways clips, the hips turn toward the way gone as far as the
+      way from forward or backward up to TWIST_FULL, then less to none
+      sideways; the clips go the rest of the way from the hips; without
+      them, no turn
+    */
+    void twist()
+      {
+          const auto rad = []( const float degree ) { return degree * float( M_PI ) / 180.0f; };
+          const auto deg = []( const float radian ) { return radian * 180.0f / float( M_PI ); };
+          GaitWays ways;
+          ways.strides[GaitWays::Forward] = strides();
+          QCOMPARE( ways.twistAt( rad( 20.0f ) ), 0.0f );
+          ways.strides[GaitWays::Backward] = { { 0.5f, 0.5f } };
+          QCOMPARE( ways.twistAt( rad( 20.0f ) ), 0.0f );
+          ways.strides[GaitWays::Right] = ways.strides[GaitWays::Left] = { { 0.5f, 0.4f } };
+          QCOMPARE( GaitWays::TWIST_FULL, 30.0f );
+          const struct { float toward; float twist; float clip; } cases[] = {
+              { 0.0f, 0.0f, 0.0f }, { 20.0f, 20.0f, 0.0f }, { 30.0f, 30.0f, 0.0f }, { 60.0f, 15.0f, 45.0f },
+              { 90.0f, 0.0f, 90.0f }, { 120.0f, -15.0f, 135.0f }, { 160.0f, -20.0f, 180.0f }, { 180.0f, 0.0f, 180.0f },
+              { -20.0f, -20.0f, 0.0f }, { -60.0f, -15.0f, -45.0f }, { -120.0f, 15.0f, -135.0f }, { 340.0f, -20.0f, 0.0f },
+          };
+          for ( const auto & c : cases )
+          {
+              const float twist = deg( ways.twistAt( rad( c.toward ) ) );
+              const float clip = deg( GaitWays::clipWay( rad( c.toward ) ) );
+              QVERIFY2( std::fabs( twist - c.twist ) < 1.0e-3f, qPrintable( QString( "%1: %2" ).arg( c.toward ).arg( twist ) ) );
+              QVERIFY2( std::fabs( std::remainder( clip - c.clip, 360.0f ) ) < 1.0e-3f, qPrintable( QString( "%1: %2" ).arg( c.toward ).arg( clip ) ) );
+              // the hips' turn and the clips' way: the way gone
+              QVERIFY( std::fabs( std::remainder( twist + clip - c.toward, 360.0f ) ) < 1.0e-3f );
+          }
+          // straight forward: the forward clips alone at once (a figure running a little off its body direction)
+          QCOMPARE( ways.mixAt( 4.0f, rad( 25.0f ) ).t, 0.0f );
+          QVERIFY( near( ways.mixAt( 4.0f, rad( 25.0f ) ).stride, GaitWays::strideAt( strides(), 4.0f ) ) );
+      }
+
+    /*!
+      with clips of other ways, the gait goes on whichever way the player
+      goes (forward only, backward takes it back), each move by the stride
+      of the ways mixed for it; other ways: the table again
+    */
+    void waysWalked()
+      {
+          GaitWays ways;
+          ways.strides[GaitWays::Forward] = strides();
+          ways.strides[GaitWays::Backward] = { { 0.5f, 0.5f }, { 2.0f, 1.5f } };
+          ways.strides[GaitWays::Right] = { { 0.5f, 0.4f }, { 1.5f, 1.0f } };
+          ways.strides[GaitWays::Left] = { { 0.5f, 0.4f }, { 1.5f, 1.0f } };
+          // backward at 2 m/s: 0.2 m a cycle, over 1.5 m strides
+          GaitTable t;
+          t.setWays( ways );
+          QVERIFY( t.ways() == ways );
+          t.update( straight( 6, -2.0f ), 0.1 );
+          const double start = t.motion( 0, 0, 0, 0.0 ).gait;
+          QVERIFY( near( t.motion( 0, 5, 5, 0.0 ).gait - start, 5 * 0.2 / 1.5 ) );
+          // sideways (facing +y, going +x: to the left) at 1 m/s
+          t.update( straight( 6, 1.0f, 90.0f ), 0.1 );
+          const GaitWays::Mix left = ways.mixAt( 1.0f, float( -0.5 * M_PI ) );
+          QCOMPARE( left.b, int( GaitWays::Left ) );
+          QVERIFY( near( t.motion( 0, 5, 5, 0.0 ).gait - t.motion( 0, 0, 0, 0.0 ).gait, 5 * 0.1 / left.stride ) );
+          // diagonally back and to the right at 1.5 m/s
+          DispCont diagonal;
+          for ( int i = 0; i < 6; ++i ) diagonal.push_back( frame( { { 0, -0.15f * i * float( M_SQRT1_2 ), 0.15f * i * float( M_SQRT1_2 ), 0.0f } } ) );
+          t.update( diagonal, 0.1 );
+          const GaitWays::Mix back_right = ways.mixAt( 1.5f, float( 0.75 * M_PI ) );
+          QCOMPARE( back_right.a, int( GaitWays::Right ) );
+          QCOMPARE( back_right.b, int( GaitWays::Backward ) );
+          QVERIFY( near( t.motion( 0, 5, 5, 0.0 ).gait - t.motion( 0, 0, 0, 0.0 ).gait, 5 * 0.15 / back_right.stride ) );
+          // forward only: backward takes it back (the classic way)
+          t.setStrides( strides() );
+          QCOMPARE( t.frameCount(), std::size_t( 0 ) );
+          t.update( straight( 6, -2.0f ), 0.1 );
+          QVERIFY( near( t.motion( 0, 5, 5, 0.0 ).gait - t.motion( 0, 0, 0, 0.0 ).gait, -5 * 0.2 / 1.75 ) );
+          QVERIFY( ! t.ways().directional() );
+          QCOMPARE( t.strides().size(), strides().size() );
+          // the same ways: kept; others: again
+          t.setWays( ways );
+          t.update( straight( 6, -2.0f ), 0.1 );
+          t.setWays( ways );
+          QCOMPARE( t.frameCount(), std::size_t( 6 ) );
+          GaitWays other = ways;
+          other.strides[GaitWays::Left][0].stride = 0.3f;
+          QVERIFY( other != ways );
+          t.setWays( other );
+          QCOMPARE( t.frameCount(), std::size_t( 0 ) );
       }
 };
 

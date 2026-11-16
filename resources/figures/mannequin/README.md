@@ -24,3 +24,20 @@ pack (`../human`) moves with the same motion.
 The model has one mesh with two materials (M_Main, M_Joints), a skin of
 65 joints, and the four animations, each with the translation, rotation
 and scale of every joint.
+
+- `WalkBack.bvh`, `JogBack.bvh`, `WalkRight.bvh`, `JogLeft.bvh`: one cycle
+  each of walking and jogging backward and sideways, from the style
+  Neutral of [the 100STYLE dataset](https://www.ianxmason.com/100style/)
+  by Ian Mason, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/):
+  cut from `Neutral_BW.bvh`, `Neutral_BR.bvh`, `Neutral_SW.bvh` and
+  `Neutral_SR.bvh`, looped (the end made to meet the start), and resampled
+  to about 30 frames a second. The figures mirror them for the other side
+  (walking to the left, jogging to the right).
+- `cut_100style.py`: the script that cut them from the dataset's BVH files
+  (<https://zenodo.org/records/8127870>), with Python's standard library:
+
+  ```bash
+  python3 cut_100style.py 100STYLE.zip .
+  ```
+
+  The cycles it cuts are in the script, and in `docs/FIGURE_ASSETS.md`.

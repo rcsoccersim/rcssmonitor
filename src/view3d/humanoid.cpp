@@ -616,6 +616,43 @@ HumanoidPose::mix( const HumanoidPose & a,
 }
 
 /*-------------------------------------------------------------------*/
+HumanoidPose
+HumanoidPose::mirrored() const
+{
+    // each role's other side (the middle ones their own)
+    auto other = []( const HumanBone b ) {
+        switch ( b ) {
+        case HumanBone::LeftShoulder: return HumanBone::RightShoulder;
+        case HumanBone::LeftUpperArm: return HumanBone::RightUpperArm;
+        case HumanBone::LeftLowerArm: return HumanBone::RightLowerArm;
+        case HumanBone::LeftHand: return HumanBone::RightHand;
+        case HumanBone::RightShoulder: return HumanBone::LeftShoulder;
+        case HumanBone::RightUpperArm: return HumanBone::LeftUpperArm;
+        case HumanBone::RightLowerArm: return HumanBone::LeftLowerArm;
+        case HumanBone::RightHand: return HumanBone::LeftHand;
+        case HumanBone::LeftUpperLeg: return HumanBone::RightUpperLeg;
+        case HumanBone::LeftLowerLeg: return HumanBone::RightLowerLeg;
+        case HumanBone::LeftFoot: return HumanBone::RightFoot;
+        case HumanBone::LeftToes: return HumanBone::RightToes;
+        case HumanBone::RightUpperLeg: return HumanBone::LeftUpperLeg;
+        case HumanBone::RightLowerLeg: return HumanBone::LeftLowerLeg;
+        case HumanBone::RightFoot: return HumanBone::LeftFoot;
+        case HumanBone::RightToes: return HumanBone::LeftToes;
+        default: return b;
+        }
+    };
+    // a rotation mirrored across x = 0: its axis (x, y, z) to (x, -y, -z)
+    HumanoidPose pose;
+    for ( int b = 0; b < HUMAN_BONE_COUNT; ++b )
+    {
+        const QQuaternion & q = ( *this )[other( HumanBone( b ) )];
+        pose.rotations[b] = QQuaternion( q.scalar(), q.x(), -q.y(), -q.z() );
+    }
+    pose.hips = QVector3D( -hips.x(), hips.y(), hips.z() );
+    return pose;
+}
+
+/*-------------------------------------------------------------------*/
 QQuaternion
 HumanoidRig::turnedInModel( const HumanoidPose & pose,
                             const HumanBone bone ) const
@@ -677,15 +714,18 @@ clipDrift( const GltfModel & model,
     return std::hypot( drift.x(), drift.z() );
 }
 
-/*-------------------------------------------------------------------*/
+namespace {
+
+//! retargetClip(), and the poses mirrored if told (mirrorClip())
 GltfModel::Clip
-retargetClip( const GltfModel & source,
-              const HumanoidRig & source_rig,
-              const GltfModel::Clip & clip,
-              const GltfModel & target,
-              const HumanoidRig & target_rig,
-              const bool in_place,
-              const float rate )
+putClip( const GltfModel & source,
+         const HumanoidRig & source_rig,
+         const GltfModel::Clip & clip,
+         const GltfModel & target,
+         const HumanoidRig & target_rig,
+         const bool in_place,
+         const float rate,
+         const bool mirror )
 {
     GltfModel::Clip out;
     out.name = clip.name;
@@ -718,6 +758,7 @@ retargetClip( const GltfModel & source,
         locals[k] = source.rest;
         source.sample( clip, ( k == steps ? endOf( clip ) : clip.duration * k / steps ), locals[k] );
         poses[k] = source_rig.poseOf( locals[k] );
+        if ( mirror ) poses[k] = poses[k].mirrored();
     }
     // in place: the hips' horizontal drift taken off in a line (so the end meets the start)
     if ( in_place )
@@ -755,6 +796,31 @@ retargetClip( const GltfModel & source,
         }
     }
     return out;
+}
+
+}
+
+/*-------------------------------------------------------------------*/
+GltfModel::Clip
+retargetClip( const GltfModel & source,
+              const HumanoidRig & source_rig,
+              const GltfModel::Clip & clip,
+              const GltfModel & target,
+              const HumanoidRig & target_rig,
+              const bool in_place,
+              const float rate )
+{
+    return putClip( source, source_rig, clip, target, target_rig, in_place, rate, false );
+}
+
+/*-------------------------------------------------------------------*/
+GltfModel::Clip
+mirrorClip( const GltfModel & model,
+            const HumanoidRig & rig,
+            const GltfModel::Clip & clip,
+            const float rate )
+{
+    return putClip( model, rig, clip, model, rig, false, rate, true );
 }
 
 /*-------------------------------------------------------------------*/

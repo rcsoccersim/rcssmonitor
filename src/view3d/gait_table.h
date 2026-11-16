@@ -36,6 +36,7 @@
 #include "disp_holder.h"
 #include "scene_content.h"
 
+#include <array>
 #include <vector>
 
 /*!
@@ -49,6 +50,101 @@ struct GaitStride {
 };
 
 /*!
+  \struct GaitWays
+  \brief the strides of the clips of walking and running by the way a
+  figure goes from its body direction (docs/PLAN_3D-VIEW.md §5.8, §5.9):
+  forward, to its right, backward, to its left, each slowest first.
+
+  With the forward ones only (the classic way), a figure going backward
+  plays them backward (its gait taken back), and going sideways it turns
+  its hips (Figures3D). With the backward ones (clips of walking backward,
+  then the forward ones played backward faster than those), or the
+  sideways ones too, the gait goes on whichever way the figure goes, and
+  the clips of the two ways nearest to the way it goes are mixed (mixAt()):
+  between forward and backward in a band about sideways without sideways
+  clips; with them, between the two ways around it, by weights that move
+  a foot on the ground along the way it goes, so that it does not slide.
+  With sideways clips, the hips turn toward the way gone up to TWIST_FULL
+  from forward or backward (twistAt()), so that a figure running nearly
+  forward runs forward with its hips turned, the clips mixed for what is
+  left (clipWay()): none to TWIST_FULL, all sideways.
+*/
+struct GaitWays {
+    //! the ways, as the strides' indices
+    enum Way {
+        Forward = 0,
+        Right = 1,
+        Backward = 2,
+        Left = 3,
+    };
+    //! without sideways clips, forward and backward are mixed in this band about sideways (degree, each side)
+    static constexpr float BACK_BAND = 20.0f;
+    //! with sideways clips, the hips turn toward the way gone to this far from forward or backward (degree)
+    static constexpr float TWIST_FULL = 30.0f;
+
+    std::array< std::vector< GaitStride >, 4 > strides; //!< by the way, slowest first
+
+    bool operator==( const GaitWays & other ) const;
+    bool operator!=( const GaitWays & other ) const { return ! ( *this == other ); }
+
+    //! with clips of the ways besides forward: the gait goes on whichever way the figure goes
+    bool directional() const { return ! strides[Backward].empty() || sideways(); }
+    //! with sideways clips (both sides)
+    bool sideways() const { return ! strides[Right].empty() && ! strides[Left].empty(); }
+
+    /*!
+      \brief a stride of clips at a speed: between their strides by the
+      speed, the slowest one's below it, the fastest one's above it
+      \return m per cycle (1 without strides)
+    */
+    static float strideAt( const std::vector< GaitStride > & strides,
+                           const float speed );
+
+    /*!
+      \brief with sideways clips, how far the hips turn toward the way gone
+      (radian, to the right positive): as far as the way from forward (or
+      backward) to TWIST_FULL, then less to none sideways; without them, 0
+      \param toward the way gone from the body direction (radian, to the right positive)
+    */
+    float twistAt( const float toward ) const;
+
+    /*!
+      \brief the way that the clips go from the hips turned by twistAt():
+      forward (or backward) to TWIST_FULL, then on to sideways (radian,
+      to the right positive); the hips' turn and it make the way gone
+    */
+    static float clipWay( const float toward );
+
+    /*!
+      \struct Mix
+      \brief how the ways are mixed going one way: b by t over a, and the
+      stride of the mix along the way gone
+    */
+    struct Mix {
+        int a = Forward;
+        int b = Forward;
+        float t = 0.0f; //!< how far toward b (0 to 1)
+        float stride = 1.0f; //!< m per cycle along the way gone
+    };
+
+    /*!
+      \brief how the ways are mixed at a speed going a way: forward only
+      (the classic way: the stride forward's, whichever way); else between
+      forward and backward, in a band about sideways (BACK_BAND); else
+      (sideways clips) between the two ways around the way of the clips
+      from the hips turned (clipWay(), 90 degrees apart), b by
+      w_b = s_a sin θ / (s_a sin θ + s_b cos θ), θ from a, so that a foot on
+      the ground goes along the way gone, a stride of
+      s_a s_b / (s_a sin θ + s_b cos θ) (s: each way's stride at the speed)
+      \param speed m/s
+      \param toward the way gone from the body direction (radian; to the
+      right: positive, as the field's angles)
+    */
+    Mix mixAt( const float speed,
+               const float toward ) const;
+};
+
+/*!
   \class GaitTable
   \brief how far each player has walked by each frame, in cycles of the
   gait, and how it moves (docs/PLAN_3D-VIEW.md §5.8): read from the frames
@@ -59,7 +155,10 @@ struct GaitStride {
   A cycle of the gait is as long as the stride at the player's speed
   (strideAt(): the strides of the clips, between their speeds), so that the
   feet on the ground do not slide. Going backward (away from the body
-  direction) takes the cycles back, so that the clips play backward. A move
+  direction) takes the cycles back, so that the clips play backward; with
+  clips of other ways (GaitWays::directional()), the cycles go on
+  whichever way, each as long as the stride of the clips mixed for the way
+  gone (GaitWays::mixAt()). A move
   farther than TELEPORT in a cycle (a free kick's placing, a substitution)
   is not walked. The strides are of a figure of a person's height
   (SceneBuilder::PERSON_HEIGHT); a taller figure takes longer strides, and
@@ -77,16 +176,20 @@ public:
     static constexpr double ACCELERATION_SPAN = 2.0;
 
     /*!
-      \brief the strides of the clips of walking and running, in the order of
-      their speeds (the table starts again when they change)
+      \brief the strides of the clips of walking and running by the way, each
+      in the order of their speeds (the table starts again when they change)
     */
+    void setWays( const GaitWays & ways );
+
+    //! the strides of the clips of walking and running forward only (setWays())
     void setStrides( const std::vector< GaitStride > & strides );
 
-    const std::vector< GaitStride > & strides() const { return M_strides; }
+    const GaitWays & ways() const { return M_ways; }
+    const std::vector< GaitStride > & strides() const { return M_ways.strides[GaitWays::Forward]; }
 
     /*!
-      \brief the stride at a speed: between the clips' strides by the speed,
-      the slowest one's below it, the fastest one's above it
+      \brief the stride forward at a speed: between the clips' strides by
+      the speed, the slowest one's below it, the fastest one's above it
       \param speed m/s
       \return m per cycle (1 without strides)
     */
@@ -135,7 +238,7 @@ private:
     std::size_t M_frames = 0;
     DispConstPtr M_last; //!< the last frame walked, to find it again after the oldest are dropped
     double M_step = 0.0;
-    std::vector< GaitStride > M_strides;
+    GaitWays M_ways;
 
     const Entry & entry( const std::size_t frame,
                          const int player ) const
