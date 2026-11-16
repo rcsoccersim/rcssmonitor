@@ -177,15 +177,20 @@ private slots:
           QCOMPARE( m->motion.get_up.clip, QString( "LayToIdle" ) );
           for ( const FigureClipSpec * c : { &m->motion.kick, &m->motion.kick_tap, &m->motion.kick_pass, &m->motion.kick_shot,
                                              &m->motion.fall, &m->motion.catch_low, &m->motion.catch_high,
-                                             &m->motion.dive_left, &m->motion.dive_right } )
+                                             &m->motion.dive_left, &m->motion.dive_right,
+                                             &m->motion.turn_left, &m->motion.turn_right } )
           {
               QVERIFY( ! c->given );
           }
-          QCOMPARE( int( FigureMotionSpec::actionKeys().size() ), 12 );
+          QCOMPARE( int( FigureMotionSpec::actionKeys().size() ), 14 );
           QCOMPARE( QString( FigureMotionSpec::actionKeys()[4] ), QString( "tackle" ) );
           QCOMPARE( m->motion.actionClips()[4], &m->motion.tackle );
           QCOMPARE( QString( FigureMotionSpec::actionKeys()[11] ), QString( "dive_right" ) );
           QCOMPARE( m->motion.actionClips()[11], &m->motion.dive_right );
+          QCOMPARE( QString( FigureMotionSpec::actionKeys()[12] ), QString( "turn_left" ) );
+          QCOMPARE( m->motion.actionClips()[12], &m->motion.turn_left );
+          QCOMPARE( QString( FigureMotionSpec::actionKeys()[13] ), QString( "turn_right" ) );
+          QCOMPARE( m->motion.actionClips()[13], &m->motion.turn_right );
           QVERIFY( m->motion.credits.empty() );
           QCOMPARE( int( m->bodies.size() ), 1 );
           QCOMPARE( m->bodies[0].model, m->motion.model );
@@ -488,6 +493,7 @@ private slots:
           QTest::newRow( "tackle empty" ) << optional( "tackle", "\"\"" ) << QString( "motion.clips.tackle: empty" );
           QTest::newRow( "kick file" ) << optional( "kick", "\"Kick.fbx\"" ) << QString( "motion.clips.kick: \"Kick.fbx\" is not found in the pack's folder" );
           QTest::newRow( "dive_right no file" ) << optional( "dive_right", "{ \"clip\": \"D\" }" ) << QString( "motion.clips.dive_right: no \"file\"" );
+          QTest::newRow( "turn_left file" ) << optional( "turn_left", "\"Turn.fbx\"" ) << QString( "motion.clips.turn_left: \"Turn.fbx\" is not found in the pack's folder" );
           QTest::newRow( "moment negative" ) << optional( "kick", "{ \"file\": \"Body.glb\", \"moment\": -0.1 }" ) << QString( "motion.clips.kick.moment: not a time in seconds (0 or more)" );
           QTest::newRow( "moment string" ) << optional( "catch_low", "{ \"file\": \"Body.glb\", \"moment\": \"0.3\" }" ) << QString( "motion.clips.catch_low.moment: not a time in seconds (0 or more)" );
           QTest::newRow( "no bodies" ) << QByteArray( "{ \"format\": 1, \"motion\": \"mannequin\" }" ) << QString( "no \"bodies\"" );
@@ -1527,6 +1533,124 @@ private slots:
                     qPrintable( figures.error() ) );
           QVERIFY( ! figures.setPack( *byId( list, "not_fall" ) ) );
           QVERIFY2( figures.error().contains( "Motion.glb: the clip \"Idle_Loop\" is not of falling (the hips do not come down)" ),
+                    qPrintable( figures.error() ) );
+      }
+
+    /*!
+      the clips of turning on the spot (9-5b), made of poses: a turn to the
+      right of 90 degrees, the left foot lifted halfway; how far it turns
+      and its time at each degree; the left's mirrored; played by the steps
+      taken (GaitTable::TURN_STEP_ANGLE of it a step), its own turn taken
+      off (the figure facing the body direction), the foot of its side
+      lifted; by how fast the legs
+      turn; clips that do not turn, or turn the other way, told why
+    */
+    void turnPacks()
+      {
+          const GltfModel & m = TestGltf::mannequin();
+          HumanoidRig rig;
+          QVERIFY( rig.build( m, quaterniusBoneNames() ) );
+          const auto ease = []( const float a,
+                                const float b,
+                                const float x ) {
+              const float t = std::min( 1.0f, std::max( 0.0f, ( x - a ) / ( b - a ) ) );
+              return t * t * ( 3.0f - 2.0f * t );
+          };
+          // a turn by degrees (to the right: the model's the other way), the left foot up halfway
+          const auto turn = [&]( const char * name,
+                                 const float degrees ) {
+              return TestGltf::poseAnimation( m, rig, name, 1.0f, [&]( const float t ) {
+                  HumanoidPose p;
+                  p[HumanBone::Hips] = QQuaternion::fromAxisAndAngle( 0.0f, 1.0f, 0.0f, -degrees * ease( 0.0f, 1.0f, t ) );
+                  const float up = ease( 0.3f, 0.5f, t ) - ease( 0.5f, 0.7f, t );
+                  p[HumanBone::LeftUpperLeg] = QQuaternion::fromAxisAndAngle( 1.0f, 0.0f, 0.0f, -50.0f * up );
+                  p[HumanBone::LeftLowerLeg] = QQuaternion::fromAxisAndAngle( 1.0f, 0.0f, 0.0f, 80.0f * up );
+                  return p;
+              } );
+          };
+          const QByteArray glb = TestGltf::skeletonFile( m, { turn( "TurnR", 90.0f ), turn( "TurnL", -60.0f ) } ).glb();
+          QTemporaryDir folder;
+          const QString f = folder.path();
+          const auto withTurns = [&]( const char * name,
+                                      const QByteArray & more ) {
+              const QString dir = makePack( f, name, packJson( QByteArray(),
+                                                               "{ \"model\": \"Motion.glb\", \"skeleton\": \"quaternius\", \"clips\": { "
+                                                               "\"idle\": \"Idle_Loop\", \"walk\": \"Walk_Loop\", \"jog\": \"Jog_Fwd_Loop\", "
+                                                               "\"sprint\": \"Sprint_Loop\", " + more + " } }" ),
+                                            { "Body.glb", "Motion.glb" } );
+              QVERIFY( writeFile( QDir( dir ).filePath( "Turns.glb" ), glb ) );
+          };
+          withTurns( "right", "\"turn_right\": { \"file\": \"Turns.glb\", \"clip\": \"TurnR\" }" );
+          withTurns( "both", "\"turn_right\": { \"file\": \"Turns.glb\", \"clip\": \"TurnR\" }, "
+                     "\"turn_left\": { \"file\": \"Turns.glb\", \"clip\": \"TurnL\" }" );
+          withTurns( "wrong", "\"turn_right\": { \"file\": \"Turns.glb\", \"clip\": \"TurnL\" }" );
+          withTurns( "not_turn", "\"turn_left\": \"Idle_Loop\"" );
+          const std::vector< FigurePack > list = FigurePacks::scan( f );
+          Figures3D figures;
+          QVERIFY( figures.load() );
+          QVERIFY2( figures.setPack( *byId( list, "right" ) ), qPrintable( figures.error() ) );
+          const ActionClips & acts = figures.actionClips();
+          const GltfModel & motion = figures.motionModel();
+          QVERIFY( acts.turn.valid() );
+          QCOMPARE( motion.clips[acts.turn.clip].name, QString( "Turns.glb:\"TurnR\"" ) );
+          QCOMPARE( motion.clips[acts.turn.other].name, QString( "Turns.glb:\"TurnR\" (mirrored)" ) );
+          for ( int side = 0; side < 2; ++side )
+          {
+              QVERIFY2( std::fabs( acts.turn_angle[side] - 90.0f ) < 1.0f, qPrintable( QString::number( acts.turn_angle[side] ) ) );
+              QCOMPARE( int( acts.turn_times[side].size() ), int( acts.turn_angle[side] ) + 1 );
+              QCOMPARE( acts.turn_times[side][0], 0.0f );
+              QVERIFY2( std::fabs( acts.turn_times[side][45] - 0.5f ) < 0.03f, qPrintable( QString::number( acts.turn_times[side][45] ) ) );
+              // a quarter of the way at the time the eased turn reaches it, not a quarter of the time
+              QVERIFY2( std::fabs( acts.turn_times[side][22] - 0.32f ) < 0.03f, qPrintable( QString::number( acts.turn_times[side][22] ) ) );
+          }
+          QVERIFY( std::fabs( Figures3D::turnAngle( motion, figures.motionRig(), acts.turn.clip, nullptr ) - 90.0f ) < 1.0f );
+          QVERIFY( std::fabs( Figures3D::turnAngle( motion, figures.motionRig(), acts.turn.other, nullptr ) + 90.0f ) < 1.0f );
+          QVERIFY( std::fabs( Figures3D::turnAngle( motion, figures.motionRig(), motion.clipIndex( "Idle_Loop" ), nullptr ) ) < 5.0f );
+
+          // played by the steps taken (half a step: 45 degrees of it): its own turn off, the foot of its side up
+          const auto at = [&]( const FigureInstance & fi,
+                               const char * node ) {
+              std::vector< QMatrix4x4 > world;
+              figures.worldNodes( fi, 0.0, world );
+              return world[figures.model().nodeIndex( node )].column( 3 ).toVector3D();
+          };
+          const auto hipsFacing = [&]( const FigureInstance & fi ) {
+              // facing +x (body 0) the left is -y on the field, the world's -z
+              const QVector3D l = at( fi, "thigh_l" ) - at( fi, "thigh_r" );
+              return std::atan2( l.x(), -l.z() ) * 180.0f / float( M_PI );
+          };
+          FigureInstance fi{ 0, 0.0f, 0.0f, 0.0f, 1.85f, QVector4D( 1.0f, 0.0f, 0.0f, 1.0f ) };
+          const float ground = at( fi, "foot_l" ).y();
+          QVERIFY( std::fabs( at( fi, "foot_r" ).y() - ground ) < 0.05f ); // standing, not turning
+          fi.motion.turn_rate = 2.0f * Figures3D::TURN_RATE_FULL;
+          fi.motion.steps = 45.0 / GaitTable::TURN_STEP_ANGLE;
+          QVERIFY2( std::fabs( hipsFacing( fi ) ) < 2.0f, qPrintable( QString::number( hipsFacing( fi ) ) ) );
+          QVERIFY2( at( fi, "foot_l" ).y() > at( fi, "foot_r" ).y() + 0.1f,
+                    qPrintable( QString( "%1 %2" ).arg( at( fi, "foot_l" ).y() ).arg( at( fi, "foot_r" ).y() ) ) );
+          const QVector3D left = at( fi, "foot_l" );
+          fi.motion.steps = ( 45.0 + 90.0 ) / GaitTable::TURN_STEP_ANGLE; // a turn of it on: the same
+          QVERIFY( ( at( fi, "foot_l" ) - left ).length() < 1.0e-3f );
+          // to the left: the mirrored clip, the right foot up
+          fi.motion.turn_rate = -2.0f * Figures3D::TURN_RATE_FULL;
+          fi.motion.steps = 45.0 / GaitTable::TURN_STEP_ANGLE;
+          QVERIFY( std::fabs( hipsFacing( fi ) ) < 2.0f );
+          QVERIFY( at( fi, "foot_r" ).y() > at( fi, "foot_l" ).y() + 0.1f );
+          // slower: less
+          fi.motion.turn_rate = 0.25f * Figures3D::TURN_RATE_FULL;
+          QVERIFY( at( fi, "foot_r" ).y() - at( fi, "foot_l" ).y() < 0.5f * ( left.y() - ground ) );
+
+          // both told: each its own (the left of 60 degrees)
+          QVERIFY2( figures.setPack( *byId( list, "both" ) ), qPrintable( figures.error() ) );
+          QCOMPARE( figures.motionModel().clips[figures.actionClips().turn.other].name, QString( "Turns.glb:\"TurnL\"" ) );
+          QVERIFY( std::fabs( figures.actionClips().turn_angle[1] - 60.0f ) < 1.0f );
+          QVERIFY( std::fabs( figures.actionClips().turn_angle[0] - 90.0f ) < 1.0f );
+
+          // not turning, or turning the other way
+          QVERIFY( ! figures.setPack( *byId( list, "wrong" ) ) );
+          QVERIFY2( figures.error().contains( "the clip Turns.glb:\"TurnL\" is not of turning to the right (it turns to the left)" ),
+                    qPrintable( figures.error() ) );
+          QVERIFY( ! figures.setPack( *byId( list, "not_turn" ) ) );
+          QVERIFY2( figures.error().contains( "Motion.glb: the clip \"Idle_Loop\" is not of turning (the hips do not turn)" ),
                     qPrintable( figures.error() ) );
       }
 

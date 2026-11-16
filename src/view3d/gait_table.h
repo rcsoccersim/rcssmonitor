@@ -166,6 +166,17 @@ struct GaitWays {
 
   A live game adds frames, and drops the oldest ones (DispHolder): update()
   follows both, and starts again for another log.
+
+  The legs turning (9-5b): a player turns its body at once (in the logs,
+  a standing player turns 57 degrees in a cycle at the median), and a
+  figure's legs follow it: their direction is the body direction averaged
+  over the last TURN_LAG cycles (from the frames before only, so that it
+  is known whenever drawn, live too), how far they lag behind the body
+  and how fast they turn; and the steps taken on the spot as they turn
+  (Figures3D): a step each TURN_STEP_ANGLE they turn, either way, but at
+  most TURN_STEPS_MAX in a cycle (fewer than one; the legs turning faster
+  turn the rest without a step). A move of TELEPORT and a
+  player not in the game start the legs again in the body direction.
 */
 class GaitTable {
 public:
@@ -174,6 +185,14 @@ public:
     static constexpr float TELEPORT = 2.0f;
     //! the cycles before and after, over which the acceleration is taken
     static constexpr double ACCELERATION_SPAN = 2.0;
+    //! the legs' direction is the body direction averaged over this many cycles before
+    static constexpr double TURN_LAG = 3.0;
+    //! the cycles before and after, over which the legs' turning speed is taken
+    static constexpr double TURN_SPAN = 0.25;
+    //! turning on the spot, the legs step once for this many degrees they turn
+    static constexpr double TURN_STEP_ANGLE = 90.0;
+    //! ... and at most this many times in a cycle (7.5 a second: faster than a person, to be seen in a quick turn)
+    static constexpr double TURN_STEPS_MAX = 0.75;
 
     /*!
       \brief the strides of the clips of walking and running by the way, each
@@ -232,10 +251,16 @@ private:
         double gait; //!< cycles walked by the frame
         float vx; //!< the velocity of the move from the frame before (m/s)
         float vy;
+        double heading = 0.0; //!< the body direction, unwrapped across the frames (degree)
+        double area = 0.0; //!< the heading summed over the cycles to the frame (degree * cycle), for its averages
+        double legs = 0.0; //!< the legs' direction at the frame (degree, as heading)
+        double steps = 0.0; //!< the steps taken on the spot by the frame, as the legs turn either way
+        std::size_t start = 0; //!< the frame (counted from the first ever: M_dropped on) from which the legs follow the body
     };
 
     std::vector< Entry > M_entries; //!< by frame * PLAYERS + player
     std::size_t M_frames = 0;
+    std::size_t M_dropped = 0; //!< the frames dropped from the front so far (live)
     DispConstPtr M_last; //!< the last frame walked, to find it again after the oldest are dropped
     double M_step = 0.0;
     GaitWays M_ways;
@@ -254,6 +279,15 @@ private:
                      const double time,
                      float * vx,
                      float * vy ) const;
+    //! the body direction at a time (frames, with the fraction; degree, unwrapped): in a line between the frames
+    double headingAt( const int player,
+                      const double time ) const;
+    //! the body direction summed from the first frame to a time (degree * cycle)
+    double areaAt( const int player,
+                   const double time ) const;
+    //! the legs' direction at a time: the body direction averaged over TURN_LAG cycles before, from when they last started (degree)
+    double legsAt( const int player,
+                   const double time ) const;
 };
 
 #endif

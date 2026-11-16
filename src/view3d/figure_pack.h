@@ -118,7 +118,7 @@ struct FigureClipSpec {
   pack whose motion it uses); and, if told, of walking and jogging
   backward and sideways (a side not told: the other side's mirrored), and
   of the actions (a kick, the slide, a fall, getting up, the goalie's
-  catch and dive)
+  catch and dive, turning on the spot)
 */
 struct FigureMotionSpec {
     QString pack; //!< whose motion it is: the pack's own name, or another pack's
@@ -147,6 +147,8 @@ struct FigureMotionSpec {
     FigureClipSpec catch_high; //!< and of a high one
     FigureClipSpec dive_left; //!< the goalie's dive (a side not told: the other side's mirrored)
     FigureClipSpec dive_right;
+    FigureClipSpec turn_left; //!< turning on the spot (a side not told: the other side's mirrored)
+    FigureClipSpec turn_right;
     std::vector< FigureCredit > credits; //!< of the pack whose motion it is, if another pack's
 
     //! the optional clips' keys in figure.json, in the order of optionalClips()

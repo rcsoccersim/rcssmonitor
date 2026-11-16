@@ -51,11 +51,13 @@ The actions can be animations too, each optional (without it, the
 figures keep the poses rcssmonitor makes): a kick (search "kick", "soccer
 pass", "penalty kick"), the sliding tackle ("slide", "tackle"), falling
 ("fall", "trip"), getting up ("getting up", "stand up"), the goalkeeper's
-catch and dive ("goalkeeper", "catch", "dive", "save"). Download them the
+catch and dive ("goalkeeper", "catch", "dive", "save"), turning on the
+spot ("left turn", "right turn"; In Place if it has it). Download them the
 same way, and add them to `clips`: `"kick": "kick.fbx"`, `"tackle":
 "tackle.fbx"`, `"get_up": "get_up.fbx"`, `"catch_low": "catch.fbx"`,
-`"dive_right": "dive.fbx"`, and so on (the keys are in "The actions" of
-FIGURE_PACKS.md). A kick of either foot will do, and one side of a dive.
+`"dive_right": "dive.fbx"`, `"turn_right": "right_turn.fbx"`, and so on
+(the keys are in "The actions" of FIGURE_PACKS.md). A kick of either foot
+will do, and one side of a dive or a turn.
 rcssmonitor finds when the foot meets the ball, the body is down, or the
 hands reach for the ball; if it finds the wrong time, tell it in seconds:
 `"kick": { "file": "kick.fbx", "moment": 0.8 }`.
@@ -128,6 +130,7 @@ clothes and its face.
 | `the clip walk.fbx is not of walking or running ...` | The animation does not walk in place facing forward: choose another (straight forward, looping). |
 | `the clip walk_back.fbx is not of walking or running backward ...` | The animation does not go its way (backward, to the left, to the right) facing forward: choose another, or check that `walk_left` goes to the character's left. |
 | `the clip kick.fbx is not of kicking ...`, `the clip tackle.fbx is not of falling ...` | No foot swings forward in the kick, or the hips do not come down in the tackle (or the fall): choose another, or tell its `moment`. |
+| `the clip right_turn.fbx is not of turning ...` | The animation does not turn on the spot, or turns the other way: choose another, or tell it as the other side (`turn_left`). |
 | `Character.fbx: the bones are of no skeleton known ...` | Not a Mixamo skeleton: use `skeleton` with a map of the roles to its bones (FIGURE_PACKS.md). |
 | `Character.fbx: no material "..." (its materials: ...)` | A name in `paint` is not one of the character's materials: use the names listed (section 4). |
 | `... is not found in the pack's folder` | A file named in `figure.json` is missing, or its name differs (upper and lower case count). |

@@ -449,6 +449,7 @@ FigureMotionSpec::actionKeys()
     static const std::vector< const char * > keys = {
         "kick", "kick_tap", "kick_pass", "kick_shot", "tackle", "tackle_up",
         "fall", "get_up", "catch_low", "catch_high", "dive_left", "dive_right",
+        "turn_left", "turn_right",
     };
     return keys;
 }
@@ -458,7 +459,8 @@ std::vector< const FigureClipSpec * >
 FigureMotionSpec::actionClips() const
 {
     return { &kick, &kick_tap, &kick_pass, &kick_shot, &tackle, &tackle_up,
-             &fall, &get_up, &catch_low, &catch_high, &dive_left, &dive_right };
+             &fall, &get_up, &catch_low, &catch_high, &dive_left, &dive_right,
+             &turn_left, &turn_right };
 }
 
 /*-------------------------------------------------------------------*/
@@ -681,6 +683,8 @@ FigurePack::read( const QString & dir,
         pack.motion.catch_high = r.clip( c, at, "catch_high", true );
         pack.motion.dive_left = r.clip( c, at, "dive_left", true );
         pack.motion.dive_right = r.clip( c, at, "dive_right", true );
+        pack.motion.turn_left = r.clip( c, at, "turn_left", true );
+        pack.motion.turn_right = r.clip( c, at, "turn_right", true );
     }
     else
     {

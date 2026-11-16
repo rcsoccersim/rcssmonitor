@@ -1298,6 +1298,95 @@ private slots:
       }
 
     /*!
+      turning on the spot (9-5b): the legs lagging behind the body
+      direction, the hips turned back toward them by the lag (to
+      TURN_TWIST_MAX), the chest keeping the body direction; not moving;
+      the legs stepping as they turn, by how fast they turn, standing; by
+      the walk's steps (GaitTable's steps, two a cycle of the walk), smaller
+      than walking; without turning, as before
+    */
+    void turning()
+      {
+          const auto facings = [&]( const FigureInstance & f,
+                                    float * hips,
+                                    float * chest ) {
+              *hips = facing( nodeAt( M_forward, f, 0.0, "thigh_l" ), nodeAt( M_forward, f, 0.0, "thigh_r" ) );
+              *chest = facing( nodeAt( M_forward, f, 0.0, "upperarm_l" ), nodeAt( M_forward, f, 0.0, "upperarm_r" ) );
+          };
+          FigureInstance f = figureAt( 0, 0.0f, 0.0f, 20.0f, 1.85f );
+          float hips0, chest0;
+          facings( f, &hips0, &chest0 );
+          // the legs 30 degrees behind a body turned to the right
+          for ( const float lag : { 30.0f, -30.0f, 80.0f } )
+          {
+              f.motion.lag = lag;
+              float hips, chest;
+              facings( f, &hips, &chest );
+              const float expected = std::max( -Figures3D::TURN_TWIST_MAX, std::min( Figures3D::TURN_TWIST_MAX, lag ) );
+              QVERIFY2( std::fabs( angleBetween( hips0, hips ) - expected ) < 1.0f,
+                        qPrintable( QString( "%1: hips %2" ).arg( lag ).arg( angleBetween( hips0, hips ) ) ) );
+              QVERIFY2( std::fabs( angleBetween( chest, chest0 ) ) < 1.0f, qPrintable( QString( "%1: chest" ).arg( lag ) ) );
+          }
+          // running: the gait's (no lag)
+          FigureInstance run = f;
+          run.motion.vx = 6.0f * std::cos( 20.0f * float( M_PI ) / 180.0f );
+          run.motion.vy = 6.0f * std::sin( 20.0f * float( M_PI ) / 180.0f );
+          float run_hips, run_chest;
+          facings( run, &run_hips, &run_chest );
+          run.motion.lag = 0.0f;
+          float plain_hips, plain_chest;
+          facings( run, &plain_hips, &plain_chest );
+          QVERIFY( std::fabs( angleBetween( run_hips, plain_hips ) ) < 1.0e-3f );
+
+          // stepping: by how fast the legs turn, standing
+          FigureInstance s = figureAt( 0, 0.0f, 0.0f, 0.0f, 1.85f );
+          QCOMPARE( M_forward.turnStepOf( s ), 0.0f );
+          s.motion.turn_rate = -0.5f * Figures3D::TURN_RATE_FULL;
+          QVERIFY( std::fabs( M_forward.turnStepOf( s ) - 0.5f ) < 1.0e-4f );
+          s.motion.turn_rate = 2.0f * Figures3D::TURN_RATE_FULL;
+          QCOMPARE( M_forward.turnStepOf( s ), 1.0f );
+          FigureInstance moving = s;
+          moving.motion.vx = 3.0f;
+          QCOMPARE( M_forward.turnStepOf( moving ), 0.0f );
+          // without turning, as before: the gait going on does not step
+          FigureInstance still = figureAt( 0, 0.0f, 0.0f, 0.0f, 1.85f );
+          FigureInstance turned = still;
+          turned.motion.steps = 0.5;
+          QVERIFY( ( nodeAt( M_forward, still, 0.0, "foot_l" ) - nodeAt( M_forward, turned, 0.0, "foot_l" ) ).length() < 1.0e-5f );
+
+          // the walk's steps by the steps taken (a cycle two), smaller than
+          // walking: the left foot's range back and forth over a cycle
+          const GaitClip & walk = M_forward.gaitClips().front();
+          float step_min = 1.0e9f, step_max = -1.0e9f, walk_min = 1.0e9f, walk_max = -1.0e9f;
+          for ( int k = 0; k < 16; ++k )
+          {
+              s.motion.steps = 2.0 * k / 16.0;
+              const float x = leftFoot( M_forward, s ).x();
+              step_min = std::min( step_min, x );
+              step_max = std::max( step_max, x );
+              FigureInstance w = figureAt( 0, 0.0f, 0.0f, 0.0f, 1.85f );
+              w.motion.vx = walk.speed;
+              w.motion.gait = k / 16.0;
+              const float wx = leftFoot( M_forward, w ).x();
+              walk_min = std::min( walk_min, wx );
+              walk_max = std::max( walk_max, wx );
+          }
+          const float ratio = ( step_max - step_min ) / ( walk_max - walk_min );
+          QVERIFY2( ratio > 0.3f && ratio < 0.7f, qPrintable( QString( "%1 of %2 m" ).arg( ratio ).arg( walk_max - walk_min ) ) );
+          // a step on, the other foot; two steps on (a cycle), the same
+          s.motion.steps = 0.0;
+          const QVector3D at0 = leftFoot( M_forward, s );
+          s.motion.steps = 1.0;
+          QVERIFY( ( leftFoot( M_forward, s ) - at0 ).length() > 0.05f );
+          s.motion.steps = 2.0;
+          QVERIFY( ( leftFoot( M_forward, s ) - at0 ).length() < 1.0e-3f );
+          s.motion.steps = 0.11;
+          const QVector3D at = leftFoot( M_forward, s );
+          s.motion.steps = 2.11;
+          QVERIFY( ( leftFoot( M_forward, s ) - at ).length() < 1.0e-3f );
+      }
+
+    /*!
       the bundled clips of the actions (Universal Animation Library 2): the
       sliding tackle, down on the ground from its moment, getting up by the
       slide's clip to end with the action; a fall after a foul as the pose

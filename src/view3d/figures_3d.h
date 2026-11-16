@@ -110,6 +110,9 @@ struct ActionClips {
     ActionClip catch_low;
     ActionClip catch_high;
     ActionClip dive; //!< to the right (clip) and to the left (other)
+    ActionClip turn; //!< turning on the spot: to the right (clip) and to the left (other), played by how far the legs turn
+    float turn_angle[2] = { 0.0f, 0.0f }; //!< how far each turns (degree): to the right, to the left
+    std::vector< float > turn_times[2]; //!< each one's time (s) when it has turned each whole degree (0 to its angle)
 };
 
 /*!
@@ -182,6 +185,15 @@ struct ActionClips {
   to the side the ball is). Down on the ground, a clip of getting up plays
   to end with the action, when the player can go again (upSchedule(),
   rise()), from the pose down of the clip or made here.
+
+  Turning on the spot (9-5b): the legs follow the body direction behind it
+  (GaitTable: its direction averaged over the cycles before), the hips
+  turned back toward them up to TURN_TWIST_MAX, the chest keeping the body
+  direction; standing, they step as they turn (turnStepOf()), by the steps
+  of GaitTable (a step each TURN_STEP_ANGLE they turn, at most
+  TURN_STEPS_MAX in a cycle): by a clip of turning, TURN_STEP_ANGLE of it a
+  step, its own turn taken off; or else the walk's steps, smaller (its
+  cycle is two steps).
 */
 class Figures3D {
 public:
@@ -234,6 +246,15 @@ public:
     //! a ball to catch this far to the side (m) starts to be caught by a dive (with its clip), from DIVE_FULL all
     static constexpr float DIVE_FROM = 0.8f;
     static constexpr float DIVE_FULL = 1.2f;
+
+    //! the legs lag behind the body direction by at most this much (degree): the hips turned back, the chest keeping the body direction
+    static constexpr float TURN_TWIST_MAX = 45.0f;
+    //! the legs turning this fast (degree/s) step fully
+    static constexpr float TURN_RATE_FULL = 180.0f;
+    //! the walk's steps for turning on the spot mixed in at most this much (smaller steps)
+    static constexpr float TURN_STEP = 0.5f;
+    //! a clip of turning turns at least this much (degree)
+    static constexpr float TURN_MIN = 30.0f;
 
     Figures3D();
     ~Figures3D();
@@ -444,6 +465,21 @@ public:
                                   const float end );
     //! how much a goalie's catch is a dive (0 to 1): by how far to the side the ball is, with a clip of a dive
     float diveOf( const FigureActions & actions ) const;
+    /*!
+      \brief how far a clip turns the body about the vertical, its hips' way
+      from its start to its end (degree, as the field's angles: to the
+      right, positive), and its time when it has turned each whole degree
+      that way (the first time it has turned so far)
+    */
+    static float turnAngle( const GltfModel & model,
+                            const HumanoidRig & rig,
+                            const int clip,
+                            std::vector< float > * times );
+    /*!
+      \brief how much a figure steps on the spot as it turns (0 to 1): by how
+      fast its legs turn, standing (less moving)
+    */
+    float turnStepOf( const FigureInstance & figure ) const;
 
     /*!
       \brief how much the kicking foot goes to the ball (0 to 1): most at

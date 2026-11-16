@@ -633,6 +633,46 @@ Figures3D::motionOf( const FigureMotionSpec & spec,
         acts.dive.other = ( left.valid() ? left.clip : mirrored( right.clip ) );
         if ( acts.dive.down < 0.0f ) acts.dive.down = acts.dive.duration;
     }
+    // turning on the spot: to the right, and to the left (a side not told:
+    // the other's mirrored), each turning its way
+    if ( spec.turn_left.given || spec.turn_right.given )
+    {
+        int clips[2] = { -1, -1 }; // to the right, to the left
+        const FigureClipSpec * told[2] = { &spec.turn_right, &spec.turn_left };
+        for ( int side = 0; side < 2; ++side )
+        {
+            const FigureClipSpec & c = *told[side];
+            if ( ! c.given ) continue;
+            const int clip = actionOf( c );
+            if ( clip < 0 ) return nullptr;
+            std::vector< float > times;
+            const float angle = turnAngle( m->model, m->rig, clip, &times );
+            if ( std::fabs( angle ) < TURN_MIN )
+            {
+                *error = clipText( c ) + QStringLiteral( " is not of turning (the hips do not turn)" );
+                return nullptr;
+            }
+            if ( ( angle > 0.0f ) != ( side == 0 ) )
+            {
+                *error = clipText( c ) + ( side == 0
+                                           ? QStringLiteral( " is not of turning to the right (it turns to the left)" )
+                                           : QStringLiteral( " is not of turning to the left (it turns to the right)" ) );
+                return nullptr;
+            }
+            clips[side] = clip;
+            acts.turn_angle[side] = std::fabs( angle );
+            acts.turn_times[side] = times;
+        }
+        for ( int side = 0; side < 2; ++side )
+        {
+            if ( clips[side] >= 0 ) continue;
+            clips[side] = mirrored( clips[1 - side] );
+            acts.turn_angle[side] = acts.turn_angle[1 - side];
+            acts.turn_times[side] = acts.turn_times[1 - side];
+        }
+        acts.turn = actionClip( clips[0] );
+        acts.turn.other = clips[1];
+    }
 
     M_motions.push_back( std::move( m ) );
     return M_motions.back().get();
@@ -1447,6 +1487,66 @@ Figures3D::upSchedule( const float duration,
 
 /*-------------------------------------------------------------------*/
 float
+Figures3D::turnAngle( const GltfModel & model,
+                      const HumanoidRig & rig,
+                      const int clip,
+                      std::vector< float > * times )
+{
+    const GltfModel::Clip & c = model.clips[clip];
+    const int left = rig.node( HumanBone::LeftUpperLeg );
+    const int right = rig.node( HumanBone::RightUpperLeg );
+    std::vector< NodeTransform > local;
+    std::vector< QMatrix4x4 > global;
+    std::vector< std::pair< float, float > > turns; // (time, turn so far: to the right, positive)
+    float start = 0.0f;
+    float before = 0.0f;
+    float unwrapped = 0.0f;
+    for ( const float t : actionTimes( c ) )
+    {
+        local = model.rest;
+        model.sample( c, t, local );
+        model.globals( local, global );
+        // the way the hips face, from the left thigh's place to the right's:
+        // facing +z the left is +x; turning right turns +x toward +z
+        const QVector3D across = global[left].column( 3 ).toVector3D() - global[right].column( 3 ).toVector3D();
+        const float way = std::atan2( across.z(), across.x() ) * 180.0f / float( M_PI );
+        if ( turns.empty() )
+        {
+            start = before = unwrapped = way;
+        }
+        else
+        {
+            unwrapped += std::remainder( way - before, 360.0f );
+            before = way;
+        }
+        turns.emplace_back( t, unwrapped - start );
+    }
+    const float angle = ( turns.empty() ? 0.0f : turns.back().second );
+    if ( times )
+    {
+        // the first time it has turned each whole degree its way
+        times->clear();
+        const float sign = ( angle < 0.0f ? -1.0f : 1.0f );
+        std::size_t k = 0;
+        for ( int degree = 0; degree <= static_cast< int >( std::fabs( angle ) ); ++degree )
+        {
+            while ( k + 1 < turns.size() && sign * turns[k].second < degree ) ++k;
+            times->push_back( turns[k].first );
+        }
+    }
+    return angle;
+}
+
+/*-------------------------------------------------------------------*/
+float
+Figures3D::turnStepOf( const FigureInstance & figure ) const
+{
+    const float still = 1.0f - gaitOf( figure ).moving;
+    return still * clamp01( std::fabs( figure.motion.turn_rate ) / TURN_RATE_FULL );
+}
+
+/*-------------------------------------------------------------------*/
+float
 Figures3D::diveOf( const FigureActions & actions ) const
 {
     if ( ! actions.caught.on || ! motion().actions.dive.valid() ) return 0.0f;
@@ -1912,6 +2012,51 @@ Figures3D::localPose( const FigureInstance & figure,
             body.rig.turnInModel( pose, HumanBone::Spine, QQuaternion::fromAxisAndAngle( 0.0f, 1.0f, 0.0f, 0.5f * twist ) );
             body.rig.turnInModel( pose, HumanBone::Chest, QQuaternion::fromAxisAndAngle( 0.0f, 1.0f, 0.0f, 0.5f * twist ) );
         }
+    }
+
+    // turning on the spot (9-5b): the legs step as they turn (the steps of
+    // GaitTable), by a clip of turning (TURN_STEP_ANGLE of it a step, its own
+    // turn taken off: the figure faces the body direction) or else the
+    // walk's steps, smaller; and they lag behind the body direction, the
+    // hips turned back toward them, the chest keeping it
+    const float still = 1.0f - gait.moving;
+    const float step = turnStepOf( figure );
+    if ( step > 0.0f )
+    {
+        const ActionClips & clips = this->motion().actions;
+        std::vector< NodeTransform > step_nodes;
+        HumanoidPose stepping;
+        float weight = step;
+        if ( clips.turn.valid() )
+        {
+            const int side = ( motion.turn_rate >= 0.0f ? 0 : 1 );
+            const float angle = clips.turn_angle[side];
+            const std::vector< float > & times = clips.turn_times[side];
+            const float turned = static_cast< float >( std::fmod( motion.steps * GaitTable::TURN_STEP_ANGLE,
+                                                                  static_cast< double >( angle ) ) );
+            const std::size_t k = std::min( static_cast< std::size_t >( turned ), times.size() - 1 );
+            const std::size_t j = std::min( k + 1, times.size() - 1 );
+            const float time = times[k] + ( times[j] - times[k] ) * ( turned - std::floor( turned ) );
+            stepping = sample( side == 0 ? clips.turn.clip : clips.turn.other, clips.turn.at( time ), step_nodes );
+            // a turn to the right is the model's the other way about the vertical
+            body.rig.turnInModel( stepping, HumanBone::Hips,
+                                  QQuaternion::fromAxisAndAngle( 0.0f, 1.0f, 0.0f, side == 0 ? turned : -turned ) );
+        }
+        else
+        {
+            const GaitClip & walk = wayClips( GaitWays::Forward ).front();
+            const double cycles = 0.5 * motion.steps; // (a cycle of the walk: two steps)
+            stepping = sample( walk.clip, walk.timeAt( static_cast< float >( cycles - std::floor( cycles ) ) ), step_nodes );
+            weight *= TURN_STEP;
+        }
+        pose = HumanoidPose::mix( pose, stepping, weight );
+    }
+    const float lag = clampTo( motion.lag, TURN_TWIST_MAX ) * still;
+    if ( lag != 0.0f )
+    {
+        body.rig.turnInModel( pose, HumanBone::Hips, QQuaternion::fromAxisAndAngle( 0.0f, 1.0f, 0.0f, lag ) );
+        body.rig.turnInModel( pose, HumanBone::Spine, QQuaternion::fromAxisAndAngle( 0.0f, 1.0f, 0.0f, -0.5f * lag ) );
+        body.rig.turnInModel( pose, HumanBone::Chest, QQuaternion::fromAxisAndAngle( 0.0f, 1.0f, 0.0f, -0.5f * lag ) );
     }
 
     // the neck and the actions over the clips, and the kicking foot to the

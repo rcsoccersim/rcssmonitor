@@ -494,6 +494,135 @@ private slots:
           t.setWays( other );
           QCOMPARE( t.frameCount(), std::size_t( 0 ) );
       }
+
+    /*!
+      the legs following the body direction: the body turned at once, the
+      legs its direction averaged over TURN_LAG cycles before; how far they
+      lag behind it, how fast they turn (to the right positive), the steps
+      taken as they turn either way (a step each TURN_STEP_ANGLE, at most
+      TURN_STEPS_MAX a cycle, however fast); across +-180 the short way;
+      starting again after a move and out of the game
+    */
+    void legs()
+      {
+          // standing, the body turned 90 degrees to the right between frames 9 and 10
+          const auto turning = []( const float to,
+                                   const float jump_x = 0.0f ) {
+              DispCont frames;
+              for ( int i = 0; i < 20; ++i )
+              {
+                  frames.push_back( frame( { { 0, i >= 10 ? jump_x : 0.0f, 0.0f, i >= 10 ? to : 0.0f } } ) );
+              }
+              return frames;
+          };
+          GaitTable t;
+          t.setStrides( strides() );
+          t.update( turning( 90.0f ), 0.1 );
+          // halfway through the turn: the body at 45, the legs at 3.75 (11.25 / 3)
+          FigureMotion m = t.motion( 0, 9, 10, 0.5 );
+          QVERIFY2( near( m.lag, 45.0 - 3.75 ), qPrintable( QString::number( m.lag ) ) );
+          // a cycle after: the legs halfway (0, 45 and 90 averaged)
+          m = t.motion( 0, 11, 12, 0.0 );
+          QVERIFY( near( m.lag, 45.0 ) );
+          QVERIFY2( near( m.turn_rate, 300.0, 1.0 ), qPrintable( QString::number( m.turn_rate ) ) );
+          // the steps: the legs at 15 (a sixth of a step), then 45 (a third more)
+          QVERIFY2( near( m.steps, 0.5 * 90.0 / GaitTable::TURN_STEP_ANGLE ), qPrintable( QString::number( m.steps ) ) );
+          // between the frames: in a line (a third more at 12)
+          QVERIFY( near( t.motion( 0, 11, 12, 0.5 ).steps, ( 45.0 + 15.0 ) / GaitTable::TURN_STEP_ANGLE ) );
+          // TURN_LAG after the turn: caught up, still; a step each TURN_STEP_ANGLE
+          m = t.motion( 0, 13, 14, 0.0 );
+          QVERIFY( near( m.lag, 0.0 ) );
+          QVERIFY( near( m.steps, 90.0 / GaitTable::TURN_STEP_ANGLE ) );
+          m = t.motion( 0, 15, 16, 0.5 );
+          QVERIFY( near( m.turn_rate, 0.0 ) );
+          QVERIFY( near( m.steps, 90.0 / GaitTable::TURN_STEP_ANGLE ) );
+          // before the turn: nothing
+          m = t.motion( 0, 5, 6, 0.5 );
+          QVERIFY( near( m.lag, 0.0 ) && near( m.turn_rate, 0.0 ) && near( m.steps, 0.0 ) );
+          // however fast: at most TURN_STEPS_MAX a cycle (spinning, 170 a cycle twice:
+          // the legs at 28.3, 113.3, 226.7, 311.7, 340, the three in the middle held)
+          DispCont spinning;
+          for ( int i = 0; i < 20; ++i ) spinning.push_back( frame( { { 0, 0.0f, 0.0f, i >= 11 ? -20.0f : i >= 10 ? 170.0f : 0.0f } } ) );
+          t.update( spinning, 0.1 );
+          for ( std::size_t i = 0; i + 1 < t.frameCount(); ++i )
+          {
+              const double d = t.motion( 0, i + 1, i + 2, 0.0 ).steps - t.motion( 0, i, i + 1, 0.0 ).steps;
+              QVERIFY2( d >= 0.0 && d <= GaitTable::TURN_STEPS_MAX + 1.0e-9, qPrintable( QString( "%1: %2" ).arg( i ).arg( d ) ) );
+          }
+          const double ends = 2.0 * ( 85.0 / 3.0 ) / GaitTable::TURN_STEP_ANGLE;
+          QVERIFY2( near( t.motion( 0, 15, 16, 0.0 ).steps, ends + 3.0 * GaitTable::TURN_STEPS_MAX ),
+                    qPrintable( QString::number( t.motion( 0, 15, 16, 0.0 ).steps ) ) );
+          // a turn of 170 is not held: about 1.9 steps
+          t.update( turning( 170.0f ), 0.1 );
+          QVERIFY( near( t.motion( 0, 15, 16, 0.0 ).steps, 170.0 / GaitTable::TURN_STEP_ANGLE ) );
+
+          // to the left: the lag and the rate the other way, the turn counted the same
+          t.update( turning( -90.0f ), 0.1 );
+          m = t.motion( 0, 11, 12, 0.0 );
+          QVERIFY( near( m.lag, -45.0 ) );
+          QVERIFY( near( m.turn_rate, -300.0, 1.0 ) );
+          QVERIFY( near( m.steps, 45.0 / GaitTable::TURN_STEP_ANGLE ) );
+
+          // across 180: from 170 to -170 is 20 degrees to the right
+          DispCont across;
+          for ( int i = 0; i < 20; ++i ) across.push_back( frame( { { 0, 0.0f, 0.0f, i >= 10 ? -170.0f : 170.0f } } ) );
+          t.update( across, 0.1 );
+          m = t.motion( 0, 11, 12, 0.0 );
+          QVERIFY2( near( m.lag, 10.0 ), qPrintable( QString::number( m.lag ) ) );
+          QVERIFY( m.turn_rate > 0.0f );
+          QVERIFY( near( t.motion( 0, 15, 16, 0.0 ).steps, 20.0 / GaitTable::TURN_STEP_ANGLE ) );
+
+          // a move (a free kick's placing): the legs start again in the body direction
+          t.update( turning( 90.0f, 5.0f ), 0.1 );
+          m = t.motion( 0, 11, 12, 0.0 );
+          QVERIFY( near( m.lag, 0.0 ) );
+          QVERIFY( near( m.steps, 0.0 ) );
+          QVERIFY( near( m.turn_rate, 0.0 ) );
+          // out of the game for a frame: the same
+          DispCont gone = turning( 90.0f );
+          gone[10] = frame( {} );
+          t.update( gone, 0.1 );
+          m = t.motion( 0, 12, 13, 0.0 );
+          QVERIFY( near( m.lag, 0.0 ) );
+          QVERIFY( near( m.steps, 0.0 ) );
+
+          // live: frames added one by one, and the oldest dropped, give the same
+          const DispCont all = turning( 90.0f );
+          GaitTable once;
+          once.setStrides( strides() );
+          once.update( all, 0.1 );
+          GaitTable live;
+          live.setStrides( strides() );
+          DispCont some;
+          for ( const DispConstPtr & f : all )
+          {
+              some.push_back( f );
+              live.update( some, 0.1 );
+          }
+          for ( std::size_t i = 0; i + 1 < all.size(); ++i )
+          {
+              const FigureMotion a = once.motion( 0, i, i + 1, 0.25 );
+              const FigureMotion b = live.motion( 0, i, i + 1, 0.25 );
+              QVERIFY( near( a.lag, b.lag ) && near( a.steps, b.steps ) && near( a.turn_rate, b.turn_rate ) );
+          }
+          some.erase( some.begin(), some.begin() + 4 );
+          live.update( some, 0.1 );
+          const FigureMotion a = once.motion( 0, 12, 13, 0.5 );
+          const FigureMotion b = live.motion( 0, 8, 9, 0.5 );
+          QVERIFY( near( a.lag, b.lag ) && near( a.steps, b.steps ) && near( a.turn_rate, b.turn_rate ) );
+          // the legs started again after a move (frame 8), the oldest frames dropped: the same
+          DispCont moved;
+          for ( int i = 0; i < 20; ++i ) moved.push_back( frame( { { 0, i >= 8 ? 5.0f : 0.0f, 0.0f, i >= 10 ? 90.0f : 0.0f } } ) );
+          GaitTable whole;
+          whole.update( moved, 0.1 );
+          GaitTable dropped;
+          dropped.update( moved, 0.1 );
+          moved.erase( moved.begin(), moved.begin() + 4 );
+          dropped.update( moved, 0.1 );
+          const FigureMotion c = whole.motion( 0, 10, 11, 0.5 );
+          const FigureMotion d = dropped.motion( 0, 6, 7, 0.5 );
+          QVERIFY2( near( c.lag, d.lag ) && c.lag > 20.0f, qPrintable( QString( "%1 %2" ).arg( c.lag ).arg( d.lag ) ) );
+      }
 };
 
 QTEST_MAIN( TestGaitTable )

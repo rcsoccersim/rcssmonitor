@@ -223,6 +223,7 @@ without its clip keeps its pose.
 | `get_up` | Getting up from the ground: after a foul, a tackle, a dive | |
 | `catch_low`, `catch_high` | The goalie's catch of a low ball (30 cm high or lower) and of a high one (1.5 m or higher), mixed between | When the hands reach farthest from the chest |
 | `dive_left`, `dive_right` | The goalie's dive for a ball to the side (from 0.8 m, all a dive from 1.2 m); a side left out is the other side's mirrored | As the catch |
+| `turn_left`, `turn_right` | Turning on the spot (below); a side left out is the other side's mirrored | — |
 
 A kick's clip may be of either foot: rcssmonitor finds which foot swings,
 and plays the clip mirrored for a kick with the other foot. A kick's foot
@@ -249,6 +250,27 @@ The actions are done where the player is, so a clip going somewhere (its
 hips farther than 30 % of their height from where they start, as a slide or
 a dive going across the floor) has its hips kept horizontally where they
 start.
+
+#### Turning on the spot
+
+A player turns its body at once (a standing player turns about 60 degrees
+in a cycle), and a figure's legs follow it: they face the body direction
+of the last three cycles, the hips turned back toward them (up to 45
+degrees) and the chest facing the body direction. Standing, the legs step
+as they turn, more the faster they turn: a step for each 90 degrees, but
+at most three quarters of a step in a cycle (fewer than one: faster than
+a person, but to be seen in a quick turn; turning faster, the legs turn
+the rest without a step).
+The steps are the walk's, smaller, or the clips of turning if the pack has
+them.
+
+A clip of turning turns the body on the spot one way, `turn_right` to the
+figure's right (clockwise seen from above), `turn_left` to its left: 90
+degrees is common, at least 30. It is played by the steps, 90 degrees of
+it a step (its time when it has turned as far), its own turn taken off,
+so that the figure faces the body direction of the log, and played again
+for a longer turn. A clip that does not turn, or turns the other way, is
+told and the pack is not drawn.
 
 ### A body
 

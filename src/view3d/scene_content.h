@@ -87,6 +87,9 @@ struct FigureMotion {
     float vy = 0.0f;
     float ax = 0.0f; //!< the acceleration on the field (m/s^2), smoothed over the cycles around
     float ay = 0.0f;
+    double steps = 0.0; //!< the steps taken on the spot by the time drawn, as the legs turn (GaitTable::TURN_STEP_ANGLE a step, at most TURN_STEPS_MAX a cycle)
+    float lag = 0.0f; //!< how far the legs lag behind the body direction (degree, as the field's angles: turning right, positive)
+    float turn_rate = 0.0f; //!< how fast the legs turn (degree/s; to the right, positive)
 };
 
 /*!

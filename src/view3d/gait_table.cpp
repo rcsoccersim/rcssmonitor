@@ -213,6 +213,7 @@ GaitTable::clear()
 {
     M_entries.clear();
     M_frames = 0;
+    M_dropped = 0;
     M_last.reset();
 }
 
@@ -252,6 +253,7 @@ GaitTable::update( const DispCont & frames,
             const std::size_t dropped = M_frames - 1 - found;
             M_entries.erase( M_entries.begin(), M_entries.begin() + dropped * PLAYERS );
             M_frames -= dropped;
+            M_dropped += dropped;
         }
     }
 
@@ -268,23 +270,40 @@ GaitTable::extend( const DispCont & frames )
     M_entries.resize( frames.size() * PLAYERS );
     for ( std::size_t i = M_frames; i < frames.size(); ++i )
     {
+        // (the frames to this one, for the legs' direction below)
+        M_frames = i + 1;
         const rcss::rcg::ShowInfoT & now = frames[i]->show_;
         for ( int k = 0; k < PLAYERS; ++k )
         {
             Entry & e = M_entries[i * PLAYERS + k];
+            const rcss::rcg::PlayerT & b = now.player_[k];
             if ( i == 0 )
             {
                 // the players out of step with each other from the start
                 e = Entry{ k * 0.29, 0.0f, 0.0f };
+                e.heading = e.legs = b.body_;
+                e.start = M_dropped;
                 continue;
             }
-            e = Entry{ entry( i - 1, k ).gait, 0.0f, 0.0f };
+            const Entry & before = entry( i - 1, k );
+            e = Entry{ before.gait, 0.0f, 0.0f };
             const rcss::rcg::PlayerT & a = frames[i - 1]->show_.player_[k];
-            const rcss::rcg::PlayerT & b = now.player_[k];
-            if ( ! a.isAlive() || ! b.isAlive() ) continue;
+
+            // the body direction unwrapped, and the legs following it (from
+            // the frames before only); starting again after a move or out of the game
+            e.heading = before.heading + std::remainder( b.body_ - before.heading, 360.0 );
+            e.area = before.area + 0.5 * ( before.heading + e.heading );
             const double dx = b.x_ - a.x_;
             const double dy = b.y_ - a.y_;
             const double d = std::sqrt( dx * dx + dy * dy );
+            const bool again = ( ! a.isAlive() || ! b.isAlive() || d >= TELEPORT );
+            e.start = ( again ? i + M_dropped : before.start );
+            e.legs = legsAt( k, static_cast< double >( i ) );
+            // a step each TURN_STEP_ANGLE turned, at most TURN_STEPS_MAX in a cycle
+            e.steps = before.steps
+                + ( again ? 0.0 : std::min( std::fabs( e.legs - before.legs ) / TURN_STEP_ANGLE, TURN_STEPS_MAX ) );
+
+            if ( ! a.isAlive() || ! b.isAlive() ) continue;
             if ( d < 1.0e-4 || d >= TELEPORT ) continue;
             const double toward = std::atan2( dy, dx ) - a.body_ * M_PI / 180.0;
             if ( M_ways.directional() )
@@ -326,6 +345,49 @@ GaitTable::velocityAt( const int player,
 }
 
 /*-------------------------------------------------------------------*/
+double
+GaitTable::headingAt( const int player,
+                      const double time ) const
+{
+    const std::size_t last = M_frames - 1;
+    const double t = std::min( static_cast< double >( last ), std::max( 0.0, time ) );
+    const std::size_t j = std::min( static_cast< std::size_t >( std::floor( t ) ), last );
+    if ( j == last ) return entry( j, player ).heading;
+    const double f = t - j;
+    return entry( j, player ).heading + ( entry( j + 1, player ).heading - entry( j, player ).heading ) * f;
+}
+
+/*-------------------------------------------------------------------*/
+double
+GaitTable::areaAt( const int player,
+                   const double time ) const
+{
+    const std::size_t last = M_frames - 1;
+    const double t = std::min( static_cast< double >( last ), std::max( 0.0, time ) );
+    const std::size_t j = std::min( static_cast< std::size_t >( std::floor( t ) ), last );
+    const Entry & a = entry( j, player );
+    if ( j == last ) return a.area;
+    // the heading in a line between the frames, summed to the time
+    const double f = t - j;
+    return a.area + f * a.heading + 0.5 * f * f * ( entry( j + 1, player ).heading - a.heading );
+}
+
+/*-------------------------------------------------------------------*/
+double
+GaitTable::legsAt( const int player,
+                   const double time ) const
+{
+    const std::size_t last = M_frames - 1;
+    const double t = std::min( static_cast< double >( last ), std::max( 0.0, time ) );
+    // from when the legs last started following the body (the frame at or after the time)
+    const std::size_t at = std::min( static_cast< std::size_t >( std::ceil( t ) ), last );
+    const double start = static_cast< double >( entry( at, player ).start ) - static_cast< double >( M_dropped );
+    const double from = std::max( { t - TURN_LAG, start, 0.0 } );
+    if ( t - from < 1.0e-6 ) return headingAt( player, t );
+    return ( areaAt( player, t ) - areaAt( player, from ) ) / ( t - from );
+}
+
+/*-------------------------------------------------------------------*/
 FigureMotion
 GaitTable::motion( const int player,
                    const std::size_t index,
@@ -356,5 +418,19 @@ GaitTable::motion( const int player,
     const float span = static_cast< float >( 2.0 * ACCELERATION_SPAN * std::max( 1.0e-3, M_step ) );
     m.ax = ( fx - bx ) / span;
     m.ay = ( fy - by ) / span;
+
+    // the legs following the body direction: the steps taken as they turn,
+    // how far behind the body they are, and how fast they turn
+    const double steps_from = entry( index, player ).steps;
+    const double steps_to = ( a > 0.0 ? entry( index + 1, player ).steps : steps_from );
+    m.steps = steps_from + ( steps_to - steps_from ) * a;
+    m.lag = static_cast< float >( headingAt( player, time ) - legsAt( player, time ) );
+    const double ahead = std::min( time + TURN_SPAN, static_cast< double >( M_frames - 1 ) );
+    const double behind = std::max( time - TURN_SPAN, 0.0 );
+    if ( ahead > behind )
+    {
+        m.turn_rate = static_cast< float >( ( legsAt( player, ahead ) - legsAt( player, behind ) )
+                                            / ( ( ahead - behind ) * std::max( 1.0e-3, M_step ) ) );
+    }
     return m;
 }
