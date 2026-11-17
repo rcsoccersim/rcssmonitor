@@ -46,6 +46,7 @@
 - [ ] **設定ダイアログを小さくする** (2026-11-15、ユーザ): 3D の項目が増えてダイアログが大きくなったので、rcssmonitor では、選択肢の行の下の要約 (選んだものの説明) と、グループの下の説明の行をやめ、ツールチップに入れた。web 版も同じ方針にする (web 版の 3D タブと Player Camera タブの要約と説明の行)。ツールチップのある項目に点線の下線を引くのは、web 版がすでにしていることで、rcssmonitor もそれにそろえた (`TooltipMarker`)。
 - [ ] **設定ダイアログの 3D のタブを 3 つに分ける** (9-6、2026-11-17、ユーザ): rcssmonitor では、3D のタブが縦に長くなったので、「3D」(Guides の Compass、Minimap、FPS、Rendering の Smooth Edges と Shadows、Stadium)、「Players & Ball」(Players の Model、Bodies、Figure Scale と、Ball)、「Camera」(Close-up Camera、Player Camera、Player Sight) の 3 つに分け、Default はタブごとにそのタブの項目だけを戻すようにした。web 版の 3D タブと Player Camera タブも同じ形にそろえる。
 - [ ] **選手視点で背番号の見えないキーパーをフィールドプレイヤーの色にする** (9-6、2026-11-17、ユーザ): rcssserver は、ほかの選手がキーパーであることを、背番号と一緒にだけ伝える。rcssmonitor では、選手視点のサーバの規則で、キーパーの色を背番号の不透明度により、チームのフィールドプレイヤーの色とキーパーの色の間にし (`playerStyle()` の引数 `goalie`)、キャッチ範囲の重ね描きも同じだけ薄くする (0 なら描かない)。web 版 (`player-style.ts`、`sight.ts`) も同じにする。
+- [ ] **2D と 3D でボールの大きさを別に設定する** (9-6、2026-11-17、ユーザ): 2D ではボールを大きめにしないと見えにくく、3D では小さくしないと見た目がおかしいので、切り替えのたびに大きさを変える手間があった。rcssmonitor では、今までの Ball Size (`ball_size`) を 2D だけにし、3D に自分の設定 `ball_size_3d` を足した (既定は実寸 (0。サーバの `ball_size`)。0〜1 m で、0.01 未満は実寸。設定ダイアログの Players & Ball の Ball の Size、コマンドラインの `--ball-size-3d`)。web 版は 2D と 3D で `ballSize` を共有する (`scene-math.ts` の `ballRadius()`)。同じく分ける。
 - [ ] **ボールを仮想的に宙に飛ばす (検討中)** (8-6、2026-11-17、ユーザ): rcssmonitor では、ログの再生で、キックの初速、次に触るまでの時間と距離、パスの線の上の相手などから、ボールを仮想的に宙に飛ばし、バウンドさせる (設定 `ball_flight_3d`、既定はオフ。`BallFlight`)。web 版に入れるかは検討中。
 - [ ] **リアルな芝** (8-2b、2026-11-15、ユーザ): rcssmonitor では、芝を `plain` / `stripes` / `realistic` の 3 択にした (`grass_3d`、既定は `stripes`)。`realistic` は、見る向きで明暗が変わる刈り目の縞 (芝刈り機が倒した葉の向き)、芝の細かい模様 (カメラから 30 m まで) と色むら、ゴール前・PK マーク・センターのすり減り (`Grass3D`、シェーダ `ground.frag`)。web 版の芝は縞のあり・なしだけ。
 - [ ] **FPS の表示** (2026-11-15、ユーザ): rcssmonitor では、3D の画面の右下 (ミニマップを出すときはその上) に、1 秒あたりのフレーム数と GPU の描画の時間 (タイマーのクエリ) を出せる (`fps_3d`、既定はオフ。`FpsMeter`)。web 版にはない。
@@ -347,7 +348,7 @@ web 版の対応するファイルを読み、同じ値と同じ考え方で作�
 - **地面**: 2D の `FieldPainter` で、1 m を 24 px、ペンを 3 倍にした `QImage` に描き、テクスチャにする。ゴールは描かない (3D で作る)。芝の縞は、芝の塗りの後、線の前に描く (`FieldPainter` に「芝の上、線の下に描く」引数を足す)。地面の絵は、色やオプションが変わったときだけ描き直す。
 - **ゴール**: 枠 (柱とクロスバー、高さ 2.44 m) と半透明のネット (チームの色)。
 - **選手**: 円柱 (胴)、球 (頭)、足元の円、体の向きの黒い円錐、顔の向きの赤い円錐、カード。色は 2D の `PlayerPainter` と同じ決め方 (状態の色、スタミナで暗く、選択)。部品ごとにインスタンス描画。足元の円の中に、体の向き (選手の線の色) と顔の向き (首の色。視野を描くときは描かない) の線。
-- **ボール**: 半径はオプションの Ball Size か `ball_size`。高さがあれば空中に描き、影は真下 (高さで薄く)。模様と転がりは `ball.ts`。
+- **ボール**: 半径はオプションの Ball Size か `ball_size`。高さがあれば空中に描き、影は真下 (高さで薄く)。模様と転がりは `ball.ts`。 → 9-6: 3D は自分の設定 `ball_size_3d` (既定は実寸)。Ball Size は 2D だけ (§5.7)。
 - **ラベル**: 背番号 (と選手の種類) を `QImage` に書いてテクスチャにし、ビルボードで描く。大きさの上限と、真上のカメラでの置き方は `fitLabels`、`labelPlace`。
 - **スタミナのバー**: カメラの下向きにずらして、背番号の下に並べる。色は `staminaHue` (残りが `recover_dec_thr` と `effort_dec_thr` を下回ると赤)。選手視点のサーバの規則では、選んだ選手のバーだけ。
 - **重ね描き**: 2D の `PlayerPainter` と `BallPainter` から計算 (キャッチ範囲の半径、タックルの確率、キックの加速、予測軌道、オフサイドライン) を切り出して共有し、地面に線で描く。範囲の数値は HUD に書く。
@@ -410,6 +411,7 @@ Shift を使うショートカットは作らない。関係のある別の操�
 | `shadows_3d` | simple | off / simple / detailed。太陽の影 (simple は選手ごとの柔らかい楕円、detailed は影の地図で選手とゴールの枠の形。グループ `View3D`。コマンドラインは `--shadows-3d`。8-1) |
 | `grass_3d` | stripes | plain / stripes / realistic。芝 (stripes は明暗の縞、realistic は見る向きで明暗が変わる縞、芝の細かい模様と色むら、すり減り。グループ `View3D`。コマンドラインは `--grass-3d`。8-2 の `grass_stripes_3d` を 8-2b で置き換えた) |
 | `sky_3d`、`stands_3d`、`ball_pattern_3d` | on | (グループ `View3D`。コマンドラインは同じ名前) |
+| `ball_size_3d` | 0 | 0〜1 m。3D のボールの半径。0.01 未満は実寸 (サーバの `ball_size`、既定 0.085 m)。2D の `ball_size` (Ball Size) とは別 (グループ `View3D`。コマンドラインは `--ball-size-3d`。9-6) |
 | `ball_ring_3d`、`ball_ring_radius_3d` | on、0.7 | 0.1〜5 m (グループ `View3D`。コマンドラインは同じ名前。8-5) |
 | `ball_flight_3d` | off | ログの再生で、ボールを仮想的に宙に飛ばす (キックの初速、次に触るまでの時間と距離、パスの線の上の相手から。グループ `View3D`。コマンドラインは `--ball-flight-3d`。8-6) |
 | `ball_trail_3d`、`ball_trail_cycles_3d` | on、5 | 1〜30 (整数。グループ `View3D`。コマンドラインは同じ名前。8-5) |
@@ -420,7 +422,7 @@ Shift を使うショートカットは作らない。関係のある別の操�
 - **Player Camera タブ**: 4 つのスタイル、時定数、最大角速度、一定の画角、Player Sight、Default ボタン。
 - どの項目にもツールチップで詳しい説明を付ける。数値の欄は、ツールチップに範囲を書き、範囲の外は端に寄せる (入力中はエラーの色)。選んだスタイルが使わない数値の欄は薄くする。
 - web 版では、3D の項目が増えて 1 つのタブが縦に長くなりすぎたので、Player Camera を別のタブに分けた。項目がさらに増えたら、同じく分ける。
-- → 6-6 で、6-1〜6-5 の設定 (Close-up Camera、Guides、Stadium の Boards と Banners、Player Camera タブのすべて) を作った。Players、Ball と、Stadium の残りの項目は、Phase 7 と 8 で足す。2 つのタブは 3D の入ったビルドにだけある。 → 7-4 で Players (Model の 3 択と Figure Scale) を足した。8-1 で Players に Shadows を足した。8-2 で Stadium に Grass Stripes と Sky を足した。8-2b で Grass Stripes を Grass の 3 択にした。8-3 で Stadium に Stands を足した。8-4 で Ball のグループを作り、Pattern を足した。8-5 で Ball に Ring、Trail、Ring Radius、Trail Cycles を足した。Guides に FPS を足した (2026-11-15)。8-6 で Ball に Flight を足した。 → 2026-11-15: ダイアログが大きくなったので、選択肢の行の下の要約と、グループの下の説明の行をやめ、ツールチップに移した (ユーザ。§14)。 → 9-1 で Players の Model を、円柱と見つけた人型パックの一覧にし、その下に出典の行、横にパックのフォルダのボタン (Packs) を置いた。 → Packs ボタンのメニューに、ユーザのパックのフォルダをごみ箱に移す項目 (Move a Pack to the Trash) を足した (2026-11-16、ユーザ)。 → 9-6: 3D のタブが縦に長くなったので、「3D」(Guides、Rendering (Smooth Edges、Shadows)、Stadium)、「Players & Ball」(Players、Ball)、「Camera」(Close-up Camera、Player Camera、Player Sight。Player Camera タブを改名) の 3 つに分けた。Default はタブごとにそのタブの項目だけを戻す (2026-11-17、ユーザ。§14)。
+- → 6-6 で、6-1〜6-5 の設定 (Close-up Camera、Guides、Stadium の Boards と Banners、Player Camera タブのすべて) を作った。Players、Ball と、Stadium の残りの項目は、Phase 7 と 8 で足す。2 つのタブは 3D の入ったビルドにだけある。 → 7-4 で Players (Model の 3 択と Figure Scale) を足した。8-1 で Players に Shadows を足した。8-2 で Stadium に Grass Stripes と Sky を足した。8-2b で Grass Stripes を Grass の 3 択にした。8-3 で Stadium に Stands を足した。8-4 で Ball のグループを作り、Pattern を足した。8-5 で Ball に Ring、Trail、Ring Radius、Trail Cycles を足した。Guides に FPS を足した (2026-11-15)。8-6 で Ball に Flight を足した。 → 2026-11-15: ダイアログが大きくなったので、選択肢の行の下の要約と、グループの下の説明の行をやめ、ツールチップに移した (ユーザ。§14)。 → 9-1 で Players の Model を、円柱と見つけた人型パックの一覧にし、その下に出典の行、横にパックのフォルダのボタン (Packs) を置いた。 → Packs ボタンのメニューに、ユーザのパックのフォルダをごみ箱に移す項目 (Move a Pack to the Trash) を足した (2026-11-16、ユーザ)。 → 9-6: 3D のタブが縦に長くなったので、「3D」(Guides、Rendering (Smooth Edges、Shadows)、Stadium)、「Players & Ball」(Players、Ball)、「Camera」(Close-up Camera、Player Camera、Player Sight。Player Camera タブを改名) の 3 つに分けた。Default はタブごとにそのタブの項目だけを戻す (2026-11-17、ユーザ。§14)。 → 9-6: Players & Ball の Ball に Size (3D のボールの大きさ。既定は Real (実寸)) を足した。Canvas タブの Ball (2D の Ball Size) は 2D だけに効く (2026-11-17、ユーザ。§14)。
 
 ### 5.8 人型
 
@@ -2782,3 +2784,25 @@ QOpenGLWindow の 2 コミット (393f02d、fd35a21) をプッシュした。
 - 大きさ (画面外): 3D 318、Players & Ball 241、Camera 329 の高さで、どれも Canvas タブ (391) より低い。ダイアログは 408×629 から 461×442 に。
 - 試験: テスト `config_dialog` を直した: タブの名前、各項目がどのタブにあるか (34 の項目)、3 つのタブが Canvas タブより高くないこと、スクロールの矢印を出さないこと、グループのツールチップ (Rendering と Player Camera を足した)、Default のツールチップ、各タブの Default が自分のタブの項目だけを戻すこと、円柱のとき出典の行がないこと。確かめる箇所を壊すと失敗することを確かめた (8 通り: 3D の Default がボールも戻す、Players & Ball の Default が Flight を戻さない、Players & Ball の Default が影も戻す、Camera の Default が寄りのカメラを戻さない、選手視点を戻さない、スクロールの矢印、空の出典の行、Camera の Default が別のものを戻す)。
 - Qt 6.4.2 と Qt 5.15.13 で、ビルドとテストが通る (テスト 53 個)。`-DENABLE_3D=OFF` (19 個) と autotools も通る。
+
+#### 2026-11-17: 区切り 9-6、2D と 3D のボールの大きさ (`feature/3d-view`)
+
+計画書の §0.2 の更新 (9fb071c) をコミットした (プッシュはまだ)。
+
+**決めたこと (ユーザ)**
+- 2D ではボールを大きめにしないと見えにくく、3D ではボールを小さくしないと見た目がおかしい。2D と 3D を切り替えるたびにボールの大きさを変える手間がかかるので、別々に設定できるようにする。今までの Ball Size (`ball_size`、Canvas タブ、`--ball-size`) は 2D だけに効くようにし、3D 用の設定を、コマンドラインと設定ダイアログの Players & Ball に足す。web 版にも入れる (§0.2)。
+
+**決めたこと**
+- 設定 `ball_size_3d` (グループ `View3D`) とコマンドラインの `--ball-size-3d`。0〜1 m で、範囲の外は読まず、setter は範囲に収める。2D と同じく、0.01 未満はサーバの `ball_size` (既定 0.085 m) の実寸。
+- 既定は実寸 (0)。小さなボールは、ボールの円と軌跡が見つける助けになるため。今までの 3D は、2D の既定の 0.35 m (直径 0.7 m で、選手の胴より太い) で描いていた。
+- 3D でボールの半径を使う所 (ボールと影、転がり、宙を飛ぶボールのクロスバーの判定、軌跡の頭の幅、蹴る足をボールに寄せること) は、どれも `SceneBuilder::ballRadius()` を通すので、そこだけを直した。2D の描画は変わらない。
+- 設定ダイアログ: Players & Ball タブの Ball に Size の欄 (0 は「Real」と出す。小数 3 桁、0.01 ずつ)。Players & Ball の Default で戻す。Canvas タブの 2D の Ball にツールチップを付け、3D のものが別にあることを書いた (3D なしのビルドでは書かない)。`--ball-size` の説明も 2D のものにした。
+
+**試験**
+- テスト `config_dialog` に `ballSizes()` を足した: 3D の欄は Players & Ball、2D の欄は Canvas にある、初めは Real、3D の欄は 3D の設定だけを、2D の欄は 2D の設定だけを変える、0.085 と打って Enter で 0.085、setter が範囲に収める、3D タブの Default は残し、Players & Ball の Default で戻す (2D の設定は残す)。既存のテストに、項目のタブ、ツールチップ (範囲と、もう一方があること)、Default のツールチップを足した。
+- テスト `scene_builder` に `ballSize()` を足した: 既定で実寸、2D の設定を変えても変わらない、自分の設定の半径で描き、空中ではその半径の分高い、0.01 未満は実寸。
+- テスト `scene_3d`: ボールの影を見る点を、ボールの中心の真下にした (0.35 m のボールの影に合わせて中心から 0.1 m の所を見ていて、実寸のボールでは影の外になった)。影を描かないと失敗することを確かめた。
+- 確かめる箇所を壊すと失敗することを確かめた (8 通り: 3D が 2D の設定を読む、実寸にする 0.01 の判定なし、setter が範囲に収めない、Default で戻さない、欄が 2D の設定を変える、「Real」と出さない、小数 2 桁、欄に設定を入れない)。
+- 小さなプログラムで、設定ファイルとコマンドラインを確かめた: `--ball-size-3d 0.12` が設定ファイルに残り、次に読まれる。範囲の外 (5) と数でない値は読まず、知らせる。設定ファイルの範囲の外 (2) も読まない。`--ball-size` は 2D の設定だけを変える。
+- 画面外で、全試合のログの 3,000 フレーム目を寄りのカメラから、実寸と 0.35 m で描いて見た。
+- Qt 6.4.2 と Qt 5.15.13 (`-Werror=deprecated-declarations`) で、ビルドとテストが通る (テスト 53 個)。`-DENABLE_3D=OFF` (19 個) と autotools も通る。ダイアログの大きさは変わらない (461×442。Players & Ball タブは 241 から 270 の高さに)。
