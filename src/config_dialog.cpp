@@ -323,9 +323,11 @@ ConfigDialog::createWidgets()
         M_tab_widget->addTab( frame, tr( "Font" ) );
     }
 #ifdef HAVE_3D_VIEW
-    // the 3D view
+    // the 3D view; all the tabs seen, the dialog as wide as their names
+    M_tab_widget->setUsesScrollButtons( false );
     M_tab_widget->addTab( create3DTab(), tr( "3D" ) );
-    M_tab_widget->addTab( createPlayerCameraTab(), tr( "Player Camera" ) );
+    M_tab_widget->addTab( createPlayersBallTab(), tr( "Players && Ball" ) );
+    M_tab_widget->addTab( createCameraTab(), tr( "Camera" ) );
 #endif
 
     // object selection
@@ -1755,8 +1757,9 @@ ConfigDialog::addNumber( QGridLayout * layout,
 
 /*-------------------------------------------------------------------*/
 /*!
-  the close-up cameras, and for every camera of the 3D view, the compass,
-  the minimap, the boards and the banners
+  the 3D view's look: the guides over it (the compass, the minimap, the
+  frames per second), how the scene is drawn (the smooth edges, the
+  shadows), and the stadium
 */
 QWidget *
 ConfigDialog::create3DTab()
@@ -1766,49 +1769,6 @@ ConfigDialog::create3DTab()
     top_layout->setSizeConstraint( QLayout::SetFixedSize );
     top_layout->setContentsMargins( 4, 4, 4, 4 );
     top_layout->setSpacing( 4 );
-
-    // close-up camera
-    {
-        QGroupBox * group_box = new QGroupBox( tr( "Close-up Camera" ) );
-        QVBoxLayout * box = new QVBoxLayout();
-        QGridLayout * layout = new QGridLayout();
-        layout->setContentsMargins( 0, 0, 0, 0 );
-
-        M_closeup_distance_3d
-            = addNumber( layout, 0, 0, tr( "Distance (m):" ),
-                         tr( "How far the close-up cameras are from the ball or the player they follow,\n"
-                             "in meters. Z and X (and Ctrl+Z) over the 3D view change it too." ),
-                         Options::MIN_CLOSEUP_DISTANCE_3D, Options::MAX_CLOSEUP_DISTANCE_3D,
-                         0.5, 1, tr( " m" ) );
-        M_closeup_distance_3d->setObjectName( "closeup_distance_3d" );
-        connect( M_closeup_distance_3d, QOverload< double >::of( &QDoubleSpinBox::valueChanged ),
-                 this, [this]( double value ) {
-                     Options::instance().setCloseupDistance3D( value );
-                     changed3D();
-                 } );
-
-        M_closeup_elevation_3d
-            = addNumber( layout, 0, 3, tr( "Elevation (\u00b0):" ),
-                         tr( "How high the close-up cameras look down from, in degrees above the ground\n"
-                             "(the broadcast camera: 32\u00b0)." ),
-                         Options::MIN_CLOSEUP_ELEVATION_3D, Options::MAX_CLOSEUP_ELEVATION_3D,
-                         1.0, 0, tr( "\u00b0" ) );
-        M_closeup_elevation_3d->setObjectName( "closeup_elevation_3d" );
-        connect( M_closeup_elevation_3d, QOverload< double >::of( &QDoubleSpinBox::valueChanged ),
-                 this, [this]( double value ) {
-                     Options::instance().setCloseupElevation3D( value );
-                     changed3D();
-                 } );
-        layout->setColumnMinimumWidth( 2, 16 );
-        layout->setColumnStretch( 5, 1 );
-
-        box->addLayout( layout );
-        group_box->setToolTip( tr( "Close-up: Ball and Close-up: Selected Player (View > 3D Camera, E) follow\n"
-                                   "from the near touch line as the broadcast camera does, but nearer;\n"
-                                   "without a selected player, the ball." ) );
-        group_box->setLayout( box );
-        top_layout->addWidget( group_box );
-    }
 
     // guides
     {
@@ -1863,6 +1823,17 @@ ConfigDialog::create3DTab()
                  } );
         box->addWidget( M_fps_3d_cb );
 
+        group_box->setToolTip( tr( "Which way the camera looks, and where it is on the pitch; they show\n"
+                                   "everything, whatever the Player Sight." ) );
+        group_box->setLayout( box );
+        top_layout->addWidget( group_box );
+    }
+
+    // rendering: how the scene is drawn
+    {
+        QGroupBox * group_box = new QGroupBox( tr( "Rendering" ) );
+        QVBoxLayout * box = new QVBoxLayout();
+
         M_antialias_3d_cb = new QCheckBox( tr( "Smooth Edges" ) );
         M_antialias_3d_cb->setObjectName( "antialias_3d" );
         M_antialias_3d_cb->setToolTip( tr( "Smooth the edges of the lines and the solids (4x multisampling).\n"
@@ -1875,11 +1846,159 @@ ConfigDialog::create3DTab()
                  } );
         box->addWidget( M_antialias_3d_cb );
 
-        group_box->setToolTip( tr( "Which way the camera looks, and where it is on the pitch; they show\n"
-                                   "everything, whatever the Player Sight." ) );
+        QGridLayout * shadow_layout = new QGridLayout();
+        shadow_layout->setContentsMargins( 0, 0, 0, 0 );
+        std::vector< std::pair< QString, QString > > shadows;
+        for ( const ChoiceText & t : SHADOW_TEXTS )
+        {
+            shadows.emplace_back( QString::fromUtf8( t.label ), QString::fromUtf8( t.summary ) );
+        }
+        M_shadows_3d = addChoices( shadow_layout, tr( "Shadows:" ),
+                                   tr( "The sun's shadows on the ground. The sun is beyond the far touch line on\n"
+                                       "the left, 44\u00b0 up: from the near side, the shadows fall toward the camera,\n"
+                                       "on the right. Not from the Top camera. The ball keeps its own shadow below." ),
+                                   shadows );
+        setChoiceTooltips( M_shadows_3d, SHADOW_TEXTS );
+        M_shadows_3d->setObjectName( "shadows_3d" );
+        connect( M_shadows_3d, &QButtonGroup::idClicked,
+                 this, [this]( int id ) {
+                     Options::instance().setShadows3D( shadowModes()[id].first );
+                     changed3D();
+                 } );
+        box->addLayout( shadow_layout );
+
+        group_box->setToolTip( tr( "How the scene is drawn: the edges of the shapes and the sun's shadows.\n"
+                                   "Off or simpler, the GPU has less to do." ) );
         group_box->setLayout( box );
         top_layout->addWidget( group_box );
     }
+
+    // stadium
+    {
+        QGroupBox * group_box = new QGroupBox( tr( "Stadium" ) );
+        QVBoxLayout * box = new QVBoxLayout();
+        QHBoxLayout * layout = new QHBoxLayout();
+        layout->setContentsMargins( 0, 0, 0, 0 );
+
+        M_boards_3d_cb = new QCheckBox( tr( "Boards" ) );
+        M_boards_3d_cb->setObjectName( "boards_3d" );
+        M_boards_3d_cb->setToolTip( tr( "Boards around the pitch, 5.5 m out and 1 m high: a dark shade of the team\n"
+                                        "color with the team name and edges in the team color, changing at the\n"
+                                        "halfway line." ) );
+        connect( M_boards_3d_cb, &QCheckBox::clicked,
+                 this, [this]( bool on ) {
+                     Options::instance().setBoards3D( on );
+                     changed3D();
+                 } );
+        layout->addWidget( M_boards_3d_cb );
+
+        M_banners_3d_cb = new QCheckBox( tr( "Banners" ) );
+        M_banners_3d_cb->setObjectName( "banners_3d" );
+        M_banners_3d_cb->setToolTip( tr( "A banner behind each goal, 22 m back and floating 12\u201320 m high, with the\n"
+                                         "team name and logo (with Team Graphic): above the goal, so that the goal\n"
+                                         "stands out against the ground beyond." ) );
+        connect( M_banners_3d_cb, &QCheckBox::clicked,
+                 this, [this]( bool on ) {
+                     Options::instance().setBanners3D( on );
+                     changed3D();
+                 } );
+        layout->addWidget( M_banners_3d_cb );
+
+
+        M_stands_3d_cb = new QCheckBox( tr( "Stands" ) );
+        M_stands_3d_cb->setObjectName( "stands_3d" );
+        M_stands_3d_cb->setToolTip( tr( "Stands of one tier along both touch lines and behind both goals, the corners\n"
+                                        "open. The fans in the team colors toward their team's end, behind a goal\n"
+                                        "mostly the team that keeps it. A stand with the camera inside is not drawn." ) );
+        connect( M_stands_3d_cb, &QCheckBox::clicked,
+                 this, [this]( bool on ) {
+                     Options::instance().setStands3D( on );
+                     changed3D();
+                 } );
+        layout->addWidget( M_stands_3d_cb );
+
+        M_sky_3d_cb = new QCheckBox( tr( "Sky" ) );
+        M_sky_3d_cb->setObjectName( "sky_3d" );
+        M_sky_3d_cb->setToolTip( tr( "The sky, from the pale horizon to the blue above, and the haze that melts the\n"
+                                     "far ground into the horizon. Without it, a plain background." ) );
+        connect( M_sky_3d_cb, &QCheckBox::clicked,
+                 this, [this]( bool on ) {
+                     Options::instance().setSky3D( on );
+                     changed3D();
+                 } );
+        layout->addWidget( M_sky_3d_cb );
+        layout->addStretch();
+
+        std::vector< std::pair< QString, QString > > grass;
+        for ( const ChoiceText & t : GRASS_TEXTS )
+        {
+            grass.emplace_back( QString::fromUtf8( t.label ), QString::fromUtf8( t.summary ) );
+        }
+        QGridLayout * grass_layout = new QGridLayout();
+        grass_layout->setContentsMargins( 0, 0, 0, 0 );
+        M_grass_3d = addChoices( grass_layout, tr( "Grass:" ),
+                                 tr( "How the grass of the pitch looks." ),
+                                 grass );
+        setChoiceTooltips( M_grass_3d, GRASS_TEXTS );
+        M_grass_3d->setObjectName( "grass_3d" );
+        connect( M_grass_3d, &QButtonGroup::idClicked,
+                 this, [this]( int id ) {
+                     Options::instance().setGrass3D( grassModes()[id].first );
+                     changed3D();
+                 } );
+
+        box->addLayout( layout );
+        box->addLayout( grass_layout );
+        group_box->setToolTip( tr( "The boards and the banners are in the team colors, to tell the ends apart;\n"
+                                   "the goal nets always are." ) );
+        group_box->setLayout( box );
+        top_layout->addWidget( group_box );
+    }
+
+    // default
+    {
+        QPushButton * button = new QPushButton( tr( "Default" ) );
+        button->setObjectName( "default_3d" );
+        button->setToolTip( tr( "Set the defaults: Compass %1, Minimap %2, FPS %3, Smooth Edges %4, Shadows %5,\n"
+                                "Boards %6, Banners %7, Stands %8, Grass %9, Sky %10" )
+                            .arg( guideLabel( Options::COMPASS_3D ) )
+                            .arg( guideLabel( Options::MINIMAP_3D ) )
+                            .arg( onOff( Options::FPS_3D ) )
+                            .arg( onOff( Options::ANTIALIAS_3D ) )
+                            .arg( shadowLabel( Options::SHADOWS_3D ) )
+                            .arg( onOff( Options::BOARDS_3D ) )
+                            .arg( onOff( Options::BANNERS_3D ) )
+                            .arg( onOff( Options::STANDS_3D ) )
+                            .arg( grassLabel( Options::GRASS_3D ) )
+                            .arg( onOff( Options::SKY_3D ) ) );
+        button->setAutoDefault( false );
+        connect( button, &QPushButton::clicked,
+                 this, [this]() {
+                     Options::instance().setView3DDefaults();
+                     changed3D();
+                 } );
+        top_layout->addWidget( button, 0, Qt::AlignLeft );
+    }
+
+    top_layout->addStretch();
+    frame->setLayout( top_layout );
+    return frame;
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  how the players and the ball of the 3D view are drawn: the players'
+  model (the cylinders or a figure pack), and the ball's look and the aids
+  to find it
+*/
+QWidget *
+ConfigDialog::createPlayersBallTab()
+{
+    QFrame * frame = new QFrame();
+    QVBoxLayout * top_layout = new QVBoxLayout();
+    top_layout->setSizeConstraint( QLayout::SetFixedSize );
+    top_layout->setContentsMargins( 4, 4, 4, 4 );
+    top_layout->setSpacing( 4 );
 
     // players
     {
@@ -1997,24 +2116,6 @@ ConfigDialog::create3DTab()
                  } );
         numbers->setColumnStretch( 2, 1 );
 
-        std::vector< std::pair< QString, QString > > shadows;
-        for ( const ChoiceText & t : SHADOW_TEXTS )
-        {
-            shadows.emplace_back( QString::fromUtf8( t.label ), QString::fromUtf8( t.summary ) );
-        }
-        M_shadows_3d = addChoices( layout, tr( "Shadows:" ),
-                                   tr( "The sun's shadows on the ground. The sun is beyond the far touch line on\n"
-                                       "the left, 44\u00b0 up: from the near side, the shadows fall toward the camera,\n"
-                                       "on the right. Not from the Top camera. The ball keeps its own shadow below." ),
-                                   shadows );
-        setChoiceTooltips( M_shadows_3d, SHADOW_TEXTS );
-        M_shadows_3d->setObjectName( "shadows_3d" );
-        connect( M_shadows_3d, &QButtonGroup::idClicked,
-                 this, [this]( int id ) {
-                     Options::instance().setShadows3D( shadowModes()[id].first );
-                     changed3D();
-                 } );
-
         box->addLayout( layout );
         box->addLayout( numbers );
         group_box->setToolTip( tr( "From the Top camera, and where the Player camera does not see which way\n"
@@ -2113,121 +2214,25 @@ ConfigDialog::create3DTab()
         top_layout->addWidget( group_box );
     }
 
-    // stadium
-    {
-        QGroupBox * group_box = new QGroupBox( tr( "Stadium" ) );
-        QVBoxLayout * box = new QVBoxLayout();
-        QHBoxLayout * layout = new QHBoxLayout();
-        layout->setContentsMargins( 0, 0, 0, 0 );
-
-        M_boards_3d_cb = new QCheckBox( tr( "Boards" ) );
-        M_boards_3d_cb->setObjectName( "boards_3d" );
-        M_boards_3d_cb->setToolTip( tr( "Boards around the pitch, 5.5 m out and 1 m high: a dark shade of the team\n"
-                                        "color with the team name and edges in the team color, changing at the\n"
-                                        "halfway line." ) );
-        connect( M_boards_3d_cb, &QCheckBox::clicked,
-                 this, [this]( bool on ) {
-                     Options::instance().setBoards3D( on );
-                     changed3D();
-                 } );
-        layout->addWidget( M_boards_3d_cb );
-
-        M_banners_3d_cb = new QCheckBox( tr( "Banners" ) );
-        M_banners_3d_cb->setObjectName( "banners_3d" );
-        M_banners_3d_cb->setToolTip( tr( "A banner behind each goal, 22 m back and floating 12\u201320 m high, with the\n"
-                                         "team name and logo (with Team Graphic): above the goal, so that the goal\n"
-                                         "stands out against the ground beyond." ) );
-        connect( M_banners_3d_cb, &QCheckBox::clicked,
-                 this, [this]( bool on ) {
-                     Options::instance().setBanners3D( on );
-                     changed3D();
-                 } );
-        layout->addWidget( M_banners_3d_cb );
-
-
-        M_stands_3d_cb = new QCheckBox( tr( "Stands" ) );
-        M_stands_3d_cb->setObjectName( "stands_3d" );
-        M_stands_3d_cb->setToolTip( tr( "Stands of one tier along both touch lines and behind both goals, the corners\n"
-                                        "open. The fans in the team colors toward their team's end, behind a goal\n"
-                                        "mostly the team that keeps it. A stand with the camera inside is not drawn." ) );
-        connect( M_stands_3d_cb, &QCheckBox::clicked,
-                 this, [this]( bool on ) {
-                     Options::instance().setStands3D( on );
-                     changed3D();
-                 } );
-        layout->addWidget( M_stands_3d_cb );
-
-        M_sky_3d_cb = new QCheckBox( tr( "Sky" ) );
-        M_sky_3d_cb->setObjectName( "sky_3d" );
-        M_sky_3d_cb->setToolTip( tr( "The sky, from the pale horizon to the blue above, and the haze that melts the\n"
-                                     "far ground into the horizon. Without it, a plain background." ) );
-        connect( M_sky_3d_cb, &QCheckBox::clicked,
-                 this, [this]( bool on ) {
-                     Options::instance().setSky3D( on );
-                     changed3D();
-                 } );
-        layout->addWidget( M_sky_3d_cb );
-        layout->addStretch();
-
-        std::vector< std::pair< QString, QString > > grass;
-        for ( const ChoiceText & t : GRASS_TEXTS )
-        {
-            grass.emplace_back( QString::fromUtf8( t.label ), QString::fromUtf8( t.summary ) );
-        }
-        QGridLayout * grass_layout = new QGridLayout();
-        grass_layout->setContentsMargins( 0, 0, 0, 0 );
-        M_grass_3d = addChoices( grass_layout, tr( "Grass:" ),
-                                 tr( "How the grass of the pitch looks." ),
-                                 grass );
-        setChoiceTooltips( M_grass_3d, GRASS_TEXTS );
-        M_grass_3d->setObjectName( "grass_3d" );
-        connect( M_grass_3d, &QButtonGroup::idClicked,
-                 this, [this]( int id ) {
-                     Options::instance().setGrass3D( grassModes()[id].first );
-                     changed3D();
-                 } );
-
-        box->addLayout( layout );
-        box->addLayout( grass_layout );
-        group_box->setToolTip( tr( "The boards and the banners are in the team colors, to tell the ends apart;\n"
-                                   "the goal nets always are." ) );
-        group_box->setLayout( box );
-        top_layout->addWidget( group_box );
-    }
-
     // default
     {
         QPushButton * button = new QPushButton( tr( "Default" ) );
-        button->setObjectName( "default_3d" );
-        button->setToolTip( tr( "Set the defaults: Close-up %1 m, %2\u00b0, Compass %3, Minimap %4, FPS %19, Smooth Edges %21,\n"
-                                "Model %5, Figure Scale %6, Bodies %9, Shadows %10, Boards %7, Banners %8,\n"
-                                "Ball Pattern %14, Flight %20, Ring %15 (%16 m), Trail %17 (%18 cycles),\n"
-                                "Stands %13, Grass %11, Sky %12" )
-                            .arg( Options::CLOSEUP_DISTANCE_3D )
-                            .arg( Options::CLOSEUP_ELEVATION_3D )
-                            .arg( guideLabel( Options::COMPASS_3D ) )
-                            .arg( guideLabel( Options::MINIMAP_3D ) )
+        button->setObjectName( "default_players_ball_3d" );
+        button->setToolTip( tr( "Set the defaults: Model %1, Bodies %2, Figure Scale %3,\n"
+                                "Ball Pattern %4, Flight %5, Ring %6 (%7 m), Trail %8 (%9 cycles)" )
                             .arg( modelLabel( QString::fromLatin1( Options::PLAYER_MODEL_3D ) ) )
-                            .arg( Options::FIGURE_SCALE_3D )
-                            .arg( onOff( Options::BOARDS_3D ) )
-                            .arg( onOff( Options::BANNERS_3D ) )
                             .arg( bodiesLabel( Options::FIGURE_BODIES_3D ) )
-                            .arg( shadowLabel( Options::SHADOWS_3D ) )
-                            .arg( grassLabel( Options::GRASS_3D ) )
-                            .arg( onOff( Options::SKY_3D ) )
-                            .arg( onOff( Options::STANDS_3D ) )
+                            .arg( Options::FIGURE_SCALE_3D )
                             .arg( onOff( Options::BALL_PATTERN_3D ) )
+                            .arg( onOff( Options::BALL_FLIGHT_3D ) )
                             .arg( onOff( Options::BALL_RING_3D ) )
                             .arg( Options::BALL_RING_RADIUS_3D )
                             .arg( onOff( Options::BALL_TRAIL_3D ) )
-                            .arg( Options::BALL_TRAIL_CYCLES_3D )
-                            .arg( onOff( Options::FPS_3D ) )
-                            .arg( onOff( Options::BALL_FLIGHT_3D ) )
-                            .arg( onOff( Options::ANTIALIAS_3D ) ) );
+                            .arg( Options::BALL_TRAIL_CYCLES_3D ) );
         button->setAutoDefault( false );
         connect( button, &QPushButton::clicked,
                  this, [this]() {
-                     Options::instance().setView3DDefaults();
+                     Options::instance().setPlayersAndBall3DDefaults();
                      changed3D();
                  } );
         top_layout->addWidget( button, 0, Qt::AlignLeft );
@@ -2240,11 +2245,11 @@ ConfigDialog::create3DTab()
 
 /*-------------------------------------------------------------------*/
 /*!
-  the selected player's camera of the 3D view, in the styles to compare,
-  and what it draws
+  the cameras of the 3D view: the close-up cameras, and the selected
+  player's camera in the styles to compare, and what it draws
 */
 QWidget *
-ConfigDialog::createPlayerCameraTab()
+ConfigDialog::createCameraTab()
 {
     using namespace PlayerCameraStyle;
     QFrame * frame = new QFrame();
@@ -2252,8 +2257,6 @@ ConfigDialog::createPlayerCameraTab()
     top_layout->setSizeConstraint( QLayout::SetFixedSize );
     top_layout->setContentsMargins( 4, 4, 4, 4 );
     top_layout->setSpacing( 4 );
-
-    frame->setToolTip( tr( "The 3D view's Player camera, at the selected player." ) );
 
     // a style changed by the radio buttons: a copy with one style changed
     const auto set_style = [this]( const std::function< void ( PlayerCameraOptions & ) > & change ) {
@@ -2263,9 +2266,52 @@ ConfigDialog::createPlayerCameraTab()
         changed3D();
     };
 
-    // camera
+    // close-up camera
     {
-        QGroupBox * group_box = new QGroupBox( tr( "Camera" ) );
+        QGroupBox * group_box = new QGroupBox( tr( "Close-up Camera" ) );
+        QVBoxLayout * box = new QVBoxLayout();
+        QGridLayout * layout = new QGridLayout();
+        layout->setContentsMargins( 0, 0, 0, 0 );
+
+        M_closeup_distance_3d
+            = addNumber( layout, 0, 0, tr( "Distance (m):" ),
+                         tr( "How far the close-up cameras are from the ball or the player they follow,\n"
+                             "in meters. Z and X (and Ctrl+Z) over the 3D view change it too." ),
+                         Options::MIN_CLOSEUP_DISTANCE_3D, Options::MAX_CLOSEUP_DISTANCE_3D,
+                         0.5, 1, tr( " m" ) );
+        M_closeup_distance_3d->setObjectName( "closeup_distance_3d" );
+        connect( M_closeup_distance_3d, QOverload< double >::of( &QDoubleSpinBox::valueChanged ),
+                 this, [this]( double value ) {
+                     Options::instance().setCloseupDistance3D( value );
+                     changed3D();
+                 } );
+
+        M_closeup_elevation_3d
+            = addNumber( layout, 0, 3, tr( "Elevation (\u00b0):" ),
+                         tr( "How high the close-up cameras look down from, in degrees above the ground\n"
+                             "(the broadcast camera: 32\u00b0)." ),
+                         Options::MIN_CLOSEUP_ELEVATION_3D, Options::MAX_CLOSEUP_ELEVATION_3D,
+                         1.0, 0, tr( "\u00b0" ) );
+        M_closeup_elevation_3d->setObjectName( "closeup_elevation_3d" );
+        connect( M_closeup_elevation_3d, QOverload< double >::of( &QDoubleSpinBox::valueChanged ),
+                 this, [this]( double value ) {
+                     Options::instance().setCloseupElevation3D( value );
+                     changed3D();
+                 } );
+        layout->setColumnMinimumWidth( 2, 16 );
+        layout->setColumnStretch( 5, 1 );
+
+        box->addLayout( layout );
+        group_box->setToolTip( tr( "Close-up: Ball and Close-up: Selected Player (View > 3D Camera, E) follow\n"
+                                   "from the near touch line as the broadcast camera does, but nearer;\n"
+                                   "without a selected player, the ball." ) );
+        group_box->setLayout( box );
+        top_layout->addWidget( group_box );
+    }
+
+    // the player camera
+    {
+        QGroupBox * group_box = new QGroupBox( tr( "Player Camera" ) );
         QGridLayout * layout = new QGridLayout();
         layout->setVerticalSpacing( 0 );
 
@@ -2356,6 +2402,7 @@ ConfigDialog::createPlayerCameraTab()
         numbers->setColumnStretch( 5, 1 );
 
         layout->addLayout( numbers, layout->rowCount(), 0, 1, 4 );
+        group_box->setToolTip( tr( "The 3D view's Player camera, at the selected player." ) );
         group_box->setLayout( layout );
         top_layout->addWidget( group_box );
     }
@@ -2389,9 +2436,11 @@ ConfigDialog::createPlayerCameraTab()
     {
         const PlayerCameraOptions d;
         QPushButton * button = new QPushButton( tr( "Default" ) );
-        button->setObjectName( "default_player_camera" );
-        button->setToolTip( tr( "Set the default player camera: %1, %2, %3, %4, %5,\n"
-                                "\u03c4 %6 s, \u03c9 %7\u00b0/s, Fixed %8\u00b0" )
+        button->setObjectName( "default_camera_3d" );
+        button->setToolTip( tr( "Set the defaults: Close-up %1 m, %2\u00b0,\n"
+                                "Player camera %3, %4, %5, %6, %7, \u03c4 %8 s, \u03c9 %9\u00b0/s, Fixed %10\u00b0" )
+                            .arg( Options::CLOSEUP_DISTANCE_3D )
+                            .arg( Options::CLOSEUP_ELEVATION_3D )
                             .arg( QString::fromUtf8( positions()[indexOf( positions(), d.position )].label ) )
                             .arg( QString::fromUtf8( directions()[indexOf( directions(), d.direction )].label ) )
                             .arg( QString::fromUtf8( motions()[indexOf( motions(), d.motion )].label ) )
@@ -2403,7 +2452,7 @@ ConfigDialog::createPlayerCameraTab()
         button->setAutoDefault( false );
         connect( button, &QPushButton::clicked,
                  this, [this]() {
-                     Options::instance().setPlayerCamera( PlayerCameraOptions() );
+                     Options::instance().setCamera3DDefaults();
                      changed3D();
                  } );
         top_layout->addWidget( button, 0, Qt::AlignLeft );
@@ -2416,7 +2465,7 @@ ConfigDialog::createPlayerCameraTab()
 
 /*-------------------------------------------------------------------*/
 /*!
-  a setting of the 3D tab or the Player Camera tab changed: the tabs show
+  a setting of the 3D tabs (3D, Players & Ball, Camera) changed: the tabs show
   it, and the views draw it
 */
 void
@@ -2575,6 +2624,7 @@ ConfigDialog::fillPacks()
     }
     if ( tip.isEmpty() ) tip = line;
     M_figure_credits_3d->setText( line ); // elided as wide as the dialog is (ElidedLabel)
+    M_figure_credits_3d->setVisible( ! line.isEmpty() ); // no empty line under the cylinders
     M_figure_credits_3d->setToolTip( tip );
     M_figure_credits_3d->setStyleSheet( wrong ? QStringLiteral( "color: #c03030;" ) : QString() );
 

@@ -29,8 +29,8 @@ To make a pack of a character and animations of Mixamo, see
 
 ## Choosing a pack
 
-In the settings dialog (View > Preference, Ctrl+V), open the 3D tab. Under
-Players, choose the pack in **Model**. The line below the list shows the
+In the settings dialog (View > Preference, Ctrl+V), open the Players & Ball
+tab. Under Players, choose the pack in **Model**. The line below the list shows the
 pack's credits; the full credits are in its tooltip. The **Packs** button
 does the following:
 

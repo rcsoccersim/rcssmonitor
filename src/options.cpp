@@ -1042,27 +1042,40 @@ Options::setFigureScale3D( const double scale )
 void
 Options::setView3DDefaults()
 {
-    M_closeup_distance_3d = CLOSEUP_DISTANCE_3D;
-    M_closeup_elevation_3d = CLOSEUP_ELEVATION_3D;
     M_compass_3d = COMPASS_3D;
     M_minimap_3d = MINIMAP_3D;
     M_fps_3d = FPS_3D;
     M_antialias_3d = ANTIALIAS_3D;
+    M_shadows_3d = SHADOWS_3D;
+    M_boards_3d = BOARDS_3D;
+    M_banners_3d = BANNERS_3D;
+    M_stands_3d = STANDS_3D;
+    M_sky_3d = SKY_3D;
+    M_grass_3d = GRASS_3D;
+}
+
+/*-------------------------------------------------------------------*/
+void
+Options::setPlayersAndBall3DDefaults()
+{
     M_player_model_3d = QString::fromLatin1( PLAYER_MODEL_3D );
     M_figure_scale_3d = FIGURE_SCALE_3D;
     M_figure_bodies_3d = FIGURE_BODIES_3D;
-    M_shadows_3d = SHADOWS_3D;
-    M_boards_3d = BOARDS_3D;
-    M_grass_3d = GRASS_3D;
-    M_sky_3d = SKY_3D;
-    M_stands_3d = STANDS_3D;
     M_ball_pattern_3d = BALL_PATTERN_3D;
     M_ball_flight_3d = BALL_FLIGHT_3D;
     M_ball_ring_3d = BALL_RING_3D;
     M_ball_ring_radius_3d = BALL_RING_RADIUS_3D;
     M_ball_trail_3d = BALL_TRAIL_3D;
     M_ball_trail_cycles_3d = BALL_TRAIL_CYCLES_3D;
-    M_banners_3d = BANNERS_3D;
+}
+
+/*-------------------------------------------------------------------*/
+void
+Options::setCamera3DDefaults()
+{
+    M_closeup_distance_3d = CLOSEUP_DISTANCE_3D;
+    M_closeup_elevation_3d = CLOSEUP_ELEVATION_3D;
+    M_player_camera = PlayerCameraOptions();
 }
 
 /*-------------------------------------------------------------------*/

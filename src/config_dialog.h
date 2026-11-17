@@ -286,7 +286,8 @@ private:
     void createColorItems();
     QLayout * createFontButtons();
     QWidget * create3DTab();
-    QWidget * createPlayerCameraTab();
+    QWidget * createPlayersBallTab();
+    QWidget * createCameraTab();
 
     QButtonGroup * addChoices( QGridLayout * layout,
                                const QString & label,

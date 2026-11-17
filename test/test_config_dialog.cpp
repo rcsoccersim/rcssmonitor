@@ -118,8 +118,22 @@ void
 resetView3D()
 {
     Options::instance().setView3DDefaults();
-    Options::instance().setPlayerCamera( PlayerCameraOptions() );
+    Options::instance().setPlayersAndBall3DDefaults();
+    Options::instance().setCamera3DDefaults();
     Options::instance().setFigureFolder3D( QString() );
+}
+
+//! the tab of the dialog that a widget is on, by its name
+QString
+tabOf( const ConfigDialog & dialog,
+       const QWidget * w )
+{
+    const QTabWidget * tabs = dialog.findChild< QTabWidget * >();
+    for ( int i = 0; tabs && w && i < tabs->count(); ++i )
+    {
+        if ( tabs->widget( i )->isAncestorOf( w ) ) return tabs->tabText( i );
+    }
+    return QString();
 }
 
 //! write a file of a test's figure pack
@@ -254,7 +268,9 @@ TestConfigDialog::allFocusPoints()
 
 /*-------------------------------------------------------------------*/
 /*!
-  the 3D tab and the Player Camera tab, only in a build with the 3D view
+  the 3D tabs (3D, Players & Ball, Camera), only in a build with the 3D view:
+  each item on its tab, a tooltip on every one, and no taller than the
+  Canvas tab (the dialog as tall as without them)
 */
 void
 TestConfigDialog::tabs3D()
@@ -264,7 +280,49 @@ TestConfigDialog::tabs3D()
 
 #ifdef HAVE_3D_VIEW
     QCOMPARE( tabNames( dialog ),
-              QStringList( { "Show", "Canvas", "Color", "Font", "3D", "Player Camera" } ) );
+              QStringList( { "Show", "Canvas", "Color", "Font", "3D", "Players && Ball", "Camera" } ) );
+    // each item on its tab: the look on 3D, the players and the ball on
+    // Players & Ball, the cameras on Camera
+    const std::vector< std::pair< const char *, const char * > > places = {
+        { "compass_3d", "3D" }, { "minimap_3d", "3D" }, { "fps_3d", "3D" }, { "antialias_3d", "3D" },
+        { "shadows_3d", "3D" }, { "boards_3d", "3D" }, { "banners_3d", "3D" }, { "stands_3d", "3D" },
+        { "sky_3d", "3D" }, { "grass_3d", "3D" }, { "default_3d", "3D" },
+        { "player_model_3d", "Players && Ball" }, { "figure_folder_3d", "Players && Ball" },
+        { "figure_credits_3d", "Players && Ball" }, { "figure_bodies_3d", "Players && Ball" },
+        { "figure_scale_3d", "Players && Ball" }, { "ball_pattern_3d", "Players && Ball" },
+        { "ball_flight_3d", "Players && Ball" }, { "ball_ring_3d", "Players && Ball" },
+        { "ball_trail_3d", "Players && Ball" }, { "ball_ring_radius_3d", "Players && Ball" },
+        { "ball_trail_cycles_3d", "Players && Ball" }, { "default_players_ball_3d", "Players && Ball" },
+        { "closeup_distance_3d", "Camera" }, { "closeup_elevation_3d", "Camera" },
+        { "player_camera_position", "Camera" }, { "player_camera_direction", "Camera" },
+        { "player_camera_motion", "Camera" }, { "player_camera_fov", "Camera" },
+        { "player_camera_time_constant", "Camera" }, { "player_camera_max_turn", "Camera" },
+        { "player_camera_fixed_fov", "Camera" }, { "player_camera_sight", "Camera" },
+        { "default_camera_3d", "Camera" },
+    };
+    for ( const auto & place : places )
+    {
+        const QString name = QString::fromLatin1( place.first );
+        const QWidget * w = dialog.findChild< QWidget * >( name );
+        if ( const QButtonGroup * group = dialog.findChild< QButtonGroup * >( name ) )
+        {
+            w = group->buttons().value( 0 );
+        }
+        QVERIFY2( w, place.first );
+        QCOMPARE( tabOf( dialog, w ), QString::fromLatin1( place.second ) );
+    }
+    // no taller than the Canvas tab; every tab's name seen (no scroll buttons)
+    {
+        const QTabWidget * tabs = dialog.findChild< QTabWidget * >();
+        const QStringList names = tabNames( dialog );
+        const int canvas = tabs->widget( names.indexOf( "Canvas" ) )->sizeHint().height();
+        for ( const char * name : { "3D", "Players && Ball", "Camera" } )
+        {
+            const int h = tabs->widget( names.indexOf( name ) )->sizeHint().height();
+            QVERIFY2( h <= canvas, qPrintable( QString( "%1: %2 > %3" ).arg( name ).arg( h ).arg( canvas ) ) );
+        }
+        QVERIFY( ! tabs->usesScrollButtons() );
+    }
     // every item has a tooltip
     for ( const char * name : { "closeup_distance_3d", "closeup_elevation_3d", "figure_scale_3d",
                                 "player_camera_time_constant", "player_camera_max_turn",
@@ -311,7 +369,8 @@ TestConfigDialog::tabs3D()
         QVERIFY( with != without );
     }
     // the notes of the groups in their tooltips, not below them (compact)
-    for ( const char * title : { "Close-up Camera", "Guides", "Players", "Ball", "Stadium", "Player Sight" } )
+    for ( const char * title : { "Close-up Camera", "Guides", "Rendering", "Players", "Ball", "Stadium",
+                                 "Player Camera", "Player Sight" } )
     {
         bool found = false;
         for ( const QGroupBox * g : dialog.findChildren< QGroupBox * >() )
@@ -329,8 +388,8 @@ TestConfigDialog::tabs3D()
     QVERIFY( ! child< QCheckBox >( dialog, "sky_3d" )->toolTip().isEmpty() );
     QVERIFY( ! child< QCheckBox >( dialog, "stands_3d" )->toolTip().isEmpty() );
     QVERIFY( ! child< QCheckBox >( dialog, "ball_pattern_3d" )->toolTip().isEmpty() );
-    QVERIFY( child< QPushButton >( dialog, "default_3d" )->toolTip().contains( "Ball Pattern On, Flight Off, Ring On (0.7 m), Trail On (5 cycles)," ) );
-    QVERIFY( child< QPushButton >( dialog, "default_3d" )->toolTip().contains( "Minimap Off, FPS Off, Smooth Edges On," ) );
+    QVERIFY( child< QPushButton >( dialog, "default_players_ball_3d" )->toolTip().contains( "Ball Pattern On, Flight Off, Ring On (0.7 m), Trail On (5 cycles)" ) );
+    QVERIFY( child< QPushButton >( dialog, "default_3d" )->toolTip().contains( "Compass Off, Minimap Off, FPS Off, Smooth Edges On, Shadows Simple," ) );
     QVERIFY( ! child< QCheckBox >( dialog, "fps_3d" )->toolTip().isEmpty() );
     QVERIFY( ! child< QCheckBox >( dialog, "antialias_3d" )->toolTip().isEmpty() );
     for ( const char * name : { "ball_ring_3d", "ball_trail_3d" } )
@@ -341,10 +400,10 @@ TestConfigDialog::tabs3D()
     {
         QVERIFY2( child< QDoubleSpinBox >( dialog, name )->toolTip().contains( "Range:" ), name );
     }
-    QVERIFY( child< QPushButton >( dialog, "default_3d" )->toolTip().contains( "Stands On, Grass Stripes, Sky On" ) );
-    QVERIFY( child< QPushButton >( dialog, "default_3d" )->toolTip().contains( "Close-up 12 m, 20" ) );
-    QVERIFY( child< QPushButton >( dialog, "default_3d" )->toolTip().contains( "Model Simple, Figure Scale 1, Bodies Mixed, Shadows Simple," ) );
-    QVERIFY( child< QPushButton >( dialog, "default_player_camera" )->toolTip()
+    QVERIFY( child< QPushButton >( dialog, "default_3d" )->toolTip().contains( "Boards On, Banners On, Stands On, Grass Stripes, Sky On" ) );
+    QVERIFY( child< QPushButton >( dialog, "default_players_ball_3d" )->toolTip().contains( "Model Simple, Bodies Mixed, Figure Scale 1," ) );
+    QVERIFY( child< QPushButton >( dialog, "default_camera_3d" )->toolTip().contains( "Close-up 12 m, 20" ) );
+    QVERIFY( child< QPushButton >( dialog, "default_camera_3d" )->toolTip()
              .contains( "Over the Shoulder, Head, Smooth, Fixed, Server Rules" ) );
 #else
     QCOMPARE( tabNames( dialog ), QStringList( { "Show", "Canvas", "Color", "Font" } ) );
@@ -399,6 +458,9 @@ TestConfigDialog::view3DTab()
     QDoubleSpinBox * trail_cycles = child< QDoubleSpinBox >( dialog, "ball_trail_cycles_3d" );
     QVERIFY( grass && sky && stands && pattern && ring && trail && ring_radius && trail_cycles );
     QPushButton * defaults = child< QPushButton >( dialog, "default_3d" );
+    QPushButton * players_ball_defaults = child< QPushButton >( dialog, "default_players_ball_3d" );
+    QPushButton * camera_defaults = child< QPushButton >( dialog, "default_camera_3d" );
+    QVERIFY( players_ball_defaults && camera_defaults );
     QComboBox * model = child< QComboBox >( dialog, "player_model_3d" );
     QLabel * credits = child< QLabel >( dialog, "figure_credits_3d" );
     QDoubleSpinBox * scale = child< QDoubleSpinBox >( dialog, "figure_scale_3d" );
@@ -427,6 +489,7 @@ TestConfigDialog::view3DTab()
     QCOMPARE( model->currentText(), QString( "Simple" ) );
     QCOMPARE( model->currentData().toString(), QString( "simple" ) );
     QVERIFY( credits->text().isEmpty() ); // no credits of the cylinders
+    QVERIFY( credits->isHidden() ); // nor an empty line for them
     QCOMPARE( scale->value(), Options::FIGURE_SCALE_3D );
     // the scale is not for the cylinders, the bodies only for the human figures
     QVERIFY( ! scale->isEnabled() );
@@ -451,6 +514,7 @@ TestConfigDialog::view3DTab()
     QCOMPARE( opt.playerModel3D(), QString( "human" ) );
     // its credits and its motion's (the Mannequin's), in short, in full in the tooltip
     QCOMPARE( credits->text(), QString( "Credits: Quaternius (CC0 1.0); Ian Mason (CC BY 4.0)" ) );
+    QVERIFY( ! credits->isHidden() );
     QVERIFY( credits->toolTip().contains( "Universal Base Characters [Standard] by Quaternius (CC0 1.0)" ) );
     QVERIFY( credits->toolTip().contains( "Universal Animation Library [Standard] by Quaternius (CC0 1.0)" ) );
     QVERIFY( credits->toolTip().contains( "https://quaternius.com/" ) );
@@ -528,15 +592,41 @@ TestConfigDialog::view3DTab()
     QVERIFY( ! opt.antialias3D() );
     QCOMPARE( spy.count(), 20 );
 
-    // Default: the options and the fields back
+    // the 3D tab's Default: its options and fields back, those of the
+    // other tabs as they are
     defaults->click();
     QCOMPARE( spy.count(), 21 );
-    QVERIFY( ! opt.ballFlight3D() );
-    QVERIFY( ! flight->isChecked() );
     QVERIFY( opt.antialias3D() );
     QVERIFY( smooth->isChecked() );
     QVERIFY( ! opt.fps3D() );
     QVERIFY( ! fps->isChecked() );
+    QVERIFY( opt.stands3D() );
+    QVERIFY( stands->isChecked() );
+    QCOMPARE( opt.grass3D(), GrassMode::Stripes );
+    QVERIFY( opt.sky3D() );
+    QCOMPARE( grass->checkedId(), 1 );
+    QVERIFY( sky->isChecked() );
+    QCOMPARE( opt.compass3D(), GuideMode::Off );
+    QCOMPARE( opt.minimap3D(), GuideMode::Off );
+    QVERIFY( opt.boards3D() );
+    QVERIFY( opt.banners3D() );
+    QCOMPARE( opt.shadows3D(), ShadowMode::Simple );
+    QCOMPARE( compass->checkedId(), 0 );
+    QCOMPARE( minimap->checkedId(), 0 );
+    QVERIFY( boards->isChecked() );
+    QVERIFY( banners->isChecked() );
+    QCOMPARE( shadows->checkedId(), 1 );
+    QVERIFY( opt.ballFlight3D() ); // the Players & Ball tab's
+    QVERIFY( ! opt.ballPattern3D() );
+    QCOMPARE( opt.playerModel3D(), QString( "mannequin" ) );
+    QCOMPARE( opt.closeupDistance3D(), 30.0 ); // the Camera tab's
+    QCOMPARE( spy.count(), 21 );
+
+    // the Players & Ball tab's Default
+    players_ball_defaults->click();
+    QCOMPARE( spy.count(), 22 );
+    QVERIFY( ! opt.ballFlight3D() );
+    QVERIFY( ! flight->isChecked() );
     QVERIFY( opt.ballRing3D() && opt.ballTrail3D() );
     QVERIFY( ring->isChecked() && trail->isChecked() );
     QCOMPARE( opt.ballRingRadius3D(), Options::BALL_RING_RADIUS_3D );
@@ -544,28 +634,8 @@ TestConfigDialog::view3DTab()
     QCOMPARE( ring_radius->value(), Options::BALL_RING_RADIUS_3D );
     QCOMPARE( trail_cycles->value(), double( Options::BALL_TRAIL_CYCLES_3D ) );
     QVERIFY( ring_radius->isEnabled() && trail_cycles->isEnabled() );
-    QVERIFY( opt.stands3D() );
-    QVERIFY( stands->isChecked() );
     QVERIFY( opt.ballPattern3D() );
     QVERIFY( pattern->isChecked() );
-    QCOMPARE( opt.grass3D(), GrassMode::Stripes );
-    QVERIFY( opt.sky3D() );
-    QCOMPARE( grass->checkedId(), 1 );
-    QVERIFY( sky->isChecked() );
-    QCOMPARE( opt.closeupDistance3D(), Options::CLOSEUP_DISTANCE_3D );
-    QCOMPARE( opt.closeupElevation3D(), Options::CLOSEUP_ELEVATION_3D );
-    QCOMPARE( opt.compass3D(), GuideMode::Off );
-    QCOMPARE( opt.minimap3D(), GuideMode::Off );
-    QVERIFY( opt.boards3D() );
-    QVERIFY( opt.banners3D() );
-    QCOMPARE( opt.shadows3D(), ShadowMode::Simple );
-    QCOMPARE( distance->value(), Options::CLOSEUP_DISTANCE_3D );
-    QCOMPARE( elevation->value(), Options::CLOSEUP_ELEVATION_3D );
-    QCOMPARE( compass->checkedId(), 0 );
-    QCOMPARE( minimap->checkedId(), 0 );
-    QVERIFY( boards->isChecked() );
-    QVERIFY( banners->isChecked() );
-    QCOMPARE( shadows->checkedId(), 1 );
     QCOMPARE( opt.playerModel3D(), QString( Options::PLAYER_MODEL_3D ) );
     QCOMPARE( opt.figureScale3D(), Options::FIGURE_SCALE_3D );
     QCOMPARE( opt.figureBodies3D(), Options::FIGURE_BODIES_3D );
@@ -573,8 +643,27 @@ TestConfigDialog::view3DTab()
     QCOMPARE( model->currentIndex(), 0 );
     QCOMPARE( scale->value(), Options::FIGURE_SCALE_3D );
     QVERIFY( ! scale->isEnabled() );
+    QVERIFY( credits->isHidden() );
+    QCOMPARE( opt.closeupDistance3D(), 30.0 ); // the Camera tab's
+    opt.setShadows3D( ShadowMode::Off ); // the 3D tab's stays
+    players_ball_defaults->click();
+    QCOMPARE( opt.shadows3D(), ShadowMode::Off );
+    opt.setShadows3D( Options::SHADOWS_3D );
+    QCOMPARE( spy.count(), 23 );
+
+    // the Camera tab's Default: the close-up cameras and the player camera
+    PlayerCameraOptions turned;
+    turned.max_turn = 720.0;
+    opt.setPlayerCamera( turned );
+    camera_defaults->click();
+    QCOMPARE( spy.count(), 24 );
+    QCOMPARE( opt.closeupDistance3D(), Options::CLOSEUP_DISTANCE_3D );
+    QCOMPARE( opt.closeupElevation3D(), Options::CLOSEUP_ELEVATION_3D );
+    QCOMPARE( distance->value(), Options::CLOSEUP_DISTANCE_3D );
+    QCOMPARE( elevation->value(), Options::CLOSEUP_ELEVATION_3D );
+    QVERIFY( opt.playerCamera() == PlayerCameraOptions() );
     // the fields set back by Default do not set the options again
-    QCOMPARE( spy.count(), 21 );
+    QCOMPARE( spy.count(), 24 );
 #endif
 }
 
@@ -595,7 +684,7 @@ TestConfigDialog::numberRange()
     DispHolder holder;
     ConfigDialog dialog( nullptr, holder );
     dialog.show();
-    dialog.findChild< QTabWidget * >()->setCurrentIndex( 4 );
+    dialog.findChild< QTabWidget * >()->setCurrentIndex( tabNames( dialog ).indexOf( "Camera" ) );
     QVERIFY( QTest::qWaitForWindowExposed( &dialog ) );
 
     QDoubleSpinBox * distance = child< QDoubleSpinBox >( dialog, "closeup_distance_3d" );
@@ -780,7 +869,7 @@ TestConfigDialog::figurePacks()
     // (the 3D tab shown: its layout of a fixed size settles in the event loop)
     QTabWidget * tabs = dialog.findChild< QTabWidget * >();
     QVERIFY( tabs );
-    tabs->setCurrentIndex( tabNames( dialog ).indexOf( "3D" ) );
+    tabs->setCurrentIndex( tabNames( dialog ).indexOf( "Players && Ball" ) );
     const auto width = [&dialog, credits]() {
         for ( int i = 0; i < 5; ++i ) QCoreApplication::processEvents(); // a layout, then its parent's
         return std::make_pair( dialog.sizeHint().width(), credits->parentWidget()->parentWidget()->width() );
@@ -1006,7 +1095,7 @@ TestConfigDialog::playerCameraTab()
     QDoubleSpinBox * time_constant = child< QDoubleSpinBox >( dialog, "player_camera_time_constant" );
     QDoubleSpinBox * max_turn = child< QDoubleSpinBox >( dialog, "player_camera_max_turn" );
     QDoubleSpinBox * fixed_fov = child< QDoubleSpinBox >( dialog, "player_camera_fixed_fov" );
-    QPushButton * defaults = child< QPushButton >( dialog, "default_player_camera" );
+    QPushButton * defaults = child< QPushButton >( dialog, "default_camera_3d" );
     QVERIFY( position && direction && motion && fov && sight
              && time_constant && max_turn && fixed_fov && defaults );
 

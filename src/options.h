@@ -425,11 +425,22 @@ public:
     static constexpr GuideMode MINIMAP_3D = GuideMode::Off;
     /*!
       \brief the settings of the 3D tab of the settings dialog back to their
-      defaults: the close-up cameras, the compass, the minimap, the
-      players' model, the figures' scale and bodies, the boards and the banners
-      (the Default button)
+      defaults (its Default button): the compass, the minimap, the frames per
+      second, the smooth edges, the shadows, and the stadium (the boards, the
+      banners, the stands, the sky, the grass)
     */
     void setView3DDefaults();
+    /*!
+      \brief the settings of the Players & Ball tab back to their defaults:
+      the players' model, the figures' bodies and scale, and the ball (its
+      pattern, its flight, its ring and trail)
+    */
+    void setPlayersAndBall3DDefaults();
+    /*!
+      \brief the settings of the Camera tab back to their defaults: the
+      close-up cameras and the player camera
+    */
+    void setCamera3DDefaults();
 
     //! the 3D view: the boards around the pitch, in the team colors
     bool boards3D() const { return M_boards_3d; }

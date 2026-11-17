@@ -70,8 +70,8 @@ hands reach for the ball; if it finds the wrong time, tell it in seconds:
    button of the settings dialog opens your folder of packs.)
 2. Put the five files in it.
 3. Copy `figure.json` of the template into it, and change its `name`.
-4. Open the settings dialog (View > Preference, Ctrl+V), the 3D tab, and
-   choose the pack in **Model**.
+4. Open the settings dialog (View > Preference, Ctrl+V), the Players & Ball
+   tab, and choose the pack in **Model**.
 
 rcssmonitor reads from the animations how fast each one goes, so that the
 feet do not slide. If something is wrong, the pack is marked "cannot be
