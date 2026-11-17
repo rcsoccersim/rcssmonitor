@@ -262,9 +262,11 @@ add_polyline( std::vector< ColorVertex3D > & list,
 void
 add_catch_outline( std::vector< ColorVertex3D > & list,
                    const OverlayMath::CatchOutline & outline,
-                   const QColor & color )
+                   const QColor & color,
+                   const float opacity )
 {
     const QVector4D c = rgba( color );
+    const size_t start = list.size();
     float distance = 0.0f;
     for ( size_t i = 0; i < outline.arcs_.size(); ++i )
     {
@@ -282,6 +284,10 @@ add_catch_outline( std::vector< ColorVertex3D > & list,
         }
     }
     add_polyline( list, outline.edges_, c, distance );
+    for ( size_t v = start; v < list.size(); ++v )
+    {
+        list[v].color.setW( opacity );
+    }
 }
 
 //! the ticks of the focus point's reticle (OverlayMath::focusTicks())
@@ -409,20 +415,24 @@ addOverlays( SceneContent & content,
                 add_focus_point( content, p, type, focus, selected, opt );
             }
 
-            // the catch areas of a goalie
+            // the catch areas of a goalie, as clear as it is known to be one
+            // (rcssserver tells a goalie only with its number: the number's opacity)
+            const float goalie = ( perceptions ? perceptions->of( i ).unum : 1.0f );
             if ( opt.showCatchArea()
-                 && p.isGoalie() )
+                 && p.isGoalie()
+                 && goalie > 0.0f )
             {
                 const bool left = ( p.side() == rcss::rcg::LEFT );
                 const OverlayMath::CatchArea area = OverlayMath::catchArea( sp, type );
                 add_catch_outline( content.lines,
                                    OverlayMath::catchOutline( sp, p, area.catchable_length_ ),
-                                   ( left ? opt.leftGoaliePen() : opt.rightGoaliePen() ).color() );
+                                   ( left ? opt.leftGoaliePen() : opt.rightGoaliePen() ).color(),
+                                   goalie );
                 if ( area.stretched_ )
                 {
                     const QColor stretch = ( left ? opt.leftGoalieStretchPen() : opt.rightGoalieStretchPen() ).color();
-                    add_catch_outline( content.dotted_lines, OverlayMath::catchOutline( sp, p, area.max_length_ ), stretch );
-                    add_catch_outline( content.dotted_lines, OverlayMath::catchOutline( sp, p, area.min_length_ ), stretch );
+                    add_catch_outline( content.dotted_lines, OverlayMath::catchOutline( sp, p, area.max_length_ ), stretch, goalie );
+                    add_catch_outline( content.dotted_lines, OverlayMath::catchOutline( sp, p, area.min_length_ ), stretch, goalie );
                 }
             }
 

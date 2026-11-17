@@ -454,6 +454,30 @@ private slots:
           QVERIFY( near( field( c.lines[0] ), QPointF( -50 + r, 0 ) ) );
           QCOMPARE( c.lines[0].color, rgba( opt.leftGoaliePen().color() ) );
           QVERIFY( c.dotted_lines.empty() ); // the default type has no stretch
+
+          // with the player camera's sight: as clear as the goalie is known
+          // to be one (its number: rcssserver tells a goalie only with it),
+          // none without it, though its directions are known
+          opt.toggleShowCatchArea();
+          Perceptions seen;
+          seen.active = true;
+          seen.players.fill( PlayerSight::FULL );
+          for ( const float unum : { 1.0f, 0.4f } )
+          {
+              seen.players[0] = Perception{ true, 1.0f, unum, true };
+              c.clear();
+              OverlayBuilder::addOverlays( c, show, M_holder, opt, &seen );
+              QCOMPARE( c.lines.size(), size_t( OverlayBuilder::CIRCLE_SEGMENTS * 2 ) );
+              for ( const ColorVertex3D & v : c.lines )
+              {
+                  QCOMPARE( v.color, rgba( opt.leftGoaliePen().color(), unum ) );
+              }
+          }
+          seen.players[0] = Perception{ true, 1.0f, 0.0f, true };
+          c.clear();
+          OverlayBuilder::addOverlays( c, show, M_holder, opt, &seen );
+          QVERIFY( c.lines.empty() );
+          opt.toggleShowCatchArea();
       }
 
     /*

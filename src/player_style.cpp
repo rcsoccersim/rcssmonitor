@@ -48,7 +48,8 @@ PlayerStyle
 playerStyle( const rcss::rcg::PlayerT & player,
              const rcss::rcg::PlayerTypeT & type,
              const rcss::rcg::ServerParamT & param,
-             const Options & opt )
+             const Options & opt,
+             const float goalie )
 {
     PlayerStyle style;
 
@@ -66,6 +67,18 @@ playerStyle( const rcss::rcg::PlayerT & player,
     default:
         style.brush = QBrush( Qt::black );
         break;
+    }
+    // a goalie not surely known as one: toward its team's field players
+    if ( player.isGoalie()
+         && player.side() != rcss::rcg::NEUTRAL
+         && goalie < 1.0f )
+    {
+        const QColor field = ( player.side() == rcss::rcg::LEFT ? opt.leftTeamBrush() : opt.rightTeamBrush() ).color();
+        const QColor keeper = style.brush.color();
+        const float k = std::max( 0.0f, goalie );
+        style.brush = QBrush( QColor::fromRgbF( float( field.redF() + ( keeper.redF() - field.redF() ) * k ),
+                                                float( field.greenF() + ( keeper.greenF() - field.greenF() ) * k ),
+                                                float( field.blueF() + ( keeper.blueF() - field.blueF() ) * k ) ) );
     }
 
     // the colors of the states

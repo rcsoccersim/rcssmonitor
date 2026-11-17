@@ -263,7 +263,8 @@ addShow( SceneContent & content,
                 continue;
             }
             const rcss::rcg::PlayerTypeT & type = holder.playerType( p.type_ );
-            const PlayerStyle style = playerStyle( p, type, sp, opt );
+            // a goalie as far as the number is known (only with it, rcssserver tells a goalie)
+            const PlayerStyle style = playerStyle( p, type, sp, opt, seen.unum );
             const float body_r = float( type.player_size_ );
             const float ground_r = ground_radius( type, sp, opt );
             const QVector4D body = rgba( fadeTeam( style.body.color(), seen.team ) );

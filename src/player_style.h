@@ -68,10 +68,17 @@ struct PlayerStyle {
   \param type its player type
   \param param the server parameters (stamina_max)
   \param options the colors and the selection
+  \param goalie how likely a goalie is known to be one (0 to 1): its color
+  is that of its team's field players at 0, of its goalies at 1, and
+  between them in between. The player camera of the 3D view gives it
+  as the number's opacity: rcssserver tells that a player is the goalie
+  only with its number, so one too far for the number is seen as a field
+  player.
 */
 PlayerStyle playerStyle( const rcss::rcg::PlayerT & player,
                          const rcss::rcg::PlayerTypeT & type,
                          const rcss::rcg::ServerParamT & param,
-                         const Options & options );
+                         const Options & options,
+                         const float goalie = 1.0f );
 
 #endif

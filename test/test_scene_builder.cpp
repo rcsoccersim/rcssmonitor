@@ -996,6 +996,51 @@ private slots:
       }
 
     /*!
+      A goalie with the player camera's sight: in its goalie color as far as
+      its number is known (rcssserver tells a goalie only with its number),
+      in its team's field color without it; the body, the circle on the
+      ground and a human figure alike
+    */
+    void perceivedGoalie()
+      {
+          Options & opt = Options::instance();
+          rcss::rcg::ShowInfoT show = makeShow();
+          show.player_[0].state_ |= rcss::rcg::GOALIE;
+          const rcss::rcg::PlayerTypeT & type = M_holder.playerType( 0 );
+          const QColor field = playerStyle( show.player_[1], type, M_holder.serverParam(), opt ).body.color();
+          const QColor keeper = playerStyle( show.player_[0], type, M_holder.serverParam(), opt ).body.color();
+          QVERIFY( field != keeper );
+          Perceptions seen;
+          seen.active = true;
+          seen.players.fill( PlayerSight::FULL );
+          for ( const float unum : { 1.0f, 0.5f, 0.0f } )
+          {
+              seen.players[0] = Perception{ true, 1.0f, unum, unum > 0.0f };
+              SceneContent c;
+              SceneBuilder::addShow( c, show, M_holder, opt, &seen );
+              const QColor expected = playerStyle( show.player_[0], type, M_holder.serverParam(), opt, unum ).body.color();
+              QCOMPARE( c.cylinders[0].color, rgba( expected ) );
+              QCOMPARE( c.spheres[0].color, rgba( expected ) );
+              QCOMPARE( c.discs[0].color.toVector3D(), rgba( expected ).toVector3D() );
+              if ( unum == 1.0f ) QCOMPARE( c.cylinders[0].color, rgba( keeper ) );
+              if ( unum == 0.0f ) QCOMPARE( c.cylinders[0].color.toVector3D(), rgba( field ).toVector3D() );
+          }
+          // a figure: its color too
+          FigureCast cast;
+          cast.bodies.push_back( FigureCast::Body() );
+          seen.players[0] = Perception{ true, 1.0f, 0.0f, true };
+          SceneContent c;
+          SceneBuilder::addShow( c, show, M_holder, opt, &seen, &cast );
+          QVERIFY( ! c.figures.empty() );
+          QCOMPARE( c.figures[0].player, 0 );
+          QCOMPARE( c.figures[0].color.toVector3D(), rgba( field ).toVector3D() );
+          // without the player camera: the goalie color
+          c.clear();
+          SceneBuilder::addShow( c, show, M_holder, opt );
+          QCOMPARE( c.cylinders[0].color, rgba( keeper ) );
+      }
+
+    /*!
       The labels with the player camera's sight: the number as likely as its
       player knows it, the cards of the players whose team it may know, and
       the bars of its own only

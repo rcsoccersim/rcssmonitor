@@ -95,6 +95,44 @@ private slots:
           QCOMPARE( style( makePlayer( 'n', 2 ) ).brush.color(), QColor( Qt::black ) );
       }
 
+    /*!
+      a goalie as far as it is known to be one (the player camera: only with
+      its number does rcssserver tell a goalie): its team's field color at 0,
+      the goalie color at 1, between them in between; a field player and a
+      state's color as they are
+    */
+    void goalieKnown()
+      {
+          const Options & opt = Options::instance();
+          for ( const char side : { 'l', 'r' } )
+          {
+              rcss::rcg::PlayerT g = makePlayer( side, 1 );
+              g.state_ |= rcss::rcg::GOALIE;
+              const QColor field = ( side == 'l' ? opt.leftTeamBrush() : opt.rightTeamBrush() ).color();
+              const QColor keeper = ( side == 'l' ? opt.leftGoalieBrush() : opt.rightGoalieBrush() ).color();
+              QVERIFY( field != keeper );
+              const auto known = [&]( const float k ) {
+                  return playerStyle( g, M_type, M_param, opt, k ).brush.color();
+              };
+              QCOMPARE( known( 1.0f ), keeper );
+              QCOMPARE( known( 0.0f ).rgb(), field.rgb() );
+              QCOMPARE( known( -1.0f ).rgb(), field.rgb() );
+              const QColor half = known( 0.5f );
+              QVERIFY( std::abs( half.red() - ( field.red() + keeper.red() ) / 2 ) <= 1 );
+              QVERIFY( std::abs( half.green() - ( field.green() + keeper.green() ) / 2 ) <= 1 );
+              QVERIFY( std::abs( half.blue() - ( field.blue() + keeper.blue() ) / 2 ) <= 1 );
+              // the body too (darker by the stamina, of the brush)
+              QCOMPARE( playerStyle( g, M_type, M_param, opt, 0.0f ).body.color().rgb(), field.rgb() );
+
+              // a field player: its color whatever is known
+              const rcss::rcg::PlayerT f = makePlayer( side, 2 );
+              QCOMPARE( playerStyle( f, M_type, M_param, opt, 0.0f ).brush.color(), field );
+              // a state's color over it
+              g.state_ |= rcss::rcg::TACKLE;
+              QCOMPARE( playerStyle( g, M_type, M_param, opt, 0.0f ).brush, opt.tackleBrush() );
+          }
+      }
+
     void selected()
       {
           Options & opt = Options::instance();
