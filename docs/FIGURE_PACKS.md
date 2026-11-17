@@ -253,8 +253,9 @@ start.
 
 #### Turning on the spot
 
-A player turns its body at once (a standing player turns about 60 degrees
-in a cycle), and a figure's legs follow it: they face the body direction
+A player turns its body at once (a standing player can turn up to 180
+degrees in a cycle, and often turns 60 degrees or more in one), and a
+figure's legs follow it: they face the body direction
 of the last three cycles, the hips turned back toward them (up to 45
 degrees) and the chest facing the body direction. Standing, the legs step
 as they turn, more the faster they turn: a step for each 90 degrees, but
@@ -412,8 +413,8 @@ another pack's motion names that pack, not its files.
 ## Making a pack
 
 1. Make a folder, for example `~/.local/share/rcssmonitor/figures/robot`.
-2. Put the model of the body (`.glb`, `.gltf` with its files, or `.vrm`)
-   in it.
+2. Put the model of the body (`.glb`, `.gltf` with its files, `.vrm` or
+   `.fbx`) in it.
 3. Write `figure.json`. To start, you can use the bundled motion:
 
    ```json
@@ -432,3 +433,33 @@ another pack's motion names that pack, not its files.
 
 The materials named in `paint`, `hairstyles` and `extras` must be the
 model's. If one is not, the reason lists the model's materials.
+
+## How heavy a pack may be
+
+Each frame, the GPU moves every vertex of 22 bodies by their bones, and
+does it again for the detailed shadows. Its time grows about as a body's
+triangles (and vertices) do. Measured on the integrated GPU of a desktop
+processor, with 22 figures, the broadcast camera, the realistic grass,
+the sky, the stands and the ball's aids, in a window of 1920×1080 at a
+screen scale of 1.29 (2480×1395 pixels):
+
+| A body's triangles | The GPU's time a frame, simple shadows | Detailed shadows |
+|---|---|---|
+| About 15,000 to 22,000 (the bundled bodies) | About 4 ms | About 7 ms |
+| About 55,000 | About 9 ms | About 16 ms |
+| About 105,000 | About 18 ms | About 30 ms |
+| About 420,000 | About 57 ms | About 104 ms |
+
+At 60 frames a second, a frame has 16.7 ms. On an integrated GPU, keep a
+body at about 50,000 triangles or fewer, with the simple shadows (the
+default); a separate graphics card is usually faster. To see how a pack
+does on your computer, turn on **FPS** (the 3D tab, Guides): the 3D view
+shows its frames a second and the GPU's time a frame.
+
+To make a body lighter, reduce its triangles in Blender: add a Decimate
+modifier to its mesh, above its Armature modifier, and apply it (the
+weights of the bones are kept); then export the model again. Hairstyles
+that a player does not wear cost little. A texture's size matters little
+for drawing (a texture larger than 1024 pixels is made smaller), but a
+large file takes longer to read: a pack of about 105,000 triangles with
+textures of 2048 pixels took 0.3 to 0.4 s, the first time it was drawn.

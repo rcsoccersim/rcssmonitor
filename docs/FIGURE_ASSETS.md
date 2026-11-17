@@ -93,7 +93,11 @@ or dive in its Standard part.
 | BVH (`.bvh`) | `src/view3d/bvh_model.cpp` | A skeleton and one clip, no mesh; its unit and axes as written |
 | VRM Animation (`.vrma`) | cgltf, `src/view3d/gltf_model.cpp` | The roles of `VRMC_vrm_animation`; no mesh |
 
-All are read into the same plain data (`GltfModel`). The bones go
+All are read into the same plain data (`GltfModel`). The triangles of
+each part are then put in an order that lets the GPU reuse the vertices it
+has just moved (`GltfModel::orderTriangles()`, Tipsify: Sander, Nehab and
+Barczak 2007), the triangles and their winding kept, so the look does not
+change. The bones go
 through the humanoid roles (`HumanoidRig`): the poses of one skeleton play
 on another, and a clip of another file is put on the motion's skeleton
 (`retargetClip()`), in place. A skeleton is stood upright (the axis
@@ -118,6 +122,30 @@ The reading was checked against Blender's (5.3): 400 frames of
 100STYLE's `Neutral_FW.bvh` imported by Blender and exported as glTF put
 every joint within 0.1 cm of where rcssmonitor reads the BVH file, in
 every frame (Blender's glTF starts its keys one frame later).
+
+## Measuring
+
+With the environment variable `RCSSMONITOR_3D_TIMING` set, the 3D view
+prints its times to the standard error every two seconds: the size drawn
+(in pixels, and `smooth` with the smooth edges), the figures' model and
+number, the frames a second and the
+longest gap between frames, the CPU's time to build a frame (the players
+and figures part of it), the time to hand the drawing to the GPU, and the
+GPU's time (a timer query, `gl/gpu_timer`). Run it with a temporary home,
+so that your settings file is not written:
+
+```bash
+RCSSMONITOR_3D_TIMING=1 HOME=$(mktemp -d) ./rcssmonitor --view-3d on game.rcg.gz
+```
+
+The GPU's time grows about as the figures' vertices and triangles do
+(the table in "How heavy a pack may be" of FIGURE_PACKS.md). For a heavy
+pack to measure, subdivide a bundled body in Blender (once: about 105,000
+triangles; twice: about 420,000) and give its materials textures. An
+integrated GPU may lower its clock when the work is light, so compare
+times measured at the same time, not on different days. In a window, the
+GPU's time also depends on how the window reaches the screen (XWayland or
+Wayland); to compare the drawing alone, draw into an offscreen target.
 
 ## Converting an FBX file to glTF with Blender
 

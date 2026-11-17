@@ -77,6 +77,12 @@ rcssmonitor reads from the animations how fast each one goes, so that the
 feet do not slide. If something is wrong, the pack is marked "cannot be
 drawn" and its tooltip tells why.
 
+Mixamo's characters often have many more triangles than the bundled
+bodies (one has about 55,000, three times the Human's), and take more of
+the GPU. If the 3D view is slow, keep the shadows simple, or make the
+character lighter: see "How heavy a pack may be" in
+[FIGURE_PACKS.md](FIGURE_PACKS.md).
+
 ## 4. The team colors
 
 The template draws the character in its own colors. To dress the players
