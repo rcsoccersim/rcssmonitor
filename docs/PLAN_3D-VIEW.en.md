@@ -7,7 +7,7 @@
 | Reference implementation | rcssmonitor-web 20.0.0-beta.2 (tag `v20.0.0-beta.2`, ed36941). Its working tree is `../rcssmonitor-web`, next to this repository |
 | Server referred to | The asio version of rcssserver 19.x. Its working tree is `../rcssserver` (branch `feature/asio-migration`), next to this repository |
 | Japanese version | [PLAN_3D-VIEW.md](PLAN_3D-VIEW.md) (same content; §0.1) |
-| Status | Phase 8 done (2026-11-15). Phase 9 (figure packs) under way (9-6 under way). The work is on `feature/3d-view` |
+| Status | Phase 9 done (2026-11-17). Before Phase 10, the TCP / WebSocket support (`feature/support-tcp-ws`) is merged into develop, and develop into `feature/3d-view` ("Merging the TCP / WebSocket support" in §9) |
 
 ## 0. How to use this plan
 
@@ -95,7 +95,7 @@ State on 2026-11-11: the user decided D7, D10, and D11 ("Decided" in the table; 
 | D4 | Is 3D optional in the build | CMake option `ENABLE_3D` (default ON). Where OpenGL 3.3 is unavailable, 3D is disabled at run time and the program works in 2D only | Make it mandatory | Keep 2D monitoring usable as before on old GPUs and virtual machines |
 | D5 | glTF loading | cgltf (single header, MIT) plus our own animation evaluation | tinygltf (MIT), Assimp (BSD, large) | As in §5.8, the pose is computed from the log every time, so no animation player is needed; reading the keyframes is enough |
 | D6 | Figure model | Re-export the web version's `Mannequin.glb` (CC0) without compression and put it in the Qt resources (qrc) | Bundle the meshoptimizer decoder (MIT) and read the web version's file as is | The web version's file requires `EXT_meshopt_compression` and `KHR_mesh_quantization`. For a desktop app, fewer dependencies matter more than size |
-| D7 | Base of the work | **Decided**: derive from `develop`. Leave `feature/support-tcp-ws` unmerged, and merge it once it is adopted (§3.5) | (Original recommendation) merge `feature/support-tcp-ws` first and branch from there / branch directly from `feature/support-tcp-ws` | Whether to adopt the TCP / WebSocket support officially has not been decided (user). The 3D view diff can also be reviewed separately |
+| D7 | Base of the work | **Decided**: derive from `develop`. Leave `feature/support-tcp-ws` unmerged, and merge it once it is adopted (§3.5). → 2026-11-17: as it is likely to be adopted officially, it is merged into develop before Phase 10 (user; "Merging the TCP / WebSocket support" in §9) | (Original recommendation) merge `feature/support-tcp-ws` first and branch from there / branch directly from `feature/support-tcp-ws` | Whether to adopt the TCP / WebSocket support officially has not been decided (user). The 3D view diff can also be reviewed separately |
 | D8 | Version | 20.0.0 (aligned with asio rcssserver 20 and rcssmonitor-web 20) | 19.1.0 etc. | The Qt6 support and the 3D view are big changes |
 | D9 | Branch policy | Same as the web version (master: releases, develop: integration, feature/*: work, hotfix/*). Merges use a merge commit by default (decided by the user on 2026-11-11; squash merges were also used before). When a squash merge fits, and the per-phase branches, in §9.1 | Follow rcssmonitor's current practice | The web version's `docs/release.md` |
 | D10 | master's AppImage workflow (§3.2) | **Decided**: drop the AppImage (option B of §2.4, 2026-11-11). The current workflow is a maintenance burden (the user disabled it in the GitHub UI), and with the browser version of the monitor, the AppImage is less needed (user). Option A was tried and worked, but is not adopted | Keep it as is (the code would have to stay buildable with Qt 5.12, which conflicts with D2) | It requires maintaining an Ubuntu 20.04 (end of support) Docker image, `qt5-default`, and custom shell and Python scripts. It builds with autotools, so 3D would not be included (D3) |
@@ -194,6 +194,7 @@ As in D7, the branches of this plan do not include `feature/support-tcp-ws`. Whe
 - In Phase 1, the application sources (all but `main.cpp`) were gathered into the library `rcssmonitor_core` in `src/CMakeLists.txt`. Add the sources of the TCP / WebSocket support to `rcssmonitor_core`, not to `add_executable`.
 - Phase 3 (Qt6 support) does not cover the files added by the TCP / WebSocket support (`connect_dialog.cpp`, `*_monitor_transport.cpp`, `message_splitter.cpp`). When merging, merge develop into `feature/support-tcp-ws` (no rebase, since it has been pushed), port those files and the CMake lookup of WebSockets (`Qt${QT_VERSION_MAJOR}::WebSockets`) to Qt6 there, and then make the PR. WebSocket on Qt6 needs `qt6-websockets-dev` (not installed on the work machine).
 - Of the line numbers in this plan (§6), those in `main_window.cpp` shift after the merge.
+- A trial merge on 2026-11-17 (`git merge-tree`, the working tree untouched): `feature/support-tcp-ws` still branches from develop's 01f880a (before Phase 0). Merging develop (2a88791) into `feature/support-tcp-ws` conflicts in 7 files: `CMakeLists.txt`, `README.md`, `src/CMakeLists.txt`, `src/Makefile.am`, `src/main_window.cpp`, `src/src.pro` (deleted in develop, D11), and `test/CMakeLists.txt` (made by both). Merging `feature/support-tcp-ws` into `feature/3d-view` conflicts in 9: those and `src/options.{h,cpp}`. The work machine has Qt5's WebSockets (`libqt5websockets5-dev`) and not Qt6's (`qt6-websockets-dev`).
 
 ## 4. The 3D view of the reference implementation (rcssmonitor-web)
 
@@ -650,6 +651,12 @@ Each phase proceeds on a feature branch and is merged into develop when it is do
 **Work**: §5.9. → Steps (2026-11-15, agreed by the user): 9-1 the base of the packs (the format of `figure.json`, the places, why a pack cannot be read, the bundled Mannequin and human bodies written as packs (looking the same), choosing in the options and the dialog, showing the credits). 9-2 glTF and VRM models (textures, how each material is painted, the bone roles of VRM 0.x and 1.0, the presets of the bone maps, the A-pose correction, textures in the drawing). 9-3 FBX (ufbx bundled, units and axes, Mixamo's names, clips in other files, removing the root motion, the template and the steps for Mixamo, the document of converting with Blender). 9-4 BVH and VRMA motions, and walking and running forward, backward and sideways made from 100STYLE (CC BY 4.0) and bundled. 9-5 actions by clips (walking and running mixed by the way the figure goes, turning on the spot, the kick, the sliding tackle, falling and getting up, the goalie's catch and dive, pointing; the present poses without clips). → 2026-11-16 (agreed by the user): 9-4 is split in two, and walking and running mixed by the way the figure goes moved from 9-5. 9-4a reading BVH and VRMA (as clip files and as the motion's model; the facing found by itself; a preset `xsens` of 100STYLE's bone names). 9-4b walking and running backward and sideways (BW, SW, BR, SR) made from 100STYLE's Neutral and bundled, and the clips mixed by the way the figure goes (optional clips `walk_back`, `jog_back`, `walk_left`, `walk_right`, `jog_left`, `jog_right`). 9-5 turning on the spot, the kick, the sliding tackle, falling and getting up, the goalie's catch and dive, pointing. 9-6 finishing (measuring with a heavy pack, the documents, the user's check). → 2026-11-16: walking and running mixed by the way the figure goes (9-4b) are fixed as the user finds odd motion, looking at many scenes on screen ("What remains" of 9-4b in §14). → 2026-11-16 (agreed by the user): 9-5 is split in two. 9-5a the clips of the actions (the kick, the sliding tackle, falling and getting up, the goalie's catch and dive; the slide and getting up of the Universal Animation Library 2 [Standard] (CC0) bundled). 9-5b turning on the spot (stepping without a clip). Pointing keeps the pose made here.
 
 **Done when**: a pack made of Mixamo models and motions that the user downloaded works. It combines with the bundled pack (the bundled motions on a model of another skeleton). The user checks it on real logs.
+
+### Merging the TCP / WebSocket support (before Phase 10, 2026-11-17, user)
+
+**Work**: §3.5. (1) On `feature/support-tcp-ws`, merge develop (no rebase, as it has been pushed), resolve the conflicts, and port the added files to Qt6 (no deprecated API), the CMake lookup of WebSockets to Qt6, the added sources into `rcssmonitor_core`, the `message_splitter` test with `rcssmonitor_add_test`, Qt5's and Qt6's WebSockets packages in the CI, autotools, and the README and NEWS. The user makes the PR to develop and merges it (Merge Commit). (2) Merge develop into `feature/3d-view` and resolve the conflicts. Check that the toolbar's connect button (the toolbar made like the web version's in Phase 8) opens the dialog that chooses the host and the transport, that the referee's test (`referee_commands`) passes with the new connection, and that the 3D view's live drawing (two cycles behind, `LiveClock`) is smooth over TCP and WebSocket too.
+
+**Done when**: the CI of (1) and (2) passes. The user checks live connections over UDP, TCP and WebSocket, in 2D and 3D.
 
 ### Phase 10: Documents and release
 
@@ -2836,3 +2843,18 @@ The 2 commits of the ball's sizes of 2D and 3D (69a0933, bc7f9f7) were pushed, a
 
 **Found**
 - The copyright shown at the start still says "2009 - 2022". The year is to be updated at the official release (Phase 10).
+
+#### 2026-11-17: Step 9-6, the user's check and the end of Phase 9 (`feature/3d-view`)
+
+The 2 commits of the documents' review (a60074b, 5690af9) were pushed, and the CI passed.
+
+**The user's check**
+- A pack of Mixamo's models and motions: it can be made by the steps of the document. But Mixamo's site was confusing: after choosing an animation in "Animations" first and then going to "Characters", the chosen character moves with that animation, and its download shows the animation's settings dialog. It took a while to notice that the chosen animation can be closed with its close button. It is the site's design and may change, so an explanation should carry the date it was last checked (user).
+- The bundled motion on a model of another skeleton: with test-mixamo's `"motion"` set to `"mannequin"`, the Mixamo body moved with the bundled motion.
+- The motion and the looks were checked on real logs (no problem).
+
+**What was fixed**: at the start of `docs/FIGURE_PACKS_MIXAMO.md`, the date when the steps on Mixamo's site were last checked (2026-11-17), and that the site may change. In the section of downloading the character: an animation chosen stays on the characters, so close it with its close button first (the site as of 2026-11-17).
+
+**Phase 9 done**: a pack made of Mixamo models and motions that the user downloaded works. It combines with the bundled pack (the bundled motions on a model of another skeleton). The user checked it on real logs. The conditions of Phase 9 are met.
+
+**Decided (user)**: the TCP / WebSocket support (`feature/support-tcp-ws`) is likely to be adopted officially, so it is merged into develop before Phase 10 (D7, §3.5, "Merging the TCP / WebSocket support" in §9). The trial merge is in §3.5.

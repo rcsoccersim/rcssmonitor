@@ -7,7 +7,7 @@
 | 参照実装 | rcssmonitor-web 20.0.0-beta.2 (タグ `v20.0.0-beta.2`、ed36941)。作業ツリーは、このリポジトリと並べて置いた `../rcssmonitor-web` |
 | 参照したサーバ | asio 版 rcssserver 19.x。作業ツリーは、このリポジトリと並べて置いた `../rcssserver` (`feature/asio-migration` ブランチ) |
 | 英語版 | [PLAN_3D-VIEW.en.md](PLAN_3D-VIEW.en.md) (内容は同じ。§0.1) |
-| 状態 | Phase 8 は済 (2026-11-15)。Phase 9 (人型パック) の作業中 (9-6 の作業中)。作業は `feature/3d-view` |
+| 状態 | Phase 9 は済 (2026-11-17)。Phase 10 の前に、TCP / WebSocket 対応 (`feature/support-tcp-ws`) を develop に取り込み、develop を `feature/3d-view` に取り込む (§9 の「TCP / WebSocket 対応の取り込み」) |
 
 ## 0. この計画書の使い方
 
@@ -95,7 +95,7 @@ Phase 0 でユーザに確かめてから進める。推奨案は、この計画
 | D4 | 3D をビルドの任意にするか | CMake の `ENABLE_3D` (既定 ON)。OpenGL 3.3 が使えない環境では、実行時に 3D を無効にして 2D だけで動く | 必須にする | 古い GPU や仮想マシンでも、2D の監視は今までどおり使えるようにする |
 | D5 | glTF の読み込み | cgltf (1 つのヘッダ、MIT) と、アニメーションの評価を自前で書く | tinygltf (MIT)、Assimp (BSD、大きい) | §5.8 のとおり、姿勢はログから毎回求めるので、アニメーションの再生機は要らず、キーフレームを読むだけでよい |
 | D6 | 人型のモデル | web 版の `Mannequin.glb` (CC0) を、圧縮なしで書き出し直して Qt のリソース (qrc) に入れる | meshoptimizer のデコーダ (MIT) を同梱して、web 版のファイルをそのまま読む | web 版のファイルは `EXT_meshopt_compression` と `KHR_mesh_quantization` を必須にしている。デスクトップのアプリでは大きさより依存の少なさを取る |
-| D7 | 作業の土台 | **決定**: `develop` から派生させる。`feature/support-tcp-ws` は取り込まずに残し、採用が決まってから取り込む (§3.5) | (当初の推奨) `feature/support-tcp-ws` を先に取り込み、そこから切る / `feature/support-tcp-ws` から直接切る | TCP / WebSocket 対応を公式に採用するかがまだ決まっていない (ユーザ)。3D 表示の差分とも分けて見られる |
+| D7 | 作業の土台 | **決定**: `develop` から派生させる。`feature/support-tcp-ws` は取り込まずに残し、採用が決まってから取り込む (§3.5)。 → 2026-11-17: 公式に採用できる見込みになったので、Phase 10 の前に develop に取り込む (ユーザ。§9 の「TCP / WebSocket 対応の取り込み」) | (当初の推奨) `feature/support-tcp-ws` を先に取り込み、そこから切る / `feature/support-tcp-ws` から直接切る | TCP / WebSocket 対応を公式に採用するかがまだ決まっていない (ユーザ)。3D 表示の差分とも分けて見られる |
 | D8 | 版 | 20.0.0 (asio 版 rcssserver 20、rcssmonitor-web 20 にそろえる) | 19.1.0 など | Qt6 対応と 3D 表示は大きな変更 |
 | D9 | ブランチの方針 | web 版と同じ (master: リリース、develop: 取り込み先、feature/*: 作業、hotfix/*)。取り込みは Merge Commit を基本にする (2026-11-11 にユーザが決めた。それまでは Squash Merge も使っていた)。Squash Merge が向く条件と、フェーズごとのブランチは §9.1 | 今の rcssmonitor の運用に合わせる | web 版の `docs/release.md` |
 | D10 | master の AppImage ワークフロー (§3.2) | **決定**: AppImage を廃止する (§2.4 の案 B、2026-11-11)。今のワークフローは保守の負担になっていて (ユーザが GitHub の画面で無効にした)、ブラウザ版のモニタがあるので AppImage の必要性も低い (ユーザ)。案 A は試して動いたが、採用しない | 今のまま残す (Qt 5.12 でもビルドできる範囲にとどめることになり、D2 と合わない) | Ubuntu 20.04 (サポート終了) の Docker イメージ、`qt5-default`、自前のシェルと Python のスクリプトを保守し続ける必要がある。autotools でビルドするので 3D が入らない (D3) |
@@ -194,6 +194,7 @@ D7 のとおり、この計画のブランチは `feature/support-tcp-ws` を含
 - Phase 1 で、アプリのソース (`main.cpp` 以外) は `src/CMakeLists.txt` のライブラリ `rcssmonitor_core` にまとめた。TCP / WebSocket 対応で足したソースは、`add_executable` ではなく `rcssmonitor_core` に足す。
 - Phase 3 (Qt6 対応) は、TCP / WebSocket 対応で足したファイル (`connect_dialog.cpp`、`*_monitor_transport.cpp`、`message_splitter.cpp`) を含まない。取り込むときは、develop を `feature/support-tcp-ws` にマージし (プッシュ済みなので rebase はしない)、そこでこれらのファイルの Qt6 対応と、WebSockets を探す CMake の Qt6 対応 (`Qt${QT_VERSION_MAJOR}::WebSockets`) を行ってから、PR にする。Qt6 で WebSocket を使うには `qt6-websockets-dev` が要る (作業マシンには未導入)。
 - 計画書の行番号 (§6) のうち、`main_window.cpp` の行は、取り込んだ後にずれる。
+- 2026-11-17 に試しにマージした (`git merge-tree`。作業ツリーは変えない)。`feature/support-tcp-ws` は今も develop の 01f880a (Phase 0 の前) から分かれている。develop (2a88791) を `feature/support-tcp-ws` に入れると、衝突は 7 つ: `CMakeLists.txt`、`README.md`、`src/CMakeLists.txt`、`src/Makefile.am`、`src/main_window.cpp`、`src/src.pro` (develop で消した。D11)、`test/CMakeLists.txt` (どちらも作った)。`feature/support-tcp-ws` を `feature/3d-view` に入れると、加えて `src/options.{h,cpp}` の 9 つ。作業マシンには Qt5 の WebSockets (`libqt5websockets5-dev`) はあり、Qt6 の (`qt6-websockets-dev`) はない。
 
 ## 4. 参照実装 (rcssmonitor-web) の 3D 表示
 
@@ -650,6 +651,12 @@ web 版の `docs/parity.md` §7。行番号は 2026-11-11 の develop (01f880a) 
 **作業**: §5.9。 → 区切り (2026-11-15、ユーザが了承): 9-1 パックの土台 (`figure.json` の形式、置き場所、読めないパックの理由、同梱のマネキンと人の体をパックの形式で書き直す (見た目は変えない)、設定とダイアログでの選択、出典の表示)。9-2 glTF と VRM のモデル (テクスチャ、材質ごとの塗り方、VRM 0.x と 1.0 の骨の役割、骨の対応の型、A ポーズの補正、描画のテクスチャ対応)。9-3 FBX (ufbx を同梱、単位と軸、Mixamo の命名、別のファイルのクリップ、ルートモーションを取り除く、Mixamo 用のひな形と手順書、Blender での変換の文書)。9-4 BVH と VRMA のモーション、100STYLE (CC BY 4.0) から前・後・横の歩きと走りを加工して同梱。9-5 クリップで動かす動作 (進む向きで混ぜる歩きと走り、その場の向き変え、キック、スライディング、倒れて起きる、キーパーのキャッチと横っ飛び、指差し。クリップがなければ今の姿勢)。 → 2026-11-16 (ユーザが了承): 9-4 を 2 つに分け、進む向きで混ぜる歩きと走りを 9-5 から移した。9-4a BVH と VRMA の読み込み (クリップのファイルとモーションのモデル。向きは自動、100STYLE の骨の名前の既成 `xsens`)。9-4b 100STYLE の Neutral から後ろと横の歩きと走り (BW、SW、BR、SR) を加工して同梱し、進む向きでクリップを混ぜる (任意のクリップ `walk_back`、`jog_back`、`walk_left`、`walk_right`、`jog_left`、`jog_right`)。9-5 はその場の向き変え、キック、スライディング、倒れて起きる、キーパーのキャッチと横っ飛び、指差し。9-6 仕上げ (重いパックでの計測、文書、ユーザの確認)。 → 2026-11-16: 9-4b の進む向きで混ぜる歩きと走りは、ユーザが画面で多くの場面を見て、おかしな動きを見つけたら直す (§14 の 9-4b の「残ること」)。 → 2026-11-16 (ユーザが了承): 9-5 を 2 つに分けた。9-5a 動作のクリップ (キック、スライディング、倒れて起きる、キーパーのキャッチと横っ飛び。Universal Animation Library 2 [Standard] (CC0) のスライディングと起き上がりを同梱)。9-5b その場の向き変え (クリップがなければ足踏み)。指差しは手続きの姿勢のまま。
 
 **完了条件**: ユーザがダウンロードした Mixamo のモデルとモーションで、パックを作って使える。同梱のパックと組み合わせられる (別の骨格のモデルに同梱のモーション)。ユーザが実際のログで確かめる。
+
+### TCP / WebSocket 対応の取り込み (Phase 10 の前、2026-11-17、ユーザ)
+
+**作業**: §3.5。(1) `feature/support-tcp-ws` で develop をマージし (プッシュ済みなので rebase はしない)、衝突を解き、足したファイルの Qt6 対応 (非推奨の API をなくす)、WebSockets を探す CMake の Qt6 対応、足したソースを `rcssmonitor_core` に、`message_splitter` のテストを `rcssmonitor_add_test` で、CI に Qt5 と Qt6 の WebSockets のパッケージ、autotools、README と NEWS。ユーザが develop への PR を作り、取り込む (Merge Commit)。(2) develop を `feature/3d-view` にマージし、衝突を解く。ツールバーの接続のボタン (Phase 8 で web 版にそろえたツールバー) が、接続先と方式を選ぶダイアログを開くこと、審判操作のテスト (`referee_commands`) が新しい接続の作りで通ること、3D のライブの描き方 (2 サイクル遅れ、`LiveClock`) が TCP と WebSocket でもなめらかなことを確かめる。
+
+**完了条件**: (1) と (2) の CI が通る。ユーザが UDP、TCP、WebSocket のライブ接続を、2D と 3D で確かめる。
 
 ### Phase 10: 文書とリリース
 
@@ -2836,3 +2843,18 @@ QOpenGLWindow の 2 コミット (393f02d、fd35a21) をプッシュした。
 
 **見つけたこと**
 - 起動時の Copyright の表示が「2009 - 2022」のまま。公式のリリース (Phase 10) で西暦を直す。
+
+#### 2026-11-17: 区切り 9-6、ユーザの確認と Phase 9 の終わり (`feature/3d-view`)
+
+文書の見直しの 2 コミット (a60074b、5690af9) をプッシュし、CI が通った。
+
+**ユーザの確認**
+- Mixamo のモデルとモーションのパック: 手順書のとおりに作れる。ただ、Mixamo のサイトの操作に戸惑った: 「Animations」で先にアニメーションを選んでから「Characters」へ移ると、選んだキャラクターがそのアニメーションで動いていて、ダウンロードしようとするとアニメーションの設定のダイアログが出る。選んだアニメーションを閉じるボタンで閉じられることに気づくまでに時間がかかった。サイトのデザインの問題で、将来変わりうるので、説明を入れるなら最後に確かめた日を添える (ユーザ)。
+- 別の骨格のモデルに同梱のモーション: test-mixamo の `"motion"` を `"mannequin"` にすると、Mixamo の体が同梱の動きで動いた。
+- 実際のログで、動きと見た目を確かめた (問題なし)。
+
+**直したこと**: `docs/FIGURE_PACKS_MIXAMO.md` の初めに、Mixamo のサイトの手順を最後に確かめた日 (2026-11-17) と、サイトが変わりうることを書いた。キャラクターのダウンロードの節に、選んだアニメーションはキャラクターに残るので、先に閉じるボタンで閉じること (2026-11-17 のサイト) を書いた。
+
+**Phase 9 の完了条件**: ユーザがダウンロードした Mixamo のモデルとモーションで、パックを作って使える。同梱のパックと組み合わせられる (別の骨格のモデルに同梱のモーション)。ユーザが実際のログで確かめた。Phase 9 の完了条件を満たした。
+
+**決めたこと (ユーザ)**: TCP / WebSocket 対応 (`feature/support-tcp-ws`) は公式に採用できる見込みになったので、Phase 10 の前に develop に取り込む (D7、§3.5、§9 の「TCP / WebSocket 対応の取り込み」)。試しにマージした結果は §3.5。
