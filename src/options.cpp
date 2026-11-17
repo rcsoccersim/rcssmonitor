@@ -223,6 +223,7 @@ Options::Options()
     M_stands_3d( STANDS_3D ),
     M_ball_pattern_3d( BALL_PATTERN_3D ),
     M_ball_flight_3d( BALL_FLIGHT_3D ),
+    M_ball_size_3d( BALL_SIZE_3D ),
     M_ball_ring_3d( BALL_RING_3D ),
     M_ball_ring_radius_3d( BALL_RING_RADIUS_3D ),
     M_ball_trail_3d( BALL_TRAIL_3D ),
@@ -745,6 +746,12 @@ Options::readSettings()
     val = settings.value( "ball_flight_3d" );
     if ( val.isValid() ) M_ball_flight_3d = val.toBool();
 
+    val = settings.value( "ball_size_3d" );
+    if ( val.isValid() && in_range( val.toDouble(), MIN_BALL_SIZE_3D, MAX_BALL_SIZE_3D ) )
+    {
+        M_ball_size_3d = val.toDouble();
+    }
+
     val = settings.value( "ball_ring_3d" );
     if ( val.isValid() ) M_ball_ring_3d = val.toBool();
 
@@ -977,6 +984,7 @@ Options::writeSettings( bool all )
     settings.setValue( "stands_3d", M_stands_3d );
     settings.setValue( "ball_pattern_3d", M_ball_pattern_3d );
     settings.setValue( "ball_flight_3d", M_ball_flight_3d );
+    settings.setValue( "ball_size_3d", M_ball_size_3d );
     settings.setValue( "ball_ring_3d", M_ball_ring_3d );
     settings.setValue( "ball_ring_radius_3d", M_ball_ring_radius_3d );
     settings.setValue( "ball_trail_3d", M_ball_trail_3d );
@@ -1063,6 +1071,7 @@ Options::setPlayersAndBall3DDefaults()
     M_figure_bodies_3d = FIGURE_BODIES_3D;
     M_ball_pattern_3d = BALL_PATTERN_3D;
     M_ball_flight_3d = BALL_FLIGHT_3D;
+    M_ball_size_3d = BALL_SIZE_3D;
     M_ball_ring_3d = BALL_RING_3D;
     M_ball_ring_radius_3d = BALL_RING_RADIUS_3D;
     M_ball_trail_3d = BALL_TRAIL_3D;
@@ -1076,6 +1085,13 @@ Options::setCamera3DDefaults()
     M_closeup_distance_3d = CLOSEUP_DISTANCE_3D;
     M_closeup_elevation_3d = CLOSEUP_ELEVATION_3D;
     M_player_camera = PlayerCameraOptions();
+}
+
+/*-------------------------------------------------------------------*/
+void
+Options::setBallSize3D( const double radius )
+{
+    M_ball_size_3d = std::min( MAX_BALL_SIZE_3D, std::max( MIN_BALL_SIZE_3D, radius ) );
 }
 
 /*-------------------------------------------------------------------*/
@@ -1237,6 +1253,13 @@ Options::parseCmdLine( int argc,
                                            "The 3D view: in log replay, the ball flies in the air, virtually (from the kicks, the touches and the opponents on the way). (Default=" + to_onoff( M_ball_flight_3d ) + ")",
                                            "bool", to_onoff( M_ball_flight_3d ) );
     parser.addOption( opt_ball_flight_3d );
+    QCommandLineOption opt_ball_size_3d( "ball-size-3d",
+                                         "The 3D view: the ball radius (m), "
+                                         + to_string( MIN_BALL_SIZE_3D ) + " to " + to_string( MAX_BALL_SIZE_3D )
+                                         + "; below 0.01, the real size (the server's ball_size). (Default="
+                                         + to_string( M_ball_size_3d ) + ")",
+                                         "radius", to_string( M_ball_size_3d ) );
+    parser.addOption( opt_ball_size_3d );
     QCommandLineOption opt_ball_ring_3d( "ball-ring-3d",
                                          "The 3D view: a ring on the ground around the ball. (Default=" + to_onoff( M_ball_ring_3d ) + ")",
                                          "bool", to_onoff( M_ball_ring_3d ) );
@@ -1459,7 +1482,7 @@ Options::parseCmdLine( int argc,
                                       to_onoff( M_show_card ) );
     parser.addOption( opt_show_card );
     QCommandLineOption opt_ball_size( "ball-size",
-                                      "Set the ball radius. (Default=" + to_string( M_ball_size ) + ")",
+                                      "Set the ball radius in the 2D view; below 0.01, the real size. (Default=" + to_string( M_ball_size ) + ")",
                                       "double",
                                       to_string( M_ball_size ) );
     parser.addOption( opt_ball_size );
@@ -1549,6 +1572,13 @@ Options::parseCmdLine( int argc,
     if ( parser.isSet( opt_stands_3d ) ) M_stands_3d = to_bool( parser.value( opt_stands_3d ), M_stands_3d );
     if ( parser.isSet( opt_ball_pattern_3d ) ) M_ball_pattern_3d = to_bool( parser.value( opt_ball_pattern_3d ), M_ball_pattern_3d );
     if ( parser.isSet( opt_ball_flight_3d ) ) M_ball_flight_3d = to_bool( parser.value( opt_ball_flight_3d ), M_ball_flight_3d );
+    if ( parser.isSet( opt_ball_size_3d ) )
+    {
+        bool ok = false;
+        const double r = parser.value( opt_ball_size_3d ).toDouble( &ok );
+        if ( ok && in_range( r, MIN_BALL_SIZE_3D, MAX_BALL_SIZE_3D ) ) M_ball_size_3d = r;
+        else std::cerr << "Out of range: ball-size-3d " << parser.value( opt_ball_size_3d ).toStdString() << std::endl;
+    }
     if ( parser.isSet( opt_ball_ring_3d ) ) M_ball_ring_3d = to_bool( parser.value( opt_ball_ring_3d ), M_ball_ring_3d );
     if ( parser.isSet( opt_ball_ring_radius_3d ) )
     {

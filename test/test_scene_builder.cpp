@@ -336,6 +336,51 @@ private slots:
           }
       }
 
+    /*!
+      the ball's size in the 3D view: its own option, apart from the 2D
+      view's; the real one (the server's ball_size) below 0.01
+    */
+    void ballSize()
+      {
+          Options & opt = Options::instance();
+          const double size_2d = opt.ballSize();
+          const double real = M_holder.serverParam().ball_size_;
+          rcss::rcg::ShowInfoT show = makeShow();
+          show.ball_.x_ = 3.0f;
+          show.ball_.y_ = -4.0f;
+          show.ball_.z_ = 2.0f;
+          const auto radius = [&]() {
+              SceneContent c;
+              SceneBuilder::addShow( c, show, M_holder, opt );
+              return ( at( c.balls.back() ) - at( c.balls.back(), QVector3D( 0, -1, 0 ) ) ).length();
+          };
+
+          // the real size by default, whatever the 2D view's
+          QCOMPARE( opt.ballSize3D(), Options::BALL_SIZE_3D );
+          QCOMPARE( SceneBuilder::ballRadius( opt, real ), real );
+          QVERIFY( near( radius(), float( real ) ) );
+          opt.setBallSize( 0.8 );
+          QCOMPARE( SceneBuilder::ballRadius( opt, real ), real );
+          QVERIFY( near( radius(), float( real ) ) );
+
+          // its own
+          opt.setBallSize3D( 0.2 );
+          QCOMPARE( SceneBuilder::ballRadius( opt, real ), 0.2 );
+          QVERIFY( near( radius(), 0.2f ) );
+          // in the air by its radius
+          {
+              SceneContent c;
+              SceneBuilder::addShow( c, show, M_holder, opt );
+              QVERIFY( near( at( c.balls.back() ), QVector3D( 3, 2.2f, -4 ) ) );
+          }
+          // below 0.01, the real one
+          opt.setBallSize3D( 0.005 );
+          QCOMPARE( SceneBuilder::ballRadius( opt, real ), real );
+
+          opt.setBallSize3D( Options::BALL_SIZE_3D );
+          opt.setBallSize( size_2d );
+      }
+
     void labelsFar()
       {
           LabelAtlas atlas;

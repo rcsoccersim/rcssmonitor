@@ -144,7 +144,7 @@ double
 ballRadius( const Options & options,
             const double ball_size )
 {
-    return options.ballSize() >= 0.01 ? options.ballSize() : ball_size;
+    return options.ballSize3D() >= 0.01 ? options.ballSize3D() : ball_size;
 }
 
 /*-------------------------------------------------------------------*/

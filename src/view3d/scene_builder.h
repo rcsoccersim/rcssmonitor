@@ -147,7 +147,11 @@ constexpr float GOAL_FLOOR_OPACITY = 0.35f;
 //! the rotation about y (degrees) that turns +x to a direction of the field (degrees)
 inline float yaw( const float direction ) { return -direction; }
 
-//! the ball's radius: the option, or the real size below 0.01 (as in 2D)
+/*!
+  the ball's radius in the 3D view: its own option (Options::ballSize3D(),
+  apart from the 2D view's), or the real size (ball_size, the server's)
+  below 0.01, as in 2D
+*/
 double ballRadius( const Options & options,
                    const double ball_size );
 

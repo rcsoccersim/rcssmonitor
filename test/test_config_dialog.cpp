@@ -57,6 +57,7 @@
 #include <QToolButton>
 #include <QDoubleSpinBox>
 #include <QLabel>
+#include <QLineEdit>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QTabWidget>
@@ -81,6 +82,7 @@ private slots:
 
     void tabs3D();
     void view3DTab();
+    void ballSizes();
     void numberRange();
     void update3D();
     void figurePacks();
@@ -290,7 +292,8 @@ TestConfigDialog::tabs3D()
         { "player_model_3d", "Players && Ball" }, { "figure_folder_3d", "Players && Ball" },
         { "figure_credits_3d", "Players && Ball" }, { "figure_bodies_3d", "Players && Ball" },
         { "figure_scale_3d", "Players && Ball" }, { "ball_pattern_3d", "Players && Ball" },
-        { "ball_flight_3d", "Players && Ball" }, { "ball_ring_3d", "Players && Ball" },
+        { "ball_flight_3d", "Players && Ball" }, { "ball_size_3d", "Players && Ball" },
+        { "ball_ring_3d", "Players && Ball" },
         { "ball_trail_3d", "Players && Ball" }, { "ball_ring_radius_3d", "Players && Ball" },
         { "ball_trail_cycles_3d", "Players && Ball" }, { "default_players_ball_3d", "Players && Ball" },
         { "closeup_distance_3d", "Camera" }, { "closeup_elevation_3d", "Camera" },
@@ -388,7 +391,7 @@ TestConfigDialog::tabs3D()
     QVERIFY( ! child< QCheckBox >( dialog, "sky_3d" )->toolTip().isEmpty() );
     QVERIFY( ! child< QCheckBox >( dialog, "stands_3d" )->toolTip().isEmpty() );
     QVERIFY( ! child< QCheckBox >( dialog, "ball_pattern_3d" )->toolTip().isEmpty() );
-    QVERIFY( child< QPushButton >( dialog, "default_players_ball_3d" )->toolTip().contains( "Ball Pattern On, Flight Off, Ring On (0.7 m), Trail On (5 cycles)" ) );
+    QVERIFY( child< QPushButton >( dialog, "default_players_ball_3d" )->toolTip().contains( "Ball Pattern On, Flight Off, Size Real, Ring On (0.7 m), Trail On (5 cycles)" ) );
     QVERIFY( child< QPushButton >( dialog, "default_3d" )->toolTip().contains( "Compass Off, Minimap Off, FPS Off, Smooth Edges On, Shadows Simple," ) );
     QVERIFY( ! child< QCheckBox >( dialog, "fps_3d" )->toolTip().isEmpty() );
     QVERIFY( ! child< QCheckBox >( dialog, "antialias_3d" )->toolTip().isEmpty() );
@@ -396,10 +399,13 @@ TestConfigDialog::tabs3D()
     {
         QVERIFY2( ! child< QCheckBox >( dialog, name )->toolTip().isEmpty(), name );
     }
-    for ( const char * name : { "ball_ring_radius_3d", "ball_trail_cycles_3d" } )
+    for ( const char * name : { "ball_size_3d", "ball_ring_radius_3d", "ball_trail_cycles_3d" } )
     {
         QVERIFY2( child< QDoubleSpinBox >( dialog, name )->toolTip().contains( "Range:" ), name );
     }
+    // the ball's sizes, each telling of the other
+    QVERIFY( child< QDoubleSpinBox >( dialog, "ball_size_3d" )->toolTip().contains( "The 2D view has its own" ) );
+    QVERIFY( child< QLineEdit >( dialog, "ball_size" )->toolTip().contains( "The 3D view has its own" ) );
     QVERIFY( child< QPushButton >( dialog, "default_3d" )->toolTip().contains( "Boards On, Banners On, Stands On, Grass Stripes, Sky On" ) );
     QVERIFY( child< QPushButton >( dialog, "default_players_ball_3d" )->toolTip().contains( "Model Simple, Bodies Mixed, Figure Scale 1," ) );
     QVERIFY( child< QPushButton >( dialog, "default_camera_3d" )->toolTip().contains( "Close-up 12 m, 20" ) );
@@ -664,6 +670,81 @@ TestConfigDialog::view3DTab()
     QVERIFY( opt.playerCamera() == PlayerCameraOptions() );
     // the fields set back by Default do not set the options again
     QCOMPARE( spy.count(), 24 );
+#endif
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  the ball's sizes of the 2D view (the Canvas tab) and of the 3D view (the
+  Players & Ball tab), each its own: Real (the server's) at first in 3D,
+  a size set in one view not in the other, and the Players & Ball tab's
+  Default only for that of the 3D view
+*/
+void
+TestConfigDialog::ballSizes()
+{
+#ifndef HAVE_3D_VIEW
+    QSKIP( "without the 3D view" );
+#else
+    Options & opt = Options::instance();
+    resetView3D();
+    const double size_2d = opt.ballSize();
+    QCOMPARE( size_2d, 0.35 );
+
+    DispHolder holder;
+    ConfigDialog dialog( nullptr, holder );
+    dialog.show();
+    QSignalSpy spy( &dialog, SIGNAL( configured() ) );
+    QDoubleSpinBox * size_3d = child< QDoubleSpinBox >( dialog, "ball_size_3d" );
+    QLineEdit * field_2d = child< QLineEdit >( dialog, "ball_size" );
+    QVERIFY( size_3d && field_2d );
+    QCOMPARE( tabOf( dialog, size_3d ), QString( "Players && Ball" ) );
+    QCOMPARE( tabOf( dialog, field_2d ), QString( "Canvas" ) );
+
+    // the real size at first
+    QCOMPARE( opt.ballSize3D(), Options::BALL_SIZE_3D );
+    QCOMPARE( size_3d->value(), 0.0 );
+    QCOMPARE( size_3d->text(), QString( "Real" ) );
+    QCOMPARE( field_2d->text(), QString( "0.35" ) );
+
+    // the 3D view's, not the 2D view's
+    size_3d->setValue( 0.15 );
+    QCOMPARE( opt.ballSize3D(), 0.15 );
+    QCOMPARE( opt.ballSize(), size_2d );
+    QCOMPARE( spy.count(), 1 );
+    QCOMPARE( field_2d->text(), QString( "0.35" ) );
+    // as typed, to the millimeter, with Enter
+    dialog.findChild< QTabWidget * >()->setCurrentIndex( tabNames( dialog ).indexOf( "Players && Ball" ) );
+    QVERIFY( QTest::qWaitForWindowExposed( &dialog ) );
+    size_3d->setFocus();
+    size_3d->selectAll();
+    QTest::keyClicks( size_3d, "0.085" );
+    QCOMPARE( opt.ballSize3D(), 0.15 );
+    QTest::keyClick( size_3d, Qt::Key_Return );
+    QCOMPARE( opt.ballSize3D(), 0.085 );
+    // in the range
+    opt.setBallSize3D( 3.0 );
+    QCOMPARE( opt.ballSize3D(), Options::MAX_BALL_SIZE_3D );
+    opt.setBallSize3D( -1.0 );
+    QCOMPARE( opt.ballSize3D(), Options::MIN_BALL_SIZE_3D );
+    opt.setBallSize3D( 0.085 );
+
+    // the 2D view's, not the 3D view's
+    field_2d->setText( "0.5" );
+    QCOMPARE( opt.ballSize(), 0.5 );
+    QCOMPARE( opt.ballSize3D(), 0.085 );
+    QCOMPARE( size_3d->value(), 0.085 );
+
+    // the 3D tab's Default leaves it, the Players & Ball tab's sets it back
+    child< QPushButton >( dialog, "default_3d" )->click();
+    QCOMPARE( opt.ballSize3D(), 0.085 );
+    child< QPushButton >( dialog, "default_players_ball_3d" )->click();
+    QCOMPARE( opt.ballSize3D(), Options::BALL_SIZE_3D );
+    QCOMPARE( size_3d->text(), QString( "Real" ) );
+    QCOMPARE( opt.ballSize(), 0.5 ); // the 2D view's stays
+
+    field_2d->setText( "0.35" );
+    QCOMPARE( opt.ballSize(), size_2d );
 #endif
 }
 

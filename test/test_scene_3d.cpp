@@ -312,7 +312,8 @@ TestScene3D::content()
     // tinted grass, not the bare grass
     const QColor disc = first.pixelColor( w / 2 - int( 0.7 * px_per_m ), h / 2 );
     QVERIFY2( distance( disc, field ) > 20, qPrintable( disc.name() ) );
-    const QColor shadow = first.pixelColor( w / 2 + int( 2.9 * px_per_m ), h / 2 );
+    // (right under the ball, which the perspective shows farther out)
+    const QColor shadow = first.pixelColor( w / 2 + int( 3.0 * px_per_m ), h / 2 );
     QVERIFY2( shadow.lightness() < field.lightness() - 10, qPrintable( shadow.name() ) );
     // the grass far from them
     const QColor grass = first.pixelColor( w / 2 - int( 3 * px_per_m ), h / 4 );

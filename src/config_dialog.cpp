@@ -450,9 +450,20 @@ ConfigDialog::createObjectSizeControls()
 
     QHBoxLayout * box = new QHBoxLayout();
     //
-    box->addWidget( new QLabel( tr( "Ball:" ) ) );
-    //
-    M_ball_size_text = new QLineEdit( tr( "0.35" ) );
+    {
+#ifdef HAVE_3D_VIEW
+        const QString tip = tr( "The ball's radius in the 2D view, in meters, larger than the real one\n"
+                                "to be seen. The 3D view has its own (Size in the Players & Ball tab)." );
+#else
+        const QString tip = tr( "The ball's radius, in meters, larger than the real one to be seen." );
+#endif
+        QLabel * label = new QLabel( tr( "Ball:" ) );
+        label->setToolTip( tip );
+        box->addWidget( label );
+        M_ball_size_text = new QLineEdit( tr( "0.35" ) );
+        M_ball_size_text->setObjectName( "ball_size" );
+        M_ball_size_text->setToolTip( tip );
+    }
     M_ball_size_text->setValidator( new QDoubleValidator( 0.01, 100.0, 3, M_ball_size_text ) );
     M_ball_size_text->setMaximumSize( 48, 24 );
     connect( M_ball_size_text, SIGNAL( textChanged( const QString & ) ),
@@ -2181,8 +2192,22 @@ ConfigDialog::createPlayersBallTab()
 
         QGridLayout * numbers = new QGridLayout();
         numbers->setContentsMargins( 0, 0, 0, 0 );
+        M_ball_size_3d
+            = addNumber( numbers, 0, 0, tr( "Size:" ),
+                         tr( "The ball's radius in the 3D view, in meters. Real (0) by default: the real\n"
+                             "size, the server's ball_size (0.085 m by default); below 0.01 too. Larger\n"
+                             "to be seen from afar. The 2D view has its own (Ball in the Canvas tab)." ),
+                         Options::MIN_BALL_SIZE_3D, Options::MAX_BALL_SIZE_3D,
+                         0.01, 3, tr( " m" ) );
+        M_ball_size_3d->setObjectName( "ball_size_3d" );
+        M_ball_size_3d->setSpecialValueText( tr( "Real" ) );
+        connect( M_ball_size_3d, QOverload< double >::of( &QDoubleSpinBox::valueChanged ),
+                 this, [this]( double value ) {
+                     Options::instance().setBallSize3D( value );
+                     changed3D();
+                 } );
         M_ball_ring_radius_3d
-            = addNumber( numbers, 0, 0, tr( "Ring Radius:" ),
+            = addNumber( numbers, 1, 0, tr( "Ring Radius:" ),
                          tr( "The ring's radius, in meters: 0.7 m by default, the default kickable margin.\n"
                              "Only with Ring." ),
                          Options::MIN_BALL_RING_RADIUS_3D, Options::MAX_BALL_RING_RADIUS_3D,
@@ -2194,7 +2219,7 @@ ConfigDialog::createPlayersBallTab()
                      changed3D();
                  } );
         M_ball_trail_cycles_3d
-            = addNumber( numbers, 0, 2, tr( "Trail Cycles:" ),
+            = addNumber( numbers, 1, 2, tr( "Trail Cycles:" ),
                          tr( "How long the trail is: as far as the ball went in this many cycles.\n"
                              "Only with Trail." ),
                          Options::MIN_BALL_TRAIL_CYCLES_3D, Options::MAX_BALL_TRAIL_CYCLES_3D,
@@ -2219,12 +2244,14 @@ ConfigDialog::createPlayersBallTab()
         QPushButton * button = new QPushButton( tr( "Default" ) );
         button->setObjectName( "default_players_ball_3d" );
         button->setToolTip( tr( "Set the defaults: Model %1, Bodies %2, Figure Scale %3,\n"
-                                "Ball Pattern %4, Flight %5, Ring %6 (%7 m), Trail %8 (%9 cycles)" )
+                                "Ball Pattern %4, Flight %5, Size %6, Ring %7 (%8 m), Trail %9 (%10 cycles)" )
                             .arg( modelLabel( QString::fromLatin1( Options::PLAYER_MODEL_3D ) ) )
                             .arg( bodiesLabel( Options::FIGURE_BODIES_3D ) )
                             .arg( Options::FIGURE_SCALE_3D )
                             .arg( onOff( Options::BALL_PATTERN_3D ) )
                             .arg( onOff( Options::BALL_FLIGHT_3D ) )
+                            .arg( Options::BALL_SIZE_3D >= 0.01 ? QString::number( Options::BALL_SIZE_3D ) + tr( " m" )
+                                                                : tr( "Real" ) )
                             .arg( onOff( Options::BALL_RING_3D ) )
                             .arg( Options::BALL_RING_RADIUS_3D )
                             .arg( onOff( Options::BALL_TRAIL_3D ) )
@@ -2729,6 +2756,7 @@ ConfigDialog::update3D()
     M_ball_flight_3d_cb->setChecked( opt.ballFlight3D() );
     M_ball_ring_3d_cb->setChecked( opt.ballRing3D() );
     M_ball_trail_3d_cb->setChecked( opt.ballTrail3D() );
+    set_number( M_ball_size_3d, opt.ballSize3D() );
     set_number( M_ball_ring_radius_3d, opt.ballRingRadius3D() );
     set_number( M_ball_trail_cycles_3d, opt.ballTrailCycles3D() );
     // the numbers of the ring and of the trail only with them

@@ -187,6 +187,7 @@ private:
     bool M_stands_3d; //!< the stands along the touch lines
     bool M_ball_pattern_3d; //!< the ball's pattern, which shows it rolling
     bool M_ball_flight_3d; //!< the ball flying in the air in log replay, virtually
+    double M_ball_size_3d; //!< the ball's radius in the 3D view (m); below 0.01, the real size
     bool M_ball_ring_3d; //!< a ring on the ground around the ball
     double M_ball_ring_radius_3d; //!< the ring's radius (m)
     bool M_ball_trail_3d; //!< a trail behind the ball
@@ -235,7 +236,7 @@ private:
     bool M_show_offside_line;
     bool M_show_draw_info;
 
-    double M_ball_size; //!< fixed ball radius
+    double M_ball_size; //!< the ball's radius in the 2D view; below 0.01, the real size
     double M_player_size; //!< fixed player radius
     double M_focus_point_size; //!< fixed focus point radius
 
@@ -475,6 +476,18 @@ public:
     bool ballPattern3D() const { return M_ball_pattern_3d; }
     void setBallPattern3D( const bool on ) { M_ball_pattern_3d = on; }
 
+    /*!
+      the ball's radius in the 3D view by default: below 0.01, the real size
+      (the server's ball_size), as the ball aids find it where it is small.
+      The 2D view has its own (ballSize()).
+    */
+    static constexpr double BALL_SIZE_3D = 0.0;
+    static constexpr double MIN_BALL_SIZE_3D = 0.0;
+    static constexpr double MAX_BALL_SIZE_3D = 1.0;
+    double ballSize3D() const { return M_ball_size_3d; }
+    //! within MIN_BALL_SIZE_3D and MAX_BALL_SIZE_3D
+    void setBallSize3D( const double radius );
+
     static constexpr bool BALL_FLIGHT_3D = false;
     //! the 3D view: in log replay, the ball flies in the air, virtually (BallFlight; not live)
     bool ballFlight3D() const { return M_ball_flight_3d; }
@@ -616,6 +629,7 @@ public:
     bool showDrawInfo() const { return M_show_draw_info; }
     void toggleShowDrawInfo() { M_show_draw_info = ! M_show_draw_info; }
 
+    //! the ball's radius in the 2D view (the 3D view has its own: ballSize3D())
     const double & ballSize() const { return M_ball_size; }
     void setBallSize( const double & value )
       {

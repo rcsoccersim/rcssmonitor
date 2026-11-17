@@ -243,6 +243,7 @@ private:
     QCheckBox * M_ball_flight_3d_cb = nullptr;
     QCheckBox * M_ball_ring_3d_cb = nullptr;
     QCheckBox * M_ball_trail_3d_cb = nullptr;
+    QDoubleSpinBox * M_ball_size_3d = nullptr;
     QDoubleSpinBox * M_ball_ring_radius_3d = nullptr;
     QLabel * M_ball_ring_radius_3d_label = nullptr;
     QDoubleSpinBox * M_ball_trail_cycles_3d = nullptr;
