@@ -1074,6 +1074,7 @@ MainWindow::createFieldCanvas()
         M_view_stack->setAutoFillBackground( true );
     }
 
+    // kept while the 3D view is shown: update() does nothing on a hidden widget
     connect( this, SIGNAL( viewUpdated() ),
              M_field_canvas, SLOT( update() ) );
 
@@ -2263,6 +2264,8 @@ MainWindow::toggleView3D( bool on )
         // a click on it closes the menus open, as on the widgets (Wayland)
         view->installEventFilter( new PopupCloser( view ) );
         M_view_stack->addWidget( container );
+        // kept while the 2D view is shown: hidden, the window is not exposed,
+        // and update() asks for no drawing
         connect( this, &MainWindow::viewUpdated,
                  view, [view]() { view->update(); } );
         // the mouse made the camera the free camera
