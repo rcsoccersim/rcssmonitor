@@ -10,6 +10,9 @@ are. Keep the pack for yourself: do not put it in a public repository or
 share it. For the same reason rcssmonitor bundles none of them, and gives
 only the template [figure_packs/mixamo/figure.json](figure_packs/mixamo/figure.json).
 
+The steps on Mixamo's site below were last checked on 2026-11-17. The
+site may change.
+
 ## 1. Download the character
 
 On Mixamo, choose a character (or upload your own and rig it). Download it:
@@ -18,6 +21,12 @@ On Mixamo, choose a character (or upload your own and rig it). Download it:
 - Pose: **T-pose**
 
 Save it as `Character.fbx`. Its textures are in the file.
+
+An animation once chosen stays on the characters: if you chose one in
+**Animations** before choosing the character in **Characters**, the
+character comes playing it, and its download asks for the animation's
+settings instead of giving the T-pose. Close the chosen animation with
+its close button first. (Mixamo's site as of 2026-11-17.)
 
 ## 2. Download the animations
 
