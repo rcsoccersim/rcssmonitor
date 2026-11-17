@@ -53,12 +53,15 @@ begin( QOpenGLFunctions_3_3_Core & gl,
     gl.glViewport( 0, 0, width, height );
 
     // what QPainter may leave: clipping to a rectangle or a stencil, the
-    // writing of colors or depth turned off, another comparison of depth
+    // writing of colors or depth turned off, another comparison of depth,
+    // and multisampling off (it turns it off unless it antialiases: the
+    // smooth edges were lost from the second frame on, after the HUD)
     gl.glDisable( GL_SCISSOR_TEST );
     gl.glDisable( GL_STENCIL_TEST );
     gl.glColorMask( GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE );
     gl.glDepthMask( GL_TRUE );
     gl.glDepthFunc( GL_LESS );
+    gl.glEnable( GL_MULTISAMPLE );
 
     // clear: the background, and the depth to "farthest"
     gl.glClearColor( float( background.redF() ), float( background.greenF() ), float( background.blueF() ), 1.0f );

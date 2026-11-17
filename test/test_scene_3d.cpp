@@ -59,6 +59,8 @@
 #include <QOpenGLContext>
 #include <QOpenGLFramebufferObject>
 #include <QOpenGLFunctions_3_3_Core>
+#include <QOpenGLPaintDevice>
+#include <QPainter>
 
 #include <cmath>
 #include <functional>
@@ -1901,6 +1903,20 @@ TestScene3D::smoothEdges()
     }
     scene.render( fbo.handle(), w, h, camera, content, Options::ANTIALIAS_SAMPLES_3D );
     QCOMPARE( smooth, fbo.toImage() ); // the same in every frame
+    // and after the HUD, drawn by a QPainter over each frame (it may turn
+    // multisampling off, which the next frame then drew without)
+    for ( const bool hint : { false, true } )
+    {
+        fbo.bind();
+        QOpenGLPaintDevice device( w, h );
+        QPainter hud( &device );
+        hud.setRenderHint( QPainter::Antialiasing, hint );
+        hud.drawText( 10, 20, QStringLiteral( "HUD" ) );
+        hud.end();
+        fbo.release();
+        scene.render( fbo.handle(), w, h, camera, content, Options::ANTIALIAS_SAMPLES_3D );
+        QVERIFY2( smooth == fbo.toImage(), hint ? "after an antialiased painter" : "after a painter" );
+    }
 
     // other only at the edges, there mixed of the colors around
     int changed = 0, mixed = 0;
