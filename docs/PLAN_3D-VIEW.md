@@ -782,6 +782,13 @@ GL に依存しない計算を、web 版の単体テストを手本に移す。
 - 2.5 次元シミュレータのサーバ側の形式に合わせること (形式が決まってから)。
 - rcssmonitor-web の将来の拡張 (ドラッグで選手を動かす、msg の一覧など)。
 - 人型の motion matching (前の姿勢に頼るので、姿勢をログのフレームだけから決める原則 (§5.2) と合わない。2026-11-14)。
+- 2D の実装の整理 (2026-11-17、ユーザ)。この計画を終えてから、別の計画として立てる。3D の採用の判断で、3D の機能の変更だけを見てもらうため。今わかっていること:
+  - `src/` の直下に、役割の違うモジュールが並んでいる (試合のデータ: `disp_holder`、`log_player`、`monitor_client`、`rcg_handler`、`game_log_file`、`team_graphic`。幾何: `vector_2d`、`angle_deg`、`circle_2d`、`line_2d`。2D の表示: `field_canvas`、`*_painter`、`painter_interface`、`mouse_state`。2D と 3D の共有: `overlay_math`、`player_style`、`player_selection`、`play_mode_position`、`referee_menu`、`referee_target`、`camera_mode`、`player_camera_options`。アプリと設定: `main_window`、`config_dialog`、`options`、`player_type_dialog`、`log_player_slider`、`tool_icon`、`toolbar_icons`、`tooltip_marker`)。3D だけが `src/view3d/` にまとまっている。
+  - 案は 2 段: (1) 中身を変えずに置き場所を役割ごとのサブディレクトリにする (例: `app`、`model`、`geom`、`view` (共有)、`view2d`、`view3d`)。依存の向きは model ← view ← view2d ← view3d ← app とし、テストで守らせる (`gl_isolation` と同じ形)。(2) `Options` を分ける (本当のモデルとビューの分離)。
+  - モデルとビューが絡む中心は `Options`: 設定と一緒に 2D の表示の状態 (拡大率、中心、座標の変換 `screenX()` と `fieldX()`、注目点、選んだ選手) を持ち、モデル (`DispHolder`、`LogPlayer`) もそれを読む。3D の地面の絵を 2D の `FieldPainter` で描くために、2D の変換を一時的に差し替える `Options::setFieldTransform()` が要ったのも、このため。分けるなら、2D の表示の状態を 2D の表示自身に移し、painter に座標の変換を引数で渡す。
+  - 3D は 2D の painter を使う (地面とミニマップに `FieldPainter`、HUD に `ScoreBoardPainter` と `TeamGraphicPainter`) ので、view3d から view2d への依存は認める。
+  - 始める時期: 共有の部品の多くは `feature/3d-view` で作ったので、3D が `develop` に入った後 (採用が遅れるなら `feature/3d-view` の上) に始める。TCP / WebSocket 対応 (`feature/support-tcp-ws`) の採用が決まっていれば、先に取り込み、あちらで足したファイルも一緒に移す。
+  - 直すもの: CMake、autotools の `src/Makefile.am`、テストの include の場所、文書のファイルの場所。
 
 ## 14. 記録
 
