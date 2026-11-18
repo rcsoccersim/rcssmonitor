@@ -78,8 +78,16 @@ WsMonitorTransport::WsMonitorTransport( const QString & path,
              this, SLOT( handleBinaryMessage( const QByteArray & ) ) );
     connect( M_socket, SIGNAL( disconnected() ),
              this, SLOT( handleDisconnected() ) );
-    connect( M_socket, SIGNAL( error( QAbstractSocket::SocketError ) ),
-             this, SLOT( handleError( QAbstractSocket::SocketError ) ) );
+    // QWebSocket's signal of an error is errorOccurred() from Qt 6.5, and
+    // error() before (its getter error() too). By the function, so that a
+    // missing signal stops the build.
+#if QT_VERSION >= QT_VERSION_CHECK( 6, 5, 0 )
+    connect( M_socket, &QWebSocket::errorOccurred,
+             this, &WsMonitorTransport::handleError );
+#else
+    connect( M_socket, QOverload< QAbstractSocket::SocketError >::of( &QWebSocket::error ),
+             this, &WsMonitorTransport::handleError );
+#endif
 }
 
 /*-------------------------------------------------------------------*/

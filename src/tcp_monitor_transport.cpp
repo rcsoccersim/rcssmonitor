@@ -63,9 +63,10 @@ TcpMonitorTransport::TcpMonitorTransport( QObject * parent )
              this, SLOT( handleReadyRead() ) );
     connect( M_socket, SIGNAL( disconnected() ),
              this, SLOT( handleDisconnected() ) );
-    // errorOccurred() is not available before Qt 5.15
-    connect( M_socket, SIGNAL( error( QAbstractSocket::SocketError ) ),
-             this, SLOT( handleError( QAbstractSocket::SocketError ) ) );
+    // errorOccurred(): Qt6 has no signal error() (Qt 5.15 renamed it). By
+    // the function, so that a missing signal stops the build.
+    connect( M_socket, &QAbstractSocket::errorOccurred,
+             this, &TcpMonitorTransport::handleError );
 }
 
 /*-------------------------------------------------------------------*/
