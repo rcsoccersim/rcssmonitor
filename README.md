@@ -17,7 +17,7 @@ or with Qt 5:
 ```bash
 sudo apt install build-essential cmake qtbase5-dev libqt5websockets5-dev zlib1g-dev libdeflate-dev
 ```
-zlib (`zlib1g-dev`) is needed to load gzip-compressed game logs (`.rcg.gz`). libdeflate (`libdeflate-dev`) is optional: if it is found, gzip game logs are loaded faster. Qt WebSockets (`qt6-websockets-dev`, or `libqt5websockets5-dev` with Qt 5) is needed only for the WebSocket connection to the server. Without it, the monitor is built without the WebSocket connection.
+zlib (`zlib1g-dev`) is needed to load gzip-compressed game logs (`.rcg.gz`). libdeflate (`libdeflate-dev`) is optional: if it is found, gzip game logs are loaded faster. Qt WebSockets (`qt6-websockets-dev`, `libqt6websockets6-dev` on Ubuntu 22.04, or `libqt5websockets5-dev` with Qt 5) is needed only for the WebSocket connection to the server. Without it, the monitor is built without the WebSocket connection.
 
 Then, clone the repository, or download the tarball from the [releases section](https://github.com/rcsoccersim/rcssmonitor/releases) and extract it. From its directory, execute:
 

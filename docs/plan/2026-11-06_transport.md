@@ -481,3 +481,5 @@ develop (01f880a、19.0.1) から作った `feature/support-tcp-ws` に、5 つ�
 **試験**
 - Qt 6.4.2 と Qt 5.15.13 (`-Werror=deprecated-declarations`) で、ビルドとテスト 15 個が通る。Qt6 で WebSockets なし (`-DENABLE_WEBSOCKET=OFF`) も通る。autotools (Qt5) は、WebSockets ありと `--disable-websocket` の両方でビルドできる。
 - rcssserver の develop (8f1097c) を scratchpad でビルドし、一時的な `RCSS_CONF_DIR` とふだんと違うポート (UDP 16000、TCP 16100、WebSocket 16180) で動かした。`MonitorClient` を使う確認用のプログラムで、UDP、TCP、WebSocket のそれぞれ、版 -1 (JSON) と 5 で、Qt6 と Qt5 の両方で、つながり、フレームが届き (1.5 秒で 15)、キックオフのコマンドでプレイモードが変わり、切断のコマンドを送れた。TCP で版 2 を指定すると、つなぐ前に理由を出して断る。画面での確認 (2D と 3D) はユーザが行う。
+
+**CI の不具合**: 5 コミット (4c0b384〜3bafa02) をプッシュした。CI は、Ubuntu 22.04 (Qt 6.2) のジョブだけが、パッケージを入れる段階で `Unable to locate package qt6-websockets-dev` で落ちた。22.04 では、Qt6 の WebSockets の開発のパッケージは `libqt6websockets6-dev` (6.2.4) で、`qt6-websockets-dev` は 24.04 からの名前 (packages.ubuntu.com で確かめた)。CI のそのジョブと README の手順 (22.04 の名前を添えた) を直した。

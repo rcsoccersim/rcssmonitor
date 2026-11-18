@@ -61,8 +61,10 @@ jobs:
       - name: Install the packages
         run: |
           apt-get update
+          # Qt6 WebSockets is libqt6websockets6-dev on 22.04 (qt6-websockets-dev
+          # from 24.04)
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-            build-essential cmake qt6-base-dev qt6-websockets-dev libgl-dev zlib1g-dev libdeflate-dev
+            build-essential cmake qt6-base-dev libqt6websockets6-dev libgl-dev zlib1g-dev libdeflate-dev
       - name: Configure
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
