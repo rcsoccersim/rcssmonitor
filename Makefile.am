@@ -25,6 +25,8 @@ EXTRA_DIST = \
 	icons/rec.xpm \
 	icons/rev.xpm \
 	icons/rew.xpm \
-	icons/stop.xpm
+	icons/stop.xpm \
+	test/CMakeLists.txt \
+	test/test_message_splitter.cpp
 
 CLEANFILES = *~

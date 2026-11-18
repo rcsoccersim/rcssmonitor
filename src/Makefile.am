@@ -9,6 +9,7 @@ rcssmonitor_SOURCES = \
 	ball_painter.cpp \
 	circle_2d.cpp \
 	config_dialog.cpp \
+	connect_dialog.cpp \
 	disp_holder.cpp \
 	draw_info_painter.cpp \
 	field_canvas.cpp \
@@ -18,7 +19,9 @@ rcssmonitor_SOURCES = \
 	log_player.cpp \
 	log_player_slider.cpp \
 	main_window.cpp \
+	message_splitter.cpp \
 	monitor_client.cpp \
+	monitor_transport.cpp \
 	options.cpp \
 	overlay_math.cpp \
 	play_mode_position.cpp \
@@ -26,26 +29,33 @@ rcssmonitor_SOURCES = \
 	player_type_dialog.cpp \
 	rcg_handler.cpp \
 	score_board_painter.cpp \
+	tcp_monitor_transport.cpp \
 	team_graphic.cpp \
 	team_graphic_painter.cpp \
 	tool_icon.cpp \
+	udp_monitor_transport.cpp \
 	vector_2d.cpp \
 	main.cpp
 
 nodist_rcssmonitor_SOURCES = \
 	moc_config_dialog.cpp \
+	moc_connect_dialog.cpp \
 	moc_field_canvas.cpp \
 	moc_log_player.cpp \
 	moc_log_player_slider.cpp \
 	moc_main_window.cpp \
 	moc_monitor_client.cpp \
-	moc_player_type_dialog.cpp
+	moc_monitor_transport.cpp \
+	moc_player_type_dialog.cpp \
+	moc_tcp_monitor_transport.cpp \
+	moc_udp_monitor_transport.cpp
 
 noinst_HEADERS = \
 	angle_deg.h \
 	ball_painter.h \
 	circle_2d.h \
 	config_dialog.h \
+	connect_dialog.h \
 	disp_holder.h \
 	draw_info_painter.h \
 	field_canvas.h \
@@ -55,7 +65,9 @@ noinst_HEADERS = \
 	log_player.h \
 	log_player_slider.h \
 	main_window.h \
+	message_splitter.h \
 	monitor_client.h \
+	monitor_transport.h \
 	mouse_state.h \
 	options.h \
 	overlay_math.h \
@@ -66,10 +78,18 @@ noinst_HEADERS = \
 	player_type_sort_proxy.h \
 	rcg_handler.h \
 	score_board_painter.h \
+	tcp_monitor_transport.h \
 	team_graphic.h \
 	team_graphic_painter.h \
 	tool_icon.h \
-	vector_2d.h
+	udp_monitor_transport.h \
+	vector_2d.h \
+	ws_monitor_transport.h
+
+if HAVE_QT_WEBSOCKETS
+rcssmonitor_SOURCES += ws_monitor_transport.cpp
+nodist_rcssmonitor_SOURCES += moc_ws_monitor_transport.cpp
+endif
 
 
 rcssmonitor_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/src $(QT_CPPFLAGS)

@@ -48,6 +48,12 @@ rcssmonitor_add_test(player_type_sort Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION
 rcssmonitor_add_test(game_log_file rcssmonitor_core)
 rcssmonitor_add_test(line_parser rcssrcg Qt${QT_VERSION_MAJOR}::Core)
 rcssmonitor_add_test(rcg_types rcssrcg Qt${QT_VERSION_MAJOR}::Core)
+rcssmonitor_add_test(message_splitter rcssmonitor_core)
+if(HAVE_QT_WEBSOCKETS)
+  rcssmonitor_add_test(monitor_transport rcssmonitor_core Qt${QT_VERSION_MAJOR}::WebSockets)
+else()
+  rcssmonitor_add_test(monitor_transport rcssmonitor_core)
+endif()
 
 # A benchmark of loading game logs (test/bench_load.cpp). CTest does not run it.
 add_executable(bench_load

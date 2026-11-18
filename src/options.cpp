@@ -133,6 +133,13 @@ const QColor Options::ILLEGAL_DEFENSE_COLOR( 255, 0, 0 );
 
 namespace {
 
+//! the transport names for the help message
+#ifdef HAVE_QT_WEBSOCKETS
+const char * const TRANSPORT_NAMES = "udp, tcp or ws";
+#else
+const char * const TRANSPORT_NAMES = "udp or tcp (ws is not available in this build)";
+#endif
+
 #ifdef USE_Q_COMMAND_LINE_PARSER
 
 inline
@@ -211,6 +218,8 @@ Options::Options()
     M_connect( true ),
     M_server_host( "127.0.0.1" ),
     M_server_port( 6000 ),
+    M_server_transport( MonitorTransport::UDP ),
+    M_server_ws_path( "/monitor" ),
     M_client_version( 5 ),
     M_auto_quit_mode( false ),
     M_auto_quit_wait( 5 ),
@@ -401,6 +410,19 @@ Options::readSettings()
 
     val = settings.value( "server_port" );
     if ( val.isValid() ) M_server_port = val.toInt();
+
+    val = settings.value( "server_transport" );
+    if ( val.isValid()
+         && ! parse_monitor_transport_type( val.toString(), &M_server_transport ) )
+    {
+        std::cerr << "Illegal server_transport [" << val.toString().toStdString()
+                  << "] in " << Options::CONF_FILE.toStdString()
+                  << ". use " << monitor_transport_type_name( M_server_transport ).toStdString()
+                  << std::endl;
+    }
+
+    val = settings.value( "server_ws_path" );
+    if ( val.isValid() ) M_server_ws_path = val.toString().toStdString();
 
     val = settings.value( "client_version" );
     if ( val.isValid() ) M_client_version = val.toInt();
@@ -726,6 +748,8 @@ Options::writeSettings( bool all )
         settings.setValue( "connect", M_connect );
         settings.setValue( "server_host", QString::fromStdString( M_server_host ) );
         settings.setValue( "server_port", M_server_port );
+        settings.setValue( "server_transport", monitor_transport_type_name( M_server_transport ) );
+        settings.setValue( "server_ws_path", QString::fromStdString( M_server_ws_path ) );
         settings.setValue( "client_version", M_client_version );
         settings.setValue( "auto_quit_mode", M_auto_quit_mode );
         settings.setValue( "auto_quit_wait", M_auto_quit_wait );
@@ -858,12 +882,23 @@ Options::parseCmdLine( int argc,
                                         QString::fromStdString( M_server_host ) );
     parser.addOption( opt_server_host );
     QCommandLineOption opt_server_port( "server-port",
-                                        "Set the port number to connect as the monitor client. (Default=" + QString::number( M_server_port ) + ")",
+                                        "Set the port number of the soccer server. Specify the value of server::port for udp, server::tcp_port for tcp, or server::ws_port for ws. (Default=" + QString::number( M_server_port ) + ")",
                                         "int",
                                         QString::number( M_server_port ) );
     parser.addOption( opt_server_port );
+    QCommandLineOption opt_server_transport( "server-transport",
+                                             "Set the transport to connect to the soccer server: " + QString( TRANSPORT_NAMES ) + "."
+                                             " tcp and ws require the client version 3 or later, or -1. (Default=" + monitor_transport_type_name( M_server_transport ) + ")",
+                                             "str",
+                                             monitor_transport_type_name( M_server_transport ) );
+    parser.addOption( opt_server_transport );
+    QCommandLineOption opt_server_ws_path( "server-ws-path",
+                                           "Set the request path for the WebSocket transport: /monitor or /player. (Default=" + QString::fromStdString( M_server_ws_path ) + ")",
+                                           "str",
+                                           QString::fromStdString( M_server_ws_path ) );
+    parser.addOption( opt_server_ws_path );
     QCommandLineOption opt_client_version( "client-version",
-                                           "Set the version of the monitor client protocol. (Default=" + QString::number( M_client_version ) + ")",
+                                           "Set the version of the monitor client protocol. -1 means the JSON format. (Default=" + QString::number( M_client_version ) + ")",
                                            "int",
                                            QString::number( M_client_version ) );
     parser.addOption( opt_client_version );
@@ -1070,6 +1105,14 @@ Options::parseCmdLine( int argc,
     if ( parser.isSet( opt_connect ) ) M_connect = true;
     if ( parser.isSet( opt_server_host ) ) M_server_host = parser.value( opt_server_host ).toStdString();
     if ( parser.isSet( opt_server_port ) ) M_server_port = parser.value( opt_server_port ).toInt();
+    if ( parser.isSet( opt_server_transport )
+         && ! parse_monitor_transport_type( parser.value( opt_server_transport ), &M_server_transport ) )
+    {
+        std::cerr << "Illegal server transport [" << parser.value( opt_server_transport ).toStdString()
+                  << "]. It must be udp, tcp or ws." << std::endl;
+        return false;
+    }
+    if ( parser.isSet( opt_server_ws_path ) ) M_server_ws_path = parser.value( opt_server_ws_path ).toStdString();
     if ( parser.isSet( opt_client_version ) ) M_client_version = parser.value( opt_client_version ).toInt();
     if ( parser.isSet( opt_timer_interval ) ) M_timer_interval = parser.value( opt_timer_interval ).toInt();
     if ( parser.isSet( opt_auto_quit_mode ) ) M_auto_quit_mode = to_bool( parser.value( opt_auto_quit_mode ), M_auto_quit_mode );
@@ -1121,6 +1164,7 @@ Options::parseCmdLine( int argc,
 
     std::string geometry;
 //     std::string canvas_size;
+    std::string server_transport = monitor_transport_type_name( M_server_transport ).toStdString();
 
     po::options_description visibles( "Allowed options:" );
 
@@ -1138,10 +1182,17 @@ Options::parseCmdLine( int argc,
           "set host name or ip address where the soccer server is running." )
         ( "server-port",
           po::value< int >( &M_server_port )->default_value( M_server_port ),
-          "set port number to connect as the monitor client." )
+          "set port number of the soccer server: server::port for udp, server::tcp_port for tcp, or server::ws_port for ws." )
+        ( "server-transport",
+          po::value< std::string >( &server_transport )->default_value( server_transport ),
+          ( std::string( "set the transport to connect to the soccer server: " ) + TRANSPORT_NAMES
+            + ". tcp and ws require the client version 3 or later, or -1." ).c_str() )
+        ( "server-ws-path",
+          po::value< std::string >( &M_server_ws_path )->default_value( M_server_ws_path ),
+          "set the request path for the WebSocket transport: /monitor or /player." )
         ( "client-version",
           po::value< int >( &M_client_version )->default_value( M_client_version ),
-          "set a monitor client protocol version." )
+          "set a monitor client protocol version. -1 means the JSON format." )
         ( "timer-interval",
           po::value< int >( &M_timer_interval )->default_value( M_timer_interval ),
           "set the default timer interval [ms] for replaying a game log file." )
@@ -1311,6 +1362,13 @@ Options::parseCmdLine( int argc,
         std::cout << "Usage: " << PACKAGE_NAME
                   << " [options ... ] [<GameLogFile>]\n";
         std::cout << visibles << std::endl;
+        return false;
+    }
+
+    if ( ! parse_monitor_transport_type( QString::fromStdString( server_transport ), &M_server_transport ) )
+    {
+        std::cerr << "Illegal server transport [" << server_transport
+                  << "]. It must be udp, tcp or ws." << std::endl;
         return false;
     }
 

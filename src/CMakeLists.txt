@@ -5,6 +5,7 @@ add_library(rcssmonitor_core STATIC
   ball_painter.cpp
   circle_2d.cpp
   config_dialog.cpp
+  connect_dialog.cpp
   disp_holder.cpp
   draw_info_painter.cpp
   field_canvas.cpp
@@ -14,7 +15,9 @@ add_library(rcssmonitor_core STATIC
   log_player.cpp
   log_player_slider.cpp
   main_window.cpp
+  message_splitter.cpp
   monitor_client.cpp
+  monitor_transport.cpp
   options.cpp
   overlay_math.cpp
   play_mode_position.cpp
@@ -23,8 +26,10 @@ add_library(rcssmonitor_core STATIC
   rcg_handler.cpp
   score_board_painter.cpp
   team_graphic.cpp
+  tcp_monitor_transport.cpp
   team_graphic_painter.cpp
   tool_icon.cpp
+  udp_monitor_transport.cpp
   vector_2d.cpp
   )
 
@@ -47,6 +52,11 @@ target_link_libraries(rcssmonitor_core
 #  Boost::program_options Boost::system
   ZLIB::ZLIB
   )
+
+if(HAVE_QT_WEBSOCKETS)
+  target_sources(rcssmonitor_core PRIVATE ws_monitor_transport.cpp)
+  target_link_libraries(rcssmonitor_core PRIVATE Qt${QT_VERSION_MAJOR}::WebSockets)
+endif()
 
 if(HAVE_LIBDEFLATE)
   target_include_directories(rcssmonitor_core PRIVATE ${LIBDEFLATE_INCLUDE_DIR})

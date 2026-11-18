@@ -114,6 +114,7 @@ qtHaveModule(testlib):           QT += testlib
 qtHaveModule(uitools):           QT += uitools
 qtHaveModule(webkit):            QT += webkit
 qtHaveModule(webkitwidgets):     QT += webkitwidgets
+qtHaveModule(websockets):        QT += websockets
 qtHaveModule(xml):               QT += xml
 qtHaveModule(xmlpatterns):       QT += xmlpatterns
 percent.target = %
