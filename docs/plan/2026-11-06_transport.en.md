@@ -5,7 +5,8 @@
 | Created | 2026-11-06 |
 | Target | rcssmonitor master (ae7668a, 19.0.1) |
 | Server referred to | `rcssserver-19.x-asio/` (a working tree of the asio version of rcssserver 19.x) |
-| Status | Plan only. No code changed yet |
+| Status | Steps 1 to 4, and choosing the transport in the "Connect to ..." dialog, done (2026-11-06). Merging into develop under way from 2026-11-18 (§10) |
+| Japanese version | [2026-11-06_transport.md](2026-11-06_transport.md) (the same content) |
 
 ## 1. Aim and approach
 
@@ -140,7 +141,7 @@ Decisions:
 - **`connected()` is emitted only once, for every transport.** UDP emits it by a 0 ms timer after `open()` succeeds, so that the flow is the same as the other transports'.
 - **`disconnected()` is emitted only once too.** An internal flag prevents duplicates. UDP has no notion of connection, so it does not emit it.
 - **A received message can be used as a NUL-terminated string by `QByteArray::constData()`.** It can be given to `DispHolder::addJSON()` and others as it is.
-- **Keep it buildable with Qt 5.12.** The README also has build steps for Ubuntu 20.04 (Qt 5.12), so `errorOccurred` (Qt 5.15 or later) cannot be used. Errors are notified by `error( QAbstractSocket::SocketError )`, connected by the `SIGNAL` / `SLOT` macros as the existing code does.
+- **Keep it buildable with Qt 5.12.** The README also has build steps for Ubuntu 20.04 (Qt 5.12), so `errorOccurred` (Qt 5.15 or later) cannot be used. Errors are notified by `error( QAbstractSocket::SocketError )`, connected by the `SIGNAL` / `SLOT` macros as the existing code does. → 2026-11-18: develop's minimum is now Qt 5.15 (D2 of the plan of the 3D view). Qt6 has no signal `QAbstractSocket::error()`, and connecting it by its name does not work (a TCP failure goes unnoticed), so `errorOccurred()` is connected by the function (§10).
 - **Ownership is managed by QObject's parent-child relation.** The transport's parent is `MonitorClient`.
 
 ### 4.3 The transports' implementations
@@ -270,6 +271,8 @@ endif()
 
 `src/CMakeLists.txt`: add the new sources to `add_executable`, and add the WebSocket implementation conditionally. `CMAKE_AUTOMOC` handles moc.
 
+→ 2026-11-18: as develop's CMake does, look for `Qt${QT_VERSION_MAJOR}::WebSockets` (Qt5 or Qt6), and add the new sources to the library `rcssmonitor_core` (§10).
+
 ```cmake
 if(HAVE_QT_WEBSOCKETS)
   target_sources(rcssmonitor PRIVATE ws_monitor_transport.cpp)
@@ -311,6 +314,8 @@ endif
 ```
 
 **qmake**
+
+→ 2026-11-18: the qmake build was removed in develop (D11 of the plan of the 3D view). `src/src.pro` is deleted (§10).
 
 `src/src.pro`:
 
@@ -415,7 +420,7 @@ For `MessageSplitter`, check these cases:
 - With consecutive `\0`s, the empty messages are dropped.
 - An incomplete message beyond the limit is an error.
 
-The project has no test infrastructure, so add a small test executable using Qt Test to CMake only (`enable_testing()` and `add_test()`).
+The project has no test infrastructure, so add a small test executable using Qt Test to CMake only (`enable_testing()` and `add_test()`). → 2026-11-18: develop now has its test infrastructure, so it is added with `rcssmonitor_add_test`. A test of the TCP and WebSocket transports (connecting to local servers) was added too (§10).
 
 ### 7.3 Checking what is sent
 
@@ -437,7 +442,42 @@ rcssmonitor --connect --server-transport tcp --server-port 6000
 ## 9. Out of scope
 
 - **wss:// (TLS):** the new server itself does not support TLS. Use through a reverse proxy is a future task.
-- **Moving to Qt 6**
+- **Moving to Qt 6** → done in develop. With the merge, the files added in this branch were ported to Qt6 too (§10).
 - **Compression:** cannot be used over TCP / WebSocket, on the server side either.
-- **Choosing the transport in the "Connect to..." dialog:** added depending on the conclusion of open question 1.
+- **Choosing the transport in the "Connect to..." dialog:** added depending on the conclusion of open question 1. → made on 2026-11-06 (45bca98). The option stays A.
 - **CI (building and releasing the AppImage automatically):** `.github/workflows/main.yml` and `utils/appimage/`, which only master has, are to be deleted from master too, so they are not handled. They are not brought into this branch.
+
+## 10. Record
+
+At each step, append the date, the decisions, what was built, the bugs found and their causes, and the tests.
+
+### 2026-11-06: Steps 1 to 4 (`feature/support-tcp-ws`)
+
+Built in 5 commits on `feature/support-tcp-ws`, made from develop (01f880a, 19.0.1): MonitorTransport and the UDP transport (af2e1af), the TCP transport and the transport options (a41d8d9), the WebSocket transport (6759e11), the documents (78f1c15), and choosing the transport in the "Connect to ..." dialog (45bca98; out of scope in §9, but made). The unit test is of `MessageSplitter` (`test/test_message_splitter.cpp`).
+
+### 2026-11-18: Merging into develop (`feature/support-tcp-ws`)
+
+**Decided (user)**
+- As the TCP / WebSocket support is likely to be adopted officially, it is merged into develop before Phase 10 of the plan of the 3D view. The TCP / WebSocket support of rcssserver is in its develop too (8f1097c).
+- The work is done directly on `feature/support-tcp-ws`. develop is merged into this branch (no rebase, as it has been pushed), and the user makes the PR to develop (§3.5 of the plan of the 3D view).
+- This plan goes into the repository. There were two copies outside it (`TRANSPORT_PLAN.md` at the top, 2026-11-06 22:30, and `docs/TRANSPORT_PLAN.md`, 12:08). The one at the top is newer: the AppImage CI items taken out, and why they are not handled added to §9. The branch's commits have no change of the CI either, so it matches the implementation. It was put in, and an English version was made.
+- The plans go in `docs/plan/`, their file names in the form `<the plan's creation date>_<a word for the plan>.md`, the English version `.en.md`. The date is written `YYYY-MM-DD` (Claude). This plan is `2026-11-06_transport.md`. The plan of the 3D view is to take the same form later.
+
+**Merging develop**
+- develop (2a88791) has Phases 0 to 3 (the CI and the test infrastructure, the bug fixes, the improved JSON parser, the Qt6 support, the removal of qmake). The 7 conflicts were resolved as follows.
+  - `CMakeLists.txt`: develop's form (the desktop file, Test of Qt5 or Qt6). WebSockets is looked for by `Qt${QT_VERSION_MAJOR}`.
+  - `src/CMakeLists.txt`: the new sources added to `rcssmonitor_core`, and `ws_monitor_transport.cpp` and `Qt${QT_VERSION_MAJOR}::WebSockets` to `rcssmonitor_core` too (with WebSockets).
+  - `test/CMakeLists.txt`: develop's form, with `rcssmonitor_add_test(message_splitter rcssmonitor_core)`.
+  - `src/Makefile.am`: both sides' sources and headers. `src/src.pro`: deleted (qmake removed). `src/main_window.cpp`: both includes.
+  - `README.md`: develop's steps (CMake first, Qt6 and Qt5 on Ubuntu 22.04 / 24.04 / 26.04), with the packages of Qt WebSockets (`qt6-websockets-dev`, `libqt5websockets5-dev`), and `ENABLE_WEBSOCKET` in the list of CMake's options.
+- It built with Qt6 and Qt5 (`-Werror=deprecated-declarations`), and the 14 tests passed.
+
+**A bug found and fixed**
+- On Qt6, a failure of a TCP connection (no server, for example) went unnoticed. The TCP transport connected the signal of an error by its name (`SIGNAL( error( QAbstractSocket::SocketError ) )`). Qt6 has no such signal (Qt 5.15 renamed it `errorOccurred()`). Connected by the name, it builds, and at run time Qt only prints `QObject::connect: No such signal QTcpSocket::error( QAbstractSocket::SocketError )`, and the error never comes (the liveness timer cuts it off after 5 seconds). `errorOccurred()` is connected by the function (a missing signal stops the build). The WebSocket transport also connects QWebSocket's signal of an error by the function (`errorOccurred()` from Qt 6.5, `error()` before).
+- A new test `monitor_transport`, connecting to a local `QTcpServer` and `QWebSocketServer`. TCP: a NUL at the end of a message sent; what is received split at the NULs (the empty ones dropped, one that comes in pieces); the server closing told once; closing here tells nothing, and the last message reaches the server; no connection (no server) told with the reason. WebSocket: the request path `/monitor`, no Origin header, a text message without a NUL, what is received, the server closing told once, no connection told with the reason. In a build without WebSockets, the WebSocket transport is not made, with the reason. Qt's warning of a signal or a slot connected by a name that does not exist fails the test too. With the TCP error connected by its name again, it was checked to fail on Qt6 (on Qt5, which has the signal, it passes).
+
+**CI**: the three CMake jobs (Qt5, Qt6, and Qt 6.2 of Ubuntu 22.04) install Qt WebSockets, and check that `config.h` has `HAVE_QT_WEBSOCKETS`. The autotools job builds without WebSockets, as without libdeflate, so that the form without WebSocket is compiled too. The number of parallel builds is `$(nproc)` (as in the branch of the 3D view: without a number, a Makefile build runs without a limit, and the runner may run out of memory).
+
+**Tests**
+- With Qt 6.4.2 and Qt 5.15.13 (`-Werror=deprecated-declarations`), the build and the 15 tests pass. Qt6 without WebSockets (`-DENABLE_WEBSOCKET=OFF`) passes too. autotools (Qt5) builds both with WebSockets and with `--disable-websocket`.
+- rcssserver's develop (8f1097c) was built in the scratchpad, and run with a temporary `RCSS_CONF_DIR` and ports other than the usual ones (UDP 16000, TCP 16100, WebSocket 16180). With a program using `MonitorClient`, over each of UDP, TCP and WebSocket, with versions -1 (JSON) and 5, on both Qt6 and Qt5, it connected, frames came (15 in 1.5 seconds), the kick-off command changed the play mode, and the disconnect command was sent. With version 2 over TCP, it refuses with the reason before connecting. The check on screen (2D and 3D) is the user's.

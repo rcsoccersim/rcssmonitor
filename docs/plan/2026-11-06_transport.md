@@ -5,7 +5,8 @@
 | 作成日 | 2026-11-06 |
 | 対象 | rcssmonitor master (ae7668a, 19.0.1) |
 | 参照したサーバ | `rcssserver-19.x-asio/` (asio 版 rcssserver 19.x の作業ツリー) |
-| 状態 | 計画のみ。コードは未変更 |
+| 状態 | 段階 1〜4 と、「Connect to ...」ダイアログでの方式の選択は済 (2026-11-06)。2026-11-18 から develop への取り込みの作業中 (§10) |
+| 英語版 | [2026-11-06_transport.en.md](2026-11-06_transport.en.md) (内容は同じ) |
 
 ## 1. 目的と方針
 
@@ -140,7 +141,7 @@ MonitorTransport * create_monitor_transport( const MonitorTransport::Type type,
 - **`connected()` は全方式で 1 回だけ発行する。** UDP は `open()` が成功した後に 0 ms タイマで発行し、他の方式と処理の流れを揃える。
 - **`disconnected()` も 1 回だけ発行する。** 内部フラグで重複を防ぐ。UDP には接続の概念がないので発行しない。
 - **受け取ったメッセージは `QByteArray::constData()` で NUL 終端の文字列として扱える。** `DispHolder::addJSON()` などにそのまま渡せる。
-- **Qt 5.12 でもビルドできるようにする。** README には Ubuntu 20.04 (Qt 5.12) 向けのビルド手順もあるので、`errorOccurred` (Qt 5.15 以降) は使えない。エラー通知は `error( QAbstractSocket::SocketError )` を、既存コードと同じ `SIGNAL` / `SLOT` マクロで接続する。
+- **Qt 5.12 でもビルドできるようにする。** README には Ubuntu 20.04 (Qt 5.12) 向けのビルド手順もあるので、`errorOccurred` (Qt 5.15 以降) は使えない。エラー通知は `error( QAbstractSocket::SocketError )` を、既存コードと同じ `SIGNAL` / `SLOT` マクロで接続する。 → 2026-11-18: develop の下限は Qt 5.15 になった (3D 表示の計画の D2)。Qt6 には `QAbstractSocket::error()` のシグナルがなく、名前でつなぐと動かない (TCP の失敗に気づかない) ので、`errorOccurred()` を関数でつなぐ (§10)。
 - **所有権は QObject の親子関係で管理する。** トランスポートの親は `MonitorClient` とする。
 
 ### 4.3 トランスポートの実装
@@ -270,6 +271,8 @@ endif()
 
 `src/CMakeLists.txt`: 新しいソースを `add_executable` に追加し、WebSocket 実装は条件付きで加える。moc は `CMAKE_AUTOMOC` が処理する。
 
+→ 2026-11-18: develop の CMake に合わせて、`Qt${QT_VERSION_MAJOR}::WebSockets` (Qt5 か Qt6) を探し、新しいソースはライブラリ `rcssmonitor_core` に足す (§10)。
+
 ```cmake
 if(HAVE_QT_WEBSOCKETS)
   target_sources(rcssmonitor PRIVATE ws_monitor_transport.cpp)
@@ -311,6 +314,8 @@ endif
 ```
 
 **qmake**
+
+→ 2026-11-18: qmake のビルドは develop で廃止した (3D 表示の計画の D11)。`src/src.pro` は消す (§10)。
 
 `src/src.pro`:
 
@@ -415,7 +420,7 @@ qtHaveModule(websockets) {
 - `\0` が連続する場合、空のメッセージを捨てる。
 - 未完了のメッセージが上限を超えるとエラーになる。
 
-プロジェクトには既存のテスト基盤がないので、Qt Test を使う小さなテスト実行ファイルを CMake にだけ追加する (`enable_testing()` と `add_test()`)。
+プロジェクトには既存のテスト基盤がないので、Qt Test を使う小さなテスト実行ファイルを CMake にだけ追加する (`enable_testing()` と `add_test()`)。 → 2026-11-18: develop にテストの仕組みができたので、`rcssmonitor_add_test` で足す。TCP と WebSocket の通信路のテスト (手元のサーバとつなぐ) も足した (§10)。
 
 ### 7.3 送信内容の確認
 
@@ -437,7 +442,42 @@ rcssmonitor --connect --server-transport tcp --server-port 6000
 ## 9. 対象外
 
 - **wss:// (TLS):** 新サーバ自体が TLS に対応していない。リバースプロキシ経由での利用は将来の課題とする。
-- **Qt 6 への移行**
+- **Qt 6 への移行** → develop で済んだ。取り込みで、このブランチで足したファイルも Qt6 に対応させた (§10)。
 - **圧縮:** TCP / WebSocket では、サーバ側でも使えない。
-- **「Connect to...」ダイアログでの方式選択:** 未決事項 1 の結論しだいで追加する。
+- **「Connect to...」ダイアログでの方式選択:** 未決事項 1 の結論しだいで追加する。 → 2026-11-06 に作った (45bca98)。オプションは A のまま。
 - **CI (AppImage の自動作成とリリース):** master にだけある `.github/workflows/main.yml` と `utils/appimage/` は、master からも削除する予定なので扱わない。このブランチには取り込まない。
+
+## 10. 記録
+
+区切りごとに、日付、決めたこと、作ったもの、見つけた不具合とその原因、試験を書き足す。
+
+### 2026-11-06: 段階 1〜4 (`feature/support-tcp-ws`)
+
+develop (01f880a、19.0.1) から作った `feature/support-tcp-ws` に、5 つのコミットで作った: MonitorTransport と UDP の通信路 (af2e1af)、TCP の通信路と方式のオプション (a41d8d9)、WebSocket の通信路 (6759e11)、文書 (78f1c15)、「Connect to ...」ダイアログでの方式の選択 (45bca98。§9 では対象外としていたが作った)。単体テストは `MessageSplitter` (`test/test_message_splitter.cpp`)。
+
+### 2026-11-18: develop への取り込み (`feature/support-tcp-ws`)
+
+**決めたこと (ユーザ)**
+- TCP / WebSocket 対応を公式に採用する見込みになったので、3D 表示の計画の Phase 10 の前に develop に取り込む。rcssserver 側の TCP / WebSocket 対応も develop に入った (8f1097c)。
+- 作業は `feature/support-tcp-ws` の上で直接行う。develop をこのブランチにマージし (プッシュ済みなので rebase はしない)、ユーザが develop への PR を作る (3D 表示の計画の §3.5)。
+- この計画書をリポジトリに入れる。リポジトリの外に 2 つの写しがあった (直下の `TRANSPORT_PLAN.md`、2026-11-06 22:30 と、`docs/TRANSPORT_PLAN.md`、12:08)。直下のほうが新しく、AppImage の CI の項目を除き、扱わない理由を §9 に書き足したもの。ブランチのコミットにも CI の変更はないので、実装と合っている。これを入れ、英語版を作った。
+- 計画書の置き場所を `docs/plan/` にし、ファイル名を `<計画書の作成日>_<計画を表す単語>.md` にそろえる。英語版は `.en.md`。日付は `YYYY-MM-DD` とした (Claude)。この計画書は `2026-11-06_transport.md`。3D 表示の計画書にも後で同じ形を当てる。
+
+**develop をマージした**
+- develop (2a88791) は、Phase 0〜3 (CI とテストの仕組み、不具合の修正、JSON パーサの改善、Qt6 対応、qmake の廃止) を含む。衝突は 7 つで、次のように解いた。
+  - `CMakeLists.txt`: develop の形 (デスクトップのファイル、Qt5 か Qt6 の Test)。WebSockets を `Qt${QT_VERSION_MAJOR}` で探す。
+  - `src/CMakeLists.txt`: 新しいソースを `rcssmonitor_core` に足し、`ws_monitor_transport.cpp` と `Qt${QT_VERSION_MAJOR}::WebSockets` も `rcssmonitor_core` に (WebSockets があるとき)。
+  - `test/CMakeLists.txt`: develop の形に、`rcssmonitor_add_test(message_splitter rcssmonitor_core)`。
+  - `src/Makefile.am`: 両方のソースとヘッダ。`src/src.pro`: 消した (qmake の廃止)。`src/main_window.cpp`: 両方の include。
+  - `README.md`: develop の手順 (CMake を主に、Ubuntu 22.04 / 24.04 / 26.04 の Qt6 と Qt5) に、Qt WebSockets のパッケージ (`qt6-websockets-dev`、`libqt5websockets5-dev`) と、CMake のオプションの一覧に `ENABLE_WEBSOCKET`。
+- Qt6 と Qt5 (`-Werror=deprecated-declarations`) でビルドでき、テスト 14 個が通った。
+
+**見つけた不具合と直したこと**
+- Qt6 では、TCP の接続の失敗 (サーバがない、など) に気づかなかった。TCP の通信路は、エラーのシグナルを名前でつないでいた (`SIGNAL( error( QAbstractSocket::SocketError ) )`)。Qt6 にはこのシグナルがない (Qt 5.15 で `errorOccurred()` に改名)。名前でつなぐとビルドは通り、実行時に `QObject::connect: No such signal QTcpSocket::error( QAbstractSocket::SocketError )` と出るだけで、エラーが届かない (生存確認のタイマの 5 秒で切れる)。`errorOccurred()` を関数でつないだ (シグナルがなければビルドが止まる)。WebSocket の通信路も、QWebSocket のエラーのシグナルを関数でつないだ (Qt 6.5 から `errorOccurred()`、それより前は `error()`)。
+- テスト `monitor_transport` (新): 手元の `QTcpServer` と `QWebSocketServer` につなぐ。TCP: 送るメッセージの末尾に NUL、受けたものを NUL で分ける (空のものは捨てる、分かれて届いたもの)、サーバが閉じると 1 回だけ知らせる、こちらから閉じると知らせずにサーバへ最後のメッセージが届く、つながらない (サーバがない) と理由を知らせる。WebSocket: 要求のパス `/monitor`、Origin のヘッダなし、NUL なしのテキストのメッセージ、受けたもの、サーバが閉じると 1 回、つながらないと理由。WebSocket なしのビルドでは、WebSocket の通信路を作らず理由を返す。名前でつないだシグナルやスロットがないときの Qt の警告も、テストの失敗にする。TCP のエラーを名前でつなぐ形に戻すと、Qt6 で失敗することを確かめた (Qt5 では元から動くので通る)。
+
+**CI**: CMake の 3 つのジョブ (Qt5、Qt6、Ubuntu 22.04 の Qt 6.2) に Qt WebSockets のパッケージを入れ、`config.h` に `HAVE_QT_WEBSOCKETS` があることを確かめる。autotools のジョブは、libdeflate と同じく WebSockets なしでビルドし、WebSocket のない形もコンパイルする。ビルドの並列の数を `$(nproc)` にした (3D 表示のブランチと同じ。数を指定しないと、Makefile のビルドは数の制限なく並列にし、ランナーのメモリが足りなくなりうる)。
+
+**試験**
+- Qt 6.4.2 と Qt 5.15.13 (`-Werror=deprecated-declarations`) で、ビルドとテスト 15 個が通る。Qt6 で WebSockets なし (`-DENABLE_WEBSOCKET=OFF`) も通る。autotools (Qt5) は、WebSockets ありと `--disable-websocket` の両方でビルドできる。
+- rcssserver の develop (8f1097c) を scratchpad でビルドし、一時的な `RCSS_CONF_DIR` とふだんと違うポート (UDP 16000、TCP 16100、WebSocket 16180) で動かした。`MonitorClient` を使う確認用のプログラムで、UDP、TCP、WebSocket のそれぞれ、版 -1 (JSON) と 5 で、Qt6 と Qt5 の両方で、つながり、フレームが届き (1.5 秒で 15)、キックオフのコマンドでプレイモードが変わり、切断のコマンドを送れた。TCP で版 2 を指定すると、つなぐ前に理由を出して断る。画面での確認 (2D と 3D) はユーザが行う。
