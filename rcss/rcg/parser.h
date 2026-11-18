@@ -34,6 +34,8 @@
 
 #include <memory>
 #include <istream>
+#include <string>
+#include <cstddef>
 
 namespace rcss {
 namespace rcg {
@@ -61,6 +63,16 @@ public:
      */
     static
     Ptr create( std::istream & is );
+
+    /*!
+      \brief create a suitable version parser instance depending on the data.
+      \param data the whole game log in memory
+      \param size the size of data
+      \return smart pointer to the rcg parser instance
+     */
+    static
+    Ptr create( const char * data,
+                const std::size_t size );
 
 protected:
 
@@ -98,6 +110,22 @@ public:
 
     virtual
     bool parse( const std::string & filepath,
+                Handler & handler ) const;
+
+    /*!
+      \brief analyze the whole log data in memory.
+      \param data the whole game log, as read from the file (decompressed)
+      \param size the size of data
+      \param handler reference to the rcg data handler.
+      \retval true, if successfuly parsed.
+      \retval false, if incorrect format is detected.
+
+      The default implementation reads the data through a stream without
+      copying it. A parser can override this to parse the data in place.
+     */
+    virtual
+    bool parse( const char * data,
+                const std::size_t size,
                 Handler & handler ) const;
 };
 

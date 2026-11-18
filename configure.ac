@@ -39,6 +39,24 @@ AC_CHECK_LIB([m], [cos],
 AX_CHECK_ZLIB([],
               [AC_MSG_NOTICE(Zlib not found.)])
 
+# libdeflate (optional): decompresses gzip game logs faster than zlib
+AC_ARG_WITH([libdeflate],
+            [AS_HELP_STRING([--without-libdeflate],
+                            [do not use libdeflate to decompress game logs (default: use it if it is found)])],
+            [],
+            [with_libdeflate=check])
+have_libdeflate=no
+AS_IF([test "x$with_libdeflate" != xno],
+      [AC_CHECK_HEADER([libdeflate.h],
+                       [AC_CHECK_LIB([deflate], [libdeflate_gzip_decompress_ex],
+                                     [LIBDEFLATE_LIBS="-ldeflate"
+                                      have_libdeflate=yes
+                                      AC_DEFINE([HAVE_LIBDEFLATE], [1],
+                                                [Define to 1 if you have libdeflate.])])])
+       AS_IF([test "x$with_libdeflate" = xyes && test "x$have_libdeflate" != xyes],
+             [AC_MSG_ERROR([*** libdeflate not found ***])])])
+AC_SUBST([LIBDEFLATE_LIBS])
+
 
 ##################################################
 # Checks for header files.

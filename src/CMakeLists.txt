@@ -1,6 +1,6 @@
 
-add_executable(rcssmonitor
-  gzfstream.cpp
+# The application except main(), as a library that the unit tests link too.
+add_library(rcssmonitor_core STATIC
   angle_deg.cpp
   ball_painter.cpp
   circle_2d.cpp
@@ -10,6 +10,7 @@ add_executable(rcssmonitor
   draw_info_painter.cpp
   field_canvas.cpp
   field_painter.cpp
+  game_log_file.cpp
   line_2d.cpp
   log_player.cpp
   log_player_slider.cpp
@@ -18,6 +19,8 @@ add_executable(rcssmonitor
   monitor_client.cpp
   monitor_transport.cpp
   options.cpp
+  overlay_math.cpp
+  play_mode_position.cpp
   player_painter.cpp
   player_type_dialog.cpp
   rcg_handler.cpp
@@ -25,41 +28,58 @@ add_executable(rcssmonitor
   team_graphic.cpp
   tcp_monitor_transport.cpp
   team_graphic_painter.cpp
+  tool_icon.cpp
   udp_monitor_transport.cpp
   vector_2d.cpp
-  main.cpp
   )
 
-target_include_directories(rcssmonitor
+target_include_directories(rcssmonitor_core
   PUBLIC
-  ${Qt5Core_INCLUDE_DIRS}
-  ${Qt5Gui_INCLUDE_DIRS}
-  ${Qt5Widgets_INCLUDE_DIRS}
-  ${Qt5Network_INCLUDE_DIRS}
 #  ${Boost_INCLUDE_DIRS}
   ${ZLIB_INCLUDE_DIRS}
-  PRIVATE
   ${PROJECT_BINARY_DIR}
   ${PROJECT_SOURCE_DIR}
   ${PROJECT_SOURCE_DIR}/src
   )
 
-target_link_libraries(rcssmonitor
-  PRIVATE
+target_link_libraries(rcssmonitor_core
+  PUBLIC
   rcssrcg
-  Qt5::Core Qt5::Gui Qt5::Widgets Qt5::Network
+  Qt${QT_VERSION_MAJOR}::Core
+  Qt${QT_VERSION_MAJOR}::Gui
+  Qt${QT_VERSION_MAJOR}::Widgets
+  Qt${QT_VERSION_MAJOR}::Network
 #  Boost::program_options Boost::system
   ZLIB::ZLIB
   )
 
 if(HAVE_QT_WEBSOCKETS)
-  target_sources(rcssmonitor PRIVATE ws_monitor_transport.cpp)
-  target_link_libraries(rcssmonitor PRIVATE Qt5::WebSockets)
+  target_sources(rcssmonitor_core PRIVATE ws_monitor_transport.cpp)
+  target_link_libraries(rcssmonitor_core PRIVATE Qt${QT_VERSION_MAJOR}::WebSockets)
 endif()
 
-target_compile_definitions(rcssmonitor
+if(HAVE_LIBDEFLATE)
+  target_include_directories(rcssmonitor_core PRIVATE ${LIBDEFLATE_INCLUDE_DIR})
+  target_link_libraries(rcssmonitor_core PRIVATE ${LIBDEFLATE_LIBRARY})
+endif()
+
+target_compile_definitions(rcssmonitor_core
   PUBLIC
   HAVE_CONFIG_H
+  )
+
+target_compile_options(rcssmonitor_core
+  PRIVATE
+  -W -Wall
+  )
+
+add_executable(rcssmonitor
+  main.cpp
+  )
+
+target_link_libraries(rcssmonitor
+  PRIVATE
+  rcssmonitor_core
   )
 
 target_compile_options(rcssmonitor

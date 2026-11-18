@@ -51,7 +51,10 @@ typedef std::unordered_map< int, std::vector< rcss::rcg::LineT > > LineCont;
 class DispHolder {
 public:
     static const size_t INVALID_INDEX;
-    static const size_t MAX_SIZE;
+    //! the maximum number of frames kept from a live connection
+    static const size_t MAX_LIVE_FRAMES;
+    //! the number of the oldest live frames dropped at once
+    static const size_t LIVE_TRIM_FRAMES;
 
 private:
 
@@ -125,10 +128,19 @@ public:
     DispConstPtr currentDisp() const;
     const DispCont & dispCont() const { return M_disp_cont; }
 
+    //
+    // the live messages. The frames from a live connection are kept up to
+    // MAX_LIVE_FRAMES, dropping the oldest ones. A log file is kept whole.
+    //
+
     bool addDispInfoV1( const rcss::rcg::dispinfo_t & disp );
     bool addDispInfoV2( const rcss::rcg::dispinfo_t2 & disp );
     bool addDispInfoV3( const char * msg );
     bool addJSON( const char * msg );
+
+private:
+
+    void trimLiveFrames();
 
 public:
 

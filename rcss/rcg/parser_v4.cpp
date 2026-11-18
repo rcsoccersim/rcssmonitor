@@ -35,6 +35,8 @@
 
 #include "parser_v4.h"
 
+#include "line_parser.h"
+
 #include "handler.h"
 #include "types.h"
 
@@ -44,6 +46,9 @@
 #include <cmath>
 #include <climits>
 #include <cstdio>
+#include <iterator>
+#include <memory>
+#include <string>
 
 namespace rcss {
 namespace rcg {
@@ -64,49 +69,68 @@ ParserV4::parse( std::istream & is,
         return false;
     }
 
-    std::string line;
-    line.reserve( 8192 );
+    const std::string data( ( std::istreambuf_iterator< char >( is ) ), std::istreambuf_iterator< char >() );
+    return parse( data.data(), data.size(), handler );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+bool
+ParserV4::parse( const char * data,
+                 const std::size_t size,
+                 Handler & handler ) const
+{
+    std::vector< LineRef > lines = split_lines( data, size );
 
     // skip header line
-    if ( ! std::getline( is, line )
-         || line.length() < 4
-         || line.compare( 0, 3, "ULG" ) != 0 )
+    const std::string header = ( lines.empty()
+                                 ? std::string()
+                                 : std::string( lines.front().begin_, lines.front().length_ ) );
+    if ( lines.empty()
+         || header.length() < 4
+         || header.compare( 0, 3, "ULG" ) != 0 )
     {
-        std::cerr << "Unknown header line: [" << line << "]" << std::endl;
+        std::cerr << "Unknown header line: [" << header << "]" << std::endl;
         return false;
     }
 
-    const int version = std::stoi( line.substr( 3 ) );
+    const int version = std::atoi( header.c_str() + 3 );
     if ( version != REC_VERSION_4
          && version != REC_VERSION_5
          && version != REC_VERSION_6 )
     {
-        std::cerr << "Unsupported rcg version: [" << line << "]" << std::endl;
+        std::cerr << "Unsupported rcg version: [" << header << "]" << std::endl;
         return false;
     }
 
     if ( ! handler.handleLogVersion( version ) )
     {
-        std::cerr << "Unsupported game log version: [" << line << "]" << std::endl;
+        std::cerr << "Unsupported game log version: [" << header << "]" << std::endl;
         return false;
     }
 
-    int n_line = 1;
-    while ( std::getline( is, line ) )
-    {
-        ++n_line;
-        if ( ! parseLine( n_line, line, handler ) )
-        {
-            return false;
-        }
-    }
+    lines.erase( lines.begin() );
 
-    if ( is.eof() )
-    {
-        return handler.handleEOF();
-    }
+    // each thread has its own line buffer. A line that cannot be parsed is
+    // skipped, and the parse goes on.
+    const std::vector< int > skipped
+        = parse_lines( lines,
+                       [this]() -> LineParser
+                       {
+                           std::shared_ptr< std::string > buf = std::make_shared< std::string >();
+                           buf->reserve( 8192 );
+                           return [this, buf]( const LineRef & line, Handler & h ) -> bool
+                               {
+                                   buf->assign( line.begin_, line.length_ );
+                                   return parseLine( line.number_, *buf, h );
+                               };
+                       },
+                       handler );
+    report_skipped( "ParserV4::parse", "line", skipped );
 
-    return false;
+    return handler.handleEOF();
 }
 
 /*-------------------------------------------------------------------*/
@@ -118,51 +142,53 @@ ParserV4::parseLine( const int n_line,
                      const std::string & line,
                      Handler & handler ) const
 {
+    if ( line.find_first_not_of( " \t\r" ) == std::string::npos )
+    {
+        // an empty line
+        return true;
+    }
+
     char name[32];
 
-    if ( std::sscanf( line.c_str(), " ( %s ", name ) != 1 )
+    if ( std::sscanf( line.c_str(), " ( %31[^ ()] ", name ) != 1 )
     {
-        std::cerr << n_line << ": Illegal line: [" << line << ']'
-                  << std::endl;;
+        // not "(name ...": reported by the caller
         return false;
     }
 
     if ( ! std::strcmp( name, "show" ) )
     {
-        parseShow( n_line, line, handler );
+        return parseShow( n_line, line, handler );
     }
     else if ( ! std::strcmp( name, "playmode" ) )
     {
-        parsePlayMode( n_line, line, handler );
+        return parsePlayMode( n_line, line, handler );
     }
     else if ( ! std::strcmp( name, "team" ) )
     {
-        parseTeam( n_line, line, handler );
+        return parseTeam( n_line, line, handler );
     }
     else if ( ! std::strcmp( name, "msg" ) )
     {
-        parseMsg( n_line, line, handler );
+        return parseMsg( n_line, line, handler );
     }
     else if ( ! std::strcmp( name, "player_type" ) )
     {
-        parsePlayerType( n_line, line, handler );
+        return parsePlayerType( n_line, line, handler );
     }
     else if ( ! std::strcmp( name, "player_param" ) )
     {
-        parsePlayerParam( n_line, line, handler );
+        return parsePlayerParam( n_line, line, handler );
     }
     else if ( ! std::strcmp( name, "server_param" ) )
     {
-        parseServerParam( n_line, line, handler );
-    }
-    else
-    {
-        std::cerr << n_line << ": error:"
-                  << " Unknown mode [" << line << ']'
-                  << std::endl;;
+        return parseServerParam( n_line, line, handler );
     }
 
-    return true;
+    std::cerr << n_line << ": error:"
+              << " Unknown mode [" << name << ']'
+              << std::endl;;
+    return false;
 }
 
 /*-------------------------------------------------------------------*/
@@ -457,14 +483,18 @@ ParserV4::parseShow( const int n_line,
             while ( *buf != '\0' && *buf != ')' ) ++buf;
             while ( *buf == ')' ) ++buf;
             BallT & ball = show.ball_;
-            ball.x_ = strtof( buf, &next ); buf = next;
-            ball.y_ = strtof( buf, &next ); buf = next;
-            ball.vx_ = strtof( buf, &next ); buf = next;
-            ball.vy_ = strtof( buf, &next ); buf = next;
+            bool read_all = true;
+            for ( float * v : { &ball.x_, &ball.y_, &ball.vx_, &ball.vy_ } )
+            {
+                *v = strtof( buf, &next );
+                read_all = read_all && next != buf;
+                buf = next;
+            }
             while ( *buf == ')' ) ++buf;
             while ( *buf == ' ' ) ++buf;
 
-            if ( ball.vy_ == HUGE_VALF )
+            if ( ! read_all
+                 || ball.vy_ == HUGE_VALF )
             {
                 std::cerr << n_line << ": error: "
                           << " Illegal ball info. "
@@ -496,7 +526,7 @@ ParserV4::parseShow( const int n_line,
 
             ++buf;
             long unum = std::strtol( buf, &next, 10 ); buf = next;
-            if ( unum < 0 || MAX_PLAYER < unum )
+            if ( unum < 1 || MAX_PLAYER < unum )
             {
                 std::cerr << n_line << ": error: "
                           << " Illegal player unum. " << side << ' ' << i
@@ -644,8 +674,9 @@ ParserV4::parseMsg( const int n_line,
     }
 
     std::string msg( line, n_read, std::string::npos );
-    if ( msg.length() <= 2 ) // at least, [")] + 1 char
+    if ( msg.length() < 2 ) // at least, [")]
     {
+        std::cerr << n_line << ": ERROR Illegal msg [" << line << "]" << std::endl;;
         return false;
     }
 
@@ -688,21 +719,28 @@ ParserV4::parseTeamGraphic( const int n_line,
         return false;
     }
 
+    // the strings in quotes, of any length (e.g. 16 characters for 8 pixels
+    // of 2 characters each)
     std::vector< std::string > xpm_data;
 
     const char * ptr = msg.c_str() + n_read;
-    while ( *ptr != '\0' )
+    while ( const char * first = std::strchr( ptr, '"' ) )
     {
-        char buf[16];
-        if ( std::sscanf( ptr, " \"%15[^\"]\" %n ", buf, &n_read ) != 1 )
+        const char * last = std::strchr( first + 1, '"' );
+        if ( ! last )
         {
             std::cerr << n_line << ": ERROR Illegal team_graphic [" << ptr << "]" << std::endl;;
             return false;
         }
-        ptr += n_read;
 
-        xpm_data.push_back( buf );
-        while ( *ptr != '\0' && *ptr != '"' ) ++ptr;
+        xpm_data.emplace_back( first + 1, last );
+        ptr = last + 1;
+    }
+
+    if ( xpm_data.empty() )
+    {
+        std::cerr << n_line << ": ERROR Illegal team_graphic [" << msg << "]" << std::endl;;
+        return false;
     }
 
     return handler.handleTeamGraphic( side, x, y, xpm_data );
@@ -764,6 +802,10 @@ ParserV4::parseTeam( const int n_line,
                   << "Illegal team line. \"" << line << "\"" << std::endl;;
         return false;
     }
+
+    // before a team connects, as in the show line
+    if ( ! std::strcmp( name_l, "null" ) ) name_l[0] = '\0';
+    if ( ! std::strcmp( name_r, "null" ) ) name_r[0] = '\0';
 
     TeamT team_l( name_l, score_l, pen_score_l, pen_miss_l );
     TeamT team_r( name_r, score_r, pen_score_r, pen_miss_r );

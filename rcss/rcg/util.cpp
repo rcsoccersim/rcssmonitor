@@ -852,7 +852,7 @@ to_playmode_enum( const std::string & playmode )
         { "foul_charge_l", PM_Foul_Charge_Left },
         { "foul_charge_r", PM_Foul_Charge_Right },
         { "foul_push_l", PM_Foul_Push_Left },
-        { "foul_push_l", PM_Foul_Push_Right },
+        { "foul_push_r", PM_Foul_Push_Right },
         { "foul_multiple_attack_l", PM_Foul_MultipleAttacker_Left },
         { "foul_multiple_attack_r", PM_Foul_MultipleAttacker_Right },
         { "foul_ballout_l", PM_Foul_BallOut_Left },

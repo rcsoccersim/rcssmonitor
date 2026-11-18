@@ -33,11 +33,7 @@
 #ifndef RCSSMONITOR_FIELD_CANVAS_H
 #define RCSSMONITOR_FIELD_CANVAS_H
 
-#ifdef USE_GLWIDGET
-#include <QGLWidget>
-#else
 #include <QWidget>
-#endif
 
 #include <QPen>
 #include <QFont>
@@ -53,13 +49,7 @@ class FieldPainter;
 class PainterInterface;
 
 class FieldCanvas
-		:
-#ifdef USE_GLWIDGET
-    public QGLWidget
-#else
-    public QWidget
-#endif
-{
+    : public QWidget {
 
     Q_OBJECT
 

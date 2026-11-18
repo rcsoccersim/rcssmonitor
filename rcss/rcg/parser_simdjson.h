@@ -82,6 +82,18 @@ public:
     bool parse( const std::string & filepath,
                 Handler & handler ) const override;
 
+    /*!
+      \brief analyze the whole log data in memory.
+      \param data the whole game log
+      \param size the size of data
+      \param handler reference to the rcg data handler.
+      \retval true, if successfuly parsed.
+      \retval false, if incorrect format is detected.
+     */
+    bool parse( const char * data,
+                const std::size_t size,
+                Handler & handler ) const override;
+
 
     /*!
       \brief assume to parse one monitor packet.

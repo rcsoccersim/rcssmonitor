@@ -45,9 +45,60 @@
 
 #include <iostream>
 #include <fstream>
+#include <streambuf>
 
 namespace rcss {
 namespace rcg {
+
+namespace {
+
+/*!
+  \class MemoryBuf
+  \brief a read-only stream buffer over data in memory, without copying it.
+*/
+class MemoryBuf
+    : public std::streambuf {
+public:
+
+    MemoryBuf( const char * data,
+               const std::size_t size )
+      {
+          char * begin = const_cast< char * >( data );
+          setg( begin, begin, begin + size );
+      }
+
+protected:
+
+    pos_type seekoff( off_type off,
+                      std::ios_base::seekdir dir,
+                      std::ios_base::openmode which ) override
+      {
+          if ( ! ( which & std::ios_base::in ) )
+          {
+              return pos_type( off_type( -1 ) );
+          }
+
+          char * base = ( dir == std::ios_base::beg ? eback()
+                          : dir == std::ios_base::cur ? gptr()
+                          : egptr() );
+          if ( off < eback() - base
+               || egptr() - base < off )
+          {
+              return pos_type( off_type( -1 ) );
+          }
+
+          setg( eback(), base + off, egptr() );
+          return pos_type( gptr() - eback() );
+      }
+
+    pos_type seekpos( pos_type pos,
+                      std::ios_base::openmode which ) override
+      {
+          return seekoff( off_type( pos ), std::ios_base::beg, which );
+      }
+};
+
+}
 
 /*-------------------------------------------------------------------*/
 /*!
@@ -130,6 +181,19 @@ Parser::create( std::istream & is )
     return ptr;
 }
 
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+Parser::Ptr
+Parser::create( const char * data,
+                const std::size_t size )
+{
+    MemoryBuf buf( data, size );
+    std::istream is( &buf );
+    return create( is );
+}
+
 
 bool
 Parser::parse( const std::string & filepath,
@@ -142,6 +206,20 @@ Parser::parse( const std::string & filepath,
     }
 
     return parse( fin, handler );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+bool
+Parser::parse( const char * data,
+               const std::size_t size,
+               Handler & handler ) const
+{
+    MemoryBuf buf( data, size );
+    std::istream is( &buf );
+    return parse( is, handler );
 }
 
 

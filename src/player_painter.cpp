@@ -34,18 +34,13 @@
 #include <config.h>
 #endif
 
-#include <QtGlobal>
-
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
 #include <QtWidgets>
-#else
-#include <QtGui>
-#endif
 
 #include "player_painter.h"
 
 #include "disp_holder.h"
 #include "options.h"
+#include "overlay_math.h"
 #include "circle_2d.h"
 #include "vector_2d.h"
 
@@ -305,7 +300,6 @@ PlayerPainter::drawBody( QPainter & painter,
     // draw stamina status if effort or recovery is decayed.
     if ( param.player_.hasStamina() )
     {
-#if QT_VERSION >= 0x040300
         double stamina_rate = param.player_.stamina_ / M_disp_holder.serverParam().stamina_max_;
         int dark_rate = 200 - static_cast< int >( rint( 200 * rint( stamina_rate / 0.125 ) * 0.125 ) );
         dark_rate = std::max( 0, dark_rate - 50 );
@@ -323,17 +317,6 @@ PlayerPainter::drawBody( QPainter & painter,
                              param.y_ - param.body_radius_,
                              param.body_radius_ * 2 ,
                              param.body_radius_ * 2  );
-#else
-        if ( param.player_.stamina_ < 1500.0f )
-        {
-            painter.setPen( Qt::NoPen );
-            painter.setBrush( Qt::black );
-            painter.drawEllipse( param.x_ - param.body_radius_,
-                                 param.y_ - param.body_radius_,
-                                 param.body_radius_ * 2 ,
-                                 param.body_radius_ * 2  );
-        }
-#endif
 
         if ( ! param.player_.hasFullEffort( param.player_type_.effort_max_ ) )
         {
@@ -542,7 +525,7 @@ PlayerPainter::drawCatchArea( QPainter & painter,
         = std::sqrt( std::pow( SP.catchable_area_w_ * 0.5, 2.0 )
                      + std::pow( SP.catchable_area_l_, 2.0 ) );
     const int catchable = opt.scale( catchable_area );
-    painter.setPen( ( param.player_.side_ == rcss::rcg::LEFT )
+    painter.setPen( ( param.player_.side() == rcss::rcg::LEFT )
                     ? opt.leftGoaliePen()
                     : opt.rightGoaliePen() );
     painter.setBrush( Qt::NoBrush );
@@ -560,7 +543,7 @@ PlayerPainter::drawCatchArea( QPainter & painter,
     const int max_r = opt.scale( max_area );
     if ( max_r > catchable )
     {
-        painter.setPen( ( param.player_.side_ == rcss::rcg::LEFT )
+        painter.setPen( ( param.player_.side() == rcss::rcg::LEFT )
                         ? opt.leftGoalieStretchPen()
                         : opt.rightGoalieStretchPen() );
         painter.drawEllipse( param.x_ - max_r,
@@ -1023,64 +1006,10 @@ PlayerPainter::drawOffsideLine( QPainter & painter,
 {
     const Options & opt = Options::instance();
 
-    const float ball_x = show.ball_.x_;
+    const OverlayMath::OffsideLines lines = OverlayMath::offsideLines( show );
 
-    float offside_l = 0.0;
-    {
-        float min_x = 0.0f;
-        for ( int i = 0; i < rcss::rcg::MAX_PLAYER*2; ++i )
-        {
-            if ( show.player_[i].state_ != 0
-                 && show.player_[i].side_ == rcss::rcg::LEFT )
-            {
-                float x = show.player_[i].x_;
-                if ( x < offside_l )
-                {
-                    if ( x < min_x )
-                    {
-                        offside_l = min_x;
-                        min_x = x;
-                    }
-                    else
-                    {
-                        offside_l = x;
-                    }
-                }
-            }
-        }
-        offside_l = std::min( offside_l, ball_x );
-        offside_l = std::max( offside_l, - float( Options::PITCH_HALF_LENGTH ) );
-    }
-
-    float offside_r = 0.0;
-    {
-        float max_x = 0.0;
-        for ( int i = 0; i < rcss::rcg::MAX_PLAYER*2; ++i )
-        {
-            if ( show.player_[i].state_ != 0
-                 && show.player_[i].side_ == rcss::rcg::RIGHT )
-            {
-                float x = show.player_[i].x_;
-                if ( offside_r < x )
-                {
-                    if ( max_x < x )
-                    {
-                        offside_r = max_x;
-                        max_x = x;
-                    }
-                    else
-                    {
-                        offside_r = x;
-                    }
-                }
-            }
-        }
-        offside_r = std::max( offside_r, ball_x );
-        offside_r = std::min( offside_r, float( Options::PITCH_HALF_LENGTH ) );
-    }
-
-    const int offside_line_l = opt.screenX( offside_l );
-    const int offside_line_r = opt.screenX( offside_r );
+    const int offside_line_l = opt.screenX( lines.left_ );
+    const int offside_line_r = opt.screenX( lines.right_ );
 
     const int top_y = opt.screenY( Options::PITCH_HALF_WIDTH );
     const int bottom_y = opt.screenY( - Options::PITCH_HALF_WIDTH );

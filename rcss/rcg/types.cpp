@@ -551,9 +551,9 @@ ServerParamT::ServerParamT()
       player_decay_( 0.4 ),
       player_rand_( 0.1 ),
       player_weight_( 60.0 ),
-      player_speed_max_( 1.2 ),
+      player_speed_max_( 1.05 ),
       player_accel_max_( 1.0 ),
-      stamina_max_( 4000.0 ),
+      stamina_max_( 8000.0 ),
       stamina_inc_max_( 45.0 ),
       recover_init_( 1.0 ),
       recover_dec_thr_( 0.3 ),
@@ -607,7 +607,7 @@ ServerParamT::ServerParamT()
       wind_none_( false ),
       use_wind_random_( false ),
       half_time_( 300 ),
-      drop_ball_time_( 200 ),
+      drop_ball_time_( 100 ),
       port_( 6000 ),
       coach_port_( 6001 ),
       online_coach_port_( 6002 ),
@@ -643,27 +643,27 @@ ServerParamT::ServerParamT()
       slow_down_factor_( 1 ),
       synch_mode_( false ),
       synch_offset_( 60 ),
-      synch_micro_sleep_( 1 ),
+      synch_micro_sleep_( 0 ),
       start_goal_l_( 0 ),
       start_goal_r_( 0 ),
       fullstate_l_( false ),
       fullstate_r_( false ),
       slowness_on_top_for_left_team_( 1.0 ),
       slowness_on_top_for_right_team_( 1.0 ),
-      landmark_file_(),
+      landmark_file_( "~/.rcssserver-landmark.xml" ),
       send_comms_( false ),
       text_logging_( true ),
       game_logging_( true ),
-      game_log_version_( 4 ),
-      text_log_dir_( "." ),
-      game_log_dir_( "." ),
+      game_log_version_( 6 ),
+      text_log_dir_( "./" ),
+      game_log_dir_( "./" ),
       text_log_fixed_name_( "rcssserver" ),
       game_log_fixed_name_( "rcssserver" ),
       text_log_fixed_( false ),
       game_log_fixed_( false ),
       text_log_dated_( true ),
       game_log_dated_( true ),
-      log_date_format_( "%Y%m%d%H%M-" ),
+      log_date_format_( "%Y%m%d%H%M%S-" ),
       log_times_( false ),
       record_messages_( false ),
       text_log_compression_( 0 ),
@@ -672,8 +672,8 @@ ServerParamT::ServerParamT()
       point_to_ban_( 5 ),
       point_to_duration_( 20 ),
       tackle_dist_( 2.0 ),
-      tackle_back_dist_( 0.5 ),
-      tackle_width_( 1.0 ),
+      tackle_back_dist_( 0.0 ),
+      tackle_width_( 1.25 ),
       tackle_exponent_( 6.0 ),
       tackle_cycles_( 10 ),
       tackle_power_rate_( 0.027 ),
@@ -694,7 +694,7 @@ ServerParamT::ServerParamT()
       keepaway_length_( 20.0 ),
       keepaway_width_( 20.0 ),
       keepaway_logging_( true ),
-      keepaway_log_dir_( "." ),
+      keepaway_log_dir_( "./" ),
       keepaway_log_fixed_name_( "rcssserver" ),
       keepaway_log_fixed_( false ),
       keepaway_log_dated_( true ),
@@ -702,12 +702,12 @@ ServerParamT::ServerParamT()
       nr_normal_halfs_( 2 ),
       nr_extra_halfs_( 2 ),
       penalty_shoot_outs_( true ),
-      pen_before_setup_wait_( 30 ),
-      pen_setup_wait_( 100 ),
-      pen_ready_wait_( 50 ),
-      pen_taken_wait_( 200 ),
+      pen_before_setup_wait_( 10 ),
+      pen_setup_wait_( 70 ),
+      pen_ready_wait_( 10 ),
+      pen_taken_wait_( 150 ),
       pen_nr_kicks_( 5 ),
-      pen_max_extra_kicks_( 10 ),
+      pen_max_extra_kicks_( 5 ),
       pen_dist_x_( 42.5 ),
       pen_random_winner_( false ),
       pen_max_goalie_dist_x_( 14.0 ),
@@ -716,25 +716,25 @@ ServerParamT::ServerParamT()
       ball_stuck_area_( 3.0 ),
       coach_msg_file_(),
       max_tackle_power_( 100.0 ),
-      max_back_tackle_power_( 50.0 ),
-      player_speed_max_min_( 0.8 ),
-      extra_stamina_( 0.0 ),
-      synch_see_offset_( 30 ),
+      max_back_tackle_power_( 0.0 ),
+      player_speed_max_min_( 0.75 ),
+      extra_stamina_( 50.0 ),
+      synch_see_offset_( 0 ),
       max_monitors_( -1 ),
-      extra_half_time_( 300 ),
-      stamina_capacity_( -1.0 ),
-      max_dash_angle_( 0.0 ),
-      min_dash_angle_( 0.0 ),
-      dash_angle_step_( 90.0 ),
-      side_dash_rate_( 0.25 ),
-      back_dash_rate_( 0.5 ),
+      extra_half_time_( 100 ),
+      stamina_capacity_( 130600.0 ),
+      max_dash_angle_( 180.0 ),
+      min_dash_angle_( -180.0 ),
+      dash_angle_step_( 1.0 ),
+      side_dash_rate_( 0.4 ),
+      back_dash_rate_( 0.7 ),
       max_dash_power_( 100.0 ),
-      min_dash_power_( -100.0 ),
-      tackle_rand_factor_( 1.0 ),
+      min_dash_power_( 0.0 ),
+      tackle_rand_factor_( 2.0 ),
       foul_detect_probability_( 0.5 ),
       foul_exponent_( 10.0 ),
       foul_cycles_( 5 ),
-      golden_goal_( true ),
+      golden_goal_( false ),
       red_card_probability_( 0.0 ),
       illegal_defense_duration_( 20 ),
       illegal_defense_number_( 0 ),
@@ -742,12 +742,17 @@ ServerParamT::ServerParamT()
       illegal_defense_width_( 40.32 ),
       fixed_teamname_l_( "" ),
       fixed_teamname_r_( "" ),
-      max_catch_angle_( 180.0 ),
-      min_catch_angle_( -180.0 ),
+      max_catch_angle_( 90.0 ),
+      min_catch_angle_( -90.0 ),
       dist_noise_rate_( 0.0125 ),
       focus_dist_noise_rate_( 0.0125 ),
       land_dist_noise_rate_( 0.00125 ),
       land_focus_dist_noise_rate_( 0.00125 ),
+      tcp_port_( 0 ),
+      tcp_coach_port_( 0 ),
+      tcp_olcoach_port_( 0 ),
+      ws_port_( 0 ),
+      ws_allowed_origins_(),
       impl_( new Impl( this ) )
 {
 
@@ -977,6 +982,12 @@ ServerParamT::Impl::Impl( ServerParamT * p )
     param_map_.insert( ParamMap::value_type( "focus_dist_noise_rate", &(p->focus_dist_noise_rate_ ) ) );
     param_map_.insert( ParamMap::value_type( "land_dist_noise_rate", &(p->land_dist_noise_rate_ ) ) );
     param_map_.insert( ParamMap::value_type( "land_focus_dist_noise_rate", &(p->land_focus_dist_noise_rate_ ) ) );
+    // 20.0 (the servers that accept TCP and WebSocket connections)
+    param_map_.insert( ParamMap::value_type( "tcp_port", &(p->tcp_port_ ) ) );
+    param_map_.insert( ParamMap::value_type( "tcp_coach_port", &(p->tcp_coach_port_ ) ) );
+    param_map_.insert( ParamMap::value_type( "tcp_olcoach_port", &(p->tcp_olcoach_port_ ) ) );
+    param_map_.insert( ParamMap::value_type( "ws_port", &(p->ws_port_ ) ) );
+    param_map_.insert( ParamMap::value_type( "ws_allowed_origins", &(p->ws_allowed_origins_ ) ) );
 }
 
 void
@@ -1266,7 +1277,7 @@ PlayerParamT::PlayerParamT()
       player_speed_max_delta_min_( 0.0 ),
       player_speed_max_delta_max_( 0.0 ),
       stamina_inc_max_delta_factor_( 0.0 ),
-      player_decay_delta_min_( -0.05 ),
+      player_decay_delta_min_( -0.1 ),
       player_decay_delta_max_( 0.1 ),
       inertia_moment_delta_factor_( 25.0 ),
       dash_power_rate_delta_min_( 0.0 ),
@@ -1276,18 +1287,18 @@ PlayerParamT::PlayerParamT()
       kickable_margin_delta_max_( 0.1 ),
       kick_rand_delta_factor_( 1.0 ),
       extra_stamina_delta_min_( 0.0 ),
-      extra_stamina_delta_max_( 100.0 ),
-      effort_max_delta_factor_( -0.002 ),
-      effort_min_delta_factor_( -0.002 ),
-      new_dash_power_rate_delta_min_( -0.0005 ),
-      new_dash_power_rate_delta_max_( 0.0015 ),
+      extra_stamina_delta_max_( 50.0 ),
+      effort_max_delta_factor_( -0.004 ),
+      effort_min_delta_factor_( -0.004 ),
+      new_dash_power_rate_delta_min_( -0.0012 ),
+      new_dash_power_rate_delta_max_( 0.0008 ),
       new_stamina_inc_max_delta_factor_( -6000.0 ),
       random_seed_( -1 ),
       kick_power_rate_delta_min_( 0.0 ),
       kick_power_rate_delta_max_( 0.0 ),
       foul_detect_probability_delta_factor_( 0.0 ),
-      catchable_area_l_stretch_min_( 0.0 ),
-      catchable_area_l_stretch_max_( 0.0 ),
+      catchable_area_l_stretch_min_( 1.0 ),
+      catchable_area_l_stretch_max_( 1.3 ),
       impl_( new Impl( this ) )
 {
 
@@ -1458,15 +1469,15 @@ struct PlayerTypeT::Impl {
 /*-------------------------------------------------------------------*/
 PlayerTypeT::PlayerTypeT()
     : id_( 0 ),
-      player_speed_max_( 1.2 ),
+      player_speed_max_( 1.05 ),
       stamina_inc_max_( 45.0 ),
       player_decay_( 0.4 ),
       inertia_moment_( 5.0 ),
-      dash_power_rate_( 0.06 ),
+      dash_power_rate_( 0.006 ),
       player_size_( 0.3 ),
       kickable_margin_( 0.7 ),
       kick_rand_( 0.1 ),
-      extra_stamina_( 0.0 ),
+      extra_stamina_( 50.0 ),
       effort_max_( 1.0 ),
       effort_min_( 0.6 ),
       kick_power_rate_( 0.027 ),
@@ -1474,7 +1485,7 @@ PlayerTypeT::PlayerTypeT()
       catchable_area_l_stretch_( 1.0 ),
       unum_far_length_( 20.0 ),
       unum_too_far_length_( 40.0 ),
-      team_far_length_( 60.0 ),
+      team_far_length_( 125.095963164 ),
       team_too_far_length_( 125.095963164 ),
       player_max_observation_length_( 125.095963164 ),
       ball_vel_far_length_( 20.0 ),
@@ -1569,9 +1580,9 @@ PlayerTypeT::toServerString( std::ostream & os ) const
     to_sexp( os, "flag_max_observation_length", quantize( flag_max_observation_length_, 0.000001 ) );
     // 19.0
     to_sexp( os, "dist_noise_rate", dist_noise_rate_ );
-    to_sexp( os, "focus_dist_noise_rate", dist_noise_rate_ );
-    to_sexp( os, "land_dist_noise_rate", dist_noise_rate_ );
-    to_sexp( os, "land_focus_dist_noise_rate", dist_noise_rate_ );
+    to_sexp( os, "focus_dist_noise_rate", focus_dist_noise_rate_ );
+    to_sexp( os, "land_dist_noise_rate", land_dist_noise_rate_ );
+    to_sexp( os, "land_focus_dist_noise_rate", land_focus_dist_noise_rate_ );
 
     os << ')';
 
@@ -1616,9 +1627,9 @@ PlayerTypeT::toJSON( std::ostream & os ) const
     os << ',' << std::quoted( "flag_max_observation_length" ) << ':' << quantize( flag_max_observation_length_, 0.000001 );
     // 19.0
     os << ',' << std::quoted( "dist_noise_rate" ) << ':' << quantize( dist_noise_rate_, 0.000001 );
-    os << ',' << std::quoted( "focus_dist_noise_rate" ) << ':' << quantize( dist_noise_rate_, 0.000001 );
-    os << ',' << std::quoted( "land_dist_noise_rate" ) << ':' << quantize( dist_noise_rate_, 0.000001 );
-    os << ',' << std::quoted( "land_focus_dist_noise_rate" ) << ':' << quantize( dist_noise_rate_, 0.000001 );
+    os << ',' << std::quoted( "focus_dist_noise_rate" ) << ':' << quantize( focus_dist_noise_rate_, 0.000001 );
+    os << ',' << std::quoted( "land_dist_noise_rate" ) << ':' << quantize( land_dist_noise_rate_, 0.000001 );
+    os << ',' << std::quoted( "land_focus_dist_noise_rate" ) << ':' << quantize( land_focus_dist_noise_rate_, 0.000001 );
 
     os << '}' << '}';
     return os;

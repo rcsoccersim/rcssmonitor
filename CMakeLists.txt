@@ -1,10 +1,7 @@
-cmake_minimum_required(VERSION 3.5)
+# Qt6 needs CMake 3.16 or later
+cmake_minimum_required(VERSION 3.16)
 
 project(rcssmonitor VERSION 19.0.1)
-
-if(CMAKE_VERSION VERSION_LESS "3.7.0")
-    set(CMAKE_INCLUDE_CURRENT_DIR ON)
-endif()
 
 # compiler options
 set(CMAKE_CXX_STANDARD 17)
@@ -29,22 +26,43 @@ check_include_file_cxx("arpa/inet.h" HAVE_ARPA_INET_H)
 #  set(HAVE_BOOST_PROGRAM_OPTIONS TRUE)
 #endif()
 
-# check Qt
-find_package(Qt5 COMPONENTS Core Gui Widgets Network REQUIRED)
-if(NOT Qt5_FOUND)
-  message(FATAL_ERROR "Qt5 not found!")
+# check Qt: Qt6 if it is found, else Qt5. -DQT_VERSION_MAJOR=5 selects Qt5.
+# Not find_package(QT NAMES Qt6 Qt5): it takes the one that it finds first
+# in the directory, which is not always Qt6.
+if(NOT QT_VERSION_MAJOR)
+  find_package(Qt6 6.2 QUIET COMPONENTS Core)
+  if(Qt6_FOUND)
+    set(QT_VERSION_MAJOR 6 CACHE STRING "The major version of Qt: 5 or 6")
+  else()
+    set(QT_VERSION_MAJOR 5 CACHE STRING "The major version of Qt: 5 or 6")
+  endif()
 endif()
+if(QT_VERSION_MAJOR EQUAL 6)
+  set(QT_MIN_VERSION 6.2)
+  # use none of the API that Qt 6.0 or earlier deprecated
+  set(QT_DISABLE_DEPRECATED_BEFORE 0x060000)
+elseif(QT_VERSION_MAJOR EQUAL 5)
+  set(QT_MIN_VERSION 5.15)
+  # use none of the API that Qt 5.15 or earlier deprecated: most of it is
+  # gone in Qt6
+  set(QT_DISABLE_DEPRECATED_BEFORE 0x050F00)
+else()
+  message(FATAL_ERROR "Unsupported Qt version: ${QT_VERSION_MAJOR}")
+endif()
+find_package(Qt${QT_VERSION_MAJOR} ${QT_MIN_VERSION} REQUIRED COMPONENTS Core Gui Widgets Network)
+message(STATUS "Qt: ${Qt${QT_VERSION_MAJOR}_VERSION}")
+add_compile_definitions(QT_DISABLE_DEPRECATED_BEFORE=${QT_DISABLE_DEPRECATED_BEFORE})
 
 set(CMAKE_AUTOMOC ON)
 
 # check Qt WebSockets
-option(ENABLE_WEBSOCKET "Enable the WebSocket connection (requires Qt5 WebSockets)" ON)
+option(ENABLE_WEBSOCKET "Enable the WebSocket connection (requires Qt WebSockets)" ON)
 if(ENABLE_WEBSOCKET)
-  find_package(Qt5 COMPONENTS WebSockets QUIET)
-  if(Qt5WebSockets_FOUND)
+  find_package(Qt${QT_VERSION_MAJOR} COMPONENTS WebSockets QUIET)
+  if(Qt${QT_VERSION_MAJOR}WebSockets_FOUND)
     set(HAVE_QT_WEBSOCKETS TRUE)
   else()
-    message(WARNING "Qt5 WebSockets not found. The WebSocket connection is disabled.")
+    message(WARNING "Qt${QT_VERSION_MAJOR} WebSockets not found. The WebSocket connection is disabled.")
   endif()
 endif()
 
@@ -52,6 +70,19 @@ endif()
 find_package(ZLIB)
 if(ZLIB_FOUND)
   set(HAVE_LIBZ TRUE)
+endif()
+
+# check libdeflate (optional): decompresses gzip game logs faster than zlib
+option(ENABLE_LIBDEFLATE "Use libdeflate to decompress game logs, if it is found" ON)
+if(ENABLE_LIBDEFLATE)
+  find_path(LIBDEFLATE_INCLUDE_DIR libdeflate.h)
+  find_library(LIBDEFLATE_LIBRARY NAMES deflate libdeflate)
+  if(LIBDEFLATE_INCLUDE_DIR AND LIBDEFLATE_LIBRARY)
+    set(HAVE_LIBDEFLATE TRUE)
+    message(STATUS "Found libdeflate: ${LIBDEFLATE_LIBRARY}")
+  else()
+    message(STATUS "libdeflate not found. Game logs are decompressed with zlib.")
+  endif()
 endif()
 
 
@@ -66,11 +97,19 @@ configure_file(
 add_subdirectory(rcss)
 add_subdirectory(src)
 
+# desktop entry and icon
+install(FILES data/rcssmonitor.desktop
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/applications
+  )
+install(FILES icons/rcssmonitor.png
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/48x48/apps
+  )
+
 # unit tests
-find_package(Qt5 COMPONENTS Test QUIET)
-if(Qt5Test_FOUND)
+find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Test QUIET)
+if(Qt${QT_VERSION_MAJOR}Test_FOUND)
   enable_testing()
   add_subdirectory(test)
 else()
-  message(STATUS "Qt5 Test not found. The unit tests are not built.")
+  message(STATUS "Qt${QT_VERSION_MAJOR} Test not found. The unit tests are not built.")
 endif()

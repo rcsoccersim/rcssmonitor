@@ -34,13 +34,7 @@
 #include <config.h>
 #endif
 
-#include <QtGlobal>
-
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
 #include <QtWidgets>
-#else
-#include <QtGui>
-#endif
 
 #include "field_canvas.h"
 
@@ -63,14 +57,9 @@
 
 */
 FieldCanvas::FieldCanvas( DispHolder & disp_holder )
-    :
-#ifdef USE_GLWIDGET
-    QGLWidget( QGLFormat( QGL::SampleBuffers ) ),
-#else
-    QWidget( /* parent, flags */ ),
-#endif
-    M_disp_holder( disp_holder ),
-    M_monitor_menu( static_cast< QMenu * >( 0 ) )
+    : QWidget( /* parent, flags */ ),
+      M_disp_holder( disp_holder ),
+      M_monitor_menu( static_cast< QMenu * >( 0 ) )
 {
     M_focus_move_mouse = &M_mouse_state[0];
     M_measure_mouse = &M_mouse_state[1];
@@ -213,17 +202,10 @@ FieldCanvas::mouseMoveEvent( QMouseEvent * event )
 
     if ( M_focus_move_mouse->isDragged() )
     {
-#if QT_VERSION >= 0x040200
         if ( this->cursor().shape() != Qt::ClosedHandCursor )
         {
             this->setCursor( QCursor( Qt::ClosedHandCursor ) );
         }
-#else
-        if ( this->cursor().shape() != Qt::SizeAllCursor )
-        {
-            this->setCursor( QCursor( Qt::SizeAllCursor ) );
-        }
-#endif
 
         int new_x = Options::instance().screenX( Options::instance().focusPoint().x() );
         int new_y = Options::instance().screenY( Options::instance().focusPoint().y() );
@@ -254,11 +236,7 @@ FieldCanvas::mouseMoveEvent( QMouseEvent * event )
             new_rect.setRight( M_measure_mouse->draggedPoint().x() + 256 );
         }
         // draw mouse measure
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
         this->update( s_last_rect.united( new_rect ) );
-#else
-        this->update( s_last_rect.unite( new_rect ) );
-#endif
         s_last_rect = new_rect;
     }
 

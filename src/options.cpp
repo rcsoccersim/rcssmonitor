@@ -63,7 +63,7 @@
 #define VERSION "x.x.x"
 #endif
 
-#if defined(Q_WS_WIN) || defined(Q_OS_WIN)
+#ifdef Q_OS_WIN
 const QString Options::CONF_FILE = QDir::currentPath() + QDir::separator() + QString( "rcssmonitor.ini" );
 #else
 const QString Options::CONF_FILE = QDir::homePath() + QDir::separator() + QString( ".rcssmonitor.conf" );

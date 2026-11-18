@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=rcssmonitor
+Comment=Monitor for the RoboCup Soccer Simulator
+TryExec=rcssmonitor
+Exec=rcssmonitor
+Icon=rcssmonitor
+Terminal=false
+Categories=Development;
