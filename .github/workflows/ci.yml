@@ -14,6 +14,7 @@ jobs:
   # CMake builds with Qt5 and Qt6 (D2). A use of a deprecated API is an
   # error: QT_DISABLE_DEPRECATED_BEFORE (CMakeLists.txt) removes the API
   # deprecated up to Qt 5.15 or 6.0, and -Werror catches the later ones.
+  # They are built with Qt WebSockets (the WebSocket connection).
   cmake:
     name: CMake, ${{ matrix.qt }}
     # Named, not ubuntu-latest, which moves to a new image now and then.
@@ -24,10 +25,10 @@ jobs:
         include:
           - qt: Qt5
             qt_major: 5
-            qt_packages: qtbase5-dev
+            qt_packages: qtbase5-dev libqt5websockets5-dev
           - qt: Qt6
             qt_major: 6
-            qt_packages: qt6-base-dev
+            qt_packages: qt6-base-dev qt6-websockets-dev
     steps:
       - uses: actions/checkout@v5
       - name: Install the packages
@@ -40,8 +41,10 @@ jobs:
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
             -DQT_VERSION_MAJOR=${{ matrix.qt_major }} \
             -DCMAKE_CXX_FLAGS=-Werror=deprecated-declarations
+      - name: Check that the WebSocket connection is built
+        run: grep -q '^#define HAVE_QT_WEBSOCKETS' build/config.h
       - name: Build
-        run: cmake --build build --parallel
+        run: cmake --build build --parallel "$(nproc)"
       - name: Test
         run: ctest --test-dir build --output-on-failure
         env:
@@ -59,23 +62,26 @@ jobs:
         run: |
           apt-get update
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-            build-essential cmake qt6-base-dev libgl-dev zlib1g-dev libdeflate-dev
+            build-essential cmake qt6-base-dev qt6-websockets-dev libgl-dev zlib1g-dev libdeflate-dev
       - name: Configure
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
             -DQT_VERSION_MAJOR=6 \
             -DCMAKE_CXX_FLAGS=-Werror=deprecated-declarations
+      - name: Check that the WebSocket connection is built
+        run: grep -q '^#define HAVE_QT_WEBSOCKETS' build/config.h
       - name: Build
-        run: cmake --build build --parallel
+        run: cmake --build build --parallel "$(nproc)"
       - name: Test
         run: ctest --test-dir build --output-on-failure
         env:
           QT_QPA_PLATFORM: offscreen
 
   # autotools stays on Qt5 (D3). Build it so that a source file missing
-  # from the Makefile.am files is caught. It is built without libdeflate,
-  # which the CMake job uses, so that both ways of reading a gzip game log
-  # are compiled.
+  # from the Makefile.am files is caught. It is built without libdeflate
+  # and Qt WebSockets, which the CMake jobs use, so that both ways of
+  # reading a gzip game log are compiled, and the monitor without the
+  # WebSocket connection too.
   autotools-qt5:
     name: autotools, Qt5
     runs-on: ubuntu-26.04
