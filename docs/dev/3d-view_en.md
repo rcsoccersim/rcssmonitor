@@ -122,7 +122,7 @@ A vertex passes through several coordinates until it becomes pixels on the scree
 ### 2.9 Instanced drawing
 
 - The 22 players' bodies are the same cylinder drawn at different places, sizes and colors. The shape is sent to the GPU once, and in every frame only the list of places and colors is sent and drawn with one command. This is **instanced drawing** (`InstancedMesh`, `SkinnedMesh`, `BillboardMesh`).
-- The number of drawing commands costs the CPU's time, so drawing together makes it fast. The fans in the stands are drawn by the same idea (§12).
+- The number of drawing commands costs the CPU's time, so drawing together makes it fast.
 
 ### 2.10 Smooth edges (multisampling)
 
@@ -665,28 +665,201 @@ The format of figure packs and how to make them are in [docs/FIGURE_PACKS.md](..
 
 ## 11. The ball
 
-(written in 10-3d)
+### 11.1 Its place, pattern and rolling
+
+- The ball's place is that of the interpolated show (§5.2). On a play mode change and a placement, it is not moved between the frames (`Ball3D::rolls()`).
+- The pattern is 12 pentagons at the corners of an icosahedron. The shader (`ball.frag`) finds it at each pixel, and `Ball3D::patternAt()` does the same on the CPU (for the tests).
+- The rolling (`BallSpin`) is the turn rolled along the way from the first frame, made from the log once and kept: paused or stepped back, the ball is turned the same. Live, frames are added and the oldest dropped, and `update()` follows both.
+
+### 11.2 The ring and the trail
+
+- `BallAids3D` makes two things that help to find the ball (the options `ball_ring_3d`, `ball_trail_3d`):
+  - The ring: a ring of radius 0.7 m (the default kickable_margin) with a faint fill on the ground around the ball. Its line is never thinner than 2 pixels on the screen (`RING_PIXELS`, `BallAids3D::metersPerPixel()`). The `ring` shaders draw it.
+  - The trail: the ball's centers from the time drawn back a number of cycles (`BallAids3D::trailPoints()`), cut before a frame the ball is not moved from (a placement and so on). With the flying ball, the trail arcs too.
+
+### 11.3 The flying ball (BallFlight)
+
+Today's rcssserver is 2D: the ball never leaves the ground. `BallFlight` guesses from the log which kicks a real player would loft, and adds only the height to the ball's way on the ground (the option `ball_flight_3d`, off by default). The idea comes from a paper of Osaka Metropolitan University: Kyo Hatakeyama et al., "サッカー分析のためのログ可視化システム" (a log visualization system for soccer analysis), 人工知能学会第二種研究会資料 (JSAI SIG technical reports), Vol. 2023, No. SAI-047, 2024 (in Japanese only; <https://doi.org/10.11517/jsaisigtwo.2023.SAI-047_05>). Which kicks fly and how high is decided in rcssmonitor's own way (8-6 in §14 of the plan).
+
+1. **Cut into segments** (`BallFlight::build()`): the log is cut at the touches (the frame before the bit of a kick, a tackle or a catch), where the ball hit a body (the `BALL_COLLIDE` bit, or a change of velocity its decay does not explain: a post and so on), at a play mode change (but not a set piece's kick), at a placement (a jump), and where the ball almost stopped (untouched, rolling no farther than the kickable distance; `BallFlight::stopCycles()`).
+2. **Reasons to loft** (`BallFlight::loft()`): a fast kick (1.5 m/cycle or more) going 10 m or more to the next touch, with a set piece (a corner kick, a goal kick of 20 m or more), a cross from a wing, a shot from afar (a little), opponents near the ball's way that did not touch it (it went over them), or a long ball of 20 m or more. A fast kick without a reason goes a little up (a lift).
+3. **Constraints**: at the next touch, no higher than the toucher reaches (a foot 0.5 m, a tackle 0.3 m, a goalie's hands 2.3 m, a body 1.8 m; on the ground where it almost stopped). Under the crossbar between the posts on the goal line. Over the heads of the opponents it went past.
+4. **Choosing the upward speed**: of the speeds that meet the constraints, the one whose highest point is nearest the preferred height (a tenth of the distance and so on). Some of the long ones bounce on to the receiver (chosen by when they land). The speeds are tried finely (1,500 of them). Which is chosen varies by a hash of the kick's time and kicker (`BallFlight::variety()`), not at random: it looks the same every time.
+5. **The shape of the height** (`BallFlight::height()`): gravity (in m/cycle²), bounces (going up 0.6 times as fast), rolling below a bounce of 2 cm. A segment starts at the height where the one before ended (a volley).
+6. **The table**: the segments and their speeds are found only when the frames change. When frames are only added (live), the results of the segments the same as before are kept, and only the last ones found again.
+7. **The delayed live view** (§5.4): if the end of the kick's segment drawn is not known yet (`BallFlight::decided()` is false), the segment is fixed on the ground (`Segment::grounded`, remembered by the time of its first frame). It does not rise when its touch comes later. A live view without the delay does not use it.
+
+- What uses the height: the ball's height as drawn, its shadow below (fainter the higher it is), the trail, and the goalie's catching pose (`BallFlight` passed to `FigureActionLog::read()`). The point the cameras follow and the kicking foot's IK keep the ball on the ground.
+- A log with heights of its own (a future 2.5D server) is drawn with them, without guessing.
 
 ## 12. The stadium and the scenery
 
-(written in 10-3d)
+| What | Class | How it is drawn |
+|---|---|---|
+| The pitch (grass and lines) | `GroundTexture`, `Grass3D` | The 2D `FieldPainter` draws the pitch and the margins around it into an image, painted on the ground; drawn again only when the colors or options change. With the realistic grass, the patches and the wear are painted into the image (`Grass3D::paintGround()`), and `ground.frag` draws the light and dark of the mowed stripes and the blades |
+| The ground beyond, the sky, the haze | `Scenery3D` | The sky is a dome (a sphere) around the camera. The ground beyond is a plane, nearer the horizon's color by the haze the farther it is. The CPU has the same computations as the shaders (for the tests) |
+| The sun and shadows | `Sun3D` | The sun's direction, the shadow map's camera (covering the pitch and its margins), the ellipses of the Simple shadows (`Sun3D::blobShadow()`) |
+| The goals | `SceneBuilder` | The posts and the crossbar are cylinders (`lit`), the nets translucent quads (`flat`) |
+| The boards and banners | `Stadium3D` | So that the two ends can be told apart (above all from the player camera): boards in the team colors, and banners with the team names and logos (with the Team Graphic option on, once they have arrived). The images are made again only when a team's look (`TeamLook`) changes. Drawn on both faces by the `panel` shaders |
+| The stands | `Stands3D` | Four stands of one tier of 16 rows, along both touch lines and behind both goals. Their shapes are triangles in the world's coordinates (`Stands3D::mesh()`); the crowd, the seats and the aisles are painted into one image each (`Stands3D::image()`; the left team's fans toward the left end). Made again only when the teams' colors and names change. A stand with the camera inside is not drawn (`Stands3D::insideStand()`) |
 
 ## 13. The HUD and input
 
-(written in 10-3d)
+### 13.1 The HUD
+
+- `FieldView3D::paintGL()` puts the HUD over what OpenGL drew, with QPainter. Before that, OpenGL is set back as QPainter expects it (`GLFrame::end()`).
+- The 2D parts are used as they are: the score board (`ScoreBoardPainter`) and the team logos (`TeamGraphicPainter`).
+- The overlays' texts (the chance of a tackle, a kick's largest acceleration and so on, `OverlayText`) are written in the 2D player font where their points on the ground fall on the screen.
+- The compass and the minimap (`Guides3D`, the options `compass_3d`, `minimap_3d`): the compass at the top center, the 360 degrees around the camera's direction with both goals (L, R in the team colors) and the ball's direction; the minimap at the bottom right, the players, the ball, and where the camera is and what it sees, on the pitch of the 2D view. Each "Off / Player Camera / All Cameras" (`Guides3D::shown()`).
+- The FPS (`FpsMeter`, the option `fps_3d`): the frames drawn a second and the GPU's time, at the bottom right.
+- On a scaled screen, QPainter's window could be in physical pixels and the HUD fell off; it is set in logical pixels (the comments in `paintGL()`).
+
+### 13.2 Input
+
+- The mouse (`FieldView3D` -> `CameraController`): the left drag turns, with Shift or Ctrl (or Meta) moves, the middle drag brings nearer or farther. Moving a camera that follows the ball or a player makes it the free camera. The top camera does not take the mouse.
+- The wheel: the 3D view does not move the camera by the wheel. It passes it to `MainWindow` by the signal `wheelTurned()`, which steps the frames as in 2D.
+- The keys: the 3D window takes no keyboard input. The keys go to `MainWindow`'s actions, which call `zoomCamera()` (Z, X) and `viewFrom()` (I, Ctrl+I).
+- The automatic selection of a player (the one nearest the ball) is done when drawing, as in 2D.
+
+### 13.3 What a click aims at, and the referee's menu
+
+- A right click emits `refereeMenuRequested()`, and `MainWindow` opens the referee's menu shared with 2D (`RefereeMenu`).
+- What was clicked is decided by `Picking` (`FieldView3D::targetAt()`): with the camera last drawn, the ray through the point of the screen (`Picking::rayAt()`), and the first player it meets (invisible cylinders and head spheres of the sizes drawn, `SceneContent::picks`; `Picking::playerAt()`), or the point of the ground (`Picking::groundAt()`).
+- A click in another window does not close a menu, so `PopupCloser` closes it (§3.5).
 
 ## 14. Performance
 
-(written in 10-3d)
+### 14.1 Drawing only when needed
+
+- The 3D view draws the next frame only while a log plays, live until the newest frame is reached, and while the camera moves (`FieldView3D::drawNext()`). Still, it does not draw.
+
+### 14.2 How to measure
+
+- With the environment variable `RCSSMONITOR_3D_TIMING`, the times go to the standard error every two seconds: the size drawn (pixels, and `smooth` with smooth edges), the figures' model and number, the frames a second and the longest gap, the CPU's time to build a frame (with the players' and figures' part), the time to hand the drawing to the GPU, and the GPU's time (timer queries, `GpuTimer`). Run it with a temporary HOME so that the user's settings file is not written:
+  ```bash
+  RCSSMONITOR_3D_TIMING=1 HOME=$(mktemp -d) build/rcssmonitor --view-3d on game.rcg.gz
+  ```
+- The option `fps_3d` shows the FPS and the GPU's time at the bottom right of the view.
+- An integrated GPU lowers its clock when the work is light, so compare values measured at the same time. In a window, the GPU's time depends on how the window reaches the screen (XWayland or Wayland) too; to compare the drawing alone, draw without showing it (the tests' window that is not shown).
+
+### 14.3 Where the time goes
+
+- The GPU: every frame it moves the vertices of 22 bodies by their bones, and with the Detailed shadows again for the shadow map. The time grows about as the bodies' triangles do. On the work machine's integrated GPU at 1920x1080, the bundled bodies (15,000 to 22,000 triangles) took about 4 ms with the Simple shadows and 7 ms with Detailed; 55,000 triangles 9 and 16 ms; 105,000 18 and 30 ms; 420,000 57 and 104 ms (details in [docs/FIGURE_PACKS.md](../FIGURE_PACKS.md)). With every option on, the bundled bodies keep 60 fps (8-5 in §14 of the plan).
+- Smooth edges: about 4.4 ms at 4K (measured without showing).
+- The window: going from `QOpenGLWidget` to `QOpenGLWindow` took a 4K integrated GPU from 31 to 48 fps, and drawing on Wayland instead of through XWayland gives 60 fps at 4K (§3.5, the document for users).
+- The CPU: the tables (`GaitTable`, `BallSpin`, `BallFlight`) are made once when the log is read (a few ms for a whole game). Live, only their last parts are made again as each frame comes (under 1 ms a time for `BallFlight`).
+
+### 14.4 Cautions
+
+- Do not run many tests that use the GPU in parallel (a page fault of the GPU brought the work machine down during the web version's work; §0.1 of the plan).
+- When adding heavy work, compare before and after with `RCSSMONITOR_3D_TIMING`, and record it in §14 of the plan.
 
 ## 15. Tests
 
-(written in 10-3d)
+### 15.1 Running them
+
+- `ctest --output-on-failure` in the build directory (or `./cmake-helper.sh test`). The tests run with HOME in the build directory and Qt's offscreen platform (the user's settings file is not touched, and no window is shown).
+- The drawing test `scene_3d` draws without showing with OpenGL 3.3, and is skipped without it. The CI runs it with Xvfb and Mesa's software drawing (`LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a ctest`; details in [docs/build.md](../build.md)).
+
+### 15.2 The tests of the 3D view
+
+| Area | Tests |
+|---|---|
+| Time | `interpolate` (interpolation, the live clock, the delay), `log_player` (the delayed view's clock) |
+| What is drawn | `frame_builder_3d`, `scene_builder`, `overlay_builder`, `label_atlas`, `meshes_3d`, `guides_3d`, `stadium_3d`, `stands_3d`, `scenery_3d`, `sun_3d`, `grass_3d`, `ground_texture` |
+| Cameras | `cameras_3d`, `player_camera`, `sight`, `picking` |
+| Drawing | `scene_3d` (drawn without showing, pixels checked), `gl_isolation` (the OpenGL calls only in `gl/`) |
+| Figures | `figures_3d`, `figure_actions`, `gait_table`, `humanoid`, `figure_pack`, `figure_looks`, `figure_uniform`, `gltf_model`, `fbx_model`, `bvh_model` |
+| Ball | `ball_3d`, `ball_aids_3d`, `ball_flight_3d` |
+| The window and settings | `view_switch` (switching 2D and 3D; the 3D view unavailable offscreen), `popup_closer`, `fps_meter`, `config_dialog` (the 3D tabs), `toolbar` |
+
+### 15.3 The test material
+
+- `test/data/` has short logs (`head_v5.rcg`, `head_json.rcg` and others) and test FBX and BVH files (made from the bundled Mannequin with Blender; how in [docs/dev/FIGURE_ASSETS.md](FIGURE_ASSETS.md)).
+- Many tests build their logs and clips in the test (e.g. `Log` in `test_ball_flight_3d.cpp`, `test_gltf.h`, `test_bvh.h`).
+- Whole-game logs are not in the repository. What was measured on whole games (times, the number of lofted kicks and so on) is in §14 of the plan.
+
+### 15.4 The habits of writing tests
+
+- After adding a test, **break the code it checks for a while, and check that the test fails**. The number of ways broken, and what was missed at first, have been recorded in §14 of the plan. When one is missed, add its case to the test.
+- Test mostly on the parts that do not know OpenGL (what is in `SceneContent`, the poses, the cameras), and check the pixels drawn in `scene_3d` at the key points only.
 
 ## 16. Common tasks
 
-(written in 10-3d)
+### 16.1 Adding a setting
+
+1. Add a member, its getter and setter, and its default to `Options` (`src/options.{h,cpp}`). Keep a value with a range within it in the setter.
+2. Add reading and writing it in the settings file (the group `View3D` of `readSettings()` and `writeSettings()`), and its command line option (`parseCmdLine()`; the setting's name with hyphens).
+3. Add it to the function that sets its tab back (`setView3DDefaults()`, `setPlayersAndBall3DDefaults()`, `setCamera3DDefaults()`).
+4. Add its control to the settings dialog (`src/config_dialog.cpp`): an `objectName`, a detailed tooltip (with the range for a number), showing it in `updateAll()`, and the summary in the tooltip of the Default button.
+5. Read it where it is used (`FrameBuilder3D`, `SceneBuilder` and so on). If it changes what is drawn, make `FieldView3D` draw again.
+6. Add tests: `config_dialog` (add it to the list of the tabs' places, `places`; its tooltip; clicking changes the setting; Default sets it back) and the tests of what it changes.
+7. Update the documents: the tables of [docs/3d-view.md](../3d-view.md) for users, and the table of §5.7 of the plan.
+
+### 16.2 Adding a camera
+
+1. Add its name (for the settings and the command line) and label to `CameraMode` and `cameraModes()` in `src/camera_mode.h`. The menu and the tool bar's list are made from this list.
+2. Add where it is to `Cameras3D`, and use it in `CameraController::update()` (how it follows, whether it takes the mouse).
+3. Add to the test `cameras_3d`, and update the table of cameras in [docs/3d-view.md](../3d-view.md).
+
+### 16.3 Adding an effect to the drawing
+
+Follow the steps of §7.8. When changing a shader, see §7.7 too.
+
+### 16.4 Adding an action of the figures
+
+1. In `FigureActionLog` (`figure_actions.cpp`), read the action and its moment from the state bits or the like, into `FigureActions`.
+2. In `Figures3D`, add its weight (around `weightsOf()`) and its pose. Think of both a pose made here and a clip of a pack (the clip names of `FigurePack`, `ActionClips`).
+3. Add to the tests `figure_actions` (reading it) and `figures_3d` (the bones' places and directions).
+4. For a new clip name of the packs, write it in "The actions" of [docs/FIGURE_PACKS.md](../FIGURE_PACKS.md) for users.
+
+### 16.5 Updating the bundled material
+
+1. Replace the files of the pack in `resources/figures/`, and update `view3d_figures.qrc` if needed.
+2. Write the source and license in the folder's README and in `credits` of `figure.json`. Put the scripts and steps that make it in [docs/dev/FIGURE_ASSETS.md](FIGURE_ASSETS.md).
+3. Run the figures' tests (`figure_pack`, `figures_3d` and others), and measure its weight (§14).
+
+### 16.6 Looking into a drawing bug
+
+1. Find the log and the frame (cycle) where it happens. The tool bar's field jumps to a cycle.
+2. Tell whether it happens paused, only while playing, or only live (a pose depends on the frame and the fraction only, so if it happens paused it can be reproduced at the stage of `FrameBuilder3D`).
+3. Write a test that builds that frame with `FrameBuilder3D`, and check it in `SceneContent` or `View3DState` (the points of the players' poses and so on).
+4. For a problem of the look, draw without showing as `scene_3d` does. A drawn frame can also be looked into with an outside tool (RenderDoc and the like).
+5. Look at the same log in the web version and compare (many classes' comments name the web version's file they follow).
 
 ## 17. References
 
-(written in 10-3d)
+### 17.1 The sections of the plan
+
+| Section | Content |
+|---|---|
+| §2 | The decisions and their reasons (D1 the drawing technique, D2 the Qt versions, D3 the build, D4 the 3D view optional, D5 glTF, D6 the figure model, D12 the material's formats, D15 the delayed view, D16 the build and the documents) |
+| §4 | The web version's 3D view (the features, its modules and rcssmonitor's counterparts, the main constants) |
+| §5 | The design (5.1 structure, 5.2 time and interpolation, 5.3 the drawing's base, 5.4 the parts, 5.5 the HUD, 5.6 input, 5.7 settings, 5.8 figures, 5.9 figure packs, 5.10 the delayed view) |
+| §10 | The test plan |
+| §14 | The record of each step (decisions, bugs found, measurements, tests) |
+
+### 17.2 The web version's counterparts
+
+| Web version (under `src/view/`) | rcssmonitor |
+|---|---|
+| `render3d/render3d.ts` | `FieldView3D`, `Scene3D`, `FrameBuilder3D`, `SceneBuilder` |
+| `render3d/cameras.ts`, `player-camera.ts`, `sight.ts` | `Cameras3D`, `PlayerCamera3D`, `PlayerSight` |
+| `render3d/interpolate.ts` | `Interpolate` |
+| `render3d/overlays.ts`, `../overlay-math.ts` | `OverlayBuilder`, `src/overlay_math.h` |
+| `render3d/stadium.ts`, `scenery.ts` | `Stadium3D`, `Stands3D`, `Scenery3D`, `Grass3D` |
+| `render3d/ball.ts`, `ball-aids.ts` | `Ball3D`, `BallAids3D` |
+| `render3d/field-texture.ts` | `GroundTexture` |
+| `render3d/figures/` | `Figures3D`, `HumanoidRig`, `GltfModel` and others (rcssmonitor added the figure packs, the IK, the actions by clips and more) |
+| `hud/guides.ts`, `hud/hud.ts` | `Guides3D`, the HUD of `FieldView3D` |
+
+### 17.3 Outside material
+
+- [LearnOpenGL](https://learnopengl.com/): an introduction to OpenGL and shaders.
+- [The OpenGL 3.3 core specification](https://registry.khronos.org/OpenGL/specs/gl/glspec33.core.pdf) and [the GLSL 3.30 specification](https://registry.khronos.org/OpenGL/specs/gl/GLSLangSpec.3.30.pdf).
+- [Qt's QOpenGLWindow](https://doc.qt.io/qt-6/qopenglwindow.html).
+- [The glTF 2.0 specification](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html), [the VRM specification](https://github.com/vrm-c/vrm-specification).
+- [cgltf](https://github.com/jkuhlmann/cgltf), [ufbx](https://github.com/ufbx/ufbx).
+- [RenderDoc](https://renderdoc.org/): a tool to capture a drawn frame and look into it.
+- The bundled material: Quaternius's [Universal Animation Library](https://quaternius.com/packs/universalanimationlibrary.html), [Universal Animation Library 2](https://quaternius.com/packs/universalanimationlibrary2.html) and [Universal Base Characters](https://quaternius.com/packs/universalbasecharacters.html) (CC0), and [100STYLE](https://www.ianxmason.com/100style/) (CC BY 4.0).
+- The idea of the flying ball: Hatakeyama et al., "サッカー分析のためのログ可視化システム" (a log visualization system for soccer analysis), JSAI SIG technical reports, SAI-047, 2024 (in Japanese; <https://doi.org/10.11517/jsaisigtwo.2023.SAI-047_05>).

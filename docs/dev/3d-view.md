@@ -122,7 +122,7 @@
 ### 2.9 インスタンス描画
 
 - 22 人の胴は、同じ円柱を違う場所、大きさ、色で描いたものである。形を 1 度だけ GPU に送り、フレームごとに「場所と色の一覧」だけを送って、1 回の命令でまとめて描く。これを **インスタンス描画** と呼ぶ (`InstancedMesh`、`SkinnedMesh`、`BillboardMesh`)。
-- 描く命令の数は CPU の時間に効くので、まとめて描くことが速さにつながる。観客席の観客も同じ考えで描く (§12)。
+- 描く命令の数は CPU の時間に効くので、まとめて描くことが速さにつながる。
 
 ### 2.10 なめらかな縁 (マルチサンプリング)
 
@@ -665,28 +665,201 @@ flowchart TD
 
 ## 11. ボール
 
-(10-3d で書く)
+### 11.1 位置、模様、転がり
+
+- ボールの位置は、補間した show のもの (§5.2)。プレイモードが変わるときと置き直しのときは、フレームの間を動かさない (`Ball3D::rolls()`)。
+- 模様は、正二十面体の頂点にある 12 の五角形である。シェーダ (`ball.frag`) がピクセルごとに求め、CPU 側の `Ball3D::patternAt()` が同じ計算をする (テスト用)。
+- 転がり (`BallSpin`) は、最初のフレームから道のりに沿って転がした回転を、ログから一度作って持つ。止めても戻しても同じ向きになる。ライブではフレームが増え、古いものが落ちるので、`update()` は両方についていく。
+
+### 11.2 輪と軌跡
+
+- `BallAids3D` が、ボールを見つけやすくする 2 つを作る (設定 `ball_ring_3d`、`ball_trail_3d`)。
+  - 輪: ボールの周りの地面に、半径 0.7 m (既定の kickable_margin) の輪とうすい塗り。線は画面で 2 ピクセル (`RING_PIXELS`) より細くしない (`BallAids3D::metersPerPixel()`)。`ring` のシェーダが描く。
+  - 軌跡: 描く時刻から決めたサイクル数だけ前までのボールの中心を結ぶ (`BallAids3D::trailPoints()`)。置き直しなど、ボールを動かさないフレームの前で切る。宙を飛ぶボールでは、軌跡も弧を描く。
+
+### 11.3 宙を飛ぶボール (BallFlight)
+
+今の rcssserver は 2 次元で、ボールは宙を飛ばない。`BallFlight` は、ログから「実際の選手なら浮かせただろうキック」を推測し、地面の上の道のりはそのままで、高さだけを足す (設定 `ball_flight_3d`、既定はオフ)。考えのもとは、大阪公立大学の論文である: 畠山 響、中田 光紀、下田 萌喜、中島 智晴、楠木 祥文、秋山 英久「サッカー分析のためのログ可視化システム」、人工知能学会第二種研究会資料、2023 巻 SAI-047 号、2024 (日本語のみ。<https://doi.org/10.11517/jsaisigtwo.2023.SAI-047_05>)。どのキックをどれだけ浮かせるかは、rcssmonitor のやり方で決める (計画書 §14 の 8-6)。
+
+1. **区間に切る** (`BallFlight::build()`): ログを、触った瞬間 (キック、タックル、キャッチのビットのフレームの 1 つ前)、体に当たった所 (`BALL_COLLIDE` のビット、またはポストなど減衰で説明できない速度の変化)、プレイモードの変化 (セットプレーのキックは除く)、置き直し (跳び)、ほぼ止まった所 (触らないまま、残りの転がる距離が蹴れる距離より短くなった所。`BallFlight::stopCycles()`) で切る。
+2. **浮かせる理由** (`BallFlight::loft()`): 速いキック (1.5 m/サイクル以上) で、次に触るまで 10 m 以上のとき、セットプレー (コーナーキック、20 m 以上のゴールキック)、サイドからのクロス、遠くからのシュート (少しだけ)、ボールの通り道の近くに触らなかった相手がいた (その上を越した)、20 m 以上のロングボール。理由がなくても速いキックは少しだけ浮かせる (lift)。
+3. **制約**: 次に触る瞬間に、触る人が届く高さ以下 (足 0.5 m、タックル 0.3 m、キーパーの手 2.3 m、体 1.8 m。ほぼ止まった所では地面)。ゴールラインのポストの間ではクロスバーより下。越した相手の所では頭より上。
+4. **上向きの初速を選ぶ**: 制約を満たす初速のうち、最高点が好む高さ (距離の 1 割など) にいちばん近いもの。長いものの一部は、途中でバウンドして受け手へ届く (着地の時刻で選ぶ)。初速を細かく (1,500 通り) 試す。どれを選ぶかはキックの時刻と蹴った選手のハッシュ (`BallFlight::variety()`) で変わり、乱数ではないので毎回同じに見える。
+5. **高さの形** (`BallFlight::height()`): 重力 (m/サイクル² に直す)、バウンド (上がる速さが 0.6 倍)、2 cm より低いバウンドは転がる。区間は前の区間が終わった高さから始める (ボレー)。
+6. **表を持つ**: 区間と初速は、フレームが変わったときだけ求める。フレームが増えるだけのとき (ライブ) は、前と同じ区間の結果を使い回し、末尾だけ求め直す。
+7. **遅延ライブ** (§5.4): 描いているフレームのキックの区間の終わりがまだわからない (`BallFlight::decided()` が偽) と、その区間を地面に固定する (`Segment::grounded`。最初のフレームの時刻で覚える)。後でタッチが来ても浮かせない。遅延のないライブでは使わない。
+
+- 高さを使う所: ボールを描く高さ、真下の影 (高いほど薄い)、軌跡、キーパーのキャッチの姿勢 (`FigureActionLog::read()` に `BallFlight` を渡す)。カメラが追う点と、蹴る足の IK は、地面のボールのまま。
+- ログ自体に高さがあるとき (将来の 2.5 次元のサーバ) は、その高さを使い、推測しない。
 
 ## 12. スタジアムと背景
 
-(10-3d で書く)
+| もの | クラス | 描き方 |
+|---|---|---|
+| ピッチ (芝と線) | `GroundTexture`、`Grass3D` | 2D の `FieldPainter` がピッチと外側の余白を画像に描き、地面に貼る。色や設定が変わったときだけ描き直す。リアルな芝では、斑とすり減りを画像に描き込み (`Grass3D::paintGround()`)、刈った縞の明暗と芝の葉は `ground.frag` が描く |
+| 外の地面、空、霞 | `Scenery3D` | 空はカメラを囲むドーム (球)。外の地面は平面で、遠いほど霞で地平線の色に近づく。シェーダと同じ計算を CPU 側にも持つ (テスト用) |
+| 太陽と影 | `Sun3D` | 太陽の向き、シャドウマップのカメラ (ピッチと余白を覆う)、Simple の影の楕円 (`Sun3D::blobShadow()`) |
+| ゴール | `SceneBuilder` | 柱とクロスバーは円柱 (`lit`)、ネットは半透明の四角形 (`flat`) |
+| ボードと幕 | `Stadium3D` | 両端をチームの色で見分けられるように (とくに選手カメラから)、チームの色のボードと、チーム名とロゴ (Team Graphic の設定がオンで、届いているとき) の幕。チームの見た目 (`TeamLook`) が変わったときだけ画像を作り直す。`panel` のシェーダで、両面を描く |
+| 観客席 | `Stands3D` | 両側のタッチラインと両方のゴールの裏に、1 段で 16 列の観客席を 4 つ。形はワールドの座標の三角形 (`Stands3D::mesh()`)、観客と座席と通路は 1 つの画像に描き込む (`Stands3D::image()`。左のチームのファンは左の端寄り)。チームの色と名前が変わったときだけ作り直す。カメラが中にある観客席は描かない (`Stands3D::insideStand()`) |
 
 ## 13. HUD と入力
 
-(10-3d で書く)
+### 13.1 HUD
+
+- `FieldView3D::paintGL()` は、OpenGL で描いた上に QPainter で HUD を重ねる。描く前に OpenGL の状態を QPainter が使える形に戻す (`GLFrame::end()`)。
+- 2D の部品をそのまま使う: スコアボード (`ScoreBoardPainter`) とチームのロゴ (`TeamGraphicPainter`)。
+- オーバーレイの文字 (タックルの確率、キックの最大の加速など、`OverlayText`) は、地面の点を画面に写した位置に、2D の選手のフォントで書く。
+- 方位の帯とミニマップ (`Guides3D`、設定 `compass_3d`、`minimap_3d`): 帯は上の中央に、カメラの向きを中心にした 360° と、両ゴール (チームの色の L、R) とボールの向き。ミニマップは右下に、2D と同じピッチの上の選手、ボール、カメラの位置と見える範囲。どちらも「Off / Player Camera / All Cameras」で出す (`Guides3D::shown()`)。
+- FPS (`FpsMeter`、設定 `fps_3d`): 右下に、1 秒に描いたフレーム数と GPU の時間。
+- 倍率のある画面では、QPainter の窓が物理ピクセルになって HUD がずれることがあったので、論理ピクセルに合わせている (`paintGL()` のコメント)。
+
+### 13.2 入力
+
+- マウス (`FieldView3D` → `CameraController`): 左のドラッグで回る、Shift か Ctrl (か Meta) で動かす、中のドラッグで寄る・離れる。ボールや選手を追うカメラで動かすと、自由なカメラになる。上からのカメラはマウスを取らない。
+- ホイール: 3D 表示はホイールでカメラを動かさない。`wheelTurned()` のシグナルで `MainWindow` に渡し、2D と同じくフレームを進め戻す。
+- キー: 3D の窓はキーボードの入力を取らない。キーは `MainWindow` のアクションが受け、`zoomCamera()` (Z、X) や `viewFrom()` (I、Ctrl+I) を呼ぶ。
+- 選手の自動の選択 (ボールに近い選手) は、2D と同じく描くときに行う。
+
+### 13.3 クリックの的と審判のメニュー
+
+- 右クリックで `refereeMenuRequested()` を出し、`MainWindow` が 2D と共通の審判のメニュー (`RefereeMenu`) を開く。
+- 何をクリックしたかは `Picking` が決める (`FieldView3D::targetAt()`): 最後に描いたカメラで、画面の点を通る光線 (`Picking::rayAt()` など) を作り、最初に当たる選手 (描いた大きさの見えない円柱と頭の球、`SceneContent::picks`) か、地面の点を返す。
+- 別の窓のクリックではメニューが閉じないので、`PopupCloser` が閉じる (§3.5)。
 
 ## 14. 性能
 
-(10-3d で書く)
+### 14.1 描くのは要るときだけ
+
+- 3D 表示は、ログの再生中、ライブで最新のフレームに追いつくまで、カメラが動いている間だけ、次のフレームを描く (`FieldView3D::drawNext()`)。止まっていれば描かない。
+
+### 14.2 測り方
+
+- 環境変数 `RCSSMONITOR_3D_TIMING` を付けると、2 秒ごとに標準エラーへ時間を出す: 描く大きさ (ピクセル、なめらかな縁なら `smooth`)、人型のモデルと数、1 秒のフレーム数と最も長い間隔、1 フレームを組み立てる CPU の時間 (その内の選手と人型の分)、GPU に描く命令を渡す時間、GPU の時間 (タイマーのクエリ、`GpuTimer`)。ユーザの設定ファイルを書かないよう、一時的な HOME で動かす:
+  ```bash
+  RCSSMONITOR_3D_TIMING=1 HOME=$(mktemp -d) build/rcssmonitor --view-3d on game.rcg.gz
+  ```
+- 設定 `fps_3d` で、画面の右下に FPS と GPU の時間を出せる。
+- 内蔵 GPU は負荷が軽いとクロックを下げるので、同じときに測った値どうしで比べる。窓の GPU の時間は画面に出す経路 (XWayland か Wayland) にもよるので、描くことだけを比べるなら画面に出さないで描く (テストの「画面に出さない窓」)。
+
+### 14.3 時間がかかる所
+
+- GPU: 毎フレーム 22 体の頂点を骨で動かす。精緻な影 (Detailed) ではシャドウマップのためにもう一度動かす。時間はおおよそ体の三角形の数に比例する。作業マシンの内蔵 GPU、1920×1080 で、同梱の体 (1.5〜2.2 万三角形) は Simple の影で約 4 ms、Detailed で約 7 ms、5.5 万三角形で 9 ms と 16 ms、10.5 万で 18 ms と 30 ms、42 万で 57 ms と 104 ms だった (詳しくは [docs/FIGURE_PACKS.md](../FIGURE_PACKS.md))。すべての設定をオンにしても、同梱の体なら 60 fps を保つ (計画書 §14 の 8-5)。
+- なめらかな縁: 4K で約 4.4 ms (画面に出さないで測った値)。
+- 窓: `QOpenGLWidget` から `QOpenGLWindow` にして、4K の内蔵 GPU で 31 fps から 48 fps になった。さらに XWayland をやめて Wayland で描くと、4K でも 60 fps (§3.5、利用者向けの文書)。
+- CPU: 表 (`GaitTable`、`BallSpin`、`BallFlight`) は、ログを読んだときに一度作る (全試合のログで数 ms)。ライブでは、フレームが届くたびに末尾だけを作り直す (`BallFlight` で 1 回 1 ms 未満)。
+
+### 14.4 気をつけること
+
+- GPU を使うテストを、多く並列で動かさない (web 版の作業中に、GPU のページフォルトで作業マシンが落ちたことがある。計画書 §0.1)。
+- 重い処理を足したときは、`RCSSMONITOR_3D_TIMING` で前後を比べ、計画書の §14 に記録する。
 
 ## 15. テスト
 
-(10-3d で書く)
+### 15.1 動かし方
+
+- ビルドのディレクトリで `ctest --output-on-failure` (または `./cmake-helper.sh test`)。テストは、ビルドのディレクトリの中の HOME と、Qt の offscreen のプラットフォームで動く (ユーザの設定ファイルに触れず、窓も出ない)。
+- 描画のテスト `scene_3d` は OpenGL 3.3 で画面に出さないで描き、使えなければスキップする。CI では Xvfb と Mesa のソフトウェアの描画で動かす (`LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a ctest`。詳しくは [docs/build.md](../build.md))。
+
+### 15.2 3D 表示のテスト
+
+| 分野 | テスト |
+|---|---|
+| 時間 | `interpolate` (補間、ライブの時計、遅延)、`log_player` (遅延再生の時計) |
+| 何を描くか | `frame_builder_3d`、`scene_builder`、`overlay_builder`、`label_atlas`、`meshes_3d`、`guides_3d`、`stadium_3d`、`stands_3d`、`scenery_3d`、`sun_3d`、`grass_3d`、`ground_texture` |
+| カメラ | `cameras_3d`、`player_camera`、`sight`、`picking` |
+| 描く | `scene_3d` (画面に出さないで描き、ピクセルを確かめる)、`gl_isolation` (OpenGL の呼び出しが `gl/` だけにあること) |
+| 人型 | `figures_3d`、`figure_actions`、`gait_table`、`humanoid`、`figure_pack`、`figure_looks`、`figure_uniform`、`gltf_model`、`fbx_model`、`bvh_model` |
+| ボール | `ball_3d`、`ball_aids_3d`、`ball_flight_3d` |
+| 窓と設定 | `view_switch` (2D と 3D の切り替え、offscreen では 3D が使えないこと)、`popup_closer`、`fps_meter`、`config_dialog` (3D のタブ)、`toolbar` |
+
+### 15.3 テストの材料
+
+- `test/data/` に短いログ (`head_v5.rcg`、`head_json.rcg` など) と、試験用の FBX と BVH (同梱のマネキンから Blender で作る。作り方は [docs/dev/FIGURE_ASSETS.md](FIGURE_ASSETS.md))。
+- 多くのテストは、ログやクリップをテストの中で組み立てる (例: `test_ball_flight_3d.cpp` の `Log`、`test_gltf.h`、`test_bvh.h`)。
+- 全試合のログはリポジトリに入れていない。全試合で測った結果 (時間、浮いたキックの数など) は計画書の §14 にある。
+
+### 15.4 テストの書き方の習慣
+
+- テストを足したら、**確かめる箇所を一時的に壊して、テストが失敗することを確かめる**。壊した通り数と、初めに見逃したものは、計画書の §14 に記録してきた。見逃したら、その場面をテストに足す。
+- テストは、OpenGL を知らない部分 (`SceneContent` の中身、姿勢、カメラ) で確かめるのを基本にし、描いたピクセルは `scene_3d` で要所だけを確かめる。
 
 ## 16. よくある作業の手順
 
-(10-3d で書く)
+### 16.1 設定を 1 つ足す
+
+1. `Options` (`src/options.{h,cpp}`) にメンバ、取得と設定の関数、既定値を足す。範囲のある値は設定の関数で収める。
+2. 設定ファイルの読み書き (`readSettings()`、`writeSettings()` の `View3D` のグループ) と、コマンドラインのオプション (`parseCmdLine()`。設定と同じ名前、ハイフンでつなぐ) を足す。
+3. タブの既定値に戻す関数 (`setView3DDefaults()`、`setPlayersAndBall3DDefaults()`、`setCamera3DDefaults()`) に足す。
+4. 設定ダイアログ (`src/config_dialog.cpp`) に部品を足す: `objectName`、詳しいツールチップ (数値なら範囲)、`updateAll()` での表示、Default のボタンのツールチップの要約。
+5. 使う所 (`FrameBuilder3D`、`SceneBuilder` など) で読む。描く内容が変わるなら、`FieldView3D` が描き直すようにする。
+6. テストを足す: `config_dialog` (タブの場所の一覧 `places` に足す、ツールチップ、押すと設定が変わる、Default で戻る) と、効く所のテスト。
+7. 文書を直す: 利用者向けの [docs/3d-view.md](../3d-view.md) の表、計画書の §5.7 の表。
+
+### 16.2 カメラを足す
+
+1. `src/camera_mode.h` の `CameraMode` と `cameraModes()` に、名前 (設定とコマンドライン) と表示名を足す。メニューとツールバーの一覧は、この一覧から作られる。
+2. `Cameras3D` に置き方を足し、`CameraController::update()` で使う (追い方、マウスを取るか)。
+3. テスト `cameras_3d` を足し、[docs/3d-view.md](../3d-view.md) のカメラの表を直す。
+
+### 16.3 描き方に効果を足す
+
+§7.8 の手順に従う。シェーダを直すときは §7.7 も見る。
+
+### 16.4 人型の動作を足す
+
+1. `FigureActionLog` (`figure_actions.cpp`) で、状態のビットなどから動作とその瞬間を読み、`FigureActions` に入れる。
+2. `Figures3D` で、重み (`weightsOf()` のあたり) と姿勢を足す。手続きの姿勢と、パックのクリップ (`FigurePack` のクリップの名前、`ActionClips`) の両方を考える。
+3. テスト `figure_actions` (読み取り) と `figures_3d` (骨の位置や向き) を足す。
+4. パックのクリップの名前を足したら、利用者向けの [docs/FIGURE_PACKS.md](../FIGURE_PACKS.md) の「The actions」に書く。
+
+### 16.5 同梱の素材を更新する
+
+1. `resources/figures/` のパックのファイルを入れ替え、要るなら `view3d_figures.qrc` を直す。
+2. 出典とライセンスを、そのフォルダの README と `figure.json` の `credits` に書く。作り方のスクリプトと手順は [docs/dev/FIGURE_ASSETS.md](FIGURE_ASSETS.md) に。
+3. 人型のテスト (`figure_pack`、`figures_3d` など) を動かし、重さを測る (§14)。
+
+### 16.6 描画の不具合を調べる
+
+1. 起きるログとフレーム (サイクル) を見つける。ツールバーの欄でそのサイクルへ跳べる。
+2. 止めた状態で起きるか、再生中だけか、ライブだけかを分ける (姿勢はフレームと割合だけで決まるので、止めて起きるなら `FrameBuilder3D` の段で再現できる)。
+3. `FrameBuilder3D` でそのフレームを組み立てるテストを書き、`SceneContent` や `View3DState` (選手の姿勢の点など) で確かめる。
+4. 見た目の問題なら、`scene_3d` のように画面に出さないで描いて見る。描いたフレームを外部の道具 (RenderDoc など) で調べることもできる。
+5. web 版で同じログを見て、同じかを比べる (多くのクラスのコメントに、対応する web 版のファイルがある)。
 
 ## 17. 参考
 
-(10-3d で書く)
+### 17.1 計画書の関係する節
+
+| 節 | 内容 |
+|---|---|
+| §2 | 決めたことと理由 (D1 描画の技術、D2 Qt の版、D3 ビルド、D4 3D を任意に、D5 glTF、D6 人型のモデル、D12 素材の形式、D15 遅延再生、D16 ビルドと文書) |
+| §4 | web 版の 3D 表示 (機能の一覧、モジュールと rcssmonitor の対応、主な定数) |
+| §5 | 設計 (5.1 構成、5.2 時間と補間、5.3 描画の基盤、5.4 部品、5.5 HUD、5.6 入力、5.7 設定、5.8 人型、5.9 人型パック、5.10 遅延再生) |
+| §10 | テスト計画 |
+| §14 | 区切りごとの記録 (決めたこと、見つけた不具合、計測、試験) |
+
+### 17.2 web 版との対応
+
+| web 版 (`src/view/` の下) | rcssmonitor |
+|---|---|
+| `render3d/render3d.ts` | `FieldView3D`、`Scene3D`、`FrameBuilder3D`、`SceneBuilder` |
+| `render3d/cameras.ts`、`player-camera.ts`、`sight.ts` | `Cameras3D`、`PlayerCamera3D`、`PlayerSight` |
+| `render3d/interpolate.ts` | `Interpolate` |
+| `render3d/overlays.ts`、`../overlay-math.ts` | `OverlayBuilder`、`src/overlay_math.h` |
+| `render3d/stadium.ts`、`scenery.ts` | `Stadium3D`、`Stands3D`、`Scenery3D`、`Grass3D` |
+| `render3d/ball.ts`、`ball-aids.ts` | `Ball3D`、`BallAids3D` |
+| `render3d/field-texture.ts` | `GroundTexture` |
+| `render3d/figures/` | `Figures3D`、`HumanoidRig`、`GltfModel` など (rcssmonitor は人型パック、IK、クリップの動作などを足した) |
+| `hud/guides.ts`、`hud/hud.ts` | `Guides3D`、`FieldView3D` の HUD |
+
+### 17.3 外部の資料
+
+- [LearnOpenGL](https://learnopengl.com/): OpenGL とシェーダの入門。
+- [OpenGL 3.3 core の仕様](https://registry.khronos.org/OpenGL/specs/gl/glspec33.core.pdf) と [GLSL 3.30 の仕様](https://registry.khronos.org/OpenGL/specs/gl/GLSLangSpec.3.30.pdf)。
+- [Qt の QOpenGLWindow](https://doc.qt.io/qt-6/qopenglwindow.html)。
+- [glTF 2.0 の仕様](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html)、[VRM の仕様](https://github.com/vrm-c/vrm-specification)。
+- [cgltf](https://github.com/jkuhlmann/cgltf)、[ufbx](https://github.com/ufbx/ufbx)。
+- [RenderDoc](https://renderdoc.org/): 描いたフレームを取り込んで調べる道具。
+- 同梱の素材: Quaternius の [Universal Animation Library](https://quaternius.com/packs/universalanimationlibrary.html)、[Universal Animation Library 2](https://quaternius.com/packs/universalanimationlibrary2.html)、[Universal Base Characters](https://quaternius.com/packs/universalbasecharacters.html) (CC0)、[100STYLE](https://www.ianxmason.com/100style/) (CC BY 4.0)。
+- 宙を飛ぶボールの考えのもと: 畠山ほか「サッカー分析のためのログ可視化システム」、人工知能学会第二種研究会資料、SAI-047、2024 (<https://doi.org/10.11517/jsaisigtwo.2023.SAI-047_05>)。
