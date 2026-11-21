@@ -40,7 +40,7 @@
 
 /*!
   \brief the styles of the selected player's camera of the 3D view
-  (rcssmonitor-web player-camera.ts, docs/PLAN_3D-VIEW.md §4.1, §5.7):
+  (rcssmonitor-web player-camera.ts, docs/plan/2026-11-11_3d-view.md §4.1, §5.7):
   where it stands, which direction it follows, how it turns, how wide it
   sees, and what it draws. Every combination can be chosen. Here, with no
   OpenGL, so that the options know them in a build without the 3D view too.

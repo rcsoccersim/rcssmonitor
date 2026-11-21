@@ -2,7 +2,7 @@
 
 /*!
   \file test_gl_isolation.cpp
-  \brief test that only src/view3d/gl calls OpenGL (docs/PLAN_3D-VIEW.md §5.3)
+  \brief test that only src/view3d/gl calls OpenGL (docs/plan/2026-11-11_3d-view.md §5.3)
 */
 
 /*
@@ -39,7 +39,7 @@
 /*
   The 3D view hides OpenGL in the parts in src/view3d/gl (ShaderProgram,
   InstancedMesh, RenderState, GLFrame, ...), and the rest of the code
-  uses them (docs/PLAN_3D-VIEW.md §5.3). This test reads the C++ sources
+  uses them (docs/plan/2026-11-11_3d-view.md §5.3). This test reads the C++ sources
   in src, except src/view3d/gl, without their comments and strings, and
   fails on a call of an OpenGL function (glXxx(...)) or an OpenGL constant
   (GL_XXX). To draw in a new way, add a part (or a function of a part) to

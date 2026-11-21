@@ -40,7 +40,7 @@
 
 /*!
   \enum CameraMode
-  \brief the cameras of the 3D view (docs/PLAN_3D-VIEW.md §4.1), in the
+  \brief the cameras of the 3D view (docs/plan/2026-11-11_3d-view.md §4.1), in the
   order that E goes through them. Here, with no OpenGL, so that the options
   (camera_3d) know them in a build without the 3D view too.
 */
@@ -266,7 +266,7 @@ guideModeFromName( const QString & name,
 }
 
 /*!
-  \brief how the 3D view draws the players (docs/PLAN_3D-VIEW.md §5.8,
+  \brief how the 3D view draws the players (docs/plan/2026-11-11_3d-view.md §5.8,
   §5.9): as cylinders and spheres (PLAYER_MODEL_SIMPLE), or as human
   figures of a figure pack, by its name (its folder's: FigurePacks), the
   bundled ones the Mannequin (PLAYER_MODEL_MANNEQUIN) and the human bodies
@@ -296,7 +296,7 @@ normalizedPlayerModel( const QString & name )
   \enum FigureBodies
   \brief which bodies the human figures have, of a figure pack with men's
   and women's (the Human): men and women mixed, men only or women only
-  (docs/PLAN_3D-VIEW.md §5.8)
+  (docs/plan/2026-11-11_3d-view.md §5.8)
 */
 enum class FigureBodies {
     Mixed,
@@ -351,7 +351,7 @@ figureBodiesFromName( const QString & name,
 
 /*!
   \enum GrassMode
-  \brief the grass of the 3D view (docs/PLAN_3D-VIEW.md 8-2, 8-2b): plain,
+  \brief the grass of the 3D view (docs/plan/2026-11-11_3d-view.md 8-2, 8-2b): plain,
   mowed in stripes (lighter and darker, the same from everywhere), or
   realistic (the stripes by the way the camera looks, the blades and
   patches of the grass, and the worn grass: Grass3D)
@@ -409,7 +409,7 @@ grassModeFromName( const QString & name,
 
 /*!
   \enum ShadowMode
-  \brief the sun's shadows of the players in the 3D view (docs/PLAN_3D-VIEW.md
+  \brief the sun's shadows of the players in the 3D view (docs/plan/2026-11-11_3d-view.md
   §4.3, 8-1): none, simple ones (a soft ellipse on the ground for each
   player, away from the sun: almost no cost), or detailed ones (a shadow
   map: the shapes of the players and the goal frames)

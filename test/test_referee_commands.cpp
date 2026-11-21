@@ -168,7 +168,7 @@ item( const QMenu * menu,
 
 /*!
   \brief the commands that the menu of a right click on the field sends to
-  the server, through the main window (docs/PLAN_3D-VIEW.md Phase 5: "the
+  the server, through the main window (docs/plan/2026-11-11_3d-view.md Phase 5: "the
   referee's commands reach a fake server")
 */
 class TestRefereeCommands

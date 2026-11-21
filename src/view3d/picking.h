@@ -47,7 +47,7 @@
 #include <vector>
 
 /*!
-  \brief what a click on the 3D view aims at (docs/PLAN_3D-VIEW.md §5.4,
+  \brief what a click on the 3D view aims at (docs/plan/2026-11-11_3d-view.md §5.4,
   rcssmonitor-web render3d.ts playerAt(), field-view.ts targetAt()): the
   camera's ray through the point of the screen, and the nearest player it
   meets (the body or the head, as drawn) or the ground. It knows nothing of

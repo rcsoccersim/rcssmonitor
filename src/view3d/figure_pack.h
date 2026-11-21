@@ -163,7 +163,7 @@ struct FigureMotionSpec {
 
 /*!
   \struct FigurePack
-  \brief a figure pack (docs/PLAN_3D-VIEW.md §5.9, docs/FIGURE_PACKS.md): a
+  \brief a figure pack (docs/plan/2026-11-11_3d-view.md §5.9, docs/FIGURE_PACKS.md): a
   folder with figure.json, the models and the motion of the human figures.
   The bundled ones (the Mannequin, the Human) are packs as well, in the
   resources. The folder's name is the pack's name in the options

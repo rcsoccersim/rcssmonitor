@@ -117,7 +117,7 @@ struct ActionClips {
 
 /*!
   \class Figures3D
-  \brief the players as human figures (docs/PLAN_3D-VIEW.md §5.8, §5.9):
+  \brief the players as human figures (docs/plan/2026-11-11_3d-view.md §5.8, §5.9):
   the models and the motion of a figure pack (FigurePack, setPack()), and
   the poses of the figures that SceneBuilder put in a SceneContent. No
   OpenGL: Scene3D draws them.

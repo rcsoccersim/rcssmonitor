@@ -47,7 +47,7 @@ class HumanoidRig;
 
 /*!
   \brief the uniform of a footballer painted on a human body without
-  clothes (the Universal Base Characters, docs/PLAN_3D-VIEW.md §5.8): the
+  clothes (the Universal Base Characters, docs/plan/2026-11-11_3d-view.md §5.8): the
   shirt with short sleeves and the socks in the figure's color, the shorts
   darker, the shoes, and the skin of the figure's color (FigureLook). No
   texture: the parts of the body come from the skin's weights, and where

@@ -39,7 +39,7 @@
 
 /*!
   \brief the interpolation between two frames for the 3D view
-  (docs/PLAN_3D-VIEW.md §5.2, rcssmonitor-web interpolate.ts). Positions are
+  (docs/plan/2026-11-11_3d-view.md §5.2, rcssmonitor-web interpolate.ts). Positions are
   linear, the body direction turns the short way round. A play mode change
   is not interpolated (the server may have moved everyone), nor is an
   object that jumped further than it can move in a cycle (a move command,

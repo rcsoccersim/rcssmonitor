@@ -103,7 +103,7 @@ public:
 
     /*!
       \brief time the GPU's drawing of the frames (GpuTimer), or not
-      (docs/PLAN_3D-VIEW.md §10.3)
+      (docs/plan/2026-11-11_3d-view.md §10.3)
     */
     void setTiming( const bool on );
     /*!

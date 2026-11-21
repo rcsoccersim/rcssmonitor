@@ -192,7 +192,7 @@ SkinnedMesh::setFigures( QOpenGLFunctions_3_3_Core & gl,
     }
     M_count = GLsizei( figures.size() );
     // room for the figures: made larger (twice) only when too small
-    // (docs/PLAN_3D-VIEW.md §5.3), then overwritten
+    // (docs/plan/2026-11-11_3d-view.md §5.3), then overwritten
     gl.glBindBuffer( GL_ARRAY_BUFFER, M_instance_buffer );
     gl.glActiveTexture( GL_TEXTURE0 + JOINT_UNIT );
     gl.glBindTexture( GL_TEXTURE_2D, M_joint_texture );

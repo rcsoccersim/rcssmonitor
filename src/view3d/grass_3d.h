@@ -40,7 +40,7 @@
 
 /*!
   \brief the realistic grass of the 3D view (GrassMode::Realistic,
-  docs/PLAN_3D-VIEW.md 8-2b), apart from OpenGL. What does not depend on the
+  docs/plan/2026-11-11_3d-view.md 8-2b), apart from OpenGL. What does not depend on the
   camera is painted once into the ground image (paintGround(): the patches
   and the wear), and the ground shader (ground.frag) multiplies its colors
   by the rest (the stripes, and the blades near the camera), as

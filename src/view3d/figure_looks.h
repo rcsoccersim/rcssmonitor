@@ -87,7 +87,7 @@ struct FigureCast {
 };
 
 /*!
-  \brief each player's looks as a human figure (docs/PLAN_3D-VIEW.md §5.8,
+  \brief each player's looks as a human figure (docs/plan/2026-11-11_3d-view.md §5.8,
   7-5, §5.9): its body of the figure pack's (by the option, men and women
   mixed or one of them, of a pack with both), its hairstyle (and the
   extras, a beard), the colors of its skin and its hair. They are drawn by

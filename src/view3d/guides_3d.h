@@ -52,7 +52,7 @@ struct ShowInfoT;
 
 /*!
   \brief the compass and the minimap over the 3D view (rcssmonitor-web
-  hud/guides.ts, docs/PLAN_3D-VIEW.md §5.5), optional, to tell which way
+  hud/guides.ts, docs/plan/2026-11-11_3d-view.md §5.5), optional, to tell which way
   the camera looks:
   - The compass: a strip at the top with the 360 degrees around the camera
     direction, the directions of the goals (L, R, in the team colors) and

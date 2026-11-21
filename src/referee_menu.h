@@ -46,7 +46,7 @@ class QWidget;
 /*!
   \class RefereeMenu
   \brief the menu of a right click on the field, which the 2D view and the
-  3D view share (docs/PLAN_3D-VIEW.md §5.4): Drop Ball, Free Kick Left and
+  3D view share (docs/plan/2026-11-11_3d-view.md §5.4): Drop Ball, Free Kick Left and
   Right at the point aimed at, the cards, and Change Playmode.
 
   A view tells where the click aims at (RefereeTarget), and exec() shows

@@ -42,7 +42,7 @@
 
 /*!
   \brief the surroundings of the pitch in the team colors (rcssmonitor-web
-  stadium.ts, docs/PLAN_3D-VIEW.md §4.3), so that the two ends can be told
+  stadium.ts, docs/plan/2026-11-11_3d-view.md §4.3), so that the two ends can be told
   apart, above all from the player camera. Each can be hidden (the options
   boards_3d and banners_3d):
   - the boards around the pitch; along the touch lines they change color at

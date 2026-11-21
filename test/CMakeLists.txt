@@ -69,7 +69,7 @@ else()
   rcssmonitor_add_test(monitor_transport rcssmonitor_core)
 endif()
 
-# only src/view3d/gl calls OpenGL (docs/PLAN_3D-VIEW.md §5.3)
+# only src/view3d/gl calls OpenGL (docs/plan/2026-11-11_3d-view.md §5.3)
 rcssmonitor_add_test(gl_isolation Qt${QT_VERSION_MAJOR}::Core)
 
 if(HAVE_3D_VIEW)

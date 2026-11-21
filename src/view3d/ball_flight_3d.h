@@ -42,7 +42,7 @@
 /*!
   \class BallFlight
   \brief the ball flying in the air, virtually, in the replay of a log of
-  today's 2D server, which has no height (docs/PLAN_3D-VIEW.md 8-6, the
+  today's 2D server, which has no height (docs/plan/2026-11-11_3d-view.md 8-6, the
   option ball_flight_3d).
 
   The ball's way on the ground is the log's; only its height is added. The

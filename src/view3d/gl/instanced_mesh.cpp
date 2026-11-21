@@ -153,7 +153,7 @@ InstancedMesh::draw( QOpenGLFunctions_3_3_Core & gl,
     // send them to the instance buffer. Making a buffer is slow, and making
     // one in every frame once leaked GPU memory in the web version, so the
     // buffer is made larger (twice what is needed) only when it is too small,
-    // and is overwritten (glBufferSubData) otherwise (docs/PLAN_3D-VIEW.md §5.3).
+    // and is overwritten (glBufferSubData) otherwise (docs/plan/2026-11-11_3d-view.md §5.3).
     //
     gl.glBindBuffer( GL_ARRAY_BUFFER, M_instance_buffer );
     if ( instances.size() > M_capacity )

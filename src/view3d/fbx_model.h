@@ -39,7 +39,7 @@
 class GltfModel;
 
 /*!
-  \brief FBX files (docs/PLAN_3D-VIEW.md §5.9, D12), read with ufbx
+  \brief FBX files (docs/plan/2026-11-11_3d-view.md §5.9, D12), read with ufbx
   (third_party/ufbx) into the same plain data as a glTF file (GltfModel),
   so that the rest (the humanoid layer, the figures, the drawing) takes
   them alike: a model downloaded from Mixamo goes in as it is.

@@ -70,7 +70,7 @@ struct FigureProbe {
 /*!
   \struct View3DState
   \brief what the 3D view drew in its last frame, for the tests to check
-  (docs/PLAN_3D-VIEW.md §10.2, the web version's Render3DState):
+  (docs/plan/2026-11-11_3d-view.md §10.2, the web version's Render3DState):
   FieldView3D::state(), FrameBuilder3D::state()
 */
 struct View3DState {
@@ -110,7 +110,7 @@ struct View3DState {
 
 /*!
   \class FrameBuilder3D
-  \brief what the 3D view draws in a frame (docs/PLAN_3D-VIEW.md §5.1),
+  \brief what the 3D view draws in a frame (docs/plan/2026-11-11_3d-view.md §5.1),
   without the widget and without OpenGL, so that the tests can build the
   frames of a log as FieldView3D does: the show between the two frames
   (Interpolate), the goals and the boards, the players (as cylinders or
@@ -121,7 +121,7 @@ struct View3DState {
   draws it.
 
   The poses are decided from the frames and the fraction only
-  (docs/PLAN_3D-VIEW.md §5.2): a frame looks the same however it is
+  (docs/plan/2026-11-11_3d-view.md §5.2): a frame looks the same however it is
   reached. The table of the gaits keeps what it read of the log, which
   does not change it.
 */

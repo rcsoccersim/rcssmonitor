@@ -47,7 +47,7 @@
 /*!
   \enum HumanBone
   \brief the roles of the bones of a human figure, as VRM's humanoid bones
-  (docs/PLAN_3D-VIEW.md §5.8). A skeleton names its bones as it likes; a
+  (docs/plan/2026-11-11_3d-view.md §5.8). A skeleton names its bones as it likes; a
   mapping tells which bone has which role.
 */
 enum class HumanBone {

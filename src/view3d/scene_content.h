@@ -161,7 +161,7 @@ struct FigureActions {
 
 /*!
   \struct FigureInstance
-  \brief a player drawn as a human figure (docs/PLAN_3D-VIEW.md §5.8):
+  \brief a player drawn as a human figure (docs/plan/2026-11-11_3d-view.md §5.8):
   SceneBuilder puts it where the player is, and Figures3D poses it
 */
 struct FigureInstance {
@@ -181,7 +181,7 @@ struct FigureInstance {
   \brief what the 3D view draws in a frame, by the shape (Scene3D draws each
   list with one instanced draw call). The shapes have unit sizes, and the
   model matrices place and scale them. It knows nothing of OpenGL, so that
-  the tests can check it (docs/PLAN_3D-VIEW.md §5.1).
+  the tests can check it (docs/plan/2026-11-11_3d-view.md §5.1).
 
   The builders fill it (SceneBuilder: the goals, the players, the ball and
   the labels; OverlayBuilder: the overlays), and Scene3D draws it.

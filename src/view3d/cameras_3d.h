@@ -44,7 +44,7 @@
 
 /*!
   \brief where the cameras of the 3D view are (rcssmonitor-web cameras.ts,
-  docs/PLAN_3D-VIEW.md §4.3), and how the mouse moves the free camera (as
+  docs/plan/2026-11-11_3d-view.md §4.3), and how the mouse moves the free camera (as
   three.js's OrbitControls, which the web version uses). Only arithmetic: no
   OpenGL, so that the tests check it.
 

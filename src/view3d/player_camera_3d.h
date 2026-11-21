@@ -45,7 +45,7 @@ struct PlayerT;
 
 /*!
   \brief the selected player's camera of the 3D view (rcssmonitor-web
-  player-camera.ts, docs/PLAN_3D-VIEW.md §4.3): where it stands, which
+  player-camera.ts, docs/plan/2026-11-11_3d-view.md §4.3): where it stands, which
   direction it follows, how it turns and how wide it sees, by the styles of
   PlayerCameraOptions. Only arithmetic: no OpenGL, so that the tests check it.
 

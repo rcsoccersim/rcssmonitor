@@ -37,7 +37,7 @@
 
 /*!
   \class GpuTimer
-  \brief how long the GPU takes to draw (docs/PLAN_3D-VIEW.md §10.3), by
+  \brief how long the GPU takes to draw (docs/plan/2026-11-11_3d-view.md §10.3), by
   OpenGL's timer queries: begin() and end() around the drawing ask the GPU
   to note the time it spends between them. The CPU only asks for the
   drawing, which the GPU does later, so the time comes later too: it is

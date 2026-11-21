@@ -37,7 +37,7 @@
 #include <QVector3D>
 
 /*!
-  \brief the sun of the 3D view (docs/PLAN_3D-VIEW.md §4.3, the web
+  \brief the sun of the 3D view (docs/plan/2026-11-11_3d-view.md §4.3, the web
   version's render3d.ts): where it is, and the camera of its shadow map.
   No OpenGL.
 

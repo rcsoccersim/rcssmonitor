@@ -38,7 +38,7 @@
 #include <QVector4D>
 
 /*!
-  \brief the scenery of the 3D view (docs/PLAN_3D-VIEW.md §4.3, the web
+  \brief the scenery of the 3D view (docs/plan/2026-11-11_3d-view.md §4.3, the web
   version's scenery.ts), apart from OpenGL: what Scene3D draws around the
   stadium, and the same computations as its shaders, for the tests.
 

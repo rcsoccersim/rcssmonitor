@@ -42,7 +42,7 @@
 #include <vector>
 
 /*!
-  \brief the ball of the 3D view (docs/PLAN_3D-VIEW.md §4.3, 8-4,
+  \brief the ball of the 3D view (docs/plan/2026-11-11_3d-view.md §4.3, 8-4,
   rcssmonitor-web ball.ts).
 
   The pattern of a football: twelve dark pentagons at the corners of an

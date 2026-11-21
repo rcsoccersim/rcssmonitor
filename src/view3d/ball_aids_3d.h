@@ -47,7 +47,7 @@ class BallFlight;
 
 /*!
   \brief what helps to find the ball in the 3D view, where it is small
-  (docs/PLAN_3D-VIEW.md §4.3, 8-5, rcssmonitor-web ball-aids.ts; the 3D
+  (docs/plan/2026-11-11_3d-view.md §4.3, 8-5, rcssmonitor-web ball-aids.ts; the 3D
   tab's Ball group):
   - a ring on the ground around it, 0.7 m by default (the default
     kickable_margin), its line never thinner than RING_PIXELS on the

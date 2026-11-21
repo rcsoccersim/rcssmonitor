@@ -76,7 +76,7 @@ public:
     /*!
       \brief while playing, the fraction (0 to 1) of the interval since the
       last step: how far the 3D view is between the current frame and the
-      next (docs/PLAN_3D-VIEW.md §5.2). 0 when stopped.
+      next (docs/plan/2026-11-11_3d-view.md §5.2). 0 when stopped.
     */
     double alpha() const;
 

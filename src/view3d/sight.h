@@ -58,7 +58,7 @@ struct Perception {
 
 /*!
   \brief what the selected player perceives, for the player camera of the
-  3D view (rcssmonitor-web sight.ts, docs/PLAN_3D-VIEW.md §4.3):
+  3D view (rcssmonitor-web sight.ts, docs/plan/2026-11-11_3d-view.md §4.3):
 
   - View: what is inside the view cone (the view width around the face
     direction, body + neck).

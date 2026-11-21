@@ -41,7 +41,7 @@ class BallFlight;
 /*!
   \namespace FigureActionLog
   \brief what a player does besides walking at a time between two frames,
-  read from the state bits of the frames around it (docs/PLAN_3D-VIEW.md
+  read from the state bits of the frames around it (docs/plan/2026-11-11_3d-view.md
   §5.8): the kick, the tackle, being down after a foul, the goalie's catch,
   and from the frame drawn the neck and the pointing arm. Only from the
   frames, so that a frame looks the same however it is reached.

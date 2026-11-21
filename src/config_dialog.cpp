@@ -1329,7 +1329,7 @@ ConfigDialog::createFontButtons()
 
 /*-------------------------------------------------------------------*/
 /*
-  The 3D tab and the Player Camera tab (docs/PLAN_3D-VIEW.md §5.7, as
+  The 3D tab and the Player Camera tab (docs/plan/2026-11-11_3d-view.md §5.7, as
   rcssmonitor-web's config-dialog.ts). Every item has a tooltip with the
   details; below a row of choices, a line sums up the chosen one. A number
   field applies with Enter or on leaving it: while what is typed is out of

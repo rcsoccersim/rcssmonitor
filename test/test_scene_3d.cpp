@@ -67,7 +67,7 @@
 #include <memory>
 
 /*
-  The scene is drawn offscreen (docs/PLAN_3D-VIEW.md §10.2): the test is
+  The scene is drawn offscreen (docs/plan/2026-11-11_3d-view.md §10.2): the test is
   skipped where an OpenGL 3.3 context cannot be made. With Mesa,
   LIBGL_ALWAYS_SOFTWARE=1 draws with llvmpipe, without a GPU.
 */
@@ -1507,7 +1507,7 @@ TestScene3D::ballAids()
 /*-------------------------------------------------------------------*/
 /*!
   The first frame after switching to the top camera is the same as the
-  next one (docs/PLAN_3D-VIEW.md §11: 4; in the web version, the first one
+  next one (docs/plan/2026-11-11_3d-view.md §11: 4; in the web version, the first one
   drew the cylinders at the origin), and so after switching back, with
   everything of Phase 8 on: frames of a log built by FrameBuilder3D.
 */

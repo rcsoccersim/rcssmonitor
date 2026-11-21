@@ -442,7 +442,7 @@ private slots:
       }
 
     /*!
-      the same pose for a frame however it is reached (docs/PLAN_3D-VIEW.md
+      the same pose for a frame however it is reached (docs/plan/2026-11-11_3d-view.md
       §5.2, Phase 7): drawn again and again, stepped forward and back,
       jumped far and back, by another builder that did not see the frames
       between, and in a live game before and after more frames came

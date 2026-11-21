@@ -64,10 +64,10 @@ struct DispInfoT;
 
 /*!
   \class FieldView3D
-  \brief the 3D view (docs/PLAN_3D-VIEW.md §5.1): the window, which draws
+  \brief the 3D view (docs/plan/2026-11-11_3d-view.md §5.1): the window, which draws
   the scene of Scene3D and handles the mouse. It shares the frames
   (DispHolder) and the options with the 2D view. Between two frames, it
-  draws the positions on the way (docs/PLAN_3D-VIEW.md §5.2), and while they
+  draws the positions on the way (docs/plan/2026-11-11_3d-view.md §5.2), and while they
   move, it draws again as soon as a frame is shown.
 
   It is a window of its own (QOpenGLWindow), put in the main window by a
@@ -158,7 +158,7 @@ public:
 
     /*!
       \brief what the last frame drew, for the tests to check
-      (docs/PLAN_3D-VIEW.md §10.2): not drawn before the first frame
+      (docs/plan/2026-11-11_3d-view.md §10.2): not drawn before the first frame
     */
     View3DState state() const;
 
@@ -232,7 +232,7 @@ private:
       \struct Timing
       \brief the times of the frames, told every TIMING_PERIOD seconds when
       the environment variable RCSSMONITOR_3D_TIMING is set
-      (docs/PLAN_3D-VIEW.md §10.3)
+      (docs/plan/2026-11-11_3d-view.md §10.3)
     */
     struct Timing {
         bool on = false;

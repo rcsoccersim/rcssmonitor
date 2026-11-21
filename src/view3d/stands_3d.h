@@ -42,7 +42,7 @@
 #include <vector>
 
 /*!
-  \brief the stands of the 3D view (docs/PLAN_3D-VIEW.md §4.3, 8-3), apart
+  \brief the stands of the 3D view (docs/plan/2026-11-11_3d-view.md §4.3, 8-3), apart
   from OpenGL: their shape and their images.
 
   Four stands of one tier, along both touch lines and behind both goals,

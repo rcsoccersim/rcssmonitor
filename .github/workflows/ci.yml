@@ -1,6 +1,6 @@
 name: CI
 
-# Branches (docs/PLAN_3D-VIEW.md, D9 and §9.1): master has the releases,
+# Branches (docs/plan/2026-11-11_3d-view.md, D9 and §9.1): master has the releases,
 # develop gathers the work, and feature/*, fix/* and hotfix/* branch off them.
 on:
   push:
@@ -15,7 +15,7 @@ jobs:
   # error: QT_DISABLE_DEPRECATED_BEFORE (CMakeLists.txt) removes the API
   # deprecated up to Qt 5.15 or 6.0, and -Werror catches the later ones.
   # The tests run under Xvfb with Mesa's software OpenGL (llvmpipe), so that
-  # the 3D view is drawn offscreen too (docs/PLAN_3D-VIEW.md §10.2).
+  # the 3D view is drawn offscreen too (docs/plan/2026-11-11_3d-view.md §10.2).
   # They are built with Qt WebSockets (the WebSocket connection).
   cmake:
     name: CMake, ${{ matrix.qt }}

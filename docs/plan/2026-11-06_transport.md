@@ -6,7 +6,7 @@
 | 対象 | rcssmonitor master (ae7668a, 19.0.1) |
 | 参照したサーバ | `rcssserver-19.x-asio/` (asio 版 rcssserver 19.x の作業ツリー) |
 | 状態 | 段階 1〜4 と、「Connect to ...」ダイアログでの方式の選択は済 (2026-11-06)。2026-11-18 から develop への取り込みの作業中 (§10) |
-| 英語版 | [2026-11-06_transport.en.md](2026-11-06_transport.en.md) (内容は同じ) |
+| 英語版 | [2026-11-06_transport_en.md](2026-11-06_transport_en.md) (内容は同じ) |
 
 ## 1. 目的と方針
 

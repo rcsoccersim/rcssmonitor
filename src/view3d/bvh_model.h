@@ -39,7 +39,7 @@
 class GltfModel;
 
 /*!
-  \brief BVH files (Biovision Hierarchy, of motion capture: docs/PLAN_3D-VIEW.md
+  \brief BVH files (Biovision Hierarchy, of motion capture: docs/plan/2026-11-11_3d-view.md
   §5.9, D12), read into the same plain data as a glTF file (GltfModel):
   a skeleton without a mesh, and its motion as one clip.
 

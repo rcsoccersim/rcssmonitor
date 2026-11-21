@@ -52,7 +52,7 @@ struct GaitStride {
 /*!
   \struct GaitWays
   \brief the strides of the clips of walking and running by the way a
-  figure goes from its body direction (docs/PLAN_3D-VIEW.md §5.8, §5.9):
+  figure goes from its body direction (docs/plan/2026-11-11_3d-view.md §5.8, §5.9):
   forward, to its right, backward, to its left, each slowest first.
 
   With the forward ones only (the classic way), a figure going backward
@@ -147,7 +147,7 @@ struct GaitWays {
 /*!
   \class GaitTable
   \brief how far each player has walked by each frame, in cycles of the
-  gait, and how it moves (docs/PLAN_3D-VIEW.md §5.8): read from the frames
+  gait, and how it moves (docs/plan/2026-11-11_3d-view.md §5.8): read from the frames
   of the log once, and kept, so that a figure's legs are where the log
   says whenever the frame is drawn (paused, stepped back, jumped to), and
   the clips of walking and running go on together, at one phase.

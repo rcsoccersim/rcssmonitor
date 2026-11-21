@@ -90,7 +90,7 @@ FieldView3D::FieldView3D( DispHolder & disp_holder,
     connect( this, SIGNAL( frameSwapped() ),
              this, SLOT( drawNext() ) );
 
-    // the times of the frames, to measure (docs/PLAN_3D-VIEW.md §10.3)
+    // the times of the frames, to measure (docs/plan/2026-11-11_3d-view.md §10.3)
     M_timing.on = ! qEnvironmentVariableIsEmpty( "RCSSMONITOR_3D_TIMING" );
 }
 
