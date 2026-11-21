@@ -89,6 +89,25 @@ jobs:
           QT_QPA_PLATFORM: offscreen
           LIBGL_ALWAYS_SOFTWARE: 1
 
+  # The source tarball by cmake-helper.sh (the dist target, git archive of
+  # HEAD): extracted, built, tested, installed (the desktop entry checked,
+  # the installed executable started) and uninstalled.
+  cmake-distcheck:
+    name: CMake distcheck (cmake-helper.sh), Qt6
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install the packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake qt6-base-dev qt6-websockets-dev zlib1g-dev libdeflate-dev \
+            desktop-file-utils
+      - name: distcheck
+        run: ./cmake-helper.sh distcheck qt6
+        env:
+          QT_QPA_PLATFORM: offscreen
+
   # autotools stays on Qt5 (D3). Build it so that a source file missing
   # from the Makefile.am files is caught. It is built without libdeflate
   # and Qt WebSockets, which the CMake jobs use, so that both ways of

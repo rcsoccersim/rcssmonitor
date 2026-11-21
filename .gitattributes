@@ -1,0 +1,8 @@
+# Files excluded from the source tarball made by "git archive"
+# (the "dist" target of the CMake build, cmake-helper.sh dist).
+
+# development files
+/.gitattributes export-ignore
+/.gitignore export-ignore
+/.github export-ignore
+/docs/plan export-ignore
