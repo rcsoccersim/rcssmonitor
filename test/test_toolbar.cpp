@@ -32,9 +32,11 @@
 #include <QtTest>
 #include "main_window.h"
 #include "options.h"
+#include "connect_dialog.h"
 #include "toolbar_icons.h"
 
 #include <QAction>
+#include <QApplication>
 #include <QFile>
 #include <QTemporaryDir>
 #include <QLabel>
@@ -164,8 +166,9 @@ TestToolbar::icons()
 /*!
   The buttons of the web version's tool bar: Open, Connect, Disconnect and
   Kick Off before the player's buttons, Loop after them; Disconnect and
-  Kick Off only when connected; Loop sets the option; the icons drawn in
-  the text color of the palette, and again when it changes.
+  Kick Off only when connected; Connect opens the dialog of the server
+  (Ctrl+C connects again, as the web version's); Loop sets the option; the
+  icons drawn in the text color of the palette, and again when it changes.
 */
 void
 TestToolbar::buttons()
@@ -176,7 +179,7 @@ TestToolbar::buttons()
     window.show();
     QVERIFY( QTest::qWaitForWindowExposed( &window ) ); // laid out
     QToolButton * open = buttonOf( window, "Open Game Log" );
-    QToolButton * connect = buttonOf( window, "&Connect" );
+    QToolButton * connect = buttonOf( window, "Connect &to ..." );
     QToolButton * disconnect = buttonOf( window, "&Disconnect" );
     QToolButton * kick_off = buttonOf( window, "&KickOff" );
     QToolButton * loop = buttonOf( window, "Loop Playback" );
@@ -190,6 +193,20 @@ TestToolbar::buttons()
     }
     QVERIFY( open->defaultAction()->toolTip().contains( "Ctrl+O" ) );
     QVERIFY( kick_off->defaultAction()->toolTip().contains( "Ctrl+K" ) );
+    QVERIFY( connect->defaultAction()->toolTip().contains( "Ctrl+C: connect again" ) );
+    QVERIFY( ! buttonOf( window, "&Connect" ) ); // connecting again: the key and the menu
+
+    // Connect opens the dialog of the server (closed here without connecting)
+    bool dialog_shown = false;
+    QTimer::singleShot( 0, &window, [&]()
+                        {
+                            ConnectDialog * dialog = qobject_cast< ConnectDialog * >( QApplication::activeModalWidget() );
+                            dialog_shown = ( dialog != nullptr );
+                            if ( dialog ) dialog->reject();
+                        } );
+    connect->click();
+    QVERIFY( dialog_shown );
+    QVERIFY( connect->isEnabled() ); // not connected
     // in the order of the web version's: the file and the server, then the player
     const auto x = [&]( const QToolButton * b ) { return b->mapTo( &window, QPoint() ).x(); };
     QVERIFY( x( open ) < x( connect ) && x( connect ) < x( disconnect ) && x( disconnect ) < x( kick_off ) );

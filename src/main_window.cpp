@@ -291,19 +291,25 @@ void
 MainWindow::createActionsMonitor()
 {
     //
+    // connect again: the host, the transport and the port of the last time
+    // (the options; localhost by default)
     M_connect_monitor_act = new QAction( tr( "&Connect" ), this );
     M_connect_monitor_act->setShortcut( Qt::CTRL | Qt::Key_C );
-    M_connect_monitor_act->setStatusTip( "Connect to the rcssserver on localhost" );
-    M_connect_monitor_act->setToolTip( tr( "Connect to the rcssserver (" ) + M_connect_monitor_act->shortcut().toString()
-                                       + tr( "; Monitor > Connect to ... for another host)" ) );
+    M_connect_monitor_act->setStatusTip( tr( "Connect to the rcssserver again (the last host, transport and port; localhost by default)" ) );
+    M_connect_monitor_act->setToolTip( tr( "Connect to the rcssserver again (" ) + M_connect_monitor_act->shortcut().toString()
+                                       + tr( "; Monitor > Connect to ... for another server)" ) );
     setDrawnIcon( M_connect_monitor_act, DrawnIcon::Connect );
     M_connect_monitor_act->setEnabled( true );
     connect( M_connect_monitor_act, SIGNAL( triggered() ),
              this, SLOT( connectMonitor() ) );
     this->addAction( M_connect_monitor_act );
-    //
+    // the dialog of the host, the transport and the port: the tool bar's
+    // button, as the web version's
     M_connect_monitor_to_act = new QAction( tr( "Connect &to ..." ), this );
-    M_connect_monitor_to_act->setStatusTip( tr( "Connect to the rcssserver on the remote host." ) );
+    M_connect_monitor_to_act->setStatusTip( tr( "Connect to a rcssserver: choose its host, transport and port." ) );
+    M_connect_monitor_to_act->setToolTip( tr( "Connect to a server... (" ) + M_connect_monitor_act->shortcut().toString()
+                                          + tr( ": connect again)" ) );
+    setDrawnIcon( M_connect_monitor_to_act, DrawnIcon::Connect );
     M_connect_monitor_to_act->setEnabled( true );
     connect( M_connect_monitor_to_act, SIGNAL( triggered() ),
              this, SLOT( connectMonitorTo() ) );
@@ -843,7 +849,7 @@ MainWindow::createToolBars()
     button_layout->setSpacing( 4 );
 
     // the file and the server, as the web version's tool bar
-    for ( QAction * act : { M_open_act, M_connect_monitor_act, M_disconnect_monitor_act, M_kick_off_act } )
+    for ( QAction * act : { M_open_act, M_connect_monitor_to_act, M_disconnect_monitor_act, M_kick_off_act } )
     {
         QToolButton * button = new QToolButton();
         button->setIconSize( QSize( 16, 16 ) );
