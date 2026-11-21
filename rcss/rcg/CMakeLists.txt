@@ -35,8 +35,8 @@ target_compile_options(rcssrcg
 
 
 set_target_properties(rcssrcg PROPERTIES
-  VERSION 19.0.0
-  SOVERSION 18
+  VERSION 20.0.0
+  SOVERSION 20
   )
 
 install(TARGETS rcssrcg LIBRARY

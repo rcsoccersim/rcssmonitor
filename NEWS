@@ -1,4 +1,4 @@
-[Unreleased]
+[20.0.0-beta.1]
   * Add the 3D view (built by CMake; OpenGL 3.3 is required at run
     time). D or the "3D View" button switches between the 2D and 3D
     views. It has eight cameras (broadcast, free, close-ups of the ball

@@ -1,7 +1,19 @@
 # Qt6 needs CMake 3.16 or later
 cmake_minimum_required(VERSION 3.16)
 
-project(rcssmonitor VERSION 19.0.1)
+project(rcssmonitor VERSION 20.0.0)
+
+# the version told (--version, the window title, config.h's VERSION, the
+# source tarball's name): PROJECT_VERSION, with the suffix of a pre-release
+# after a hyphen (e.g. 20.0.0-beta.1). Empty for a release
+# (docs/dev/release.md).
+set(RCSSMONITOR_VERSION_SUFFIX "beta.1")
+if(RCSSMONITOR_VERSION_SUFFIX)
+  set(RCSSMONITOR_VERSION "${PROJECT_VERSION}-${RCSSMONITOR_VERSION_SUFFIX}")
+else()
+  set(RCSSMONITOR_VERSION "${PROJECT_VERSION}")
+endif()
+message(STATUS "rcssmonitor ${RCSSMONITOR_VERSION}")
 
 # compiler options
 set(CMAKE_CXX_STANDARD 17)
@@ -178,7 +190,7 @@ add_custom_target(uninstall
   )
 
 # source tarball: cmake --build build --target dist
-# (rcssmonitor-VERSION.tar.gz, created from the committed files of HEAD by git archive)
+# (rcssmonitor-VERSION.tar.gz with RCSSMONITOR_VERSION, created from the committed files of HEAD by git archive)
 set(RCSSMONITOR_DIST_DIR "${PROJECT_SOURCE_DIR}" CACHE PATH
   "Directory where the dist target creates the source tarball (default: the top source directory)")
 find_package(Git QUIET)
@@ -187,7 +199,7 @@ add_custom_target(dist
           -DSOURCE_DIR=${PROJECT_SOURCE_DIR}
           -DOUTPUT_DIR=${RCSSMONITOR_DIST_DIR}
           -DPACKAGE_NAME=${PROJECT_NAME}
-          -DPACKAGE_VERSION=${PROJECT_VERSION}
+          -DPACKAGE_VERSION=${RCSSMONITOR_VERSION}
           -DGIT_EXECUTABLE=${GIT_EXECUTABLE}
           -P ${PROJECT_SOURCE_DIR}/cmake/Dist.cmake
   COMMENT "Creating the source tarball"
@@ -203,7 +215,7 @@ add_custom_target(distcheck
           -DSOURCE_DIR=${PROJECT_SOURCE_DIR}
           -DOUTPUT_DIR=${RCSSMONITOR_DIST_DIR}
           -DPACKAGE_NAME=${PROJECT_NAME}
-          -DPACKAGE_VERSION=${PROJECT_VERSION}
+          -DPACKAGE_VERSION=${RCSSMONITOR_VERSION}
           -DGIT_EXECUTABLE=${GIT_EXECUTABLE}
           -DWORK_DIR=${PROJECT_BINARY_DIR}/distcheck
           -DCTEST_COMMAND=${CMAKE_CTEST_COMMAND}

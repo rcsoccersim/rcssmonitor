@@ -192,7 +192,7 @@ cmake --build build --target dist        # or: ./cmake-helper.sh dist
 cmake --build build --target distcheck   # or: ./cmake-helper.sh distcheck
 ```
 
-- `dist` creates `rcssmonitor-VERSION.tar.gz` in the top source directory (VERSION is that of `project()` in `CMakeLists.txt`), from the committed files of HEAD by `git archive`. It extracts to `rcssmonitor-VERSION/`. Uncommitted changes are not included (a warning tells of them). It needs a git working tree.
+- `dist` creates `rcssmonitor-VERSION.tar.gz` in the top source directory (VERSION is the version that `rcssmonitor --version` tells, e.g. `20.0.0-beta.1`: `RCSSMONITOR_VERSION` in `CMakeLists.txt`), from the committed files of HEAD by `git archive`. The release tarballs are made by it. It extracts to `rcssmonitor-VERSION/`. Uncommitted changes are not included (a warning tells of them). It needs a git working tree.
 - The files with `export-ignore` in `.gitattributes` (the CI settings, the plans and the documents for developers) are left out.
 - `distcheck` creates the tarball, extracts it into `build/distcheck`, makes the sources read-only, then builds, tests, installs and uninstalls it there. It removes `build/distcheck` if all of them succeed (it is left for inspection if one fails).
 
@@ -217,7 +217,7 @@ sudo apt install autoconf automake libtool qt5-qmake
 
 ### Building
 
-In a clone of the repository, `./bootstrap` creates `configure` first (a tarball made by `make dist` has `configure` already):
+`./bootstrap` creates `configure` first, both in a clone of the repository and in a release tarball (made by the `dist` target of CMake, without `configure`):
 
 ```bash
 ./bootstrap
@@ -268,7 +268,7 @@ As with CMake, `PREFIX/bin` must be in `PATH` to start `rcssmonitor` by its name
 ### The tarball of autotools
 
 `make dist` creates a tarball for the autotools build: it does not have the files that only CMake builds (e.g. the 3D view and the tests).
-Use the `dist` target of CMake ([Creating the source tarball](#creating-the-source-tarball)) for the whole sources.
+The release tarballs are made by the `dist` target of CMake ([Creating the source tarball](#creating-the-source-tarball)), which has the whole sources.
 
 ## Notes
 

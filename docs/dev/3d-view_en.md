@@ -47,6 +47,7 @@ This document explains the code of the 3D view, so that you can read and change 
 |---|---|
 | [docs/plan/2026-11-11_3d-view_en.md](../plan/2026-11-11_3d-view_en.md) | The plan of the 3D view: the reasons of the decisions (D1 to D16), the design (§5), the record of each step (§14) |
 | [docs/dev/FIGURE_ASSETS.md](FIGURE_ASSETS.md) | How the figures' material (the bundled models and motions) is made and converted, and the test files |
+| [docs/dev/release_en.md](release_en.md) | The steps of a release |
 | [docs/3d-view.md](../3d-view.md) | The 3D view for users (cameras, keys, settings) |
 | [docs/FIGURE_PACKS.md](../FIGURE_PACKS.md), [docs/FIGURE_PACKS_MIXAMO.md](../FIGURE_PACKS_MIXAMO.md) | Figure packs for users |
 | The sources of rcssmonitor-web (the browser version) | The reference implementation of the 3D view (three.js). Many classes' comments name the web version's file they follow |

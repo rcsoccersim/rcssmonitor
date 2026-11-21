@@ -1,7 +1,7 @@
 
 #define PACKAGE_NAME "rcssmonitor"
 
-#define VERSION "@rcssmonitor_VERSION@"
+#define VERSION "@RCSSMONITOR_VERSION@"
 
 #cmakedefine HAVE_LIBZ
 

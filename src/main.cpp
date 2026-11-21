@@ -48,7 +48,7 @@ main( int argc,
       char ** argv )
 {
     std::cout << PACKAGE_NAME << "-" << VERSION << "\n\n"
-              << "Copyright (C) 2009 - 2022 RoboCup Soccer Simulator Maintenance Group.\n"
+              << "Copyright (C) 2009 - 2026 RoboCup Soccer Simulator Maintenance Group.\n"
               << std::endl;
 
 #if QT_VERSION < QT_VERSION_CHECK( 6, 0, 0 )

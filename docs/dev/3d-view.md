@@ -47,6 +47,7 @@
 |---|---|
 | [docs/plan/2026-11-11_3d-view.md](../plan/2026-11-11_3d-view.md) | 3D 表示の開発計画。決めたことの理由 (D1〜D16)、設計 (§5)、区切りごとの記録 (§14) |
 | [docs/dev/FIGURE_ASSETS.md](FIGURE_ASSETS.md) | 人型の素材 (同梱のモデルとモーション) の作り方、変換、試験用のファイル |
+| [docs/dev/release.md](release.md) | リリースの手順 |
 | [docs/3d-view.md](../3d-view.md) | 利用者向けの 3D 表示の説明 (カメラ、キー、設定) |
 | [docs/FIGURE_PACKS.md](../FIGURE_PACKS.md)、[docs/FIGURE_PACKS_MIXAMO.md](../FIGURE_PACKS_MIXAMO.md) | 利用者向けの人型パックの説明 |
 | rcssmonitor-web (ブラウザ版) のソース | 3D 表示の参照実装 (three.js)。多くのクラスのコメントに、対応する web 版のファイルが書いてある |
