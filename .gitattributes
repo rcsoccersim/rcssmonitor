@@ -6,3 +6,4 @@
 /.gitignore export-ignore
 /.github export-ignore
 /docs/plan export-ignore
+/docs/dev export-ignore

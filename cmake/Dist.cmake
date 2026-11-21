@@ -7,7 +7,7 @@
 #   cmake --build build --target dist
 #
 # The tarball is named <PACKAGE_NAME>-<PACKAGE_VERSION>.tar.gz (the version
-# of project() in CMakeLists.txt), and it is extracted to
+# told, RCSSMONITOR_VERSION in CMakeLists.txt), and it is extracted to
 # <PACKAGE_NAME>-<PACKAGE_VERSION>/.
 # The files with the "export-ignore" attribute in .gitattributes are excluded.
 # Uncommitted changes are not included.
@@ -16,7 +16,7 @@
 #   SOURCE_DIR       the top source directory (a git working tree)
 #   OUTPUT_DIR       the directory where the tarball is created
 #   PACKAGE_NAME     the package name (rcssmonitor)
-#   PACKAGE_VERSION  the package version (e.g. 19.0.1)
+#   PACKAGE_VERSION  the package version (e.g. 20.0.0, or 20.0.0-beta.1)
 #   GIT_EXECUTABLE   the git command
 #
 # Output variables (when this script is included by another script):

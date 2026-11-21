@@ -1,0 +1,19 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+  <!-- The figure packs bundled with rcssmonitor (docs/FIGURE_PACKS.md),
+       compiled into the program as Qt's resources: each folder a pack,
+       read as :/figures/<pack>/<file> (FigurePacks). Their README.md
+       tells where the models come from. -->
+  <qresource prefix="/figures">
+    <file>mannequin/figure.json</file>
+    <file>mannequin/Mannequin.glb</file>
+    <file>mannequin/Actions.glb</file>
+    <file>mannequin/WalkBack.bvh</file>
+    <file>mannequin/JogBack.bvh</file>
+    <file>mannequin/WalkRight.bvh</file>
+    <file>mannequin/JogLeft.bvh</file>
+    <file>human/figure.json</file>
+    <file>human/BaseCharacterMale.glb</file>
+    <file>human/BaseCharacterFemale.glb</file>
+  </qresource>
+</RCC>

@@ -1,0 +1,49 @@
+{
+    "format": 1,
+    "name": "Mannequin",
+    "description": "The Mannequin of the Universal Animation Library: all in the player's color but its joints.",
+    "credits": [
+        {
+            "title": "Universal Animation Library [Standard]",
+            "author": "Quaternius",
+            "license": "CC0 1.0",
+            "url": "https://quaternius.com/packs/universalanimationlibrary.html"
+        },
+        {
+            "title": "The 100STYLE Dataset (Neutral: a cycle each of walking and jogging backward and sideways, cut, looped and thinned to 30 fps)",
+            "author": "Ian Mason",
+            "license": "CC BY 4.0",
+            "url": "https://www.ianxmason.com/100style/"
+        },
+        {
+            "title": "Universal Animation Library 2 [Standard] (the slide and getting up)",
+            "author": "Quaternius",
+            "license": "CC0 1.0",
+            "url": "https://quaternius.com/packs/universalanimationlibrary2.html"
+        }
+    ],
+    "motion": {
+        "model": "Mannequin.glb",
+        "skeleton": "quaternius",
+        "clips": {
+            "idle": "Idle_Loop",
+            "walk": "Walk_Loop",
+            "jog": "Jog_Fwd_Loop",
+            "sprint": "Sprint_Loop",
+            "walk_back": "WalkBack.bvh",
+            "jog_back": "JogBack.bvh",
+            "walk_right": "WalkRight.bvh",
+            "jog_left": "JogLeft.bvh",
+            "tackle": { "file": "Actions.glb", "clip": "Slide_Start" },
+            "tackle_up": { "file": "Actions.glb", "clip": "Slide_Exit" },
+            "get_up": { "file": "Actions.glb", "clip": "LayToIdle" }
+        }
+    },
+    "bodies": [
+        {
+            "model": "Mannequin.glb",
+            "skeleton": "quaternius",
+            "paint": { "M_Main": "team" }
+        }
+    ]
+}

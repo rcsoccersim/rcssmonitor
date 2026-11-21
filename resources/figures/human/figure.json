@@ -1,0 +1,32 @@
+{
+    "format": 1,
+    "name": "Human",
+    "description": "Men and women of the Universal Base Characters in a uniform, each player with its own body, hairstyle and colors.",
+    "credits": [
+        {
+            "title": "Universal Base Characters [Standard]",
+            "author": "Quaternius",
+            "license": "CC0 1.0",
+            "url": "https://quaternius.com/packs/universalbasecharacters.html"
+        }
+    ],
+    "motion": "mannequin",
+    "bodies": [
+        {
+            "model": "BaseCharacterMale.glb",
+            "skeleton": "quaternius",
+            "sex": "male",
+            "paint": { "Body": "uniform", "Eyebrows": "hair" },
+            "hairstyles": [ "Hair_SimpleParted", "Hair_Buzzed" ],
+            "extras": [ { "material": "Hair_Beard", "chance": 0.3 } ]
+        },
+        {
+            "model": "BaseCharacterFemale.glb",
+            "skeleton": "quaternius",
+            "sex": "female",
+            "paint": { "Body": "uniform", "Eyebrows": "hair" },
+            "hairstyles": [ "Hair_Buns", "Hair_Long", "Hair_BuzzedFemale" ],
+            "standard_hairstyle": "Hair_BuzzedFemale"
+        }
+    ]
+}

@@ -38,6 +38,8 @@
 
 #include "player_painter.h"
 
+#include "player_style.h"
+
 #include "disp_holder.h"
 #include "options.h"
 #include "overlay_math.h"
@@ -49,6 +51,7 @@
 #include <cstring>
 #include <cstdio>
 #include <cmath>
+#include <iterator>
 
 namespace {
 const double DEG2RAD = M_PI / 180.0;
@@ -157,11 +160,13 @@ PlayerPainter::drawAll( QPainter & painter,
             drawViewArea( painter, param );
         }
 
+        // the selected player's, or with the option all players'
+        const bool selected = opt.selectedPlayer( player.side(), player.unum_ );
         if ( opt.showFocusPoint()
              && player.focusDist() > 1.0e-5
-             && opt.selectedPlayer( player.side(), player.unum_ ) )
+             && ( selected || opt.showAllFocusPoints() ) )
         {
-            drawFocusPoint( painter, param );
+            drawFocusPoint( painter, param, selected );
         }
     }
 
@@ -200,98 +205,10 @@ PlayerPainter::drawBody( QPainter & painter,
                          const PlayerPainter::Param & param ) const
 {
     const Options & opt = Options::instance();
+    const PlayerStyle style = playerStyle( param.player_, param.player_type_, M_disp_holder.serverParam(), opt );
 
-    // decide base color
-    if ( opt.selectedPlayer( param.player_.side(), param.player_.unum_ ) )
-    {
-        painter.setPen( opt.selectedPlayerPen() );
-    }
-    else
-    {
-        painter.setPen( opt.playerPen() );
-    }
-
-    switch ( param.player_.side() ) {
-    case rcss::rcg::LEFT:
-        if ( param.player_.isGoalie() )
-        {
-            painter.setBrush( opt.leftGoalieBrush() );
-        }
-        else
-        {
-            painter.setBrush( opt.leftTeamBrush() );
-        }
-        break;
-    case rcss::rcg::RIGHT:
-        if ( param.player_.isGoalie() )
-        {
-            painter.setBrush( opt.rightGoalieBrush() );
-        }
-        else
-        {
-            painter.setBrush( opt.rightTeamBrush() );
-        }
-        break;
-    case rcss::rcg::NEUTRAL:
-        //std::cerr << "drawBody neutral unum=" << param.player_.unum_ << std::endl;
-        painter.setBrush( Qt::black );
-        break;
-    default:
-        painter.setBrush( Qt::black );
-        break;
-    }
-
-
-    // decide status color
-    if ( ! param.player_.isAlive() )
-    {
-        painter.setBrush( Qt::black );
-    }
-
-    if ( param.player_.isIllegalDefenseState()
-         && opt.showIllegalDefense() )
-    {
-        painter.setPen( opt.illegalDefensePen() );
-    }
-    if ( param.player_.isKicking() )
-    {
-        painter.setPen( opt.kickPen() );
-    }
-    if ( param.player_.isKickingFault() )
-    {
-        painter.setBrush( opt.kickFaultBrush() );
-    }
-    if ( param.player_.isCatching() )
-    {
-        painter.setBrush( opt.catchBrush() );
-    }
-    if ( param.player_.isCatchingFault() )
-    {
-        painter.setBrush( opt.catchFaultBrush() );
-    }
-    if ( param.player_.isTackling() )
-    {
-        painter.setPen( opt.tacklePen() );
-        painter.setBrush( opt.tackleBrush() );
-    }
-    if ( param.player_.isTacklingFault() )
-    {
-        painter.setPen( opt.tacklePen() );
-        painter.setBrush( opt.tackleFaultBrush() );
-    }
-    if ( param.player_.isFoulCharged() )
-    {
-        painter.setBrush( opt.foulChargedBrush() );
-    }
-    if ( param.player_.isCollidedBall() )
-    {
-        painter.setBrush( opt.ballCollideBrush() );
-    }
-    if ( param.player_.isCollidedPlayer() )
-    {
-        painter.setBrush( opt.playerCollideBrush() );
-    }
-
+    painter.setPen( style.pen );
+    painter.setBrush( style.brush );
     painter.drawEllipse( param.x_ - param.draw_radius_ ,
                          param.y_ - param.draw_radius_ ,
                          param.draw_radius_ * 2 ,
@@ -300,39 +217,17 @@ PlayerPainter::drawBody( QPainter & painter,
     // draw stamina status if effort or recovery is decayed.
     if ( param.player_.hasStamina() )
     {
-        double stamina_rate = param.player_.stamina_ / M_disp_holder.serverParam().stamina_max_;
-        int dark_rate = 200 - static_cast< int >( rint( 200 * rint( stamina_rate / 0.125 ) * 0.125 ) );
-        dark_rate = std::max( 0, dark_rate - 50 );
-
         painter.setPen( Qt::NoPen );
-        if ( dark_rate == 0 )
-        {
-            painter.setBrush( painter.brush() );
-        }
-        else
-        {
-            painter.setBrush( painter.brush().color().darker( 100 + dark_rate ) );
-        }
+        painter.setBrush( style.body );
         painter.drawEllipse( param.x_ - param.body_radius_,
                              param.y_ - param.body_radius_,
                              param.body_radius_ * 2 ,
                              param.body_radius_ * 2  );
 
-        if ( ! param.player_.hasFullEffort( param.player_type_.effort_max_ ) )
-        {
-            // std::cerr << "no full effort. max=" << param.player_type_.effort_max_
-            //           << "  val=" << param.player_.effort_
-            //           << "  ptype=" << param.player_.type_
-            //           << std::endl;
-            int r = param.draw_radius_ + 2;
-            painter.setPen( opt.effortDecayedPen() );
-            painter.setBrush( Qt::NoBrush );
-            painter.drawEllipse( param.x_ - r, param.y_ - r, r * 2, r * 2 );
-        }
-        else if ( ! param.player_.hasFullRecovery() )
+        if ( style.decayed() )
         {
             int r = param.draw_radius_ + 2;
-            painter.setPen( opt.recoveryDecayedPen() );
+            painter.setPen( style.decay );
             painter.setBrush( Qt::NoBrush );
             painter.drawEllipse( param.x_ - r, param.y_ - r, r * 2, r * 2 );
         }
@@ -482,25 +377,88 @@ PlayerPainter::drawViewArea( QPainter & painter,
  */
 void
 PlayerPainter::drawFocusPoint( QPainter & painter,
-                               const PlayerPainter::Param & param ) const
+                               const PlayerPainter::Param & param,
+                               const bool selected ) const
 {
     const Options & opt = Options::instance();
+    using OverlayMath::FocusLook;
 
-    const AngleDeg focus_angle = param.player_.body_ + param.player_.neck_ + param.player_.focus_dir_;
-    const Vector2D focus_point = Vector2D::from_polar( param.player_.focusDist(), focus_angle );
+    Vector2D focus_point;
+    if ( ! OverlayMath::focusPoint( param.player_, &focus_point ) )
+    {
+        return;
+    }
 
-    const int ix = opt.screenX( param.player_.x() + focus_point.x );
-    const int iy = opt.screenY( param.player_.y() + focus_point.y );
-    const int r = opt.scale( opt.focusPointSize() );
+    const QPointF focus( opt.screenX( focus_point.x ), opt.screenY( focus_point.y ) );
+    const double direction = ( focus_point - Vector2D( param.player_.x(), param.player_.y() ) ).th().degree();
+    const auto screen = [&opt]( const Vector2D & p ) { return QPointF( opt.screenX( p.x ), opt.screenY( p.y ) ); };
 
-    painter.setPen( opt.focusPointPen());
     painter.setBrush( Qt::NoBrush );
-    painter.drawLine( param.x_, param.y_, ix, iy );
-    painter.drawEllipse( ix - r,
-                         iy - r,
-                         r * 2,
-                         r * 2 );
 
+    if ( ! selected )
+    {
+        // another player's: a smaller reticle in its team color
+        const double radius = opt.focusPointSize() * FocusLook::OTHER_SCALE;
+        const QColor color = ( param.player_.side() == rcss::rcg::LEFT
+                               ? opt.leftTeamBrush() : opt.rightTeamBrush() ).color();
+        painter.setPen( QPen( color, 0 ) );
+        const double r = opt.scale( radius );
+        painter.drawEllipse( focus, r, r );
+        const std::vector< Vector2D > ticks = OverlayMath::focusTicks( focus_point, radius, direction );
+        for ( size_t i = 0; i + 1 < ticks.size(); i += 2 )
+        {
+            painter.drawLine( screen( ticks[i] ), screen( ticks[i + 1] ) );
+        }
+        return;
+    }
+
+    const QColor color = opt.focusPointPen().color();
+
+    // the soft spot under the reticle
+    {
+        QColor fill = color;
+        fill.setAlphaF( FocusLook::SPOT_OPACITY );
+        painter.setPen( Qt::NoPen );
+        painter.setBrush( fill );
+        for ( const double k : FocusLook::SPOT_RADII )
+        {
+            const double r = opt.scale( opt.focusPointSize() * k );
+            painter.drawEllipse( focus, r, r );
+        }
+        painter.setBrush( Qt::NoBrush );
+    }
+
+    // the lines of the same noise, fainter outward
+    {
+        const std::vector< std::vector< std::vector< Vector2D > > > lines
+            = OverlayMath::focusNoiseLines( param.player_type_, param.player_ );
+        for ( size_t i = 0; i < lines.size(); ++i )
+        {
+            QColor c = color;
+            c.setAlphaF( FocusLook::NOISE_OPACITY[std::min( i, std::size( FocusLook::NOISE_OPACITY ) - 1 )] );
+            painter.setPen( QPen( c, 0 ) );
+            for ( const std::vector< Vector2D > & line : lines[i] )
+            {
+                QPolygonF polygon;
+                for ( const Vector2D & p : line )
+                {
+                    polygon << screen( p );
+                }
+                painter.drawPolyline( polygon );
+            }
+        }
+    }
+
+    // the line from the player, and the reticle
+    painter.setPen( opt.focusPointPen() );
+    painter.drawLine( QPointF( param.x_, param.y_ ), focus );
+    const double r = opt.scale( opt.focusPointSize() );
+    painter.drawEllipse( focus, r, r );
+    const std::vector< Vector2D > ticks = OverlayMath::focusTicks( focus_point, opt.focusPointSize(), direction );
+    for ( size_t i = 0; i + 1 < ticks.size(); i += 2 )
+    {
+        painter.drawLine( screen( ticks[i] ), screen( ticks[i + 1] ) );
+    }
 }
 
 /*-------------------------------------------------------------------*/
@@ -512,91 +470,61 @@ PlayerPainter::drawCatchArea( QPainter & painter,
                               const PlayerPainter::Param & param ) const
 {
     //
-    // goalie's catchable area
+    // goalie's catchable area: the outline of where the catch box reaches.
+    // Since rcssserver 17.0.0, the goalie cannot catch behind it
+    // (min_catch_angle and max_catch_angle).
     //
     const Options & opt = Options::instance();
     const rcss::rcg::ServerParamT & SP = M_disp_holder.serverParam();
+    const OverlayMath::CatchArea area = OverlayMath::catchArea( SP, param.player_type_ );
 
-    //
-    // catchable area
-    //
+    auto draw_polyline = [&]( const std::vector< Vector2D > & points ) {
+        QPolygon polygon;
+        for ( const Vector2D & p : points )
+        {
+            polygon << QPoint( opt.screenX( p.x ), opt.screenY( p.y ) );
+        }
+        painter.drawPolyline( polygon );
+    };
+    auto draw_outline = [&]( const double length ) {
+        const OverlayMath::CatchOutline outline = OverlayMath::catchOutline( SP, param.player_, length );
+        for ( const OverlayMath::Arc & arc : outline.arcs_ )
+        {
+            const int r = opt.scale( arc.radius_ );
+            if ( outline.circle_ )
+            {
+                painter.drawEllipse( param.x_ - r,
+                                     param.y_ - r,
+                                     r * 2,
+                                     r * 2 );
+                return;
+            }
+            // Qt's angles go counterclockwise on the screen, the field's clockwise.
+            painter.drawArc( param.x_ - r,
+                             param.y_ - r,
+                             r * 2,
+                             r * 2,
+                             static_cast< int >( rint( - arc.start_ * 16 ) ),
+                             static_cast< int >( rint( - arc.span_ * 16 ) ) );
+        }
+        draw_polyline( outline.between_ );
+        draw_polyline( outline.edges_ );
+    };
 
-    const double catchable_area
-        = std::sqrt( std::pow( SP.catchable_area_w_ * 0.5, 2.0 )
-                     + std::pow( SP.catchable_area_l_, 2.0 ) );
-    const int catchable = opt.scale( catchable_area );
     painter.setPen( ( param.player_.side() == rcss::rcg::LEFT )
                     ? opt.leftGoaliePen()
                     : opt.rightGoaliePen() );
     painter.setBrush( Qt::NoBrush );
-    painter.drawEllipse( param.x_ - catchable,
-                         param.y_ - catchable,
-                         catchable * 2,
-                         catchable * 2 );
+    draw_outline( area.catchable_length_ );
 
-    const double max_catchable_area_l
-        = SP.catchable_area_l_
-        * param.player_type_.catchable_area_l_stretch_;
-    const double max_area
-        = std::sqrt( std::pow( SP.catchable_area_w_ * 0.5, 2.0 )
-                     + std::pow( max_catchable_area_l, 2.0 ) );
-    const int max_r = opt.scale( max_area );
-    if ( max_r > catchable )
+    if ( opt.scale( area.max_ ) > opt.scale( area.catchable_ ) )
     {
         painter.setPen( ( param.player_.side() == rcss::rcg::LEFT )
                         ? opt.leftGoalieStretchPen()
                         : opt.rightGoalieStretchPen() );
-        painter.drawEllipse( param.x_ - max_r,
-                             param.y_ - max_r,
-                             max_r * 2,
-                             max_r * 2 );
-
-        const double min_catchable_area_l
-            = SP.catchable_area_l_
-            * ( 1.0 - ( param.player_type_.catchable_area_l_stretch_ - 1.0 ) );
-        const double min_area
-            = std::sqrt( std::pow( SP.catchable_area_w_ * 0.5, 2.0 )
-                         + std::pow( min_catchable_area_l, 2.0 ) );
-        const int min_r = opt.scale( min_area );
-        painter.drawEllipse( param.x_ - min_r,
-                             param.y_ - min_r,
-                             min_r * 2,
-                             min_r * 2 );
+        draw_outline( area.max_length_ );
+        draw_outline( area.min_length_ );
     }
-
-#if 0
-    //
-    // catch probability
-    //
-
-    const double ball_dist = std::sqrt( std::pow( param.player_.x_ - param.ball_.x_, 2 )
-                                        + std::pow( param.player_.y_ - param.ball_.y_, 2 ) );
-    double catch_prob = SP.catch_probability_;
-    if ( ball_dist > stretch_area )
-    {
-        // catch_prob = 0.0;
-        return;
-    }
-
-    if ( ball_dist > catchable_area )
-    {
-        double x = ball_dist * ( stretch_catchable_area_l / stretch_area );
-        catch_prob
-            = SP.catch_probability_
-            - SP.catch_probability_ * ( ( x - SP.catchable_area_l_ )
-                                        / ( stretch_catchable_area_l - SP.catchable_area_l_ ) );
-    }
-
-    int text_radius = std::min( 40, param.draw_radius_ );
-
-    painter.setPen( ( param.player_.side_ == LEFT )
-                    ? opt.rightGoaliePen()
-                    : opt.leftGoaliePen() );
-    painter.setFont( opt.playerFont() );
-    painter.drawText( param.x_ + text_radius,
-                      param.y_ + ( 2 + painter.fontMetrics().ascent() ) * 2,
-                      QString( "Catch=%1" ).arg( catch_prob, 0, 'g', 3 ) );
-#endif
 }
 
 /*-------------------------------------------------------------------*/
@@ -614,76 +542,32 @@ PlayerPainter::drawTackleArea( QPainter & painter,
     const Options & opt = Options::instance();
     const rcss::rcg::ServerParamT & SP = M_disp_holder.serverParam();
 
-    Vector2D ppos( param.player_.x_,
-                   param.player_.y_ );
-    Vector2D bpos( param.ball_.x_,
-                   param.ball_.y_ );
-
-    Vector2D player_to_ball = bpos - ppos;
-    player_to_ball.rotate( - param.player_.body_ );
-
-    double tackle_dist = ( player_to_ball.x > 0.0
-                           ? SP.tackle_dist_
-                           : SP.tackle_back_dist_ );
-    if ( tackle_dist < 1.0e-5 )
+    const OverlayMath::TackleChances chances = OverlayMath::tackleChances( SP, param.player_, param.ball_ );
+    if ( ! chances.any() )
     {
         return;
     }
 
-    double tackle_fail_prob = ( std::pow( player_to_ball.absX() / tackle_dist,
-                                          SP.tackle_exponent_ )
-                                + std::pow( player_to_ball.absY() / SP.tackle_width_,
-                                            SP.tackle_exponent_ ) );
-    double foul_fail_prob = ( std::pow( player_to_ball.absX() / tackle_dist,
-                                        SP.foul_exponent_ )
-                              + std::pow( player_to_ball.absY() / SP.tackle_width_,
-                                          SP.foul_exponent_ ) );
+    painter.save();
+    painter.translate( param.x_, param.y_ );
+    painter.rotate( param.player_.body_ );
 
-    if ( tackle_fail_prob < 1.0
-         || foul_fail_prob < 1.0 )
-    {
-        painter.save();
-        painter.translate( param.x_, param.y_ );
-        painter.rotate( param.player_.body_ );
+    painter.setPen( opt.tacklePen() );
+    painter.setBrush( Qt::NoBrush );
 
-        painter.setPen( opt.tacklePen() );
-        painter.setBrush( Qt::NoBrush );
+    painter.drawRect( opt.scale( - SP.tackle_back_dist_ ),
+                      opt.scale( - SP.tackle_width_ ),
+                      opt.scale( SP.tackle_dist_ + SP.tackle_back_dist_ ),
+                      opt.scale( SP.tackle_width_ * 2.0 ) );
+    painter.restore();
 
-        painter.drawRect( opt.scale( - SP.tackle_back_dist_ ),
-                          opt.scale( - SP.tackle_width_ ),
-                          opt.scale( SP.tackle_dist_ + SP.tackle_back_dist_ ),
-                          opt.scale( SP.tackle_width_ * 2.0 ) );
-        painter.restore();
+    int text_radius = std::min( 40, param.draw_radius_ );
 
-        int text_radius = std::min( 40, param.draw_radius_ );
-
-        painter.setFont( opt.playerFont() );
-        painter.setPen( opt.tacklePen() );
-
-        if ( tackle_fail_prob < 1.0
-             && foul_fail_prob < 1.0 )
-        {
-            painter.drawText( param.x_ + text_radius,
-                              param.y_ + 2 + painter.fontMetrics().ascent(),
-                              QString( "T=%1,F=%2" )
-                              .arg( 1.0 - tackle_fail_prob, 0, 'g', 3 )
-                              .arg( 1.0 - foul_fail_prob, 0, 'g', 3 ) );
-        }
-        else if ( tackle_fail_prob < 1.0 )
-        {
-            painter.drawText( param.x_ + text_radius,
-                              param.y_ + 2 + painter.fontMetrics().ascent(),
-                              QString( "Tackle=%1" )
-                              .arg( 1.0 - tackle_fail_prob, 0, 'g', 3 ) );
-        }
-        else if ( foul_fail_prob < 1.0 )
-        {
-            painter.drawText( param.x_ + text_radius,
-                              param.y_ + 2 + painter.fontMetrics().ascent(),
-                              QString( "Foul=%1" )
-                              .arg( 1.0 - foul_fail_prob, 0, 'g', 3 ) );
-        }
-    }
+    painter.setFont( opt.playerFont() );
+    painter.setPen( opt.tacklePen() );
+    painter.drawText( param.x_ + text_radius,
+                      param.y_ + 2 + painter.fontMetrics().ascent(),
+                      OverlayMath::tackleText( chances ) );
 }
 
 /*-------------------------------------------------------------------*/
@@ -698,54 +582,19 @@ PlayerPainter::drawKickAccelArea( QPainter & painter,
     // draw kick accel area
     //
 
-    if ( ! param.ball_.hasVelocity() )
-    {
-        return;
-    }
-
     const Options & opt = Options::instance();
     const rcss::rcg::ServerParamT & SP = M_disp_holder.serverParam();
 
-    Vector2D ppos( param.player_.x_,
-                   param.player_.y_ );
-    Vector2D bpos( param.ball_.x_,
-                   param.ball_.y_ );
-
-    Vector2D player_to_ball = bpos - ppos;
-    player_to_ball.rotate( - param.player_.body_ );
-
-    double ball_dist = player_to_ball.r();
-
-    if ( ball_dist > ( param.player_type_.player_size_
-                       + param.player_type_.kickable_margin_
-                       + SP.ball_size_ ) )
+    const OverlayMath::KickAccel kick = OverlayMath::kickAccel( SP, param.player_type_, param.player_, param.ball_ );
+    if ( ! kick.kickable_ )
     {
         return;
     }
 
-    double max_kick_accel
-        = SP.max_power_
-        //* SP.kick_power_rate_
-        * param.player_type_.kick_power_rate_
-        * ( 1.0 - 0.25 * player_to_ball.th().abs() / 180.0
-            - 0.25
-            * ( ball_dist - param.player_type_.player_size_ - SP.ball_size_ )
-            / param.player_type_.kickable_margin_ );
-
-    if ( max_kick_accel > SP.ball_accel_max_ )
-    {
-        max_kick_accel = SP.ball_accel_max_;
-    }
-
-    Vector2D bnext( bpos.x + param.ball_.vx_,
-                    bpos.y + param.ball_.vy_ );
-
-    QPoint bpos_screen( opt.screenX( bpos.x ),
-                        opt.screenY( bpos.y ) );
-    QPoint bnext_screen( opt.screenX( bnext.x ),
-                         opt.screenY( bnext.y ) );
-    int max_speed_screen = opt.scale( SP.ball_speed_max_ );
-    int max_kick_accel_screen = opt.scale( max_kick_accel );
+    QPoint bpos_screen( opt.screenX( param.ball_.x_ ),
+                        opt.screenY( param.ball_.y_ ) );
+    QPoint bnext_screen( opt.screenX( kick.next_.x ),
+                         opt.screenY( kick.next_.y ) );
 
     painter.setPen( opt.kickAccelPen() );
     painter.setBrush( Qt::NoBrush );
@@ -753,99 +602,31 @@ PlayerPainter::drawKickAccelArea( QPainter & painter,
     // draw no noise ball move line
     painter.drawLine( bpos_screen, bnext_screen );
 
-    Circle2D max_speed_circle( bpos, SP.ball_speed_max_ );
-    Circle2D max_accel_circle( bnext, max_kick_accel );
-    Vector2D intersection_1, intersection_2;
-
-    if ( max_speed_circle.intersection( max_accel_circle,
-                                        &intersection_1,
-                                        &intersection_2 ) != 2 )
+    if ( kick.arcs_.size() == 1 )
     {
-        // no intersection points
-
-        // just draw a next ball reachable area by max accel
-        painter.drawEllipse( bnext_screen.x() - max_kick_accel_screen,
-                             bnext_screen.y() - max_kick_accel_screen,
-                             max_kick_accel_screen * 2,
-                             max_kick_accel_screen * 2 );
+        // no intersection points: just draw a next ball reachable area by max accel
+        const int r = opt.scale( kick.max_accel_ );
+        painter.drawEllipse( bnext_screen.x() - r,
+                             bnext_screen.y() - r,
+                             r * 2,
+                             r * 2 );
     }
     else
     {
-        // exists 2 intersection points
-
-        AngleDeg bpos_to_intersection_1 = ( intersection_1 - bpos ).th();
-        AngleDeg bpos_to_intersection_2 = ( intersection_2 - bpos ).th();
-
-        AngleDeg bpos_to_bnext_angle = ( bnext - bpos ).th();
-
-        AngleDeg * bpos_start_angle = 0;
-        double bpos_angle_span = 0.0;
-        if ( bpos_to_intersection_1.isLeftOf( bpos_to_bnext_angle ) )
+        // the arcs between the intersection points. Qt's angles go
+        // counterclockwise on the screen, the field's clockwise.
+        for ( const OverlayMath::Arc & arc : kick.arcs_ )
         {
-            bpos_start_angle = &bpos_to_intersection_1;
-            bpos_angle_span = ( bpos_to_intersection_2 - bpos_to_intersection_1 ).degree();
-            if ( bpos_angle_span < 0.0 )
-            {
-                bpos_angle_span += 360.0;
-            }
-            bpos_angle_span *= -1.0;
+            const int cx = opt.screenX( arc.center_.x );
+            const int cy = opt.screenY( arc.center_.y );
+            const int r = opt.scale( arc.radius_ );
+            painter.drawArc( cx - r,
+                             cy - r,
+                             r * 2,
+                             r * 2,
+                             static_cast< int >( rint( - arc.start_ * 16 ) ),
+                             static_cast< int >( rint( - arc.span_ * 16 ) ) );
         }
-        else
-        {
-            bpos_start_angle = &bpos_to_intersection_2;
-            bpos_angle_span = ( bpos_to_intersection_1 - bpos_to_intersection_2 ).degree();
-            if ( bpos_angle_span < 0.0 )
-            {
-                bpos_angle_span += 360.0;
-            }
-            bpos_angle_span *= -1.0;
-        }
-
-        int bpos_start_angle_int = static_cast< int >( rint( - bpos_start_angle->degree() * 16 ) );
-        int bpos_angle_span_int = static_cast< int >( rint( bpos_angle_span * 16 ) );
-        painter.drawArc( bpos_screen.x() - max_speed_screen,
-                         bpos_screen.y() - max_speed_screen,
-                         max_speed_screen * 2,
-                         max_speed_screen * 2,
-                         bpos_start_angle_int,
-                         bpos_angle_span_int  );
-
-        AngleDeg bnext_to_intersection_1 = ( intersection_1 - bnext ).th();
-        AngleDeg bnext_to_intersection_2 = ( intersection_2 - bnext ).th();
-
-        AngleDeg bnext_to_bpos_angle = bpos_to_bnext_angle + 180.0;
-
-        AngleDeg * bnext_start_angle = 0;
-        double bnext_angle_span = 0.0;
-        if ( bnext_to_intersection_1.isLeftOf( bnext_to_bpos_angle ) )
-        {
-            bnext_start_angle = &bnext_to_intersection_1;
-            bnext_angle_span = ( bnext_to_intersection_2 - bnext_to_intersection_1 ).degree();
-            if ( bnext_angle_span < 0.0 )
-            {
-                bnext_angle_span += 360.0;
-            }
-            bnext_angle_span *= -1.0;
-        }
-        else
-        {
-            bnext_start_angle = &bnext_to_intersection_2;
-            bnext_angle_span = ( bnext_to_intersection_1 - bnext_to_intersection_2 ).degree();
-            if ( bnext_angle_span < 0.0 )
-            {
-                bnext_angle_span += 360.0;
-            }
-            bnext_angle_span *= -1.0;
-        }
-
-        int bnext_start_angle_int = static_cast< int >( rint( - bnext_start_angle->degree() * 16 ) );
-        int bnext_angle_span_int = static_cast< int >( rint( bnext_angle_span * 16 ) );
-        painter.drawArc( bnext_screen.x() - max_kick_accel_screen,
-                         bnext_screen.y() - max_kick_accel_screen,
-                         max_kick_accel_screen * 2,
-                         max_kick_accel_screen * 2,
-                         bnext_start_angle_int,
-                         bnext_angle_span_int );
     }
 
     // draw kick info text
@@ -853,7 +634,7 @@ PlayerPainter::drawKickAccelArea( QPainter & painter,
     painter.setPen( opt.kickAccelPen() );
 
     char buf[32];
-    snprintf( buf, 32, "MaxAccel=%.3f", max_kick_accel );
+    snprintf( buf, 32, "MaxAccel=%.3f", kick.max_accel_ );
     painter.drawText( bnext_screen.x() + 10,
                       bnext_screen.y() + painter.fontMetrics().ascent(),
                       QString::fromLatin1( buf ) );

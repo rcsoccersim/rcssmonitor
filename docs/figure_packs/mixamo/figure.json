@@ -1,0 +1,21 @@
+{
+    "format": 1,
+    "name": "My Mixamo Character",
+    "description": "A character of Mixamo with Mixamo's animations, for myself only.",
+    "credits": [
+        { "title": "Character and animations", "author": "Mixamo", "url": "https://www.mixamo.com" }
+    ],
+    "motion": {
+        "model": "Character.fbx",
+        "skeleton": "mixamo",
+        "clips": {
+            "idle": "idle.fbx",
+            "walk": "walk.fbx",
+            "jog": "jog.fbx",
+            "sprint": "sprint.fbx"
+        }
+    },
+    "bodies": [
+        { "model": "Character.fbx", "skeleton": "mixamo" }
+    ]
+}

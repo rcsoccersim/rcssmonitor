@@ -1,6 +1,6 @@
 name: CI
 
-# Branches (docs/PLAN_3D-VIEW.md, D9 and §9.1): master has the releases,
+# Branches (docs/plan/2026-11-11_3d-view.md, D9 and §9.1): master has the releases,
 # develop gathers the work, and feature/*, fix/* and hotfix/* branch off them.
 on:
   push:
@@ -14,6 +14,8 @@ jobs:
   # CMake builds with Qt5 and Qt6 (D2). A use of a deprecated API is an
   # error: QT_DISABLE_DEPRECATED_BEFORE (CMakeLists.txt) removes the API
   # deprecated up to Qt 5.15 or 6.0, and -Werror catches the later ones.
+  # The tests run under Xvfb with Mesa's software OpenGL (llvmpipe), so that
+  # the 3D view is drawn offscreen too (docs/plan/2026-11-11_3d-view.md §10.2).
   # They are built with Qt WebSockets (the WebSocket connection).
   cmake:
     name: CMake, ${{ matrix.qt }}
@@ -28,27 +30,31 @@ jobs:
             qt_packages: qtbase5-dev libqt5websockets5-dev
           - qt: Qt6
             qt_major: 6
-            qt_packages: qt6-base-dev qt6-websockets-dev
+            qt_packages: qt6-base-dev libqt6opengl6-dev qt6-websockets-dev
     steps:
       - uses: actions/checkout@v5
       - name: Install the packages
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            build-essential cmake ${{ matrix.qt_packages }} zlib1g-dev libdeflate-dev
+            build-essential cmake ${{ matrix.qt_packages }} zlib1g-dev libdeflate-dev \
+            xvfb xauth libgl1-mesa-dri
       - name: Configure
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
             -DQT_VERSION_MAJOR=${{ matrix.qt_major }} \
             -DCMAKE_CXX_FLAGS=-Werror=deprecated-declarations
+      - name: Check that the 3D view is built
+        run: grep -q '^#define HAVE_3D_VIEW' build/config.h
       - name: Check that the WebSocket connection is built
         run: grep -q '^#define HAVE_QT_WEBSOCKETS' build/config.h
       - name: Build
         run: cmake --build build --parallel "$(nproc)"
       - name: Test
-        run: ctest --test-dir build --output-on-failure
+        run: xvfb-run -a ctest --test-dir build --output-on-failure
         env:
           QT_QPA_PLATFORM: offscreen
+          LIBGL_ALWAYS_SOFTWARE: 1
 
   # The oldest Qt that rcssmonitor supports (D2): Qt 6.2 of Ubuntu 22.04,
   # with CMake 3.22.
@@ -64,24 +70,30 @@ jobs:
           # Qt6 WebSockets is libqt6websockets6-dev on 22.04 (qt6-websockets-dev
           # from 24.04)
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-            build-essential cmake qt6-base-dev libqt6websockets6-dev libgl-dev zlib1g-dev libdeflate-dev
+            build-essential cmake qt6-base-dev libqt6opengl6-dev libqt6websockets6-dev libgl-dev zlib1g-dev libdeflate-dev \
+            xvfb xauth libgl1-mesa-dri
       - name: Configure
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
             -DQT_VERSION_MAJOR=6 \
             -DCMAKE_CXX_FLAGS=-Werror=deprecated-declarations
+      - name: Check that the 3D view is built
+        run: grep -q '^#define HAVE_3D_VIEW' build/config.h
       - name: Check that the WebSocket connection is built
         run: grep -q '^#define HAVE_QT_WEBSOCKETS' build/config.h
       - name: Build
         run: cmake --build build --parallel "$(nproc)"
       - name: Test
-        run: ctest --test-dir build --output-on-failure
+        run: xvfb-run -a ctest --test-dir build --output-on-failure
         env:
           QT_QPA_PLATFORM: offscreen
+          LIBGL_ALWAYS_SOFTWARE: 1
 
   # The source tarball by cmake-helper.sh (the dist target, git archive of
   # HEAD): extracted, built, tested, installed (the desktop entry checked,
-  # the installed executable started) and uninstalled.
+  # the installed executable started) and uninstalled. The 3D view is built
+  # (Qt6 OpenGL) and its tests run under Xvfb, as in the cmake jobs, so that
+  # a file of the 3D view missing from the tarball is caught too.
   cmake-distcheck:
     name: CMake distcheck (cmake-helper.sh), Qt6
     runs-on: ubuntu-26.04
@@ -91,12 +103,20 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            build-essential cmake qt6-base-dev qt6-websockets-dev zlib1g-dev libdeflate-dev \
-            desktop-file-utils
+            build-essential cmake qt6-base-dev libqt6opengl6-dev qt6-websockets-dev zlib1g-dev libdeflate-dev \
+            desktop-file-utils xvfb xauth libgl1-mesa-dri
       - name: distcheck
-        run: ./cmake-helper.sh distcheck qt6
+        # bash: -o pipefail, so that a failure of distcheck is not hidden by tee.
+        # awk checks that the build of the tarball (between "distcheck: configure"
+        # and "distcheck: build") has the 3D view.
+        shell: bash
+        run: |
+          xvfb-run -a ./cmake-helper.sh distcheck qt6 2>&1 | tee distcheck.log
+          awk '/distcheck: configure/ { c = 1 } /distcheck: build/ { c = 0 }
+               c && /The 3D view is built/ { found = 1 } END { exit !found }' distcheck.log
         env:
           QT_QPA_PLATFORM: offscreen
+          LIBGL_ALWAYS_SOFTWARE: 1
 
   # autotools stays on Qt5 (D3). Build it so that a source file missing
   # from the Makefile.am files is caught. It is built without libdeflate

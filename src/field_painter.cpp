@@ -41,6 +41,8 @@
 #include "disp_holder.h"
 #include "options.h"
 
+#include <algorithm>
+#include <cmath>
 #include <iostream>
 
 /*-------------------------------------------------------------------*/
@@ -48,7 +50,8 @@
 
  */
 FieldPainter::FieldPainter( DispHolder & disp_holder )
-    : M_disp_holder( disp_holder )
+    : M_disp_holder( disp_holder ),
+      M_pen_scale( 1.0 )
 {
 
 }
@@ -99,11 +102,87 @@ FieldPainter::draw( QPainter & painter )
 
  */
 void
+FieldPainter::drawGround( QPainter & painter,
+                          const double pen_scale,
+                          const bool stripes )
+{
+    M_pen_scale = pen_scale;
+
+    drawBackGround( painter );
+    if ( stripes )
+    {
+        drawGrassStripes( painter );
+    }
+    drawLines( painter );
+    drawPenaltyAreaLines( painter );
+    drawGoalAreaLines( painter );
+    if ( Options::instance().showFlag() )
+    {
+        drawFlags( painter );
+    }
+    if ( Options::instance().gridStep() > 0.0 )
+    {
+        drawGrid( painter );
+    }
+
+    M_pen_scale = 1.0;
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  A pen of width 0 is one pixel wide.
+ */
+QPen
+FieldPainter::pen( const QPen & pen ) const
+{
+    if ( M_pen_scale == 1.0 )
+    {
+        return pen;
+    }
+
+    QPen scaled( pen );
+    scaled.setWidthF( std::max( 1.0, pen.widthF() ) * M_pen_scale );
+    return scaled;
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+void
 FieldPainter::drawBackGround( QPainter & painter ) const
 {
     // fill the whole region
     painter.fillRect( painter.window(),
                       Options::instance().fieldBrush() );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  Over the whole region, stripe by stripe, the edges by the field's
+  coordinates (the same pixel ends one and starts the next: no gaps).
+ */
+void
+FieldPainter::drawGrassStripes( QPainter & painter ) const
+{
+    const Options & opt = Options::instance();
+    const QColor field = opt.fieldBrush().color();
+    const auto times = []( const QColor & c, const double k ) {
+        const auto f = [k]( const int v ) { return std::min( 255, std::max( 0, int( std::lround( v * k ) ) ) ); };
+        return QColor( f( c.red() ), f( c.green() ), f( c.blue() ) );
+    };
+    const QColor light = times( field, GRASS_LIGHT );
+    const QColor dark = times( field, GRASS_DARK );
+
+    const QRect region = painter.window();
+    const double left = opt.fieldX( region.left() );
+    const double right = opt.fieldX( region.right() + 1 );
+    for ( int k = int( std::floor( left / GRASS_STRIPE_WIDTH ) ); k * GRASS_STRIPE_WIDTH < right; ++k )
+    {
+        const int x0 = opt.screenX( k * GRASS_STRIPE_WIDTH );
+        const int x1 = opt.screenX( ( k + 1 ) * GRASS_STRIPE_WIDTH );
+        painter.fillRect( x0, region.top(), x1 - x0, region.height(), ( k % 2 != 0 ) ? dark : light );
+    }
 }
 
 /*-------------------------------------------------------------------*/
@@ -117,7 +196,7 @@ FieldPainter::drawLines( QPainter & painter ) const
     const rcss::rcg::ServerParamT & SP = M_disp_holder.serverParam();
 
     // set paint styles
-    painter.setPen( opt.linePen() );
+    painter.setPen( pen( opt.linePen() ) );
     painter.setBrush( Qt::NoBrush );
 
     // set screen coordinates of field
@@ -182,7 +261,7 @@ FieldPainter::drawPenaltyAreaLines( QPainter & painter ) const
     const Options & opt = Options::instance();
 
     // set gdi objects
-    painter.setPen( opt.linePen() );
+    painter.setPen( pen( opt.linePen() ) );
     painter.setBrush( Qt::NoBrush );
 
     // set screen coordinates of field
@@ -244,7 +323,7 @@ FieldPainter::drawGoalAreaLines( QPainter & painter ) const
     const Options & opt = Options::instance();
 
     // set gdi objects
-    painter.setPen( opt.linePen() );
+    painter.setPen( pen( opt.linePen() ) );
     painter.setBrush( Qt::NoBrush );
 
     // set screen coordinates of field
@@ -337,7 +416,7 @@ FieldPainter::drawFlags( QPainter & painter ) const
     const Options & opt = Options::instance();
 
     // set gdi objects
-    painter.setPen( opt.linePen() );
+    painter.setPen( pen( opt.linePen() ) );
     painter.setBrush( Qt::NoBrush );
 
     // set size or coordinates params
@@ -610,7 +689,7 @@ FieldPainter::drawGrid( QPainter & painter ) const
     //               << "  max_y = " << max_y
     //               << std::endl;
 
-    painter.setPen( opt.linePen() );
+    painter.setPen( pen( opt.linePen() ) );
     painter.setBrush( Qt::NoBrush );
 
     double x = 0.0;

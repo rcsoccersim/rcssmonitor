@@ -41,6 +41,8 @@
 #include <QBrush>
 #include <QFont>
 
+#include "camera_mode.h"
+#include "player_camera_options.h"
 #include "monitor_transport.h"
 
 #include <rcss/rcg/types.h>
@@ -71,36 +73,49 @@ public:
         FOCUS_POINT, // include center
     };
 
-    static const double PITCH_LENGTH;
-    static const double PITCH_WIDTH;
-    static const double PITCH_HALF_LENGTH;
-    static const double PITCH_HALF_WIDTH;
-    static const double PITCH_MARGIN;
-    static const double CENTER_CIRCLE_R;
-    static const double PENALTY_AREA_LENGTH;
-    static const double PENALTY_AREA_WIDTH;
-    static const double PENALTY_CIRCLE_R;
-    static const double PENALTY_SPOT_DIST;
-    static const double GOAL_WIDTH;
-    static const double GOAL_HALF_WIDTH;
-    static const double GOAL_AREA_LENGTH;
-    static const double GOAL_AREA_WIDTH;
-    static const double GOAL_DEPTH;
-    static const double CORNER_ARC_R;
-    static const double GOAL_POST_RADIUS;
+    static constexpr double PITCH_LENGTH = 105.0;
+    static constexpr double PITCH_WIDTH = 68.0;
+    static constexpr double PITCH_HALF_LENGTH = PITCH_LENGTH * 0.5;
+    static constexpr double PITCH_HALF_WIDTH = PITCH_WIDTH * 0.5;
+    static constexpr double PITCH_MARGIN = 5.0;
+    static constexpr double CENTER_CIRCLE_R = 9.15;
+    static constexpr double PENALTY_AREA_LENGTH = 16.5;
+    static constexpr double PENALTY_AREA_WIDTH = 40.32;
+    static constexpr double PENALTY_CIRCLE_R = 9.15;
+    static constexpr double PENALTY_SPOT_DIST = 11.0;
+    static constexpr double GOAL_WIDTH = 14.02;
+    static constexpr double GOAL_HALF_WIDTH = GOAL_WIDTH * 0.5;
+    static constexpr double GOAL_AREA_LENGTH = 5.5;
+    static constexpr double GOAL_AREA_WIDTH = 18.32;
+    static constexpr double GOAL_DEPTH = 2.44;
+    static constexpr double CORNER_ARC_R = 1.0;
+    static constexpr double GOAL_POST_RADIUS = 0.06;
 
 
     //! minimum field scale
-    static const double MIN_FIELD_SCALE;
+    static constexpr double MIN_FIELD_SCALE = 1.0;
     //! maximum field scale
-    static const double MAX_FIELD_SCALE;
+    static constexpr double MAX_FIELD_SCALE = 400.0;
     //! zoom rate factor
-    static const double ZOOM_RATIO;
+    static constexpr double ZOOM_RATIO = 1.5;
+
+    /*!
+      the delayed live view (docs/plan/2026-11-11_3d-view.md §5.10): the seconds a
+      live game is drawn behind its newest frame. The largest is the time
+      the ball takes from the top speed (ball_speed_max 3.0) to rolling no
+      farther than the kickable distance (6.2 s with ball_decay 0.94), with
+      a margin: by then, the touch that ends a kick's segment, or its end
+      by the ball's decay, is known before the kick is drawn.
+    */
+    static constexpr double MIN_LIVE_DELAY_SECONDS = 1.0;
+    static constexpr double MAX_LIVE_DELAY_SECONDS = 7.0;
+    static constexpr double LIVE_DELAY_SECONDS_STEP = 0.5;
+    static constexpr double DEFAULT_LIVE_DELAY_SECONDS = 3.0;
 
     //! default logplayer timer step (ms).
-    static const int DEFAULT_TIMER_INTERVAL;
+    static constexpr int DEFAULT_TIMER_INTERVAL = 100;
 
-    static const int WAITING_ANIMATION_SIZE;
+    static constexpr int WAITING_ANIMATION_SIZE = 96;
 
     // default color settings
     static const QColor FIELD_COLOR;
@@ -162,6 +177,8 @@ private:
     std::string M_game_log_file; //!< the file path of game log file to be opened
     bool M_auto_loop_mode;
     int M_timer_interval; //!< logplayer timer interval
+    bool M_live_delay; //!< the delayed live view (§5.10)
+    double M_live_delay_seconds; //!< how far behind the newest frame (s)
 
     //
     // window options
@@ -177,6 +194,32 @@ private:
     int M_canvas_height;
 
     bool M_show_menu_bar;
+    bool M_view_3d; //!< show the 3D view instead of the 2D view
+    CameraMode M_camera_3d; //!< the camera of the 3D view
+    double M_closeup_distance_3d; //!< the close-up cameras: how far from what they follow (m)
+    double M_closeup_elevation_3d; //!< the close-up cameras: how high above it (degree)
+    PlayerCameraOptions M_player_camera; //!< the styles of the selected player's camera
+    bool M_boards_3d; //!< the boards around the pitch in the team colors
+    GrassMode M_grass_3d; //!< the grass: plain, mowed in stripes, or realistic
+    bool M_sky_3d; //!< the sky, and the haze over the far ground
+    bool M_stands_3d; //!< the stands along the touch lines
+    bool M_ball_pattern_3d; //!< the ball's pattern, which shows it rolling
+    bool M_ball_flight_3d; //!< the ball flying in the air in log replay, virtually
+    double M_ball_size_3d; //!< the ball's radius in the 3D view (m); below 0.01, the real size
+    bool M_ball_ring_3d; //!< a ring on the ground around the ball
+    double M_ball_ring_radius_3d; //!< the ring's radius (m)
+    bool M_ball_trail_3d; //!< a trail behind the ball
+    int M_ball_trail_cycles_3d; //!< the trail: as long as the ball went in this many cycles
+    bool M_banners_3d; //!< the banners behind the goals in the team colors
+    GuideMode M_compass_3d; //!< when the compass shows over the 3D view
+    GuideMode M_minimap_3d; //!< when the minimap shows over the 3D view
+    bool M_fps_3d; //!< the frames per second over the 3D view
+    bool M_antialias_3d; //!< smooth edges of the 3D view (multisampling)
+    QString M_player_model_3d; //!< how the 3D view draws the players: PLAYER_MODEL_SIMPLE, or a figure pack's name
+    QString M_figure_folder_3d; //!< a folder of figure packs of the user's choice (empty: none)
+    double M_figure_scale_3d; //!< the human figures: how many times a person's height
+    FigureBodies M_figure_bodies_3d; //!< the human bodies: men and women, or one of them
+    ShadowMode M_shadows_3d; //!< the sun's shadows of the players (and the goal frames when detailed)
     bool M_show_tool_bar;
     bool M_show_status_bar;
 
@@ -198,6 +241,7 @@ private:
     bool M_show_player_type;
     bool M_show_view_area;
     bool M_show_focus_point;
+    bool M_show_all_focus_points; //!< the focus points of all players, not only of the selected one
     bool M_show_illegal_defense;
     bool M_show_catch_area;
     bool M_show_tackle_area;
@@ -210,7 +254,7 @@ private:
     bool M_show_offside_line;
     bool M_show_draw_info;
 
-    double M_ball_size; //!< fixed ball radius
+    double M_ball_size; //!< the ball's radius in the 2D view; below 0.01, the real size
     double M_player_size; //!< fixed player radius
     double M_focus_point_size; //!< fixed focus point radius
 
@@ -351,10 +395,21 @@ public:
     int autoReconnectWait() const { return M_auto_reconnect_wait; }
 
     bool autoLoopMode() const { return M_auto_loop_mode; }
+    //! play the log again from the start at its end (and from the end stepping back before the start)
+    void setAutoLoopMode( const bool on ) { M_auto_loop_mode = on; }
 
     const std::string & gameLogFile() const { return M_game_log_file; }
+    //! the game log to open at the start (MainWindow::init(); the command line gives it, and the tests)
+    void setGameLogFile( const std::string & path ) { M_game_log_file = path; }
 
     int timerInterval() const { return M_timer_interval; }
+
+    //! the delayed live view: a live game drawn liveDelaySeconds() behind its newest frame (§5.10)
+    bool liveDelay() const { return M_live_delay; }
+    void setLiveDelay( const bool on ) { M_live_delay = on; }
+    double liveDelaySeconds() const { return M_live_delay_seconds; }
+    //! within MIN_LIVE_DELAY_SECONDS and MAX_LIVE_DELAY_SECONDS, to a step of LIVE_DELAY_SECONDS_STEP
+    void setLiveDelaySeconds( const double seconds );
 
     //
     // window option
@@ -372,6 +427,166 @@ public:
     int canvasHeight() const { return M_canvas_height; }
 
     bool showMenuBar() const { return M_show_menu_bar; }
+    bool view3D() const { return M_view_3d; }
+    void setView3D( const bool on ) { M_view_3d = on; }
+    CameraMode camera3D() const { return M_camera_3d; }
+    void setCamera3D( const CameraMode mode ) { M_camera_3d = mode; }
+
+    // the close-up cameras of the 3D view (rcssmonitor-web cameras.ts CLOSEUP_RANGE)
+    static constexpr double CLOSEUP_DISTANCE_3D = 12.0; //!< the default (m)
+    static constexpr double MIN_CLOSEUP_DISTANCE_3D = 3.0;
+    static constexpr double MAX_CLOSEUP_DISTANCE_3D = 60.0;
+    static constexpr double CLOSEUP_ELEVATION_3D = 20.0; //!< the default (degree)
+    static constexpr double MIN_CLOSEUP_ELEVATION_3D = 5.0;
+    static constexpr double MAX_CLOSEUP_ELEVATION_3D = 85.0;
+    double closeupDistance3D() const { return M_closeup_distance_3d; }
+    //! within MIN_CLOSEUP_DISTANCE_3D and MAX_CLOSEUP_DISTANCE_3D
+    void setCloseupDistance3D( const double distance );
+    double closeupElevation3D() const { return M_closeup_elevation_3d; }
+    //! within MIN_CLOSEUP_ELEVATION_3D and MAX_CLOSEUP_ELEVATION_3D
+    void setCloseupElevation3D( const double elevation );
+
+    //! the styles of the selected player's camera of the 3D view
+    const PlayerCameraOptions & playerCamera() const { return M_player_camera; }
+    //! the numbers are kept within their ranges (PlayerCameraStyle)
+    void setPlayerCamera( const PlayerCameraOptions & options );
+
+    // the defaults of the 3D tab of the settings dialog
+    static constexpr bool BOARDS_3D = true;
+    static constexpr bool BANNERS_3D = true;
+    static constexpr GuideMode COMPASS_3D = GuideMode::Off;
+    static constexpr GuideMode MINIMAP_3D = GuideMode::Off;
+    /*!
+      \brief the settings of the 3D tab of the settings dialog back to their
+      defaults (its Default button): the compass, the minimap, the frames per
+      second, the smooth edges, the shadows, and the stadium (the boards, the
+      banners, the stands, the sky, the grass)
+    */
+    void setView3DDefaults();
+    /*!
+      \brief the settings of the Players & Ball tab back to their defaults:
+      the players' model, the figures' bodies and scale, and the ball (its
+      pattern, its flight, its ring and trail)
+    */
+    void setPlayersAndBall3DDefaults();
+    /*!
+      \brief the settings of the Camera tab back to their defaults: the
+      close-up cameras and the player camera
+    */
+    void setCamera3DDefaults();
+
+    //! the 3D view: the boards around the pitch, in the team colors
+    bool boards3D() const { return M_boards_3d; }
+    void setBoards3D( const bool on ) { M_boards_3d = on; }
+
+    static constexpr GrassMode GRASS_3D = GrassMode::Stripes;
+    GrassMode grass3D() const { return M_grass_3d; }
+    void setGrass3D( const GrassMode mode ) { M_grass_3d = mode; }
+
+    static constexpr bool SKY_3D = true;
+    bool sky3D() const { return M_sky_3d; }
+    void setSky3D( const bool on ) { M_sky_3d = on; }
+
+    static constexpr bool STANDS_3D = true;
+    bool stands3D() const { return M_stands_3d; }
+    void setStands3D( const bool on ) { M_stands_3d = on; }
+
+    static constexpr bool FPS_3D = false;
+    //! the 3D view: the frames per second and the GPU's time of a frame over it (FpsMeter)
+    bool fps3D() const { return M_fps_3d; }
+    void setFps3D( const bool on ) { M_fps_3d = on; }
+
+    static constexpr bool ANTIALIAS_3D = true;
+    //! the samples of a pixel with smooth edges
+    static constexpr int ANTIALIAS_SAMPLES_3D = 4;
+    //! the 3D view: smooth edges (multisampling); off, a GPU has less to do (a screen of high resolution)
+    bool antialias3D() const { return M_antialias_3d; }
+    void setAntialias3D( const bool on ) { M_antialias_3d = on; }
+
+    static constexpr bool BALL_PATTERN_3D = true;
+    //! the 3D view: the ball's pattern, twelve pentagons, which shows it rolling
+    bool ballPattern3D() const { return M_ball_pattern_3d; }
+    void setBallPattern3D( const bool on ) { M_ball_pattern_3d = on; }
+
+    /*!
+      the ball's radius in the 3D view by default: below 0.01, the real size
+      (the server's ball_size), as the ball aids find it where it is small.
+      The 2D view has its own (ballSize()).
+    */
+    static constexpr double BALL_SIZE_3D = 0.0;
+    static constexpr double MIN_BALL_SIZE_3D = 0.0;
+    static constexpr double MAX_BALL_SIZE_3D = 1.0;
+    double ballSize3D() const { return M_ball_size_3d; }
+    //! within MIN_BALL_SIZE_3D and MAX_BALL_SIZE_3D
+    void setBallSize3D( const double radius );
+
+    static constexpr bool BALL_FLIGHT_3D = false;
+    //! the 3D view: in log replay, the ball flies in the air, virtually (BallFlight; not live)
+    bool ballFlight3D() const { return M_ball_flight_3d; }
+    void setBallFlight3D( const bool on ) { M_ball_flight_3d = on; }
+
+    static constexpr bool BALL_RING_3D = true;
+    //! the 3D view: a ring on the ground around the ball, to find it where it is small
+    bool ballRing3D() const { return M_ball_ring_3d; }
+    void setBallRing3D( const bool on ) { M_ball_ring_3d = on; }
+
+    //! the ring's radius by default: the default kickable_margin (m)
+    static constexpr double BALL_RING_RADIUS_3D = 0.7;
+    static constexpr double MIN_BALL_RING_RADIUS_3D = 0.1;
+    static constexpr double MAX_BALL_RING_RADIUS_3D = 5.0;
+    double ballRingRadius3D() const { return M_ball_ring_radius_3d; }
+    //! within MIN_BALL_RING_RADIUS_3D and MAX_BALL_RING_RADIUS_3D
+    void setBallRingRadius3D( const double radius );
+
+    static constexpr bool BALL_TRAIL_3D = true;
+    //! the 3D view: a trail behind the ball like a contrail, through its last cycles
+    bool ballTrail3D() const { return M_ball_trail_3d; }
+    void setBallTrail3D( const bool on ) { M_ball_trail_3d = on; }
+
+    static constexpr int BALL_TRAIL_CYCLES_3D = 5;
+    static constexpr int MIN_BALL_TRAIL_CYCLES_3D = 1;
+    static constexpr int MAX_BALL_TRAIL_CYCLES_3D = 30;
+    int ballTrailCycles3D() const { return M_ball_trail_cycles_3d; }
+    //! within MIN_BALL_TRAIL_CYCLES_3D and MAX_BALL_TRAIL_CYCLES_3D
+    void setBallTrailCycles3D( const int cycles );
+    //! the 3D view: the banners high behind the goals, with the team names and logos
+    bool banners3D() const { return M_banners_3d; }
+    void setBanners3D( const bool on ) { M_banners_3d = on; }
+    //! the 3D view: when the compass (a strip of the directions around the camera) shows
+    GuideMode compass3D() const { return M_compass_3d; }
+    void setCompass3D( const GuideMode mode ) { M_compass_3d = mode; }
+    /*!
+      the 3D view: how the players are drawn, cylinders and spheres
+      (PLAYER_MODEL_SIMPLE, the default) or the human figures of a figure
+      pack (its name: FigurePacks)
+    */
+    static constexpr const char * PLAYER_MODEL_3D = PLAYER_MODEL_SIMPLE;
+    const QString & playerModel3D() const { return M_player_model_3d; }
+    //! as normalizedPlayerModel(): empty for the cylinders, the old name of the Mannequin
+    void setPlayerModel3D( const QString & model ) { M_player_model_3d = normalizedPlayerModel( model ); }
+    //! whether the players are drawn as human figures (of a figure pack), not as cylinders
+    bool figures3D() const { return M_player_model_3d != QLatin1String( PLAYER_MODEL_SIMPLE ); }
+    //! the 3D view: a folder of figure packs of the user's choice, besides the bundled ones and the user's data folder (empty: none)
+    const QString & figureFolder3D() const { return M_figure_folder_3d; }
+    void setFigureFolder3D( const QString & folder ) { M_figure_folder_3d = folder; }
+    //! the 3D view: the human figures are this many times a person's height (larger to be seen from afar)
+    static constexpr double FIGURE_SCALE_3D = 1.0;
+    static constexpr double MIN_FIGURE_SCALE_3D = 0.8;
+    static constexpr double MAX_FIGURE_SCALE_3D = 1.5;
+    double figureScale3D() const { return M_figure_scale_3d; }
+    //! within MIN_FIGURE_SCALE_3D and MAX_FIGURE_SCALE_3D
+    void setFigureScale3D( const double scale );
+    //! the 3D view: the human bodies of men and women mixed, or of one of them (of a figure pack with both: the Human)
+    static constexpr FigureBodies FIGURE_BODIES_3D = FigureBodies::Mixed;
+    FigureBodies figureBodies3D() const { return M_figure_bodies_3d; }
+    void setFigureBodies3D( const FigureBodies bodies ) { M_figure_bodies_3d = bodies; }
+
+    static constexpr ShadowMode SHADOWS_3D = ShadowMode::Simple; //!< light on any GPU (the user, 2026-11-15)
+    ShadowMode shadows3D() const { return M_shadows_3d; }
+    void setShadows3D( const ShadowMode mode ) { M_shadows_3d = mode; }
+    //! the 3D view: when the minimap (the pitch with the camera's view) shows
+    GuideMode minimap3D() const { return M_minimap_3d; }
+    void setMinimap3D( const GuideMode mode ) { M_minimap_3d = mode; }
     bool showToolBar() const { return M_show_tool_bar; }
     bool showStatusBar() const { return M_show_status_bar; }
 
@@ -412,6 +627,10 @@ public:
     bool showFocusPoint() const { return M_show_focus_point; }
     void toggleShowFocusPoint() { M_show_focus_point = ! M_show_focus_point; }
 
+    //! with showFocusPoint(), the other players' focus points too (smaller, in their team colors)
+    bool showAllFocusPoints() const { return M_show_all_focus_points; }
+    void toggleShowAllFocusPoints() { M_show_all_focus_points = ! M_show_all_focus_points; }
+
     bool showIllegalDefense() const { return M_show_illegal_defense; }
     void toggleShowIllegalDefense() { M_show_illegal_defense = ! M_show_illegal_defense; }
 
@@ -442,6 +661,7 @@ public:
     bool showDrawInfo() const { return M_show_draw_info; }
     void toggleShowDrawInfo() { M_show_draw_info = ! M_show_draw_info; }
 
+    //! the ball's radius in the 2D view (the 3D view has its own: ballSize3D())
     const double & ballSize() const { return M_ball_size; }
     void setBallSize( const double & value )
       {
@@ -491,6 +711,26 @@ public:
     void fitToScreen();
 
     const QPoint & fieldCenter() const { return M_field_center;}
+
+    /*!
+      \brief the scale (pixels per meter) and the center (pixels) that map
+      the field to the screen
+    */
+    struct FieldTransform {
+        double scale;
+        QPoint center;
+    };
+    FieldTransform fieldTransform() const { return FieldTransform{ M_field_scale, M_field_center }; }
+    /*!
+      \brief set the mapping of the field for a while, e.g. to draw the field
+      into an image (the ground of the 3D view), and set it back afterward.
+      Unlike setFieldScale(), this does not zoom.
+    */
+    void setFieldTransform( const FieldTransform & t )
+      {
+          M_field_scale = t.scale;
+          M_field_center = t.center;
+      }
 
     FocusType focusType() const { return M_focus_type; }
     void setFocusType( const Options::FocusType type ) { M_focus_type = type; }

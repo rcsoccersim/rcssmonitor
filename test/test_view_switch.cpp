@@ -1,0 +1,353 @@
+// -*-c++-*-
+
+/*!
+  \file test_view_switch.cpp
+  \brief test of switching between the 2D view and the 3D view
+*/
+
+/*
+ *Copyright:
+
+ Copyright (C) The RoboCup Soccer Server Maintenance Group.
+ Hidehisa AKIYAMA
+
+ This code is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3, or (at your option)
+ any later version.
+
+ This code is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this code; see the file COPYING.  If not, write to
+ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+
+ *EndCopyright:
+ */
+
+#include <QtTest>
+
+#include "field_canvas.h"
+#include "field_view_3d.h"
+#include "main_window.h"
+#include "options.h"
+
+#include <QAction>
+#include <QComboBox>
+#include <QKeySequence>
+#include <QMenu>
+#include <QStackedWidget>
+#include <QMenuBar>
+#include <QStatusBar>
+#include <QToolBar>
+#include <QToolButton>
+
+/*
+  Options reads and writes ~/.rcssmonitor.conf; CTest runs this test with
+  HOME in the build tree and QT_QPA_PLATFORM=offscreen (test/CMakeLists.txt).
+  That platform shows no OpenGL widgets, so the 3D view is not available
+  here: this test checks how the main window falls back to the 2D view. The
+  3D view itself is drawn offscreen in test_scene_3d.
+*/
+
+namespace {
+
+QAction *
+actionOfKey( const MainWindow & window,
+             const int key )
+{
+    for ( QAction * act : window.findChildren< QAction * >() )
+    {
+        if ( act->shortcut() == QKeySequence( key ) ) return act;
+    }
+    return nullptr;
+}
+
+QAction *
+view3DAction( const MainWindow & window )
+{
+    return actionOfKey( window, Qt::Key_D );
+}
+
+//! the checked action of View > 3D Camera
+QString
+checkedCamera( const MainWindow & window )
+{
+    for ( QMenu * menu : window.findChildren< QMenu * >() )
+    {
+        if ( menu->title() != "3D Camera" ) continue;
+        for ( QAction * act : menu->actions() )
+        {
+            if ( act->isChecked() ) return act->text();
+        }
+    }
+    return QString();
+}
+
+}
+
+/*!
+  \brief test of switching between the 2D view and the 3D view
+*/
+class TestViewSwitch
+    : public QObject {
+    Q_OBJECT
+
+private slots:
+
+    void unavailableHere();
+    void fallBackTo2D();
+    void cameraMenu();
+    void zoomKeys2D();
+    void viewpointMenu();
+    void staminaKey();
+    void viewMargins();
+    void viewMarginsOf2D();
+};
+
+/*-------------------------------------------------------------------*/
+void
+TestViewSwitch::unavailableHere()
+{
+    QVERIFY( FieldView3D::unavailableReason().contains( "offscreen" ) );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  D tries the 3D view; where it is not available, the action is disabled
+  with the reason, and the 2D view stays with the selected player.
+*/
+void
+TestViewSwitch::fallBackTo2D()
+{
+    Options::instance().setView3D( false );
+    Options::instance().setSelectedNumber( rcss::rcg::RIGHT, 7 );
+
+    MainWindow window;
+    QAction * act = view3DAction( window );
+    QVERIFY( act );
+    QVERIFY( act->isEnabled() );
+    QVERIFY( act->isCheckable() );
+
+    QStackedWidget * stack = window.findChild< QStackedWidget * >();
+    QVERIFY( stack );
+    QVERIFY( qobject_cast< FieldCanvas * >( stack->currentWidget() ) );
+
+    act->trigger();
+
+    QVERIFY( ! act->isChecked() );
+    QVERIFY( ! act->isEnabled() );
+    QVERIFY( act->statusTip().contains( "offscreen" ) );
+    QVERIFY( window.statusBar()->currentMessage().contains( "offscreen" ) );
+    QVERIFY( qobject_cast< FieldCanvas * >( stack->currentWidget() ) );
+    QCOMPARE( stack->count(), 1 );
+    QVERIFY( ! Options::instance().view3D() );
+    QCOMPARE( Options::instance().selectedNumber(), -7 );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  View > 3D Camera has the cameras, with the one of the options checked. E
+  goes to the next one, in 2D too (for the next time the 3D view is shown),
+  and the menu and the tool bar follow. Where the 3D view is not available,
+  they are disabled.
+*/
+void
+TestViewSwitch::cameraMenu()
+{
+    Options::instance().setView3D( false );
+    Options::instance().setCamera3D( CameraMode::Top );
+
+    MainWindow window;
+    QCOMPARE( checkedCamera( window ), QString( "Top" ) );
+    QComboBox * combo = window.findChild< QComboBox * >();
+    QVERIFY( combo );
+    QCOMPARE( combo->currentText(), QString( "Top" ) );
+    QVERIFY( ! combo->isVisibleTo( &window ) ); // with the 3D view only
+
+    QAction * next = actionOfKey( window, Qt::Key_E );
+    QVERIFY( next );
+    QVERIFY( next->isEnabled() );
+    next->trigger();
+    QCOMPARE( Options::instance().camera3D(), CameraMode::GoalLeft );
+    QCOMPARE( checkedCamera( window ), QString( "Behind the Left Goal" ) );
+    QCOMPARE( combo->currentText(), QString( "Behind the Left Goal" ) );
+    QVERIFY( window.statusBar()->currentMessage().contains( "Behind the Left Goal" ) );
+
+    // the selected player's camera is the last; after it, the first
+    next->trigger();
+    next->trigger();
+    QCOMPARE( Options::instance().camera3D(), CameraMode::Player );
+    QCOMPARE( checkedCamera( window ), QString( "Selected Player" ) );
+    next->trigger();
+    QCOMPARE( Options::instance().camera3D(), CameraMode::Free );
+
+    // the 3D view is not available here: the cameras are disabled with it
+    view3DAction( window )->trigger();
+    QVERIFY( ! next->isEnabled() );
+    QVERIFY( ! combo->isEnabled() );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  Z, X and I zoom the 2D field while the 2D view is shown (in 3D, the
+  camera; FieldView3D::zoomCamera(), not shown here)
+*/
+void
+TestViewSwitch::zoomKeys2D()
+{
+    Options::instance().setView3D( false );
+    MainWindow window;
+    Options::instance().fitToScreen();
+    const double fit = Options::instance().fieldScale();
+
+    actionOfKey( window, Qt::Key_Z )->trigger();
+    QVERIFY( Options::instance().fieldScale() > fit * 1.4 );
+    actionOfKey( window, Qt::Key_X )->trigger();
+    QVERIFY( std::fabs( Options::instance().fieldScale() - fit ) < 0.02 );
+    actionOfKey( window, Qt::Key_Z )->trigger();
+    actionOfKey( window, Qt::Key_I )->trigger();
+    QVERIFY( ! Options::instance().zoomed() );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  View > 3D Camera and the tool bar have the viewpoints of the whole pitch,
+  with I on the first and Ctrl+I for the next. They are for the 3D view: in
+  2D, Ctrl+I only says so (and I fits the 2D field, zoomKeys2D()). Where the
+  3D view is not available, they are disabled.
+*/
+void
+TestViewSwitch::viewpointMenu()
+{
+    Options::instance().setView3D( false );
+    Options::instance().setCamera3D( CameraMode::Broadcast );
+    MainWindow window;
+
+    QMenu * camera_menu = nullptr;
+    for ( QMenu * menu : window.findChildren< QMenu * >() )
+    {
+        if ( menu->title() == "3D Camera" ) camera_menu = menu;
+    }
+    QVERIFY( camera_menu );
+    QStringList texts;
+    for ( const QAction * act : camera_menu->actions() ) texts << act->text();
+    for ( const ViewpointInfo & v : viewpoints() )
+    {
+        QVERIFY2( texts.contains( v.label ) || texts.contains( QString( v.label ) + "\tI" ), v.label );
+    }
+    QVERIFY( texts.contains( "Whole Pitch\tI" ) );
+
+    QAction * next = nullptr;
+    for ( QAction * act : window.findChildren< QAction * >() )
+    {
+        if ( act->shortcut() == QKeySequence( Qt::CTRL | Qt::Key_I ) ) next = act;
+    }
+    QVERIFY( next );
+    QVERIFY( camera_menu->actions().contains( next ) );
+
+    // the button of the tool bar: the same viewpoints, with the 3D view only
+    QToolButton * button = nullptr;
+    for ( QToolButton * b : window.findChildren< QToolButton * >() )
+    {
+        if ( b->text() == "Whole Pitch" ) button = b;
+    }
+    QVERIFY( button );
+    QVERIFY( button->menu() );
+    QCOMPARE( button->menu()->actions().size(), int( viewpoints().size() ) );
+    QVERIFY( ! button->isVisibleTo( &window ) );
+
+    // in 2D, only a word about the 3D view; the camera stays
+    QVERIFY( next->isEnabled() );
+    next->trigger();
+    QVERIFY( window.statusBar()->currentMessage().contains( "for the 3D view" ) );
+    QCOMPARE( Options::instance().camera3D(), CameraMode::Broadcast );
+    button->menu()->actions().at( 4 )->trigger();
+    QCOMPARE( Options::instance().camera3D(), CameraMode::Broadcast );
+
+    // the 3D view is not available here: disabled with it
+    view3DAction( window )->trigger();
+    QVERIFY( ! next->isEnabled() );
+    QVERIFY( ! button->isEnabled() );
+    QVERIFY( ! button->menu()->actions().at( 0 )->isEnabled() );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  S goes through none, the stamina, the capacity and both, for 2D and 3D
+  alike (the 3D bars follow the same options)
+*/
+void
+TestViewSwitch::staminaKey()
+{
+    MainWindow window;
+    Options & opt = Options::instance();
+    while ( opt.showStamina() || opt.showStaminaCapacity() )
+    {
+        actionOfKey( window, Qt::Key_S )->trigger();
+    }
+    const std::pair< bool, bool > cycle[] = { { true, false }, { false, true }, { true, true }, { false, false } };
+    for ( const auto & shown : cycle )
+    {
+        actionOfKey( window, Qt::Key_S )->trigger();
+        QCOMPARE( opt.showStamina(), shown.first );
+        QCOMPARE( opt.showStaminaCapacity(), shown.second );
+    }
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  A pixel at the bottom of the views' stack only when the 3D view is shown
+  and the stack covers all of a full screen window (on GNOME the 3D view's
+  window stopped being drawn when it covered all of the screen)
+*/
+void
+TestViewSwitch::viewMargins()
+{
+    const QRect window( 0, 0, 2973, 1672 );
+    const QMargins pixel( 0, 0, 0, 1 );
+    // all of the window: the bars hidden
+    QCOMPARE( MainWindow::viewMargins( true, true, window, window ), pixel );
+    // not the 3D view, or not full screen
+    QCOMPARE( MainWindow::viewMargins( false, true, window, window ), QMargins() );
+    QCOMPARE( MainWindow::viewMargins( true, false, window, window ), QMargins() );
+    // a bar shown: the stack below the menu bar, above the status bar, beside a tool bar
+    QCOMPARE( MainWindow::viewMargins( true, true, QRect( 0, 23, 2973, 1649 ), window ), QMargins() );
+    QCOMPARE( MainWindow::viewMargins( true, true, QRect( 0, 0, 2973, 1649 ), window ), QMargins() );
+    QCOMPARE( MainWindow::viewMargins( true, true, QRect( 40, 0, 2933, 1672 ), window ), QMargins() );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  The 2D view keeps all of a full screen window with the bars hidden; the
+  views' stack paints black (the pixel below the 3D view)
+*/
+void
+TestViewSwitch::viewMarginsOf2D()
+{
+    Options::instance().setView3D( false );
+    MainWindow window;
+    QStackedWidget * stack = window.findChild< QStackedWidget * >();
+    QVERIFY( stack );
+    QCOMPARE( stack->palette().color( QPalette::Window ), QColor( Qt::black ) );
+    QVERIFY( stack->autoFillBackground() );
+    window.menuBar()->hide();
+    window.statusBar()->hide();
+    for ( QToolBar * bar : window.findChildren< QToolBar * >() )
+    {
+        bar->hide();
+    }
+    window.showFullScreen();
+    QVERIFY( QTest::qWaitForWindowExposed( &window ) );
+    QCoreApplication::processEvents();
+    QCOMPARE( stack->geometry(), window.rect() );
+    QCOMPARE( stack->contentsMargins(), QMargins() );
+    QCOMPARE( stack->currentWidget()->geometry(), stack->rect() );
+}
+
+QTEST_MAIN( TestViewSwitch )
+
+#include "test_view_switch.moc"

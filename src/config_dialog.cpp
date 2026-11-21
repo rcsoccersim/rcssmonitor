@@ -38,12 +38,20 @@
 
 #include "config_dialog.h"
 
+#include "tooltip_marker.h"
+
 #include "disp_holder.h"
 #include "options.h"
 
+#ifdef HAVE_3D_VIEW
+#include "figure_pack.h"
+#endif
+
+#include <algorithm>
 #include <functional>
 #include <iostream>
 #include <cassert>
+#include <cmath>
 
 
 /*-------------------------------------------------------------------*/
@@ -221,6 +229,8 @@ ConfigDialog::ConfigDialog( QWidget * parent,
     this->setWindowTitle( tr( "Config" ) );
 
     createWidgets();
+    // a dotted underline under the items with a tooltip, where their details are
+    TooltipMarker::install( this );
 }
 
 /*-------------------------------------------------------------------*/
@@ -257,6 +267,8 @@ ConfigDialog::createWidgets()
         layout->addWidget( createPlayerSelectionControls(),
                            0, Qt::AlignLeft );
         layout->addWidget( createBallInfoControls(),
+                           0, Qt::AlignLeft );
+        layout->addWidget( createLiveControls(),
                            0, Qt::AlignLeft );
 
         layout->addStretch();
@@ -312,6 +324,13 @@ ConfigDialog::createWidgets()
         frame->setLayout( layout );
         M_tab_widget->addTab( frame, tr( "Font" ) );
     }
+#ifdef HAVE_3D_VIEW
+    // the 3D view; all the tabs seen, the dialog as wide as their names
+    M_tab_widget->setUsesScrollButtons( false );
+    M_tab_widget->addTab( create3DTab(), tr( "3D" ) );
+    M_tab_widget->addTab( createPlayersBallTab(), tr( "Players && Ball" ) );
+    M_tab_widget->addTab( createCameraTab(), tr( "Camera" ) );
+#endif
 
     // object selection
 //     {
@@ -433,9 +452,20 @@ ConfigDialog::createObjectSizeControls()
 
     QHBoxLayout * box = new QHBoxLayout();
     //
-    box->addWidget( new QLabel( tr( "Ball:" ) ) );
-    //
-    M_ball_size_text = new QLineEdit( tr( "0.35" ) );
+    {
+#ifdef HAVE_3D_VIEW
+        const QString tip = tr( "The ball's radius in the 2D view, in meters, larger than the real one\n"
+                                "to be seen. The 3D view has its own (Size in the Players & Ball tab)." );
+#else
+        const QString tip = tr( "The ball's radius, in meters, larger than the real one to be seen." );
+#endif
+        QLabel * label = new QLabel( tr( "Ball:" ) );
+        label->setToolTip( tip );
+        box->addWidget( label );
+        M_ball_size_text = new QLineEdit( tr( "0.35" ) );
+        M_ball_size_text->setObjectName( "ball_size" );
+        M_ball_size_text->setToolTip( tip );
+    }
     M_ball_size_text->setValidator( new QDoubleValidator( 0.01, 100.0, 3, M_ball_size_text ) );
     M_ball_size_text->setMaximumSize( 48, 24 );
     connect( M_ball_size_text, SIGNAL( textChanged( const QString & ) ),
@@ -611,6 +641,17 @@ ConfigDialog::createPlayerInfoControls()
                  this, SLOT( clickShowFocusPoint( bool ) ) );
         layout->addWidget( M_focus_point_cb );
 
+        // the other players' focus points too, with Focus Point
+        M_all_focus_points_cb = new QCheckBox( tr( "All Focus Points" ) );
+        M_all_focus_points_cb->setToolTip( tr( "With Focus Point, show the focus points of all players,\n"
+                                               "smaller and in their team colors. The selected player's\n"
+                                               "focus point has the line and the lines of the same noise." ) );
+        M_all_focus_points_cb->setChecked( Options::instance().showAllFocusPoints() );
+        M_all_focus_points_cb->setEnabled( Options::instance().showFocusPoint() );
+        connect( M_all_focus_points_cb, SIGNAL( clicked( bool ) ),
+                 this, SLOT( clickShowAllFocusPoints( bool ) ) );
+        layout->addWidget( M_all_focus_points_cb );
+
         top_layout->addLayout( layout );
     }
 
@@ -694,6 +735,71 @@ ConfigDialog::createBallInfoControls()
 
     group_box->setLayout( top_layout );
     return group_box;
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  the delayed live view (docs/plan/2026-11-11_3d-view.md §5.10): a live game drawn
+  some seconds behind its newest frame, in 2D and 3D
+*/
+QWidget *
+ConfigDialog::createLiveControls()
+{
+    QGroupBox * group_box = new QGroupBox( tr( "Live" ) );
+    QGridLayout * layout = new QGridLayout();
+    layout->setContentsMargins( 1, 1, 1, 1 );
+
+    const QString tooltip = tr( "Draw a live game some seconds behind its newest frame, in 2D and 3D, so that the\n"
+                                "3D view knows the touches ahead, as in log replay. The referee's operations\n"
+                                "reach the server at once, while the view shows the game some seconds ago.\n"
+                                "Also in the tool bar and the Monitor menu (Live Delay)." );
+    M_live_delay_cb = new QCheckBox( tr( "Delay" ) );
+    M_live_delay_cb->setObjectName( "live_delay" );
+    M_live_delay_cb->setToolTip( tooltip );
+    connect( M_live_delay_cb, &QCheckBox::clicked,
+             this, [this]( bool on ) {
+                 Options::instance().setLiveDelay( on );
+                 emit liveDelayChanged();
+             } );
+    layout->addWidget( M_live_delay_cb, 0, 0 );
+
+    M_live_delay_seconds = addNumber( layout, 0, 1, tr( "Seconds" ),
+                                      tr( "How far behind the newest frame. Up to the time the ball takes from the top\n"
+                                          "speed to an almost stop, so that a kick's end is known before it is drawn." ),
+                                      Options::MIN_LIVE_DELAY_SECONDS, Options::MAX_LIVE_DELAY_SECONDS,
+                                      Options::LIVE_DELAY_SECONDS_STEP, 1, tr( " s" ) );
+    M_live_delay_seconds->setObjectName( "live_delay_seconds" );
+    M_live_delay_seconds->setSuffix( tr( " s" ) );
+    connect( M_live_delay_seconds, QOverload< double >::of( &QDoubleSpinBox::valueChanged ),
+             this, [this]( double seconds ) {
+                 Options & opt = Options::instance();
+                 opt.setLiveDelaySeconds( seconds );
+                 if ( M_live_delay_seconds->value() != opt.liveDelaySeconds() )
+                 {
+                     // to the step (0.5 s)
+                     const QSignalBlocker blocker( M_live_delay_seconds );
+                     M_live_delay_seconds->setValue( opt.liveDelaySeconds() );
+                 }
+                 emit liveDelayChanged();
+             } );
+    layout->setColumnStretch( 3, 1 );
+
+    updateLiveDelay();
+
+    group_box->setLayout( layout );
+    return group_box;
+}
+
+/*-------------------------------------------------------------------*/
+void
+ConfigDialog::updateLiveDelay()
+{
+    if ( ! M_live_delay_cb ) return;
+    const Options & opt = Options::instance();
+    const QSignalBlocker block_cb( M_live_delay_cb );
+    const QSignalBlocker block_seconds( M_live_delay_seconds );
+    M_live_delay_cb->setChecked( opt.liveDelay() );
+    M_live_delay_seconds->setValue( opt.liveDelaySeconds() );
 }
 
 /*-------------------------------------------------------------------*/
@@ -1289,12 +1395,1478 @@ ConfigDialog::createFontButtons()
 }
 
 /*-------------------------------------------------------------------*/
+/*
+  The 3D tab and the Player Camera tab (docs/plan/2026-11-11_3d-view.md §5.7, as
+  rcssmonitor-web's config-dialog.ts). Every item has a tooltip with the
+  details; below a row of choices, a line sums up the chosen one. A number
+  field applies with Enter or on leaving it: while what is typed is out of
+  its range, it shows the error color, and a value out of the range is
+  brought to the nearest end. The numbers that the chosen styles do not use
+  are dim.
+*/
+
+namespace {
+
+/*!
+  \class ElidedLabel
+  \brief a line of text drawn as wide as the label is, its end elided
+  ("...") if it is wider; the label asks for little width (sizeHint()), so
+  that a long text does not widen the dialog. text() is the whole text.
+*/
+class ElidedLabel
+    : public QLabel {
+public:
+    ElidedLabel()
+        : QLabel()
+      {
+          setTextFormat( Qt::PlainText );
+      }
+
+    QSize sizeHint() const override
+      {
+          return QSize( fontMetrics().averageCharWidth() * 20, QLabel::sizeHint().height() );
+      }
+
+    QSize minimumSizeHint() const override
+      {
+          return QSize( fontMetrics().averageCharWidth() * 8, QLabel::minimumSizeHint().height() );
+      }
+
+    //! the text as drawn in the present width
+    QString shownText() const
+      {
+          return fontMetrics().elidedText( text(), Qt::ElideRight, contentsRect().width() );
+      }
+
+protected:
+    void paintEvent( QPaintEvent * ) override
+      {
+          QPainter painter( this );
+          style()->drawItemText( &painter, contentsRect(), int( alignment() ), palette(), isEnabled(),
+                                 shownText(), foregroundRole() );
+      }
+};
+
+//! a choice of a row of radio buttons: the label, the line below the row, the tooltip
+struct ChoiceText {
+    const char * label;
+    const char * summary;
+    const char * tooltip; //!< the summary if null
+};
+
+// the choices of the Player Camera tab, in the order of player_camera_options.h
+const ChoiceText POSITION_TEXTS[] = {
+    { nullptr,
+      "At the eyes, 1.65 m high; the player itself is not drawn.",
+      "At the eyes, 1.65 m high, looking at the point 10 m ahead and 1 m high.\n"
+      "The player itself is not drawn." },
+    { nullptr,
+      "6 m behind the player and 3 m high.",
+      "6 m behind the player and 3 m high, looking at the point 15 m ahead and 1 m high." },
+};
+
+const ChoiceText DIRECTION_TEXTS[] = {
+    { nullptr,
+      "The face direction: body + neck.",
+      "The goal is the face direction, body + neck: the center of the view cone." },
+    { nullptr,
+      "The body direction: not the neck.",
+      "The goal is the body direction: the camera does not follow the neck." },
+    { nullptr,
+      "Halfway: body + neck / 2.",
+      "The goal is halfway between the body and the face: body + neck / 2." },
+};
+
+const ChoiceText MOTION_TEXTS[] = {
+    { nullptr, "The goal direction at every frame.", nullptr },
+    { nullptr,
+      "Turns by e\u00b7(1 \u2212 exp(\u2212\u0394t / \u03c4)) a frame, at most \u03c9\u00b7\u0394t.",
+      "Each frame, the camera turns by e\u00b7(1 \u2212 exp(\u2212\u0394t / \u03c4)), but at most \u03c9\u00b7\u0394t:\n"
+      "e is the angle left to the goal and \u0394t the time since the last frame (up to 0.1 s).\n"
+      "So it turns at \u03c9 while e is over about \u03c9\u00b7\u03c4, and then slows down.\n"
+      "It takes the goal at once when another player is selected, the player moves\n"
+      "over 3 m in a frame (e.g. by a move), or the 3D camera or an option here changes." },
+};
+
+const ChoiceText FOV_TEXTS[] = {
+    { nullptr,
+      "The player's view width, within 40\u00b0\u2013120\u00b0.",
+      "The player's view width, within 40\u00b0\u2013120\u00b0: the wide 180\u00b0 is shown as 120\u00b0,\n"
+      "an unknown width as 90\u00b0." },
+    { nullptr,
+      "Toward the view width, by (1 \u2212 exp(\u2212\u0394t / \u03c4)) a frame.",
+      "Each frame, the field of view moves (1 \u2212 exp(\u2212\u0394t / \u03c4)) of the way to the view width\n"
+      "(as View Width; not limited by \u03c9)." },
+    { nullptr, "Always Fixed Field of View, whatever the view width.", nullptr },
+};
+
+const ChoiceText SIGHT_TEXTS[] = {
+    { nullptr,
+      "Everything, as the other cameras draw it.",
+      "Everything, as the other cameras draw it (the players not connected in black)." },
+    { nullptr,
+      "Only the players and the ball in the view cone.",
+      "Only the players and the ball in the view cone, at any distance:\n"
+      "|the angle from the face direction| < the view width / 2." },
+    { nullptr,
+      "As rcssserver tells the player: the numbers fade out from 20 m to 40 m, "
+      "and those within 3 m out of the view are gray.",
+      "As rcssserver tells the player. In the cone, the players up to\n"
+      "player_max_observation_length (by default the diagonal of the pitch): the number\n"
+      "has the opacity 1 \u2212 (d \u2212 unum_far_length) / (unum_too_far_length \u2212 unum_far_length)\n"
+      "within 0\u20131, by default 1 under 20 m and 0 from 40 m, and without it the direction\n"
+      "marks and the view area are not drawn. The team colors fade to gray in the same way\n"
+      "by team_far_length and team_too_far_length. Outside the cone, the players within\n"
+      "visible_distance (3 m) are drawn in gray only. The ball is drawn in the cone up to\n"
+      "ball_max_observation_length, or within visible_distance. Unlike the server, the true\n"
+      "distance is used every cycle, and the chances show as opacity and gray." },
+};
+
+// the choices of the compass and the minimap, in the order of guideModes()
+// the choices of the players' model, in the order of playerModels()
+const ChoiceText MODEL_TEXTS[] = {
+    { "Simple",
+      "Cylinders and spheres, with the marks of the body and face directions.",
+      "A cylinder and a sphere for each player, with a black cone for the body\n"
+      "direction and a red one for the face." },
+    { "Mannequin",
+      "Human figures: a mannequin in the team color, moving as the log tells.",
+      "Human figures: a mannequin all in the team color (the joints apart),\n"
+      "walking and running at the players' speeds, and kicking, tackling, sitting\n"
+      "down after a foul, catching and pointing as the log tells, the head turned\n"
+      "by the neck." },
+    { "Human",
+      "Human figures: people in uniforms, each of its own looks, moving as the log tells.",
+      "Human figures: people in uniforms, the shirt and the socks in the team\n"
+      "color, the shorts darker; each player of its own body, hairstyle, skin\n"
+      "and hair (the same in every game); moving as the Mannequin does." },
+};
+
+// the choices of the human figures' bodies, in the order of figureBodiesList()
+const ChoiceText BODIES_TEXTS[] = {
+    { "Mixed", "Men and women, about half and half.", nullptr },
+    { "Male", "Men only.", nullptr },
+    { "Female", "Women only.", nullptr },
+};
+
+const ChoiceText SHADOW_TEXTS[] = {
+    { "Off", "No shadows of the sun.", nullptr },
+    { "Simple", "A soft ellipse under each player, away from the sun: almost no cost.",
+      "A soft ellipse under each player, away from the sun, as long as the player\n"
+      "is tall: almost no cost, for a slow GPU. The goal frames cast none." },
+    { "Detailed", "The shapes of the players and the goal frames (a shadow map).",
+      "The shapes of the players and the goal frames, drawn from the sun into a\n"
+      "shadow map: about 1.5\u20132 ms more of an integrated GPU." },
+};
+
+const ChoiceText GRASS_TEXTS[] = {
+    { "Plain", "The field color, plain.", nullptr },
+    { "Stripes", "Mowed in stripes, lighter and darker: the same from everywhere.",
+      "The grass mowed in stripes across the pitch, 5.25 m wide (20 on the pitch),\n"
+      "a little lighter and darker than the field color: they help to judge\n"
+      "distances and speeds along the pitch." },
+    { "Realistic", "The stripes by the way you look, the blades of the grass, the worn grass.",
+      "The stripes light or dark by the way the camera looks at them, as the mower\n"
+      "bent the blades (from the other end they swap), the blades and patches of\n"
+      "the grass, and the grass worn in the goal mouths, at the penalty spots and\n"
+      "the center. About 0.1\u20130.3 ms more of an integrated GPU." },
+};
+
+const ChoiceText GUIDE_TEXTS[] = {
+    { "Off", "Not shown.", nullptr },
+    { "Player Camera", "Shown with the Player camera only.", nullptr },
+    { "All Cameras", "Shown with every camera but Top, which is a map already.", nullptr },
+};
+
+/*!
+  \brief the radio buttons' texts of a list of player_camera_options.h
+*/
+template < typename E, std::size_t N, std::size_t M >
+std::vector< std::pair< QString, QString > >
+choicesOf( const std::array< PlayerCameraStyle::Info< E >, N > & list,
+           const ChoiceText ( & texts )[M] )
+{
+    static_assert( N == M, "a text for each choice" );
+    std::vector< std::pair< QString, QString > > choices;
+    for ( std::size_t i = 0; i < N; ++i )
+    {
+        choices.emplace_back( QString::fromUtf8( texts[i].label ? texts[i].label : list[i].label ),
+                              QString::fromUtf8( texts[i].summary ) );
+    }
+    return choices;
+}
+
+//! the tooltips of the choices, by the radio buttons' ids
+template < std::size_t M >
+void
+setChoiceTooltips( QButtonGroup * group,
+                   const ChoiceText ( & texts )[M] )
+{
+    for ( std::size_t i = 0; i < M; ++i )
+    {
+        if ( QAbstractButton * b = group->button( int( i ) ) )
+        {
+            b->setToolTip( QString::fromUtf8( texts[i].tooltip ? texts[i].tooltip : texts[i].summary ) );
+        }
+    }
+}
+
+//! the index of a value in a list of player_camera_options.h
+template < typename E, std::size_t N >
+int
+indexOf( const std::array< PlayerCameraStyle::Info< E >, N > & list,
+         const E value )
+{
+    for ( std::size_t i = 0; i < N; ++i )
+    {
+        if ( list[i].value == value ) return int( i );
+    }
+    return 0;
+}
+
+int
+guideIndex( const GuideMode mode )
+{
+    for ( std::size_t i = 0; i < guideModes().size(); ++i )
+    {
+        if ( guideModes()[i].first == mode ) return int( i );
+    }
+    return 0;
+}
+
+QString
+guideLabel( const GuideMode mode )
+{
+    return QString::fromUtf8( GUIDE_TEXTS[guideIndex( mode )].label );
+}
+
+//! the user's own data folder of figure packs (none without the 3D view)
+QString
+userFigureFolder()
+{
+#ifdef HAVE_3D_VIEW
+    return FigurePacks::userFolders().value( 0 );
+#else
+    return QString();
+#endif
+}
+
+//! the text of a player model (MODEL_TEXTS: the cylinders and the bundled figure packs), or null
+const ChoiceText *
+modelText( const QString & model )
+{
+    const char * names[] = { PLAYER_MODEL_SIMPLE, PLAYER_MODEL_MANNEQUIN, PLAYER_MODEL_HUMAN };
+    for ( int i = 0; i < 3; ++i )
+    {
+        if ( model == QLatin1String( names[i] ) ) return &MODEL_TEXTS[i];
+    }
+    return nullptr;
+}
+
+//! the label of a player model: the cylinders', or a figure pack's name
+QString
+modelLabel( const QString & model )
+{
+    const ChoiceText * t = modelText( model );
+    return ( t ? QString::fromUtf8( t->label ) : model );
+}
+
+QString
+bodiesLabel( const FigureBodies bodies )
+{
+    for ( std::size_t i = 0; i < figureBodiesList().size(); ++i )
+    {
+        if ( figureBodiesList()[i].first == bodies ) return QString::fromUtf8( BODIES_TEXTS[i].label );
+    }
+    return QString();
+}
+
+//! the label of a mode of the grass
+QString
+grassLabel( const GrassMode mode )
+{
+    for ( std::size_t i = 0; i < grassModes().size(); ++i )
+    {
+        if ( grassModes()[i].first == mode ) return QString::fromUtf8( GRASS_TEXTS[i].label );
+    }
+    return QString();
+}
+
+//! the id of a mode of the grass in its radio buttons
+int
+grassIndex( const GrassMode mode )
+{
+    for ( std::size_t i = 0; i < grassModes().size(); ++i )
+    {
+        if ( grassModes()[i].first == mode ) return int( i );
+    }
+    return 0;
+}
+
+//! the label of a mode of the shadows
+QString
+shadowLabel( const ShadowMode mode )
+{
+    for ( std::size_t i = 0; i < shadowModes().size(); ++i )
+    {
+        if ( shadowModes()[i].first == mode ) return QString::fromUtf8( SHADOW_TEXTS[i].label );
+    }
+    return QString();
+}
+
+//! the id of a mode of the shadows in its radio buttons
+int
+shadowIndex( const ShadowMode mode )
+{
+    for ( std::size_t i = 0; i < shadowModes().size(); ++i )
+    {
+        if ( shadowModes()[i].first == mode ) return int( i );
+    }
+    return 0;
+}
+
+
+//! the error color of a number field while what is typed is out of its range
+void
+markNumber( QDoubleSpinBox * spin )
+{
+    QPalette palette = QApplication::palette( spin );
+    if ( ! spin->hasAcceptableInput() )
+    {
+        const QColor base = palette.color( QPalette::Base );
+        const QColor error( 255, 64, 64 );
+        palette.setColor( QPalette::Base,
+                          QColor( ( base.red() * 6 + error.red() * 4 ) / 10,
+                                  ( base.green() * 6 + error.green() * 4 ) / 10,
+                                  ( base.blue() * 6 + error.blue() * 4 ) / 10 ) );
+    }
+    spin->setPalette( palette );
+}
+
+QString
+onOff( const bool on )
+{
+    return on ? QStringLiteral( "On" ) : QStringLiteral( "Off" );
+}
+
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  a row of radio buttons after its label (ids 0, 1, ... in the order of
+  choices), and if note is given, a line below the row that a slot fills
+  with the chosen one's summary (the buttons' "summary" property)
+*/
+QButtonGroup *
+ConfigDialog::addChoices( QGridLayout * layout,
+                          const QString & label,
+                          const QString & tooltip,
+                          const std::vector< std::pair< QString, QString > > & choices )
+{
+    const int row = layout->rowCount();
+
+    if ( ! label.isEmpty() )
+    {
+        QLabel * l = new QLabel( label );
+        l->setToolTip( tooltip );
+        layout->addWidget( l, row, 0 );
+    }
+
+    QButtonGroup * group = new QButtonGroup( this );
+    QHBoxLayout * buttons = new QHBoxLayout();
+    buttons->setContentsMargins( 0, 0, 0, 0 );
+    buttons->setSpacing( 8 );
+    for ( std::size_t i = 0; i < choices.size(); ++i )
+    {
+        QRadioButton * b = new QRadioButton( choices[i].first );
+        b->setProperty( "summary", choices[i].second );
+        group->addButton( b, int( i ) );
+        buttons->addWidget( b );
+    }
+    buttons->addStretch();
+    layout->addLayout( buttons, row, 1, 1, 3 );
+    layout->setColumnStretch( 1, 1 ); // the labels as narrow as they can be
+
+    return group;
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  a number field after its label at (row, column) and (row, column + 1).
+  The tooltip tells the range in unit.
+*/
+QDoubleSpinBox *
+ConfigDialog::addNumber( QGridLayout * layout,
+                         const int row,
+                         const int column,
+                         const QString & label,
+                         const QString & tooltip,
+                         const double min,
+                         const double max,
+                         const double step,
+                         const int decimals,
+                         const QString & unit,
+                         QLabel ** label_widget )
+{
+    const QString details = tooltip
+        + tr( "\nRange: %1\u2013%2%3; a value outside it is brought to the nearest end." )
+        .arg( min ).arg( max ).arg( unit );
+
+    QLabel * l = new QLabel( label );
+    l->setToolTip( details );
+    layout->addWidget( l, row, column );
+    if ( label_widget ) *label_widget = l;
+
+    QDoubleSpinBox * spin = new QDoubleSpinBox();
+    spin->setRange( min, max );
+    spin->setSingleStep( step );
+    spin->setDecimals( decimals );
+    spin->setKeyboardTracking( false ); // apply with Enter or on leaving the field
+    spin->setCorrectionMode( QAbstractSpinBox::CorrectToNearestValue );
+    spin->setToolTip( details );
+    l->setBuddy( spin );
+    // what is typed: QDoubleSpinBox::textChanged() waits for Enter without
+    // the keyboard tracking
+    connect( spin->findChild< QLineEdit * >(), &QLineEdit::textChanged,
+             this, [spin]( const QString & ) { markNumber( spin ); } );
+    layout->addWidget( spin, row, column + 1 );
+    return spin;
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  the 3D view's look: the guides over it (the compass, the minimap, the
+  frames per second), how the scene is drawn (the smooth edges, the
+  shadows), and the stadium
+*/
+QWidget *
+ConfigDialog::create3DTab()
+{
+    QFrame * frame = new QFrame();
+    QVBoxLayout * top_layout = new QVBoxLayout();
+    top_layout->setSizeConstraint( QLayout::SetFixedSize );
+    top_layout->setContentsMargins( 4, 4, 4, 4 );
+    top_layout->setSpacing( 4 );
+
+    // guides
+    {
+        QGroupBox * group_box = new QGroupBox( tr( "Guides" ) );
+        QVBoxLayout * box = new QVBoxLayout();
+        QGridLayout * layout = new QGridLayout();
+        layout->setContentsMargins( 0, 0, 0, 0 );
+
+        std::vector< std::pair< QString, QString > > choices;
+        for ( const ChoiceText & t : GUIDE_TEXTS )
+        {
+            choices.emplace_back( QString::fromUtf8( t.label ), QString::fromUtf8( t.summary ) );
+        }
+
+        M_compass_3d = addChoices( layout, tr( "Compass:" ),
+                                   tr( "A strip at the top: the 360\u00b0 around the camera direction (the triangle),\n"
+                                       "with the directions of the goals (L, R in the team colors) and the ball, and\n"
+                                       "what the camera sees brighter. Clockwise on the field is to the right." ),
+                                   choices );
+        setChoiceTooltips( M_compass_3d, GUIDE_TEXTS );
+        M_compass_3d->setObjectName( "compass_3d" );
+        connect( M_compass_3d, &QButtonGroup::idClicked,
+                 this, [this]( int id ) {
+                     Options::instance().setCompass3D( guideModes()[id].first );
+                     changed3D();
+                 } );
+
+        M_minimap_3d = addChoices( layout, tr( "Minimap:" ),
+                                   tr( "The pitch at the bottom right as the 2D view shows it, with the players,\n"
+                                       "the ball, and where the camera is and what it sees." ),
+                                   choices );
+        setChoiceTooltips( M_minimap_3d, GUIDE_TEXTS );
+        M_minimap_3d->setObjectName( "minimap_3d" );
+        connect( M_minimap_3d, &QButtonGroup::idClicked,
+                 this, [this]( int id ) {
+                     Options::instance().setMinimap3D( guideModes()[id].first );
+                     changed3D();
+                 } );
+
+        box->addLayout( layout );
+
+        M_fps_3d_cb = new QCheckBox( tr( "FPS" ) );
+        M_fps_3d_cb->setObjectName( "fps_3d" );
+        M_fps_3d_cb->setToolTip( tr( "The frames per second and the GPU's time of a frame, at the bottom right:\n"
+                                     "how much room the GPU has for the settings (a frame of 60 fps is 16.7 ms).\n"
+                                     "The view draws only while something moves, and at most at the screen's\n"
+                                     "rate: \"- fps\" while still." ) );
+        connect( M_fps_3d_cb, &QCheckBox::clicked,
+                 this, [this]( bool on ) {
+                     Options::instance().setFps3D( on );
+                     changed3D();
+                 } );
+        box->addWidget( M_fps_3d_cb );
+
+        group_box->setToolTip( tr( "Which way the camera looks, and where it is on the pitch; they show\n"
+                                   "everything, whatever the Player Sight." ) );
+        group_box->setLayout( box );
+        top_layout->addWidget( group_box );
+    }
+
+    // rendering: how the scene is drawn
+    {
+        QGroupBox * group_box = new QGroupBox( tr( "Rendering" ) );
+        QVBoxLayout * box = new QVBoxLayout();
+
+        M_antialias_3d_cb = new QCheckBox( tr( "Smooth Edges" ) );
+        M_antialias_3d_cb->setObjectName( "antialias_3d" );
+        M_antialias_3d_cb->setToolTip( tr( "Smooth the edges of the lines and the solids (4x multisampling).\n"
+                                           "Off, they are stairs, but the GPU has less to do: faster on a screen of\n"
+                                           "high resolution (4K) with a GPU in the CPU." ) );
+        connect( M_antialias_3d_cb, &QCheckBox::clicked,
+                 this, [this]( bool on ) {
+                     Options::instance().setAntialias3D( on );
+                     changed3D();
+                 } );
+        box->addWidget( M_antialias_3d_cb );
+
+        QGridLayout * shadow_layout = new QGridLayout();
+        shadow_layout->setContentsMargins( 0, 0, 0, 0 );
+        std::vector< std::pair< QString, QString > > shadows;
+        for ( const ChoiceText & t : SHADOW_TEXTS )
+        {
+            shadows.emplace_back( QString::fromUtf8( t.label ), QString::fromUtf8( t.summary ) );
+        }
+        M_shadows_3d = addChoices( shadow_layout, tr( "Shadows:" ),
+                                   tr( "The sun's shadows on the ground. The sun is beyond the far touch line on\n"
+                                       "the left, 44\u00b0 up: from the near side, the shadows fall toward the camera,\n"
+                                       "on the right. Not from the Top camera. The ball keeps its own shadow below." ),
+                                   shadows );
+        setChoiceTooltips( M_shadows_3d, SHADOW_TEXTS );
+        M_shadows_3d->setObjectName( "shadows_3d" );
+        connect( M_shadows_3d, &QButtonGroup::idClicked,
+                 this, [this]( int id ) {
+                     Options::instance().setShadows3D( shadowModes()[id].first );
+                     changed3D();
+                 } );
+        box->addLayout( shadow_layout );
+
+        group_box->setToolTip( tr( "How the scene is drawn: the edges of the shapes and the sun's shadows.\n"
+                                   "Off or simpler, the GPU has less to do." ) );
+        group_box->setLayout( box );
+        top_layout->addWidget( group_box );
+    }
+
+    // stadium
+    {
+        QGroupBox * group_box = new QGroupBox( tr( "Stadium" ) );
+        QVBoxLayout * box = new QVBoxLayout();
+        QHBoxLayout * layout = new QHBoxLayout();
+        layout->setContentsMargins( 0, 0, 0, 0 );
+
+        M_boards_3d_cb = new QCheckBox( tr( "Boards" ) );
+        M_boards_3d_cb->setObjectName( "boards_3d" );
+        M_boards_3d_cb->setToolTip( tr( "Boards around the pitch, 5.5 m out and 1 m high: a dark shade of the team\n"
+                                        "color with the team name and edges in the team color, changing at the\n"
+                                        "halfway line." ) );
+        connect( M_boards_3d_cb, &QCheckBox::clicked,
+                 this, [this]( bool on ) {
+                     Options::instance().setBoards3D( on );
+                     changed3D();
+                 } );
+        layout->addWidget( M_boards_3d_cb );
+
+        M_banners_3d_cb = new QCheckBox( tr( "Banners" ) );
+        M_banners_3d_cb->setObjectName( "banners_3d" );
+        M_banners_3d_cb->setToolTip( tr( "A banner behind each goal, 22 m back and floating 12\u201320 m high, with the\n"
+                                         "team name and logo (with Team Graphic): above the goal, so that the goal\n"
+                                         "stands out against the ground beyond." ) );
+        connect( M_banners_3d_cb, &QCheckBox::clicked,
+                 this, [this]( bool on ) {
+                     Options::instance().setBanners3D( on );
+                     changed3D();
+                 } );
+        layout->addWidget( M_banners_3d_cb );
+
+
+        M_stands_3d_cb = new QCheckBox( tr( "Stands" ) );
+        M_stands_3d_cb->setObjectName( "stands_3d" );
+        M_stands_3d_cb->setToolTip( tr( "Stands of one tier along both touch lines and behind both goals, the corners\n"
+                                        "open. The fans in the team colors toward their team's end, behind a goal\n"
+                                        "mostly the team that keeps it. A stand with the camera inside is not drawn." ) );
+        connect( M_stands_3d_cb, &QCheckBox::clicked,
+                 this, [this]( bool on ) {
+                     Options::instance().setStands3D( on );
+                     changed3D();
+                 } );
+        layout->addWidget( M_stands_3d_cb );
+
+        M_sky_3d_cb = new QCheckBox( tr( "Sky" ) );
+        M_sky_3d_cb->setObjectName( "sky_3d" );
+        M_sky_3d_cb->setToolTip( tr( "The sky, from the pale horizon to the blue above, and the haze that melts the\n"
+                                     "far ground into the horizon. Without it, a plain background." ) );
+        connect( M_sky_3d_cb, &QCheckBox::clicked,
+                 this, [this]( bool on ) {
+                     Options::instance().setSky3D( on );
+                     changed3D();
+                 } );
+        layout->addWidget( M_sky_3d_cb );
+        layout->addStretch();
+
+        std::vector< std::pair< QString, QString > > grass;
+        for ( const ChoiceText & t : GRASS_TEXTS )
+        {
+            grass.emplace_back( QString::fromUtf8( t.label ), QString::fromUtf8( t.summary ) );
+        }
+        QGridLayout * grass_layout = new QGridLayout();
+        grass_layout->setContentsMargins( 0, 0, 0, 0 );
+        M_grass_3d = addChoices( grass_layout, tr( "Grass:" ),
+                                 tr( "How the grass of the pitch looks." ),
+                                 grass );
+        setChoiceTooltips( M_grass_3d, GRASS_TEXTS );
+        M_grass_3d->setObjectName( "grass_3d" );
+        connect( M_grass_3d, &QButtonGroup::idClicked,
+                 this, [this]( int id ) {
+                     Options::instance().setGrass3D( grassModes()[id].first );
+                     changed3D();
+                 } );
+
+        box->addLayout( layout );
+        box->addLayout( grass_layout );
+        group_box->setToolTip( tr( "The boards and the banners are in the team colors, to tell the ends apart;\n"
+                                   "the goal nets always are." ) );
+        group_box->setLayout( box );
+        top_layout->addWidget( group_box );
+    }
+
+    // default
+    {
+        QPushButton * button = new QPushButton( tr( "Default" ) );
+        button->setObjectName( "default_3d" );
+        button->setToolTip( tr( "Set the defaults: Compass %1, Minimap %2, FPS %3, Smooth Edges %4, Shadows %5,\n"
+                                "Boards %6, Banners %7, Stands %8, Grass %9, Sky %10" )
+                            .arg( guideLabel( Options::COMPASS_3D ) )
+                            .arg( guideLabel( Options::MINIMAP_3D ) )
+                            .arg( onOff( Options::FPS_3D ) )
+                            .arg( onOff( Options::ANTIALIAS_3D ) )
+                            .arg( shadowLabel( Options::SHADOWS_3D ) )
+                            .arg( onOff( Options::BOARDS_3D ) )
+                            .arg( onOff( Options::BANNERS_3D ) )
+                            .arg( onOff( Options::STANDS_3D ) )
+                            .arg( grassLabel( Options::GRASS_3D ) )
+                            .arg( onOff( Options::SKY_3D ) ) );
+        button->setAutoDefault( false );
+        connect( button, &QPushButton::clicked,
+                 this, [this]() {
+                     Options::instance().setView3DDefaults();
+                     changed3D();
+                 } );
+        top_layout->addWidget( button, 0, Qt::AlignLeft );
+    }
+
+    top_layout->addStretch();
+    frame->setLayout( top_layout );
+    return frame;
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  how the players and the ball of the 3D view are drawn: the players'
+  model (the cylinders or a figure pack), and the ball's look and the aids
+  to find it
+*/
+QWidget *
+ConfigDialog::createPlayersBallTab()
+{
+    QFrame * frame = new QFrame();
+    QVBoxLayout * top_layout = new QVBoxLayout();
+    top_layout->setSizeConstraint( QLayout::SetFixedSize );
+    top_layout->setContentsMargins( 4, 4, 4, 4 );
+    top_layout->setSpacing( 4 );
+
+    // players
+    {
+        QGroupBox * group_box = new QGroupBox( tr( "Players" ) );
+        QVBoxLayout * box = new QVBoxLayout();
+        QGridLayout * layout = new QGridLayout();
+        layout->setContentsMargins( 0, 0, 0, 0 );
+
+        // the cylinders or the figure packs found (fillPacks()), and the folders of the packs
+        {
+            const int row = layout->rowCount();
+            QLabel * l = new QLabel( tr( "Model:" ) );
+            l->setToolTip( tr( "How the players are drawn: cylinders, or the human figures of a figure\n"
+                               "pack (the bundled Mannequin and Human, or a pack of yours)." ) );
+            layout->addWidget( l, row, 0 );
+            QHBoxLayout * line = new QHBoxLayout();
+            line->setContentsMargins( 0, 0, 0, 0 );
+            M_player_model_3d = new QComboBox();
+            M_player_model_3d->setObjectName( "player_model_3d" );
+            M_player_model_3d->setSizeAdjustPolicy( QComboBox::AdjustToContents );
+            connect( M_player_model_3d, QOverload< int >::of( &QComboBox::activated ),
+                     this, [this]( int index ) {
+                         Options::instance().setPlayerModel3D( M_player_model_3d->itemData( index ).toString() );
+                         changed3D();
+                         // a pack that cannot be drawn is told after the view tries it
+                         QTimer::singleShot( 500, this, &ConfigDialog::update3D );
+                     } );
+            line->addWidget( M_player_model_3d );
+
+            M_figure_folder_3d = new QToolButton();
+            M_figure_folder_3d->setObjectName( "figure_folder_3d" );
+            M_figure_folder_3d->setText( tr( "Packs" ) );
+            M_figure_folder_3d->setToolTip( tr( "The folders of the figure packs." ) ); // in full by fillPacks()
+            M_figure_folder_3d->setPopupMode( QToolButton::InstantPopup );
+            QMenu * menu = new QMenu( M_figure_folder_3d );
+            QAction * choose = menu->addAction( tr( "Choose a Folder of Packs..." ) );
+            choose->setObjectName( "choose_figure_folder_3d" );
+            connect( choose, &QAction::triggered,
+                     this, [this]() {
+                         const QString & now = Options::instance().figureFolder3D();
+                         const QString dir = QFileDialog::getExistingDirectory( this, tr( "A Folder of Figure Packs" ),
+                                                                                now.isEmpty() ? userFigureFolder() : now );
+                         if ( ! dir.isEmpty() ) setFigureFolder( dir );
+                     } );
+            M_no_figure_folder_3d = menu->addAction( tr( "No Folder of Packs" ) );
+            M_no_figure_folder_3d->setObjectName( "no_figure_folder_3d" );
+            connect( M_no_figure_folder_3d, &QAction::triggered,
+                     this, [this]() { setFigureFolder( QString() ); } );
+            QAction * open = menu->addAction( tr( "Open the User's Folder of Packs" ) );
+            open->setObjectName( "open_figure_folder_3d" );
+            connect( open, &QAction::triggered,
+                     this, []() {
+                         const QString dir = userFigureFolder();
+                         if ( dir.isEmpty() ) return;
+                         QDir().mkpath( dir );
+                         QDesktopServices::openUrl( QUrl::fromLocalFile( dir ) );
+                     } );
+            QAction * again = menu->addAction( tr( "Look for Packs Again" ) );
+            again->setObjectName( "rescan_figure_packs_3d" );
+            connect( again, &QAction::triggered,
+                     this, [this]() {
+                         setFigureFolder( Options::instance().figureFolder3D() );
+                     } );
+            // a pack of the user's moved to the trash (its folder with all the files in
+            // it): the user's packs listed by fillPacks()
+            menu->addSeparator();
+            M_trash_figure_pack_3d = menu->addMenu( tr( "Move a Pack to the Trash" ) );
+            M_trash_figure_pack_3d->setObjectName( "trash_figure_pack_3d" );
+            M_trash_figure_pack_3d->setToolTipsVisible( true );
+            M_figure_folder_3d->setMenu( menu );
+            line->addWidget( M_figure_folder_3d );
+            line->addStretch();
+            layout->addLayout( line, row, 1, 1, 3 );
+
+            // the credits of the pack (in full in its tooltip), or why it cannot be drawn
+            M_figure_credits_3d = new ElidedLabel();
+            M_figure_credits_3d->setObjectName( "figure_credits_3d" );
+            layout->addWidget( M_figure_credits_3d, row + 1, 1, 1, 3 );
+        }
+
+        std::vector< std::pair< QString, QString > > bodies;
+        for ( const ChoiceText & t : BODIES_TEXTS )
+        {
+            bodies.emplace_back( QString::fromUtf8( t.label ), QString::fromUtf8( t.summary ) );
+        }
+        const int bodies_row = layout->rowCount();
+        M_figure_bodies_3d = addChoices( layout, tr( "Bodies:" ),
+                                         tr( "The bodies of a pack with men's and women's (the Human): of both, or of one.\n"
+                                             "The Player camera sees a player's own body, hairstyle and colors only\n"
+                                             "as far as it knows who it is (its number); else the standard ones." ),
+                                         bodies );
+        setChoiceTooltips( M_figure_bodies_3d, BODIES_TEXTS );
+        M_figure_bodies_3d->setObjectName( "figure_bodies_3d" );
+        M_figure_bodies_3d_label = qobject_cast< QLabel * >( layout->itemAtPosition( bodies_row, 0 )->widget() );
+        connect( M_figure_bodies_3d, &QButtonGroup::idClicked,
+                 this, [this]( int id ) {
+                     Options::instance().setFigureBodies3D( figureBodiesList()[id].first );
+                     changed3D();
+                 } );
+
+        QGridLayout * numbers = new QGridLayout();
+        numbers->setContentsMargins( 0, 0, 0, 0 );
+        M_figure_scale_3d
+            = addNumber( numbers, 0, 0, tr( "Figure Scale:" ),
+                         tr( "How many times a person's height (1.85 m) the human figures are, to be seen\n"
+                             "better from afar; each player's height still differs by its type (its\n"
+                             "kickable area). Not for the Simple model." ),
+                         Options::MIN_FIGURE_SCALE_3D, Options::MAX_FIGURE_SCALE_3D,
+                         0.05, 2, QString(), &M_figure_scale_3d_label );
+        M_figure_scale_3d->setObjectName( "figure_scale_3d" );
+        connect( M_figure_scale_3d, QOverload< double >::of( &QDoubleSpinBox::valueChanged ),
+                 this, [this]( double value ) {
+                     Options::instance().setFigureScale3D( value );
+                     changed3D();
+                 } );
+        numbers->setColumnStretch( 2, 1 );
+
+        box->addLayout( layout );
+        box->addLayout( numbers );
+        group_box->setToolTip( tr( "From the Top camera, and where the Player camera does not see which way\n"
+                                   "a player faces, the players are cylinders." ) );
+        group_box->setLayout( box );
+        top_layout->addWidget( group_box );
+    }
+
+    // ball
+    {
+        QGroupBox * group_box = new QGroupBox( tr( "Ball" ) );
+        QVBoxLayout * box = new QVBoxLayout();
+        QHBoxLayout * layout = new QHBoxLayout();
+        layout->setContentsMargins( 0, 0, 0, 0 );
+
+        M_ball_pattern_3d_cb = new QCheckBox( tr( "Pattern" ) );
+        M_ball_pattern_3d_cb->setObjectName( "ball_pattern_3d" );
+        M_ball_pattern_3d_cb->setToolTip( tr( "Twelve dark pentagons on the ball, as on a football, which show it rolling\n"
+                                              "as far as it goes. Without them, a plain ball (which still rolls, unseen)." ) );
+        connect( M_ball_pattern_3d_cb, &QCheckBox::clicked,
+                 this, [this]( bool on ) {
+                     Options::instance().setBallPattern3D( on );
+                     changed3D();
+                 } );
+        layout->addWidget( M_ball_pattern_3d_cb );
+
+        M_ball_flight_3d_cb = new QCheckBox( tr( "Flight" ) );
+        M_ball_flight_3d_cb->setObjectName( "ball_flight_3d" );
+        M_ball_flight_3d_cb->setToolTip( tr( "In log replay, the ball flies in the air, virtually: today's server has no\n"
+                                             "height. A kick is lofted when the log gives a reason (a long ball, a corner\n"
+                                             "or a goal kick, a cross, opponents near its way that did not touch it), low\n"
+                                             "enough for the next player to touch it and under the crossbar into a goal,\n"
+                                             "then it bounces. A guess from the log. In a live game only with the live\n"
+                                             "delay (the Show tab): a kick whose next touch has not come when it is drawn\n"
+                                             "stays on the ground." ) );
+        connect( M_ball_flight_3d_cb, &QCheckBox::clicked,
+                 this, [this]( bool on ) {
+                     Options::instance().setBallFlight3D( on );
+                     changed3D();
+                 } );
+        layout->addWidget( M_ball_flight_3d_cb );
+
+        M_ball_ring_3d_cb = new QCheckBox( tr( "Ring" ) );
+        M_ball_ring_3d_cb->setObjectName( "ball_ring_3d" );
+        M_ball_ring_3d_cb->setToolTip( tr( "A ring on the ground around the ball, over a faint fill, its line a few\n"
+                                           "pixels wide at least: the ball found where it is small." ) );
+        connect( M_ball_ring_3d_cb, &QCheckBox::clicked,
+                 this, [this]( bool on ) {
+                     Options::instance().setBallRing3D( on );
+                     changed3D();
+                 } );
+        layout->addWidget( M_ball_ring_3d_cb );
+
+        M_ball_trail_3d_cb = new QCheckBox( tr( "Trail" ) );
+        M_ball_trail_3d_cb->setObjectName( "ball_trail_3d" );
+        M_ball_trail_3d_cb->setToolTip( tr( "A trail behind the ball like a contrail, through where it was in the last\n"
+                                            "cycles, narrower and fainter the older. It breaks where the ball was placed." ) );
+        connect( M_ball_trail_3d_cb, &QCheckBox::clicked,
+                 this, [this]( bool on ) {
+                     Options::instance().setBallTrail3D( on );
+                     changed3D();
+                 } );
+        layout->addWidget( M_ball_trail_3d_cb );
+        layout->addStretch();
+
+        QGridLayout * numbers = new QGridLayout();
+        numbers->setContentsMargins( 0, 0, 0, 0 );
+        M_ball_size_3d
+            = addNumber( numbers, 0, 0, tr( "Size:" ),
+                         tr( "The ball's radius in the 3D view, in meters. Real (0) by default: the real\n"
+                             "size, the server's ball_size (0.085 m by default); below 0.01 too. Larger\n"
+                             "to be seen from afar. The 2D view has its own (Ball in the Canvas tab)." ),
+                         Options::MIN_BALL_SIZE_3D, Options::MAX_BALL_SIZE_3D,
+                         0.01, 3, tr( " m" ) );
+        M_ball_size_3d->setObjectName( "ball_size_3d" );
+        M_ball_size_3d->setSpecialValueText( tr( "Real" ) );
+        connect( M_ball_size_3d, QOverload< double >::of( &QDoubleSpinBox::valueChanged ),
+                 this, [this]( double value ) {
+                     Options::instance().setBallSize3D( value );
+                     changed3D();
+                 } );
+        M_ball_ring_radius_3d
+            = addNumber( numbers, 1, 0, tr( "Ring Radius:" ),
+                         tr( "The ring's radius, in meters: 0.7 m by default, the default kickable margin.\n"
+                             "Only with Ring." ),
+                         Options::MIN_BALL_RING_RADIUS_3D, Options::MAX_BALL_RING_RADIUS_3D,
+                         0.1, 2, tr( " m" ), &M_ball_ring_radius_3d_label );
+        M_ball_ring_radius_3d->setObjectName( "ball_ring_radius_3d" );
+        connect( M_ball_ring_radius_3d, QOverload< double >::of( &QDoubleSpinBox::valueChanged ),
+                 this, [this]( double value ) {
+                     Options::instance().setBallRingRadius3D( value );
+                     changed3D();
+                 } );
+        M_ball_trail_cycles_3d
+            = addNumber( numbers, 1, 2, tr( "Trail Cycles:" ),
+                         tr( "How long the trail is: as far as the ball went in this many cycles.\n"
+                             "Only with Trail." ),
+                         Options::MIN_BALL_TRAIL_CYCLES_3D, Options::MAX_BALL_TRAIL_CYCLES_3D,
+                         1.0, 0, QString(), &M_ball_trail_cycles_3d_label );
+        M_ball_trail_cycles_3d->setObjectName( "ball_trail_cycles_3d" );
+        connect( M_ball_trail_cycles_3d, QOverload< double >::of( &QDoubleSpinBox::valueChanged ),
+                 this, [this]( double value ) {
+                     Options::instance().setBallTrailCycles3D( int( std::lround( value ) ) );
+                     changed3D();
+                 } );
+        numbers->setColumnStretch( 4, 1 );
+
+        box->addLayout( layout );
+        box->addLayout( numbers );
+        group_box->setToolTip( tr( "How the ball looks, and what helps to find it where it is small." ) );
+        group_box->setLayout( box );
+        top_layout->addWidget( group_box );
+    }
+
+    // default
+    {
+        QPushButton * button = new QPushButton( tr( "Default" ) );
+        button->setObjectName( "default_players_ball_3d" );
+        button->setToolTip( tr( "Set the defaults: Model %1, Bodies %2, Figure Scale %3,\n"
+                                "Ball Pattern %4, Flight %5, Size %6, Ring %7 (%8 m), Trail %9 (%10 cycles)" )
+                            .arg( modelLabel( QString::fromLatin1( Options::PLAYER_MODEL_3D ) ) )
+                            .arg( bodiesLabel( Options::FIGURE_BODIES_3D ) )
+                            .arg( Options::FIGURE_SCALE_3D )
+                            .arg( onOff( Options::BALL_PATTERN_3D ) )
+                            .arg( onOff( Options::BALL_FLIGHT_3D ) )
+                            .arg( Options::BALL_SIZE_3D >= 0.01 ? QString::number( Options::BALL_SIZE_3D ) + tr( " m" )
+                                                                : tr( "Real" ) )
+                            .arg( onOff( Options::BALL_RING_3D ) )
+                            .arg( Options::BALL_RING_RADIUS_3D )
+                            .arg( onOff( Options::BALL_TRAIL_3D ) )
+                            .arg( Options::BALL_TRAIL_CYCLES_3D ) );
+        button->setAutoDefault( false );
+        connect( button, &QPushButton::clicked,
+                 this, [this]() {
+                     Options::instance().setPlayersAndBall3DDefaults();
+                     changed3D();
+                 } );
+        top_layout->addWidget( button, 0, Qt::AlignLeft );
+    }
+
+    top_layout->addStretch();
+    frame->setLayout( top_layout );
+    return frame;
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  the cameras of the 3D view: the close-up cameras, and the selected
+  player's camera in the styles to compare, and what it draws
+*/
+QWidget *
+ConfigDialog::createCameraTab()
+{
+    using namespace PlayerCameraStyle;
+    QFrame * frame = new QFrame();
+    QVBoxLayout * top_layout = new QVBoxLayout();
+    top_layout->setSizeConstraint( QLayout::SetFixedSize );
+    top_layout->setContentsMargins( 4, 4, 4, 4 );
+    top_layout->setSpacing( 4 );
+
+    // a style changed by the radio buttons: a copy with one style changed
+    const auto set_style = [this]( const std::function< void ( PlayerCameraOptions & ) > & change ) {
+        PlayerCameraOptions o = Options::instance().playerCamera();
+        change( o );
+        Options::instance().setPlayerCamera( o );
+        changed3D();
+    };
+
+    // close-up camera
+    {
+        QGroupBox * group_box = new QGroupBox( tr( "Close-up Camera" ) );
+        QVBoxLayout * box = new QVBoxLayout();
+        QGridLayout * layout = new QGridLayout();
+        layout->setContentsMargins( 0, 0, 0, 0 );
+
+        M_closeup_distance_3d
+            = addNumber( layout, 0, 0, tr( "Distance (m):" ),
+                         tr( "How far the close-up cameras are from the ball or the player they follow,\n"
+                             "in meters. Z and X (and Ctrl+Z) over the 3D view change it too." ),
+                         Options::MIN_CLOSEUP_DISTANCE_3D, Options::MAX_CLOSEUP_DISTANCE_3D,
+                         0.5, 1, tr( " m" ) );
+        M_closeup_distance_3d->setObjectName( "closeup_distance_3d" );
+        connect( M_closeup_distance_3d, QOverload< double >::of( &QDoubleSpinBox::valueChanged ),
+                 this, [this]( double value ) {
+                     Options::instance().setCloseupDistance3D( value );
+                     changed3D();
+                 } );
+
+        M_closeup_elevation_3d
+            = addNumber( layout, 0, 3, tr( "Elevation (\u00b0):" ),
+                         tr( "How high the close-up cameras look down from, in degrees above the ground\n"
+                             "(the broadcast camera: 32\u00b0)." ),
+                         Options::MIN_CLOSEUP_ELEVATION_3D, Options::MAX_CLOSEUP_ELEVATION_3D,
+                         1.0, 0, tr( "\u00b0" ) );
+        M_closeup_elevation_3d->setObjectName( "closeup_elevation_3d" );
+        connect( M_closeup_elevation_3d, QOverload< double >::of( &QDoubleSpinBox::valueChanged ),
+                 this, [this]( double value ) {
+                     Options::instance().setCloseupElevation3D( value );
+                     changed3D();
+                 } );
+        layout->setColumnMinimumWidth( 2, 16 );
+        layout->setColumnStretch( 5, 1 );
+
+        box->addLayout( layout );
+        group_box->setToolTip( tr( "Close-up: Ball and Close-up: Selected Player (View > 3D Camera, E) follow\n"
+                                   "from the near touch line as the broadcast camera does, but nearer;\n"
+                                   "without a selected player, the ball." ) );
+        group_box->setLayout( box );
+        top_layout->addWidget( group_box );
+    }
+
+    // the player camera
+    {
+        QGroupBox * group_box = new QGroupBox( tr( "Player Camera" ) );
+        QGridLayout * layout = new QGridLayout();
+        layout->setVerticalSpacing( 0 );
+
+        M_player_camera_position
+            = addChoices( layout, tr( "Position:" ),
+                          tr( "Where the camera is, along the camera direction" ),
+                          choicesOf( positions(), POSITION_TEXTS ) );
+        setChoiceTooltips( M_player_camera_position, POSITION_TEXTS );
+        M_player_camera_position->setObjectName( "player_camera_position" );
+        connect( M_player_camera_position, &QButtonGroup::idClicked,
+                 this, [set_style]( int id ) {
+                     set_style( [id]( PlayerCameraOptions & o ) { o.position = positions()[id].value; } );
+                 } );
+
+        M_player_camera_direction
+            = addChoices( layout, tr( "Direction:" ),
+                          tr( "The goal direction that the camera turns to" ),
+                          choicesOf( directions(), DIRECTION_TEXTS ) );
+        setChoiceTooltips( M_player_camera_direction, DIRECTION_TEXTS );
+        M_player_camera_direction->setObjectName( "player_camera_direction" );
+        connect( M_player_camera_direction, &QButtonGroup::idClicked,
+                 this, [set_style]( int id ) {
+                     set_style( [id]( PlayerCameraOptions & o ) { o.direction = directions()[id].value; } );
+                 } );
+
+        M_player_camera_motion
+            = addChoices( layout, tr( "Motion:" ),
+                          tr( "How the camera turns to the goal direction" ),
+                          choicesOf( motions(), MOTION_TEXTS ) );
+        setChoiceTooltips( M_player_camera_motion, MOTION_TEXTS );
+        M_player_camera_motion->setObjectName( "player_camera_motion" );
+        connect( M_player_camera_motion, &QButtonGroup::idClicked,
+                 this, [set_style]( int id ) {
+                     set_style( [id]( PlayerCameraOptions & o ) { o.motion = motions()[id].value; } );
+                 } );
+
+        M_player_camera_fov
+            = addChoices( layout, tr( "Field of View:" ),
+                          tr( "The horizontal field of view h. The vertical one follows the shape of the view:\n"
+                              "2\u00b7atan(tan(h / 2) / (width / height))." ),
+                          choicesOf( fovs(), FOV_TEXTS ) );
+        setChoiceTooltips( M_player_camera_fov, FOV_TEXTS );
+        M_player_camera_fov->setObjectName( "player_camera_fov" );
+        connect( M_player_camera_fov, &QButtonGroup::idClicked,
+                 this, [set_style]( int id ) {
+                     set_style( [id]( PlayerCameraOptions & o ) { o.fov = fovs()[id].value; } );
+                 } );
+
+        // the numbers: below the choices, in 2 columns of a label and a field
+        QGridLayout * numbers = new QGridLayout();
+        numbers->setContentsMargins( 0, 4, 0, 0 );
+
+        M_player_camera_time_constant
+            = addNumber( numbers, 0, 0, tr( "Time Constant \u03c4 (s):" ),
+                         tr( "\u03c4 of Smooth and Eased: after \u03c4 seconds, about 37% (1/e) of the difference\n"
+                             "is left (while Smooth turns slower than \u03c9). With 0, Smooth turns at \u03c9 only\n"
+                             "and Eased follows at once." ),
+                         MIN_TIME_CONSTANT, MAX_TIME_CONSTANT, 0.05, 2, tr( " s" ),
+                         &M_player_camera_time_constant_label );
+        M_player_camera_time_constant->setObjectName( "player_camera_time_constant" );
+        connect( M_player_camera_time_constant, QOverload< double >::of( &QDoubleSpinBox::valueChanged ),
+                 this, [set_style]( double value ) {
+                     set_style( [value]( PlayerCameraOptions & o ) { o.time_constant = value; } );
+                 } );
+
+        M_player_camera_max_turn
+            = addNumber( numbers, 0, 3, tr( "Max Turn \u03c9 (\u00b0/s):" ),
+                         tr( "\u03c9 of Smooth: the fastest the camera turns, in degrees per second." ),
+                         MIN_MAX_TURN, MAX_MAX_TURN, 1.0, 0, tr( "\u00b0/s" ),
+                         &M_player_camera_max_turn_label );
+        M_player_camera_max_turn->setObjectName( "player_camera_max_turn" );
+        connect( M_player_camera_max_turn, QOverload< double >::of( &QDoubleSpinBox::valueChanged ),
+                 this, [set_style]( double value ) {
+                     set_style( [value]( PlayerCameraOptions & o ) { o.max_turn = value; } );
+                 } );
+
+        M_player_camera_fixed_fov
+            = addNumber( numbers, 1, 0, tr( "Fixed Field of View (\u00b0):" ),
+                         tr( "The horizontal field of view of Fixed, in degrees." ),
+                         MIN_FIXED_FOV, MAX_FIXED_FOV, 1.0, 0, tr( "\u00b0" ),
+                         &M_player_camera_fixed_fov_label );
+        M_player_camera_fixed_fov->setObjectName( "player_camera_fixed_fov" );
+        connect( M_player_camera_fixed_fov, QOverload< double >::of( &QDoubleSpinBox::valueChanged ),
+                 this, [set_style]( double value ) {
+                     set_style( [value]( PlayerCameraOptions & o ) { o.fixed_fov = value; } );
+                 } );
+        numbers->setColumnMinimumWidth( 2, 16 );
+        numbers->setColumnStretch( 5, 1 );
+
+        layout->addLayout( numbers, layout->rowCount(), 0, 1, 4 );
+        group_box->setToolTip( tr( "The 3D view's Player camera, at the selected player." ) );
+        group_box->setLayout( layout );
+        top_layout->addWidget( group_box );
+    }
+
+    // player sight
+    {
+        QGroupBox * group_box = new QGroupBox( tr( "Player Sight" ) );
+        QVBoxLayout * box = new QVBoxLayout();
+        QGridLayout * layout = new QGridLayout();
+        layout->setContentsMargins( 0, 0, 0, 0 );
+        layout->setVerticalSpacing( 0 );
+
+        M_player_camera_sight
+            = addChoices( layout, QString(), QString(),
+                          choicesOf( sights(), SIGHT_TEXTS ) );
+        setChoiceTooltips( M_player_camera_sight, SIGHT_TEXTS );
+        M_player_camera_sight->setObjectName( "player_camera_sight" );
+        connect( M_player_camera_sight, &QButtonGroup::idClicked,
+                 this, [set_style]( int id ) {
+                     set_style( [id]( PlayerCameraOptions & o ) { o.sight = sights()[id].value; } );
+                 } );
+
+        box->addLayout( layout );
+        group_box->setToolTip( tr( "What the Player camera draws: only with a connected player selected,\n"
+                                   "by its face direction and view width in the log." ) );
+        group_box->setLayout( box );
+        top_layout->addWidget( group_box );
+    }
+
+    // default
+    {
+        const PlayerCameraOptions d;
+        QPushButton * button = new QPushButton( tr( "Default" ) );
+        button->setObjectName( "default_camera_3d" );
+        button->setToolTip( tr( "Set the defaults: Close-up %1 m, %2\u00b0,\n"
+                                "Player camera %3, %4, %5, %6, %7, \u03c4 %8 s, \u03c9 %9\u00b0/s, Fixed %10\u00b0" )
+                            .arg( Options::CLOSEUP_DISTANCE_3D )
+                            .arg( Options::CLOSEUP_ELEVATION_3D )
+                            .arg( QString::fromUtf8( positions()[indexOf( positions(), d.position )].label ) )
+                            .arg( QString::fromUtf8( directions()[indexOf( directions(), d.direction )].label ) )
+                            .arg( QString::fromUtf8( motions()[indexOf( motions(), d.motion )].label ) )
+                            .arg( QString::fromUtf8( fovs()[indexOf( fovs(), d.fov )].label ) )
+                            .arg( QString::fromUtf8( sights()[indexOf( sights(), d.sight )].label ) )
+                            .arg( d.time_constant )
+                            .arg( d.max_turn )
+                            .arg( d.fixed_fov ) );
+        button->setAutoDefault( false );
+        connect( button, &QPushButton::clicked,
+                 this, [this]() {
+                     Options::instance().setCamera3DDefaults();
+                     changed3D();
+                 } );
+        top_layout->addWidget( button, 0, Qt::AlignLeft );
+    }
+
+    top_layout->addStretch();
+    frame->setLayout( top_layout );
+    return frame;
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  a setting of the 3D tabs (3D, Players & Ball, Camera) changed: the tabs show
+  it, and the views draw it
+*/
+void
+ConfigDialog::changed3D()
+{
+    update3D();
+    emit configured();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+void
+ConfigDialog::setFigureFolder( const QString & folder )
+{
+#ifdef HAVE_3D_VIEW
+    Options::instance().setFigureFolder3D( folder );
+    FigurePacks::refresh();
+    changed3D();
+#else
+    Q_UNUSED( folder );
+#endif
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+void
+ConfigDialog::trashFigurePack( const QString & dir )
+{
+#ifdef HAVE_3D_VIEW
+    Options & opt = Options::instance();
+    const std::vector< FigurePack > & packs = FigurePacks::packs( opt.figureFolder3D() );
+    const auto it = std::find_if( packs.begin(), packs.end(),
+                                  [&]( const FigurePack & p ) { return ! p.builtin && p.dir == dir; } );
+    if ( it == packs.end() ) return; // gone meanwhile
+    const FigurePack pack = *it;
+
+    const QString title = tr( "Move a Figure Pack to the Trash" );
+    QMessageBox ask( QMessageBox::Question, title,
+                     tr( "Move the figure pack \"%1\" to the trash?" ).arg( pack.displayName() ),
+                     QMessageBox::Yes | QMessageBox::Cancel, this );
+    ask.setObjectName( "trash_figure_pack_3d_question" );
+    ask.setInformativeText( tr( "Its folder, with all the files in it, is moved to the trash, from where it\n"
+                                "can be restored:\n%1" ).arg( dir ) );
+    ask.setDefaultButton( QMessageBox::Cancel );
+    if ( ask.exec() != QMessageBox::Yes ) return;
+
+    // what the options name of it, told before it is gone
+    const FigurePack * chosen = ( opt.figures3D() ? FigurePacks::find( opt.playerModel3D(), opt.figureFolder3D() ) : nullptr );
+    const bool drawn = ( chosen && QFileInfo( chosen->dir ) == QFileInfo( dir ) );
+    const bool folder = ( ! opt.figureFolder3D().isEmpty() && QFileInfo( opt.figureFolder3D() ) == QFileInfo( dir ) );
+    QString why;
+    if ( ! FigurePacks::moveToTrash( pack, &why ) )
+    {
+        QMessageBox::warning( this, title,
+                              tr( "Cannot move the figure pack \"%1\" to the trash: %2." ).arg( pack.displayName(), why ) );
+        return;
+    }
+    if ( drawn ) opt.setPlayerModel3D( QString::fromLatin1( PLAYER_MODEL_SIMPLE ) );
+    if ( folder ) opt.setFigureFolder3D( QString() ); // the folder chosen was the pack itself
+    FigurePacks::refresh();
+    changed3D();
+#else
+    Q_UNUSED( dir );
+#endif
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+void
+ConfigDialog::fillPacks()
+{
+#ifdef HAVE_3D_VIEW
+    if ( ! M_player_model_3d ) return;
+    const Options & opt = Options::instance();
+    const QString & current = opt.playerModel3D();
+    const QString & folder = opt.figureFolder3D();
+
+    const QSignalBlocker blocker( M_player_model_3d );
+    M_player_model_3d->clear();
+    QStandardItemModel * items = qobject_cast< QStandardItemModel * >( M_player_model_3d->model() );
+    const auto add = [&]( const QString & text, const QString & id, const QString & tip, const bool enabled ) {
+        M_player_model_3d->addItem( text, id );
+        const int i = M_player_model_3d->count() - 1;
+        M_player_model_3d->setItemData( i, tip, Qt::ToolTipRole );
+        if ( items && ! enabled ) items->item( i )->setEnabled( false );
+    };
+
+    // the cylinders, then the packs: a pack that cannot be read is told
+    // but not chosen; one that could not be drawn can be tried again
+    const ChoiceText & simple = *modelText( QString::fromLatin1( PLAYER_MODEL_SIMPLE ) );
+    add( QString::fromUtf8( simple.label ), QString::fromLatin1( PLAYER_MODEL_SIMPLE ), QString::fromUtf8( simple.tooltip ), true );
+    const std::vector< FigurePack > & packs = FigurePacks::packs( folder );
+    for ( const FigurePack & p : packs )
+    {
+        if ( ! p.ok() )
+        {
+            add( tr( "%1 (cannot be read)" ).arg( p.displayName() ), p.id,
+                 p.dir + QStringLiteral( ":\n" ) + p.error, false );
+            continue;
+        }
+        const ChoiceText * t = ( p.builtin ? modelText( p.id ) : nullptr );
+        QString tip = ( t && t->tooltip ? QString::fromUtf8( t->tooltip ) : p.description );
+        if ( ! p.creditText().isEmpty() ) tip += tr( "\n\nCredits:\n" ) + p.creditText();
+        if ( ! p.builtin ) tip += tr( "\n\nIn " ) + p.dir;
+        const QString why = FigurePacks::drawError( p.id );
+        if ( why.isEmpty() )
+        {
+            add( p.displayName(), p.id, tip.trimmed(), true );
+        }
+        else
+        {
+            add( tr( "%1 (cannot be drawn)" ).arg( p.displayName() ), p.id, ( why + QStringLiteral( "\n\n" ) + tip ).trimmed(), true );
+        }
+    }
+    int index = M_player_model_3d->findData( current );
+    if ( index < 0 )
+    {
+        add( tr( "%1 (not found)" ).arg( current ), current,
+             tr( "No figure pack of this name is found: the players are cylinders." ), false );
+        index = M_player_model_3d->count() - 1;
+    }
+    M_player_model_3d->setCurrentIndex( index );
+
+    // the credits of the pack, or why it cannot be drawn (in full in the tooltip)
+    const FigurePack * pack = ( opt.figures3D() ? FigurePacks::find( current, folder ) : nullptr );
+    QString line;
+    QString tip;
+    bool wrong = true;
+    if ( ! opt.figures3D() )
+    {
+        wrong = false;
+    }
+    else if ( ! pack )
+    {
+        line = tr( "No figure pack \"%1\": the players are cylinders." ).arg( current );
+    }
+    else if ( ! pack->ok() )
+    {
+        line = tr( "Cannot be read: " ) + pack->error;
+    }
+    else if ( ! FigurePacks::drawError( pack->id ).isEmpty() )
+    {
+        line = tr( "Cannot be drawn: " ) + FigurePacks::drawError( pack->id );
+    }
+    else
+    {
+        line = tr( "Credits: " ) + pack->creditLine();
+        tip = pack->creditText();
+        wrong = false;
+    }
+    if ( tip.isEmpty() ) tip = line;
+    M_figure_credits_3d->setText( line ); // elided as wide as the dialog is (ElidedLabel)
+    M_figure_credits_3d->setVisible( ! line.isEmpty() ); // no empty line under the cylinders
+    M_figure_credits_3d->setToolTip( tip );
+    M_figure_credits_3d->setStyleSheet( wrong ? QStringLiteral( "color: #c03030;" ) : QString() );
+
+    M_no_figure_folder_3d->setEnabled( ! folder.isEmpty() );
+
+    // the user's packs, to move to the trash (not the bundled ones); the
+    // folder told where two have the same name
+    M_trash_figure_pack_3d->clear();
+    std::vector< std::pair< QString, const FigurePack * > > own;
+    for ( const FigurePack & p : packs )
+    {
+        if ( p.builtin ) continue;
+        own.emplace_back( p.ok() ? p.displayName() : tr( "%1 (cannot be read)" ).arg( p.displayName() ), &p );
+    }
+    for ( const auto & o : own )
+    {
+        const int same = static_cast< int >( std::count_if( own.begin(), own.end(),
+                                                            [&]( const auto & x ) { return x.first == o.first; } ) );
+        QAction * act = M_trash_figure_pack_3d->addAction( same > 1 ? o.first + QStringLiteral( " (" ) + o.second->dir + QLatin1Char( ')' )
+                                                           : o.first );
+        act->setToolTip( o.second->dir );
+        act->setData( o.second->dir );
+        const QString dir = o.second->dir;
+        // after the menu is done with the action (the list is filled again then, the action deleted)
+        connect( act, &QAction::triggered,
+                 this, [this, dir]() { QTimer::singleShot( 0, this, [this, dir]() { trashFigurePack( dir ); } ); } );
+    }
+    M_trash_figure_pack_3d->menuAction()->setEnabled( ! own.empty() );
+    M_trash_figure_pack_3d->menuAction()->setToolTip( own.empty()
+                                                      ? tr( "No figure pack of yours." )
+                                                      : tr( "A figure pack of yours moved to the trash: its folder, with all the files\n"
+                                                            "in it. The bundled packs cannot be." ) );
+    M_figure_folder_3d->setToolTip( tr( "The figure packs: the bundled ones, those in a folder of your choice\n"
+                                        "(%1), and those in the user's folder (%2).\n"
+                                        "A pack is a folder with a figure.json (docs/FIGURE_PACKS.md); its name\n"
+                                        "is the folder's." )
+                                    .arg( folder.isEmpty() ? tr( "none" ) : folder,
+                                          FigurePacks::userFolders().value( 0 ) ) );
+#endif
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+void
+ConfigDialog::update3D()
+{
+    if ( ! M_closeup_distance_3d )
+    {
+        return; // a build without the 3D view
+    }
+
+    using namespace PlayerCameraStyle;
+    const Options & opt = Options::instance();
+    const PlayerCameraOptions & pc = opt.playerCamera();
+
+    // without valueChanged(), which would write the shown (rounded) value back
+    const auto set_number = []( QDoubleSpinBox * spin, const double value ) {
+        const QSignalBlocker blocker( spin );
+        spin->setValue( value );
+        markNumber( spin );
+    };
+    const auto set_choice = []( QButtonGroup * group, const int id ) {
+        if ( QAbstractButton * b = group->button( id ) )
+        {
+            b->setChecked( true );
+        }
+    };
+
+    set_number( M_closeup_distance_3d, opt.closeupDistance3D() );
+    set_number( M_closeup_elevation_3d, opt.closeupElevation3D() );
+    set_choice( M_compass_3d, guideIndex( opt.compass3D() ) );
+    set_choice( M_minimap_3d, guideIndex( opt.minimap3D() ) );
+    M_fps_3d_cb->setChecked( opt.fps3D() );
+    M_antialias_3d_cb->setChecked( opt.antialias3D() );
+    fillPacks();
+    set_number( M_figure_scale_3d, opt.figureScale3D() );
+    // the scale of the figures, not of the cylinders
+    const bool figures = opt.figures3D();
+    M_figure_scale_3d->setEnabled( figures );
+    M_figure_scale_3d_label->setEnabled( figures );
+    // the bodies of the human ones
+    for ( std::size_t i = 0; i < figureBodiesList().size(); ++i )
+    {
+        if ( figureBodiesList()[i].first == opt.figureBodies3D() ) set_choice( M_figure_bodies_3d, int( i ) );
+    }
+#ifdef HAVE_3D_VIEW
+    const FigurePack * pack = ( figures ? FigurePacks::find( opt.playerModel3D(), opt.figureFolder3D() ) : nullptr );
+    const bool sexes = ( pack && pack->ok() && pack->hasSexes() );
+#else
+    const bool sexes = false;
+#endif
+    for ( QAbstractButton * b : M_figure_bodies_3d->buttons() ) b->setEnabled( sexes );
+    if ( M_figure_bodies_3d_label ) M_figure_bodies_3d_label->setEnabled( sexes );
+    set_choice( M_shadows_3d, shadowIndex( opt.shadows3D() ) );
+    M_boards_3d_cb->setChecked( opt.boards3D() );
+    M_banners_3d_cb->setChecked( opt.banners3D() );
+    set_choice( M_grass_3d, grassIndex( opt.grass3D() ) );
+    M_stands_3d_cb->setChecked( opt.stands3D() );
+    M_ball_pattern_3d_cb->setChecked( opt.ballPattern3D() );
+    M_ball_flight_3d_cb->setChecked( opt.ballFlight3D() );
+    M_ball_ring_3d_cb->setChecked( opt.ballRing3D() );
+    M_ball_trail_3d_cb->setChecked( opt.ballTrail3D() );
+    set_number( M_ball_size_3d, opt.ballSize3D() );
+    set_number( M_ball_ring_radius_3d, opt.ballRingRadius3D() );
+    set_number( M_ball_trail_cycles_3d, opt.ballTrailCycles3D() );
+    // the numbers of the ring and of the trail only with them
+    M_ball_ring_radius_3d->setEnabled( opt.ballRing3D() );
+    M_ball_ring_radius_3d_label->setEnabled( opt.ballRing3D() );
+    M_ball_trail_cycles_3d->setEnabled( opt.ballTrail3D() );
+    M_ball_trail_cycles_3d_label->setEnabled( opt.ballTrail3D() );
+    M_sky_3d_cb->setChecked( opt.sky3D() );
+
+    set_choice( M_player_camera_position, indexOf( positions(), pc.position ) );
+    set_choice( M_player_camera_direction, indexOf( directions(), pc.direction ) );
+    set_choice( M_player_camera_motion, indexOf( motions(), pc.motion ) );
+    set_choice( M_player_camera_fov, indexOf( fovs(), pc.fov ) );
+    set_choice( M_player_camera_sight, indexOf( sights(), pc.sight ) );
+    set_number( M_player_camera_time_constant, pc.time_constant );
+    set_number( M_player_camera_max_turn, pc.max_turn );
+    set_number( M_player_camera_fixed_fov, pc.fixed_fov );
+
+    // the numbers that the chosen styles do not use are dim
+    const bool smooth = ( pc.motion == Motion::Smooth );
+    const bool time_constant = ( smooth || pc.fov == Fov::Eased );
+    const bool fixed = ( pc.fov == Fov::Fixed );
+    M_player_camera_time_constant->setEnabled( time_constant );
+    M_player_camera_time_constant_label->setEnabled( time_constant );
+    M_player_camera_max_turn->setEnabled( smooth );
+    M_player_camera_max_turn_label->setEnabled( smooth );
+    M_player_camera_fixed_fov->setEnabled( fixed );
+    M_player_camera_fixed_fov_label->setEnabled( fixed );
+}
+
+/*-------------------------------------------------------------------*/
 /*!
 
 */
 void
 ConfigDialog::showEvent( QShowEvent * event )
 {
+#ifdef HAVE_3D_VIEW
+    // the figure packs may have been put or changed since
+    FigurePacks::refresh();
+#endif
     updateAll();
     event->accept();
 }
@@ -1320,11 +2892,15 @@ ConfigDialog::updateAll()
 
     M_anti_aliasing_cb->setChecked( opt.antiAliasing() );
 
+    updateLiveDelay();
+
     M_player_number_cb->setChecked( opt.showPlayerNumber() );
     M_player_type_cb->setChecked( opt.showPlayerType() );
     M_stamina_cb->setChecked( opt.showStamina() );
     M_view_area_cb->setChecked( opt.showViewArea() );
     M_focus_point_cb->setChecked( opt.showFocusPoint() );
+    M_all_focus_points_cb->setChecked( opt.showAllFocusPoints() );
+    M_all_focus_points_cb->setEnabled( opt.showFocusPoint() );
     M_catch_area_cb->setChecked( opt.showCatchArea() );
     M_tackle_area_cb->setChecked( opt.showTackleArea() );
     M_kick_accel_area_cb->setChecked( opt.showKickAccelArea() );
@@ -1393,6 +2969,8 @@ ConfigDialog::updateAll()
 
         color_item->updateColor();
     }
+
+    update3D();
 }
 
 /*-------------------------------------------------------------------*/
@@ -1935,6 +3513,21 @@ ConfigDialog::clickShowFocusPoint( bool checked )
     if ( Options::instance().showFocusPoint() != checked )
     {
         Options::instance().toggleShowFocusPoint();
+        M_all_focus_points_cb->setEnabled( checked );
+        emit configured();
+    }
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+void
+ConfigDialog::clickShowAllFocusPoints( bool checked )
+{
+    if ( Options::instance().showAllFocusPoints() != checked )
+    {
+        Options::instance().toggleShowAllFocusPoints();
         emit configured();
     }
 }
@@ -1948,6 +3541,7 @@ ConfigDialog::toggleShowFocusPoint()
 {
     Options::instance().toggleShowFocusPoint();
     M_focus_point_cb->setChecked( Options::instance().showFocusPoint() );
+    M_all_focus_points_cb->setEnabled( Options::instance().showFocusPoint() );
 
     emit configured();
 }

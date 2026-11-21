@@ -48,9 +48,14 @@
 #include "monitor_transport.h"
 #include "play_mode_position.h"
 #include "player_type_dialog.h"
+#include "referee_menu.h"
 #include "options.h"
 #include "rcg_handler.h"
 #include "tool_icon.h"
+#ifdef HAVE_3D_VIEW
+#include "field_view_3d.h"
+#include "popup_closer.h"
+#endif
 
 #include <rcss/rcg/util.h>
 #include <rcss/rcg/parser.h>
@@ -92,6 +97,8 @@ MainWindow::MainWindow()
       M_player_type_dialog( static_cast< PlayerTypeDialog * >( 0 ) ),
       M_config_dialog( static_cast< ConfigDialog * >( 0 ) ),
       M_field_canvas( static_cast< FieldCanvas * >( 0 ) ),
+      M_view_stack( nullptr ),
+      M_field_view_3d( nullptr ),
       M_monitor_client( static_cast< MonitorClient * >( 0 ) ),
       M_log_player( new LogPlayer( M_disp_holder, this ) )
 {
@@ -172,6 +179,10 @@ MainWindow::init()
 
     toggleMenuBar( Options::instance().showMenuBar() );
     toggleStatusBar( Options::instance().showStatusBar() );
+    if ( Options::instance().view3D() )
+    {
+        M_toggle_view_3d_act->setChecked( true );
+    }
 
 
     if ( ! Options::instance().gameLogFile().empty() )
@@ -257,6 +268,8 @@ MainWindow::createActionsFile()
     M_open_act = new QAction( tr( "Open Game Log") , this );
     M_open_act->setShortcut( Qt::CTRL | Qt::Key_O );
     M_open_act->setStatusTip( tr( "Open a game log file." ) );
+    M_open_act->setToolTip( tr( "Open a game log (" ) + M_open_act->shortcut().toString() + tr( ")" ) );
+    setDrawnIcon( M_open_act, DrawnIcon::Open );
     connect( M_open_act, SIGNAL( triggered() ),
              this, SLOT( openGameLogFile() ) );
     this->addAction( M_open_act );
@@ -278,16 +291,25 @@ void
 MainWindow::createActionsMonitor()
 {
     //
+    // connect again: the host, the transport and the port of the last time
+    // (the options; localhost by default)
     M_connect_monitor_act = new QAction( tr( "&Connect" ), this );
     M_connect_monitor_act->setShortcut( Qt::CTRL | Qt::Key_C );
-    M_connect_monitor_act->setStatusTip( "Connect to the rcssserver on localhost" );
+    M_connect_monitor_act->setStatusTip( tr( "Connect to the rcssserver again (the last host, transport and port; localhost by default)" ) );
+    M_connect_monitor_act->setToolTip( tr( "Connect to the rcssserver again (" ) + M_connect_monitor_act->shortcut().toString()
+                                       + tr( "; Monitor > Connect to ... for another server)" ) );
+    setDrawnIcon( M_connect_monitor_act, DrawnIcon::Connect );
     M_connect_monitor_act->setEnabled( true );
     connect( M_connect_monitor_act, SIGNAL( triggered() ),
              this, SLOT( connectMonitor() ) );
     this->addAction( M_connect_monitor_act );
-    //
+    // the dialog of the host, the transport and the port: the tool bar's
+    // button, as the web version's
     M_connect_monitor_to_act = new QAction( tr( "Connect &to ..." ), this );
-    M_connect_monitor_to_act->setStatusTip( tr( "Connect to the rcssserver on the remote host." ) );
+    M_connect_monitor_to_act->setStatusTip( tr( "Connect to a rcssserver: choose its host, transport and port." ) );
+    M_connect_monitor_to_act->setToolTip( tr( "Connect to a server... (" ) + M_connect_monitor_act->shortcut().toString()
+                                          + tr( ": connect again)" ) );
+    setDrawnIcon( M_connect_monitor_to_act, DrawnIcon::Connect );
     M_connect_monitor_to_act->setEnabled( true );
     connect( M_connect_monitor_to_act, SIGNAL( triggered() ),
              this, SLOT( connectMonitorTo() ) );
@@ -295,6 +317,8 @@ MainWindow::createActionsMonitor()
     //
     M_disconnect_monitor_act = new QAction( tr( "&Disconnect" ), this );
     M_disconnect_monitor_act->setStatusTip( tr( "Disonnect from rcssserver." ) );
+    M_disconnect_monitor_act->setToolTip( tr( "Disconnect from the rcssserver" ) );
+    setDrawnIcon( M_disconnect_monitor_act, DrawnIcon::Disconnect );
     M_disconnect_monitor_act->setEnabled( false );
     connect( M_disconnect_monitor_act, SIGNAL( triggered() ),
              this, SLOT( disconnectMonitor() ) );
@@ -321,6 +345,20 @@ MainWindow::createActionsLogPlayer()
 
         M_live_mode_act = act;
         M_live_mode_act->setEnabled( false );
+    }
+    {
+        // the delayed live view (docs/plan/2026-11-11_3d-view.md §5.10): set at
+        // any time, used when live
+        QAction * act = new QAction( tr( "Live Delay" ), this );
+        act->setCheckable( true );
+        act->setChecked( Options::instance().liveDelay() );
+        setDrawnIcon( act, DrawnIcon::LiveDelay );
+        connect( act, SIGNAL( toggled( bool ) ),
+                 this, SLOT( toggleLiveDelay( bool ) ) );
+        this->addAction( act );
+
+        M_live_delay_act = act;
+        updateLiveDelayTips();
     }
     {
         QAction * act = new QAction( tr( "Play/Stop" ), this );
@@ -440,6 +478,19 @@ MainWindow::createActionsLogPlayer()
 
         M_log_player_go_to_last_act = act;
     }
+    {
+        QAction * act = new QAction( tr( "Loop Playback" ), this );
+        act->setCheckable( true );
+        act->setChecked( Options::instance().autoLoopMode() );
+        setDrawnIcon( act, DrawnIcon::Loop );
+        act->setStatusTip( tr( "Play the log again from the start at its end." ) );
+        act->setToolTip( tr( "Loop playback" ) );
+        connect( act, SIGNAL( toggled( bool ) ),
+                 this, SLOT( toggleLoop( bool ) ) );
+        this->addAction( act );
+
+        M_loop_act = act;
+    }
 }
 
 /*-------------------------------------------------------------------*/
@@ -453,6 +504,9 @@ MainWindow::createActionsReferee()
     M_kick_off_act = new QAction( tr( "&KickOff" ), this );
     M_kick_off_act->setShortcut( Qt::CTRL | Qt::Key_K );
     M_kick_off_act->setStatusTip( tr( "Send kick-off command." ) );
+    M_kick_off_act->setToolTip( tr( "Kick off (" ) + M_kick_off_act->shortcut().toString() + tr( "; when connected)" ) );
+    setDrawnIcon( M_kick_off_act, DrawnIcon::KickOff );
+    M_kick_off_act->setEnabled( false ); // until connected
     connect( M_kick_off_act, SIGNAL( triggered() ),
              this, SLOT( kickOff() ) );
     this->addAction( M_kick_off_act );
@@ -479,9 +533,6 @@ MainWindow::createActionsReferee()
     connect( M_red_card_act, SIGNAL( triggered() ),
              this, SLOT( redCard() ) );
     this->addAction( M_red_card_act );
-
-    // playmode change
-    M_playmode_change_act_group = new QActionGroup( this );
 }
 
 /*-------------------------------------------------------------------*/
@@ -491,6 +542,73 @@ MainWindow::createActionsReferee()
 void
 MainWindow::createActionsView()
 {
+    // 2D or 3D
+    M_toggle_view_3d_act = new QAction( tr( "3D View" ), this );
+    M_toggle_view_3d_act->setIconText( tr( "3D" ) );
+    M_toggle_view_3d_act->setShortcut( Qt::Key_D );
+    M_toggle_view_3d_act->setCheckable( true );
+#ifdef HAVE_3D_VIEW
+    M_toggle_view_3d_act->setStatusTip( tr( "Show the 3D view or the 2D view. (" )
+                                        + M_toggle_view_3d_act->shortcut().toString() + tr( ")" ) );
+#else
+    M_toggle_view_3d_act->setEnabled( false );
+    M_toggle_view_3d_act->setStatusTip( tr( "This rcssmonitor is built without the 3D view." ) );
+#endif
+    M_toggle_view_3d_act->setToolTip( M_toggle_view_3d_act->statusTip() );
+    connect( M_toggle_view_3d_act, SIGNAL( toggled( bool ) ),
+             this, SLOT( toggleView3D( bool ) ) );
+    this->addAction( M_toggle_view_3d_act );
+
+    // the cameras of the 3D view
+    M_camera_3d_act_group = new QActionGroup( this );
+    M_camera_3d_act_group->setExclusive( true );
+    for ( const CameraModeInfo & m : cameraModes() )
+    {
+        QAction * act = new QAction( tr( m.label ), this );
+        act->setCheckable( true );
+        act->setData( static_cast< int >( m.mode ) );
+        act->setStatusTip( tr( "Use this camera in the 3D view." ) );
+        act->setChecked( m.mode == Options::instance().camera3D() );
+        M_camera_3d_act_group->addAction( act );
+    }
+    connect( M_camera_3d_act_group, SIGNAL( triggered( QAction * ) ),
+             this, SLOT( selectCamera3D( QAction * ) ) );
+
+    M_next_camera_3d_act = new QAction( tr( "Next 3D Camera" ), this );
+    M_next_camera_3d_act->setShortcut( Qt::Key_E );
+    M_next_camera_3d_act->setStatusTip( tr( "Use the next camera in the 3D view. (" )
+                                        + M_next_camera_3d_act->shortcut().toString() + tr( ")" ) );
+    connect( M_next_camera_3d_act, SIGNAL( triggered() ),
+             this, SLOT( nextCamera3D() ) );
+    this->addAction( M_next_camera_3d_act );
+
+    // the viewpoints of the whole pitch, for the free camera of the 3D view
+    M_viewpoint_act_group = new QActionGroup( this );
+    M_viewpoint_act_group->setExclusive( false );
+    for ( const ViewpointInfo & v : viewpoints() )
+    {
+        QAction * act = new QAction( tr( v.label ), this );
+        act->setData( static_cast< int >( v.viewpoint ) );
+        act->setStatusTip( tr( "Put the free camera of the 3D view where it sees the whole pitch." ) );
+        M_viewpoint_act_group->addAction( act );
+    }
+    // I (the action of Fit Field Size): the text of the shortcut only, as
+    // one key cannot be the shortcut of two actions
+    M_viewpoint_act_group->actions().front()->setText( M_viewpoint_act_group->actions().front()->text() + "\tI" );
+    connect( M_viewpoint_act_group, &QActionGroup::triggered,
+             this, [this]( QAction * act ) { viewFrom( static_cast< Viewpoint >( act->data().toInt() ) ); } );
+
+    M_next_viewpoint_act = new QAction( tr( "Next Viewpoint" ), this );
+    M_next_viewpoint_act->setShortcut( Qt::CTRL | Qt::Key_I );
+    M_next_viewpoint_act->setStatusTip( tr( "Put the free camera of the 3D view at the next viewpoint of the whole pitch. (" )
+                                        + M_next_viewpoint_act->shortcut().toString() + tr( ")" ) );
+    connect( M_next_viewpoint_act, SIGNAL( triggered() ),
+             this, SLOT( nextViewpoint3D() ) );
+    this->addAction( M_next_viewpoint_act );
+#ifndef HAVE_3D_VIEW
+    enableCamera3D( false );
+#endif
+
     // menu bar
     M_toggle_menu_bar_act = new QAction( tr( "Menu Bar" ), this );
     M_toggle_menu_bar_act->setShortcut( Qt::CTRL | Qt::Key_M );
@@ -624,6 +742,8 @@ MainWindow::createMenuMonitor()
     menu->addSeparator();
 
     menu->addAction( M_live_mode_act );
+    menu->addAction( M_live_delay_act );
+    menu->addAction( M_loop_act );
 }
 
 /*-------------------------------------------------------------------*/
@@ -648,33 +768,11 @@ MainWindow::createMenuReferee()
         QMenu * submenu = menu->addMenu( tr( "Change Playmode" ) );
 
         const char * playmode_strings[] = PLAYMODE_STRINGS;
-
-        for ( int mode = 0; mode < rcss::rcg::PM_MAX; ++mode )
+        for ( const rcss::rcg::PlayMode mode : changePlayModeModes() )
         {
-            if ( mode == rcss::rcg::PM_BeforeKickOff
-                 || mode == rcss::rcg::PM_PlayOn
-                 || mode == rcss::rcg::PM_KickIn_Left
-                 || mode == rcss::rcg::PM_KickIn_Right
-                 || mode == rcss::rcg::PM_CornerKick_Left
-                 || mode == rcss::rcg::PM_CornerKick_Right
-                 || mode == rcss::rcg::PM_GoalKick_Left
-                 || mode == rcss::rcg::PM_GoalKick_Right
-                 || mode == rcss::rcg::PM_Foul_Charge_Left
-                 || mode == rcss::rcg::PM_Foul_Charge_Right
-                 //|| mode == rcss::rcg::PM_Foul_Push_Left
-                 //|| mode == rcss::rcg::PM_Foul_Push_Right
-                 || mode == rcss::rcg::PM_Back_Pass_Left
-                 || mode == rcss::rcg::PM_Back_Pass_Right
-                 || mode == rcss::rcg::PM_GoalKick_Right
-                 || mode == rcss::rcg::PM_IndFreeKick_Left
-                 || mode == rcss::rcg::PM_IndFreeKick_Right
-                 || mode == rcss::rcg::PM_Illegal_Defense_Left
-                 || mode == rcss::rcg::PM_Illegal_Defense_Right )
-            {
-                QAction * act = submenu->addAction( QString::fromLatin1( playmode_strings[mode] ) );
-                connect( act, &QAction::triggered,
-                         this, [this, mode]() { changePlayMode( mode ); } );
-            }
+            QAction * act = submenu->addAction( QString::fromLatin1( playmode_strings[mode] ) );
+            connect( act, &QAction::triggered,
+                     this, [this, mode]() { changePlayMode( mode ); } );
         }
     }
 }
@@ -691,6 +789,19 @@ MainWindow::createMenuView()
     menu->addAction( M_toggle_menu_bar_act );
     menu->addAction( M_toggle_tool_bar_act );
     menu->addAction( M_toggle_status_bar_act );
+
+    menu->addSeparator();
+
+    menu->addAction( M_toggle_view_3d_act );
+    {
+        QMenu * camera_menu = menu->addMenu( tr( "3D Camera" ) );
+        camera_menu->addActions( M_camera_3d_act_group->actions() );
+        camera_menu->addSeparator();
+        camera_menu->addAction( M_next_camera_3d_act );
+        camera_menu->addSeparator();
+        camera_menu->addActions( M_viewpoint_act_group->actions() );
+        camera_menu->addAction( M_next_viewpoint_act );
+    }
 
     menu->addSeparator();
 
@@ -752,10 +863,28 @@ MainWindow::createToolBars()
     button_layout->setContentsMargins( 4, 4, 12, 4 );
     button_layout->setSpacing( 4 );
 
+    // the file and the server, as the web version's tool bar
+    for ( QAction * act : { M_open_act, M_connect_monitor_to_act, M_disconnect_monitor_act, M_kick_off_act } )
+    {
+        QToolButton * button = new QToolButton();
+        button->setIconSize( QSize( 16, 16 ) );
+        button->setDefaultAction( act );
+        button->setFocusPolicy( Qt::NoFocus );
+        button_layout->addWidget( button );
+    }
+    button_layout->addSpacing( 8 );
+
     {
         QToolButton * button = new QToolButton();
         button->setIconSize( QSize( 24, 24 ) );
         button->setDefaultAction( M_live_mode_act );
+        button_layout->addWidget( button );
+    }
+    {
+        QToolButton * button = new QToolButton();
+        button->setIconSize( QSize( 16, 16 ) );
+        button->setDefaultAction( M_live_delay_act );
+        button->setFocusPolicy( Qt::NoFocus );
         button_layout->addWidget( button );
     }
     {
@@ -800,9 +929,61 @@ MainWindow::createToolBars()
         button->setDefaultAction( M_log_player_next_score_act );
         button_layout->addWidget( button );
     }
+    {
+        QToolButton * button = new QToolButton();
+        button->setIconSize( QSize( 16, 16 ) );
+        button->setDefaultAction( M_loop_act );
+        button->setFocusPolicy( Qt::NoFocus );
+        button_layout->addWidget( button );
+    }
+    {
+        QToolButton * button = new QToolButton();
+        button->setToolButtonStyle( Qt::ToolButtonTextOnly );
+        button->setDefaultAction( M_toggle_view_3d_act );
+        button_layout->addWidget( button );
+    }
+    {
+        // the cameras of the 3D view, shown with it. It takes no focus, so
+        // that the keys stay with the view.
+        M_camera_3d_combo = new QComboBox();
+        M_camera_3d_combo->setFocusPolicy( Qt::NoFocus );
+        M_camera_3d_combo->setToolTip( tr( "The camera of the 3D view. (" )
+                                       + M_next_camera_3d_act->shortcut().toString() + tr( ": next)" ) );
+        for ( QAction * act : M_camera_3d_act_group->actions() )
+        {
+            M_camera_3d_combo->addItem( act->text(), act->data() );
+        }
+        M_camera_3d_combo->setCurrentIndex( M_camera_3d_combo->findData( static_cast< int >( Options::instance().camera3D() ) ) );
+        M_camera_3d_combo->setVisible( false );
+        connect( M_camera_3d_combo, QOverload< int >::of( &QComboBox::activated ),
+                 this, [this]( int index ) {
+                     setCamera3D( static_cast< CameraMode >( M_camera_3d_combo->itemData( index ).toInt() ) );
+                 } );
+        button_layout->addWidget( M_camera_3d_combo );
+    }
+    {
+        // the viewpoints of the whole pitch, shown with the 3D view
+        M_viewpoint_button = new QToolButton();
+        M_viewpoint_button->setText( tr( "Whole Pitch" ) );
+        M_viewpoint_button->setToolTip( tr( "Viewpoints of the whole pitch (I: from the side, " )
+                                        + M_next_viewpoint_act->shortcut().toString() + tr( ": the next)" ) );
+        M_viewpoint_button->setFocusPolicy( Qt::NoFocus );
+        M_viewpoint_button->setPopupMode( QToolButton::InstantPopup );
+        QMenu * menu = new QMenu( M_viewpoint_button );
+        menu->addActions( M_viewpoint_act_group->actions() );
+        M_viewpoint_button->setMenu( menu );
+        M_viewpoint_button->setVisible( false );
+        M_viewpoint_button->setEnabled( M_viewpoint_act_group->isEnabled() );
+        button_layout->addWidget( M_viewpoint_button );
+    }
 
     control_panel->setLayout( button_layout );
     M_log_player_tool_bar->addWidget( control_panel );
+
+    // the position in the log: after the buttons, or in a second row below
+    // them when the window is too narrow for both (updateToolBarRows())
+    M_position_tool_bar = this->addToolBar( tr( "Position" ) );
+    M_position_tool_bar->setAllowedAreas( Qt::TopToolBarArea | Qt::BottomToolBarArea );
 
 
     //
@@ -810,15 +991,64 @@ MainWindow::createToolBars()
     //
 
     LogPlayerSlider * log_player_slider = new LogPlayerSlider();
-    M_log_player_tool_bar->addWidget( log_player_slider );
+    M_position_tool_bar->addWidget( log_player_slider );
 
     connect( log_player_slider, SIGNAL( valueChanged( int ) ),
              M_log_player, SLOT( goToIndex( int ) ) );
     connect( M_log_player, SIGNAL( indexUpdated( size_t, size_t ) ),
              log_player_slider, SLOT( updateIndex( size_t, size_t ) ) );
 
+    //
+    // after the slider, as the web version's tool bar: the cycle and the
+    // frame, a cycle to go to, and the time per frame
+    //
+
+    QFrame * info_panel = new QFrame();
+    QHBoxLayout * info_layout = new QHBoxLayout();
+    info_layout->setContentsMargins( 8, 4, 4, 4 );
+    info_layout->setSpacing( 8 );
+
+    M_frame_label = new QLabel();
+    M_frame_label->setObjectName( "frame_label" );
+    M_frame_label->setToolTip( tr( "The cycle (with the stopped time after a dot), and the frame of the frames" ) );
+    M_frame_label->setMinimumWidth( M_frame_label->fontMetrics().horizontalAdvance( "6000.10 (88888 / 88888)" ) );
+    info_layout->addWidget( M_frame_label );
+
+    M_cycle_edit = new QLineEdit();
+    M_cycle_edit->setObjectName( "cycle_edit" );
+    M_cycle_edit->setPlaceholderText( tr( "cycle" ) );
+    M_cycle_edit->setToolTip( tr( "Go to a cycle: its first frame, or the next one after it (Enter; Esc: back to the field)" ) );
+    M_cycle_edit->setValidator( new QIntValidator( 0, 999999, M_cycle_edit ) );
+    M_cycle_edit->setMaximumWidth( M_cycle_edit->fontMetrics().horizontalAdvance( "8888888" ) + 12 );
+    connect( M_cycle_edit, &QLineEdit::returnPressed,
+             this, &MainWindow::goToTypedCycle );
+    connect( M_cycle_edit, &QLineEdit::textEdited,
+             this, [this]( const QString & ) { M_cycle_edit->setPalette( QApplication::palette( M_cycle_edit ) ); } );
+    M_cycle_edit->installEventFilter( this );
+    info_layout->addWidget( M_cycle_edit );
+
+    M_interval_label = new QLabel();
+    M_interval_label->setObjectName( "interval_label" );
+    M_interval_label->setToolTip( tr( "Time per frame while playing; live, how far behind the newest frame when delayed" ) );
+    M_interval_label->setMinimumWidth( std::max( M_interval_label->fontMetrics().horizontalAdvance( "5000 ms" ),
+                                                 M_interval_label->fontMetrics().horizontalAdvance( tr( "LIVE -7.0 s" ) ) ) );
+    info_layout->addWidget( M_interval_label );
+
+    info_panel->setLayout( info_layout );
+    M_position_tool_bar->addWidget( info_panel );
+
+    connect( M_log_player, SIGNAL( indexUpdated( size_t, size_t ) ),
+             this, SLOT( updatePlayerLabels() ) );
+    for ( QAction * act : { M_log_player_play_or_stop_act, M_log_player_decelerate_act, M_log_player_accelerate_act } )
+    {
+        connect( act, SIGNAL( triggered() ),
+                 this, SLOT( updatePlayerLabels() ) );
+    }
+    updatePlayerLabels();
+
 
     M_log_player_tool_bar->setVisible( Options::instance().showToolBar() );
+    M_position_tool_bar->setVisible( Options::instance().showToolBar() );
 }
 
 /*-------------------------------------------------------------------*/
@@ -856,71 +1086,66 @@ MainWindow::createFieldCanvas()
 {
     M_field_canvas = new FieldCanvas( M_disp_holder );
 
-    QMenu * popup_menu = M_field_canvas->createPopupMenu();
-    popup_menu->addSeparator();
-    popup_menu->addAction( M_yellow_card_act );
-    popup_menu->addAction( M_red_card_act );
+    createRefereeMenu();
+    connect( M_field_canvas, &FieldCanvas::refereeMenuRequested,
+             M_referee_menu, &RefereeMenu::exec );
 
-
-    this->setCentralWidget( M_field_canvas );
+    // the 2D view, and the 3D view when it is first shown
+    M_view_stack = new QStackedWidget();
+    M_view_stack->addWidget( M_field_canvas );
+    this->setCentralWidget( M_view_stack );
     M_field_canvas->setFocus();
+    // its size and place: the pixel below the 3D view or not (updateViewMargins()),
+    // black when shown
+    M_view_stack->installEventFilter( this );
+    {
+        QPalette palette = M_view_stack->palette();
+        palette.setColor( QPalette::Window, Qt::black );
+        M_view_stack->setPalette( palette );
+        M_view_stack->setAutoFillBackground( true );
+    }
 
+    // kept while the 3D view is shown: update() does nothing on a hidden widget
     connect( this, SIGNAL( viewUpdated() ),
              M_field_canvas, SLOT( update() ) );
 
     connect( M_field_canvas, SIGNAL( mouseMoved( const QPoint & ) ),
              this, SLOT( updatePositionLabel( const QPoint & ) ) );
+}
 
-    connect( M_field_canvas, SIGNAL( dropBall( const QPoint & ) ),
-             this, SLOT( dropBall( const QPoint & ) ) );
-    connect( M_field_canvas, SIGNAL( freeKickLeft( const QPoint & ) ),
-             this, SLOT( freeKickLeft( const QPoint & ) ) );
-    connect( M_field_canvas, SIGNAL( freeKickRight( const QPoint & ) ),
-             this, SLOT( freeKickRight( const QPoint & ) ) );
+/*-------------------------------------------------------------------*/
+/*!
+  The menu of a right click on the field. The 2D view and the 3D view tell
+  where the click aims at, and the items send the commands from there.
+ */
+void
+MainWindow::createRefereeMenu()
+{
+    M_referee_menu = new RefereeMenu( this );
 
-    connect( M_field_canvas, SIGNAL( playModeChanged( int, const QPoint & ) ),
-             this, SLOT( changePlayMode( int, const QPoint & ) ) );
-
-    {
-        const char * playmode_strings[] = PLAYMODE_STRINGS;
-
-        for ( int mode = 0; mode < rcss::rcg::PM_MAX; ++mode )
-        {
-            if ( mode == rcss::rcg::PM_BeforeKickOff
-                 || mode == rcss::rcg::PM_PlayOn
-                 || mode == rcss::rcg::PM_KickIn_Left
-                 || mode == rcss::rcg::PM_KickIn_Right
-                 || mode == rcss::rcg::PM_CornerKick_Left
-                 || mode == rcss::rcg::PM_CornerKick_Right
-                 || mode == rcss::rcg::PM_GoalKick_Left
-                 || mode == rcss::rcg::PM_GoalKick_Right
-                 || mode == rcss::rcg::PM_Foul_Charge_Left
-                 || mode == rcss::rcg::PM_Foul_Charge_Right
-                 //|| mode == rcss::rcg::PM_Foul_Push_Left
-                 //|| mode == rcss::rcg::PM_Foul_Push_Right
-                 || mode == rcss::rcg::PM_Back_Pass_Left
-                 || mode == rcss::rcg::PM_Back_Pass_Right
-                 || mode == rcss::rcg::PM_GoalKick_Right
-                 || mode == rcss::rcg::PM_IndFreeKick_Left
-                 || mode == rcss::rcg::PM_IndFreeKick_Right
-                 || mode == rcss::rcg::PM_Illegal_Defense_Left
-                 || mode == rcss::rcg::PM_Illegal_Defense_Right )
-            {
-                QAction * act = new QAction( M_playmode_change_act_group );
-                act->setText( QString::fromLatin1( playmode_strings[mode] ) );
-                connect( act, &QAction::triggered,
-                         M_field_canvas, [this, mode]() { M_field_canvas->changePlayMode( mode ); } );
-            }
-        }
-
-        popup_menu->addSeparator();
-        QMenu * submenu = popup_menu->addMenu( tr( "Change Playmode" ) );
-        Q_FOREACH ( QAction * act, M_playmode_change_act_group->actions() )
-        {
-            submenu->addAction( act );
-        }
-    }
-
+    connect( M_referee_menu, &RefereeMenu::dropBall,
+             this, [this]( double x, double y ) { dropBall( x, y ); } );
+    connect( M_referee_menu, &RefereeMenu::freeKickLeft,
+             this, [this]( double x, double y ) { freeKickLeft( x, y ); } );
+    connect( M_referee_menu, &RefereeMenu::freeKickRight,
+             this, [this]( double x, double y ) { freeKickRight( x, y ); } );
+    connect( M_referee_menu, &RefereeMenu::yellowCard,
+             this, [this]( const RefereeTarget & target ) { yellowCard( target ); } );
+    connect( M_referee_menu, &RefereeMenu::redCard,
+             this, [this]( const RefereeTarget & target ) { redCard( target ); } );
+    connect( M_referee_menu, &RefereeMenu::playModeChanged,
+             this, [this]( int mode, const RefereeTarget & target )
+                   {
+                       // without a point (3D: above the horizon), from the ball
+                       if ( target.has_point_ )
+                       {
+                           changePlayMode( mode, target.x_, target.y_ );
+                       }
+                       else
+                       {
+                           changePlayMode( mode );
+                       }
+                   } );
 }
 
 /*-------------------------------------------------------------------*/
@@ -945,6 +1170,9 @@ MainWindow::createConfigDialog()
     connect( M_config_dialog, SIGNAL( canvasResized( const QSize & ) ),
              this, SLOT( resizeCanvas( const QSize & ) ) );
 
+    connect( M_config_dialog, SIGNAL( liveDelayChanged() ),
+             this, SLOT( applyLiveDelay() ) );
+
     // register short cut keys
     {
         // z
@@ -953,7 +1181,7 @@ MainWindow::createConfigDialog()
         act->setStatusTip( tr( "Zoom in." ) );
         this->addAction( act );
         connect( act, SIGNAL( triggered() ),
-                 M_config_dialog, SLOT( zoomIn() ) );
+                 this, SLOT( zoomIn() ) );
     }
     {
         // x
@@ -962,7 +1190,7 @@ MainWindow::createConfigDialog()
         act->setStatusTip( tr( "Zoom out." ) );
         this->addAction( act );
         connect( act, SIGNAL( triggered() ),
-                 M_config_dialog, SLOT( zoomOut() ) );
+                 this, SLOT( zoomOut() ) );
     }
     {
         // Ctrl + z
@@ -971,16 +1199,16 @@ MainWindow::createConfigDialog()
         act->setStatusTip( tr( "Zoom out." ) );
         this->addAction( act );
         connect( act, SIGNAL( triggered() ),
-                 M_config_dialog, SLOT( zoomOut() ) );
+                 this, SLOT( zoomOut() ) );
     }
     {
         // i
         QAction * act = new QAction( tr( "Fit Field Size" ), this );
         act->setShortcut( Qt::Key_I );
-        act->setStatusTip( tr( "Fit field size to the screen." ) );
+        act->setStatusTip( tr( "Fit field size to the screen. In 3D, the whole pitch from the side." ) );
         this->addAction( act );
         connect( act, SIGNAL( triggered() ),
-                 M_config_dialog, SLOT( fitToScreen() ) );
+                 this, SLOT( fitToScreen() ) );
     }
 
     // field style
@@ -1227,12 +1455,240 @@ MainWindow::setToolIcon( QAction * act,
 
  */
 void
+MainWindow::setDrawnIcon( QAction * act,
+                          const DrawnIcon icon )
+{
+    M_drawn_icons.emplace_back( act, icon );
+    act->setIcon( drawnIcon( icon, this->palette() ) );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+void
 MainWindow::updateToolIcons()
 {
     for ( const std::pair< QAction *, const char * const * > & v : M_tool_icons )
     {
         v.first->setIcon( toolIcon( v.second, this->palette() ) );
     }
+    for ( const std::pair< QAction *, DrawnIcon > & v : M_drawn_icons )
+    {
+        v.first->setIcon( drawnIcon( v.second, this->palette() ) );
+    }
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+void
+MainWindow::resizeEvent( QResizeEvent * event )
+{
+    QMainWindow::resizeEvent( event );
+    updateToolBarRows();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+void
+MainWindow::updateToolBarRows()
+{
+    if ( ! M_log_player_tool_bar
+         || ! M_position_tool_bar )
+    {
+        return;
+    }
+    // only for the two in one area, as they are made (the user may move them)
+    if ( M_log_player_tool_bar->isHidden()
+         || M_position_tool_bar->isHidden()
+         || M_log_player_tool_bar->isFloating()
+         || M_position_tool_bar->isFloating()
+         || toolBarArea( M_log_player_tool_bar ) != toolBarArea( M_position_tool_bar ) )
+    {
+        return;
+    }
+    // The buttons as wide as they want, and the position as narrow as it
+    // can be with all its parts shown: its widgets' least widths, not the
+    // tool bar's minimumSizeHint(), which hides them behind its extension
+    // button.
+    const QStyle * style = M_position_tool_bar->style();
+    int position = style->pixelMetric( QStyle::PM_ToolBarHandleExtent, nullptr, M_position_tool_bar )
+        + 2 * ( style->pixelMetric( QStyle::PM_ToolBarFrameWidth, nullptr, M_position_tool_bar )
+                + style->pixelMetric( QStyle::PM_ToolBarItemMargin, nullptr, M_position_tool_bar ) );
+    for ( QAction * act : M_position_tool_bar->actions() )
+    {
+        if ( const QWidget * w = M_position_tool_bar->widgetForAction( act ) )
+        {
+            position += std::max( w->minimumWidth(), w->minimumSizeHint().width() )
+                + style->pixelMetric( QStyle::PM_ToolBarItemSpacing, nullptr, M_position_tool_bar );
+        }
+    }
+    const int margin = 8;
+    const bool wrap = ( M_log_player_tool_bar->sizeHint().width() + position + margin > width() );
+    if ( wrap != toolBarBreak( M_position_tool_bar ) )
+    {
+        if ( wrap ) insertToolBarBreak( M_position_tool_bar );
+        else removeToolBarBreak( M_position_tool_bar );
+    }
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  the tool bar's frame label ("cycle (frame / frames)", the stopped time
+  after a dot) and the time per frame while playing
+ */
+void
+MainWindow::updatePlayerLabels()
+{
+    if ( ! M_frame_label ) return;
+
+    const DispConstPtr disp = M_disp_holder.currentDisp();
+    const std::size_t count = M_disp_holder.dispCont().size();
+    if ( ! disp || count == 0 )
+    {
+        M_frame_label->clear();
+        M_interval_label->clear();
+        M_cycle_edit->setEnabled( false );
+        return;
+    }
+    const rcss::rcg::ShowInfoT & show = disp->show_;
+    const QString cycle = ( show.stime_ > 0
+                            ? QString( "%1.%2" ).arg( show.time_ ).arg( show.stime_ )
+                            : QString::number( show.time_ ) );
+    M_frame_label->setText( QString( "%1 (%2 / %3)" ).arg( cycle ).arg( M_disp_holder.currentIndex() + 1 ).arg( count ) );
+    if ( M_log_player->isDelayedLive() )
+    {
+        // the delayed live view: how far behind the newest frame (§5.10)
+        M_interval_label->setText( tr( "LIVE -%1 s" ).arg( Options::instance().liveDelaySeconds(), 0, 'f', 1 ) );
+    }
+    else
+    {
+        M_interval_label->setText( QString( "%1 ms" ).arg( M_log_player->interval() ) );
+    }
+    M_cycle_edit->setEnabled( true );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  go to the cycle typed in the tool bar, and give the keys back to the
+  field; the field turns red if the log has no such cycle
+ */
+void
+MainWindow::goToTypedCycle()
+{
+    bool ok = false;
+    const int cycle = M_cycle_edit->text().trimmed().toInt( &ok );
+    if ( ! ok
+         || M_disp_holder.getIndex( cycle ) == DispHolder::INVALID_INDEX )
+    {
+        QPalette palette = QApplication::palette( M_cycle_edit );
+        const QColor base = palette.color( QPalette::Base );
+        const QColor error( 255, 64, 64 );
+        palette.setColor( QPalette::Base,
+                          QColor( ( base.red() * 6 + error.red() * 4 ) / 10,
+                                  ( base.green() * 6 + error.green() * 4 ) / 10,
+                                  ( base.blue() * 6 + error.blue() * 4 ) / 10 ) );
+        M_cycle_edit->setPalette( palette );
+        return;
+    }
+    M_log_player->goToCycle( cycle );
+    M_cycle_edit->setPalette( QApplication::palette( M_cycle_edit ) );
+    M_cycle_edit->clear();
+    focusView();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+void
+MainWindow::toggleLoop( bool on )
+{
+    Options::instance().setAutoLoopMode( on );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  the delayed live view on or off from the tool bar or the menu: live, the
+  view jumps back by the delay or on to the newest frame (§5.10)
+ */
+void
+MainWindow::toggleLiveDelay( bool on )
+{
+    Options & opt = Options::instance();
+    opt.setLiveDelay( on );
+    M_log_player->applyLiveDelay();
+    if ( M_config_dialog )
+    {
+        M_config_dialog->updateLiveDelay();
+    }
+    updatePlayerLabels();
+    this->statusBar()->showMessage( on
+                                    ? tr( "Live delay: %1 s" ).arg( opt.liveDelaySeconds(), 0, 'f', 1 )
+                                    : tr( "Live delay: off" ),
+                                    3000 );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  the options of the delayed live view changed in the settings dialog: the
+  action follows them, and the view if live
+ */
+void
+MainWindow::applyLiveDelay()
+{
+    {
+        const QSignalBlocker blocker( M_live_delay_act );
+        M_live_delay_act->setChecked( Options::instance().liveDelay() );
+    }
+    updateLiveDelayTips();
+    M_log_player->applyLiveDelay();
+    updatePlayerLabels();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+void
+MainWindow::updateLiveDelayTips()
+{
+    if ( ! M_live_delay_act ) return;
+    const QString seconds = QString::number( Options::instance().liveDelaySeconds(), 'f', 1 );
+    M_live_delay_act->setStatusTip( tr( "Draw a live game %1 s behind its newest frame, so that the 3D view knows "
+                                        "the touches ahead (the seconds in the settings). The referee's operations "
+                                        "reach the server at once." ).arg( seconds ) );
+    M_live_delay_act->setToolTip( tr( "Live delay (%1 s)" ).arg( seconds ) );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+bool
+MainWindow::eventFilter( QObject * watched,
+                         QEvent * event )
+{
+    if ( watched == M_view_stack
+         && ( event->type() == QEvent::Resize
+              || event->type() == QEvent::Move ) )
+    {
+        updateViewMargins();
+    }
+    if ( watched == M_cycle_edit
+         && event->type() == QEvent::KeyPress
+         && static_cast< QKeyEvent * >( event )->key() == Qt::Key_Escape )
+    {
+        M_cycle_edit->clear();
+        M_cycle_edit->setPalette( QApplication::palette( M_cycle_edit ) );
+        focusView();
+        return true;
+    }
+    return QMainWindow::eventFilter( watched, event );
 }
 
 /*-------------------------------------------------------------------*/
@@ -1245,6 +1701,11 @@ MainWindow::changeEvent( QEvent * event )
     if ( event->type() == QEvent::PaletteChange )
     {
         updateToolIcons();
+    }
+    // full screen or not (the views' stack may keep its size)
+    if ( event->type() == QEvent::WindowStateChange )
+    {
+        updateViewMargins();
     }
 
     QMainWindow::changeEvent( event );
@@ -1269,7 +1730,17 @@ MainWindow::closeEvent( QCloseEvent * event )
 void
 MainWindow::wheelEvent( QWheelEvent * event )
 {
-    const int delta = event->angleDelta().y();
+    stepByWheel( event->angleDelta().y() );
+    event->accept();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  down: a frame forward; up: back
+ */
+void
+MainWindow::stepByWheel( const int delta )
+{
     if ( delta < 0 )
     {
         M_log_player_step_forward_act->trigger();
@@ -1278,8 +1749,6 @@ MainWindow::wheelEvent( QWheelEvent * event )
     {
         M_log_player_step_backward_act->trigger();
     }
-
-    event->accept();
 }
 
 /*-------------------------------------------------------------------*/
@@ -1530,6 +1999,7 @@ MainWindow::connectMonitorTo( const char * hostname )
 //     M_open_output_act->setEnabled( true );
 
     M_live_mode_act->setEnabled( true );
+    M_kick_off_act->setEnabled( true );
     M_connect_monitor_act->setEnabled( false );
     M_connect_monitor_to_act->setEnabled( false );
     M_disconnect_monitor_act->setEnabled( true );
@@ -1539,6 +2009,7 @@ MainWindow::connectMonitorTo( const char * hostname )
     if ( ! Options::instance().showToolBar() )
     {
         M_log_player_tool_bar->hide();
+        M_position_tool_bar->hide();
     }
 
     if ( QApplication::overrideCursor() )
@@ -1814,6 +2285,7 @@ MainWindow::disconnectMonitor()
     }
 
     M_live_mode_act->setEnabled( false );
+    M_kick_off_act->setEnabled( false );
     M_connect_monitor_act->setEnabled( true );
     M_connect_monitor_to_act->setEnabled( true );
     M_disconnect_monitor_act->setEnabled( false );
@@ -1869,6 +2341,8 @@ void
 MainWindow::toggleToolBar( bool checked )
 {
     M_log_player_tool_bar->setVisible( checked );
+    M_position_tool_bar->setVisible( checked );
+    updateToolBarRows();
 }
 
 /*-------------------------------------------------------------------*/
@@ -1879,6 +2353,79 @@ void
 MainWindow::toggleStatusBar( bool checked )
 {
     this->statusBar()->setVisible( checked );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  Show the 3D view or the 2D view. They share the frames and the options,
+  so the frame and the selected player stay as they are. The 3D view is
+  made when it is first shown; where OpenGL 3.3 is not available, the
+  action is disabled, with the reason in the status bar.
+ */
+void
+MainWindow::toggleView3D( bool on )
+{
+#ifdef HAVE_3D_VIEW
+    if ( on && ! M_field_view_3d )
+    {
+        const QString reason = FieldView3D::unavailableReason();
+        if ( ! reason.isEmpty() )
+        {
+            std::cerr << "The 3D view is not available: " << reason.toStdString() << std::endl;
+            M_toggle_view_3d_act->blockSignals( true );
+            M_toggle_view_3d_act->setChecked( false );
+            M_toggle_view_3d_act->blockSignals( false );
+            M_toggle_view_3d_act->setEnabled( false );
+            M_toggle_view_3d_act->setStatusTip( tr( "The 3D view is not available: " ) + reason );
+            M_toggle_view_3d_act->setToolTip( M_toggle_view_3d_act->statusTip() );
+            enableCamera3D( false );
+            this->statusBar()->showMessage( M_toggle_view_3d_act->statusTip(), 10000 );
+            Options::instance().setView3D( false );
+            return;
+        }
+
+        // the view is a window of its own (drawn straight to the screen), in a
+        // container widget, which takes no focus (the keys are the actions')
+        FieldView3D * view = new FieldView3D( M_disp_holder, *M_log_player );
+        view->setCameraMode( Options::instance().camera3D() );
+        QWidget * container = QWidget::createWindowContainer( view );
+        container->setFocusPolicy( Qt::NoFocus );
+        // a click on it closes the menus open, as on the widgets (Wayland)
+        view->installEventFilter( new PopupCloser( view ) );
+        M_view_stack->addWidget( container );
+        // kept while the 2D view is shown: hidden, the window is not exposed,
+        // and update() asks for no drawing
+        connect( this, &MainWindow::viewUpdated,
+                 view, [view]() { view->update(); } );
+        // the mouse made the camera the free camera
+        connect( view, &FieldView3D::cameraModeChanged,
+                 this, [this]( CameraMode mode ) { setCamera3D( mode ); } );
+        // the referee's menu of a right click, at the player or the ground aimed at
+        connect( view, &FieldView3D::refereeMenuRequested,
+                 M_referee_menu, &RefereeMenu::exec );
+        // the wheel over it steps the frames, as over the 2D view
+        connect( view, &FieldView3D::wheelTurned,
+                 this, [this]( int delta ) { stepByWheel( delta ); } );
+        M_field_view_3d = container;
+        M_view_3d = view;
+    }
+
+    QWidget * shown = ( on ? M_field_view_3d : M_field_canvas );
+    // the focus off the 2D view first: from a page with the focus, the
+    // stack gives it to the page shown, and the 3D view's container would
+    // ask its window (which takes no focus) to be activated
+    if ( on ) M_view_stack->setFocus();
+    M_view_stack->setCurrentWidget( shown );
+    focusView();
+    updateViewMargins();
+    M_camera_3d_combo->setVisible( on );
+    M_viewpoint_button->setVisible( on );
+    // the buttons are wider with the 3D view's: one row or two again, once laid out
+    QTimer::singleShot( 0, this, [this]() { updateToolBarRows(); } );
+    Options::instance().setView3D( on );
+#else
+    Q_UNUSED( on );
+#endif
 }
 
 /*-------------------------------------------------------------------*/
@@ -1898,6 +2445,231 @@ MainWindow::changeStyle( bool checked )
     Q_ASSERT( style );
 
     QApplication::setStyle( style );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  the 3D view if it is shown
+ */
+FieldView3D *
+MainWindow::shownView3D() const
+{
+#ifdef HAVE_3D_VIEW
+    if ( M_field_view_3d
+         && M_view_stack->currentWidget() == M_field_view_3d )
+    {
+        return M_view_3d;
+    }
+#endif
+    return nullptr;
+}
+
+/*-------------------------------------------------------------------*/
+QMargins
+MainWindow::viewMargins( const bool view_3d,
+                         const bool full_screen,
+                         const QRect & views,
+                         const QRect & window )
+{
+    return ( view_3d && full_screen && views.contains( window )
+             ? QMargins( 0, 0, 0, 1 )
+             : QMargins() );
+}
+
+/*-------------------------------------------------------------------*/
+void
+MainWindow::updateViewMargins()
+{
+    if ( ! M_view_stack ) return;
+    const QMargins margins = viewMargins( shownView3D() != nullptr,
+                                          this->isFullScreen(),
+                                          M_view_stack->geometry(),
+                                          this->rect() );
+    if ( M_view_stack->contentsMargins() != margins )
+    {
+        M_view_stack->setContentsMargins( margins );
+    }
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  the keyboard focus to the view shown: the 2D view, or the stack of the
+  views over the 3D view (whose window takes no focus: the keys go to the
+  actions of this window)
+ */
+void
+MainWindow::focusView()
+{
+    if ( ! M_view_stack ) return;
+    if ( M_view_stack->currentWidget() == M_field_canvas )
+    {
+        M_field_canvas->setFocus();
+    }
+    else
+    {
+        M_view_stack->setFocus();
+    }
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  Z: the 2D field, or the 3D camera nearer by as much
+ */
+void
+MainWindow::zoomIn()
+{
+#ifdef HAVE_3D_VIEW
+    if ( FieldView3D * view = shownView3D() )
+    {
+        view->zoomCamera( 1.0 / Options::ZOOM_RATIO );
+        M_config_dialog->update3D(); // the close-up cameras' distance
+        return;
+    }
+#endif
+    M_config_dialog->zoomIn();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  X, Ctrl+Z: the 2D field, or the 3D camera farther by as much
+ */
+void
+MainWindow::zoomOut()
+{
+#ifdef HAVE_3D_VIEW
+    if ( FieldView3D * view = shownView3D() )
+    {
+        view->zoomCamera( Options::ZOOM_RATIO );
+        M_config_dialog->update3D(); // the close-up cameras' distance
+        return;
+    }
+#endif
+    M_config_dialog->zoomOut();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  I: the 2D field fit to the screen, or the 3D camera back to its own distance
+ */
+void
+MainWindow::fitToScreen()
+{
+#ifdef HAVE_3D_VIEW
+    // in 3D, the whole pitch from the side
+    if ( shownView3D() )
+    {
+        viewFrom( Viewpoint::Side );
+        return;
+    }
+#endif
+    M_config_dialog->fitToScreen();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  View > 3D Camera, the tool bar, I and Ctrl+I: the free camera at a
+  viewpoint of the whole pitch, from where the mouse moves it on
+ */
+void
+MainWindow::viewFrom( const Viewpoint viewpoint )
+{
+#ifdef HAVE_3D_VIEW
+    if ( FieldView3D * view = shownView3D() )
+    {
+        view->viewFrom( viewpoint );
+        M_viewpoint = viewpoint;
+        M_viewpoint_shown = true;
+        setCamera3D( CameraMode::Free );
+        this->statusBar()->showMessage( tr( "Viewpoint: " ) + tr( viewpointInfo( viewpoint ).label ), 2000 );
+        return;
+    }
+#endif
+    Q_UNUSED( viewpoint );
+    this->statusBar()->showMessage( tr( "The viewpoints are for the 3D view (" )
+                                    + M_toggle_view_3d_act->shortcut().toString() + tr( ")." ),
+                                    3000 );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  Ctrl+I: the viewpoint after the last one chosen (the first at first)
+ */
+void
+MainWindow::nextViewpoint3D()
+{
+    viewFrom( M_viewpoint_shown ? nextViewpoint( M_viewpoint ) : viewpoints()[0].viewpoint );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  View > 3D Camera
+ */
+void
+MainWindow::selectCamera3D( QAction * action )
+{
+    setCamera3D( static_cast< CameraMode >( action->data().toInt() ) );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  E: in 2D too, for the next time the 3D view is shown
+ */
+void
+MainWindow::nextCamera3D()
+{
+    setCamera3D( nextCameraMode( Options::instance().camera3D() ) );
+    for ( const CameraModeInfo & m : cameraModes() )
+    {
+        if ( m.mode == Options::instance().camera3D() )
+        {
+            this->statusBar()->showMessage( tr( "3D camera: " ) + tr( m.label ), 3000 );
+        }
+    }
+}
+
+/*-------------------------------------------------------------------*/
+void
+MainWindow::setCamera3D( const CameraMode mode )
+{
+    Options::instance().setCamera3D( mode );
+    for ( QAction * act : M_camera_3d_act_group->actions() )
+    {
+        if ( act->data().toInt() == static_cast< int >( mode ) )
+        {
+            act->setChecked( true );
+        }
+    }
+    if ( M_camera_3d_combo )
+    {
+        M_camera_3d_combo->setCurrentIndex( M_camera_3d_combo->findData( static_cast< int >( mode ) ) );
+    }
+#ifdef HAVE_3D_VIEW
+    if ( M_view_3d )
+    {
+        M_view_3d->setCameraMode( mode );
+    }
+#endif
+}
+
+/*-------------------------------------------------------------------*/
+void
+MainWindow::enableCamera3D( const bool on )
+{
+    M_camera_3d_act_group->setEnabled( on );
+    M_next_camera_3d_act->setEnabled( on );
+    if ( M_camera_3d_combo )
+    {
+        M_camera_3d_combo->setEnabled( on );
+    }
+    if ( M_viewpoint_act_group )
+    {
+        M_viewpoint_act_group->setEnabled( on );
+        M_next_viewpoint_act->setEnabled( on );
+    }
+    if ( M_viewpoint_button )
+    {
+        M_viewpoint_button->setEnabled( on );
+    }
 }
 
 /*-------------------------------------------------------------------*/
@@ -1967,26 +2739,16 @@ MainWindow::setFocusPoint( const QPoint & point )
 
  */
 void
-MainWindow::dropBall( const QPoint & point )
+MainWindow::dropBall( const double x,
+                      const double y )
 {
-    {
-        double x = Options::instance().fieldX( point.x() );
-        double y = Options::instance().fieldY( point.y() );
-
-        std::cerr << "drop ball to ("
-                  << x << ", " << y << ")"
-                  << std::endl;
-    }
+    std::cerr << "drop ball to ("
+              << x << ", " << y << ")"
+              << std::endl;
 
     if ( M_monitor_client
          && M_monitor_client->isConnected() )
     {
-        double x = Options::instance().fieldX( point.x() );
-        double y = Options::instance().fieldY( point.y() );
-
-        std::cerr << "drop ball to ("
-                  << x << ", " << y << ")"
-                  << std::endl;
         this->statusBar()->showMessage( tr( "Drop ball at (%1, %2)" ).arg( x ).arg( y ),
                                         1000 );
         M_monitor_client->sendDropBall( x, y );
@@ -1998,14 +2760,12 @@ MainWindow::dropBall( const QPoint & point )
 
  */
 void
-MainWindow::freeKickLeft( const QPoint & point )
+MainWindow::freeKickLeft( const double x,
+                          const double y )
 {
     if ( M_monitor_client
          && M_monitor_client->isConnected() )
     {
-        double x = Options::instance().fieldX( point.x() );
-        double y = Options::instance().fieldY( point.y() );
-
         std::cerr << "free kick left at ("
                   << x << ", " << y << ")"
                   << std::endl;
@@ -2020,14 +2780,12 @@ MainWindow::freeKickLeft( const QPoint & point )
 
  */
 void
-MainWindow::freeKickRight( const QPoint & point )
+MainWindow::freeKickRight( const double x,
+                           const double y )
 {
     if ( M_monitor_client
          && M_monitor_client->isConnected() )
     {
-        double x = Options::instance().fieldX( point.x() );
-        double y = Options::instance().fieldY( point.y() );
-
         std::cerr << "free kick right at ("
                   << x << ", " << y << ")"
                   << std::endl;
@@ -2091,19 +2849,15 @@ MainWindow::redCard( const char side,
 
 /*-------------------------------------------------------------------*/
 /*!
-
+  The dialog lists the players, with the player of initial chosen first if
+  it has one (the menu of the field in 3D), or none.
  */
-void
-MainWindow::yellowCard()
+bool
+MainWindow::choosePlayer( const QString & title,
+                          const RefereeTarget & initial,
+                          char * side,
+                          int * unum )
 {
-//     int selected_unum = Options::instance().selectedNumber();
-//     if ( selected_unum != 0 )
-//     {
-//         yellowCard( ( selected_unum > 0 ? 'l' : 'r' ),
-//                     qAbs( selected_unum ) );
-//         return;
-//     }
-
     QStringList players;
     players << tr( "" );
     for ( int i = 1; i <= 11; ++i )
@@ -2115,32 +2869,48 @@ MainWindow::yellowCard()
         players << tr( "Right %1" ).arg( i );
     }
 
+    int current = 0;
+    if ( initial.hasPlayer()
+         && 1 <= initial.unum_ && initial.unum_ <= 11 )
+    {
+        current = initial.unum_ + ( initial.side_ == rcss::rcg::LEFT ? 0 : 11 );
+    }
+
     bool ok = false;
     QString str = QInputDialog::getItem( this,
-                                         tr( "Yellow Card" ),
+                                         title,
                                          tr( "Select Player" ),
                                          players,
-                                         0, // current
+                                         current,
                                          false, // editable
                                          &ok );
     if ( ! ok )
     {
-        return;
+        return false;
     }
 
     char side_str[8];
-    int unum = 0;
-    if ( std::sscanf( str.toLatin1().data(), " %s %d ", side_str, &unum ) != 2 )
+    if ( std::sscanf( str.toLatin1().data(), " %7s %d ", side_str, unum ) != 2 )
     {
-        return;
+        return false;
     }
 
-    yellowCard( ( side_str[0] == 'L'
-                  ?  'l'
-                  : side_str[0] == 'R'
-                  ? 'r'
-                  : '?' ),
-                unum );
+    *side = ( side_str[0] == 'L'
+              ?  'l'
+              : side_str[0] == 'R'
+              ? 'r'
+              : '?' );
+    return true;
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+void
+MainWindow::yellowCard()
+{
+    yellowCard( RefereeTarget() );
 }
 
 /*-------------------------------------------------------------------*/
@@ -2150,56 +2920,42 @@ MainWindow::yellowCard()
 void
 MainWindow::redCard()
 {
-//     int selected_unum = Options::instance().selectedNumber();
-//     if ( selected_unum != 0 )
-//     {
-//         redCard( ( selected_unum > 0 ? 'l' : 'r' ),
-//                  qAbs( selected_unum ) );
-//         return;
-//     }
-
-    QStringList players;
-    players << tr( "" );
-    for ( int i = 1; i <= 11; ++i )
-    {
-        players << tr( "Left %1" ).arg( i );
-    }
-    for ( int i = 1; i <= 11; ++i )
-    {
-        players << tr( "Right %1" ).arg( i );
-    }
-
-    bool ok = false;
-    QString str = QInputDialog::getItem( this,
-                                         tr( "Red Card" ),
-                                         tr( "Select Player" ),
-                                         players,
-                                         0, // current
-                                         false, // editable
-                                         &ok );
-    if ( ! ok )
-    {
-        return;
-    }
-
-    char side_str[8];
-    int unum = 0;
-    if ( std::sscanf( str.toLatin1().data(), " %s %d ", side_str, &unum ) != 2 )
-    {
-        return;
-    }
-
-    redCard( ( side_str[0] == 'L'
-               ?  'l'
-               : side_str[0] == 'R'
-               ? 'r'
-               : '?' ),
-             unum );
+    redCard( RefereeTarget() );
 }
 
 /*-------------------------------------------------------------------*/
 /*!
 
+ */
+void
+MainWindow::yellowCard( const RefereeTarget & target )
+{
+    char side = '?';
+    int unum = 0;
+    if ( choosePlayer( tr( "Yellow Card" ), target, &side, &unum ) )
+    {
+        yellowCard( side, unum );
+    }
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+void
+MainWindow::redCard( const RefereeTarget & target )
+{
+    char side = '?';
+    int unum = 0;
+    if ( choosePlayer( tr( "Red Card" ), target, &side, &unum ) )
+    {
+        redCard( side, unum );
+    }
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  Change Playmode of the Referee menu: from the ball
  */
 void
 MainWindow::changePlayMode( int mode )
@@ -2210,20 +2966,17 @@ MainWindow::changePlayMode( int mode )
         return;
     }
 
-    QPoint point;
-    point.setX( Options::instance().screenX( disp->show_.ball_.x_ ) );
-    point.setY( Options::instance().screenY( disp->show_.ball_.y_ ) );
-
-    changePlayMode( mode, point );
+    changePlayMode( mode, disp->show_.ball_.x_, disp->show_.ball_.y_ );
 }
 
 /*-------------------------------------------------------------------*/
 /*!
-
+  Change Playmode at a point on the field (m)
  */
 void
 MainWindow::changePlayMode( int mode,
-                            const QPoint & point )
+                            const double point_x,
+                            const double point_y )
 {
     if ( ! M_monitor_client
          || ! M_monitor_client->isConnected() )
@@ -2244,8 +2997,8 @@ MainWindow::changePlayMode( int mode,
 
     rcss::rcg::PlayMode pmode = static_cast< rcss::rcg::PlayMode >( mode );
 
-    double x = Options::instance().fieldX( point.x() );
-    double y = Options::instance().fieldY( point.y() );
+    double x = point_x;
+    double y = point_y;
 
     // Every mode that Change Playmode offers sends both the ball move and
     // the mode change. back_pass_l / _r used to compute the position and
@@ -2269,14 +3022,9 @@ MainWindow::changePlayMode( int mode,
 void
 MainWindow::receiveMonitorPacket()
 {
-    if ( M_log_player->isLiveMode() )
-    {
-        M_log_player->showLive();
-    }
-    else
-    {
-        //M_log_player_slider->updateIndex( M_disp_holder.currentIndex(), maximum );
-    }
+    // the frame to show if live, and the time of its coming for the
+    // delayed live view (§5.10)
+    M_log_player->receivedFrame();
 }
 
 /*-------------------------------------------------------------------*/

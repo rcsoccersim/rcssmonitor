@@ -35,7 +35,7 @@ noinst_HEADERS = \
 	line_parser.h \
 	simdjson/simdjson.h
 
-librcssrcg_la_LDFLAGS = -version-info 19:0:0
+librcssrcg_la_LDFLAGS = -version-info 20:0:0
 #libXXXX_la_LDFLAGS = -version-info $(LT_CURRENT):$(LT_REVISION):$(LT_AGE)
 #		 1. Start with version information of `0:0:0' for each libtool library.
 #

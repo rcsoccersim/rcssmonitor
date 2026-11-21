@@ -5,7 +5,7 @@
 | Created | 2026-11-06 |
 | Target | rcssmonitor master (ae7668a, 19.0.1) |
 | Server referred to | `rcssserver-19.x-asio/` (a working tree of the asio version of rcssserver 19.x) |
-| Status | Steps 1 to 4, and choosing the transport in the "Connect to ..." dialog, done (2026-11-06). Merging into develop under way from 2026-11-18 (§10) |
+| Status | Steps 1 to 4, and choosing the transport in the "Connect to ..." dialog, done (2026-11-06). Merged into develop (PR #68, 2026-11-18; §10) |
 | Japanese version | [2026-11-06_transport.md](2026-11-06_transport.md) (the same content) |
 
 ## 1. Aim and approach
@@ -461,7 +461,7 @@ Built in 5 commits on `feature/support-tcp-ws`, made from develop (01f880a, 19.0
 - As the TCP / WebSocket support is likely to be adopted officially, it is merged into develop before Phase 10 of the plan of the 3D view. The TCP / WebSocket support of rcssserver is in its develop too (8f1097c).
 - The work is done directly on `feature/support-tcp-ws`. develop is merged into this branch (no rebase, as it has been pushed), and the user makes the PR to develop (§3.5 of the plan of the 3D view).
 - This plan goes into the repository. There were two copies outside it (`TRANSPORT_PLAN.md` at the top, 2026-11-06 22:30, and `docs/TRANSPORT_PLAN.md`, 12:08). The one at the top is newer: the AppImage CI items taken out, and why they are not handled added to §9. The branch's commits have no change of the CI either, so it matches the implementation. It was put in, and an English version was made.
-- The plans go in `docs/plan/`, their file names in the form `<the plan's creation date>_<a word for the plan>.md`, the English version `.en.md`. The date is written `YYYY-MM-DD` (Claude). This plan is `2026-11-06_transport.md`. The plan of the 3D view is to take the same form later.
+- The plans go in `docs/plan/`, their file names in the form `<the plan's creation date>_<a word for the plan>.md`, the English version `.en.md`. The date is written `YYYY-MM-DD` (Claude). This plan is `2026-11-06_transport.md`. The plan of the 3D view is to take the same form later. → 2026-11-21: to the form of CLAUDE.md (user), the English version is `_en.md` (this plan's is `2026-11-06_transport_en.md`). The plan of the 3D view was moved to `docs/plan/2026-11-11_3d-view.md` too.
 
 **Merging develop**
 - develop (2a88791) has Phases 0 to 3 (the CI and the test infrastructure, the bug fixes, the improved JSON parser, the Qt6 support, the removal of qmake). The 7 conflicts were resolved as follows.
@@ -483,3 +483,10 @@ Built in 5 commits on `feature/support-tcp-ws`, made from develop (01f880a, 19.0
 - rcssserver's develop (8f1097c) was built in the scratchpad, and run with a temporary `RCSS_CONF_DIR` and ports other than the usual ones (UDP 16000, TCP 16100, WebSocket 16180). With a program using `MonitorClient`, over each of UDP, TCP and WebSocket, with versions -1 (JSON) and 5, on both Qt6 and Qt5, it connected, frames came (15 in 1.5 seconds), the kick-off command changed the play mode, and the disconnect command was sent. With version 2 over TCP, it refuses with the reason before connecting. The check on screen (2D and 3D) is the user's.
 
 **A failure of the CI**: the 5 commits (4c0b384 to 3bafa02) were pushed. Only the job of Ubuntu 22.04 (Qt 6.2) failed, installing the packages: `Unable to locate package qt6-websockets-dev`. On 22.04, Qt6 WebSockets' development package is `libqt6websockets6-dev` (6.2.4); `qt6-websockets-dev` is its name from 24.04 (checked on packages.ubuntu.com). That job of the CI and the README's steps (with 22.04's name added) were fixed.
+
+### 2026-11-18 to 21: After the merge
+
+- Before the PR, the user checked live connections over UDP, TCP and WebSocket on this branch's 2D view. Merged into develop by PR #68 (merge commit a6df084; 2026-11-18).
+- develop was merged into `feature/3d-view` (c6dc968; 2026-11-21). The combination with the 3D view (the toolbar's connect button made the connect dialog, as the web version's, and the 3D view's live drawing as smooth over TCP and WebSocket as over UDP) is recorded in §14 of the plan of the 3D view (`docs/plan/2026-11-11_3d-view.md`).
+- The English version was renamed `2026-11-06_transport_en.md`, to the form of CLAUDE.md (2026-11-21).
+- On `feature/3d-view`, the user checked live connections over UDP, TCP and WebSocket in 2D and 3D (2026-11-22). The merge is done.

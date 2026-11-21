@@ -742,8 +742,11 @@ ServerParamT::ServerParamT()
       illegal_defense_width_( 40.32 ),
       fixed_teamname_l_( "" ),
       fixed_teamname_r_( "" ),
-      max_catch_angle_( 90.0 ),
-      min_catch_angle_( -90.0 ),
+      // rcssserver 17.0.0 added these with +90 and -90. The logs of the
+      // older servers have no such parameters, and their goalies could
+      // catch all around.
+      max_catch_angle_( 180.0 ),
+      min_catch_angle_( -180.0 ),
       dist_noise_rate_( 0.0125 ),
       focus_dist_noise_rate_( 0.0125 ),
       land_dist_noise_rate_( 0.00125 ),

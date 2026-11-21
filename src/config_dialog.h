@@ -38,16 +38,21 @@
 #include <QPushButton>
 
 #include <functional>
+#include <utility>
 #include <vector>
 
 class QPushButton;
+class QAction;
+class QButtonGroup;
 class QCheckBox;
 class QCloseEvent;
 class QComboBox;
 class QDoubleSpinBox;
+class QGridLayout;
 class QLabel;
 class QLineEdit;
 class QListWidget;
+class QToolButton;
 class QPushButton;
 class QRadioButton;
 class QSlider;
@@ -172,6 +177,7 @@ private:
     QCheckBox * M_stamina_capacity_cb;
     QCheckBox * M_view_area_cb;
     QCheckBox * M_focus_point_cb;
+    QCheckBox * M_all_focus_points_cb;
     QCheckBox * M_catch_area_cb;
     QCheckBox * M_tackle_area_cb;
     QCheckBox * M_kick_accel_area_cb;
@@ -212,11 +218,63 @@ private:
     // color list
     QListWidget * M_color_list_box;
 
+    // the 3D tab (only in a build with the 3D view; null otherwise)
+    QDoubleSpinBox * M_closeup_distance_3d = nullptr;
+    QDoubleSpinBox * M_closeup_elevation_3d = nullptr;
+    QButtonGroup * M_compass_3d = nullptr;
+    QButtonGroup * M_minimap_3d = nullptr;
+    QComboBox * M_player_model_3d = nullptr; //!< the cylinders or a figure pack (fillPacks())
+    QToolButton * M_figure_folder_3d = nullptr; //!< the folders of the figure packs
+    QAction * M_no_figure_folder_3d = nullptr;
+    QMenu * M_trash_figure_pack_3d = nullptr; //!< the user's figure packs, to move to the trash (fillPacks())
+    QLabel * M_figure_credits_3d = nullptr; //!< the pack's credits, or why it cannot be drawn
+    QButtonGroup * M_figure_bodies_3d = nullptr;
+    QLabel * M_figure_bodies_3d_label = nullptr;
+    QDoubleSpinBox * M_figure_scale_3d = nullptr;
+    QLabel * M_figure_scale_3d_label = nullptr;
+    QButtonGroup * M_shadows_3d = nullptr;
+    QCheckBox * M_boards_3d_cb = nullptr;
+    QCheckBox * M_banners_3d_cb = nullptr;
+    QButtonGroup * M_grass_3d = nullptr;
+    QCheckBox * M_stands_3d_cb = nullptr;
+    QCheckBox * M_ball_pattern_3d_cb = nullptr;
+    QCheckBox * M_fps_3d_cb = nullptr;
+    QCheckBox * M_antialias_3d_cb = nullptr;
+    QCheckBox * M_ball_flight_3d_cb = nullptr;
+    QCheckBox * M_ball_ring_3d_cb = nullptr;
+    QCheckBox * M_ball_trail_3d_cb = nullptr;
+    QDoubleSpinBox * M_ball_size_3d = nullptr;
+    QDoubleSpinBox * M_ball_ring_radius_3d = nullptr;
+    QLabel * M_ball_ring_radius_3d_label = nullptr;
+    QDoubleSpinBox * M_ball_trail_cycles_3d = nullptr;
+    QLabel * M_ball_trail_cycles_3d_label = nullptr;
+    QCheckBox * M_sky_3d_cb = nullptr;
+
+    // the delayed live view (the Show tab, §5.10)
+    QCheckBox * M_live_delay_cb = nullptr;
+    QDoubleSpinBox * M_live_delay_seconds = nullptr;
+
+    // the Player Camera tab (only in a build with the 3D view; null otherwise)
+    QButtonGroup * M_player_camera_position = nullptr;
+    QButtonGroup * M_player_camera_direction = nullptr;
+    QButtonGroup * M_player_camera_motion = nullptr;
+    QButtonGroup * M_player_camera_fov = nullptr;
+    QButtonGroup * M_player_camera_sight = nullptr;
+    QDoubleSpinBox * M_player_camera_time_constant = nullptr;
+    QDoubleSpinBox * M_player_camera_max_turn = nullptr;
+    QDoubleSpinBox * M_player_camera_fixed_fov = nullptr;
+    QLabel * M_player_camera_time_constant_label = nullptr;
+    QLabel * M_player_camera_max_turn_label = nullptr;
+    QLabel * M_player_camera_fixed_fov_label = nullptr;
+
 public:
 
     ConfigDialog( QWidget * parent,
                   const DispHolder & disp_holder );
     ~ConfigDialog();
+
+    //! the fields of the delayed live view from the options (turned on or off in the tool bar)
+    void updateLiveDelay();
 private:
 
     void createWidgets();
@@ -232,9 +290,32 @@ private:
     QWidget * createGridStepControls();
     QWidget * createFocusControls();
     QWidget * createPlayerSelectionControls();
+    QWidget * createLiveControls();
     QLayout * createColorList();
     void createColorItems();
     QLayout * createFontButtons();
+    QWidget * create3DTab();
+    QWidget * createPlayersBallTab();
+    QWidget * createCameraTab();
+
+    QButtonGroup * addChoices( QGridLayout * layout,
+                               const QString & label,
+                               const QString & tooltip,
+                               const std::vector< std::pair< QString, QString > > & choices );
+    QDoubleSpinBox * addNumber( QGridLayout * layout,
+                                int row,
+                                int column,
+                                const QString & label,
+                                const QString & tooltip,
+                                double min,
+                                double max,
+                                double step,
+                                int decimals,
+                                const QString & unit,
+                                QLabel ** label_widget = nullptr );
+    void changed3D();
+    //! the cylinders and the figure packs found, the one of the options chosen, and its credits
+    void fillPacks();
 
 protected:
 
@@ -262,6 +343,7 @@ private slots:
     void clickShowStaminaCapacity( bool checked );
     void clickShowViewArea( bool checked );
     void clickShowFocusPoint( bool checked );
+    void clickShowAllFocusPoints( bool checked );
     void clickShowCatchArea( bool checked );
     void clickShowTackleArea( bool checked );
     void clickShowKickAccelArea( bool checked );
@@ -316,6 +398,15 @@ public slots:
     // just update this dialog contents
     // no emit
     void updateFieldScale();
+    // the 3D tab and the Player Camera tab from the options
+    void update3D();
+    // a folder of figure packs of the user's choice (empty: none); the packs looked for again
+    // emit configured()
+    void setFigureFolder( const QString & folder );
+    // a figure pack of the user's (by its folder) moved to the trash, if the user says so; not
+    // drawn any more (the cylinders if it was chosen), the packs looked for again
+    // emit configured()
+    void trashFigurePack( const QString & dir );
 
     // connect to other objects
     // emit configured()
@@ -371,6 +462,8 @@ signals:
 
     void configured();
     void canvasResized( const QSize & size );
+    //! the options of the delayed live view changed (§5.10)
+    void liveDelayChanged();
 };
 
 #endif

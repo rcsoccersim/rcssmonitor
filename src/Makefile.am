@@ -26,13 +26,18 @@ rcssmonitor_SOURCES = \
 	overlay_math.cpp \
 	play_mode_position.cpp \
 	player_painter.cpp \
+	player_selection.cpp \
+	player_style.cpp \
 	player_type_dialog.cpp \
 	rcg_handler.cpp \
+	referee_menu.cpp \
 	score_board_painter.cpp \
 	tcp_monitor_transport.cpp \
 	team_graphic.cpp \
 	team_graphic_painter.cpp \
 	tool_icon.cpp \
+	toolbar_icons.cpp \
+	tooltip_marker.cpp \
 	udp_monitor_transport.cpp \
 	vector_2d.cpp \
 	main.cpp
@@ -47,12 +52,14 @@ nodist_rcssmonitor_SOURCES = \
 	moc_monitor_client.cpp \
 	moc_monitor_transport.cpp \
 	moc_player_type_dialog.cpp \
+	moc_referee_menu.cpp \
 	moc_tcp_monitor_transport.cpp \
 	moc_udp_monitor_transport.cpp
 
 noinst_HEADERS = \
 	angle_deg.h \
 	ball_painter.h \
+	camera_mode.h \
 	circle_2d.h \
 	config_dialog.h \
 	connect_dialog.h \
@@ -74,14 +81,21 @@ noinst_HEADERS = \
 	painter_interface.h \
 	play_mode_position.h \
 	player_painter.h \
+	player_selection.h \
+	player_style.h \
 	player_type_dialog.h \
+	player_camera_options.h \
 	player_type_sort_proxy.h \
 	rcg_handler.h \
+	referee_menu.h \
+	referee_target.h \
 	score_board_painter.h \
 	tcp_monitor_transport.h \
 	team_graphic.h \
 	team_graphic_painter.h \
 	tool_icon.h \
+	toolbar_icons.h \
+	tooltip_marker.h \
 	udp_monitor_transport.h \
 	vector_2d.h \
 	ws_monitor_transport.h

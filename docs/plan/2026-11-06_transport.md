@@ -5,8 +5,8 @@
 | 作成日 | 2026-11-06 |
 | 対象 | rcssmonitor master (ae7668a, 19.0.1) |
 | 参照したサーバ | `rcssserver-19.x-asio/` (asio 版 rcssserver 19.x の作業ツリー) |
-| 状態 | 段階 1〜4 と、「Connect to ...」ダイアログでの方式の選択は済 (2026-11-06)。2026-11-18 から develop への取り込みの作業中 (§10) |
-| 英語版 | [2026-11-06_transport.en.md](2026-11-06_transport.en.md) (内容は同じ) |
+| 状態 | 段階 1〜4 と、「Connect to ...」ダイアログでの方式の選択は済 (2026-11-06)。develop に取り込んだ (PR #68、2026-11-18。§10) |
+| 英語版 | [2026-11-06_transport_en.md](2026-11-06_transport_en.md) (内容は同じ) |
 
 ## 1. 目的と方針
 
@@ -461,7 +461,7 @@ develop (01f880a、19.0.1) から作った `feature/support-tcp-ws` に、5 つ�
 - TCP / WebSocket 対応を公式に採用する見込みになったので、3D 表示の計画の Phase 10 の前に develop に取り込む。rcssserver 側の TCP / WebSocket 対応も develop に入った (8f1097c)。
 - 作業は `feature/support-tcp-ws` の上で直接行う。develop をこのブランチにマージし (プッシュ済みなので rebase はしない)、ユーザが develop への PR を作る (3D 表示の計画の §3.5)。
 - この計画書をリポジトリに入れる。リポジトリの外に 2 つの写しがあった (直下の `TRANSPORT_PLAN.md`、2026-11-06 22:30 と、`docs/TRANSPORT_PLAN.md`、12:08)。直下のほうが新しく、AppImage の CI の項目を除き、扱わない理由を §9 に書き足したもの。ブランチのコミットにも CI の変更はないので、実装と合っている。これを入れ、英語版を作った。
-- 計画書の置き場所を `docs/plan/` にし、ファイル名を `<計画書の作成日>_<計画を表す単語>.md` にそろえる。英語版は `.en.md`。日付は `YYYY-MM-DD` とした (Claude)。この計画書は `2026-11-06_transport.md`。3D 表示の計画書にも後で同じ形を当てる。
+- 計画書の置き場所を `docs/plan/` にし、ファイル名を `<計画書の作成日>_<計画を表す単語>.md` にそろえる。英語版は `.en.md`。日付は `YYYY-MM-DD` とした (Claude)。この計画書は `2026-11-06_transport.md`。3D 表示の計画書にも後で同じ形を当てる。 → 2026-11-21: CLAUDE.md の形 (ユーザ) に合わせ、英語版は `_en.md` にした (この計画書の英語版は `2026-11-06_transport_en.md`)。3D 表示の計画書も `docs/plan/2026-11-11_3d-view.md` に移した。
 
 **develop をマージした**
 - develop (2a88791) は、Phase 0〜3 (CI とテストの仕組み、不具合の修正、JSON パーサの改善、Qt6 対応、qmake の廃止) を含む。衝突は 7 つで、次のように解いた。
@@ -483,3 +483,10 @@ develop (01f880a、19.0.1) から作った `feature/support-tcp-ws` に、5 つ�
 - rcssserver の develop (8f1097c) を scratchpad でビルドし、一時的な `RCSS_CONF_DIR` とふだんと違うポート (UDP 16000、TCP 16100、WebSocket 16180) で動かした。`MonitorClient` を使う確認用のプログラムで、UDP、TCP、WebSocket のそれぞれ、版 -1 (JSON) と 5 で、Qt6 と Qt5 の両方で、つながり、フレームが届き (1.5 秒で 15)、キックオフのコマンドでプレイモードが変わり、切断のコマンドを送れた。TCP で版 2 を指定すると、つなぐ前に理由を出して断る。画面での確認 (2D と 3D) はユーザが行う。
 
 **CI の不具合**: 5 コミット (4c0b384〜3bafa02) をプッシュした。CI は、Ubuntu 22.04 (Qt 6.2) のジョブだけが、パッケージを入れる段階で `Unable to locate package qt6-websockets-dev` で落ちた。22.04 では、Qt6 の WebSockets の開発のパッケージは `libqt6websockets6-dev` (6.2.4) で、`qt6-websockets-dev` は 24.04 からの名前 (packages.ubuntu.com で確かめた)。CI のそのジョブと README の手順 (22.04 の名前を添えた) を直した。
+
+### 2026-11-18〜21: 取り込みの後
+
+- ユーザが、PR の前にこのブランチの 2D の画面で、UDP、TCP、WebSocket のライブ接続を確かめた。PR #68 で develop に取り込んだ (Merge Commit、a6df084。2026-11-18)。
+- develop を `feature/3d-view` に取り込んだ (c6dc968。2026-11-21)。3D の表示との組み合わせ (ツールバーの接続のボタンを、web 版と同じく接続のダイアログにしたこと、3D のライブの描き方が TCP と WebSocket でも UDP と同じになめらかなこと) は、3D 表示の計画書 (`docs/plan/2026-11-11_3d-view.md`) の §14 に記録した。
+- 英語版の名前を CLAUDE.md の形に合わせて `2026-11-06_transport_en.md` にした (2026-11-21)。
+- ユーザが `feature/3d-view` で、UDP、TCP、WebSocket のライブ接続を 2D と 3D で確かめた (2026-11-22)。取り込みは済。

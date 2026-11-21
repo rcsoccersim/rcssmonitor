@@ -51,6 +51,7 @@
 #  endif
 #endif
 
+#include <algorithm>
 #include <iostream>
 #include <sstream>
 #include <cmath>
@@ -68,32 +69,6 @@ const QString Options::CONF_FILE = QDir::currentPath() + QDir::separator() + QSt
 #else
 const QString Options::CONF_FILE = QDir::homePath() + QDir::separator() + QString( ".rcssmonitor.conf" );
 #endif
-
-const double Options::PITCH_LENGTH = 105.0;
-const double Options::PITCH_WIDTH = 68.0;
-const double Options::PITCH_HALF_LENGTH = Options::PITCH_LENGTH * 0.5;
-const double Options::PITCH_HALF_WIDTH = Options::PITCH_WIDTH * 0.5;
-const double Options::PITCH_MARGIN = 5.0;
-const double Options::CENTER_CIRCLE_R = 9.15;
-const double Options::PENALTY_AREA_LENGTH = 16.5;
-const double Options::PENALTY_AREA_WIDTH = 40.32;
-const double Options::PENALTY_CIRCLE_R = 9.15;
-const double Options::PENALTY_SPOT_DIST = 11.0;
-const double Options::GOAL_WIDTH = 14.02;
-const double Options::GOAL_HALF_WIDTH = Options::GOAL_WIDTH * 0.5;
-const double Options::GOAL_AREA_LENGTH = 5.5;
-const double Options::GOAL_AREA_WIDTH = 18.32;
-const double Options::GOAL_DEPTH = 2.44;
-const double Options::CORNER_ARC_R = 1.0;
-const double Options::GOAL_POST_RADIUS = 0.06;
-
-const double Options::MIN_FIELD_SCALE = 1.0;
-const double Options::MAX_FIELD_SCALE = 400.0;
-const double Options::ZOOM_RATIO = 1.5;
-const int Options::DEFAULT_TIMER_INTERVAL = 100;
-
-//const int Options::WAITING_ANIMATION_SIZE = 64;
-const int Options::WAITING_ANIMATION_SIZE = 96;
 
 const QColor Options::FIELD_COLOR( 31, 160, 31 );
 const QColor Options::LINE_COLOR( 255, 255, 255 );
@@ -132,6 +107,16 @@ const QColor Options::POINTTO_COLOR( 255, 0, 191 );
 const QColor Options::ILLEGAL_DEFENSE_COLOR( 255, 0, 0 );
 
 namespace {
+
+//! a value within its range (a setting out of it is not read)
+inline
+bool
+in_range( const double val,
+          const double min,
+          const double max )
+{
+    return min <= val && val <= max;
+}
 
 //! the transport names for the help message
 #ifdef HAVE_QT_WEBSOCKETS
@@ -227,6 +212,8 @@ Options::Options()
     M_auto_reconnect_wait( 5 ),
     M_auto_loop_mode( false ),
     M_timer_interval( DEFAULT_TIMER_INTERVAL ),
+    M_live_delay( false ),
+    M_live_delay_seconds( DEFAULT_LIVE_DELAY_SECONDS ),
     // window options
     M_window_x( -1 ),
     M_window_y( -1 ),
@@ -237,6 +224,31 @@ Options::Options()
     M_canvas_width( -1 ),
     M_canvas_height( -1 ),
     M_show_menu_bar( true ),
+    M_view_3d( false ),
+    M_camera_3d( DEFAULT_CAMERA_MODE ),
+    M_closeup_distance_3d( CLOSEUP_DISTANCE_3D ),
+    M_closeup_elevation_3d( CLOSEUP_ELEVATION_3D ),
+    M_boards_3d( BOARDS_3D ),
+    M_grass_3d( GRASS_3D ),
+    M_sky_3d( SKY_3D ),
+    M_stands_3d( STANDS_3D ),
+    M_ball_pattern_3d( BALL_PATTERN_3D ),
+    M_ball_flight_3d( BALL_FLIGHT_3D ),
+    M_ball_size_3d( BALL_SIZE_3D ),
+    M_ball_ring_3d( BALL_RING_3D ),
+    M_ball_ring_radius_3d( BALL_RING_RADIUS_3D ),
+    M_ball_trail_3d( BALL_TRAIL_3D ),
+    M_ball_trail_cycles_3d( BALL_TRAIL_CYCLES_3D ),
+    M_banners_3d( BANNERS_3D ),
+    M_compass_3d( COMPASS_3D ),
+    M_minimap_3d( MINIMAP_3D ),
+    M_fps_3d( FPS_3D ),
+    M_antialias_3d( ANTIALIAS_3D ),
+    M_player_model_3d( QString::fromLatin1( PLAYER_MODEL_3D ) ),
+    M_figure_folder_3d(),
+    M_figure_scale_3d( FIGURE_SCALE_3D ),
+    M_figure_bodies_3d( FIGURE_BODIES_3D ),
+    M_shadows_3d( SHADOWS_3D ),
     M_show_tool_bar( false ),
     M_show_status_bar( false ),
     // view options
@@ -251,6 +263,7 @@ Options::Options()
     M_show_player_type( false ),
     M_show_view_area( false ),
     M_show_focus_point( false ),
+    M_show_all_focus_points( false ),
     M_show_illegal_defense( false ),
     M_show_catch_area( false ),
     M_show_tackle_area( false ),
@@ -388,6 +401,13 @@ Options::readSettings()
     val = settings.value( "show_menu_bar" );
     if ( val.isValid() ) M_show_menu_bar = val.toBool();
 
+    val = settings.value( "view_3d" );
+    if ( val.isValid() ) M_view_3d = val.toBool();
+
+    // an unknown name (of a later version) is not read
+    val = settings.value( "camera_3d" );
+    if ( val.isValid() ) cameraModeFromName( val.toString(), &M_camera_3d );
+
     val = settings.value( "show_tool_bar" );
     if ( val.isValid() ) M_show_tool_bar = val.toBool();
 
@@ -445,6 +465,12 @@ Options::readSettings()
     val = settings.value( "timer_interval" );
     if ( val.isValid() ) M_timer_interval = val.toInt();
 
+    val = settings.value( "live_delay" );
+    if ( val.isValid() ) M_live_delay = val.toBool();
+
+    val = settings.value( "live_delay_seconds" );
+    if ( val.isValid() ) setLiveDelaySeconds( val.toDouble() );
+
     settings.endGroup();
 
     //
@@ -485,6 +511,9 @@ Options::readSettings()
 
     val = settings.value( "show_focus_point" );
     if ( val.isValid() ) M_show_focus_point = val.toBool();
+
+    val = settings.value( "show_all_focus_points" );
+    if ( val.isValid() ) M_show_all_focus_points = val.toBool();
 
     val = settings.value( "show_illegal_defense" );
     if ( val.isValid() ) M_show_illegal_defense = val.toBool();
@@ -710,6 +739,125 @@ Options::readSettings()
     if ( val.isValid() ) M_measure_font.fromString( val.toString() );
 
     settings.endGroup();
+
+    //
+    // the 3D view; a value out of its range is not read
+    //
+
+    settings.beginGroup( "View3D" );
+
+    val = settings.value( "closeup_distance_3d" );
+    if ( val.isValid() && in_range( val.toDouble(), MIN_CLOSEUP_DISTANCE_3D, MAX_CLOSEUP_DISTANCE_3D ) )
+    {
+        M_closeup_distance_3d = val.toDouble();
+    }
+
+    val = settings.value( "closeup_elevation_3d" );
+    if ( val.isValid() && in_range( val.toDouble(), MIN_CLOSEUP_ELEVATION_3D, MAX_CLOSEUP_ELEVATION_3D ) )
+    {
+        M_closeup_elevation_3d = val.toDouble();
+    }
+
+    val = settings.value( "boards_3d" );
+    if ( val.isValid() ) M_boards_3d = val.toBool();
+
+    val = settings.value( "grass_3d" );
+    if ( val.isValid() ) grassModeFromName( val.toString(), &M_grass_3d );
+
+    val = settings.value( "sky_3d" );
+    if ( val.isValid() ) M_sky_3d = val.toBool();
+
+    val = settings.value( "stands_3d" );
+    if ( val.isValid() ) M_stands_3d = val.toBool();
+
+    val = settings.value( "ball_pattern_3d" );
+    if ( val.isValid() ) M_ball_pattern_3d = val.toBool();
+
+    val = settings.value( "ball_flight_3d" );
+    if ( val.isValid() ) M_ball_flight_3d = val.toBool();
+
+    val = settings.value( "ball_size_3d" );
+    if ( val.isValid() && in_range( val.toDouble(), MIN_BALL_SIZE_3D, MAX_BALL_SIZE_3D ) )
+    {
+        M_ball_size_3d = val.toDouble();
+    }
+
+    val = settings.value( "ball_ring_3d" );
+    if ( val.isValid() ) M_ball_ring_3d = val.toBool();
+
+    val = settings.value( "ball_ring_radius_3d" );
+    if ( val.isValid() && in_range( val.toDouble(), MIN_BALL_RING_RADIUS_3D, MAX_BALL_RING_RADIUS_3D ) )
+    {
+        M_ball_ring_radius_3d = val.toDouble();
+    }
+
+    val = settings.value( "ball_trail_3d" );
+    if ( val.isValid() ) M_ball_trail_3d = val.toBool();
+
+    val = settings.value( "ball_trail_cycles_3d" );
+    if ( val.isValid() && in_range( val.toInt(), MIN_BALL_TRAIL_CYCLES_3D, MAX_BALL_TRAIL_CYCLES_3D ) )
+    {
+        M_ball_trail_cycles_3d = val.toInt();
+    }
+
+    val = settings.value( "banners_3d" );
+    if ( val.isValid() ) M_banners_3d = val.toBool();
+
+    // an unknown name (of a later version) is not read
+    val = settings.value( "compass_3d" );
+    if ( val.isValid() ) guideModeFromName( val.toString(), &M_compass_3d );
+
+    val = settings.value( "minimap_3d" );
+    if ( val.isValid() ) guideModeFromName( val.toString(), &M_minimap_3d );
+
+    val = settings.value( "fps_3d" );
+    if ( val.isValid() ) M_fps_3d = val.toBool();
+
+    val = settings.value( "antialias_3d" );
+    if ( val.isValid() ) M_antialias_3d = val.toBool();
+
+    // a figure pack's name, whether there is such a pack now or not
+    val = settings.value( "player_model_3d" );
+    if ( val.isValid() ) M_player_model_3d = normalizedPlayerModel( val.toString() );
+
+    val = settings.value( "figure_folder_3d" );
+    if ( val.isValid() ) M_figure_folder_3d = val.toString();
+
+    val = settings.value( "figure_scale_3d" );
+    if ( val.isValid() && in_range( val.toDouble(), MIN_FIGURE_SCALE_3D, MAX_FIGURE_SCALE_3D ) )
+    {
+        M_figure_scale_3d = val.toDouble();
+    }
+
+    val = settings.value( "figure_bodies_3d" );
+    if ( val.isValid() ) figureBodiesFromName( val.toString(), &M_figure_bodies_3d );
+
+    val = settings.value( "shadows_3d" );
+    if ( val.isValid() ) shadowModeFromName( val.toString(), &M_shadows_3d );
+
+    // the player camera: an unknown name (of a later version) is not read
+    {
+        using namespace PlayerCameraStyle;
+        PlayerCameraOptions & pc = M_player_camera;
+        val = settings.value( "player_camera_position" );
+        if ( val.isValid() ) fromName( positions(), val.toString(), &pc.position );
+        val = settings.value( "player_camera_direction" );
+        if ( val.isValid() ) fromName( directions(), val.toString(), &pc.direction );
+        val = settings.value( "player_camera_motion" );
+        if ( val.isValid() ) fromName( motions(), val.toString(), &pc.motion );
+        val = settings.value( "player_camera_fov" );
+        if ( val.isValid() ) fromName( fovs(), val.toString(), &pc.fov );
+        val = settings.value( "player_camera_sight" );
+        if ( val.isValid() ) fromName( sights(), val.toString(), &pc.sight );
+        val = settings.value( "player_camera_time_constant" );
+        if ( val.isValid() && in_range( val.toDouble(), MIN_TIME_CONSTANT, MAX_TIME_CONSTANT ) ) pc.time_constant = val.toDouble();
+        val = settings.value( "player_camera_max_turn" );
+        if ( val.isValid() && in_range( val.toDouble(), MIN_MAX_TURN, MAX_MAX_TURN ) ) pc.max_turn = val.toDouble();
+        val = settings.value( "player_camera_fixed_fov" );
+        if ( val.isValid() && in_range( val.toDouble(), MIN_FIXED_FOV, MAX_FIXED_FOV ) ) pc.fixed_fov = val.toDouble();
+    }
+
+    settings.endGroup();
 }
 
 /*-----------------------------------------------------------------*/
@@ -737,6 +885,8 @@ Options::writeSettings( bool all )
         settings.setValue( "maximize", M_maximize );
         settings.setValue( "full_screen", M_full_screen );
         settings.setValue( "show_menu_bar", M_show_menu_bar );
+        settings.setValue( "view_3d", M_view_3d );
+        settings.setValue( "camera_3d", cameraModeName( M_camera_3d ) );
         settings.setValue( "show_tool_bar", M_show_tool_bar );
         settings.setValue( "show_status_bar", M_show_status_bar );
         settings.endGroup();
@@ -760,6 +910,14 @@ Options::writeSettings( bool all )
         settings.endGroup();
     }
 
+    // the delayed live view (§5.10): set in the settings dialog and the tool
+    // bar, so kept at the end as the view's settings are (the other monitor
+    // options only when the file is made)
+    settings.beginGroup( "Monitor" );
+    settings.setValue( "live_delay", M_live_delay );
+    settings.setValue( "live_delay_seconds", M_live_delay_seconds );
+    settings.endGroup();
+
     //
     // field
     //
@@ -776,6 +934,7 @@ Options::writeSettings( bool all )
     settings.setValue( "show_view_area", M_show_view_area );
     settings.setValue( "show_illegal_defense", M_show_illegal_defense );
     settings.setValue( "show_focus_point", M_show_focus_point );
+    settings.setValue( "show_all_focus_points", M_show_all_focus_points );
     settings.setValue( "show_catch_area", M_show_catch_area );
     settings.setValue( "show_tackle_area", M_show_tackle_area );
     settings.setValue( "show_kick_accel_area", M_show_kick_accel_area );
@@ -852,6 +1011,150 @@ Options::writeSettings( bool all )
     settings.setValue( "player_font", M_player_font.toString() );
     settings.setValue( "measure_font", M_measure_font.toString() );
     settings.endGroup();
+
+    //
+    // the 3D view
+    //
+    settings.beginGroup( "View3D" );
+    settings.setValue( "closeup_distance_3d", M_closeup_distance_3d );
+    settings.setValue( "closeup_elevation_3d", M_closeup_elevation_3d );
+    settings.setValue( "boards_3d", M_boards_3d );
+    settings.setValue( "grass_3d", grassModeName( M_grass_3d ) );
+    settings.setValue( "sky_3d", M_sky_3d );
+    settings.setValue( "stands_3d", M_stands_3d );
+    settings.setValue( "ball_pattern_3d", M_ball_pattern_3d );
+    settings.setValue( "ball_flight_3d", M_ball_flight_3d );
+    settings.setValue( "ball_size_3d", M_ball_size_3d );
+    settings.setValue( "ball_ring_3d", M_ball_ring_3d );
+    settings.setValue( "ball_ring_radius_3d", M_ball_ring_radius_3d );
+    settings.setValue( "ball_trail_3d", M_ball_trail_3d );
+    settings.setValue( "ball_trail_cycles_3d", M_ball_trail_cycles_3d );
+    settings.setValue( "banners_3d", M_banners_3d );
+    settings.setValue( "compass_3d", guideModeName( M_compass_3d ) );
+    settings.setValue( "minimap_3d", guideModeName( M_minimap_3d ) );
+    settings.setValue( "fps_3d", M_fps_3d );
+    settings.setValue( "antialias_3d", M_antialias_3d );
+    settings.setValue( "player_model_3d", M_player_model_3d );
+    settings.setValue( "figure_folder_3d", M_figure_folder_3d );
+    settings.setValue( "figure_scale_3d", M_figure_scale_3d );
+    settings.setValue( "figure_bodies_3d", figureBodiesName( M_figure_bodies_3d ) );
+    settings.setValue( "shadows_3d", shadowModeName( M_shadows_3d ) );
+    {
+        using namespace PlayerCameraStyle;
+        const PlayerCameraOptions & pc = M_player_camera;
+        settings.setValue( "player_camera_position", nameOf( positions(), pc.position ) );
+        settings.setValue( "player_camera_direction", nameOf( directions(), pc.direction ) );
+        settings.setValue( "player_camera_motion", nameOf( motions(), pc.motion ) );
+        settings.setValue( "player_camera_fov", nameOf( fovs(), pc.fov ) );
+        settings.setValue( "player_camera_sight", nameOf( sights(), pc.sight ) );
+        settings.setValue( "player_camera_time_constant", pc.time_constant );
+        settings.setValue( "player_camera_max_turn", pc.max_turn );
+        settings.setValue( "player_camera_fixed_fov", pc.fixed_fov );
+    }
+    settings.endGroup();
+}
+
+/*-------------------------------------------------------------------*/
+void
+Options::setPlayerCamera( const PlayerCameraOptions & options )
+{
+    using namespace PlayerCameraStyle;
+    M_player_camera = options;
+    M_player_camera.time_constant = std::min( MAX_TIME_CONSTANT, std::max( MIN_TIME_CONSTANT, options.time_constant ) );
+    M_player_camera.max_turn = std::min( MAX_MAX_TURN, std::max( MIN_MAX_TURN, options.max_turn ) );
+    M_player_camera.fixed_fov = std::min( MAX_FIXED_FOV, std::max( MIN_FIXED_FOV, options.fixed_fov ) );
+}
+
+/*-------------------------------------------------------------------*/
+void
+Options::setCloseupDistance3D( const double distance )
+{
+    M_closeup_distance_3d = std::min( MAX_CLOSEUP_DISTANCE_3D, std::max( MIN_CLOSEUP_DISTANCE_3D, distance ) );
+}
+
+/*-------------------------------------------------------------------*/
+void
+Options::setCloseupElevation3D( const double elevation )
+{
+    M_closeup_elevation_3d = std::min( MAX_CLOSEUP_ELEVATION_3D, std::max( MIN_CLOSEUP_ELEVATION_3D, elevation ) );
+}
+
+/*-------------------------------------------------------------------*/
+void
+Options::setFigureScale3D( const double scale )
+{
+    M_figure_scale_3d = std::min( MAX_FIGURE_SCALE_3D, std::max( MIN_FIGURE_SCALE_3D, scale ) );
+}
+
+/*-------------------------------------------------------------------*/
+void
+Options::setView3DDefaults()
+{
+    M_compass_3d = COMPASS_3D;
+    M_minimap_3d = MINIMAP_3D;
+    M_fps_3d = FPS_3D;
+    M_antialias_3d = ANTIALIAS_3D;
+    M_shadows_3d = SHADOWS_3D;
+    M_boards_3d = BOARDS_3D;
+    M_banners_3d = BANNERS_3D;
+    M_stands_3d = STANDS_3D;
+    M_sky_3d = SKY_3D;
+    M_grass_3d = GRASS_3D;
+}
+
+/*-------------------------------------------------------------------*/
+void
+Options::setPlayersAndBall3DDefaults()
+{
+    M_player_model_3d = QString::fromLatin1( PLAYER_MODEL_3D );
+    M_figure_scale_3d = FIGURE_SCALE_3D;
+    M_figure_bodies_3d = FIGURE_BODIES_3D;
+    M_ball_pattern_3d = BALL_PATTERN_3D;
+    M_ball_flight_3d = BALL_FLIGHT_3D;
+    M_ball_size_3d = BALL_SIZE_3D;
+    M_ball_ring_3d = BALL_RING_3D;
+    M_ball_ring_radius_3d = BALL_RING_RADIUS_3D;
+    M_ball_trail_3d = BALL_TRAIL_3D;
+    M_ball_trail_cycles_3d = BALL_TRAIL_CYCLES_3D;
+}
+
+/*-------------------------------------------------------------------*/
+void
+Options::setCamera3DDefaults()
+{
+    M_closeup_distance_3d = CLOSEUP_DISTANCE_3D;
+    M_closeup_elevation_3d = CLOSEUP_ELEVATION_3D;
+    M_player_camera = PlayerCameraOptions();
+}
+
+/*-------------------------------------------------------------------*/
+void
+Options::setBallSize3D( const double radius )
+{
+    M_ball_size_3d = std::min( MAX_BALL_SIZE_3D, std::max( MIN_BALL_SIZE_3D, radius ) );
+}
+
+/*-------------------------------------------------------------------*/
+void
+Options::setBallRingRadius3D( const double radius )
+{
+    M_ball_ring_radius_3d = std::min( MAX_BALL_RING_RADIUS_3D, std::max( MIN_BALL_RING_RADIUS_3D, radius ) );
+}
+
+/*-------------------------------------------------------------------*/
+void
+Options::setLiveDelaySeconds( const double seconds )
+{
+    if ( ! std::isfinite( seconds ) ) return;
+    const double stepped = std::round( seconds / LIVE_DELAY_SECONDS_STEP ) * LIVE_DELAY_SECONDS_STEP;
+    M_live_delay_seconds = std::min( MAX_LIVE_DELAY_SECONDS, std::max( MIN_LIVE_DELAY_SECONDS, stepped ) );
+}
+
+/*-------------------------------------------------------------------*/
+void
+Options::setBallTrailCycles3D( const int cycles )
+{
+    M_ball_trail_cycles_3d = std::min( MAX_BALL_TRAIL_CYCLES_3D, std::max( MIN_BALL_TRAIL_CYCLES_3D, cycles ) );
 }
 
 /*-------------------------------------------------------------------*/
@@ -907,6 +1210,15 @@ Options::parseCmdLine( int argc,
                                            "int",
                                            QString::number( M_timer_interval ) );
     parser.addOption( opt_timer_interval );
+    QCommandLineOption opt_live_delay( "live-delay",
+                                       "Draw a live game this many seconds behind its newest frame ("
+                                       + QString::number( MIN_LIVE_DELAY_SECONDS ) + " to " + QString::number( MAX_LIVE_DELAY_SECONDS )
+                                       + ", in steps of " + QString::number( LIVE_DELAY_SECONDS_STEP ) + "), so that the 3D view knows the touches ahead and"
+                                       " the ball can fly as in log replay. 0 turns it off. (Default="
+                                       + QString::number( M_live_delay ? M_live_delay_seconds : 0.0 ) + ")",
+                                       "seconds",
+                                       QString::number( M_live_delay ? M_live_delay_seconds : 0.0 ) );
+    parser.addOption( opt_live_delay );
     QCommandLineOption opt_auto_quit_mode( "auto-quit-mode",
                                            "Enable the automatic quit mode. (Default=" + to_onoff( M_auto_quit_mode ) + ")",
                                            "bool",
@@ -958,6 +1270,185 @@ Options::parseCmdLine( int argc,
                                             "bool",
                                             to_onoff( M_show_status_bar ) );
     parser.addOption( opt_show_status_bar );
+    QCommandLineOption opt_view_3d( "view-3d",
+                                    "Start with the 3D view. (Default=" + to_onoff( M_view_3d ) + ")",
+                                    "bool",
+                                    to_onoff( M_view_3d ) );
+    parser.addOption( opt_view_3d );
+    QStringList camera_names;
+    for ( const CameraModeInfo & m : cameraModes() ) camera_names << m.name;
+    QCommandLineOption opt_camera_3d( "camera-3d",
+                                      "The camera of the 3D view: " + camera_names.join( ", " )
+                                      + ". (Default=" + cameraModeName( M_camera_3d ) + ")",
+                                      "camera",
+                                      cameraModeName( M_camera_3d ) );
+    parser.addOption( opt_camera_3d );
+    QCommandLineOption opt_closeup_distance_3d( "closeup-distance-3d",
+                                                "The close-up cameras of the 3D view: how far from what they follow, "
+                                                + to_string( MIN_CLOSEUP_DISTANCE_3D ) + " to " + to_string( MAX_CLOSEUP_DISTANCE_3D )
+                                                + " m. (Default=" + to_string( M_closeup_distance_3d ) + ")",
+                                                "meters",
+                                                to_string( M_closeup_distance_3d ) );
+    parser.addOption( opt_closeup_distance_3d );
+    QCommandLineOption opt_closeup_elevation_3d( "closeup-elevation-3d",
+                                                 "The close-up cameras of the 3D view: how high above it, "
+                                                 + to_string( MIN_CLOSEUP_ELEVATION_3D ) + " to " + to_string( MAX_CLOSEUP_ELEVATION_3D )
+                                                 + " degrees. (Default=" + to_string( M_closeup_elevation_3d ) + ")",
+                                                 "degrees",
+                                                 to_string( M_closeup_elevation_3d ) );
+    parser.addOption( opt_closeup_elevation_3d );
+    QCommandLineOption opt_boards_3d( "boards-3d",
+                                      "The 3D view: the boards around the pitch in the team colors. (Default=" + to_onoff( M_boards_3d ) + ")",
+                                      "bool", to_onoff( M_boards_3d ) );
+    parser.addOption( opt_boards_3d );
+    QCommandLineOption opt_grass_3d( "grass-3d",
+                                     "The 3D view: the grass, plain, stripes (mowed in stripes) or realistic (the stripes by the way the camera looks, the blades and the worn grass). (Default="
+                                     + grassModeName( M_grass_3d ) + ")",
+                                     "mode", grassModeName( M_grass_3d ) );
+    parser.addOption( opt_grass_3d );
+    QCommandLineOption opt_sky_3d( "sky-3d",
+                                   "The 3D view: the sky, and the haze over the far ground. (Default=" + to_onoff( M_sky_3d ) + ")",
+                                   "bool", to_onoff( M_sky_3d ) );
+    parser.addOption( opt_sky_3d );
+    QCommandLineOption opt_stands_3d( "stands-3d",
+                                      "The 3D view: the stands along the touch lines. (Default=" + to_onoff( M_stands_3d ) + ")",
+                                      "bool", to_onoff( M_stands_3d ) );
+    parser.addOption( opt_stands_3d );
+    QCommandLineOption opt_ball_pattern_3d( "ball-pattern-3d",
+                                            "The 3D view: the ball's pattern, which shows it rolling. (Default=" + to_onoff( M_ball_pattern_3d ) + ")",
+                                            "bool", to_onoff( M_ball_pattern_3d ) );
+    parser.addOption( opt_ball_pattern_3d );
+    QCommandLineOption opt_ball_flight_3d( "ball-flight-3d",
+                                           "The 3D view: in log replay, and live with --live-delay, the ball flies in the air, virtually (from the kicks, the touches and the opponents on the way). (Default=" + to_onoff( M_ball_flight_3d ) + ")",
+                                           "bool", to_onoff( M_ball_flight_3d ) );
+    parser.addOption( opt_ball_flight_3d );
+    QCommandLineOption opt_ball_size_3d( "ball-size-3d",
+                                         "The 3D view: the ball radius (m), "
+                                         + to_string( MIN_BALL_SIZE_3D ) + " to " + to_string( MAX_BALL_SIZE_3D )
+                                         + "; below 0.01, the real size (the server's ball_size). (Default="
+                                         + to_string( M_ball_size_3d ) + ")",
+                                         "radius", to_string( M_ball_size_3d ) );
+    parser.addOption( opt_ball_size_3d );
+    QCommandLineOption opt_ball_ring_3d( "ball-ring-3d",
+                                         "The 3D view: a ring on the ground around the ball. (Default=" + to_onoff( M_ball_ring_3d ) + ")",
+                                         "bool", to_onoff( M_ball_ring_3d ) );
+    parser.addOption( opt_ball_ring_3d );
+    QCommandLineOption opt_ball_ring_radius_3d( "ball-ring-radius-3d",
+                                                "The 3D view: the radius of the ring around the ball (m), "
+                                                + to_string( MIN_BALL_RING_RADIUS_3D ) + " to " + to_string( MAX_BALL_RING_RADIUS_3D )
+                                                + ". (Default=" + to_string( M_ball_ring_radius_3d ) + ")",
+                                                "radius", to_string( M_ball_ring_radius_3d ) );
+    parser.addOption( opt_ball_ring_radius_3d );
+    QCommandLineOption opt_ball_trail_3d( "ball-trail-3d",
+                                          "The 3D view: a trail behind the ball. (Default=" + to_onoff( M_ball_trail_3d ) + ")",
+                                          "bool", to_onoff( M_ball_trail_3d ) );
+    parser.addOption( opt_ball_trail_3d );
+    QCommandLineOption opt_ball_trail_cycles_3d( "ball-trail-cycles-3d",
+                                                 "The 3D view: the trail is as long as the ball went in this many cycles, "
+                                                 + QString::number( MIN_BALL_TRAIL_CYCLES_3D ) + " to " + QString::number( MAX_BALL_TRAIL_CYCLES_3D )
+                                                 + ". (Default=" + QString::number( M_ball_trail_cycles_3d ) + ")",
+                                                 "cycles", QString::number( M_ball_trail_cycles_3d ) );
+    parser.addOption( opt_ball_trail_cycles_3d );
+    QCommandLineOption opt_banners_3d( "banners-3d",
+                                       "The 3D view: the banners behind the goals with the team names and logos. (Default=" + to_onoff( M_banners_3d ) + ")",
+                                       "bool", to_onoff( M_banners_3d ) );
+    parser.addOption( opt_banners_3d );
+    QCommandLineOption opt_compass_3d( "compass-3d",
+                                       "The 3D view: when the compass shows, off, player (with the player camera) or all. (Default="
+                                       + guideModeName( M_compass_3d ) + ")",
+                                       "mode", guideModeName( M_compass_3d ) );
+    parser.addOption( opt_compass_3d );
+    QCommandLineOption opt_minimap_3d( "minimap-3d",
+                                       "The 3D view: when the minimap shows, off, player (with the player camera) or all. (Default="
+                                       + guideModeName( M_minimap_3d ) + ")",
+                                       "mode", guideModeName( M_minimap_3d ) );
+    parser.addOption( opt_minimap_3d );
+    QCommandLineOption opt_fps_3d( "fps-3d",
+                                   "The 3D view: the frames per second and the GPU's time of a frame over it. (Default=" + to_onoff( M_fps_3d ) + ")",
+                                   "bool", to_onoff( M_fps_3d ) );
+    parser.addOption( opt_fps_3d );
+    QCommandLineOption opt_antialias_3d( "antialias-3d",
+                                         "The 3D view: smooth edges (multisampling); off, the GPU has less to do. (Default=" + to_onoff( M_antialias_3d ) + ")",
+                                         "bool", to_onoff( M_antialias_3d ) );
+    parser.addOption( opt_antialias_3d );
+    QCommandLineOption opt_player_model_3d( "player-model-3d",
+                                            "The 3D view: how the players are drawn, simple (cylinders and spheres), or the human figures of a figure pack: mannequin, human, or the name of a pack of yours. (Default="
+                                            + M_player_model_3d + ")",
+                                            "model", M_player_model_3d );
+    parser.addOption( opt_player_model_3d );
+    QCommandLineOption opt_figure_folder_3d( "figure-folder-3d",
+                                             "The 3D view: a folder of figure packs, besides the bundled ones and the user's data folder (rcssmonitor/figures). (Default="
+                                             + ( M_figure_folder_3d.isEmpty() ? QString( "none" ) : M_figure_folder_3d ) + ")",
+                                             "folder", M_figure_folder_3d );
+    parser.addOption( opt_figure_folder_3d );
+    QCommandLineOption opt_figure_scale_3d( "figure-scale-3d",
+                                            "The 3D view: the human figures are this many times a person's height, "
+                                            + to_string( MIN_FIGURE_SCALE_3D ) + " to " + to_string( MAX_FIGURE_SCALE_3D )
+                                            + ". (Default=" + to_string( M_figure_scale_3d ) + ")",
+                                            "scale",
+                                            to_string( M_figure_scale_3d ) );
+    parser.addOption( opt_figure_scale_3d );
+    QCommandLineOption opt_figure_bodies_3d( "figure-bodies-3d",
+                                             "The 3D view: the human bodies (player-model-3d human) of men and women, mixed, male or female. (Default="
+                                             + figureBodiesName( M_figure_bodies_3d ) + ")",
+                                             "bodies", figureBodiesName( M_figure_bodies_3d ) );
+    parser.addOption( opt_figure_bodies_3d );
+    QCommandLineOption opt_shadows_3d( "shadows-3d",
+                                       "The 3D view: the sun's shadows of the players, off, simple (an ellipse each) or detailed (their shapes, and the goal frames'). (Default="
+                                       + shadowModeName( M_shadows_3d ) + ")",
+                                       "mode", shadowModeName( M_shadows_3d ) );
+    parser.addOption( opt_shadows_3d );
+    // the player camera: the names of a style's values
+    const auto names_of = []( const auto & list )
+        {
+            QStringList names;
+            for ( const auto & i : list ) names << i.name;
+            return names.join( ", " );
+        };
+    using namespace PlayerCameraStyle;
+    QCommandLineOption opt_player_camera_position( "player-camera-position",
+                                                   "The player camera of the 3D view: where it stands, " + names_of( positions() )
+                                                   + ". (Default=" + nameOf( positions(), M_player_camera.position ) + ")",
+                                                   "position", nameOf( positions(), M_player_camera.position ) );
+    parser.addOption( opt_player_camera_position );
+    QCommandLineOption opt_player_camera_direction( "player-camera-direction",
+                                                    "The player camera: the direction it follows, " + names_of( directions() )
+                                                    + ". (Default=" + nameOf( directions(), M_player_camera.direction ) + ")",
+                                                    "direction", nameOf( directions(), M_player_camera.direction ) );
+    parser.addOption( opt_player_camera_direction );
+    QCommandLineOption opt_player_camera_motion( "player-camera-motion",
+                                                 "The player camera: how it turns, " + names_of( motions() )
+                                                 + ". (Default=" + nameOf( motions(), M_player_camera.motion ) + ")",
+                                                 "motion", nameOf( motions(), M_player_camera.motion ) );
+    parser.addOption( opt_player_camera_motion );
+    QCommandLineOption opt_player_camera_fov( "player-camera-fov",
+                                              "The player camera: how wide it sees, " + names_of( fovs() )
+                                              + ". (Default=" + nameOf( fovs(), M_player_camera.fov ) + ")",
+                                              "fov", nameOf( fovs(), M_player_camera.fov ) );
+    parser.addOption( opt_player_camera_fov );
+    QCommandLineOption opt_player_camera_sight( "player-camera-sight",
+                                                "The player camera: what it draws, " + names_of( sights() )
+                                                + ". (Default=" + nameOf( sights(), M_player_camera.sight ) + ")",
+                                                "sight", nameOf( sights(), M_player_camera.sight ) );
+    parser.addOption( opt_player_camera_sight );
+    QCommandLineOption opt_player_camera_time_constant( "player-camera-time-constant",
+                                                        "The player camera: the time constant of smooth and eased, "
+                                                        + to_string( MIN_TIME_CONSTANT ) + " to " + to_string( MAX_TIME_CONSTANT )
+                                                        + " s. (Default=" + to_string( M_player_camera.time_constant ) + ")",
+                                                        "seconds", to_string( M_player_camera.time_constant ) );
+    parser.addOption( opt_player_camera_time_constant );
+    QCommandLineOption opt_player_camera_max_turn( "player-camera-max-turn",
+                                                   "The player camera: the largest turn of smooth, "
+                                                   + to_string( MIN_MAX_TURN ) + " to " + to_string( MAX_MAX_TURN )
+                                                   + " degrees per second. (Default=" + to_string( M_player_camera.max_turn ) + ")",
+                                                   "degrees", to_string( M_player_camera.max_turn ) );
+    parser.addOption( opt_player_camera_max_turn );
+    QCommandLineOption opt_player_camera_fixed_fov( "player-camera-fixed-fov",
+                                                    "The player camera: the horizontal field of view of fixed, "
+                                                    + to_string( MIN_FIXED_FOV ) + " to " + to_string( MAX_FIXED_FOV )
+                                                    + " degrees. (Default=" + to_string( M_player_camera.fixed_fov ) + ")",
+                                                    "degrees", to_string( M_player_camera.fixed_fov ) );
+    parser.addOption( opt_player_camera_fixed_fov );
     // view options
     QCommandLineOption opt_anti_aliasing( "anti-aliasing",
                                           "Paint objects with the anti-aliase mode. (Default=" + to_onoff( M_anti_aliasing ) + ")",
@@ -1014,6 +1505,11 @@ Options::parseCmdLine( int argc,
                                            "bool",
                                            to_onoff( M_show_focus_point ) );
     parser.addOption( opt_show_focus_point );
+    QCommandLineOption opt_show_all_focus_points( "show-all-focus-points",
+                                                  "Show the focus points of all players, with show-focus-point. (Default=" + to_onoff( M_show_all_focus_points ) + ")",
+                                                  "bool",
+                                                  to_onoff( M_show_all_focus_points ) );
+    parser.addOption( opt_show_all_focus_points );
     QCommandLineOption opt_show_illegal_defense( "show-illegal-defense",
                                                  "show player's illegal defense state. (Default=" + to_onoff( M_show_illegal_defense ) + ")",
                                                  "bool",
@@ -1055,7 +1551,7 @@ Options::parseCmdLine( int argc,
                                       to_onoff( M_show_card ) );
     parser.addOption( opt_show_card );
     QCommandLineOption opt_ball_size( "ball-size",
-                                      "Set the ball radius. (Default=" + to_string( M_ball_size ) + ")",
+                                      "Set the ball radius in the 2D view; below 0.01, the real size. (Default=" + to_string( M_ball_size ) + ")",
                                       "double",
                                       to_string( M_ball_size ) );
     parser.addOption( opt_ball_size );
@@ -1115,6 +1611,20 @@ Options::parseCmdLine( int argc,
     if ( parser.isSet( opt_server_ws_path ) ) M_server_ws_path = parser.value( opt_server_ws_path ).toStdString();
     if ( parser.isSet( opt_client_version ) ) M_client_version = parser.value( opt_client_version ).toInt();
     if ( parser.isSet( opt_timer_interval ) ) M_timer_interval = parser.value( opt_timer_interval ).toInt();
+    if ( parser.isSet( opt_live_delay ) )
+    {
+        bool ok = false;
+        const double seconds = parser.value( opt_live_delay ).toDouble( &ok );
+        if ( ! ok || ! std::isfinite( seconds ) || seconds < 0.0 )
+        {
+            std::cerr << "Illegal live delay [" << parser.value( opt_live_delay ).toStdString()
+                      << "]. It must be 0 (off) or the seconds, " << MIN_LIVE_DELAY_SECONDS
+                      << " to " << MAX_LIVE_DELAY_SECONDS << '.' << std::endl;
+            return false;
+        }
+        M_live_delay = ( seconds > 0.0 );
+        if ( M_live_delay ) setLiveDelaySeconds( seconds );
+    }
     if ( parser.isSet( opt_auto_quit_mode ) ) M_auto_quit_mode = to_bool( parser.value( opt_auto_quit_mode ), M_auto_quit_mode );
     if ( parser.isSet( opt_auto_quit_wait ) ) M_auto_quit_wait = parser.value( opt_auto_quit_wait ).toInt();
     if ( parser.isSet( opt_auto_reconnect_mode ) ) M_auto_reconnect_mode = to_bool( parser.value( opt_auto_reconnect_mode ), M_auto_reconnect_mode );
@@ -1125,6 +1635,119 @@ Options::parseCmdLine( int argc,
     if ( parser.isSet( opt_maximize ) ) M_maximize = true;
     if ( parser.isSet( opt_full_screen ) ) M_full_screen = true;
     if ( parser.isSet( opt_show_menu_bar ) ) M_show_menu_bar = to_bool( parser.value( opt_show_menu_bar ), M_show_menu_bar );
+    if ( parser.isSet( opt_view_3d ) ) M_view_3d = to_bool( parser.value( opt_view_3d ), M_view_3d );
+    if ( parser.isSet( opt_camera_3d )
+         && ! cameraModeFromName( parser.value( opt_camera_3d ), &M_camera_3d ) )
+    {
+        std::cerr << "Unknown camera of the 3D view: " << parser.value( opt_camera_3d ).toStdString() << std::endl;
+    }
+    if ( parser.isSet( opt_closeup_distance_3d ) )
+    {
+        const double d = parser.value( opt_closeup_distance_3d ).toDouble();
+        if ( in_range( d, MIN_CLOSEUP_DISTANCE_3D, MAX_CLOSEUP_DISTANCE_3D ) ) M_closeup_distance_3d = d;
+        else std::cerr << "Out of range: closeup-distance-3d " << parser.value( opt_closeup_distance_3d ).toStdString() << std::endl;
+    }
+    if ( parser.isSet( opt_closeup_elevation_3d ) )
+    {
+        const double e = parser.value( opt_closeup_elevation_3d ).toDouble();
+        if ( in_range( e, MIN_CLOSEUP_ELEVATION_3D, MAX_CLOSEUP_ELEVATION_3D ) ) M_closeup_elevation_3d = e;
+        else std::cerr << "Out of range: closeup-elevation-3d " << parser.value( opt_closeup_elevation_3d ).toStdString() << std::endl;
+    }
+    if ( parser.isSet( opt_boards_3d ) ) M_boards_3d = to_bool( parser.value( opt_boards_3d ), M_boards_3d );
+    if ( parser.isSet( opt_grass_3d )
+         && ! grassModeFromName( parser.value( opt_grass_3d ), &M_grass_3d ) )
+    {
+        std::cerr << "Unknown value of grass-3d: " << parser.value( opt_grass_3d ).toStdString() << std::endl;
+    }
+    if ( parser.isSet( opt_sky_3d ) ) M_sky_3d = to_bool( parser.value( opt_sky_3d ), M_sky_3d );
+    if ( parser.isSet( opt_stands_3d ) ) M_stands_3d = to_bool( parser.value( opt_stands_3d ), M_stands_3d );
+    if ( parser.isSet( opt_ball_pattern_3d ) ) M_ball_pattern_3d = to_bool( parser.value( opt_ball_pattern_3d ), M_ball_pattern_3d );
+    if ( parser.isSet( opt_ball_flight_3d ) ) M_ball_flight_3d = to_bool( parser.value( opt_ball_flight_3d ), M_ball_flight_3d );
+    if ( parser.isSet( opt_ball_size_3d ) )
+    {
+        bool ok = false;
+        const double r = parser.value( opt_ball_size_3d ).toDouble( &ok );
+        if ( ok && in_range( r, MIN_BALL_SIZE_3D, MAX_BALL_SIZE_3D ) ) M_ball_size_3d = r;
+        else std::cerr << "Out of range: ball-size-3d " << parser.value( opt_ball_size_3d ).toStdString() << std::endl;
+    }
+    if ( parser.isSet( opt_ball_ring_3d ) ) M_ball_ring_3d = to_bool( parser.value( opt_ball_ring_3d ), M_ball_ring_3d );
+    if ( parser.isSet( opt_ball_ring_radius_3d ) )
+    {
+        const double r = parser.value( opt_ball_ring_radius_3d ).toDouble();
+        if ( in_range( r, MIN_BALL_RING_RADIUS_3D, MAX_BALL_RING_RADIUS_3D ) ) M_ball_ring_radius_3d = r;
+        else std::cerr << "Out of range: ball-ring-radius-3d " << parser.value( opt_ball_ring_radius_3d ).toStdString() << std::endl;
+    }
+    if ( parser.isSet( opt_ball_trail_3d ) ) M_ball_trail_3d = to_bool( parser.value( opt_ball_trail_3d ), M_ball_trail_3d );
+    if ( parser.isSet( opt_ball_trail_cycles_3d ) )
+    {
+        bool ok = false;
+        const int c = parser.value( opt_ball_trail_cycles_3d ).toInt( &ok );
+        if ( ok && in_range( c, MIN_BALL_TRAIL_CYCLES_3D, MAX_BALL_TRAIL_CYCLES_3D ) ) M_ball_trail_cycles_3d = c;
+        else std::cerr << "Out of range: ball-trail-cycles-3d " << parser.value( opt_ball_trail_cycles_3d ).toStdString() << std::endl;
+    }
+    if ( parser.isSet( opt_banners_3d ) ) M_banners_3d = to_bool( parser.value( opt_banners_3d ), M_banners_3d );
+    if ( parser.isSet( opt_fps_3d ) ) M_fps_3d = to_bool( parser.value( opt_fps_3d ), M_fps_3d );
+    if ( parser.isSet( opt_antialias_3d ) ) M_antialias_3d = to_bool( parser.value( opt_antialias_3d ), M_antialias_3d );
+    for ( const auto & g : { std::make_pair( &opt_compass_3d, &M_compass_3d ), std::make_pair( &opt_minimap_3d, &M_minimap_3d ) } )
+    {
+        if ( parser.isSet( *g.first ) && ! guideModeFromName( parser.value( *g.first ), g.second ) )
+        {
+            std::cerr << "Unknown value of " << g.first->names().front().toStdString() << ": "
+                      << parser.value( *g.first ).toStdString() << std::endl;
+        }
+    }
+    if ( parser.isSet( opt_figure_scale_3d ) )
+    {
+        const double s = parser.value( opt_figure_scale_3d ).toDouble();
+        if ( in_range( s, MIN_FIGURE_SCALE_3D, MAX_FIGURE_SCALE_3D ) ) M_figure_scale_3d = s;
+        else std::cerr << "Out of range: figure-scale-3d " << parser.value( opt_figure_scale_3d ).toStdString() << std::endl;
+    }
+    if ( parser.isSet( opt_figure_bodies_3d )
+         && ! figureBodiesFromName( parser.value( opt_figure_bodies_3d ), &M_figure_bodies_3d ) )
+    {
+        std::cerr << "Unknown value of figure-bodies-3d: " << parser.value( opt_figure_bodies_3d ).toStdString() << std::endl;
+    }
+    if ( parser.isSet( opt_shadows_3d )
+         && ! shadowModeFromName( parser.value( opt_shadows_3d ), &M_shadows_3d ) )
+    {
+        std::cerr << "Unknown value of shadows-3d: " << parser.value( opt_shadows_3d ).toStdString() << std::endl;
+    }
+    // a figure pack's name: an unknown one is told when the 3D view draws (FrameBuilder3D)
+    if ( parser.isSet( opt_player_model_3d ) )
+    {
+        M_player_model_3d = normalizedPlayerModel( parser.value( opt_player_model_3d ) );
+    }
+    if ( parser.isSet( opt_figure_folder_3d ) )
+    {
+        M_figure_folder_3d = parser.value( opt_figure_folder_3d );
+    }
+    {
+        PlayerCameraOptions & pc = M_player_camera;
+        const auto unknown = []( const QCommandLineOption & opt, const QString & value )
+            {
+                std::cerr << "Unknown value of " << opt.names().front().toStdString() << ": " << value.toStdString() << std::endl;
+            };
+        if ( parser.isSet( opt_player_camera_position ) && ! fromName( positions(), parser.value( opt_player_camera_position ), &pc.position ) )
+            unknown( opt_player_camera_position, parser.value( opt_player_camera_position ) );
+        if ( parser.isSet( opt_player_camera_direction ) && ! fromName( directions(), parser.value( opt_player_camera_direction ), &pc.direction ) )
+            unknown( opt_player_camera_direction, parser.value( opt_player_camera_direction ) );
+        if ( parser.isSet( opt_player_camera_motion ) && ! fromName( motions(), parser.value( opt_player_camera_motion ), &pc.motion ) )
+            unknown( opt_player_camera_motion, parser.value( opt_player_camera_motion ) );
+        if ( parser.isSet( opt_player_camera_fov ) && ! fromName( fovs(), parser.value( opt_player_camera_fov ), &pc.fov ) )
+            unknown( opt_player_camera_fov, parser.value( opt_player_camera_fov ) );
+        if ( parser.isSet( opt_player_camera_sight ) && ! fromName( sights(), parser.value( opt_player_camera_sight ), &pc.sight ) )
+            unknown( opt_player_camera_sight, parser.value( opt_player_camera_sight ) );
+        const auto read_number = [&]( const QCommandLineOption & opt, const double lo, const double hi, double * value )
+            {
+                if ( ! parser.isSet( opt ) ) return;
+                const double v = parser.value( opt ).toDouble();
+                if ( in_range( v, lo, hi ) ) *value = v;
+                else std::cerr << "Out of range: " << opt.names().front().toStdString() << " " << parser.value( opt ).toStdString() << std::endl;
+            };
+        read_number( opt_player_camera_time_constant, MIN_TIME_CONSTANT, MAX_TIME_CONSTANT, &pc.time_constant );
+        read_number( opt_player_camera_max_turn, MIN_MAX_TURN, MAX_MAX_TURN, &pc.max_turn );
+        read_number( opt_player_camera_fixed_fov, MIN_FIXED_FOV, MAX_FIXED_FOV, &pc.fixed_fov );
+    }
     if ( parser.isSet( opt_show_tool_bar ) ) M_show_tool_bar = to_bool( parser.value( opt_show_tool_bar ), M_show_tool_bar );
     if ( parser.isSet( opt_show_status_bar ) ) M_show_status_bar = to_bool( parser.value( opt_show_status_bar ), M_show_status_bar );
     // view options
@@ -1139,6 +1762,7 @@ Options::parseCmdLine( int argc,
     if ( parser.isSet( opt_show_player_type ) ) M_show_player_type = to_bool( parser.value( opt_show_player_type ), M_show_player_type );
     if ( parser.isSet( opt_show_view_area ) ) M_show_view_area = to_bool( parser.value( opt_show_view_area ), M_show_view_area );
     if ( parser.isSet( opt_show_focus_point ) ) M_show_focus_point = to_bool( parser.value( opt_show_focus_point ), M_show_focus_point );
+    if ( parser.isSet( opt_show_all_focus_points ) ) M_show_all_focus_points = to_bool( parser.value( opt_show_all_focus_points ), M_show_all_focus_points );
     if ( parser.isSet( opt_show_illegal_defense ) ) M_show_illegal_defense = to_bool( parser.value( opt_show_illegal_defense ), M_show_illegal_defense );
     if ( parser.isSet( opt_show_catch_area ) ) M_show_catch_area = to_bool( parser.value( opt_show_catch_area ), M_show_catch_area );
     if ( parser.isSet( opt_show_tackle_area ) ) M_show_tackle_area = to_bool( parser.value( opt_show_tackle_area ), M_show_tackle_area );
@@ -1264,6 +1888,9 @@ Options::parseCmdLine( int argc,
         ( "show-focus-point",
           po::value< bool >( &M_show_focus_point )->default_value( M_show_focus_point, to_onoff( M_show_focus_point ) ),
           "show player\'s focus point." )
+        ( "show-all-focus-points",
+          po::value< bool >( &M_show_all_focus_points )->default_value( M_show_all_focus_points, to_onoff( M_show_all_focus_points ) ),
+          "show the focus points of all players, with show-focus-point." )
         ( "show-illegal-defense",
           po::value< bool >( &M_show_illegal_defense )->default_value( M_show_illegal_defense, to_onoff( M_show_illegal_defense ) ),
           "show player\'s illegal defense state." )

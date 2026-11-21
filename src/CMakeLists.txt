@@ -22,13 +22,18 @@ add_library(rcssmonitor_core STATIC
   overlay_math.cpp
   play_mode_position.cpp
   player_painter.cpp
+  player_selection.cpp
+  player_style.cpp
   player_type_dialog.cpp
   rcg_handler.cpp
+  referee_menu.cpp
   score_board_painter.cpp
   team_graphic.cpp
   tcp_monitor_transport.cpp
   team_graphic_painter.cpp
   tool_icon.cpp
+  toolbar_icons.cpp
+  tooltip_marker.cpp
   udp_monitor_transport.cpp
   vector_2d.cpp
   )
@@ -52,6 +57,68 @@ target_link_libraries(rcssmonitor_core
 #  Boost::program_options Boost::system
   ZLIB::ZLIB
   )
+
+if(HAVE_3D_VIEW)
+  target_sources(rcssmonitor_core
+    PRIVATE
+    view3d/cameras_3d.cpp
+    view3d/field_view_3d.cpp
+    view3d/figure_actions.cpp
+    view3d/figure_looks.cpp
+    view3d/figure_pack.cpp
+    view3d/figure_uniform.cpp
+    view3d/frame_builder_3d.cpp
+    view3d/figures_3d.cpp
+    view3d/gait_table.cpp
+    view3d/grass_3d.cpp
+    view3d/gltf_model.cpp
+    view3d/bvh_model.cpp
+    view3d/fbx_model.cpp
+    view3d/ground_texture.cpp
+    view3d/guides_3d.cpp
+    view3d/humanoid.cpp
+    view3d/interpolate.cpp
+    view3d/label_atlas.cpp
+    view3d/meshes_3d.cpp
+    view3d/overlay_builder.cpp
+    view3d/picking.cpp
+    view3d/popup_closer.cpp
+    view3d/player_camera_3d.cpp
+    view3d/scene_builder.cpp
+    view3d/scene_3d.cpp
+    view3d/sight.cpp
+    view3d/scenery_3d.cpp
+    view3d/stadium_3d.cpp
+    view3d/stands_3d.cpp
+    view3d/ball_3d.cpp
+    view3d/ball_aids_3d.cpp
+    view3d/ball_flight_3d.cpp
+    view3d/fps_meter.cpp
+    view3d/sun_3d.cpp
+    view3d/gl/billboard_mesh.cpp
+    view3d/gl/frame.cpp
+    view3d/gl/gpu_timer.cpp
+    view3d/gl/instanced_mesh.cpp
+    view3d/gl/render_state.cpp
+    view3d/gl/shader_program.cpp
+    view3d/gl/render_target.cpp
+    view3d/gl/shadow_map.cpp
+    view3d/gl/skinned_mesh.cpp
+    view3d/gl/texture_2d.cpp
+    view3d/gl/vertex_batch.cpp
+    view3d/shaders/view3d_shaders.qrc
+    ${PROJECT_SOURCE_DIR}/resources/figures/view3d_figures.qrc
+    ${PROJECT_SOURCE_DIR}/third_party/ufbx/ufbx.c
+    )
+  # the shaders (ShaderProgram) and the bundled figure packs (FigurePacks) in the resources
+  set_target_properties(rcssmonitor_core PROPERTIES AUTORCC ON)
+  target_include_directories(rcssmonitor_core PUBLIC ${PROJECT_SOURCE_DIR}/src/view3d)
+  # cgltf (glTF loading, MIT), a single header: compiled in gltf_model.cpp
+  target_include_directories(rcssmonitor_core PRIVATE ${PROJECT_SOURCE_DIR}/third_party/cgltf)
+  # ufbx (FBX loading, MIT or Unlicense), compiled from its own C file
+  target_include_directories(rcssmonitor_core PRIVATE ${PROJECT_SOURCE_DIR}/third_party/ufbx)
+  target_link_libraries(rcssmonitor_core PUBLIC ${QT_3D_VIEW_LIBRARIES})
+endif()
 
 if(HAVE_QT_WEBSOCKETS)
   target_sources(rcssmonitor_core PRIVATE ws_monitor_transport.cpp)
