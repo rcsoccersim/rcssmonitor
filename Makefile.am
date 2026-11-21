@@ -4,6 +4,7 @@ SUBDIRS = rcss src .
 
 EXTRA_DIST = \
 	README.md \
+	docs/build.md \
 	CMakeLists.txt \
 	cmake-config.h.in \
 	icons/accelerate.xpm \
