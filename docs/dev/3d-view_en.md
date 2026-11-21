@@ -492,15 +492,176 @@ The steps in the comment of the class `Scene3D`, in detail:
 
 ## 8. The human figures and their motion
 
-(written in 10-3c)
+The detailed rules of the figures' motion, and their reasons, are in §5.8 and §5.9 of the plan, and in the records 7-1 to 7-5 and 9-1 to 9-5b of §14. This chapter gives the flow of the whole and hints for reading the code.
+
+### 8.1 The principle: a pose comes from the frame and the fraction only
+
+- A figure's pose is not "played" from the pose before: it is **made again at every drawing from the log's frames and the fraction only** (§5.2). Paused, stepped back or jumped to, a frame gets the same pose.
+- So ways that depend on the pose before (motion matching and the like) are not used. The only information beyond the frames is the table made when the log is read (`GaitTable`).
+- In the web version (three.js), the animation mixer did not rewrite the bones whose values did not change, so the rotations layered over them piled up and the neck and the body kept turning. Making everything again every time avoids that.
+
+### 8.2 How a pose is made
+
+A player's pose is made roughly in this order (`FrameBuilder3D` -> `Figures3D::pose()`):
+
+```mermaid
+flowchart TD
+  log["the log's frames"] --> gait["GaitTable<br/>the gait walked, the speed, the way gone, the legs' lag"]
+  log --> act["FigureActionLog<br/>the actions (kick, tackle, foul, catch) and their moments"]
+  gait --> motion["FigureMotion"]
+  act --> actions["FigureActions"]
+  motion --> clips["the clips read at one phase, mixed by the speed and the way<br/>(standing, walking, running, backward, sideways)"]
+  clips --> lean["leaning, turning on the spot"]
+  lean --> layer["the actions layered<br/>(by clips, or poses made here)"]
+  actions --> layer
+  layer --> ik["the kicking foot to the ball (IK, §9)"]
+  ik --> skin["the bones' matrices (skin matrices)<br/>-> SceneContent -> SkinnedMesh"]
+```
+
+1. **The motion** (`FigureMotion`): `GaitTable` holds, for each player at each frame, how much it has walked (in cycles of the gait, two steps a cycle), its speed, the angle between the way it goes and its body direction, and how far its legs lag behind its body when it turns on the spot. It is made once when the log is read.
+2. **The actions** (`FigureActions`): `FigureActionLog` reads from the runs of the state bits (kick, tackle, catch, foul) which action it is and the time from its moment.
+3. **Walking and running**: the clips of standing, walking, jogging and sprinting are read at one phase, with the left foot's contact aligned, and mixed by the speed. With clips of going sideways or backward, they are mixed by the way gone (§8.4).
+4. **Leaning and turning**: the figure leans toward its acceleration (forward when speeding up, back when slowing down, in when turning). Turning on the spot, the hips turn back toward the legs, and stepping is mixed in.
+5. **The actions**: the neck, the kick, the sliding tackle, sitting down after a foul, the goalie's catch and dive, and pointing are layered by their weights, which rise before the action's moment and fall after it. A clip is used if there is one; otherwise a pose made here (after the web version's `pose.ts`).
+6. **IK**: around a kick's moment, the kicking foot goes to the ball (§9).
+7. **The bones' matrices**: the rotations by role (`HumanoidPose`) are put on the body's skeleton (`HumanoidRig::apply()`), and each bone's skin matrix is made. The GPU moves the vertices (§7.6).
+
+### 8.3 Bones and roles (retargeting)
+
+- `HumanoidRig` maps a skeleton's bones to **roles** (the names of VRM's Humanoid, `HumanBone`): hips, spine, chest, neck, head, shoulders, upper arms, lower arms, hands, upper legs, lower legs, feet, toes and so on. A bone without a role (the fingers and so on) keeps what the caller gives it.
+- A pose is a "normalized rotation" for each role (`HumanoidPose`): how far it turned from the rest pose (a T pose), seen from its parent role, in directions that are the same on every skeleton. A clip read into this form by `HumanoidRig::poseOf()` and put on another skeleton by `apply()` makes the same motion on a different skeleton (**retargeting**).
+- What makes up for the skeletons' differences:
+  - A model in an A pose (arms down at rest) is turned into a T pose first (`HumanoidRig::restTurn()`).
+  - A model whose up is not +y is stood up (`HumanoidRig::upAxis()`), and one not facing +z is turned to face +z.
+  - The hips' bob is scaled by the ratio of the legs' lengths, and the horizontal movement comes from the log. Lengths are in hip heights.
+- The map of bone names to roles is a preset (`quaternius`, `mixamo`, `vroid`, `vrm`, `xsens`) or written in the pack's `figure.json` (§10).
+
+### 8.4 Walking and running
+
+- **Mixed at one phase**: timing each clip by "the distance walked / the clip's speed" makes the legs cross when mixed. rcssmonitor finds from each clip itself when the left foot comes down and its stride (how fast a foot on the ground goes back) (`Figures3D::analyzeGait()`), and reads all the clips at one phase. The phase goes on by the distance walked over the mixed stride: the feet do not slide.
+- **Mixed by the way**: with clips of going sideways and backward, the clips of the two ways on either side of the way gone are mixed by weights that make a foot on the ground go along the way (`GaitWays::mixAt()`). Up to 30 degrees from forward and backward (`GaitWays::TWIST_FULL`), the clips are not mixed but the hips are twisted that way. With clips of one side only, the other side's is made by mirroring.
+- **Turning on the spot**: the legs' direction lags behind the body's, as its average over the last 3 cycles (`GaitTable::TURN_LAG`). Standing, the hips turn back toward the legs (up to 45 degrees, `Figures3D::TURN_TWIST_MAX`), and stepping is mixed in by how fast it turns (a step each 90 degrees, `GaitTable::TURN_STEP_ANGLE`).
+- After a jump farther than a cycle allows (a placement, `GaitTable::TELEPORT`), and for a player out of the game, the legs start again in the body direction.
+
+### 8.5 The actions
+
+- An action's **moment** is when it meets the ball. rcssserver sets the bit and then moves the ball, so the moment is the frame before the bit's first (the web version was a cycle late).
+- An action winds up before its moment, so it looks two frames ahead. Live, the view is drawn two cycles behind the newest frame, which keeps those frames at hand (`Interpolate::LIVE_DELAY`, §5.3).
+- The main actions, with hints for looking into them:
+
+| Action | How it is decided | Main constants (`figures_3d.h`, `figure_actions.h`) |
+|---|---|---|
+| Kick | The foot on the ball's side meets it at the moment. A light touch, a pass with the inside of the foot, or a shot with a long swing, by the power and the direction. IK around the moment (§9) | `KICK_TAP_WEIGHT`, `REACH_BEFORE`, `REACH_AFTER` |
+| Sliding tackle | Slides while the bit stays, holds a while after the last, gets up | — |
+| Foul | After the tackler slid in, sits down with the hands on the ground behind. A clip plays from partway | `FOULED_START` |
+| Getting up | Plays the clip of getting up to end with the action (when the player can go). Faster if it cannot otherwise, its start left out if even that is not enough (`upSchedule()`) | `UP_SPEED_MAX`, `UP_BLEND` |
+| Catch | By the ball's height: crouching with the hands near the ground for a low ball, both hands up for a high one. The body turns toward the ball | `CATCH_TURN` |
+| Dive | Mixed in for a ball farther than 0.8 m to the side, all of it from 1.2 m | `DIVE_FROM`, `DIVE_FULL` |
+| Pointing | The arm on that side points (the chest turns for far to the side or behind). A clip cannot point where it must, so the pose made here only | — |
+
+- A clip's moment is the one written in `figure.json`, or else found from the clip (a kick: when a foot swings forward fastest; a slide and a fall: when the hips come down to 40% of their height (`DOWN_HIPS`); the catch and the dive: when the middle of the hands is farthest from the chest).
+- A clip going somewhere (the hips moving farther than 30% of their height, `ACTION_TRAVEL`) keeps its hips horizontally where they start.
+
+### 8.6 The figures' size
+
+- A figure is a person's height 1.85 m (`SceneBuilder::PERSON_HEIGHT`) x the player's height ratio x the scale (the option `figure_scale_3d`, 1.0 by default) tall.
+- The height ratio is the kickable area of the player's type (player_size + kickable_margin) over that of the default type (0.9 to 1.1 with the default parameters; `SceneBuilder::heightRatio()`).
+- A player whose number the player camera does not know for sure is mixed toward the default height (so that its height does not tell who it is).
+
+### 8.7 Adjusting the motion
+
+- The motion has been adjusted by looking at it on the screen. Most of the values are constants in `figures_3d.h` and `gait_table.h`, each with a comment of its meaning and unit. The reasons and history are in §14 of the plan (search for "7-2", "9-5a" and so on).
+- The tests (`figures_3d`, `figure_actions`, `gait_table`, `humanoid`) check the results as the bones' places and directions (e.g. whether the kicking foot reaches the ball, whether the knee bends forward), with logs and clips made from the bundled Mannequin.
+- The look is checked by drawing in a window not shown (9-6 in §14 of the plan) and by replaying real logs.
 
 ## 9. Inverse kinematics (IK)
 
-(written in 10-3c)
+### 9.1 What IK is
+
+- **Forward kinematics** finds where the end (a hand, a foot) is from the bones' rotations. Playing a clip is this.
+- **Inverse kinematics** (IK) is the reverse: from where the end should be, it finds the bones' rotations. For example, how far to turn the thigh and the shin so that the foot meets the ball.
+- rcssmonitor's IK is the **two-bone IK** of the thigh and the shin. The two bones and the goal make a triangle, so the answer comes by a formula (no iteration).
+
+### 9.2 The computation of the two-bone IK
+
+Let H be the hip joint, a the thigh's length, b the shin's, and T where the ankle should be.
+
+```
+        H (hip)
+        |\
+      a | \ d = |T - H|
+        |  \
+        K---T (the ankle's goal)
+          b
+```
+
+1. Bring the distance d from H to T within reach (|a - b| < d < a + b).
+2. By the law of cosines, the angle θ at the hip: cos θ = (a² + d² - b²) / (2 a d).
+3. Decide which way the knee goes (bends; the **pole**): the part of the body's front (the model's +z) perpendicular to the way from H to T. When the leg points nearly forward and it is undecided, the side the knee is on now.
+4. The knee's goal K = H + (the way to T) x a cos θ + (the pole) x a sin θ.
+5. Turn the thigh from where the knee is now toward K, and the shin so that the ankle comes onto the way to T.
+
+### 9.3 Its use in rcssmonitor: the kicking foot to the ball
+
+- `Figures3D::reach()` brings the kicking foot to the ball around a kick's moment:
+  1. The weight w (`Figures3D::reachOf()`) rises from 0.4 cycles before the moment (`REACH_BEFORE`), is 1 at the moment, and 0 at 0.3 cycles after it (`REACH_AFTER`). Not during a tackle or a foul. For a light touch, it follows that pose's weight.
+  2. In the pose so far (the clips and the actions layered), the hip, the knee, the ankle and the toes are found in the model.
+  3. The target is behind the ball, at its center's height, against the way it is kicked (`Figures3D::kickTarget()`). The toes go toward the target by w, and the ankle's goal keeps the ankle where it is from the toes.
+  4. The thigh and the shin are turned by the computation of §9.2. The foot is turned back by the thigh's and the shin's turns, so that it keeps its direction (the foot does not twist oddly).
+- The turns are added to the roles (`HumanoidRig::turnInModel()`), so it works the same on the skeleton of any figure pack.
+- The test `figures_3d` checks that the foot (the Mannequin's bone `ball_r`) reaches the ball at the moment, the shape of the weight's peak, and that it is not used during a tackle.
+
+### 9.4 Where IK is not used
+
+- The other actions (the catch's hands, the pointing arm, sitting down) are rotations made here (each limb's swing from hanging down, its turn and its bend), not IK. There is no IK putting the hands exactly on the ball yet.
+- There is no IK planting the feet on the ground either. Walking keeps the feet from sliding by aligning the phase and the stride (§8.4).
+- To add an IK, follow `Figures3D::reach()`: find the places in the pose so far, move toward the goal by a weight, add the turns to the roles, and check the end's place in a test.
 
 ## 10. Figure packs and adjusting the models
 
-(written in 10-3c)
+The format of figure packs and how to make them are in [docs/FIGURE_PACKS.md](../FIGURE_PACKS.md) and [docs/FIGURE_PACKS_MIXAMO.md](../FIGURE_PACKS_MIXAMO.md) for users, and how the bundled material is made in [docs/dev/FIGURE_ASSETS.md](FIGURE_ASSETS.md). This chapter gives the code behind them, and how to think about adjusting a model.
+
+### 10.1 Finding and reading the packs
+
+- A figure pack is a folder with `figure.json` and the files of the models and motions. The bundled `mannequin` and `human` are in the same format in `resources/figures/`, embedded as resources.
+- `FigurePacks` looks in the bundled ones (`:/figures`), the folder of the user's choice (the option `figure_folder_3d`), and `rcssmonitor/figures` of the XDG data folders (first `~/.local/share/rcssmonitor/figures`), in this order. A folder's name is the pack's name.
+- `FigurePack` reads `figure.json` (format 1). Unknown keys are skipped (so that a pack of a later version can be read). Why a pack cannot be read (the line and column of a JSON error, a missing file, an unknown skeleton, a missing clip and so on) is shown in the settings dialog.
+- When a pack is chosen, `Figures3D::setPack()` reads its models and motion, and the bodies go to the GPU (`Scene3D::setFigureBody()`). A motion shared by packs is read once.
+
+### 10.2 Reading the models, and bringing them into line
+
+- Every format is read into the same form (`GltfModel`: the skeleton, the skin, the materials, the clips):
+  - glTF and VRM: cgltf (`GltfModel`). A required extension that cannot be read (a compression and so on) is a reason the model cannot be read.
+  - FBX: ufbx (`FbxModel`), converted to y up, a person facing +z, meters. The takes are the clips (30 keys a second).
+  - BVH: our own (`BvhModel`): a skeleton and one clip. The rotation channels are composed in the order written.
+  - VRMA: read as glTF, with the bones' roles read as VRM's.
+- What is brought into line after reading:
+  - The rest pose: an A pose is taken as a T pose, and the up and front are corrected (§8.3). A motion capture stands where it was taken in its room, so it is stood above the origin and turned to face +z on the whole (`settleCapture()`).
+  - A clip going forward (Mixamo's without "In Place") is put in place, its hips' horizontal drift taken off.
+  - A clip of another file is baked onto the motion's skeleton through the roles.
+  - Textures are made at most 1024 px, and the triangles are put in order after reading (`GltfModel::orderTriangles()`: an order fit for the GPU's cache; the look does not change).
+
+### 10.3 Looks and uniforms
+
+- `FigureLooks` decides each player's body (male or female), hairstyle, and skin and hair colors. Not at random: the same player of the same team always looks the same (a hash). Hairstyles and extras (a beard and so on) are switched by the marks (bits) of the scalp (four at most).
+- `FigureUniform` paints the uniform. The vertices are split into the parts of the body by the bones' weights (the torso, the arms, the legs, the head), and planes from the bones at rest (the sleeves, the shorts, the socks, the shoes, the collar, the waist) part the shirt (the team color), the shorts, the socks, the shoes and the skin. The shader (`skinned.frag`) decides the same way (§7.3).
+- How each material is painted (`paint` in `figure.json`: `model`, `team`, `tint`, `uniform`, `skin`, `hair`) becomes the shader's `uPaint`.
+
+### 10.4 Adjusting a model
+
+- **Weight**: every frame the GPU moves every vertex of the 22 bodies by their bones, and again for the detailed shadows. The time grows about as the body's triangles (and vertices) do. On an integrated GPU, about 50,000 triangles a body is the guide (the measurements are in "How heavy a pack may be" of [docs/FIGURE_PACKS.md](../FIGURE_PACKS.md)). Make a heavy model lighter with Blender's Decimate modifier (put above the Armature modifier and applied, it keeps the bones' weights).
+- **The rest pose and the direction**: a T or A pose, y up, facing +z is enough (they are corrected when read otherwise, but the nearer, the surer). The unit need not be meters: lengths are taken in hip heights, so it does not change the motion. The height comes from the model at rest.
+- **The bones' names**: names of a preset skeleton (`quaternius`, `mixamo`, `vroid`, `vrm`, `xsens`) are read as they are. Other names need the map of roles to bone names in `skeleton` of `figure.json`.
+- **Textures**: larger than 1024 px are made smaller. They hardly change the drawing time, but a large file takes long to read.
+- **FBX to glTF**: `tools/fbx_to_glb.py` (run by Blender; the steps are in [docs/dev/FIGURE_ASSETS.md](FIGURE_ASSETS.md)).
+- **Making the bundled material again**: `resources/figures/mannequin/cut_100style.py` (cuts the clips of 100STYLE) and `resources/figures/mannequin/pack_ual2_actions.py` (packs the action clips of UAL2). The sources and licenses go into each folder's README and the `credits` of `figure.json` (CC0, and CC BY 4.0 for 100STYLE).
+
+### 10.5 Checking a pack
+
+- Choose the pack on the Players & Ball tab of the settings dialog. If it cannot be read, the reason and its credits are shown.
+- For the motion, replay real logs and look at standing, walking, running, sideways and backward, turning, kicks, slides and catches.
+- Measure its weight with the FPS display or `RCSSMONITOR_3D_TIMING` (§14).
+- The small test files (`test/data/fbx/`, `test/data/bvh/`) are made from the bundled Mannequin with Blender (the scripts are in the same folders, the steps in [docs/dev/FIGURE_ASSETS.md](FIGURE_ASSETS.md)).
 
 ## 11. The ball
 
