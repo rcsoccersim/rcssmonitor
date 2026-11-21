@@ -28,6 +28,48 @@ cmake --build build
 
 `build/rcssmonitor` will be the binary for the monitor. CMake uses Qt 6 if it is found, and Qt 5 otherwise; to use Qt 5 when both are installed, pass `-DQT_VERSION_MAJOR=5` to the first command.
 
+### cmake-helper.sh
+
+`cmake-helper.sh` in the top directory runs the frequently used CMake commands.
+It prints each command before running it, so you can also learn the actual cmake commands.
+It can be run from any directory; it always works in the top directory of rcssmonitor.
+
+```bash
+./cmake-helper.sh build        # configure (if needed) and build
+./cmake-helper.sh test         # build and run the tests
+./cmake-helper.sh run          # build and run rcssmonitor
+./cmake-helper.sh run -- -c    # build and run rcssmonitor with options (e.g. connect to rcssserver)
+./cmake-helper.sh install      # build and install (into ~/.local by default)
+./cmake-helper.sh uninstall    # remove the installed files
+./cmake-helper.sh help         # show the usage
+```
+
+The second argument selects the Qt version and the build directory:
+
+| Argument | Qt | Build directory |
+|---|---|---|
+| `auto` (default) | Qt 6 if available, otherwise Qt 5 | `build` |
+| `qt6` | Qt 6 | `build-qt6` |
+| `qt5` | Qt 5 | `build-qt5` |
+
+For example, `./cmake-helper.sh build qt5` builds rcssmonitor with Qt 5 in `build-qt5`.
+
+All the commands:
+
+| Command | What it does | The main cmake command (for `qt6`) |
+|---|---|---|
+| `configure [QT]` | (re)configure the build directory | `cmake -S . -B build-qt6 -DQT_VERSION_MAJOR=6` |
+| `build [QT]` | configure (if needed) and build | `cmake --build build-qt6 --parallel JOBS` |
+| `test [QT]` | build and run the tests | `cd build-qt6 && ctest --output-on-failure` |
+| `run [QT] [-- ARGS...]` | build and run rcssmonitor | `build-qt6/rcssmonitor ARGS...` |
+| `install [QT] [--prefix DIR]` | build and install | `cmake --install build-qt6 [--prefix DIR]` |
+| `uninstall [QT]` | remove the files installed from the build directory | `cmake --build build-qt6 --target uninstall` |
+| `dist [QT]` | create the source tarball `rcssmonitor-VERSION.tar.gz` from the committed files of HEAD | `cmake --build build-qt6 --target dist` |
+| `distcheck [QT]` | create the source tarball and check that it can be built, tested, installed and uninstalled | `cmake --build build-qt6 --target distcheck` |
+| `clean [QT\|all]` | remove the build directory (`all`: all three) | `rm -rf build-qt6` |
+
+Options for configure are given by the environment variable `CMAKE_ARGS` (configure is run again when it is set), e.g. `CMAKE_ARGS="-DENABLE_WEBSOCKET=OFF" ./cmake-helper.sh build`. `JOBS` sets the number of parallel build jobs (the number of CPUs by default).
+
 ### Building with autotools (Qt 5 only)
 
 autotools needs the Qt 5 packages above and also `autoconf automake libtool qt5-qmake`. From the directory of the repository, execute:
@@ -61,7 +103,7 @@ Once you have successfully configured the monitor, simply run `make` to build th
 
 With CMake, the options are given to the first command, e.g. `cmake -S . -B build -DCMAKE_INSTALL_PREFIX=YOUR_INSTALLATION_DIR`:
 
-- `CMAKE_INSTALL_PREFIX`: the installation directory (`/usr/local` by default)
+- `CMAKE_INSTALL_PREFIX`: the installation directory (`~/.local` by default; a build directory configured before keeps its value). The installed `rcssmonitor` finds its library in the directory (`lib`) by itself, and the desktop entry starts it by its full path.
 - `QT_VERSION_MAJOR`: `5` or `6`, the Qt to use (Qt 6 if it is found, by default)
 - `ENABLE_LIBDEFLATE`: `OFF` not to use libdeflate even if it is found (`ON` by default). With autotools, pass `--without-libdeflate` to `configure`.
 - `ENABLE_WEBSOCKET`: `OFF` not to build the WebSocket connection even if Qt WebSockets is found (`ON` by default). With autotools, pass `--disable-websocket` to `configure`.
@@ -79,7 +121,7 @@ When you have completed building the monitor, it's components can be installed i
 ```bash
 cmake --install build
 ```
-in the case of CMake, or
+in the case of CMake (into `~/.local` by default; `cmake --build build --target uninstall` removes the installed files), or
 ```bash
 make install
 ```
