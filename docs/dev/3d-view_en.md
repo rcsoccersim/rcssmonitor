@@ -110,7 +110,7 @@ A vertex passes through several coordinates until it becomes pixels on the scree
 - **Shadows** come in two ways (the option `shadows_3d`):
   - Simple: a soft ellipse under each player only (the `blob` shaders).
   - Detailed: a **shadow map**. The scene's depths as the sun sees them are drawn first (`ShadowMap`, the `depth` and `skinned_depth` shaders), and drawing the ground compares whether a point is in the shadow of something as seen from the sun (the `shadow` shaders).
-- Far things are brought nearer the sky's color by **fog**, which gives depth (`Scenery3D`).
+- The ground beyond the stadium is brought nearer the horizon's color by **haze** the farther it is, which gives depth (`Scenery3D`; not the players and other solids; §7.5).
 
 ### 2.8 Skeletons and skinning
 
@@ -378,7 +378,117 @@ The 3D view's sources are in `src/view3d/` (the OpenGL parts in `src/view3d/gl/`
 
 ## 7. Drawing and the shaders
 
-(written in 10-3b)
+### 7.1 The order of the passes
+
+`Scene3D::render()` draws a frame in several **passes**. A pass decides how to draw (`RenderState`), selects a shader program (`ShaderProgram::bind()`), sets its uniforms, and draws lists of shapes (`InstancedMesh::draw()` and so on). The order matters: the opaque things first, the translucent ones after, the texts last of all.
+
+```mermaid
+flowchart TD
+  begin["start: GLFrame::begin()<br/>into a RenderTarget with smooth edges"] --> p0["pass 0: the shadow map<br/>(with Detailed shadows)"]
+  p0 --> p0b["pass 0b: the ground beyond the stadium"]
+  p0b --> p1["pass 1: the ground (the 2D image, the realistic grass)"]
+  p1 --> p2["pass 2: the solids (bodies, heads, goals, direction cones), the ball, the figures"]
+  p2 --> p2b["pass 2b: the boards and banners, the stands"]
+  p2b --> p2c["pass 2c: the sky"]
+  p2c --> p3["pass 3: the translucent (shadows, circles and rings on the ground, overlays, nets, trail)"]
+  p3 --> p4["pass 4: the numbers and the cards"]
+  p4 --> fin["end: smooth edges averaged into the window<br/>GLFrame::end()"]
+  fin --> hud["FieldView3D: the HUD by QPainter"]
+```
+
+| Pass | What it draws | Program (vertex / fragment) | Render state |
+|---|---|---|---|
+| Start | Clears the framebuffer to the horizon's color (with the sky) or the background (`GLFrame::begin()`) | — | — |
+| 0 | The shadow map: the depths of the solids that cast shadows (bodies, heads, goals, figures) as the sun sees them. Not the ball nor the cones | `depth`; the figures `skinned` + `depth`, their see-through parts (hair) `skinned` + `skinned_depth` | opaque |
+| 0b | The ground beyond the ground image (on into the haze) | `outside` | opaque |
+| 1 | The ground: the 2D image (texture unit 0), the realistic grass's noise (unit 2) | `ground` | opaque |
+| 2 | The solids: cylinders (bodies), spheres (heads), cones (directions), the goals | `lit` | opaque |
+| 2 (ball) | The ball and its pattern | `ball` | opaque |
+| 2a | The human figures (bodies posed by their bones' matrices, the uniforms) | `skinned`; the parts with textures `skinned` (`TEXTURED`) | opaque |
+| 2b | The boards and the banners (an image on the front, the back plain) | `panel` | opaqueTwoSided |
+| 2b' | The stands (not one with the camera inside it) | `stand` | opaque |
+| 2c | The sky dome, after the solids, only where none of them is | `sky` | sky |
+| 3 | The translucent: shadows (Detailed: the plane reading the shadow map on unit 1; Simple: ellipses), the circles and rings on the ground, the ball's ring, the overlays (sectors, lines, points, dotted lines), the nets, the ball's trail; from the low layers up | `shadow` or `blob`, `flat`, `ring`, `colored` | translucent |
+| 4 | The numbers and the cards, facing the camera, from far to near | `billboard` | overlay |
+| End | Averages the samples of smooth edges into the window's framebuffer (`RenderTarget::resolve()`), and sets OpenGL back as QPainter expects it (`GLFrame::end()`) | — | — |
+
+After this, `FieldView3D::paintGL()` puts the HUD over it with QPainter (§13).
+
+### 7.2 How a pass draws (RenderState)
+
+`RenderState` has four settings: the depth test, writing the depth, culling the back faces, and blending. OpenGL keeps settings until they are changed, so every pass sets all of them again (so that nothing is left from the pass before).
+
+| Name | Depth test | Depth write | Back faces culled | Blending | Used for |
+|---|---|---|---|---|---|
+| `opaque()` | yes | yes | yes | — | The ground, the solids, the ball, the figures, the stands |
+| `opaqueTwoSided()` | yes | yes | — | — | The boards and the banners (seen from behind too) |
+| `sky()` | yes | — | — | — | The sky (drawn only where no solid is, leaving no depth) |
+| `translucent()` | yes | — | — | yes | Shadows, circles on the ground, overlays, nets. They write no depth, so the order of drawing decides which is over which |
+| `overlay()` | — | — | — | yes | The numbers and the cards (over everything) |
+| `painter()` | — | yes | — | — | The state handed to QPainter |
+
+### 7.3 The shaders
+
+The shader files are in `src/view3d/shaders/`, each with its role and inputs in its leading comment. `ground.vert` and `ground.frag` explain how a vertex shader and a fragment shader work at all: read them first.
+
+| Program | Draws | Main inputs and computation | The same computation on the CPU |
+|---|---|---|---|
+| `ground` | The ground | Paints the 2D image. With the realistic grass, the mowed stripes light or dark by the way the camera looks, and the blades' noise near the camera only (`uRealistic`, `uCamera`, `uNoise`) | `Grass3D` |
+| `outside` | The ground beyond | Its color, and the haze by the distance from the camera (`uHazeFrom` to `uHazeTo`) | `Scenery3D::haze()` |
+| `sky` | The sky | A color from the horizon to the zenith by how high the direction is; below the horizon, the haze's color of the ground beyond | `Scenery3D::skyColor()` |
+| `lit` | The solids | Ambient 0.42 + the sky's light 0.22 x (0.5 + 0.5 x the normal's upward part) + the sun 0.5 x max(normal . sun, 0). The normal is turned by the "normal matrix" (the inverse transpose of the model matrix) | — |
+| `ball` | The ball | The light of `lit`, with the pattern of 12 pentagons at the corners of an icosahedron, found at each pixel from the direction on the ball before it is turned (so the edges stay sharp near the camera) | `Ball3D::patternAt()` |
+| `skinned` | The figures | Moves the vertices by the bones' matrices (§7.6), with the light of `lit`. How each part is painted (`uPaint`: the material's color, the team's color, the uniform, the hair, the skin) and the planes where the clothes end (`uCuts`). The `TEXTURED` variant handles textures and see-through parts (hair cards) | `FigureUniform` |
+| `depth` | The shadow map's depths | Only the positions, by the sun's camera (`Sun3D::shadowViewProj()`); no colors | — |
+| `skinned_depth` | The depths of the figures' see-through parts | A transparent part of a texture casts no shadow | — |
+| `shadow` | The plane of the shadows (just over the ground) | Reads the shadow map by comparison (`sampler2DShadow`), averaging a few offset points to soften the edges; a margin of about 7 cm against the map's rounding | — |
+| `blob` | The Simple shadows | Stretches the unit disc into an ellipse away from the sun, dark in the middle, fading at the edge | `Sun3D::blobShadow()` |
+| `flat` | Flat colors | The circles and rings on the ground, the ball's shadow, the nets; translucent by the color's alpha | — |
+| `ring` | The ball's ring | A ring of a kept line width and a faint fill on a square (smoothed over a pixel) | — |
+| `colored` | The overlays | Each vertex's color; dotted lines cut by the distance along the line (`DISTANCE`) | — |
+| `panel` | The boards and banners | The image on the front, the back plain (`gl_FrontFacing` tells which) | — |
+| `stand` | The stands | The fans' image, with the light of `lit` | — |
+| `billboard` | The numbers and cards | Spreads a square along the rows of the view matrix (the camera's right and up) so that it faces the camera; tints the image by the color | — |
+
+### 7.4 Vertex attributes and instances
+
+- The location numbers of the vertex attributes are in `GLAttribute` of `gl/attributes.h` (position 0, normal 1, UV 2, the model matrix 3 to 6 (a mat4 takes 4), color 7, the distance of a dotted line 8, the joints 9, the weights 10, and so on). `ShaderProgram` adds `#version 330 core` and `#define A_POSITION 0` and the rest at the top of a shader before compiling it; the shaders write `layout( location = A_POSITION )`.
+- Some attributes belong to a vertex (the same for every copy of a shape) and some to an instance (each copy's place and color). The instance's attributes are set with a "divisor" of 1: OpenGL steps to the next value once per instance (`InstancedMesh::create()`).
+- `BillboardMesh` puts attributes of its own at the same locations instead of the model matrix. `VertexBatch` has no instances: each vertex has its color.
+
+### 7.5 Light, haze and shadows
+
+- The light is the sum of three in `lit.frag` (the row `lit` above), tuned by looking. The figures (`skinned.frag`) and the stands (`stand.frag`) use the same computation; change the three together.
+- The sun's direction is in `Sun3D` (beyond the far touch line, on the left, 44 degrees up). Seen from the near side, the shadows fall toward the camera, on the right.
+- The haze covers only the ground beyond the stadium (`outside`) and the sky (`sky`), not the players nor the stands.
+- With Detailed shadows: pass 0 draws the shadow map, and in pass 3 the plane of the shadows reads it. The plane is a translucent black just over the ground (`Sun3D::SHADOW_PLANE_Y`), as dark as `Sun3D::SHADOW_OPACITY`. The area and the height the map covers are constants of `Sun3D` (4 m, for a tall figure with both arms up).
+- With Simple shadows: pass 3 only draws an ellipse for each player; no shadow map is drawn.
+
+### 7.6 Skinning on the GPU
+
+- A vertex of a human body has the numbers and weights of up to 4 bones (`SkinVertex`, `GltfModel`). Each player's pose is the list of its bones' **skin matrices** (each moving a bone from its rest pose to its pose now), made by `Figures3D::pose()`.
+- The matrices of 22 players times tens of bones do not fit in uniforms, so they go into a texture (`uJoints`: a row a player, 4 texels a bone (the matrix's 4 columns)). The vertex shader reads its row by `gl_InstanceID` and the columns by the bone's number (`skinned.vert`).
+- The parts without a texture or a see-through part are drawn by the light variant; those with one (hair cards, eyelashes) by the `TEXTURED` variant. In the shadow map too, `skinned_depth.frag` drops the transparent places of the see-through parts.
+
+### 7.7 Changing a shader
+
+- The shaders are embedded in the program as Qt resources: build again after changing them. Add a new file to `view3d_shaders.qrc`.
+- When compiling or linking fails, an error starting with `(ShaderProgram) ...` goes to the standard error, `Scene3D::initialize()` fails, and the 3D view cannot be used. Write GLSL in the way of 3.30 core (an `out` variable, not `gl_FragColor`).
+- Some shaders have the same computation on the CPU (the right column of the table). The tests check colors and shapes by the CPU's computation, so when a shader changes, change its CPU side the same way.
+- What is drawn is checked by the test `scene_3d` in a framebuffer that is not shown (§15).
+- Measure the time with `RCSSMONITOR_3D_TIMING` and the FPS display (§14). To capture a drawn frame and look into it step by step, an outside tool such as RenderDoc can be used.
+- Do not use OpenGL's functions and constants outside `src/view3d/gl/` (the test `gl_isolation`). When a new way of drawing is needed, add a part, or a function of a part.
+
+### 7.8 Drawing something new
+
+The steps in the comment of the class `Scene3D`, in detail:
+
+1. Add the shape to `Meshes3D` (of unit size, at the origin).
+2. Give `Scene3D` an `InstancedMesh` of the shape, made in `initialize()` and destroyed in `release()`.
+3. Add a list of instances to `SceneContent`.
+4. Fill the list with instances (model matrices and colors) in `SceneBuilder` (or `FrameBuilder3D`).
+5. Add its `draw()` to the pass of the right shader and render state in `Scene3D::render()`. For a new shader, make its files in `src/view3d/shaders/`, add them to the `.qrc`, and `load()` it in `initialize()`.
+6. Add tests: what is in the lists in `scene_builder` or `frame_builder_3d`, the pixels drawn in `scene_3d`.
 
 ## 8. The human figures and their motion
 
