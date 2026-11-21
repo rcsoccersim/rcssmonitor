@@ -62,6 +62,13 @@ rcssmonitor_add_test(player_type_sort Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION
 rcssmonitor_add_test(game_log_file rcssmonitor_core)
 rcssmonitor_add_test(line_parser rcssrcg Qt${QT_VERSION_MAJOR}::Core)
 rcssmonitor_add_test(rcg_types rcssrcg Qt${QT_VERSION_MAJOR}::Core)
+rcssmonitor_add_test(message_splitter rcssmonitor_core)
+if(HAVE_QT_WEBSOCKETS)
+  rcssmonitor_add_test(monitor_transport rcssmonitor_core Qt${QT_VERSION_MAJOR}::WebSockets)
+else()
+  rcssmonitor_add_test(monitor_transport rcssmonitor_core)
+endif()
+
 # only src/view3d/gl calls OpenGL (docs/PLAN_3D-VIEW.md §5.3)
 rcssmonitor_add_test(gl_isolation Qt${QT_VERSION_MAJOR}::Core)
 

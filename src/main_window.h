@@ -293,6 +293,7 @@ private slots:
     void connectMonitorTo(); // open host input dialog
     void disconnectMonitor();
     void reconnectMonitor();
+    void showMonitorError( const QString & msg );
 
     // view menu actions slots
     void toggleMenuBar( bool checked );

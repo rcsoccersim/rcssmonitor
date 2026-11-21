@@ -11,13 +11,13 @@ rcssmonitor is written in C++17 and depends on [Qt](https://www.qt.io/) 6 (6.2 o
 
 First, install the tools and libraries. On Ubuntu 22.04, 24.04 or 26.04, with Qt 6:
 ```bash
-sudo apt install build-essential cmake qt6-base-dev zlib1g-dev libdeflate-dev
+sudo apt install build-essential cmake qt6-base-dev qt6-websockets-dev zlib1g-dev libdeflate-dev
 ```
 or with Qt 5:
 ```bash
-sudo apt install build-essential cmake qtbase5-dev zlib1g-dev libdeflate-dev
+sudo apt install build-essential cmake qtbase5-dev libqt5websockets5-dev zlib1g-dev libdeflate-dev
 ```
-zlib (`zlib1g-dev`) is needed to load gzip-compressed game logs (`.rcg.gz`). libdeflate (`libdeflate-dev`) is optional: if it is found, gzip game logs are loaded faster.
+zlib (`zlib1g-dev`) is needed to load gzip-compressed game logs (`.rcg.gz`). libdeflate (`libdeflate-dev`) is optional: if it is found, gzip game logs are loaded faster. Qt WebSockets (`qt6-websockets-dev`, `libqt6websockets6-dev` on Ubuntu 22.04, or `libqt5websockets5-dev` with Qt 5) is needed only for the WebSocket connection to the server. Without it, the monitor is built without the WebSocket connection.
 
 Then, clone the repository, or download the tarball from the [releases section](https://github.com/rcsoccersim/rcssmonitor/releases) and extract it. From its directory, execute:
 
@@ -55,6 +55,8 @@ You may need administrator privileges to install the monitor into the default lo
 
 The monitor has several features that can be enabled or disabled at configure time by using the `--enable-FEATURE[=ARG]` or `--disable-FEATURE` parameters to `configure`.  `--disable-FEATURE` is equivalent to `--enable-FEATURE=no` and `--enable-FEATURE` is equivlant to `--enable-FEATURE=yes`.  The only valid values for `ARG` are `yes` and `no`.
 
+The WebSocket connection is enabled if Qt WebSockets is found. To disable it, use `--disable-websocket`.
+
 Once you have successfully configured the monitor, simply run `make` to build the sources.
 
 With CMake, the options are given to the first command, e.g. `cmake -S . -B build -DCMAKE_INSTALL_PREFIX=YOUR_INSTALLATION_DIR`:
@@ -62,6 +64,7 @@ With CMake, the options are given to the first command, e.g. `cmake -S . -B buil
 - `CMAKE_INSTALL_PREFIX`: the installation directory (`/usr/local` by default)
 - `QT_VERSION_MAJOR`: `5` or `6`, the Qt to use (Qt 6 if it is found, by default)
 - `ENABLE_LIBDEFLATE`: `OFF` not to use libdeflate even if it is found (`ON` by default). With autotools, pass `--without-libdeflate` to `configure`.
+- `ENABLE_WEBSOCKET`: `OFF` not to build the WebSocket connection even if Qt WebSockets is found (`ON` by default). With autotools, pass `--disable-websocket` to `configure`.
 
 If CMake is chosen, `ccmake` command is available for the configuration:
 
@@ -129,6 +132,32 @@ rcssmonitor
 ```
 
 If you invoke `rcssmonitor` with `--help` option, available options are displayed in your console.
+
+### Connecting via TCP or WebSocket
+
+By default, the monitor connects to the server via UDP.
+If the server supports the `server::tcp_port` and `server::ws_port` parameters, the monitor can also connect via TCP or WebSocket.
+These connections are disabled in the server by default. Enable them by giving the port numbers:
+
+```bash
+rcssserver server::tcp_port=6000 server::ws_port=6080
+```
+
+Then, select the transport by `--server-transport` and give the corresponding port number by `--server-port`:
+
+```bash
+rcssmonitor --connect                                            # UDP (server::port)
+rcssmonitor --connect --server-transport tcp --server-port 6000  # TCP (server::tcp_port)
+rcssmonitor --connect --server-transport ws --server-port 6080   # WebSocket (server::ws_port)
+```
+
+The transport, the port number and the request path can also be given by `Monitor` -> `Connect to ...` in the menu bar.
+
+Note the following points:
+
+- The protocol versions 1 and 2 (`--client-version 1` or `2`) are available only via UDP, because they use a binary format. Use the version 3 or later, or -1 (JSON format), via TCP and WebSocket.
+- The WebSocket connection uses the request path `/monitor` by default. It can be changed by `--server-ws-path` (e.g. `/player`).
+- `wss://` (WebSocket over TLS) is not supported.
 
 ## :incoming_envelope: Contributing
 

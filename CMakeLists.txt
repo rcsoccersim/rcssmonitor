@@ -77,6 +77,17 @@ endif()
 
 set(CMAKE_AUTOMOC ON)
 
+# check Qt WebSockets
+option(ENABLE_WEBSOCKET "Enable the WebSocket connection (requires Qt WebSockets)" ON)
+if(ENABLE_WEBSOCKET)
+  find_package(Qt${QT_VERSION_MAJOR} COMPONENTS WebSockets QUIET)
+  if(Qt${QT_VERSION_MAJOR}WebSockets_FOUND)
+    set(HAVE_QT_WEBSOCKETS TRUE)
+  else()
+    message(WARNING "Qt${QT_VERSION_MAJOR} WebSockets not found. The WebSocket connection is disabled.")
+  endif()
+endif()
+
 # check zlib
 find_package(ZLIB)
 if(ZLIB_FOUND)

@@ -12,3 +12,5 @@
 #cmakedefine HAVE_WINDOWS_H
 
 #cmakedefine HAVE_ARPA_INET_H
+
+#cmakedefine HAVE_QT_WEBSOCKETS

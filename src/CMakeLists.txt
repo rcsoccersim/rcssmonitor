@@ -5,6 +5,7 @@ add_library(rcssmonitor_core STATIC
   ball_painter.cpp
   circle_2d.cpp
   config_dialog.cpp
+  connect_dialog.cpp
   disp_holder.cpp
   draw_info_painter.cpp
   field_canvas.cpp
@@ -14,7 +15,9 @@ add_library(rcssmonitor_core STATIC
   log_player.cpp
   log_player_slider.cpp
   main_window.cpp
+  message_splitter.cpp
   monitor_client.cpp
+  monitor_transport.cpp
   options.cpp
   overlay_math.cpp
   play_mode_position.cpp
@@ -26,10 +29,12 @@ add_library(rcssmonitor_core STATIC
   referee_menu.cpp
   score_board_painter.cpp
   team_graphic.cpp
+  tcp_monitor_transport.cpp
   team_graphic_painter.cpp
   tool_icon.cpp
   toolbar_icons.cpp
   tooltip_marker.cpp
+  udp_monitor_transport.cpp
   vector_2d.cpp
   )
 
@@ -113,6 +118,11 @@ if(HAVE_3D_VIEW)
   # ufbx (FBX loading, MIT or Unlicense), compiled from its own C file
   target_include_directories(rcssmonitor_core PRIVATE ${PROJECT_SOURCE_DIR}/third_party/ufbx)
   target_link_libraries(rcssmonitor_core PUBLIC ${QT_3D_VIEW_LIBRARIES})
+endif()
+
+if(HAVE_QT_WEBSOCKETS)
+  target_sources(rcssmonitor_core PRIVATE ws_monitor_transport.cpp)
+  target_link_libraries(rcssmonitor_core PRIVATE Qt${QT_VERSION_MAJOR}::WebSockets)
 endif()
 
 if(HAVE_LIBDEFLATE)

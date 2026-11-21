@@ -16,6 +16,7 @@ jobs:
   # deprecated up to Qt 5.15 or 6.0, and -Werror catches the later ones.
   # The tests run under Xvfb with Mesa's software OpenGL (llvmpipe), so that
   # the 3D view is drawn offscreen too (docs/PLAN_3D-VIEW.md §10.2).
+  # They are built with Qt WebSockets (the WebSocket connection).
   cmake:
     name: CMake, ${{ matrix.qt }}
     # Named, not ubuntu-latest, which moves to a new image now and then.
@@ -26,10 +27,10 @@ jobs:
         include:
           - qt: Qt5
             qt_major: 5
-            qt_packages: qtbase5-dev
+            qt_packages: qtbase5-dev libqt5websockets5-dev
           - qt: Qt6
             qt_major: 6
-            qt_packages: qt6-base-dev libqt6opengl6-dev
+            qt_packages: qt6-base-dev libqt6opengl6-dev qt6-websockets-dev
     steps:
       - uses: actions/checkout@v5
       - name: Install the packages
@@ -45,6 +46,8 @@ jobs:
             -DCMAKE_CXX_FLAGS=-Werror=deprecated-declarations
       - name: Check that the 3D view is built
         run: grep -q '^#define HAVE_3D_VIEW' build/config.h
+      - name: Check that the WebSocket connection is built
+        run: grep -q '^#define HAVE_QT_WEBSOCKETS' build/config.h
       - name: Build
         run: cmake --build build --parallel "$(nproc)"
       - name: Test
@@ -64,8 +67,10 @@ jobs:
       - name: Install the packages
         run: |
           apt-get update
+          # Qt6 WebSockets is libqt6websockets6-dev on 22.04 (qt6-websockets-dev
+          # from 24.04)
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-            build-essential cmake qt6-base-dev libqt6opengl6-dev libgl-dev zlib1g-dev libdeflate-dev \
+            build-essential cmake qt6-base-dev libqt6opengl6-dev libqt6websockets6-dev libgl-dev zlib1g-dev libdeflate-dev \
             xvfb xauth libgl1-mesa-dri
       - name: Configure
         run: |
@@ -74,6 +79,8 @@ jobs:
             -DCMAKE_CXX_FLAGS=-Werror=deprecated-declarations
       - name: Check that the 3D view is built
         run: grep -q '^#define HAVE_3D_VIEW' build/config.h
+      - name: Check that the WebSocket connection is built
+        run: grep -q '^#define HAVE_QT_WEBSOCKETS' build/config.h
       - name: Build
         run: cmake --build build --parallel "$(nproc)"
       - name: Test
@@ -83,9 +90,10 @@ jobs:
           LIBGL_ALWAYS_SOFTWARE: 1
 
   # autotools stays on Qt5 (D3). Build it so that a source file missing
-  # from the Makefile.am files is caught. It is built without libdeflate,
-  # which the CMake job uses, so that both ways of reading a gzip game log
-  # are compiled.
+  # from the Makefile.am files is caught. It is built without libdeflate
+  # and Qt WebSockets, which the CMake jobs use, so that both ways of
+  # reading a gzip game log are compiled, and the monitor without the
+  # WebSocket connection too.
   autotools-qt5:
     name: autotools, Qt5
     runs-on: ubuntu-26.04
