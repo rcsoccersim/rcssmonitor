@@ -201,6 +201,27 @@ Note the following points:
 - The WebSocket connection uses the request path `/monitor` by default. It can be changed by `--server-ws-path` (e.g. `/player`).
 - `wss://` (WebSocket over TLS) is not supported.
 
+### Drawing a live game some seconds behind (Live Delay)
+
+`Live Delay` (the clock button in the tool bar, or `Monitor` -> `Live Delay` in the menu bar) draws a live game some seconds behind the newest frame from the server, in the 2D and 3D views alike.
+The tool bar shows how far behind (e.g. `LIVE -3.0 s`), and the time and the score shown are those of the frame drawn.
+
+The 3D view can draw the ball flying in the air (`Flight` on the `Players & Ball` tab of the settings dialog, or `--ball-flight-3d on`), although today's server has no height.
+Each kick's flight is found from the next touch of the ball, which is known in a game log, but not yet in a live game as it comes.
+Drawn some seconds behind, the touches ahead of the frame drawn have come, and the ball flies in a live game as in a game log, e.g. on the screen at a competition.
+A kick whose next touch has not come when it is drawn stays on the ground.
+
+The seconds are set by `Seconds` in `Live` on the `Show` tab of the settings dialog (1 to 7 seconds in steps of 0.5; 3 by default), where `Delay` also turns it on or off, or on the command line:
+
+```bash
+rcssmonitor --connect --live-delay 3    # 3 seconds behind; --live-delay 0 turns it off
+```
+
+- 3 seconds draw almost every flight as in the game log. With less, more kicks stay on the ground. 7 seconds, the largest, is about the time the ball takes from its top speed to an almost stop.
+- Right after connecting, the first frame waits until the seconds' frames have come. When the game or the connection ends, the remaining frames are drawn to the end.
+- The referee's operations (e.g. `Kick Off`) reach the server at once, while the view shows the game some seconds ago. To operate the game, turn the delay off, or use another monitor without it.
+- The setting is kept when the monitor quits (`live_delay` and `live_delay_seconds` in `~/.rcssmonitor.conf`).
+
 ## :incoming_envelope: Contributing
 
 For bug reports, feature requests and latest updates, please goto

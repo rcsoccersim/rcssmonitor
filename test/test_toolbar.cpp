@@ -439,11 +439,12 @@ TestToolbar::liveDelay()
     QVERIFY( act->toolTip().contains( "3.0 s" ) );
     QVERIFY( act->statusTip().contains( "referee" ) );
 
-    // in the Monitor menu, after Live Mode
+    // in the Monitor menu, after Live Mode (found by its title: Qt 6.2 has
+    // no QAction::menu())
     QMenu * monitor = nullptr;
-    for ( QAction * m : window.menuBar()->actions() )
+    for ( QMenu * m : window.menuBar()->findChildren< QMenu * >() )
     {
-        if ( m->text() == "&Monitor" ) monitor = m->menu();
+        if ( m->title() == "&Monitor" ) monitor = m;
     }
     QVERIFY( monitor );
     const QList< QAction * > items = monitor->actions();
