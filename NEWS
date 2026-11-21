@@ -1,4 +1,59 @@
 [Unreleased]
+  * Add the 3D view (built by CMake; OpenGL 3.3 is required at run
+    time). D or the "3D View" button switches between the 2D and 3D
+    views. It has eight cameras (broadcast, free, close-ups of the ball
+    and the selected player, top, behind each goal, and the selected
+    player's view), viewpoints of the whole pitch, a compass strip, a
+    minimap, shadows, the grass, stands with the fans, boards and
+    banners with the team names and logos, and the referee's menu on a
+    right click. The players are drawn as cylinders or as human figures
+    moving by the game log. See docs/3d-view.md.
+
+  * Add figure packs: the models and the motions of the human figures.
+    Two packs are bundled (mannequin and human), and users can add
+    their own from glTF, VRM, FBX and BVH files, e.g. a character and
+    animations of Mixamo. See docs/FIGURE_PACKS.md.
+
+  * Add the flying ball (--ball-flight-3d, off by default): the 3D view
+    lets the ball fly in the air, virtually, guessed from the game log.
+
+  * Add the delayed live view ("Live Delay", --live-delay SECONDS): a
+    live game is drawn some seconds behind, in 2D and 3D, so that the
+    ball can fly in a live game too.
+
+  * Support Qt 6 (6.2 or later). Qt 5.15 is still supported. CMake uses
+    Qt 6 if it is found.
+
+  * Make CMake the official build. The README describes CMake only, and
+    docs/build.md describes the details, including the autotools build,
+    which is kept with Qt 5 only (without the 3D view). Add
+    cmake-helper.sh for the frequently used CMake commands. CMake
+    installs into ~/.local by default, with a desktop entry and an
+    icon, and has the uninstall, dist and distcheck targets.
+
+  * Remove the qmake build (rcssmonitor.pro).
+
+  * Stop providing the AppImage. Build from the source (docs/build.md),
+    or view game logs with the browser version, rcssmonitor-web.
+
+  * Renew the tool bar after the browser version: the buttons to open a
+    game log, to connect, to disconnect and to kick off, Live Delay and
+    Loop, the cycle and the frame, a field to go to a cycle, and the
+    time per frame.
+
+  * Read game logs faster (with libdeflate for gzip-compressed logs, if
+    it is found) and more robustly (unknown JSON keys, broken lines, a
+    missing ']' and unknown lines of text logs are skipped). Read the
+    ball's height of a future 2.5D server's logs.
+
+  * Fix bugs: the live view stopped after 65535 frames; the view
+    quality of JSON logs; JSON players in another order; foul_push_r;
+    long team graphic strings of text logs; outdated defaults of the
+    parameters; the offside line; the color of the left goalie's catch
+    area; Change Playmode with back_pass sent nothing; "Fix" of the
+    player selection in the settings dialog; the initial color of
+    Illegal Defense; sorting the player type list.
+
   * Support the TCP and WebSocket connections to rcssserver. The
     transport is selected by the new option --server-transport (udp,
     tcp or ws). The request path of WebSocket can be changed by

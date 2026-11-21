@@ -4,6 +4,10 @@
 ![Logo](https://user-images.githubusercontent.com/1832537/49242985-f69a3c00-f3ea-11e8-97f5-9b0bfdfc4e1c.png)
 
 **RoboCup Soccer Simulator Monitor** (rcssmonitor) is used to view the simulation as it takes place by connecting to the [RoboCup Soccer Simulator Server](https://github.com/rcsoccersim/rcssserver) (rcssserver) or to view the playback of a simulation by loading game log files.
+It shows the game in 2D and in 3D.
+
+The releases provide the source code, built as below (no AppImage is provided from version 20.0.0).
+To view game logs without installing anything, the browser version, rcssmonitor-web, can also be used.
 
 ## :soccer: Quick Start
 
@@ -79,6 +83,19 @@ rcssmonitor
 
 If you invoke `rcssmonitor` with `--help` option, available options are displayed in your console.
 
+### The 3D view
+
+`D`, or the `3D View` button in the tool bar, switches between the 2D and 3D views (`--view-3d on` starts in 3D).
+The 3D view has several cameras (`E` for the next one), draws the players as cylinders or as human figures moving by the game log, and can let the ball fly in the air.
+It needs OpenGL 3.3, and a build with the 3D view ([docs/build.md](docs/build.md)).
+[docs/3d-view.md](docs/3d-view.md) describes the cameras, the mouse and keys, and the settings, and [docs/FIGURE_PACKS.md](docs/FIGURE_PACKS.md) how to add figures of your own.
+
+In a Wayland session with a screen of high resolution such as 4K, start the monitor with `QT_QPA_PLATFORM=wayland` for a smooth 3D view (Qt may run it through XWayland, which can slow the 3D view down):
+
+```bash
+QT_QPA_PLATFORM=wayland rcssmonitor
+```
+
 ### Connecting via TCP or WebSocket
 
 By default, the monitor connects to the server via UDP.
@@ -110,7 +127,7 @@ Note the following points:
 `Live Delay` (the clock button in the tool bar, or `Monitor` -> `Live Delay` in the menu bar) draws a live game some seconds behind the newest frame from the server, in the 2D and 3D views alike.
 The tool bar shows how far behind (e.g. `LIVE -3.0 s`), and the time and the score shown are those of the frame drawn.
 
-The 3D view can draw the ball flying in the air (`Flight` on the `Players & Ball` tab of the settings dialog, or `--ball-flight-3d on`), although today's server has no height.
+The 3D view can draw the ball flying in the air (`Flight` on the `Players & Ball` tab of the settings dialog, or `--ball-flight-3d on`; [docs/3d-view.md](docs/3d-view.md#the-flying-ball-flight)), although today's server has no height.
 Each kick's flight is found from the next touch of the ball, which is known in a game log, but not yet in a live game as it comes.
 Drawn some seconds behind, the touches ahead of the frame drawn have come, and the ball flies in a live game as in a game log, e.g. on the screen at a competition.
 A kick whose next touch has not come when it is drawn stays on the ground.

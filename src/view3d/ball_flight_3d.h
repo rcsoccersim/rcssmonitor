@@ -76,6 +76,13 @@
   Without one, it stays on the ground. A segment starts at the height the
   one before ended at (a volley), except after a play mode change.
 
+  The idea comes from a paper of Osaka Metropolitan University, whose 3D
+  log viewer lofts the ball between the kicks of a 2D game log: Hatakeyama
+  et al., a log visualization system for soccer analysis, JSAI SIG
+  technical report SAI-047, 2024 (in Japanese only),
+  https://doi.org/10.11517/jsaisigtwo.2023.SAI-047_05. Which kicks fly and
+  how high are found here in rcssmonitor's own way.
+
   A kick's segment also ends where the ball almost stops, without a touch
   before (rolling no farther than the kickable distance, by its decay:
   §5.10), the ball on the ground there: the next touch long after is not
