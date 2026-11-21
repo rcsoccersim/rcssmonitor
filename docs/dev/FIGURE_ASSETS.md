@@ -1,7 +1,7 @@
 # The figures' material: for maintainers
 
 How the models and motions of the 3D view's figures are made, converted
-and tested. For users, see [FIGURE_PACKS.md](FIGURE_PACKS.md).
+and tested. For users, see [FIGURE_PACKS.md](../FIGURE_PACKS.md).
 
 ## The bundled packs
 

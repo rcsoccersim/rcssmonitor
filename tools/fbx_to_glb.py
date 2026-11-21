@@ -1,5 +1,5 @@
 # fbx_to_glb.py: an FBX file (a model, its animations) to a glTF binary, with Blender
-# (docs/FIGURE_ASSETS.md):
+# (docs/dev/FIGURE_ASSETS.md):
 #
 #   blender -b --factory-startup --python tools/fbx_to_glb.py -- IN.fbx OUT.glb
 #

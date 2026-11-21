@@ -40,7 +40,7 @@ and scale of every joint.
   python3 cut_100style.py 100STYLE.zip .
   ```
 
-  The cycles it cuts are in the script, and in `docs/FIGURE_ASSETS.md`.
+  The cycles it cuts are in the script, and in `docs/dev/FIGURE_ASSETS.md`.
 - `Actions.glb`: the skeleton (no mesh) and three animations of the
   [Universal Animation Library 2](https://quaternius.com/packs/universalanimationlibrary2.html)
   [Standard] by Quaternius, CC0 1.0, from its file without root motion
