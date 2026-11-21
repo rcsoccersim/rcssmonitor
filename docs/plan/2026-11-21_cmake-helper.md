@@ -5,7 +5,7 @@
 | 作成日 | 2026-11-21 |
 | 対象 | rcssmonitor develop (a6df084, 19.0.1) |
 | ブランチ | `feature/cmake-helper` (develop から。ユーザが GitHub 上で作る) |
-| 状態 | 実装とローカルでの試験は済 (2026-11-21)。コミット、CI、develop への PR はこれから |
+| 状態 | 実装とローカルでの試験は済。`feature/cmake-helper` にコミットし (a7e6880)、CI は全ジョブが通った (2026-11-21)。develop への PR はこれから |
 | 英語版 | [2026-11-21_cmake-helper_en.md](2026-11-21_cmake-helper_en.md) (内容は同じ) |
 | 関連 | 3D 表示の計画書 (`feature/3d-view` の `docs/plan/2026-11-11_3d-view.md`) の §14「2026-11-21」と Phase 10 |
 
@@ -72,8 +72,8 @@
 
 1. develop から作業ツリーを作り、上のファイルを書く (済)。
 2. ローカルで試験する (済。§6)。
-3. ユーザが作った `feature/cmake-helper` に載せ、コミットとプッシュはユーザの確認を受けてから行う。
-4. CI を確かめる。
+3. ユーザが作った `feature/cmake-helper` に載せ、コミットとプッシュはユーザの確認を受けてから行う (済。§6)。
+4. CI を確かめる (済。§6)。
 5. PR のタイトルと説明の案を示す。ユーザが GitHub 上で develop への PR を作り、Squash Merge する。
 6. マージの後、develop を `feature/3d-view` に取り込み、3D 表示の計画書に記録する (デスクトップエントリの改名、Phase 10 の tarball の項目)。
 
@@ -99,8 +99,13 @@
 - **`.gitignore` がコミットの対象に出てこない**: ユーザの `~/.gitignore` が `.gitignore` を無視している。コミットでは `git add -f .gitignore` とする (S7)。
 - (環境) PATH の先頭に anaconda の環境があると、CMake はその Qt5 を見つける。スクリプトの問題ではない。システムの Qt5 での試験は、PATH から anaconda を外して行った。
 
+### 2026-11-21: コミットと CI
+
+- ユーザが GitHub 上で `feature/cmake-helper` を作った (develop と同じ a6df084)。作業ツリーをこのブランチに切り替え、ユーザの確認を受けてコミットし、プッシュした (a7e6880 "Add cmake-helper.sh for the frequently used CMake commands")。コミットメッセージからは、ユーザの指示で soccerwindow2 への言及を除いた。
+- CI は 5 つのジョブ (CMake Qt6、CMake Qt6 (Ubuntu 22.04)、CMake Qt5、autotools Qt5、新しい CMake distcheck Qt6) がすべて通った。distcheck のジョブでは、tarball の作成、展開、ビルド、テスト (15/15)、インストール、デスクトップエントリの検証、インストールした実行ファイルの起動、アンインストールまで通った。
+
 ### 残っていること
 
-- `feature/cmake-helper` が GitHub 上に見つからない (2026-11-21 の時点で、リモートのブランチは develop、feature/3d-view、feature/qt6、feature/support-tcp-ws、master、proto/3d-gl)。ユーザに確かめる。
+- ユーザが GitHub 上で develop への PR を作り、Squash Merge する。
 - develop の時点では、3D 表示の計画書は `docs/PLAN_3D-VIEW*.md` にあり、`export-ignore` されない。`feature/3d-view` を develop に取り込むと `docs/plan` に移るので、そのとき除かれる。
 - develop を master にマージするときは、`.gitignore` が add/add で衝突する見込み。新しい方が master の内容を含むので、新しい方をとればよい。

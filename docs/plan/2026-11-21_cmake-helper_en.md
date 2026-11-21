@@ -5,7 +5,7 @@
 | Created | 2026-11-21 |
 | Target | rcssmonitor develop (a6df084, 19.0.1) |
 | Branch | `feature/cmake-helper` (from develop; the user creates it on GitHub) |
-| Status | Implemented and tested locally (2026-11-21). The commits, CI and the PR to develop are still to come |
+| Status | Implemented and tested locally. Committed to `feature/cmake-helper` (a7e6880), and all the CI jobs passed (2026-11-21). The PR to develop is still to come |
 | Japanese version | [2026-11-21_cmake-helper.md](2026-11-21_cmake-helper.md) (same content) |
 | Related | The 3D view plan (`docs/plan/2026-11-11_3d-view.md` on `feature/3d-view`): §14 "2026-11-21" and Phase 10 |
 
@@ -72,8 +72,8 @@
 
 1. Make a working tree from develop and write the files above (done).
 2. Test locally (done; §6).
-3. Put the work on `feature/cmake-helper`, which the user creates. Commit and push only after the user approves.
-4. Check CI.
+3. Put the work on `feature/cmake-helper`, which the user creates. Commit and push only after the user approves (done; §6).
+4. Check CI (done; §6).
 5. Propose the PR title and description. The user opens the PR to develop on GitHub and Squash Merges it.
 6. After the merge, merge develop into `feature/3d-view` and record it in the 3D view plan (the renamed desktop entry; the tarball item of Phase 10).
 
@@ -99,8 +99,13 @@ Problems found and their fixes:
 - **`.gitignore` does not show up as a file to commit**: the user's `~/.gitignore` ignores `.gitignore` files. The commit uses `git add -f .gitignore` (S7).
 - (Environment) When an anaconda environment is first in PATH, CMake finds its Qt5. This is not a problem of the scripts. The test with the system's Qt5 ran with anaconda removed from PATH.
 
+### 2026-11-21: Commit and CI
+
+- The user created `feature/cmake-helper` on GitHub (at a6df084, the same as develop). The working tree was switched to this branch, and the work was committed after the user approved, and pushed (a7e6880 "Add cmake-helper.sh for the frequently used CMake commands"). At the user's request, the commit message does not mention soccerwindow2.
+- All five CI jobs passed (CMake Qt6, CMake Qt6 (Ubuntu 22.04), CMake Qt5, autotools Qt5, and the new CMake distcheck Qt6). The distcheck job went through making the tarball, extracting, building, testing (15/15), installing, validating the desktop entry, starting the installed program, and uninstalling.
+
 ### Still to do
 
-- `feature/cmake-helper` is not found on GitHub (as of 2026-11-21 the remote branches are develop, feature/3d-view, feature/qt6, feature/support-tcp-ws, master and proto/3d-gl). Ask the user.
+- The user opens the PR to develop on GitHub and Squash Merges it.
 - On develop, the 3D view plan is still `docs/PLAN_3D-VIEW*.md`, which is not `export-ignore`d. When `feature/3d-view` is merged into develop it moves into `docs/plan`, and is left out from then on.
 - When develop is merged into master, `.gitignore` is expected to conflict (add/add). The new file contains master's lines, so take the new file.
