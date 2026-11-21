@@ -167,13 +167,24 @@ position( const std::size_t frame_count,
 /*-------------------------------------------------------------------*/
 double
 liveTime( const std::size_t frame_count,
-          const double since_newest )
+          const double since_newest,
+          const std::size_t delay_frames )
 {
-    if ( frame_count == 0 ) return 0.0;
+    if ( frame_count == 0 || waitingLive( frame_count, delay_frames ) ) return 0.0;
+    const std::size_t delay = std::max( LIVE_DELAY, delay_frames );
     const double latest = static_cast< double >( frame_count - 1 );
-    const double from = ( frame_count > LIVE_DELAY ? latest - LIVE_DELAY : 0.0 );
-    const double on = std::max( 0.0, std::min( static_cast< double >( LIVE_DELAY ), since_newest ) );
+    const double from = ( frame_count > delay ? latest - static_cast< double >( delay ) : 0.0 );
+    const double on = std::max( 0.0, std::min( static_cast< double >( delay ), since_newest ) );
     return std::min( latest, from + on );
+}
+
+/*-------------------------------------------------------------------*/
+bool
+waitingLive( const std::size_t frame_count,
+             const std::size_t delay_frames )
+{
+    return delay_frames > LIVE_DELAY
+        && frame_count <= delay_frames;
 }
 
 /*-------------------------------------------------------------------*/

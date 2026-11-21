@@ -41,6 +41,8 @@
 #include "log_player.h"
 #include "options.h"
 
+#include <algorithm>
+#include <cmath>
 #include <iostream>
 
 /*-------------------------------------------------------------------*/
@@ -52,12 +54,19 @@ LogPlayer::LogPlayer( DispHolder & disp_holder,
     : QObject( parent ),
       M_disp_holder( disp_holder ),
       M_timer( new QTimer( this ) ),
-      M_live_mode( false )
+      M_live_mode( false ),
+      M_delay_timer( new QTimer( this ) )
 {
     connect( M_timer, SIGNAL( timeout() ),
              this, SLOT( handleTimer() ) );
 
     M_timer->setInterval( Options::instance().timerInterval() );
+
+    // a quarter of the default simulation step: the shown frame moves on
+    // soon after its time
+    M_delay_timer->setInterval( 25 );
+    connect( M_delay_timer, SIGNAL( timeout() ),
+             this, SLOT( handleDelayTimer() ) );
 }
 
 /*-------------------------------------------------------------------*/
@@ -82,6 +91,8 @@ LogPlayer::clear()
     }
 
     M_live_mode = false;
+    M_delay_timer->stop();
+    M_newest_clock.invalidate();
 
     M_timer->setInterval( Options::instance().timerInterval() );
 }
@@ -432,6 +443,12 @@ LogPlayer::goToCycle( int cycle )
 void
 LogPlayer::showLive()
 {
+    if ( liveDelayFrames() > 0 )
+    {
+        showDelayedLive( false );
+        return;
+    }
+
     if ( M_disp_holder.setIndexLast() )
     {
         M_timer->stop();
@@ -460,11 +477,138 @@ LogPlayer::showLive()
 void
 LogPlayer::setLiveMode()
 {
-    M_disp_holder.setIndexLast();
     M_live_mode = true;
     M_timer->stop();
 
+    if ( liveDelayFrames() > 0 )
+    {
+        showDelayedLive( true );
+        return;
+    }
+
+    M_delay_timer->stop();
+    M_disp_holder.setIndexLast();
+
     //emit updated();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+void
+LogPlayer::applyLiveDelay()
+{
+    if ( ! M_live_mode )
+    {
+        return;
+    }
+
+    if ( liveDelayFrames() > 0 )
+    {
+        showDelayedLive( true );
+    }
+    else
+    {
+        M_delay_timer->stop();
+        showLive();
+    }
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+void
+LogPlayer::receivedFrame()
+{
+    M_newest_clock.start();
+
+    if ( M_live_mode )
+    {
+        showLive();
+    }
+}
+
+/*-------------------------------------------------------------------*/
+std::size_t
+LogPlayer::liveDelayFrames() const
+{
+    const Options & opt = Options::instance();
+    if ( ! opt.liveDelay() )
+    {
+        return 0;
+    }
+    const int step = std::max( 1, M_disp_holder.serverParam().simulator_step_ );
+    return static_cast< std::size_t >( std::lround( opt.liveDelaySeconds() * 1000.0 / step ) );
+}
+
+/*-------------------------------------------------------------------*/
+std::size_t
+LogPlayer::liveIndex( const std::size_t frame_count,
+                      const std::size_t delay,
+                      const double since_newest )
+{
+    if ( frame_count == 0
+         || ( delay > 0 && frame_count <= delay ) )
+    {
+        // no frame, or waiting for more frames than the delay
+        return 0;
+    }
+    const std::size_t latest = frame_count - 1;
+    const std::size_t from = latest - delay;
+    const double on = std::max( 0.0, std::min( static_cast< double >( delay ), since_newest ) );
+    return std::min( latest, from + static_cast< std::size_t >( std::floor( on ) ) );
+}
+
+/*-------------------------------------------------------------------*/
+double
+LogPlayer::stepsSinceNewest() const
+{
+    if ( ! M_newest_clock.isValid() )
+    {
+        return 0.0;
+    }
+    const int step = std::max( 1, M_disp_holder.serverParam().simulator_step_ );
+    return M_newest_clock.nsecsElapsed() * 1.0e-6 / step;
+}
+
+/*-------------------------------------------------------------------*/
+void
+LogPlayer::showDelayedLive( const bool jump )
+{
+    const std::size_t count = M_disp_holder.dispCont().size();
+    if ( count > 0 )
+    {
+        const std::size_t index = liveIndex( count, liveDelayFrames(), stepsSinceNewest() );
+        const std::size_t current = M_disp_holder.currentIndex();
+        if ( ( jump
+               || current == DispHolder::INVALID_INDEX
+               || current < index )
+             && M_disp_holder.setIndex( index ) )
+        {
+            emit indexUpdated( M_disp_holder.currentIndex(), M_disp_holder.dispCont().size() );
+        }
+    }
+
+    if ( ! M_delay_timer->isActive() )
+    {
+        M_delay_timer->start();
+    }
+}
+
+/*-------------------------------------------------------------------*/
+void
+LogPlayer::handleDelayTimer()
+{
+    if ( ! M_live_mode
+         || liveDelayFrames() == 0 )
+    {
+        M_delay_timer->stop();
+        return;
+    }
+
+    showDelayedLive( false );
 }
 
 

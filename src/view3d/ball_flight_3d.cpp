@@ -74,8 +74,17 @@ distance( const rcss::rcg::BallT & a,
 void
 BallFlight::clear()
 {
+    reset();
+    M_grounded.clear();
+}
+
+/*-------------------------------------------------------------------*/
+void
+BallFlight::reset()
+{
     M_segments.clear();
     M_segment_of.clear();
+    M_placed.clear();
     M_frames = 0;
     M_front.reset();
     M_back.reset();
@@ -83,28 +92,85 @@ BallFlight::clear()
 }
 
 /*-------------------------------------------------------------------*/
+std::size_t
+BallFlight::stopCycles( const double speed,
+                        const double decay,
+                        const double kickable )
+{
+    if ( decay <= 0.0 || decay >= 1.0 || kickable <= 0.0 ) return 0;
+    const double slow = kickable * ( 1.0 - decay ); // rolling no farther than kickable
+    if ( ! ( speed > slow ) ) return 0;
+    return static_cast< std::size_t >( std::ceil( std::log( slow / speed ) / std::log( decay ) - 1.0e-9 ) );
+}
+
+/*-------------------------------------------------------------------*/
+double
+BallFlight::kickableDistance( const rcss::rcg::ServerParamT & sp )
+{
+    return ( sp.player_size_ > 0.0 ? sp.player_size_ : 0.3 )
+        + ( sp.kickable_margin_ > 0.0 ? sp.kickable_margin_ : 0.7 )
+        + ( sp.ball_size_ > 0.0 ? sp.ball_size_ : 0.085 );
+}
+
+/*-------------------------------------------------------------------*/
+bool
+BallFlight::decided( const std::size_t i ) const
+{
+    if ( i + 1 >= M_segments.size() ) return false; // the last: its end not known yet
+    if ( M_segments[i].end != Touch::Collision ) return true;
+    // a collision followed soon by a touch is a trap, with the touch's reach
+    // (build()): known when the segment after it has ended, or is too long
+    const Segment & after = M_segments[i + 1];
+    return i + 2 < M_segments.size()
+        || after.last - after.first > TRAP_CYCLES;
+}
+
+/*-------------------------------------------------------------------*/
 void
 BallFlight::update( const DispCont & frames,
                     const rcss::rcg::ServerParamT & sp,
-                    const float ball_radius )
+                    const float ball_radius,
+                    const std::size_t live_drawn )
 {
     const double step = std::max( 1, sp.simulator_step_ ) * 1.0e-3; // s
     const double g = GRAVITY * step * step; // m/cycle^2
     const double decay = ( sp.ball_decay_ > 0.0 ? sp.ball_decay_ : 0.94 );
+    const double kickable = kickableDistance( sp );
     if ( frames.size() == M_frames
          && ( frames.empty() || ( frames.front() == M_front && frames.back() == M_back ) )
          && g == M_g
          && decay == M_decay
          && ball_radius == M_radius
-         && sp.goal_width_ == M_goal_width )
+         && sp.goal_width_ == M_goal_width
+         && kickable == M_kickable )
     {
+        groundDrawn( frames, live_drawn );
         return;
     }
-    clear();
+    // other frames (another log or game): the segments grounded live are
+    // theirs; more frames of the same (live): kept, and the heights of the
+    // segments that stay the same (all but the last few)
+    const bool more = ( ! frames.empty()
+                        && frames.front() == M_front
+                        && frames.size() > M_frames
+                        && g == M_g
+                        && decay == M_decay
+                        && ball_radius == M_radius
+                        && sp.goal_width_ == M_goal_width
+                        && kickable == M_kickable );
+    if ( frames.empty() || frames.front() != M_front )
+    {
+        M_grounded.clear();
+    }
+    std::vector< Segment > previous;
+    if ( more ) previous.swap( M_segments );
+    reset();
+    M_previous.swap( previous );
     M_g = g;
     M_decay = decay;
     M_radius = ball_radius;
     M_goal_width = sp.goal_width_;
+    M_kickable = kickable;
     M_frames = frames.size();
     if ( ! frames.empty() )
     {
@@ -112,6 +178,36 @@ BallFlight::update( const DispCont & frames,
         M_back = frames.back();
     }
     build( frames );
+    M_previous.clear();
+    groundDrawn( frames, live_drawn );
+}
+
+/*-------------------------------------------------------------------*/
+void
+BallFlight::groundDrawn( const DispCont & frames,
+                         const std::size_t live_drawn )
+{
+    if ( live_drawn == NOT_LIVE
+         || ! M_active
+         || live_drawn >= M_segment_of.size() )
+    {
+        return;
+    }
+    const std::size_t i = static_cast< std::size_t >( M_segment_of[live_drawn] );
+    const Segment & s = M_segments[i];
+    if ( s.start != Touch::Kick
+         || s.grounded
+         || decided( i ) )
+    {
+        return;
+    }
+    const rcss::rcg::ShowInfoT & first = frames[s.first]->show_;
+    M_grounded.insert( std::make_pair( static_cast< unsigned int >( first.time_ ),
+                                       static_cast< unsigned int >( first.stime_ ) ) );
+    // the heights again from it on (those before stay the same)
+    M_previous = M_segments;
+    heights( frames );
+    M_previous.clear();
 }
 
 /*-------------------------------------------------------------------*/
@@ -207,6 +303,22 @@ BallFlight::build( const DispCont & frames )
         }
     }
 
+    // a kick without a touch until the ball almost stops: its segment ends
+    // there (§5.10), the ball on the ground (reach 0)
+    for ( std::size_t k = 0; k + 1 < n; ++k )
+    {
+        if ( touch[k] != Touch::Kick ) continue;
+        const std::size_t m = stopCycles( distance( frames[k]->show_.ball_, frames[k + 1]->show_.ball_ ),
+                                          M_decay, M_kickable );
+        if ( m == 0 || k + m >= n ) continue; // slow, or not stopped within the frames yet
+        bool touched = false;
+        for ( std::size_t j = k + 1; j <= k + m && ! touched; ++j )
+        {
+            touched = ( touch[j] != Touch::None );
+        }
+        if ( ! touched ) touch[k + m] = Touch::Stop;
+    }
+
     // the segments between the touches
     std::size_t first = 0;
     for ( std::size_t k = 1; k < n; ++k )
@@ -239,6 +351,7 @@ BallFlight::build( const DispCont & frames )
             case Touch::Tackle: return TACKLE_REACH;
             case Touch::Catch: return CATCH_REACH;
             case Touch::Collision: return BODY_REACH;
+            case Touch::Stop: return 0.0f;
             default: return -1.0f;
             }
         };
@@ -255,17 +368,9 @@ BallFlight::build( const DispCont & frames )
         }
     }
 
-    // their heights, in order: each from where the one before ended
-    float h = 0.0f;
-    for ( Segment & s : M_segments )
-    {
-        s.h0 = ( placed[s.first] || s.first == 0 ? 0.0f : h );
-        s.v = 0.0f;
-        s.loft = Loft::None;
-        s.bounce = false;
-        if ( s.start == Touch::Kick ) loft( frames, s );
-        h = height( s, double( s.last - s.first ), M_g );
-    }
+    M_placed = placed;
+    heights( frames );
+
     // the segment of each frame
     M_segment_of.assign( n, 0 );
     for ( std::size_t i = 0; i < M_segments.size(); ++i )
@@ -274,6 +379,45 @@ BallFlight::build( const DispCont & frames )
         for ( std::size_t f = s.first; f < s.last; ++f ) M_segment_of[f] = int( i );
     }
     M_segment_of[n - 1] = int( M_segments.size() - 1 );
+}
+
+/*-------------------------------------------------------------------*/
+void
+BallFlight::heights( const DispCont & frames )
+{
+    // each from where the one before ended; one grounded live is not lofted.
+    // With more frames of the same, a segment the same as before (its
+    // frames, its ends, its reach, where it starts) keeps its height:
+    // loft() tries many upward speeds.
+    float h = 0.0f;
+    std::size_t before = 0;
+    for ( Segment & s : M_segments )
+    {
+        const rcss::rcg::ShowInfoT & first = frames[s.first]->show_;
+        s.grounded = ( M_grounded.count( std::make_pair( static_cast< unsigned int >( first.time_ ),
+                                                         static_cast< unsigned int >( first.stime_ ) ) ) > 0 );
+        s.h0 = ( M_placed[s.first] || s.first == 0 ? 0.0f : h );
+        s.v = 0.0f;
+        s.loft = Loft::None;
+        s.bounce = false;
+        while ( before < M_previous.size() && M_previous[before].first < s.first ) ++before;
+        const Segment * same = ( before < M_previous.size() ? &M_previous[before] : nullptr );
+        if ( same
+             && same->first == s.first && same->last == s.last
+             && same->start == s.start && same->end == s.end
+             && same->reach == s.reach && same->h0 == s.h0
+             && same->grounded == s.grounded )
+        {
+            s.v = same->v;
+            s.loft = same->loft;
+            s.bounce = same->bounce;
+        }
+        else if ( s.start == Touch::Kick && ! s.grounded )
+        {
+            loft( frames, s );
+        }
+        h = height( s, double( s.last - s.first ), M_g );
+    }
 }
 
 /*-------------------------------------------------------------------*/

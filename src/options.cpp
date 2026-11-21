@@ -212,6 +212,8 @@ Options::Options()
     M_auto_reconnect_wait( 5 ),
     M_auto_loop_mode( false ),
     M_timer_interval( DEFAULT_TIMER_INTERVAL ),
+    M_live_delay( false ),
+    M_live_delay_seconds( DEFAULT_LIVE_DELAY_SECONDS ),
     // window options
     M_window_x( -1 ),
     M_window_y( -1 ),
@@ -462,6 +464,12 @@ Options::readSettings()
 
     val = settings.value( "timer_interval" );
     if ( val.isValid() ) M_timer_interval = val.toInt();
+
+    val = settings.value( "live_delay" );
+    if ( val.isValid() ) M_live_delay = val.toBool();
+
+    val = settings.value( "live_delay_seconds" );
+    if ( val.isValid() ) setLiveDelaySeconds( val.toDouble() );
 
     settings.endGroup();
 
@@ -902,6 +910,14 @@ Options::writeSettings( bool all )
         settings.endGroup();
     }
 
+    // the delayed live view (§5.10): set in the settings dialog and the tool
+    // bar, so kept at the end as the view's settings are (the other monitor
+    // options only when the file is made)
+    settings.beginGroup( "Monitor" );
+    settings.setValue( "live_delay", M_live_delay );
+    settings.setValue( "live_delay_seconds", M_live_delay_seconds );
+    settings.endGroup();
+
     //
     // field
     //
@@ -1127,6 +1143,15 @@ Options::setBallRingRadius3D( const double radius )
 
 /*-------------------------------------------------------------------*/
 void
+Options::setLiveDelaySeconds( const double seconds )
+{
+    if ( ! std::isfinite( seconds ) ) return;
+    const double stepped = std::round( seconds / LIVE_DELAY_SECONDS_STEP ) * LIVE_DELAY_SECONDS_STEP;
+    M_live_delay_seconds = std::min( MAX_LIVE_DELAY_SECONDS, std::max( MIN_LIVE_DELAY_SECONDS, stepped ) );
+}
+
+/*-------------------------------------------------------------------*/
+void
 Options::setBallTrailCycles3D( const int cycles )
 {
     M_ball_trail_cycles_3d = std::min( MAX_BALL_TRAIL_CYCLES_3D, std::max( MIN_BALL_TRAIL_CYCLES_3D, cycles ) );
@@ -1185,6 +1210,15 @@ Options::parseCmdLine( int argc,
                                            "int",
                                            QString::number( M_timer_interval ) );
     parser.addOption( opt_timer_interval );
+    QCommandLineOption opt_live_delay( "live-delay",
+                                       "Draw a live game this many seconds behind its newest frame ("
+                                       + QString::number( MIN_LIVE_DELAY_SECONDS ) + " to " + QString::number( MAX_LIVE_DELAY_SECONDS )
+                                       + ", in steps of " + QString::number( LIVE_DELAY_SECONDS_STEP ) + "), so that the 3D view knows the touches ahead and"
+                                       " the ball can fly as in log replay. 0 turns it off. (Default="
+                                       + QString::number( M_live_delay ? M_live_delay_seconds : 0.0 ) + ")",
+                                       "seconds",
+                                       QString::number( M_live_delay ? M_live_delay_seconds : 0.0 ) );
+    parser.addOption( opt_live_delay );
     QCommandLineOption opt_auto_quit_mode( "auto-quit-mode",
                                            "Enable the automatic quit mode. (Default=" + to_onoff( M_auto_quit_mode ) + ")",
                                            "bool",
@@ -1285,7 +1319,7 @@ Options::parseCmdLine( int argc,
                                             "bool", to_onoff( M_ball_pattern_3d ) );
     parser.addOption( opt_ball_pattern_3d );
     QCommandLineOption opt_ball_flight_3d( "ball-flight-3d",
-                                           "The 3D view: in log replay, the ball flies in the air, virtually (from the kicks, the touches and the opponents on the way). (Default=" + to_onoff( M_ball_flight_3d ) + ")",
+                                           "The 3D view: in log replay, and live with --live-delay, the ball flies in the air, virtually (from the kicks, the touches and the opponents on the way). (Default=" + to_onoff( M_ball_flight_3d ) + ")",
                                            "bool", to_onoff( M_ball_flight_3d ) );
     parser.addOption( opt_ball_flight_3d );
     QCommandLineOption opt_ball_size_3d( "ball-size-3d",
@@ -1577,6 +1611,20 @@ Options::parseCmdLine( int argc,
     if ( parser.isSet( opt_server_ws_path ) ) M_server_ws_path = parser.value( opt_server_ws_path ).toStdString();
     if ( parser.isSet( opt_client_version ) ) M_client_version = parser.value( opt_client_version ).toInt();
     if ( parser.isSet( opt_timer_interval ) ) M_timer_interval = parser.value( opt_timer_interval ).toInt();
+    if ( parser.isSet( opt_live_delay ) )
+    {
+        bool ok = false;
+        const double seconds = parser.value( opt_live_delay ).toDouble( &ok );
+        if ( ! ok || ! std::isfinite( seconds ) || seconds < 0.0 )
+        {
+            std::cerr << "Illegal live delay [" << parser.value( opt_live_delay ).toStdString()
+                      << "]. It must be 0 (off) or the seconds, " << MIN_LIVE_DELAY_SECONDS
+                      << " to " << MAX_LIVE_DELAY_SECONDS << '.' << std::endl;
+            return false;
+        }
+        M_live_delay = ( seconds > 0.0 );
+        if ( M_live_delay ) setLiveDelaySeconds( seconds );
+    }
     if ( parser.isSet( opt_auto_quit_mode ) ) M_auto_quit_mode = to_bool( parser.value( opt_auto_quit_mode ), M_auto_quit_mode );
     if ( parser.isSet( opt_auto_quit_wait ) ) M_auto_quit_wait = parser.value( opt_auto_quit_wait ).toInt();
     if ( parser.isSet( opt_auto_reconnect_mode ) ) M_auto_reconnect_mode = to_bool( parser.value( opt_auto_reconnect_mode ), M_auto_reconnect_mode );

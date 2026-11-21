@@ -99,6 +99,19 @@ public:
     //! zoom rate factor
     static constexpr double ZOOM_RATIO = 1.5;
 
+    /*!
+      the delayed live view (docs/plan/2026-11-11_3d-view.md §5.10): the seconds a
+      live game is drawn behind its newest frame. The largest is the time
+      the ball takes from the top speed (ball_speed_max 3.0) to rolling no
+      farther than the kickable distance (6.2 s with ball_decay 0.94), with
+      a margin: by then, the touch that ends a kick's segment, or its end
+      by the ball's decay, is known before the kick is drawn.
+    */
+    static constexpr double MIN_LIVE_DELAY_SECONDS = 1.0;
+    static constexpr double MAX_LIVE_DELAY_SECONDS = 7.0;
+    static constexpr double LIVE_DELAY_SECONDS_STEP = 0.5;
+    static constexpr double DEFAULT_LIVE_DELAY_SECONDS = 3.0;
+
     //! default logplayer timer step (ms).
     static constexpr int DEFAULT_TIMER_INTERVAL = 100;
 
@@ -164,6 +177,8 @@ private:
     std::string M_game_log_file; //!< the file path of game log file to be opened
     bool M_auto_loop_mode;
     int M_timer_interval; //!< logplayer timer interval
+    bool M_live_delay; //!< the delayed live view (§5.10)
+    double M_live_delay_seconds; //!< how far behind the newest frame (s)
 
     //
     // window options
@@ -388,6 +403,13 @@ public:
     void setGameLogFile( const std::string & path ) { M_game_log_file = path; }
 
     int timerInterval() const { return M_timer_interval; }
+
+    //! the delayed live view: a live game drawn liveDelaySeconds() behind its newest frame (§5.10)
+    bool liveDelay() const { return M_live_delay; }
+    void setLiveDelay( const bool on ) { M_live_delay = on; }
+    double liveDelaySeconds() const { return M_live_delay_seconds; }
+    //! within MIN_LIVE_DELAY_SECONDS and MAX_LIVE_DELAY_SECONDS, to a step of LIVE_DELAY_SECONDS_STEP
+    void setLiveDelaySeconds( const double seconds );
 
     //
     // window option

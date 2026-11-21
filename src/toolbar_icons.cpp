@@ -169,6 +169,16 @@ paint( QPainter & painter,
         stroke( polyline( { { 12.8, 2.2 }, { 12.8, 5.5 }, { 9.5, 5.5 } } ), 1.4 );
         stroke( polyline( { { 3.2, 13.8 }, { 3.2, 10.5 }, { 6.5, 10.5 } } ), 1.4 );
         break;
+    case DrawnIcon::LiveDelay:
+    {
+        // a clock: its face, and the hands at a quarter to (behind the time)
+        QPainterPath face;
+        face.addEllipse( QPointF( 8.0, 8.5 ), 6.0, 6.0 );
+        stroke( face, 1.3 );
+        stroke( polyline( { { 8.0, 4.5 }, { 8.0, 8.5 }, { 4.5, 8.5 } } ), 1.3, true );
+        stroke( polyline( { { 6.0, 1.0 }, { 10.0, 1.0 } } ), 1.3 ); // the button on top
+        break;
+    }
     }
 }
 

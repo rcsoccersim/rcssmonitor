@@ -612,6 +612,150 @@ private slots:
       }
 
     /*!
+      a kick without a touch until the ball almost stops (rolling no farther
+      than the kickable distance, §5.10): its segment ends there, the ball
+      on the ground; a touch before: no cut; not stopped within the frames
+      yet (live, as they come): the segment goes on
+    */
+    void stopCut()
+      {
+          // the cycles: 59 from 2.5 m a cycle, 62 from the top speed 3.0
+          QCOMPARE( BallFlight::kickableDistance( params() ), 0.3 + 0.7 + 0.085 );
+          QCOMPARE( BallFlight::stopCycles( 2.5, 0.94, 1.085 ), std::size_t( 59 ) );
+          QCOMPARE( BallFlight::stopCycles( 3.0, 0.94, 1.085 ), std::size_t( 62 ) );
+          QCOMPARE( BallFlight::stopCycles( 0.05, 0.94, 1.085 ), std::size_t( 0 ) );
+          QCOMPARE( BallFlight::stopCycles( 2.5, 1.0, 1.085 ), std::size_t( 0 ) );
+          for ( const double speed : { 0.5, 1.5, 2.5, 3.0 } )
+          {
+              const std::size_t m = BallFlight::stopCycles( speed, 0.94, 1.085 );
+              QVERIFY( speed * std::pow( 0.94, double( m ) ) / 0.06 <= 1.085 + 1.0e-9 ); // rolls no farther then
+              QVERIFY( speed * std::pow( 0.94, double( m - 1 ) ) / 0.06 > 1.085 ); // but before
+          }
+
+          // kicked at 2.5 m a cycle, touched at frame 75: the kick's segment
+          // ends at 59, on the ground, and the rest is not lofted
+          Log log;
+          log.add( -30.0f, 0.0f );
+          log.roll( -30.0f, 0.0f, 1.0f, 0.0f, 2.5f, 80 );
+          log.touch( 0, 4 );
+          log.touch( 75, 8 );
+          BallFlight flight;
+          flight.update( log.frames, params(), RADIUS );
+          const BallFlight::Segment * kick = segmentFrom( flight, 0 );
+          QVERIFY( kick );
+          QCOMPARE( kick->last, std::size_t( 59 ) );
+          QCOMPARE( kick->end, BallFlight::Touch::Stop );
+          QCOMPARE( kick->reach, 0.0f );
+          QVERIFY( kick->loft != BallFlight::Loft::None ); // about 40 m: lofted
+          QCOMPARE( flight.heightAtFrame( 59 ), 0.0f );
+          const BallFlight::Segment * rest = segmentFrom( flight, 59 );
+          QVERIFY( rest );
+          QCOMPARE( rest->start, BallFlight::Touch::Stop );
+          QCOMPARE( rest->last, std::size_t( 75 ) );
+          QCOMPARE( rest->loft, BallFlight::Loft::None );
+          for ( std::size_t f = 59; f <= 75; ++f ) QCOMPARE( flight.heightAtFrame( f ), 0.0f );
+
+          // touched before it stops: the touch ends it (longBall)
+          const Log touched = ::longBall();
+          flight.update( touched.frames, params(), RADIUS );
+          QCOMPARE( segmentFrom( flight, 0 )->end, BallFlight::Touch::Kick );
+
+          // not stopped within the frames yet
+          Log coming;
+          coming.add( -30.0f, 0.0f );
+          coming.roll( -30.0f, 0.0f, 1.0f, 0.0f, 2.5f, 40 );
+          coming.touch( 0, 4 );
+          flight.update( coming.frames, params(), RADIUS );
+          QCOMPARE( segmentFrom( flight, 0 )->last, coming.last() );
+          QCOMPARE( segmentFrom( flight, 0 )->end, BallFlight::Touch::None );
+          QVERIFY( ! flight.decided( 0 ) );
+      }
+
+    /*!
+      the delayed live view (§5.10): a kick's segment that the view enters
+      before its end is known stays on the ground for good, also when its
+      end comes; one that ended before it is drawn flies as in log replay;
+      the frames forgotten (clear(), another game): the grounded ones too
+    */
+    void liveGrounded()
+      {
+          const Log full = ::longBall(); // kicked at 0, touched at 15
+          Log coming;
+          coming.frames.assign( full.frames.begin(), full.frames.begin() + 11 ); // up to 10: the touch not yet
+          BallFlight replay;
+          replay.update( full.frames, params(), RADIUS );
+          QVERIFY( replay.heightAtFrame( 6 ) > 0.5f );
+
+          // entered while open: grounded
+          BallFlight flight;
+          flight.update( coming.frames, params(), RADIUS, 5 );
+          QVERIFY( segmentFrom( flight, 0 )->grounded );
+          QCOMPARE( segmentFrom( flight, 0 )->loft, BallFlight::Loft::None );
+          QCOMPARE( flight.heightAtFrame( 5 ), 0.0f );
+          // the touch came: still on the ground
+          flight.update( full.frames, params(), RADIUS, 6 );
+          QVERIFY( flight.decided( 0 ) );
+          QVERIFY( segmentFrom( flight, 0 )->grounded );
+          for ( std::size_t f = 0; f <= 15; ++f ) QCOMPARE( flight.heightAtFrame( f ), 0.0f );
+          // and when the view is no longer live (looked back at)
+          flight.update( full.frames, params(), RADIUS );
+          QCOMPARE( flight.heightAtFrame( 6 ), 0.0f );
+
+          // the same frames, the view drawn on into the open segment
+          BallFlight later;
+          later.update( coming.frames, params(), RADIUS );
+          QVERIFY( ! segmentFrom( later, 0 )->grounded );
+          later.update( coming.frames, params(), RADIUS, 2 );
+          QVERIFY( segmentFrom( later, 0 )->grounded );
+          QCOMPARE( later.heightAtFrame( 6 ), 0.0f );
+
+          // ended before it is drawn: as in log replay
+          BallFlight ahead;
+          ahead.update( full.frames, params(), RADIUS, 3 );
+          QVERIFY( ! segmentFrom( ahead, 0 )->grounded );
+          for ( std::size_t f = 0; f <= full.last(); ++f )
+          {
+              QCOMPARE( ahead.heightAtFrame( f ), replay.heightAtFrame( f ) );
+          }
+
+          // forgotten with the frames
+          flight.clear();
+          flight.update( full.frames, params(), RADIUS, 6 );
+          QVERIFY( ! segmentFrom( flight, 0 )->grounded );
+          flight.update( coming.frames, params(), RADIUS, 5 ); // the same game: grounded again
+          QVERIFY( segmentFrom( flight, 0 )->grounded );
+          const Log other = ::longBall();
+          flight.update( other.frames, params(), RADIUS, 6 ); // another game
+          QVERIFY( ! segmentFrom( flight, 0 )->grounded );
+          QCOMPARE( flight.heightAtFrame( 6 ), replay.heightAtFrame( 6 ) );
+      }
+
+    /*!
+      decided(): a segment's end is known when it is not the last; at a
+      collision, when the touch that may follow it soon (a trap) is known
+    */
+    void decidedEnds()
+      {
+          Log body = ::longBall();
+          body.at( 10 ).show_.player_[8].state_ |= rcss::rcg::BALL_COLLIDE; // the kick at 15: no trap
+          Log coming;
+          coming.frames.assign( body.frames.begin(), body.frames.begin() + 13 ); // 2 frames after the collision
+          BallFlight flight;
+          flight.update( coming.frames, params(), RADIUS );
+          QCOMPARE( segmentFrom( flight, 0 )->end, BallFlight::Touch::Collision );
+          QVERIFY( ! flight.decided( 0 ) ); // a kick may come soon
+          QVERIFY( ! flight.decided( 1 ) );
+          coming.frames.assign( body.frames.begin(), body.frames.begin() + 15 ); // 4 after: too long for a trap
+          flight.update( coming.frames, params(), RADIUS );
+          QVERIFY( flight.decided( 0 ) );
+          QVERIFY( ! flight.decided( 1 ) );
+          flight.update( body.frames, params(), RADIUS );
+          QVERIFY( flight.decided( 0 ) );
+          QVERIFY( flight.decided( 1 ) );
+          QVERIFY( ! flight.decided( flight.segments().size() - 1 ) );
+      }
+
+    /*!
       a log with heights of its own (a 2.5D server): not active, those are
       used; the same frames: not found again; other frames: found again
     */

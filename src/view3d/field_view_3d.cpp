@@ -205,6 +205,8 @@ FieldView3D::paintGL()
     // The frames to draw, and how far between them (§5.2). Live, by a clock
     // going on with the simulation, drawn toward where the newest frame's
     // coming puts it (Interpolate::LiveClock): not jumping at every frame.
+    // The delayed live view (§5.10) puts it further behind, at the frame the
+    // 2D view shows (LogPlayer::liveDelayFrames()).
     const DispCont & frames = M_disp_holder.dispCont();
     const rcss::rcg::DispInfoT * newest = ( frames.empty() ? nullptr : frames.back().get() );
     if ( newest != M_newest )
@@ -218,9 +220,17 @@ FieldView3D::paintGL()
     const double since_drawn = ( M_live_tick.isValid() ? double( M_live_tick.restart() ) / step : 0.0 );
     if ( ! M_live_tick.isValid() ) M_live_tick.start();
     Interpolate::Position at;
-    if ( live && frames.size() >= 2 )
+    const std::size_t delay_frames = M_log_player.liveDelayFrames();
+    if ( live && Interpolate::waitingLive( frames.size(), delay_frames ) )
     {
-        const double time = M_live_clock.advance( Interpolate::liveTime( frames.size(), since_newest ),
+        // the delayed live view, right after connecting: the first frame
+        M_live_clock.reset();
+        at = Interpolate::positionAt( frames.size(), 0.0 );
+    }
+    else if ( live && frames.size() >= 2 )
+    {
+        const double time = M_live_clock.advance( Interpolate::liveTime( frames.size(), since_newest,
+                                                                         delay_frames ),
                                                   since_drawn,
                                                   double( frames.size() - 1 ) );
         at = Interpolate::positionAt( frames.size(), time );
@@ -282,7 +292,7 @@ FieldView3D::paintGL()
     // what to draw where (FrameBuilder3D): the goals and the boards, the
     // players (posed from the log, as figures) and the ball on the way
     // between the two frames, the overlays
-    M_builder.setLive( live ); // the ball does not fly virtually live
+    M_builder.setLive( live, delay_frames ); // the ball flies virtually live only when delayed
     M_builder.build( M_disp_holder, opt, at, M_camera.mode(), M_content );
     const rcss::rcg::ShowInfoT & show = M_builder.show();
     // the bodies of the figures to the GPU, when others are drawn

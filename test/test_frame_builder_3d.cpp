@@ -578,6 +578,13 @@ private slots:
           QVERIFY( ! s.ball_flight );
           QCOMPARE( s.ball_height, 0.0f );
           QVERIFY( builder.flight() == nullptr );
+          // the delayed live view (§5.10): the kick ended before the frame
+          // drawn, so it flies as in log replay
+          builder.setLive( true, 30 );
+          s = build( builder, M_holder, frame );
+          QVERIFY( s.ball_flight );
+          QVERIFY( s.ball_height > 0.5f );
+          QVERIFY( builder.flight() != nullptr );
           builder.setLive( false );
           opt.setBallFlight3D( Options::BALL_FLIGHT_3D );
       }

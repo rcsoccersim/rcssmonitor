@@ -32,7 +32,10 @@
 
 #include <QtTest>
 
+#include <cmath>
+
 #include "interpolate.h"
+#include "log_player.h"
 
 namespace {
 
@@ -203,6 +206,37 @@ private slots:
           QCOMPARE( Interpolate::liveTime( 10, 5.0 ), 9.0 );
           QCOMPARE( Interpolate::liveTime( 2, 0.4 ), 0.4 );
           QCOMPARE( Interpolate::liveTime( 2, 2.0 ), 1.0 );
+
+          // the delayed live view (§5.10): delay frames behind the newest,
+          // on up to it when the frames stop (drawn to the end); never less
+          // than LIVE_DELAY; with fewer frames, from the first
+          QCOMPARE( Interpolate::liveTime( 100, 0.0, 30 ), 69.0 );
+          QCOMPARE( Interpolate::liveTime( 100, 0.5, 30 ), 69.5 );
+          QCOMPARE( Interpolate::liveTime( 100, 12.0, 30 ), 81.0 );
+          QCOMPARE( Interpolate::liveTime( 100, 40.0, 30 ), 99.0 );
+          QCOMPARE( Interpolate::liveTime( 10, 0.4, 1 ), 7.4 );
+          QCOMPARE( Interpolate::liveTime( 10, 0.4, 0 ), 7.4 );
+          // waiting on the first frame until more frames than the delay
+          // have come, also when a frame is late
+          QCOMPARE( Interpolate::liveTime( 20, 0.5, 30 ), 0.0 );
+          QCOMPARE( Interpolate::liveTime( 30, 5.0, 30 ), 0.0 );
+          QVERIFY( Interpolate::waitingLive( 30, 30 ) );
+          QVERIFY( ! Interpolate::waitingLive( 31, 30 ) );
+          QVERIFY( ! Interpolate::waitingLive( 1, 0 ) ); // not delayed
+          QVERIFY( ! Interpolate::waitingLive( 2, Interpolate::LIVE_DELAY ) );
+          QCOMPARE( Interpolate::liveTime( 31, 0.0, 30 ), 0.0 );
+          QCOMPARE( Interpolate::liveTime( 31, 0.5, 30 ), 0.5 );
+          QCOMPARE( Interpolate::liveTime( 32, 0.0, 30 ), 1.0 );
+          // the 2D view shows the frame the 3D view draws (LogPlayer::liveIndex())
+          for ( const std::size_t frames : { std::size_t( 1 ), std::size_t( 5 ), std::size_t( 30 ),
+                                             std::size_t( 31 ), std::size_t( 32 ), std::size_t( 100 ) } )
+          {
+              for ( const double since : { 0.0, 0.3, 0.99, 1.0, 2.5, 29.9, 30.0, 45.0 } )
+              {
+                  QCOMPARE( LogPlayer::liveIndex( frames, 30, since ),
+                            std::size_t( std::floor( Interpolate::liveTime( frames, since, 30 ) ) ) );
+              }
+          }
 
           // the frames at a time
           p = Interpolate::positionAt( 10, 4.25 );

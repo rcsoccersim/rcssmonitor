@@ -37,6 +37,9 @@
 
 #include <rcss/rcg/types.h>
 
+#include <set>
+#include <utility>
+
 #include <vector>
 
 /*!
@@ -73,10 +76,19 @@
   Without one, it stays on the ground. A segment starts at the height the
   one before ended at (a volley), except after a play mode change.
 
+  A kick's segment also ends where the ball almost stops, without a touch
+  before (rolling no farther than the kickable distance, by its decay:
+  §5.10), the ball on the ground there: the next touch long after is not
+  what the kick was aimed at.
+
   It is found from the frames alone, once (as BallSpin), so that a paused,
   stepped or rewound view shows the ball at the same height (§5.2). Not
-  for a live game: the next touch is not known yet. Not when the log has
-  heights of its own (a 2.5D server): those are used.
+  for a live game as it comes (the next touch is not known yet), but for
+  the delayed live view (§5.10): drawn some seconds behind, most segments
+  have ended before they are drawn; one that the view enters before its
+  end is known stays on the ground for good (grounded), so that the ball
+  does not rise when its end comes. Not when the log has heights of its
+  own (a 2.5D server): those are used.
 */
 class BallFlight {
 public:
@@ -145,6 +157,7 @@ public:
         Catch,
         Collision, //!< the ball hit a player's body (its bit) or a post (a change of velocity without a touch)
         PlayMode, //!< a play mode change or a jump: the ball placed
+        Stop, //!< no touch: a kick's ball almost stopped (stopCycles())
     };
 
     //! why a kick was lofted
@@ -172,7 +185,28 @@ public:
         float v = 0.0f; //!< the upward speed at first (m/cycle)
         bool bounce = false; //!< a long one landing halfway (MIN_LANDING to MAX_LANDING of the way in time), bouncing on
         float reach = 0.0f; //!< the highest the ball may be at last (m; the next toucher's reach), negative: anywhere
+        bool grounded = false; //!< live, the view entered it before its end was known: not lofted
     };
+
+    //! update() for log replay: no frame drawn live
+    static constexpr std::size_t NOT_LIVE = static_cast< std::size_t >( -1 );
+
+    /*!
+      \brief the cycles from a kick until the ball almost stops: until it
+      rolls no farther than the kickable distance, its speed decaying by
+      decay a cycle (6.2 s from ball_speed_max 3.0 with the default
+      parameters: the largest delay of the delayed live view, §5.10)
+      \param speed the ball's move in the cycle after the kick (m)
+      \param decay ball_decay
+      \param kickable the kickable distance (m): player_size + kickable_margin + ball_size
+      \return 0 if it is already that slow
+    */
+    static std::size_t stopCycles( const double speed,
+                                   const double decay,
+                                   const double kickable );
+
+    //! the kickable distance of the parameters (player_size + kickable_margin + ball_size; the defaults if not given)
+    static double kickableDistance( const rcss::rcg::ServerParamT & sp );
 
     /*!
       \brief a number from 0 to 1 that varies from kick to kick, by its
@@ -192,15 +226,26 @@ public:
       \brief find the segments and their heights for the frames, again only
       when they changed (other frames, more frames, other parameters)
       \param frames the frames (DispHolder::dispCont())
-      \param sp the server parameters (ball_decay, simulator_step, goal_width)
+      \param sp the server parameters (ball_decay, simulator_step, goal_width, the kickable distance)
       \param ball_radius the ball as drawn (m): under the crossbar
+      \param live_drawn the delayed live view: the frame drawn. The kick's
+      segment it is in stays on the ground for good if its end is not
+      known yet (decided()). NOT_LIVE for log replay.
     */
     void update( const DispCont & frames,
                  const rcss::rcg::ServerParamT & sp,
-                 const float ball_radius );
+                 const float ball_radius,
+                 const std::size_t live_drawn = NOT_LIVE );
 
-    //! forget the frames
+    //! forget the frames, and the segments grounded live
     void clear();
+
+    /*!
+      \brief a segment's end is known, and will not change with more frames:
+      not the last one, and if it ends at a collision, the touch that may
+      follow it soon (a trap: its reach) is known too
+    */
+    bool decided( const std::size_t i ) const;
 
     //! the heights are there: frames without heights of their own
     bool active() const { return M_active; }
@@ -233,7 +278,12 @@ public:
 private:
 
     std::vector< Segment > M_segments;
+    //! more frames of the same (live): the segments before, whose heights are kept where they are the same
+    std::vector< Segment > M_previous;
     std::vector< int > M_segment_of; //!< by frame: the segment it starts or is in
+    std::vector< char > M_placed; //!< by frame: the ball placed there (a play mode change, a jump)
+    //! live: the segments grounded (grounded), by the time and the stopped time of their first frames
+    std::set< std::pair< unsigned int, unsigned int > > M_grounded;
     std::size_t M_frames = 0;
     DispConstPtr M_front; //!< the first and the last frame read, to see that they are the same
     DispConstPtr M_back;
@@ -241,9 +291,17 @@ private:
     double M_decay = 0.0;
     float M_radius = 0.0f;
     double M_goal_width = 0.0;
+    double M_kickable = 0.0; //!< m
     bool M_active = false;
 
+    //! forget the segments, not those grounded
+    void reset();
     void build( const DispCont & frames );
+    //! the heights of the segments, in order (each from where the one before ended)
+    void heights( const DispCont & frames );
+    //! live: ground the kick's segment drawn if its end is not known yet (the heights again)
+    void groundDrawn( const DispCont & frames,
+                      const std::size_t live_drawn );
     void loft( const DispCont & frames,
                Segment & segment ) const;
 };

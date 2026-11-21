@@ -95,14 +95,16 @@ FrameBuilder3D::build( const DispHolder & holder,
     }
 
     // the ball flying in the air, virtually (BallFlight), in log replay
-    // with the option: its height over the way between the two frames
-    // (none where the view does not move the ball to the next frame)
+    // and in the delayed live view (§5.10) with the option: its height over
+    // the way between the two frames (none where the view does not move
+    // the ball to the next frame)
     M_flying = false;
     if ( M_has_show
          && opt.ballFlight3D()
-         && ! M_live )
+         && ( ! M_live || M_live_delay > 0 ) )
     {
-        M_flight.update( frames, sp, float( SceneBuilder::ballRadius( opt, sp.ball_size_ ) ) );
+        M_flight.update( frames, sp, float( SceneBuilder::ballRadius( opt, sp.ball_size_ ) ),
+                         M_live ? at.index : BallFlight::NOT_LIVE );
         if ( M_flight.active() )
         {
             const bool moves = ( at.next != at.index

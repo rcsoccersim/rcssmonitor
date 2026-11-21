@@ -110,14 +110,27 @@ Position position( const std::size_t frame_count,
 
 /*!
   \brief live, the time to draw (in frames, with the fraction) by when the
-  newest frame came: LIVE_DELAY frames before the newest, going on by the
-  simulation steps since it came; when the next frame is late, on into
-  the frames there up to the newest
+  newest frame came: LIVE_DELAY frames before the newest (or delay_frames,
+  the delayed live view's, if more: §5.10), going on by the simulation
+  steps since it came; when the next frame is late, on into the frames
+  there up to the newest (after the game, the delayed frames are drawn to
+  the end). The first frame while the delayed view waits (waitingLive()).
   \param frame_count the number of the frames
   \param since_newest the simulation steps since the newest frame came
+  \param delay_frames the delayed live view's frames behind the newest (0: not delayed)
 */
 double liveTime( const std::size_t frame_count,
-                 const double since_newest );
+                 const double since_newest,
+                 const std::size_t delay_frames = 0 );
+
+/*!
+  \brief the delayed live view (§5.10) waits on the first frame until more
+  frames than the delay have come (right after connecting): liveTime() is
+  0 then, and the 3D view draws the first frame without its clock, which
+  would run ahead of a time that does not go on
+*/
+bool waitingLive( const std::size_t frame_count,
+                  const std::size_t delay_frames );
 
 //! the frames to draw at a time (in frames, with the fraction), within the frames
 Position positionAt( const std::size_t frame_count,

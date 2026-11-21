@@ -89,6 +89,8 @@ private slots:
     void trashFigurePacks();
     void playerCameraTab();
     void playerCameraDim();
+
+    void liveDelay();
 };
 
 namespace {
@@ -1300,6 +1302,68 @@ TestConfigDialog::playerCameraDim()
 
     resetView3D();
 #endif
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  The delayed live view on the Show tab (docs/plan/2026-11-11_3d-view.md §5.10):
+  Delay and its seconds from the options; clicking and typing set them,
+  within 1 to 7 s in steps of 0.5, and tell the main window
+  (liveDelayChanged()); updateLiveDelay() shows the options changed
+  elsewhere (the tool bar) without telling it again.
+*/
+void
+TestConfigDialog::liveDelay()
+{
+    Options & opt = Options::instance();
+    opt.setLiveDelay( false );
+    opt.setLiveDelaySeconds( Options::DEFAULT_LIVE_DELAY_SECONDS );
+
+    DispHolder holder;
+    ConfigDialog dialog( nullptr, holder );
+    QCheckBox * delay = child< QCheckBox >( dialog, "live_delay" );
+    QDoubleSpinBox * seconds = child< QDoubleSpinBox >( dialog, "live_delay_seconds" );
+    QVERIFY( delay && seconds );
+    QCOMPARE( tabOf( dialog, delay ), QString( "Show" ) );
+    QCOMPARE( tabOf( dialog, seconds ), QString( "Show" ) );
+    QVERIFY( ! delay->isChecked() );
+    QCOMPARE( seconds->value(), 3.0 );
+    QCOMPARE( seconds->minimum(), 1.0 );
+    QCOMPARE( seconds->maximum(), 7.0 );
+    QCOMPARE( seconds->singleStep(), 0.5 );
+    QVERIFY( delay->toolTip().contains( "referee" ) );
+    QVERIFY( seconds->toolTip().contains( "Range" ) );
+
+    QSignalSpy changed( &dialog, SIGNAL( liveDelayChanged() ) );
+    delay->click();
+    QVERIFY( opt.liveDelay() );
+    QCOMPARE( changed.count(), 1 );
+
+    // typed, with Enter
+    dialog.show();
+    QVERIFY( QTest::qWaitForWindowExposed( &dialog ) );
+    seconds->setFocus();
+    seconds->selectAll();
+    QTest::keyClicks( seconds, "5" );
+    QCOMPARE( opt.liveDelaySeconds(), 3.0 ); // not while typing
+    QTest::keyClick( seconds, Qt::Key_Return );
+    QCOMPARE( opt.liveDelaySeconds(), 5.0 );
+    QCOMPARE( changed.count(), 2 );
+    // between the steps: to the nearest step, shown so
+    seconds->setValue( 3.3 );
+    QCOMPARE( opt.liveDelaySeconds(), 3.5 );
+    QCOMPARE( seconds->value(), 3.5 );
+    QCOMPARE( changed.count(), 3 );
+
+    // changed elsewhere: shown, not told again
+    opt.setLiveDelay( false );
+    opt.setLiveDelaySeconds( 2.0 );
+    dialog.updateLiveDelay();
+    QVERIFY( ! delay->isChecked() );
+    QCOMPARE( seconds->value(), 2.0 );
+    QCOMPARE( changed.count(), 3 );
+
+    opt.setLiveDelaySeconds( Options::DEFAULT_LIVE_DELAY_SECONDS );
 }
 
 QTEST_MAIN( TestConfigDialog )

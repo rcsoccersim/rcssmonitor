@@ -150,9 +150,17 @@ public:
 
     /*!
       \brief a live game: the ball does not fly virtually (BallFlight
-      needs the next touch, not known yet)
+      needs the next touch, not known yet), but in the delayed live view
+      (§5.10), drawn delay_frames behind the newest frame: then a kick's
+      segment that the view enters before its end is known stays on the
+      ground (BallFlight::update()'s live_drawn)
     */
-    void setLive( const bool live ) { M_live = live; }
+    void setLive( const bool live,
+                  const std::size_t delay_frames = 0 )
+      {
+          M_live = live;
+          M_live_delay = delay_frames;
+      }
 
     //! the ball's flight in the air, if it flew in the last build()
     const BallFlight * flight() const { return M_flying ? &M_flight : nullptr; }
@@ -202,6 +210,7 @@ private:
     BallSpin M_spin; //!< how the ball has rolled
     BallFlight M_flight; //!< how the ball flies in the air, virtually
     bool M_live = false; //!< a live game (setLive())
+    std::size_t M_live_delay = 0; //!< the delayed live view's frames behind the newest (setLive())
     bool M_flying = false; //!< the ball flew in the last build()
     int M_trail_points = 0; //!< the points of the trail added by addBallAids()
     QQuaternion M_ball_turn; //!< how the ball is turned in the frame built

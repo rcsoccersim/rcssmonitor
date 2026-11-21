@@ -489,3 +489,4 @@ develop (01f880a、19.0.1) から作った `feature/support-tcp-ws` に、5 つ�
 - ユーザが、PR の前にこのブランチの 2D の画面で、UDP、TCP、WebSocket のライブ接続を確かめた。PR #68 で develop に取り込んだ (Merge Commit、a6df084。2026-11-18)。
 - develop を `feature/3d-view` に取り込んだ (c6dc968。2026-11-21)。3D の表示との組み合わせ (ツールバーの接続のボタンを、web 版と同じく接続のダイアログにしたこと、3D のライブの描き方が TCP と WebSocket でも UDP と同じになめらかなこと) は、3D 表示の計画書 (`docs/plan/2026-11-11_3d-view.md`) の §14 に記録した。
 - 英語版の名前を CLAUDE.md の形に合わせて `2026-11-06_transport_en.md` にした (2026-11-21)。
+- ユーザが `feature/3d-view` で、UDP、TCP、WebSocket のライブ接続を 2D と 3D で確かめた (2026-11-22)。取り込みは済。

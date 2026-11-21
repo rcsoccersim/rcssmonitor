@@ -50,6 +50,7 @@ enum class DrawnIcon {
     Disconnect, //!< the plug pulled out
     KickOff, //!< a ball
     Loop, //!< two arrows round
+    LiveDelay, //!< a clock (the delayed live view; not in the web version)
 };
 
 /*!

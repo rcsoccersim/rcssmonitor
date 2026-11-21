@@ -113,6 +113,7 @@ private:
     QAction * M_log_player_go_to_first_act;
     QAction * M_log_player_go_to_last_act;
     QAction * M_loop_act = nullptr; //!< loop playback (the option auto_loop_mode)
+    QAction * M_live_delay_act = nullptr; //!< the delayed live view (the option live_delay, §5.10)
 
     // the tool bar's fields after the slider (as the web version's)
     QLabel * M_frame_label = nullptr; //!< "cycle (frame / frames)"
@@ -201,6 +202,9 @@ private:
     void setToolIcon( QAction * act,
                       const char * const xpm[] );
     //! the icon of a toolbar action drawn in code, drawn again when the palette changes
+    //! the tips of the delayed live view's action, with its seconds
+    void updateLiveDelayTips();
+
     void setDrawnIcon( QAction * act,
                        const DrawnIcon icon );
     void updateToolIcons();
@@ -278,6 +282,10 @@ private slots:
     void goToTypedCycle();
     //! loop playback on or off
     void toggleLoop( bool on );
+    //! the delayed live view on or off (the tool bar and the menu)
+    void toggleLiveDelay( bool on );
+    //! the options of the delayed live view changed in the settings dialog
+    void applyLiveDelay();
 
     void about();
     void printShortcutKeys();

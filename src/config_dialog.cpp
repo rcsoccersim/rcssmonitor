@@ -268,6 +268,8 @@ ConfigDialog::createWidgets()
                            0, Qt::AlignLeft );
         layout->addWidget( createBallInfoControls(),
                            0, Qt::AlignLeft );
+        layout->addWidget( createLiveControls(),
+                           0, Qt::AlignLeft );
 
         layout->addStretch();
 
@@ -733,6 +735,71 @@ ConfigDialog::createBallInfoControls()
 
     group_box->setLayout( top_layout );
     return group_box;
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  the delayed live view (docs/plan/2026-11-11_3d-view.md §5.10): a live game drawn
+  some seconds behind its newest frame, in 2D and 3D
+*/
+QWidget *
+ConfigDialog::createLiveControls()
+{
+    QGroupBox * group_box = new QGroupBox( tr( "Live" ) );
+    QGridLayout * layout = new QGridLayout();
+    layout->setContentsMargins( 1, 1, 1, 1 );
+
+    const QString tooltip = tr( "Draw a live game some seconds behind its newest frame, in 2D and 3D, so that the\n"
+                                "3D view knows the touches ahead, as in log replay. The referee's operations\n"
+                                "reach the server at once, while the view shows the game some seconds ago.\n"
+                                "Also in the tool bar and the Monitor menu (Live Delay)." );
+    M_live_delay_cb = new QCheckBox( tr( "Delay" ) );
+    M_live_delay_cb->setObjectName( "live_delay" );
+    M_live_delay_cb->setToolTip( tooltip );
+    connect( M_live_delay_cb, &QCheckBox::clicked,
+             this, [this]( bool on ) {
+                 Options::instance().setLiveDelay( on );
+                 emit liveDelayChanged();
+             } );
+    layout->addWidget( M_live_delay_cb, 0, 0 );
+
+    M_live_delay_seconds = addNumber( layout, 0, 1, tr( "Seconds" ),
+                                      tr( "How far behind the newest frame. Up to the time the ball takes from the top\n"
+                                          "speed to an almost stop, so that a kick's end is known before it is drawn." ),
+                                      Options::MIN_LIVE_DELAY_SECONDS, Options::MAX_LIVE_DELAY_SECONDS,
+                                      Options::LIVE_DELAY_SECONDS_STEP, 1, tr( " s" ) );
+    M_live_delay_seconds->setObjectName( "live_delay_seconds" );
+    M_live_delay_seconds->setSuffix( tr( " s" ) );
+    connect( M_live_delay_seconds, QOverload< double >::of( &QDoubleSpinBox::valueChanged ),
+             this, [this]( double seconds ) {
+                 Options & opt = Options::instance();
+                 opt.setLiveDelaySeconds( seconds );
+                 if ( M_live_delay_seconds->value() != opt.liveDelaySeconds() )
+                 {
+                     // to the step (0.5 s)
+                     const QSignalBlocker blocker( M_live_delay_seconds );
+                     M_live_delay_seconds->setValue( opt.liveDelaySeconds() );
+                 }
+                 emit liveDelayChanged();
+             } );
+    layout->setColumnStretch( 3, 1 );
+
+    updateLiveDelay();
+
+    group_box->setLayout( layout );
+    return group_box;
+}
+
+/*-------------------------------------------------------------------*/
+void
+ConfigDialog::updateLiveDelay()
+{
+    if ( ! M_live_delay_cb ) return;
+    const Options & opt = Options::instance();
+    const QSignalBlocker block_cb( M_live_delay_cb );
+    const QSignalBlocker block_seconds( M_live_delay_seconds );
+    M_live_delay_cb->setChecked( opt.liveDelay() );
+    M_live_delay_seconds->setValue( opt.liveDelaySeconds() );
 }
 
 /*-------------------------------------------------------------------*/
@@ -2159,7 +2226,9 @@ ConfigDialog::createPlayersBallTab()
                                              "height. A kick is lofted when the log gives a reason (a long ball, a corner\n"
                                              "or a goal kick, a cross, opponents near its way that did not touch it), low\n"
                                              "enough for the next player to touch it and under the crossbar into a goal,\n"
-                                             "then it bounces. A guess from the log; not in a live game." ) );
+                                             "then it bounces. A guess from the log. In a live game only with the live\n"
+                                             "delay (the Show tab): a kick whose next touch has not come when it is drawn\n"
+                                             "stays on the ground." ) );
         connect( M_ball_flight_3d_cb, &QCheckBox::clicked,
                  this, [this]( bool on ) {
                      Options::instance().setBallFlight3D( on );
@@ -2822,6 +2891,8 @@ ConfigDialog::updateAll()
     M_team_graphic_scale->setValue( opt.teamGraphicScale() );
 
     M_anti_aliasing_cb->setChecked( opt.antiAliasing() );
+
+    updateLiveDelay();
 
     M_player_number_cb->setChecked( opt.showPlayerNumber() );
     M_player_type_cb->setChecked( opt.showPlayerType() );

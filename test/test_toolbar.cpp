@@ -43,6 +43,8 @@
 #include <QLineEdit>
 #include <QToolBar>
 #include <QToolButton>
+#include <QMenuBar>
+#include <QMenu>
 
 /*
   Options reads and writes ~/.rcssmonitor.conf; CTest runs this test with
@@ -106,6 +108,7 @@ private slots:
     void labels();
     void stoppedTime();
     void rows();
+    void liveDelay();
 };
 
 /*-------------------------------------------------------------------*/
@@ -147,8 +150,15 @@ TestToolbar::icons()
     QVERIFY( alphaAt( loop, 12.8, 3.5 ) > 128 ); // an arrow's head
     QCOMPARE( alphaAt( loop, 8.0, 8.0 ), 0 );
 
+    const QImage live_delay = drawnIconImage( DrawnIcon::LiveDelay, color, SIZE );
+    QVERIFY( alphaAt( live_delay, 14.0, 8.5 ) > 128 ); // the clock's face
+    QVERIFY( alphaAt( live_delay, 8.0, 6.0 ) > 128 ); // the long hand up
+    QVERIFY( alphaAt( live_delay, 5.5, 8.5 ) > 128 ); // the short one to the left
+    QCOMPARE( alphaAt( live_delay, 10.5, 11.0 ), 0 ); // the face's lower right: no hand
+    QVERIFY( alphaAt( live_delay, 8.0, 1.0 ) > 128 ); // the button on top
+
     // in the color asked; each its own
-    for ( const QImage & image : { open, connect, disconnect, kick_off, loop } )
+    for ( const QImage & image : { open, connect, disconnect, kick_off, loop, live_delay } )
     {
         for ( int y = 0; y < SIZE; ++y )
         {
@@ -159,7 +169,7 @@ TestToolbar::icons()
             }
         }
     }
-    QVERIFY( open != connect && connect != disconnect && disconnect != kick_off && kick_off != loop );
+    QVERIFY( open != connect && connect != disconnect && disconnect != kick_off && kick_off != loop && loop != live_delay );
 }
 
 /*-------------------------------------------------------------------*/
@@ -391,6 +401,83 @@ TestToolbar::rows()
     QVERIFY( buttons->isHidden() && position->isHidden() );
     toggle->trigger(); // on
     QVERIFY( ! buttons->isHidden() && ! position->isHidden() );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  The delayed live view (docs/plan/2026-11-11_3d-view.md §5.10): a checkable button
+  after Live Mode and an item after it in the Monitor menu, which set the
+  option live_delay and tell the seconds; live and delayed, the label after
+  the cycle tells how far behind the newest frame.
+*/
+void
+TestToolbar::liveDelay()
+{
+    Options & opt = Options::instance();
+    opt.setLiveDelay( false );
+    opt.setLiveDelaySeconds( Options::DEFAULT_LIVE_DELAY_SECONDS );
+    opt.setGameLogFile( std::string( TEST_DATA_DIR ) + "/head_v5.rcg" ); // the shows of cycles 1, 2 and 4
+
+    MainWindow window;
+    window.resize( 1280, 720 ); // the whole tool bar in the window
+    for ( QToolBar * bar : window.findChildren< QToolBar * >() ) bar->setVisible( true ); // hidden by default
+    window.show();
+    window.init();
+    QVERIFY( QTest::qWaitForWindowExposed( &window ) );
+    QLabel * interval = window.findChild< QLabel * >( "interval_label" );
+    QTRY_VERIFY( interval && ! interval->text().isEmpty() );
+
+    QToolButton * live_mode = buttonOf( window, "Live Mode" );
+    QToolButton * live_delay = buttonOf( window, "Live Delay" );
+    QVERIFY( live_mode && live_delay );
+    const auto x = [&]( const QToolButton * b ) { return b->mapTo( &window, QPoint() ).x(); };
+    QVERIFY( x( live_mode ) < x( live_delay ) && x( live_delay ) < x( buttonOf( window, "Play/Stop" ) ) );
+    QAction * act = live_delay->defaultAction();
+    QVERIFY( act->isCheckable() && ! act->isChecked() );
+    QVERIFY( act->isEnabled() ); // set at any time, used when live
+    QVERIFY( ! act->icon().isNull() );
+    QVERIFY( act->toolTip().contains( "3.0 s" ) );
+    QVERIFY( act->statusTip().contains( "referee" ) );
+
+    // in the Monitor menu, after Live Mode
+    QMenu * monitor = nullptr;
+    for ( QAction * m : window.menuBar()->actions() )
+    {
+        if ( m->text() == "&Monitor" ) monitor = m->menu();
+    }
+    QVERIFY( monitor );
+    const QList< QAction * > items = monitor->actions();
+    const int live_mode_at = items.indexOf( live_mode->defaultAction() );
+    QVERIFY( live_mode_at >= 0 );
+    QCOMPARE( items.value( live_mode_at + 1 ), act );
+
+    // the option
+    live_delay->click();
+    QVERIFY( opt.liveDelay() );
+    QVERIFY( act->isChecked() );
+    // not live (a log): the time per frame
+    QCOMPARE( interval->text(), QString( "%1 ms" ).arg( opt.timerInterval() ) );
+
+    // live and delayed: how far behind; not delayed: the time per frame again
+    QVERIFY( QMetaObject::invokeMethod( &window, "setLiveMode" ) );
+    live_delay->click();
+    QVERIFY( ! opt.liveDelay() );
+    QCOMPARE( interval->text(), QString( "%1 ms" ).arg( opt.timerInterval() ) );
+    live_delay->click();
+    QCOMPARE( interval->text(), QString( "LIVE -3.0 s" ) );
+
+    // the seconds changed in the settings: the tips follow
+    opt.setLiveDelaySeconds( 4.5 );
+    QVERIFY( QMetaObject::invokeMethod( &window, "applyLiveDelay" ) );
+    QVERIFY( act->toolTip().contains( "4.5 s" ) );
+    QCOMPARE( interval->text(), QString( "LIVE -4.5 s" ) );
+    // turned off in the settings: the button follows
+    opt.setLiveDelay( false );
+    QVERIFY( QMetaObject::invokeMethod( &window, "applyLiveDelay" ) );
+    QVERIFY( ! act->isChecked() );
+
+    opt.setLiveDelaySeconds( Options::DEFAULT_LIVE_DELAY_SECONDS );
+    opt.setGameLogFile( std::string() );
 }
 
 QTEST_MAIN( TestToolbar )

@@ -250,6 +250,10 @@ private:
     QLabel * M_ball_trail_cycles_3d_label = nullptr;
     QCheckBox * M_sky_3d_cb = nullptr;
 
+    // the delayed live view (the Show tab, §5.10)
+    QCheckBox * M_live_delay_cb = nullptr;
+    QDoubleSpinBox * M_live_delay_seconds = nullptr;
+
     // the Player Camera tab (only in a build with the 3D view; null otherwise)
     QButtonGroup * M_player_camera_position = nullptr;
     QButtonGroup * M_player_camera_direction = nullptr;
@@ -268,6 +272,9 @@ public:
     ConfigDialog( QWidget * parent,
                   const DispHolder & disp_holder );
     ~ConfigDialog();
+
+    //! the fields of the delayed live view from the options (turned on or off in the tool bar)
+    void updateLiveDelay();
 private:
 
     void createWidgets();
@@ -283,6 +290,7 @@ private:
     QWidget * createGridStepControls();
     QWidget * createFocusControls();
     QWidget * createPlayerSelectionControls();
+    QWidget * createLiveControls();
     QLayout * createColorList();
     void createColorItems();
     QLayout * createFontButtons();
@@ -454,6 +462,8 @@ signals:
 
     void configured();
     void canvasResized( const QSize & size );
+    //! the options of the delayed live view changed (§5.10)
+    void liveDelayChanged();
 };
 
 #endif

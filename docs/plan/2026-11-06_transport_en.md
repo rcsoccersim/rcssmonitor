@@ -489,3 +489,4 @@ Built in 5 commits on `feature/support-tcp-ws`, made from develop (01f880a, 19.0
 - Before the PR, the user checked live connections over UDP, TCP and WebSocket on this branch's 2D view. Merged into develop by PR #68 (merge commit a6df084; 2026-11-18).
 - develop was merged into `feature/3d-view` (c6dc968; 2026-11-21). The combination with the 3D view (the toolbar's connect button made the connect dialog, as the web version's, and the 3D view's live drawing as smooth over TCP and WebSocket as over UDP) is recorded in §14 of the plan of the 3D view (`docs/plan/2026-11-11_3d-view.md`).
 - The English version was renamed `2026-11-06_transport_en.md`, to the form of CLAUDE.md (2026-11-21).
+- On `feature/3d-view`, the user checked live connections over UDP, TCP and WebSocket in 2D and 3D (2026-11-22). The merge is done.

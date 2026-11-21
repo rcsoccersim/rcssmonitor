@@ -347,6 +347,20 @@ MainWindow::createActionsLogPlayer()
         M_live_mode_act->setEnabled( false );
     }
     {
+        // the delayed live view (docs/plan/2026-11-11_3d-view.md §5.10): set at
+        // any time, used when live
+        QAction * act = new QAction( tr( "Live Delay" ), this );
+        act->setCheckable( true );
+        act->setChecked( Options::instance().liveDelay() );
+        setDrawnIcon( act, DrawnIcon::LiveDelay );
+        connect( act, SIGNAL( toggled( bool ) ),
+                 this, SLOT( toggleLiveDelay( bool ) ) );
+        this->addAction( act );
+
+        M_live_delay_act = act;
+        updateLiveDelayTips();
+    }
+    {
         QAction * act = new QAction( tr( "Play/Stop" ), this );
         setToolIcon( act, play_xpm );
         act->setShortcut( Qt::Key_Space );
@@ -728,6 +742,7 @@ MainWindow::createMenuMonitor()
     menu->addSeparator();
 
     menu->addAction( M_live_mode_act );
+    menu->addAction( M_live_delay_act );
     menu->addAction( M_loop_act );
 }
 
@@ -863,6 +878,13 @@ MainWindow::createToolBars()
         QToolButton * button = new QToolButton();
         button->setIconSize( QSize( 24, 24 ) );
         button->setDefaultAction( M_live_mode_act );
+        button_layout->addWidget( button );
+    }
+    {
+        QToolButton * button = new QToolButton();
+        button->setIconSize( QSize( 16, 16 ) );
+        button->setDefaultAction( M_live_delay_act );
+        button->setFocusPolicy( Qt::NoFocus );
         button_layout->addWidget( button );
     }
     {
@@ -1007,8 +1029,9 @@ MainWindow::createToolBars()
 
     M_interval_label = new QLabel();
     M_interval_label->setObjectName( "interval_label" );
-    M_interval_label->setToolTip( tr( "Time per frame while playing" ) );
-    M_interval_label->setMinimumWidth( M_interval_label->fontMetrics().horizontalAdvance( "5000 ms" ) );
+    M_interval_label->setToolTip( tr( "Time per frame while playing; live, how far behind the newest frame when delayed" ) );
+    M_interval_label->setMinimumWidth( std::max( M_interval_label->fontMetrics().horizontalAdvance( "5000 ms" ),
+                                                 M_interval_label->fontMetrics().horizontalAdvance( tr( "LIVE -7.0 s" ) ) ) );
     info_layout->addWidget( M_interval_label );
 
     info_panel->setLayout( info_layout );
@@ -1146,6 +1169,9 @@ MainWindow::createConfigDialog()
 
     connect( M_config_dialog, SIGNAL( canvasResized( const QSize & ) ),
              this, SLOT( resizeCanvas( const QSize & ) ) );
+
+    connect( M_config_dialog, SIGNAL( liveDelayChanged() ),
+             this, SLOT( applyLiveDelay() ) );
 
     // register short cut keys
     {
@@ -1534,7 +1560,15 @@ MainWindow::updatePlayerLabels()
                             ? QString( "%1.%2" ).arg( show.time_ ).arg( show.stime_ )
                             : QString::number( show.time_ ) );
     M_frame_label->setText( QString( "%1 (%2 / %3)" ).arg( cycle ).arg( M_disp_holder.currentIndex() + 1 ).arg( count ) );
-    M_interval_label->setText( QString( "%1 ms" ).arg( M_log_player->interval() ) );
+    if ( M_log_player->isDelayedLive() )
+    {
+        // the delayed live view: how far behind the newest frame (§5.10)
+        M_interval_label->setText( tr( "LIVE -%1 s" ).arg( Options::instance().liveDelaySeconds(), 0, 'f', 1 ) );
+    }
+    else
+    {
+        M_interval_label->setText( QString( "%1 ms" ).arg( M_log_player->interval() ) );
+    }
     M_cycle_edit->setEnabled( true );
 }
 
@@ -1575,6 +1609,60 @@ void
 MainWindow::toggleLoop( bool on )
 {
     Options::instance().setAutoLoopMode( on );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  the delayed live view on or off from the tool bar or the menu: live, the
+  view jumps back by the delay or on to the newest frame (§5.10)
+ */
+void
+MainWindow::toggleLiveDelay( bool on )
+{
+    Options & opt = Options::instance();
+    opt.setLiveDelay( on );
+    M_log_player->applyLiveDelay();
+    if ( M_config_dialog )
+    {
+        M_config_dialog->updateLiveDelay();
+    }
+    updatePlayerLabels();
+    this->statusBar()->showMessage( on
+                                    ? tr( "Live delay: %1 s" ).arg( opt.liveDelaySeconds(), 0, 'f', 1 )
+                                    : tr( "Live delay: off" ),
+                                    3000 );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  the options of the delayed live view changed in the settings dialog: the
+  action follows them, and the view if live
+ */
+void
+MainWindow::applyLiveDelay()
+{
+    {
+        const QSignalBlocker blocker( M_live_delay_act );
+        M_live_delay_act->setChecked( Options::instance().liveDelay() );
+    }
+    updateLiveDelayTips();
+    M_log_player->applyLiveDelay();
+    updatePlayerLabels();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+void
+MainWindow::updateLiveDelayTips()
+{
+    if ( ! M_live_delay_act ) return;
+    const QString seconds = QString::number( Options::instance().liveDelaySeconds(), 'f', 1 );
+    M_live_delay_act->setStatusTip( tr( "Draw a live game %1 s behind its newest frame, so that the 3D view knows "
+                                        "the touches ahead (the seconds in the settings). The referee's operations "
+                                        "reach the server at once." ).arg( seconds ) );
+    M_live_delay_act->setToolTip( tr( "Live delay (%1 s)" ).arg( seconds ) );
 }
 
 /*-------------------------------------------------------------------*/
@@ -2934,14 +3022,9 @@ MainWindow::changePlayMode( int mode,
 void
 MainWindow::receiveMonitorPacket()
 {
-    if ( M_log_player->isLiveMode() )
-    {
-        M_log_player->showLive();
-    }
-    else
-    {
-        //M_log_player_slider->updateIndex( M_disp_holder.currentIndex(), maximum );
-    }
+    // the frame to show if live, and the time of its coming for the
+    // delayed live view (§5.10)
+    M_log_player->receivedFrame();
 }
 
 /*-------------------------------------------------------------------*/
