@@ -12,6 +12,9 @@
 	- make CMake the official build. remove the qmake build. stop
 	  providing the AppImage.
 	- add the color schemes of the widgets (system, light and dark).
+	- renew the icons: SVG files made into PNG images for the light and
+	  dark color schemes, and the application icon with the official
+	  RoboCup logo.
 
 2024-04-27  Hidehisa Akiyama  <hidehisaakiyama@users.noreply.github.com>
 

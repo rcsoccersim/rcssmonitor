@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <!-- faster: accelerate the replay (a triangle pointing up and plus) (soccerwindow2's logplayer_shift_up.svg) -->
+  <path d="M2,13 H12 L7,8 Z" fill="#303030"/>
+  <path d="M9,4 H15 V6 H9 Z M11,2 H13 V8 H11 Z" fill="#303030"/>
+</svg>

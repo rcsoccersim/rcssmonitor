@@ -2,7 +2,7 @@
 
 /*!
   \file test_toolbar.cpp
-  \brief unit test of the tool bar: the icons drawn in code, the buttons, the labels and the cycle field
+  \brief unit test of the tool bar: the buttons, the labels and the cycle field
 */
 
 /*
@@ -33,7 +33,8 @@
 #include "main_window.h"
 #include "options.h"
 #include "connect_dialog.h"
-#include "toolbar_icons.h"
+#include "ui_icon.h"
+#include "ui_palette.h"
 
 #include <QAction>
 #include <QApplication>
@@ -53,17 +54,6 @@
 
 namespace {
 
-constexpr int SIZE = 32; //!< the icons drawn at twice the web version's 16 x 16
-
-//! the opacity of an icon at a point of the web version's 16 x 16 square
-int
-alphaAt( const QImage & image,
-         const double x,
-         const double y )
-{
-    return qAlpha( image.pixel( int( x * SIZE / 16.0 ), int( y * SIZE / 16.0 ) ) );
-}
-
 //! the tool bar's button of an action, if any
 QToolButton *
 buttonOf( const MainWindow & window,
@@ -76,20 +66,19 @@ buttonOf( const MainWindow & window,
     return nullptr;
 }
 
-//! the colors of the opaque pixels of an icon
-QSet< QString >
-iconColors( const QIcon & icon )
+//! an icon at 16 pixels, and an embedded image of the icons (icons/; UIIcon), in the same format
+QImage
+iconImage( const QIcon & icon )
 {
-    const QImage image = icon.pixmap( 16, 16 ).toImage().convertToFormat( QImage::Format_ARGB32 );
-    QSet< QString > colors;
-    for ( int y = 0; y < image.height(); ++y )
-    {
-        for ( int x = 0; x < image.width(); ++x )
-        {
-            if ( qAlpha( image.pixel( x, y ) ) == 255 ) colors.insert( QColor( image.pixel( x, y ) ).name() );
-        }
-    }
-    return colors;
+    return icon.pixmap( 16, 16 ).toImage().convertToFormat( QImage::Format_ARGB32_Premultiplied );
+}
+QImage
+embeddedImage( const QString & scheme,
+               const QString & name )
+{
+    UIIcon::initResources();
+    return QPixmap( QStringLiteral( ":/icons/%1/16/%2.png" ).arg( scheme, name ) )
+        .toImage().convertToFormat( QImage::Format_ARGB32_Premultiplied );
 }
 
 }
@@ -103,7 +92,6 @@ class TestToolbar
 
 private slots:
 
-    void icons();
     void buttons();
     void labels();
     void stoppedTime();
@@ -113,72 +101,11 @@ private slots:
 
 /*-------------------------------------------------------------------*/
 /*!
-  The icons drawn in code have the web version's shapes: drawn where the
-  shapes are, clear where they are not, in the color asked; each its own.
-*/
-void
-TestToolbar::icons()
-{
-    const QColor color( 200, 100, 50 );
-    const QImage open = drawnIconImage( DrawnIcon::Open, color, SIZE );
-    QCOMPARE( open.size(), QSize( SIZE, SIZE ) );
-    QVERIFY( alphaAt( open, 1.5, 8.0 ) > 128 ); // the folder's left side
-    QVERIFY( alphaAt( open, 8.0, 12.5 ) > 128 ); // its bottom
-    QCOMPARE( alphaAt( open, 8.0, 9.5 ), 0 ); // inside it
-    QCOMPARE( alphaAt( open, 15.5, 0.5 ), 0 );
-
-    const QImage connect = drawnIconImage( DrawnIcon::Connect, color, SIZE );
-    QVERIFY( alphaAt( connect, 5.0, 8.0 ) > 128 ); // the plug
-    QVERIFY( alphaAt( connect, 7.0, 8.0 ) > 128 );
-    QVERIFY( alphaAt( connect, 14.5, 8.0 ) > 128 ); // the socket's back
-    QCOMPARE( alphaAt( connect, 12.5, 8.0 ), 0 ); // in the socket
-
-    const QImage disconnect = drawnIconImage( DrawnIcon::Disconnect, color, SIZE );
-    QVERIFY( alphaAt( disconnect, 4.0, 8.0 ) > 128 );
-    QCOMPARE( alphaAt( disconnect, 7.5, 8.0 ), 0 ); // pulled out: between the prongs
-    QVERIFY( alphaAt( disconnect, 7.5, 6.5 ) > 128 ); // a prong
-
-    const QImage kick_off = drawnIconImage( DrawnIcon::KickOff, color, SIZE );
-    QVERIFY( alphaAt( kick_off, 8.0, 8.0 ) > 128 ); // the pentagon
-    QVERIFY( alphaAt( kick_off, 14.0, 8.0 ) > 128 ); // the ball's outline
-    QCOMPARE( alphaAt( kick_off, 11.0, 4.5 ), 0 );
-    QCOMPARE( alphaAt( kick_off, 0.5, 0.5 ), 0 );
-
-    const QImage loop = drawnIconImage( DrawnIcon::Loop, color, SIZE );
-    QVERIFY( alphaAt( loop, 8.0, 3.0 ) > 128 ); // the upper arc over the top
-    QVERIFY( alphaAt( loop, 8.0, 13.0 ) > 128 ); // the lower one under the bottom
-    QVERIFY( alphaAt( loop, 12.8, 3.5 ) > 128 ); // an arrow's head
-    QCOMPARE( alphaAt( loop, 8.0, 8.0 ), 0 );
-
-    const QImage live_delay = drawnIconImage( DrawnIcon::LiveDelay, color, SIZE );
-    QVERIFY( alphaAt( live_delay, 14.0, 8.5 ) > 128 ); // the clock's face
-    QVERIFY( alphaAt( live_delay, 8.0, 6.0 ) > 128 ); // the long hand up
-    QVERIFY( alphaAt( live_delay, 5.5, 8.5 ) > 128 ); // the short one to the left
-    QCOMPARE( alphaAt( live_delay, 10.5, 11.0 ), 0 ); // the face's lower right: no hand
-    QVERIFY( alphaAt( live_delay, 8.0, 1.0 ) > 128 ); // the button on top
-
-    // in the color asked; each its own
-    for ( const QImage & image : { open, connect, disconnect, kick_off, loop, live_delay } )
-    {
-        for ( int y = 0; y < SIZE; ++y )
-        {
-            for ( int x = 0; x < SIZE; ++x )
-            {
-                const QRgb p = image.convertToFormat( QImage::Format_ARGB32 ).pixel( x, y );
-                if ( qAlpha( p ) == 255 ) QCOMPARE( QColor( p ).name(), color.name() );
-            }
-        }
-    }
-    QVERIFY( open != connect && connect != disconnect && disconnect != kick_off && kick_off != loop && loop != live_delay );
-}
-
-/*-------------------------------------------------------------------*/
-/*!
   The buttons of the web version's tool bar: Open, Connect, Disconnect and
   Kick Off before the player's buttons, Loop after them; Disconnect and
   Kick Off only when connected; Connect opens the dialog of the server
   (Ctrl+C connects again, as the web version's); Loop sets the option; the
-  icons drawn in the text color of the palette, and again when it changes.
+  icons of icons/svg/, in the images of the color scheme (UIIcon).
 */
 void
 TestToolbar::buttons()
@@ -233,14 +160,24 @@ TestToolbar::buttons()
     loop->click();
     QVERIFY( ! opt.autoLoopMode() );
 
-    // the palette's text color
-    QPalette palette = window.palette();
-    palette.setColor( QPalette::ButtonText, QColor( 10, 20, 30 ) );
-    window.setPalette( palette );
-    QCOMPARE( iconColors( loop->defaultAction()->icon() ), QSet< QString >( { "#0a141e" } ) );
-    palette.setColor( QPalette::ButtonText, QColor( 240, 230, 220 ) );
-    window.setPalette( palette );
-    QCOMPARE( iconColors( open->defaultAction()->icon() ), QSet< QString >( { "#f0e6dc" } ) );
+    // the images of the color scheme of the application's palette
+    const struct {
+        QToolButton * button;
+        const char * icon;
+    } icons[] = {
+        { open, "open" }, { connect, "connect" }, { disconnect, "disconnect" },
+        { kick_off, "kick_off" }, { loop, "loop" },
+    };
+    const QPalette original = QApplication::palette();
+    for ( const char * scheme : { "dark", "light" } )
+    {
+        QApplication::setPalette( QString( scheme ) == "dark" ? UIPalette::dark() : UIPalette::light() );
+        for ( const auto & i : icons )
+        {
+            QCOMPARE( iconImage( i.button->defaultAction()->icon() ), embeddedImage( scheme, i.icon ) );
+        }
+    }
+    QApplication::setPalette( original );
 }
 
 /*-------------------------------------------------------------------*/

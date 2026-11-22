@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <!-- disconnect: disconnect from the server (the plug pulled out of its socket) -->
+  <rect x="0" y="7" width="1" height="2" fill="#303030"/>
+  <rect x="1" y="4" width="5" height="8" rx="1" fill="#303030"/>
+  <rect x="6" y="5" width="3" height="1" fill="#303030"/>
+  <rect x="6" y="10" width="3" height="1" fill="#303030"/>
+  <path d="M10.5,2.5 H14.5 V13.5 H10.5" fill="none" stroke="#303030"/>
+</svg>

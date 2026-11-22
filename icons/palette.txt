@@ -1,0 +1,41 @@
+# palette.txt -- the colors of the icons
+#
+# Each line has three fields: ROLE LIGHT DARK
+#   ROLE   the name of the role of the color
+#   LIGHT  the color for the light color scheme (used in the SVG files)
+#   DARK   the color for the dark color scheme
+# The colors are written as "#rrggbb" in lower case.
+#
+# The SVG files in svg/ must use only the LIGHT colors of this table.
+# generate.sh replaces the LIGHT colors with the DARK colors to create the
+# icons for the dark color scheme. See docs/icons.md.
+
+# lines and glyphs
+fg          #303030  #e0e0e0
+# secondary lines and shapes
+fg2         #7a7a7a  #a0a0a0
+# fill of sheets of paper and labels
+paper       #ffffff  #505050
+
+# folders
+folder      #f4c542  #e3b23c
+folder_back #c99a1e  #9c7716
+
+# accent colors
+blue        #3b78d8  #5a96f0
+red         #d93a2f  #ef5345
+
+# players (the color of the players in the field: #ffd700)
+yellow      #f5c800  #ffd700
+
+# the field state in the data (the color of the field: #1fa01f)
+field       #1fa01f  #3cbf4c
+
+# the debug server
+orange      #e8730c  #ff9a3c
+
+# debug view (the colors of the debug view in the field: ball #ff007f, teammates #00ff5f)
+pink        #e0247a  #ff5aa5
+green       #18a84e  #42d67a
+# the lines of the field (white in both color schemes)
+field_line  #f8f8f8  #f8f8f8

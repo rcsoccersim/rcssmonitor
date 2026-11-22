@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <!-- step_back: one step back (a bar and a triangle) (soccerwindow2's logplayer_one_step_back.svg) -->
+  <rect x="4" y="3" width="2" height="10" fill="#303030"/>
+  <path d="M12,3 L7,8 L12,13 Z" fill="#303030"/>
+</svg>

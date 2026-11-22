@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <!-- slower: decelerate the replay (a triangle pointing down and minus) (soccerwindow2's logplayer_shift_down.svg) -->
+  <path d="M2,3 H12 L7,8 Z" fill="#303030"/>
+  <rect x="9" y="11" width="6" height="2" fill="#303030"/>
+</svg>

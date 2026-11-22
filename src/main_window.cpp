@@ -51,7 +51,7 @@
 #include "referee_menu.h"
 #include "options.h"
 #include "rcg_handler.h"
-#include "tool_icon.h"
+#include "ui_icon.h"
 #include "ui_palette.h"
 #include "ui_style.h"
 #ifdef HAVE_3D_VIEW
@@ -70,20 +70,6 @@
 
 #include <cstdio>
 
-#include "icons/rcss.xpm"
-
-#include "icons/live.xpm"
-#include "icons/play.xpm"
-//#include "icons/rev.xpm"
-#include "icons/stop.xpm"
-#include "icons/plus.xpm"
-#include "icons/minus.xpm"
-#include "icons/decelerate.xpm"
-#include "icons/accelerate.xpm"
-//#include "icons/rew.xpm"
-#include "icons/next_score.xpm"
-#include "icons/prev_score.xpm"
-//#include "icons/rec.xpm"
 
 // #ifndef PACKAGE_STRING
 // #define PACKAGE_STRING "rcssmonitor x.x.x"
@@ -107,7 +93,7 @@ MainWindow::MainWindow()
       M_monitor_client( static_cast< MonitorClient * >( 0 ) ),
       M_log_player( new LogPlayer( M_disp_holder, this ) )
 {
-    this->setWindowIcon( QIcon( QPixmap( rcss_xpm ) ) );
+    this->setWindowIcon( UIIcon::appIcon( "rcssmonitor" ) );
     this->setWindowTitle( tr( PACKAGE_NAME ) + tr( " " ) + tr( VERSION ) );
     this->setMinimumSize( 280, 220 );
 
@@ -293,7 +279,7 @@ MainWindow::createActionsFile()
     M_open_act->setShortcut( Qt::CTRL | Qt::Key_O );
     M_open_act->setStatusTip( tr( "Open a game log file." ) );
     M_open_act->setToolTip( tr( "Open a game log (" ) + M_open_act->shortcut().toString() + tr( ")" ) );
-    setDrawnIcon( M_open_act, DrawnIcon::Open );
+    M_open_act->setIcon( UIIcon::fromName( "open" ) );
     connect( M_open_act, SIGNAL( triggered() ),
              this, SLOT( openGameLogFile() ) );
     this->addAction( M_open_act );
@@ -322,7 +308,7 @@ MainWindow::createActionsMonitor()
     M_connect_monitor_act->setStatusTip( tr( "Connect to the rcssserver again (the last host, transport and port; localhost by default)" ) );
     M_connect_monitor_act->setToolTip( tr( "Connect to the rcssserver again (" ) + M_connect_monitor_act->shortcut().toString()
                                        + tr( "; Monitor > Connect to ... for another server)" ) );
-    setDrawnIcon( M_connect_monitor_act, DrawnIcon::Connect );
+    M_connect_monitor_act->setIcon( UIIcon::fromName( "connect" ) );
     M_connect_monitor_act->setEnabled( true );
     connect( M_connect_monitor_act, SIGNAL( triggered() ),
              this, SLOT( connectMonitor() ) );
@@ -333,7 +319,7 @@ MainWindow::createActionsMonitor()
     M_connect_monitor_to_act->setStatusTip( tr( "Connect to a rcssserver: choose its host, transport and port." ) );
     M_connect_monitor_to_act->setToolTip( tr( "Connect to a server... (" ) + M_connect_monitor_act->shortcut().toString()
                                           + tr( ": connect again)" ) );
-    setDrawnIcon( M_connect_monitor_to_act, DrawnIcon::Connect );
+    M_connect_monitor_to_act->setIcon( UIIcon::fromName( "connect" ) );
     M_connect_monitor_to_act->setEnabled( true );
     connect( M_connect_monitor_to_act, SIGNAL( triggered() ),
              this, SLOT( connectMonitorTo() ) );
@@ -342,7 +328,7 @@ MainWindow::createActionsMonitor()
     M_disconnect_monitor_act = new QAction( tr( "&Disconnect" ), this );
     M_disconnect_monitor_act->setStatusTip( tr( "Disonnect from rcssserver." ) );
     M_disconnect_monitor_act->setToolTip( tr( "Disconnect from the rcssserver" ) );
-    setDrawnIcon( M_disconnect_monitor_act, DrawnIcon::Disconnect );
+    M_disconnect_monitor_act->setIcon( UIIcon::fromName( "disconnect" ) );
     M_disconnect_monitor_act->setEnabled( false );
     connect( M_disconnect_monitor_act, SIGNAL( triggered() ),
              this, SLOT( disconnectMonitor() ) );
@@ -358,7 +344,7 @@ MainWindow::createActionsLogPlayer()
 {
     {
         QAction * act = new QAction( tr( "Live Mode" ), this );
-        setToolIcon( act, live_xpm );
+        act->setIcon( UIIcon::fromName( "live_mode" ) );
         act->setShortcut( Qt::CTRL | Qt::Key_L );
         act->setStatusTip( tr( "Set monitor to live mode.(" )
                            + act->shortcut().toString() + tr( ")" ) );
@@ -376,7 +362,7 @@ MainWindow::createActionsLogPlayer()
         QAction * act = new QAction( tr( "Live Delay" ), this );
         act->setCheckable( true );
         act->setChecked( Options::instance().liveDelay() );
-        setDrawnIcon( act, DrawnIcon::LiveDelay );
+        act->setIcon( UIIcon::fromName( "live_delay" ) );
         connect( act, SIGNAL( toggled( bool ) ),
                  this, SLOT( toggleLiveDelay( bool ) ) );
         this->addAction( act );
@@ -386,7 +372,7 @@ MainWindow::createActionsLogPlayer()
     }
     {
         QAction * act = new QAction( tr( "Play/Stop" ), this );
-        setToolIcon( act, play_xpm );
+        act->setIcon( UIIcon::fromName( "play" ) );
         act->setShortcut( Qt::Key_Space );
         act->setStatusTip( tr( "Play/Stop the log player. (" )
                            + act->shortcut().toString() + tr( ")" ) );
@@ -402,7 +388,7 @@ MainWindow::createActionsLogPlayer()
     }
     {
         QAction * act = new QAction( tr( "Step Backward" ), this );
-        setToolIcon( act, minus_xpm );
+        act->setIcon( UIIcon::fromName( "step_back" ) );
         act->setShortcut( Qt::Key_Left );
         act->setStatusTip( tr( "One step backward the log player.(" )
                            + act->shortcut().toString() + tr( ")" ) );
@@ -417,7 +403,7 @@ MainWindow::createActionsLogPlayer()
     }
     {
         QAction * act = new QAction( tr( "Step Forward" ), this );
-        setToolIcon( act, plus_xpm );
+        act->setIcon( UIIcon::fromName( "step_forward" ) );
         act->setShortcut( Qt::Key_Right );
         act->setStatusTip( tr( "One step forward the log player.(" )
                            + act->shortcut().toString() + tr( ")" ) );
@@ -432,7 +418,7 @@ MainWindow::createActionsLogPlayer()
     }
     {
        QAction * act = new QAction( tr( "Decelerate" ), this );
-        setToolIcon( act, decelerate_xpm );
+        act->setIcon( UIIcon::fromName( "slower" ) );
         act->setShortcut( Qt::CTRL | Qt::Key_Down );
         act->setStatusTip( tr( "Decelerate the replaying speed.(" )
                            + act->shortcut().toString() + tr( ")" ) );
@@ -445,7 +431,7 @@ MainWindow::createActionsLogPlayer()
     }
     {
         QAction * act = new QAction( tr( "Accelerate" ), this );
-        setToolIcon( act, accelerate_xpm );
+        act->setIcon( UIIcon::fromName( "faster" ) );
         act->setShortcut( Qt::CTRL | Qt::Key_Up );
         act->setStatusTip( tr( "Accelerate the replaying speed.(" )
                            + act->shortcut().toString() + tr( ")" ) );
@@ -458,7 +444,7 @@ MainWindow::createActionsLogPlayer()
     }
     {
         QAction * act = new QAction( tr( "Previous score" ), this );
-        setToolIcon( act, prev_score_xpm );
+        act->setIcon( UIIcon::fromName( "prev_score" ) );
         act->setShortcut( tr( "Ctrl+G" ) );
         act->setStatusTip( tr( "Go to the previous goal scene.(" )
                            + act->shortcut().toString() + tr(")" ) );
@@ -471,7 +457,7 @@ MainWindow::createActionsLogPlayer()
     }
     {
         QAction * act = new QAction( tr( "Next score" ), this );
-        setToolIcon( act, next_score_xpm );
+        act->setIcon( UIIcon::fromName( "next_score" ) );
         act->setShortcut( Qt::Key_G );
         act->setStatusTip( tr( "Go to the next goal scene.(" )
                            + act->shortcut().toString() + tr( ")" ) );
@@ -506,7 +492,7 @@ MainWindow::createActionsLogPlayer()
         QAction * act = new QAction( tr( "Loop Playback" ), this );
         act->setCheckable( true );
         act->setChecked( Options::instance().autoLoopMode() );
-        setDrawnIcon( act, DrawnIcon::Loop );
+        act->setIcon( UIIcon::fromName( "loop" ) );
         act->setStatusTip( tr( "Play the log again from the start at its end." ) );
         act->setToolTip( tr( "Loop playback" ) );
         connect( act, SIGNAL( toggled( bool ) ),
@@ -529,7 +515,7 @@ MainWindow::createActionsReferee()
     M_kick_off_act->setShortcut( Qt::CTRL | Qt::Key_K );
     M_kick_off_act->setStatusTip( tr( "Send kick-off command." ) );
     M_kick_off_act->setToolTip( tr( "Kick off (" ) + M_kick_off_act->shortcut().toString() + tr( "; when connected)" ) );
-    setDrawnIcon( M_kick_off_act, DrawnIcon::KickOff );
+    M_kick_off_act->setIcon( UIIcon::fromName( "kick_off" ) );
     M_kick_off_act->setEnabled( false ); // until connected
     connect( M_kick_off_act, SIGNAL( triggered() ),
              this, SLOT( kickOff() ) );
@@ -1477,62 +1463,6 @@ MainWindow::createConfigDialog()
 
 /*-------------------------------------------------------------------*/
 /*!
-  set the icon of a toolbar action, drawn in the text color of the
-  palette, and keep it to draw it again when the palette changes.
- */
-void
-MainWindow::setToolIcon( QAction * act,
-                         const char * const xpm[] )
-{
-    std::vector< std::pair< QAction *, const char * const * > >::iterator it
-        = std::find_if( M_tool_icons.begin(), M_tool_icons.end(),
-                        [act]( const std::pair< QAction *, const char * const * > & v )
-                        {
-                            return v.first == act;
-                        } );
-    if ( it != M_tool_icons.end() )
-    {
-        it->second = xpm;
-    }
-    else
-    {
-        M_tool_icons.emplace_back( act, xpm );
-    }
-
-    act->setIcon( toolIcon( xpm, this->palette() ) );
-}
-
-/*-------------------------------------------------------------------*/
-/*!
-
- */
-void
-MainWindow::setDrawnIcon( QAction * act,
-                          const DrawnIcon icon )
-{
-    M_drawn_icons.emplace_back( act, icon );
-    act->setIcon( drawnIcon( icon, this->palette() ) );
-}
-
-/*-------------------------------------------------------------------*/
-/*!
-
- */
-void
-MainWindow::updateToolIcons()
-{
-    for ( const std::pair< QAction *, const char * const * > & v : M_tool_icons )
-    {
-        v.first->setIcon( toolIcon( v.second, this->palette() ) );
-    }
-    for ( const std::pair< QAction *, DrawnIcon > & v : M_drawn_icons )
-    {
-        v.first->setIcon( drawnIcon( v.second, this->palette() ) );
-    }
-}
-
-/*-------------------------------------------------------------------*/
-/*!
 
  */
 void
@@ -1745,7 +1675,6 @@ MainWindow::changeEvent( QEvent * event )
 {
     if ( event->type() == QEvent::PaletteChange )
     {
-        updateToolIcons();
         // the wrong fields in this window and its dialogs, in the new colors
         UIPalette::updateWrongMarks( this );
     }
@@ -2532,8 +2461,9 @@ MainWindow::applyUIColorScheme()
 {
     const UIColorScheme scheme = Options::instance().uiColorScheme();
 
-    // the widgets get QEvent::PaletteChange: the icons of the tool bar are
-    // drawn again in its text color (changeEvent())
+    // the widgets get QEvent::PaletteChange (the wrong fields are marked
+    // again: changeEvent()); the icons choose the images of the scheme
+    // whenever they are painted (UIIcon)
     QApplication::setPalette( UIPalette::of( scheme, M_system_palette ) );
 
     for ( QAction * act : M_ui_color_scheme_act_group->actions() )
@@ -3220,6 +3150,5 @@ MainWindow::setLiveMode()
 void
 MainWindow::togglePlayOrStopIcon( bool checked )
 {
-    setToolIcon( M_log_player_play_or_stop_act,
-                 checked ? stop_xpm : play_xpm );
+    M_log_player_play_or_stop_act->setIcon( UIIcon::fromName( checked ? "stop" : "play" ) );
 }

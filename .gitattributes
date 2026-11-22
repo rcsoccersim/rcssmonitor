@@ -7,3 +7,6 @@
 /.github export-ignore
 /docs/plan export-ignore
 /docs/dev export-ignore
+
+# the old icons kept as a record (not used by the build)
+/icons/legacy export-ignore

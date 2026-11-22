@@ -164,7 +164,7 @@ install(CODE "
 install(FILES ${PROJECT_BINARY_DIR}/rcssmonitor.desktop
   DESTINATION ${CMAKE_INSTALL_DATADIR}/applications
   )
-install(FILES icons/rcssmonitor.png
+install(FILES icons/app/48/rcssmonitor.png
   DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/48x48/apps
   )
 
