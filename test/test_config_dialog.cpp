@@ -38,6 +38,7 @@
 #include "config_dialog.h"
 #include "disp_holder.h"
 #include "options.h"
+#include "ui_palette.h"
 
 #ifdef HAVE_3D_VIEW
 #include "figure_pack.h"
@@ -115,6 +116,14 @@ child( const ConfigDialog & dialog,
     T * w = dialog.findChild< T * >( QString::fromLatin1( name ) );
     if ( ! w ) qWarning( "no %s", name );
     return w;
+}
+
+//! a text shown as wrong: in the color of an error (UIPalette::markWrongText())
+bool
+shownWrong( const QWidget * text )
+{
+    return text->palette().color( QPalette::WindowText )
+        == UIPalette::errorText( QApplication::palette( text ) );
 }
 
 //! the settings of the 3D tabs back to their defaults
@@ -944,7 +953,7 @@ TestConfigDialog::figurePacks()
     QCOMPARE( opt.playerModel3D(), QString( "robot" ) );
     QCOMPARE( spy.count(), 2 );
     QCOMPARE( credits->text(), QString( "Credits: Someone (CC BY 4.0); Quaternius (CC0 1.0); Ian Mason (CC BY 4.0)" ) );
-    QVERIFY( credits->styleSheet().isEmpty() );
+    QVERIFY( ! shownWrong( credits ) );
     QVERIFY( ! bodies->button( 0 )->isEnabled() ); // no men's and women's bodies
 
     // a long line of credits: as a whole (elided when drawn, as wide as the
@@ -978,7 +987,7 @@ TestConfigDialog::figurePacks()
     QVERIFY( enabled( model->currentIndex() ) );
     QVERIFY( model->itemData( model->currentIndex(), Qt::ToolTipRole ).toString().startsWith( "Robot: Robot.glb: no clip" ) );
     QVERIFY( credits->text().startsWith( "Cannot be drawn: Robot: Robot.glb" ) );
-    QVERIFY( ! credits->styleSheet().isEmpty() );
+    QVERIFY( shownWrong( credits ) );
     FigurePacks::noteError( "robot", QString() );
     dialog.update3D();
     QCOMPARE( model->itemText( model->currentIndex() ), QString( "Robot" ) );
@@ -991,7 +1000,7 @@ TestConfigDialog::figurePacks()
     QCOMPARE( model->currentText(), QString( "robot (not found)" ) );
     QVERIFY( ! enabled( model->currentIndex() ) );
     QVERIFY( credits->text().startsWith( "No figure pack \"robot\"" ) );
-    QVERIFY( ! credits->styleSheet().isEmpty() );
+    QVERIFY( shownWrong( credits ) );
 
     // the Human: the bodies of men and women
     model->setCurrentIndex( 2 );

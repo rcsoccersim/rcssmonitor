@@ -44,6 +44,7 @@
 #include "camera_mode.h"
 #include "player_camera_options.h"
 #include "monitor_transport.h"
+#include "ui_palette.h"
 
 #include <rcss/rcg/types.h>
 
@@ -222,6 +223,7 @@ private:
     ShadowMode M_shadows_3d; //!< the sun's shadows of the players (and the goal frames when detailed)
     bool M_show_tool_bar;
     bool M_show_status_bar;
+    UIColorScheme M_ui_color_scheme; //!< the color scheme of the widgets (View > UI Color Scheme)
 
     //
     // view options
@@ -589,6 +591,15 @@ public:
     void setMinimap3D( const GuideMode mode ) { M_minimap_3d = mode; }
     bool showToolBar() const { return M_show_tool_bar; }
     bool showStatusBar() const { return M_show_status_bar; }
+    UIColorScheme uiColorScheme() const { return M_ui_color_scheme; }
+    void setUIColorScheme( const UIColorScheme scheme ) { M_ui_color_scheme = scheme; }
+    /*!
+      \brief write the color scheme to the settings file now. Called when it
+      is chosen in the menu: the settings written when the program ends do
+      not have it, so that the one given by the command line
+      (--ui-color-scheme) is not saved.
+    */
+    void writeUIColorScheme() const;
 
     //
     // view options

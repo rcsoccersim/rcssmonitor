@@ -52,6 +52,8 @@
 #include "options.h"
 #include "rcg_handler.h"
 #include "tool_icon.h"
+#include "ui_palette.h"
+#include "ui_style.h"
 #ifdef HAVE_3D_VIEW
 #include "field_view_3d.h"
 #include "popup_closer.h"
@@ -93,7 +95,10 @@
  */
 MainWindow::MainWindow()
     : QMainWindow( /* parent, flags */ ),
-      M_window_style( "plastique" ),
+      M_window_style(),
+      // before the color scheme is set (init()): the desktop's, which
+      // Qt6 makes dark with a dark desktop
+      M_system_palette( QApplication::palette() ),
       M_player_type_dialog( static_cast< PlayerTypeDialog * >( 0 ) ),
       M_config_dialog( static_cast< ConfigDialog * >( 0 ) ),
       M_field_canvas( static_cast< FieldCanvas * >( 0 ) ),
@@ -164,18 +169,37 @@ MainWindow::init()
         this->showMaximized();
     }
 
-    if ( QApplication::setStyle( M_window_style ) )
+    // the style chosen in View > Window Style, or the platform's (or the
+    // one given by -style) when none is chosen or it is unknown (e.g.
+    // "plastique" saved by an older version), wrapped to emphasize the
+    // checked tool buttons
+    QString style_key = QApplication::style()->objectName();
+    if ( ! M_window_style.isEmpty() )
     {
-        Q_FOREACH( QAction * action, M_style_act_group->actions() )
+        if ( QStyle * style = QStyleFactory::create( M_window_style ) )
         {
-            if ( action->data().toString().toLower() == QApplication::style()->objectName().toLower() )
-            {
-                M_window_style = QApplication::style()->objectName().toLower();
-                action->setChecked( true );
-                break;
-            }
+            delete style;
+            style_key = M_window_style;
+        }
+        else
+        {
+            M_window_style.clear();
         }
     }
+    QApplication::setStyle( new UIStyle( style_key ) );
+    Q_FOREACH( QAction * action, M_style_act_group->actions() )
+    {
+        if ( action->data().toString().toLower() == QApplication::style()->objectName().toLower() )
+        {
+            action->setChecked( true );
+            break;
+        }
+    }
+
+    // The command line options have been parsed at this point. This is
+    // called before the event loop starts, so the window is never painted
+    // in the desktop's palette when another scheme is chosen.
+    applyUIColorScheme();
 
     toggleMenuBar( Options::instance().showMenuBar() );
     toggleStatusBar( Options::instance().showStatusBar() );
@@ -210,7 +234,7 @@ MainWindow::readSettings()
 
     QVariant val;
 
-    M_window_style = settings.value( "window_style", "plastique" ).toString();
+    M_window_style = settings.value( "window_style", QString() ).toString();
 
     settings.endGroup();
 }
@@ -669,6 +693,30 @@ MainWindow::createActionsView()
                  this, SLOT( changeStyle( bool ) ) );
     }
 
+    // the color scheme of the widgets: checked by applyUIColorScheme()
+    M_ui_color_scheme_act_group = new QActionGroup( this );
+    {
+        const struct {
+            UIColorScheme scheme;
+            const char * text;
+            const char * tip;
+        } schemes[] = {
+            { UIColorScheme::System, QT_TR_NOOP( "System" ), QT_TR_NOOP( "Use the color scheme of the desktop for the menus, the tool bars and the dialogs." ) },
+            { UIColorScheme::Light, QT_TR_NOOP( "Light" ), QT_TR_NOOP( "Use the light color scheme for the menus, the tool bars and the dialogs." ) },
+            { UIColorScheme::Dark, QT_TR_NOOP( "Dark" ), QT_TR_NOOP( "Use the dark color scheme for the menus, the tool bars and the dialogs." ) },
+        };
+        for ( const auto & s : schemes )
+        {
+            QAction * act = new QAction( tr( s.text ), M_ui_color_scheme_act_group );
+            act->setObjectName( "ui_color_scheme_" + uiColorSchemeName( s.scheme ) );
+            act->setStatusTip( tr( s.tip ) );
+            act->setData( uiColorSchemeName( s.scheme ) );
+            act->setCheckable( true );
+        }
+    }
+    connect( M_ui_color_scheme_act_group, &QActionGroup::triggered,
+             this, &MainWindow::changeUIColorScheme );
+
     // show/hide player type dialog
     M_show_player_type_dialog_act = new QAction( tr( "Player Type List" ), this );
     M_show_player_type_dialog_act->setShortcut( tr( "Ctrl+H" ) );
@@ -817,6 +865,10 @@ MainWindow::createMenuView()
         {
             submenu->addAction( action );
         }
+    }
+    {
+        QMenu * submenu = menu->addMenu( tr( "UI &Color Scheme" ) );
+        submenu->addActions( M_ui_color_scheme_act_group->actions() );
     }
     menu->addAction( M_show_config_dialog_act );
 }
@@ -1023,7 +1075,7 @@ MainWindow::createToolBars()
     connect( M_cycle_edit, &QLineEdit::returnPressed,
              this, &MainWindow::goToTypedCycle );
     connect( M_cycle_edit, &QLineEdit::textEdited,
-             this, [this]( const QString & ) { M_cycle_edit->setPalette( QApplication::palette( M_cycle_edit ) ); } );
+             this, [this]( const QString & ) { UIPalette::markWrongField( M_cycle_edit, false ); } );
     M_cycle_edit->installEventFilter( this );
     info_layout->addWidget( M_cycle_edit );
 
@@ -1585,18 +1637,11 @@ MainWindow::goToTypedCycle()
     if ( ! ok
          || M_disp_holder.getIndex( cycle ) == DispHolder::INVALID_INDEX )
     {
-        QPalette palette = QApplication::palette( M_cycle_edit );
-        const QColor base = palette.color( QPalette::Base );
-        const QColor error( 255, 64, 64 );
-        palette.setColor( QPalette::Base,
-                          QColor( ( base.red() * 6 + error.red() * 4 ) / 10,
-                                  ( base.green() * 6 + error.green() * 4 ) / 10,
-                                  ( base.blue() * 6 + error.blue() * 4 ) / 10 ) );
-        M_cycle_edit->setPalette( palette );
+        UIPalette::markWrongField( M_cycle_edit, true );
         return;
     }
     M_log_player->goToCycle( cycle );
-    M_cycle_edit->setPalette( QApplication::palette( M_cycle_edit ) );
+    UIPalette::markWrongField( M_cycle_edit, false );
     M_cycle_edit->clear();
     focusView();
 }
@@ -1684,7 +1729,7 @@ MainWindow::eventFilter( QObject * watched,
          && static_cast< QKeyEvent * >( event )->key() == Qt::Key_Escape )
     {
         M_cycle_edit->clear();
-        M_cycle_edit->setPalette( QApplication::palette( M_cycle_edit ) );
+        UIPalette::markWrongField( M_cycle_edit, false );
         focusView();
         return true;
     }
@@ -1701,6 +1746,8 @@ MainWindow::changeEvent( QEvent * event )
     if ( event->type() == QEvent::PaletteChange )
     {
         updateToolIcons();
+        // the wrong fields in this window and its dialogs, in the new colors
+        UIPalette::updateWrongMarks( this );
     }
     // full screen or not (the views' stack may keep its size)
     if ( event->type() == QEvent::WindowStateChange )
@@ -2441,10 +2488,61 @@ MainWindow::changeStyle( bool checked )
     }
 
     QAction * action = qobject_cast< QAction * >( sender() );
-    QStyle * style = QStyleFactory::create( action->data().toString() );
-    Q_ASSERT( style );
+    if ( ! action )
+    {
+        return;
+    }
 
-    QApplication::setStyle( style );
+    // UIStyle emphasizes the checked tool buttons on the style chosen
+    QApplication::setStyle( new UIStyle( action->data().toString() ) );
+    // saved when the window closes (writeSettings())
+    M_window_style = action->data().toString();
+
+    // setStyle() may set the style's palette
+    applyUIColorScheme();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+void
+MainWindow::changeUIColorScheme( QAction * action )
+{
+    UIColorScheme scheme = UIColorScheme::System;
+    if ( ! action
+         || ! uiColorSchemeFromName( action->data().toString(), &scheme ) )
+    {
+        return;
+    }
+
+    Options::instance().setUIColorScheme( scheme );
+    applyUIColorScheme();
+
+    // saved now: the one given by the command line is not
+    Options::instance().writeUIColorScheme();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+void
+MainWindow::applyUIColorScheme()
+{
+    const UIColorScheme scheme = Options::instance().uiColorScheme();
+
+    // the widgets get QEvent::PaletteChange: the icons of the tool bar are
+    // drawn again in its text color (changeEvent())
+    QApplication::setPalette( UIPalette::of( scheme, M_system_palette ) );
+
+    for ( QAction * act : M_ui_color_scheme_act_group->actions() )
+    {
+        if ( act->data().toString() == uiColorSchemeName( scheme ) )
+        {
+            act->setChecked( true );
+        }
+    }
 }
 
 /*-------------------------------------------------------------------*/

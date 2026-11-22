@@ -11,6 +11,7 @@
 	- support Qt 6, and the TCP and WebSocket connections.
 	- make CMake the official build. remove the qmake build. stop
 	  providing the AppImage.
+	- add the color schemes of the widgets (system, light and dark).
 
 2024-04-27  Hidehisa Akiyama  <hidehisaakiyama@users.noreply.github.com>
 

@@ -39,6 +39,7 @@
 #include "config_dialog.h"
 
 #include "tooltip_marker.h"
+#include "ui_palette.h"
 
 #include "disp_holder.h"
 #include "options.h"
@@ -53,6 +54,26 @@
 #include <cassert>
 #include <cmath>
 
+namespace {
+
+/*!
+  \brief the swatch of a color in the list of the Color tab: with a gray
+  border, so that a white one on the light base and a black one on the
+  dark base are seen
+*/
+QIcon
+color_swatch( const QColor & color )
+{
+    QPixmap pixmap( 16, 16 );
+    pixmap.fill( color );
+    QPainter painter( &pixmap );
+    painter.setPen( QColor( 128, 128, 128 ) );
+    painter.setBrush( Qt::NoBrush );
+    painter.drawRect( 0, 0, 15, 15 );
+    return QIcon( pixmap );
+}
+
+}
 
 /*-------------------------------------------------------------------*/
 /*!
@@ -67,9 +88,7 @@ ColorItem::ColorItem( const QString & name,
       M_old_color( old_color ),
       M_setter( setter )
 {
-    QPixmap pixmap( 16, 16 );
-    pixmap.fill( old_color );
-    this->setIcon( QIcon( pixmap ) );
+    this->setIcon( color_swatch( old_color ) );
 }
 
 /*-------------------------------------------------------------------*/
@@ -88,9 +107,7 @@ ColorItem::setColor( const QColor & color )
             M_setter( color );
         }
 
-        QPixmap pixmap( 16, 16 );
-        pixmap.fill( color );
-        this->setIcon( QIcon( pixmap ) );
+        this->setIcon( color_swatch( color ) );
 
         return true;
     }
@@ -1730,17 +1747,7 @@ shadowIndex( const ShadowMode mode )
 void
 markNumber( QDoubleSpinBox * spin )
 {
-    QPalette palette = QApplication::palette( spin );
-    if ( ! spin->hasAcceptableInput() )
-    {
-        const QColor base = palette.color( QPalette::Base );
-        const QColor error( 255, 64, 64 );
-        palette.setColor( QPalette::Base,
-                          QColor( ( base.red() * 6 + error.red() * 4 ) / 10,
-                                  ( base.green() * 6 + error.green() * 4 ) / 10,
-                                  ( base.blue() * 6 + error.blue() * 4 ) / 10 ) );
-    }
-    spin->setPalette( palette );
+    UIPalette::markWrongField( spin, ! spin->hasAcceptableInput() );
 }
 
 QString
@@ -2722,7 +2729,7 @@ ConfigDialog::fillPacks()
     M_figure_credits_3d->setText( line ); // elided as wide as the dialog is (ElidedLabel)
     M_figure_credits_3d->setVisible( ! line.isEmpty() ); // no empty line under the cylinders
     M_figure_credits_3d->setToolTip( tip );
-    M_figure_credits_3d->setStyleSheet( wrong ? QStringLiteral( "color: #c03030;" ) : QString() );
+    UIPalette::markWrongText( M_figure_credits_3d, wrong ); // legible in the dark color scheme too
 
     M_no_figure_folder_3d->setEnabled( ! folder.isEmpty() );
 

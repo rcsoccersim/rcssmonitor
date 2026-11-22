@@ -96,6 +96,20 @@ In a Wayland session with a screen of high resolution such as 4K, start the moni
 QT_QPA_PLATFORM=wayland rcssmonitor
 ```
 
+### The color scheme (light or dark)
+
+`View` -> `UI Color Scheme` chooses the colors of the menus, the tool bars and the dialogs: `System` (the desktop's, by default), `Light` or `Dark`.
+The choice is kept in `~/.rcssmonitor.conf`.
+`--ui-color-scheme` chooses one for a run, and is not kept:
+
+```bash
+rcssmonitor --ui-color-scheme dark    # system, light or dark
+```
+
+- `Light` and `Dark` look the same with Qt 5 and Qt 6. `System` follows a dark desktop with Qt 6, but not with Qt 5: choose `Dark` there.
+- The field (2D and 3D) keeps its own colors, set on the `Color` tab of the settings dialog.
+- `View` -> `Window Style` chooses the style of the widgets (e.g. `Fusion`), which is kept too.
+
 ### Connecting via TCP or WebSocket
 
 By default, the monitor connects to the server via UDP.

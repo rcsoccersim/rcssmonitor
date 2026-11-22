@@ -34,6 +34,7 @@
 #define RCSSMONITOR_MAIN_WINDOW_H
 
 #include <QMainWindow>
+#include <QPalette>
 #include <QString>
 
 #include <utility>
@@ -67,7 +68,8 @@ class MainWindow
 
 private:
 
-    QString M_window_style;
+    QString M_window_style; //!< the key of the style chosen in View > Window Style (empty: the platform's)
+    QPalette M_system_palette; //!< the palette of the desktop when the window was made (UIColorScheme::System)
 
     DispHolder M_disp_holder;
 
@@ -136,6 +138,7 @@ private:
     QAction * M_full_screen_act;
     QAction * M_show_player_type_dialog_act;
     QActionGroup * M_style_act_group;
+    QActionGroup * M_ui_color_scheme_act_group = nullptr; //!< View > UI Color Scheme
     QAction * M_show_config_dialog_act;
 
     //! the toolbar actions and their icons (XPM in black), drawn in the
@@ -208,6 +211,13 @@ private:
     void setDrawnIcon( QAction * act,
                        const DrawnIcon icon );
     void updateToolIcons();
+    /*!
+      \brief set the palette of the color scheme in the options to the
+      application, and check it in the menu. Called when the window starts,
+      when the scheme is chosen, and when the style changes (which may set
+      the style's palette).
+    */
+    void applyUIColorScheme();
     /*!
       \brief the position tool bar after the buttons in one row, or in a
       second row below them when the window is too narrow for both (as the
@@ -319,6 +329,8 @@ private slots:
     void toggleFullScreen();
     void showPlayerTypeDialog();
     void changeStyle( bool checked );
+    //! View > UI Color Scheme: use the scheme chosen, and save it
+    void changeUIColorScheme( QAction * action );
     void showConfigDialog();
     void setFocusPoint( const QPoint & point );
 

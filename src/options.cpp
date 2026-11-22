@@ -251,6 +251,7 @@ Options::Options()
     M_shadows_3d( SHADOWS_3D ),
     M_show_tool_bar( false ),
     M_show_status_bar( false ),
+    M_ui_color_scheme( UIColorScheme::System ),
     // view options
     M_anti_aliasing( true ),
     M_show_score_board( true ),
@@ -413,6 +414,10 @@ Options::readSettings()
 
     val = settings.value( "show_status_bar" );
     if ( val.isValid() ) M_show_status_bar = val.toBool();
+
+    // an unknown name (of a later version) is not read
+    val = settings.value( "ui_color_scheme" );
+    if ( val.isValid() ) uiColorSchemeFromName( val.toString(), &M_ui_color_scheme );
 
     settings.endGroup();
 
@@ -889,6 +894,9 @@ Options::writeSettings( bool all )
         settings.setValue( "camera_3d", cameraModeName( M_camera_3d ) );
         settings.setValue( "show_tool_bar", M_show_tool_bar );
         settings.setValue( "show_status_bar", M_show_status_bar );
+        // only when the file is made: written when chosen in the menu
+        // (writeUIColorScheme()), not the one given by the command line
+        settings.setValue( "ui_color_scheme", uiColorSchemeName( M_ui_color_scheme ) );
         settings.endGroup();
 
         //
@@ -1051,6 +1059,21 @@ Options::writeSettings( bool all )
         settings.setValue( "player_camera_max_turn", pc.max_turn );
         settings.setValue( "player_camera_fixed_fov", pc.fixed_fov );
     }
+    settings.endGroup();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+ */
+void
+Options::writeUIColorScheme() const
+{
+    QSettings settings( Options::CONF_FILE,
+                        QSettings::IniFormat );
+
+    settings.beginGroup( "MainWindow" );
+    settings.setValue( "ui_color_scheme", uiColorSchemeName( M_ui_color_scheme ) );
     settings.endGroup();
 }
 
@@ -1270,6 +1293,16 @@ Options::parseCmdLine( int argc,
                                             "bool",
                                             to_onoff( M_show_status_bar ) );
     parser.addOption( opt_show_status_bar );
+    QStringList ui_color_scheme_names;
+    for ( const auto & s : uiColorSchemes() ) ui_color_scheme_names << QString::fromLatin1( s.second );
+    QCommandLineOption opt_ui_color_scheme( "ui-color-scheme",
+                                            "The color scheme of the menus, the tool bars and the dialogs: "
+                                            + ui_color_scheme_names.join( ", " )
+                                            + ". system follows the desktop. Not saved: View > UI Color Scheme saves the one chosen there."
+                                            " (Default=" + uiColorSchemeName( M_ui_color_scheme ) + ")",
+                                            "scheme",
+                                            uiColorSchemeName( M_ui_color_scheme ) );
+    parser.addOption( opt_ui_color_scheme );
     QCommandLineOption opt_view_3d( "view-3d",
                                     "Start with the 3D view. (Default=" + to_onoff( M_view_3d ) + ")",
                                     "bool",
@@ -1750,6 +1783,11 @@ Options::parseCmdLine( int argc,
     }
     if ( parser.isSet( opt_show_tool_bar ) ) M_show_tool_bar = to_bool( parser.value( opt_show_tool_bar ), M_show_tool_bar );
     if ( parser.isSet( opt_show_status_bar ) ) M_show_status_bar = to_bool( parser.value( opt_show_status_bar ), M_show_status_bar );
+    if ( parser.isSet( opt_ui_color_scheme )
+         && ! uiColorSchemeFromName( parser.value( opt_ui_color_scheme ), &M_ui_color_scheme ) )
+    {
+        std::cerr << "Unknown value of ui-color-scheme: " << parser.value( opt_ui_color_scheme ).toStdString() << std::endl;
+    }
     // view options
     if ( parser.isSet( opt_anti_aliasing ) ) M_anti_aliasing = to_bool( parser.value( opt_anti_aliasing ), M_anti_aliasing );
     if ( parser.isSet( opt_show_score_board ) ) M_show_score_board = to_bool( parser.value( opt_show_score_board ), M_show_score_board );
