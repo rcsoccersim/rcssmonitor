@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <!-- open: open a game log to replay (a folder and a triangle) (soccerwindow2's open_rcg.svg) -->
+  <path d="M1.5,14.5 V4.5 H5.5 L6.5,5.5 H11.5 V14.5 Z" fill="#c99a1e" stroke="#303030"/>
+  <path d="M1.5,14.5 L4.5,8.5 H15.5 L12.5,14.5 Z" fill="#f4c542" stroke="#303030" stroke-linejoin="round"/>
+  <path d="M11,0 L15,3.5 L11,7 Z" fill="#303030"/>
+</svg>

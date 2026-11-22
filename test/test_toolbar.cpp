@@ -34,6 +34,8 @@
 #include "options.h"
 #include "connect_dialog.h"
 #include "toolbar_icons.h"
+#include "ui_icon.h"
+#include "ui_palette.h"
 
 #include <QAction>
 #include <QApplication>
@@ -76,20 +78,19 @@ buttonOf( const MainWindow & window,
     return nullptr;
 }
 
-//! the colors of the opaque pixels of an icon
-QSet< QString >
-iconColors( const QIcon & icon )
+//! an icon at 16 pixels, and an embedded image of the icons (icons/; UIIcon), in the same format
+QImage
+iconImage( const QIcon & icon )
 {
-    const QImage image = icon.pixmap( 16, 16 ).toImage().convertToFormat( QImage::Format_ARGB32 );
-    QSet< QString > colors;
-    for ( int y = 0; y < image.height(); ++y )
-    {
-        for ( int x = 0; x < image.width(); ++x )
-        {
-            if ( qAlpha( image.pixel( x, y ) ) == 255 ) colors.insert( QColor( image.pixel( x, y ) ).name() );
-        }
-    }
-    return colors;
+    return icon.pixmap( 16, 16 ).toImage().convertToFormat( QImage::Format_ARGB32_Premultiplied );
+}
+QImage
+embeddedImage( const QString & scheme,
+               const QString & name )
+{
+    UIIcon::initResources();
+    return QPixmap( QStringLiteral( ":/icons/%1/16/%2.png" ).arg( scheme, name ) )
+        .toImage().convertToFormat( QImage::Format_ARGB32_Premultiplied );
 }
 
 }
@@ -178,7 +179,7 @@ TestToolbar::icons()
   Kick Off before the player's buttons, Loop after them; Disconnect and
   Kick Off only when connected; Connect opens the dialog of the server
   (Ctrl+C connects again, as the web version's); Loop sets the option; the
-  icons drawn in the text color of the palette, and again when it changes.
+  icons of icons/svg/, in the images of the color scheme (UIIcon).
 */
 void
 TestToolbar::buttons()
@@ -233,14 +234,24 @@ TestToolbar::buttons()
     loop->click();
     QVERIFY( ! opt.autoLoopMode() );
 
-    // the palette's text color
-    QPalette palette = window.palette();
-    palette.setColor( QPalette::ButtonText, QColor( 10, 20, 30 ) );
-    window.setPalette( palette );
-    QCOMPARE( iconColors( loop->defaultAction()->icon() ), QSet< QString >( { "#0a141e" } ) );
-    palette.setColor( QPalette::ButtonText, QColor( 240, 230, 220 ) );
-    window.setPalette( palette );
-    QCOMPARE( iconColors( open->defaultAction()->icon() ), QSet< QString >( { "#f0e6dc" } ) );
+    // the images of the color scheme of the application's palette
+    const struct {
+        QToolButton * button;
+        const char * icon;
+    } icons[] = {
+        { open, "open" }, { connect, "connect" }, { disconnect, "disconnect" },
+        { kick_off, "kick_off" }, { loop, "loop" },
+    };
+    const QPalette original = QApplication::palette();
+    for ( const char * scheme : { "dark", "light" } )
+    {
+        QApplication::setPalette( QString( scheme ) == "dark" ? UIPalette::dark() : UIPalette::light() );
+        for ( const auto & i : icons )
+        {
+            QCOMPARE( iconImage( i.button->defaultAction()->icon() ), embeddedImage( scheme, i.icon ) );
+        }
+    }
+    QApplication::setPalette( original );
 }
 
 /*-------------------------------------------------------------------*/

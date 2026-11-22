@@ -281,7 +281,7 @@ MainWindow::createActionsFile()
     M_open_act->setShortcut( Qt::CTRL | Qt::Key_O );
     M_open_act->setStatusTip( tr( "Open a game log file." ) );
     M_open_act->setToolTip( tr( "Open a game log (" ) + M_open_act->shortcut().toString() + tr( ")" ) );
-    setDrawnIcon( M_open_act, DrawnIcon::Open );
+    M_open_act->setIcon( UIIcon::fromName( "open" ) );
     connect( M_open_act, SIGNAL( triggered() ),
              this, SLOT( openGameLogFile() ) );
     this->addAction( M_open_act );
@@ -310,7 +310,7 @@ MainWindow::createActionsMonitor()
     M_connect_monitor_act->setStatusTip( tr( "Connect to the rcssserver again (the last host, transport and port; localhost by default)" ) );
     M_connect_monitor_act->setToolTip( tr( "Connect to the rcssserver again (" ) + M_connect_monitor_act->shortcut().toString()
                                        + tr( "; Monitor > Connect to ... for another server)" ) );
-    setDrawnIcon( M_connect_monitor_act, DrawnIcon::Connect );
+    M_connect_monitor_act->setIcon( UIIcon::fromName( "connect" ) );
     M_connect_monitor_act->setEnabled( true );
     connect( M_connect_monitor_act, SIGNAL( triggered() ),
              this, SLOT( connectMonitor() ) );
@@ -321,7 +321,7 @@ MainWindow::createActionsMonitor()
     M_connect_monitor_to_act->setStatusTip( tr( "Connect to a rcssserver: choose its host, transport and port." ) );
     M_connect_monitor_to_act->setToolTip( tr( "Connect to a server... (" ) + M_connect_monitor_act->shortcut().toString()
                                           + tr( ": connect again)" ) );
-    setDrawnIcon( M_connect_monitor_to_act, DrawnIcon::Connect );
+    M_connect_monitor_to_act->setIcon( UIIcon::fromName( "connect" ) );
     M_connect_monitor_to_act->setEnabled( true );
     connect( M_connect_monitor_to_act, SIGNAL( triggered() ),
              this, SLOT( connectMonitorTo() ) );
@@ -330,7 +330,7 @@ MainWindow::createActionsMonitor()
     M_disconnect_monitor_act = new QAction( tr( "&Disconnect" ), this );
     M_disconnect_monitor_act->setStatusTip( tr( "Disonnect from rcssserver." ) );
     M_disconnect_monitor_act->setToolTip( tr( "Disconnect from the rcssserver" ) );
-    setDrawnIcon( M_disconnect_monitor_act, DrawnIcon::Disconnect );
+    M_disconnect_monitor_act->setIcon( UIIcon::fromName( "disconnect" ) );
     M_disconnect_monitor_act->setEnabled( false );
     connect( M_disconnect_monitor_act, SIGNAL( triggered() ),
              this, SLOT( disconnectMonitor() ) );
@@ -364,7 +364,7 @@ MainWindow::createActionsLogPlayer()
         QAction * act = new QAction( tr( "Live Delay" ), this );
         act->setCheckable( true );
         act->setChecked( Options::instance().liveDelay() );
-        setDrawnIcon( act, DrawnIcon::LiveDelay );
+        act->setIcon( UIIcon::fromName( "live_delay" ) );
         connect( act, SIGNAL( toggled( bool ) ),
                  this, SLOT( toggleLiveDelay( bool ) ) );
         this->addAction( act );
@@ -494,7 +494,7 @@ MainWindow::createActionsLogPlayer()
         QAction * act = new QAction( tr( "Loop Playback" ), this );
         act->setCheckable( true );
         act->setChecked( Options::instance().autoLoopMode() );
-        setDrawnIcon( act, DrawnIcon::Loop );
+        act->setIcon( UIIcon::fromName( "loop" ) );
         act->setStatusTip( tr( "Play the log again from the start at its end." ) );
         act->setToolTip( tr( "Loop playback" ) );
         connect( act, SIGNAL( toggled( bool ) ),
@@ -517,7 +517,7 @@ MainWindow::createActionsReferee()
     M_kick_off_act->setShortcut( Qt::CTRL | Qt::Key_K );
     M_kick_off_act->setStatusTip( tr( "Send kick-off command." ) );
     M_kick_off_act->setToolTip( tr( "Kick off (" ) + M_kick_off_act->shortcut().toString() + tr( "; when connected)" ) );
-    setDrawnIcon( M_kick_off_act, DrawnIcon::KickOff );
+    M_kick_off_act->setIcon( UIIcon::fromName( "kick_off" ) );
     M_kick_off_act->setEnabled( false ); // until connected
     connect( M_kick_off_act, SIGNAL( triggered() ),
              this, SLOT( kickOff() ) );

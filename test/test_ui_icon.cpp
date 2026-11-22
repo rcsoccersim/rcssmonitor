@@ -47,10 +47,11 @@
 
 namespace {
 
-//! the icons of the tool bar made from icons/svg/ (the ones in use)
+//! the icons of the tool bar made from icons/svg/
 const char * const NAMES[] = {
-    "live_mode", "play", "stop", "step_back", "step_forward",
-    "slower", "faster", "prev_score", "next_score",
+    "open", "connect", "disconnect", "kick_off",
+    "live_mode", "live_delay", "play", "stop", "step_back", "step_forward",
+    "slower", "faster", "prev_score", "next_score", "loop",
 };
 
 //! an embedded image (":/icons/light/16/play.png"), through QPixmap as the icons' images
@@ -241,8 +242,8 @@ TestUIIcon::missing()
 
 /*-------------------------------------------------------------------*/
 /*!
-  The playback buttons of the main window have the icons of icons/svg/, in
-  the color scheme chosen; Play/Stop shows stop while playing.
+  The buttons of the main window have the icons of icons/svg/, in the color
+  scheme chosen; Play/Stop shows stop while playing.
 */
 void
 TestUIIcon::mainWindow()
@@ -252,7 +253,13 @@ TestUIIcon::mainWindow()
         const char * text;
         const char * icon;
     } table[] = {
+        { "Open Game Log", "open" },
+        { "&Connect", "connect" },
+        { "Connect &to ...", "connect" },
+        { "&Disconnect", "disconnect" },
+        { "&KickOff", "kick_off" },
         { "Live Mode", "live_mode" },
+        { "Live Delay", "live_delay" },
         { "Play/Stop", "play" },
         { "Step Backward", "step_back" },
         { "Step Forward", "step_forward" },
@@ -260,6 +267,7 @@ TestUIIcon::mainWindow()
         { "Accelerate", "faster" },
         { "Previous score", "prev_score" },
         { "Next score", "next_score" },
+        { "Loop Playback", "loop" },
     };
     for ( const char * scheme : { "light", "dark" } )
     {

@@ -2,9 +2,15 @@
 ## Included by Makefile.am and src/Makefile.am, which set ICONS_DIR.
 
 ICONS_SVG_FILES = \
+	$(ICONS_DIR)/svg/connect.svg \
+	$(ICONS_DIR)/svg/disconnect.svg \
 	$(ICONS_DIR)/svg/faster.svg \
+	$(ICONS_DIR)/svg/kick_off.svg \
+	$(ICONS_DIR)/svg/live_delay.svg \
 	$(ICONS_DIR)/svg/live_mode.svg \
+	$(ICONS_DIR)/svg/loop.svg \
 	$(ICONS_DIR)/svg/next_score.svg \
+	$(ICONS_DIR)/svg/open.svg \
 	$(ICONS_DIR)/svg/play.svg \
 	$(ICONS_DIR)/svg/prev_score.svg \
 	$(ICONS_DIR)/svg/slower.svg \
@@ -13,6 +19,22 @@ ICONS_SVG_FILES = \
 	$(ICONS_DIR)/svg/stop.svg
 
 ICONS_PNG_FILES = \
+	$(ICONS_DIR)/light/16/connect.png \
+	$(ICONS_DIR)/light/24/connect.png \
+	$(ICONS_DIR)/light/32/connect.png \
+	$(ICONS_DIR)/light/48/connect.png \
+	$(ICONS_DIR)/dark/16/connect.png \
+	$(ICONS_DIR)/dark/24/connect.png \
+	$(ICONS_DIR)/dark/32/connect.png \
+	$(ICONS_DIR)/dark/48/connect.png \
+	$(ICONS_DIR)/light/16/disconnect.png \
+	$(ICONS_DIR)/light/24/disconnect.png \
+	$(ICONS_DIR)/light/32/disconnect.png \
+	$(ICONS_DIR)/light/48/disconnect.png \
+	$(ICONS_DIR)/dark/16/disconnect.png \
+	$(ICONS_DIR)/dark/24/disconnect.png \
+	$(ICONS_DIR)/dark/32/disconnect.png \
+	$(ICONS_DIR)/dark/48/disconnect.png \
 	$(ICONS_DIR)/light/16/faster.png \
 	$(ICONS_DIR)/light/24/faster.png \
 	$(ICONS_DIR)/light/32/faster.png \
@@ -21,6 +43,22 @@ ICONS_PNG_FILES = \
 	$(ICONS_DIR)/dark/24/faster.png \
 	$(ICONS_DIR)/dark/32/faster.png \
 	$(ICONS_DIR)/dark/48/faster.png \
+	$(ICONS_DIR)/light/16/kick_off.png \
+	$(ICONS_DIR)/light/24/kick_off.png \
+	$(ICONS_DIR)/light/32/kick_off.png \
+	$(ICONS_DIR)/light/48/kick_off.png \
+	$(ICONS_DIR)/dark/16/kick_off.png \
+	$(ICONS_DIR)/dark/24/kick_off.png \
+	$(ICONS_DIR)/dark/32/kick_off.png \
+	$(ICONS_DIR)/dark/48/kick_off.png \
+	$(ICONS_DIR)/light/16/live_delay.png \
+	$(ICONS_DIR)/light/24/live_delay.png \
+	$(ICONS_DIR)/light/32/live_delay.png \
+	$(ICONS_DIR)/light/48/live_delay.png \
+	$(ICONS_DIR)/dark/16/live_delay.png \
+	$(ICONS_DIR)/dark/24/live_delay.png \
+	$(ICONS_DIR)/dark/32/live_delay.png \
+	$(ICONS_DIR)/dark/48/live_delay.png \
 	$(ICONS_DIR)/light/16/live_mode.png \
 	$(ICONS_DIR)/light/24/live_mode.png \
 	$(ICONS_DIR)/light/32/live_mode.png \
@@ -29,6 +67,14 @@ ICONS_PNG_FILES = \
 	$(ICONS_DIR)/dark/24/live_mode.png \
 	$(ICONS_DIR)/dark/32/live_mode.png \
 	$(ICONS_DIR)/dark/48/live_mode.png \
+	$(ICONS_DIR)/light/16/loop.png \
+	$(ICONS_DIR)/light/24/loop.png \
+	$(ICONS_DIR)/light/32/loop.png \
+	$(ICONS_DIR)/light/48/loop.png \
+	$(ICONS_DIR)/dark/16/loop.png \
+	$(ICONS_DIR)/dark/24/loop.png \
+	$(ICONS_DIR)/dark/32/loop.png \
+	$(ICONS_DIR)/dark/48/loop.png \
 	$(ICONS_DIR)/light/16/next_score.png \
 	$(ICONS_DIR)/light/24/next_score.png \
 	$(ICONS_DIR)/light/32/next_score.png \
@@ -37,6 +83,14 @@ ICONS_PNG_FILES = \
 	$(ICONS_DIR)/dark/24/next_score.png \
 	$(ICONS_DIR)/dark/32/next_score.png \
 	$(ICONS_DIR)/dark/48/next_score.png \
+	$(ICONS_DIR)/light/16/open.png \
+	$(ICONS_DIR)/light/24/open.png \
+	$(ICONS_DIR)/light/32/open.png \
+	$(ICONS_DIR)/light/48/open.png \
+	$(ICONS_DIR)/dark/16/open.png \
+	$(ICONS_DIR)/dark/24/open.png \
+	$(ICONS_DIR)/dark/32/open.png \
+	$(ICONS_DIR)/dark/48/open.png \
 	$(ICONS_DIR)/light/16/play.png \
 	$(ICONS_DIR)/light/24/play.png \
 	$(ICONS_DIR)/light/32/play.png \

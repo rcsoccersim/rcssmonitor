@@ -5,7 +5,7 @@
 | 作成日 | 2026-11-22 |
 | 対象 | rcssmonitor develop (5affd90、20.0.0-beta.1) |
 | ブランチ | `feature/icon-redesign` (配色 (F1) を取り込んだ develop から。ユーザが GitHub 上で作る) |
-| 状態 | 計画を作った (2026-11-22)。段階 0 (デザインとアプリのアイコンの案) を済ませた。段階 1 (仕組みと再生のアイコン) を実装し、ユーザが画面で確かめた (2026-11-22)。次は段階 2 |
+| 状態 | 計画を作った (2026-11-22)。段階 0 (デザインとアプリのアイコンの案) を済ませた。段階 1 (仕組みと再生のアイコン) をコミットした (26bc103)。段階 2 (残りのツールバーのアイコン) を実装し、ユーザが画面で確かめた (2026-11-23)。次は段階 3 |
 | 英語版 | [2026-11-22-01_icon-redesign_en.md](2026-11-22-01_icon-redesign_en.md) (内容は同じ) |
 | 関連 | 総合の計画 [2026-11-22-00_v20-features.md](2026-11-22-00_v20-features.md) の F2。soccerwindow2 の `docs/plan/2026-11-21_icon-redesign.md` と `docs/icons.md` |
 
@@ -199,5 +199,21 @@ soccerwindow2 (`../../rctools/soccerwindow2`、develop 1df28c1) の計画書 `do
   - Qt 6.4.2 と Qt 5.15.13 の CMake のビルドで警告はなく、`ctest` の 59 個 (新しい `ui_icon` と `check_icons` を含む) が通った。
   - autotools (Qt5): 作業ツリーの写しで `./bootstrap`、`./configure`、`make` が通った。システムの `rcc` (`/usr/lib/qt5/bin/rcc`) で `qrc_icons.cpp` を作り、`--help` で起動できた。
   - offscreen で、ツールバーを 1x と 2x、明るい配色と暗い配色で画像にして見た。
+- ユーザが画面で確かめた (Qt6 と Qt5)。
+- この後: コミットとプッシュ、CI、`./cmake-helper.sh distcheck qt6`。
+- 段階 1 のコミット 26bc103 をプッシュした。CI の 5 つのジョブがすべて通った。手元の `./cmake-helper.sh distcheck qt6` も Xvfb の下で通った (tarball に icons の SVG と PNG が入り、テスト 59 個が通った)。
+
+### 2026-11-23: 段階 2 (残りのツールバーのアイコン)
+
+- ユーザの指示で段階 2 を始めた。
+- 作ったもの:
+  - `icons/svg/` に 6 個を足した: open (soccerwindow2 の `open_rcg.svg` の写し)、connect、disconnect、kick_off、loop、live_delay (段階 0 で描いたもの。loop は soccerwindow2 の `refresh.svg` の形を `fg` で)。5 個には、soccerwindow2 の SVG と同じく XML の宣言を足した。`generate.sh` でこの 6 個の PNG を作り、一覧とチェックサムを更新した (全部で 15 個、PNG は 120 個)。
+  - `MainWindow`: コードで描いていた 6 個のアイコンの 7 つのアクション (Open Game Log、Connect、Connect to、Disconnect、KickOff、Loop Playback、Live Delay) のアイコンを `UIIcon::fromName()` に替えた。これで `setToolIcon` と `setDrawnIcon` を呼ぶところはなくなった (仕組みの削除は段階 4)。
+  - カード (黄と赤) は `referee_menu.cpp` の `card_icon()` で描いていて、`toolbar_icons` とは別だった。S2 のとおりそのまま残す。段階 4 では `toolbar_icons` をまるごと消せる。
+  - テスト: `test_toolbar.cpp` の `buttons()` の「パレットの文字色で塗り直す」検査を、「アプリのパレットの配色の画像が使われる」検査 (5 個のボタン、暗い配色と明るい配色) に替えた。`icons()` (`DrawnIcon` の形の検査) は段階 4 まで残す。`test_ui_icon.cpp` は 15 個のアイコンと、MainWindow の 15 のアクションを確かめる。
+- 確かめたこと (Ubuntu 24.04):
+  - Qt 6.4.2 と Qt 5.15.13 の CMake のビルドで警告はなく、`ctest` の 59 個が通った。アイコンにかかわるテストは 3 回とも通った。
+  - autotools (Qt5): 作業ツリーの写しで `./bootstrap`、`./configure`、`make` が通り、`--help` で起動できた。
+  - offscreen で、ツールバーを 1x と 2x、明るい配色と暗い配色で画像にして見た (15 個とも新しいアイコン)。
 - ユーザが画面で確かめた (Qt6 と Qt5)。
 - この後: コミットとプッシュ、CI、`./cmake-helper.sh distcheck qt6`。

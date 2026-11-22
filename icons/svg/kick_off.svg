@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <!-- kick_off: the referee's kick off (a ball) -->
+  <circle cx="8" cy="8" r="6.5" fill="#ffffff" stroke="#303030"/>
+  <path d="M8,5 L10.9,7.1 L9.8,10.5 H6.2 L5.1,7.1 Z" fill="#303030"/>
+  <path d="M8,5 V1.5 M10.9,7.1 L14.2,6 M9.8,10.5 L11.8,13.3 M6.2,10.5 L4.2,13.3 M5.1,7.1 L1.8,6" fill="none" stroke="#303030"/>
+</svg>

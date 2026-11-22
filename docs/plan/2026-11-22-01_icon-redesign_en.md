@@ -5,7 +5,7 @@
 | Created | 2026-11-22 |
 | Target | rcssmonitor develop (5affd90, 20.0.0-beta.1) |
 | Branch | `feature/icon-redesign` (from develop after the color scheme (F1) is merged; the user creates it on GitHub) |
-| Status | Plan written (2026-11-22). Stage 0 (the design and the candidates for the application icon) is done. Stage 1 (the mechanism and the playback icons) is implemented, and the user checked it on the screen (2026-11-22). Next: stage 2 |
+| Status | Plan written (2026-11-22). Stage 0 (the design and the candidates for the application icon) is done. Stage 1 (the mechanism and the playback icons) is committed (26bc103). Stage 2 (the remaining toolbar icons) is implemented, and the user checked it on the screen (2026-11-23). Next: stage 3 |
 | Japanese version | [2026-11-22-01_icon-redesign.md](2026-11-22-01_icon-redesign.md) (same content) |
 | Related | F2 of the overall plan [2026-11-22-00_v20-features_en.md](2026-11-22-00_v20-features_en.md). soccerwindow2's `docs/plan/2026-11-21_icon-redesign.md` and `docs/icons.md` |
 
@@ -199,5 +199,21 @@ At each stage, the user looks at images comparing the light and the dark schemes
   - The CMake builds with Qt 6.4.2 and Qt 5.15.13 had no warnings, and the 59 tests of `ctest` (including the new `ui_icon` and `check_icons`) passed.
   - autotools (Qt5): on a copy of the working tree, `./bootstrap`, `./configure` and `make` passed. The system's `rcc` (`/usr/lib/qt5/bin/rcc`) made `qrc_icons.cpp`, and it started with `--help`.
   - Offscreen, the tool bar was written to images at 1x and 2x in the light and dark schemes and looked at.
+- The user checked it on the screen (Qt6 and Qt5).
+- Next: the commit and push, the CI, and `./cmake-helper.sh distcheck qt6`.
+- Commit 26bc103 of stage 1 was pushed. All five jobs of the CI passed. Locally, `./cmake-helper.sh distcheck qt6` passed under Xvfb too (the tarball has the SVGs and PNGs of the icons, and the 59 tests passed).
+
+### 2026-11-23: Stage 2 (the remaining toolbar icons)
+
+- Stage 2 started at the user's instruction.
+- Made:
+  - 6 were added to `icons/svg/`: open (a copy of soccerwindow2's `open_rcg.svg`), connect, disconnect, kick_off, loop and live_delay (drawn in stage 0; loop is the shape of soccerwindow2's `refresh.svg` in `fg`). The XML declaration was added to the 5, as soccerwindow2's SVGs have. `generate.sh` made the PNGs of these 6 and updated the lists and the checksums (15 icons and 120 PNGs in all).
+  - `MainWindow`: the icons of the 7 actions with the 6 icons drawn in code (Open Game Log, Connect, Connect to, Disconnect, KickOff, Loop Playback, Live Delay) are now `UIIcon::fromName()`. Nothing calls `setToolIcon` and `setDrawnIcon` any more (the mechanism is removed in stage 4).
+  - The cards (yellow and red) are drawn by `card_icon()` in `referee_menu.cpp`, apart from `toolbar_icons`. They stay as they are (S2). In stage 4, `toolbar_icons` can be removed whole.
+  - Tests: in `buttons()` of `test_toolbar.cpp`, the check of "recolored with the palette's text color" was replaced by "the images of the application palette's scheme are used" (5 buttons, dark and light schemes). `icons()` (the check of the shapes of `DrawnIcon`) stays until stage 4. `test_ui_icon.cpp` checks the 15 icons and the 15 actions of MainWindow.
+- Checked (Ubuntu 24.04):
+  - The CMake builds with Qt 6.4.2 and Qt 5.15.13 had no warnings, and the 59 tests of `ctest` passed. The icon tests passed three times each.
+  - autotools (Qt5): on a copy of the working tree, `./bootstrap`, `./configure` and `make` passed, and it started with `--help`.
+  - Offscreen, the tool bar was written to images at 1x and 2x in the light and dark schemes and looked at (all 15 are the new icons).
 - The user checked it on the screen (Qt6 and Qt5).
 - Next: the commit and push, the CI, and `./cmake-helper.sh distcheck qt6`.
