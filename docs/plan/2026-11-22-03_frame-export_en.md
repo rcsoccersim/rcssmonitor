@@ -1,0 +1,317 @@
+# Exporting the Screen as an Image Sequence and a Video: Plan
+
+| Item | Content |
+|---|---|
+| Created | 2026-11-22 |
+| Target | rcssmonitor develop (5affd90, 20.0.0-beta.1) |
+| Branch | `feature/frame-export` (from develop after the URLs and log lists (F5) are merged; the user creates it on GitHub) |
+| Status | Plan written (2026-11-22). The last feature of the overall plan |
+| Japanese version | [2026-11-22-03_frame-export.md](2026-11-22-03_frame-export.md) (same content) |
+| Related | F6 of the overall plan [2026-11-22-00_v20-features_en.md](2026-11-22-00_v20-features_en.md). soccerwindow2's `src/qt/image_save_dialog.cpp` (2D image sequences) |
+
+## 1. Goal and approach
+
+- Export what is drawn on the screen as it is, as an image sequence or a video, for both the 2D and the 3D view.
+- Image sequences and videos by an external ffmpeg are the main way (Qt5 and Qt6; no new build dependency). In addition, for Qt6 (6.8 or later) only, direct video encoding by Qt Multimedia is prototyped, and whether to keep it is decided by measurement (the user, 2026-11-22).
+- **Render offline**: instead of recording the screen while playing, each output frame is drawn again from (frame index, interpolation position) and a fixed time step. The result is the same however fast the machine is. Recording an interactive session is left to screen recorders such as OBS (out of scope).
+- "As shown on the screen": the logical size of the output is kept close to the screen, and the resolution is changed by the devicePixelRatio (dpr). Zoom, focus, and the sizes of texts, labels and the HUD look as on the screen.
+
+## 2. Current state (develop 5affd90)
+
+### 2.1 2D view
+
+- `FieldCanvas` (`src/field_canvas.{h,cpp}`) is a `QWidget`. `paintEvent` (line 250) calls the private `draw( QPainter & )` (line 312), which:
+  1. `updateFocus()` (line 267): changes the automatic selection of the player nearest to the ball (the selected number in `Options`) and the focus point.
+  2. `Options::updateFieldSize( width(), height() )` (options.cpp:2251): changes the canvas size, the field center and (when not zoomed) the scale.
+  3. `FieldPainter`, then `ScoreBoardPainter`, `TeamGraphicPainter`, `PlayerPainter`, `BallPainter`, `DrawInfoPainter`.
+- The field transform is global state in `Options` (a singleton). There is a pattern to save and restore it: `Options::FieldTransform` and `setFieldTransform()` (options.h:719), used by `GroundTexture` (`src/view3d/ground_texture.cpp:97-104`) to draw the `FieldPainter` into a `QImage`.
+- The painters place things by `painter.window()` (field_painter, score_board_painter) and `opt.canvasWidth()` (team_graphic_painter).
+- There is no image saving. A commented-out `M_save_image_act` remains (main_window.cpp:1998).
+
+### 2.2 3D view
+
+- `FieldView3D` (`src/view3d/field_view_3d.{h,cpp}`) is a `QOpenGLWindow` (`NoPartialUpdate`) embedded by `QWidget::createWindowContainer()`. It is a separate native window, so a `grab()` of the main window does not capture it.
+- `paintGL()` (line 190): decides the interpolation position (the wall clocks `M_newest_clock` and `M_live_tick` in live mode, `LogPlayer::alpha()` for logs), builds the content with `FrameBuilder3D`, moves the camera (the time step of the glide is the wall clock `M_frame_clock`, line 313), draws by `Scene3D::render( defaultFramebufferObject(), … )`, and draws the HUD (score board, team logos, overlay texts, compass, minimap, FPS) with QPainter.
+- `Scene3D::render` can draw into any framebuffer. The tests have an example of offscreen drawing with `QOffscreenSurface` and `QOpenGLFramebufferObject` (`test/test_scene_3d.cpp`).
+- `test/test_gl_isolation.cpp` forbids raw GL calls (`glXxx(`, `GL_XXX`) outside `src/view3d/gl/`.
+- `FieldView3D::unavailableReason()` (line 120) refuses the 3D view on the offscreen platform, etc.
+
+### 2.3 Playback and frames
+
+- One frame (one element of `DispHolder::dispCont()`) is one simulation step (100 ms by default). Frames while the game is stopped (`stime`) are also counted one each.
+- `DispHolder::getIndex( cycle )` (disp_holder.cpp:672) returns the first index of a cycle. `setIndex()` (line 635) changes the index.
+- In live mode, above 65535 frames, old frames are dropped and the indices shift (`trimLiveFrames`, line 261).
+
+### 2.4 This environment
+
+Ubuntu 24.04 with Qt 6.4.2 and Qt 5.15.13. Neither the development package of Qt Multimedia nor ffmpeg is installed (`qt6-multimedia-dev` 6.4.2 exists as a package). `QVideoFrameInput` appeared in Qt 6.8, so the prototype cannot be built with the Qt of this environment.
+
+### 2.5 soccerwindow2's image saving (for reference)
+
+File > Save Image of soccerwindow2 (`../../rctools/soccerwindow2`; `src/qt/image_save_dialog.cpp`, `ImageSaveDialog`):
+
+- The range is two spin boxes of the start and end cycles (integers) and a "Select All" button. The default end is the first cycle (only one cycle).
+- Cycles become indices by `ViewHolder::getIndexOf( cycle )` (the first frame of the cycle; `lower_bound`). The end is converted the same way, so **the stopped frames of the end cycle (the second and later ones) are not included**.
+- The dialog is modal, and opening it stops the playback. The range cannot be decided by moving the playback position while the dialog is open.
+- Before saving, it shows neither the number of images, the duration nor the disk use. When a file of the same name exists, it asks whether to overwrite for each image (No / Yes / Yes to All).
+- The names are the log indices (`image-00042.png`). The image size (width and height), the prefix, the format and the directory can be chosen.
+- It can be canceled in a progress dialog, and calls `processEvents` every 20 images. No video and no 3D. The command line (`--auto-image-save`) can save the whole log and quit.
+
+## 3. Decisions
+
+### 3.1 The user's decisions (2026-11-22)
+
+| # | Content |
+|---|---|
+| D1 | Image sequences and videos by an external ffmpeg are the main way |
+| D2 | Direct video encoding by Qt Multimedia is prototyped too, Qt6 only being fine |
+| D3 | The range of frames to export can be specified. soccerwindow2's image saving may be referred to, but it should be improved (§4.4) |
+
+### 3.2 Design decisions (Claude; the user confirms them at the start of the stages)
+
+| # | Content | Reason |
+|---|---|---|
+| S1 | Render offline (§1). Export is disabled while connected to a server; the frames held after disconnecting can be exported | The result does not depend on the machine's speed. In live mode the indices shift (2.3) |
+| S2 | For 2D, the global state changed by drawing (the field transform, canvas size, focus point and selected number in `Options`, and the current index of `DispHolder`) is saved and restored around each frame | The screen's state is not disturbed, and a repaint of the screen between frames is safe |
+| S3 | For 3D, the drawing is moved out of `paintGL` into a separate class, owned by both the screen's `FieldView3D` and the exporting `OffscreenView3D` (its own GL context and offscreen surface) | The screen's 3D state (camera, caches) is not disturbed. It can draw without the 3D view on the screen, and under xvfb |
+| S4 | `grabFramebuffer()` is not used | With `NoPartialUpdate` it is only correct inside `paintGL` (Qt's documentation) |
+| S5 | Raw frames are given to ffmpeg through the standard input of a `QProcess`. The arguments are passed as a list, never through a shell | No new dependency. Safe |
+| S6 | The Qt Multimedia prototype is built behind a CMake option (default OFF). Not built by autotools | The prototype does not break the build on the minimum environments |
+| S7 | The export settings are in the export dialog, not in a tab of the config dialog, and saved in a new group `Export` | `test_config_dialog.cpp` pins the tab list |
+| S8 | The export dialog is modeless, so that the start and end of a range can be taken while moving the playback position with the dialog open. Only during the export, the progress dialog is application modal | soccerwindow2's is modal, and the cycle numbers must be looked up before opening it (2.5) |
+| S9 | A range is held as an interval of log indices; it is shown and entered as "cycle" or "cycle.stopped number" (the same notation as the frame label on the screen, `1234.3`) | Cycles alone cannot tell the stopped frames apart |
+
+### 3.3 To decide at the start of the stages
+
+- On cancel, whether to delete the partial file or keep it as a shorter video (stage 4).
+- How to build the prototype with Qt 6.8 or later (stage 8): aqtinstall into `~/Qt`, an ubuntu:26.04 container, or a CI job with `continue-on-error`.
+- Shortcuts of the menu items (ones that do not clash with the existing shortcuts), including those that set the start and end marks of a range (stage 3).
+- The default seconds of goal scenes (proposed: from 10 seconds before to 5 seconds after the goal) and around the current position (stage 3).
+- Whether the slider also shows marks at the goals, besides the band of the chosen range (stage 3).
+
+## 4. Design
+
+### 4.1 2D: offscreen drawing
+
+- `Options::ViewState` (new, next to `FieldTransform`): the field scale, the field center, the canvas width and height, the focus point and the selected number. `viewState()` and `setViewState()`. Whether it is zoomed and the focus type are not changed by drawing, so they are not included.
+- `src/frame_scope.{h,cpp}` (new): an RAII guard. It saves the current index of `DispHolder` and `Options::viewState()`, sets the given index, and restores both when destroyed. Shared by 2D and 3D. It wraps one frame.
+- `FieldCanvas`:
+  - `draw( QPainter & )` becomes `draw( QPainter &, const QSize & logical )`; `paintEvent` passes `size()`.
+  - `QImage renderFrame( std::size_t index, const QSize & pixels, qreal dpr )` (new, public): fills a `QImage( pixels, Format_RGB32 )` with the field color, calls `setDevicePixelRatio( dpr )`, opens a `FrameScope`, sets the QPainter's window and viewport explicitly to the logical size, and calls `draw`.
+  - When zoomed, the scale is adjusted by the ratio of the logical heights so that the same area as on the screen is shown (checked in stage 1).
+  - The middle-button measurement is a transient display of an interaction on the screen, so it is not included.
+- Limitation: `Options::scale()` rounds to whole logical pixels, so at dpr 2 positions move by 2 pixels (as on the screen). The dialog has a choice "Scale texts with the image"; without it, it draws at dpr 1 (smoother motion, smaller texts).
+
+### 4.2 3D: offscreen drawing
+
+What in `paintGL` depends on the wall clock or on accumulated state:
+
+| Item | For export |
+|---|---|
+| `M_newest_clock`, `M_live_tick` (live) | Not used. The position is given by `Interpolate::positionAt( count, t )` |
+| `LogPlayer::alpha()` | The fractional part of the output frame's time `t` |
+| `M_frame_clock` of the camera glide | A fixed `dt = 1 / fps` |
+| The state of `CameraController` | Copied from the screen's, then `snap()` (jump to the target pose) at the first frame |
+| FPS measurement and display | Not used (no FPS in the output) |
+| GPU caches (ground, stadium, stands, figure packs, minimap, label atlas, the MSAA target) | Held separately for export |
+| `Options` selection and field size, the current index of `DispHolder` | `FrameScope` |
+
+- **Refactoring (no behavior change)**: move the painters (`FieldPainter`, `ScoreBoardPainter`, `TeamGraphicPainter`), `LabelAtlas`, `FrameBuilder3D`, `Scene3D`, `SceneContent` and the image caches into `src/view3d/view_3d_renderer.{h,cpp}` (new): `initialize()`, `release()`, `build( at, live, delay, mode )`, `subject()`, `render( fbo, pose, logical, dpr, samples )`, `drawHud( painter, … )`. `FieldView3D` keeps the clocks, the camera, the mouse handling and FPS, and its `paintGL` becomes "decide the position → build → move the camera → render → HUD".
+- `CameraController::snap()` (new), `FieldView3D::camera()` (new).
+- Split `TeamGraphicPainter::update()` out of `draw()`. Today the logo images are made only when the HUD is drawn, so the boards of the first exported frame would have no logos. `build()` calls it first.
+- `src/view3d/offscreen_view_3d.{h,cpp}` (new):
+  - `unavailableReason()`: the checks of `FieldView3D::unavailableReason()` without the platform check.
+  - `start( const CameraController & from, … )`: creates a GL context with `FieldView3D::surfaceFormat()` and a `QOffscreenSurface`, initializes the renderer, copies the camera and calls `snap()`. Without a 3D view on the screen, it makes a new camera from `Options`.
+  - `render( at, pixels, dpr, dt, samples )`: `makeCurrent`, `FrameScope`, build, camera update, `render`, read back into an image and convert it to `Format_RGB32`, draw the HUD with a raster QPainter on the image, `doneCurrent`.
+  - `renderStill( at, pose, … )`: for the 3D "Save Image", using the screen's current state as it is.
+  - At the start of a range (§4.4; when several ranges are joined into one video, at the start of each range), the interpolation and motion caches (the gait table of `FrameBuilder3D`, the ball spin, the ball flight) are cleared and the camera is `snap()`ped. Drawing on from the previous range would make the camera glide or the ball fly between distant scenes.
+- `src/view3d/gl/offscreen_target.{h,cpp}` (new): the framebuffer for export (remade when the size changes, with depth and stencil) and the read-back. Raw GL calls stay inside `gl/` (`test_gl_isolation`).
+- The size is limited to 3840×2160 (MSAA memory).
+
+### 4.3 Timing model
+
+- `src/export_timing.{h,cpp}` (new, pure functions), for each range (indices `first` to `last`; §4.4):
+  - `per_image = speed × 1000 / (step_ms × fps)` (frames advanced per output image)
+  - `N = floor( (last − first) / per_image + ε ) + 1`, `t_n = first + n × per_image` (computed from n, not accumulated)
+  - 2D: index `= min( last, floor( t_n + ε ) )`. 3D: `Interpolate::positionAt( frames.size(), t_n )`
+  - Video duration `= N / fps`
+- Defaults: 2D 10 fps (one image per frame), 3D 30 fps (60 can be chosen). A button "As the monitor plays" (`speed = step / the playback timer interval`).
+- When several ranges are joined into one video, the frames of the ranges are put in order (the duration is the sum of the ranges).
+- By default, images are named by the output frame number (from 0): `PREFIX%0Wd.ext`, `W = max( 5, digits of N−1 )`. They are contiguous, so ffmpeg's image2 can read them (soccerwindow2 names them by the log index, which coincides only for 2D at 10 fps and 1×). Naming by cycle is in §4.4.
+
+### 4.4 The range to export
+
+Based on soccerwindow2 (2.5), as follows.
+
+**Notation of positions, and the meaning of a range**
+- A position is written as "cycle" (`1234`) or "cycle.stopped number" (`1234.3`, the same notation as the frame label on the screen). The game time (minutes:seconds; cycle × step) is shown beside it.
+- `1234` as the start is the first frame of that cycle, and `1234` as the end is the **last** frame of that cycle (including the stopped frames). `1234.3` is exactly that frame. Both the start and the end are included.
+- Cycles not in the log (outside the log, or missing in live mode): the start moves to the next frame there is, and the end to the previous one, and the dialog says so.
+- `src/export_range.{h,cpp}` (new, pure functions): parsing and writing positions, converting the start and end to indices (`DispHolder::getIndex( cycle )` and a new `DispHolder::lastIndex( cycle )`), checking ranges, and the common ranges below. A range is held as `{ first, last, name }` (an interval of indices).
+
+**Taking the current position**
+- The dialog is modeless (S8). With it open, move the position by the slider, stepping or the cycle field, and take it by "Start at the current position" and "End at the current position".
+- The start and end marks of the range can also be set from the main window (menu items and shortcuts; no need to open the dialog), and cleared. The dialog reads the marks, and a range changed in the dialog is given back to the marks.
+- The chosen range is shown as a colored band in the groove of the playback slider (`LogPlayerSlider`). The band follows the color scheme (F1).
+- The marks and the ranges are kept only for the open log, and cleared when another log is opened or a server is connected (not saved in the settings).
+
+**Common ranges (chosen by buttons or a menu)**
+- The whole log.
+- Periods: the first half, the second half, each half of extra time, the penalty shootout. Found from the play mode transitions (split at `first_half_over` and `time_over`; from the first `penalty_setup_*` on is the penalty shootout). Periods not in the log cannot be chosen.
+- Goal scenes: for each goal, from N seconds before to M seconds after it (from the indices of `DispHolder::scoreChangedIndex()`, cut at the ends of the log). Choose from the list of goals (time, scoring team, the score then), or make one range per goal at once by "All goals".
+- Around the current position: from N seconds before to M seconds after the current position.
+- The seconds N and M are saved in the settings.
+
+**Several ranges**
+- A list of ranges: add, remove, reorder (e.g. "All goals" lists one range per goal).
+- How to output them: (a) a separate file (video) or directory (images) per range, named with the range's name (e.g. `PREFIX-goal1-c1234`); (b) joined into one video (highlights). No transition effects (fades etc.) between the ranges (§8).
+- With only one range, one file or directory as before.
+
+**Checks before the export**
+- Show, per range and in total, the number of frames, the number of output images, the video duration and the game-time interval.
+- For image sequences, estimate the disk use from the compressed size of the first image drawn, and compare it with the free space of the destination (`QStorageInfo`). Warn if it is not enough.
+- A start after the end, or an empty range, is reported at once, and the export button is disabled.
+- Check at once, before the export, whether files with the names to be made already exist, and ask only once (overwrite / choose another place / stop). Do not ask for each image as soccerwindow2 does.
+
+**Image names**
+- By default, the output frame number (§4.3).
+- In 2D with one image per frame (10 fps, 1×), naming by cycle can also be chosen (`PREFIX-c01234.03.png`), to relate scenes and files in analyses.
+
+### 4.5 Outputs
+
+- `src/frame_sink.h` (new): an interface. `open( pixels, fps )`, `write( QImage )` (accepted / busy now / error), `finish()`, `abort()`, signals `readyForFrame()` and `finished( ok, message )`.
+- `src/image_sequence_sink.{h,cpp}` (new): `QImageWriter`. The formats come from `QImageWriter::supportedImageFormats()` (PNG, JPG, etc.).
+- `src/ffmpeg_sink.{h,cpp}` (new):
+  - Arguments (built by a static function, unit-tested):
+    ```
+    -hide_banner -loglevel error -nostats
+    -f rawvideo -pixel_format bgr0 -video_size WxH -framerate F -i pipe:0
+    -an -c:v libx264 -preset P -crf C [-tune animation for 2D]
+    -vf scale=out_color_matrix=bt709:out_range=tv,format=yuv420p
+    -colorspace bt709 -color_primaries bt709 -color_trc bt709
+    [-movflags +faststart for .mp4/.mov] -y OUT
+    ```
+    The frames are `QImage::Format_RGB32` (`bgr0` on little endian, `0rgb` on big endian). The video size is rounded to even numbers (yuv420p). Defaults: CRF 18, preset `medium`.
+  - Backpressure: the next frame is not drawn until `QProcess::bytesToWrite()` drops below two frames (waiting for `bytesWritten`). `waitForBytesWritten` blocks the event loop, so it is not used.
+  - Where ffmpeg is: the setting (if empty, `QStandardPaths::findExecutable( "ffmpeg" )`). When the dialog opens, `-version` (show the first line) and `-encoders` (whether libx264 exists) are run, and only the available encoders are offered.
+  - Errors: keep the tail (16 KB) of the standard error and show it as the details when it fails to start, exits with non-zero, or exits early.
+  - Finishing: after `closeWriteChannel()`, wait for `finished` ("Finishing the video"). Cancel: `kill()` and the partial file is handled as decided (§3.3).
+  - No audio.
+- `src/export_job.{h,cpp}` (new): a `QObject` that takes a drawer (2D: `FieldCanvas`, 3D: `OffscreenView3D`) and an output, and draws and passes one frame at a time inside the event loop. Signals for progress and the end. Playback is stopped before exporting.
+
+### 4.6 UI
+
+- File > Save Image...: saves the current view as one PNG or JPG. 2D: `renderFrame( current index, screen size × dpr, dpr )`; 3D: `renderStill`.
+- File > Export Images / Video...: `src/export_dialog.{h,cpp}` (new). Modeless (S8).
+  - View: 2D / 3D (3D only with `HAVE_3D_VIEW` and an empty `OffscreenView3D::unavailableReason()`).
+  - Range (§4.4): the list of ranges, and the start and end of the chosen range (cycle or cycle.stopped number, and the time). "Start at the current position", "End at the current position", the common ranges (whole, periods, goal scenes, around the current position), adding and removing ranges, and the choice of one output per range or joined. The number of images and the duration per range and in total, and the estimated disk use.
+  - Size: as shown (W×H), 1280×720, 1920×1080, 3840×2160, custom; "Scale texts with the image".
+  - fps and speed; the "As the monitor plays" button.
+  - Output: video (file, CRF, preset, the ffmpeg path and its status; when the prototype is built, the encoder choice "ffmpeg (external) / Qt Multimedia (prototype)") or images (directory, prefix, format).
+  - A progress dialog (application modal): n/N, the remaining time, cancel.
+- Range marks in the main window: "Set Range Start", "Set Range End", "Clear Range Marks" (menu items and shortcuts). The slider shows the band of the range (§4.4).
+- Enabled only when there are frames and no server is connected (updated when a log is opened, and on connecting and disconnecting).
+
+### 4.7 Command line (batch)
+
+- `--export-video FILE` | `--export-images DIR`, `--export-view 2d|3d`, `--export-range RANGE` (may be given many times), `--export-join` (join the ranges into one video), `--export-fps`, `--export-speed`, `--export-size WxH`, `--export-scale R`, `--export-image-format`, `--export-image-prefix`, `--export-crf`, `--export-preset`, `--ffmpeg PATH`. Kept as settings that are not saved.
+- `RANGE` is written as `START-END` (`1234-1500`, `1234.3-1500`, etc.; the notation of positions of §4.4), `all`, `first-half`, `second-half`, `extra-1`, `extra-2`, `penalties`, or `goals[:N:M]` (per goal, from N seconds before to M seconds after). Without it, `all`.
+- In batch mode, it reads the log without showing the window (by the path that shows no message box), exports, and returns an exit code. The progress goes to the standard error.
+- 2D runs with `QT_QPA_PLATFORM=offscreen`. 3D needs a GL context, so it runs under `xvfb-run` (`OffscreenView3D` makes no `QOpenGLWindow`, so xvfb is enough). On the offscreen platform the 3D view on the screen is refused, so the 3D choice is read before `init()`.
+
+### 4.8 The Qt Multimedia prototype (Qt 6.8 or later)
+
+- CMake: `option( ENABLE_QT_MULTIMEDIA_EXPORT "..." OFF )`. Only with Qt6 6.8 or later, `find_package( Qt6 QUIET COMPONENTS Multimedia )`. `#cmakedefine HAVE_QT_MULTIMEDIA_EXPORT` in `cmake-config.h.in`. Not built by autotools.
+- `src/qt_multimedia_sink.{h,cpp}` (new; one `FrameSink`):
+  - `QVideoFrameFormat` (the pixel format matching `Format_RGB32`, `setStreamFrameRate`), `QVideoFrameInput`, `QMediaCaptureSession`, `QMediaRecorder` (`QMediaFormat::MPEG4` and H.264, checking `isSupported( Encode )` first, `ConstantQualityEncoding`, `VeryHighQuality`, resolution and fps, `setAutoStop( true )`).
+  - Backpressure: if `sendVideoFrame()` returns false, wait for `readyToSendVideoFrame` and send the same image again.
+  - End: send an empty `QVideoFrame`.
+- How to build it (decided in §3.3): aqtinstall (`aqt install-qt linux desktop 6.8.x linux_gcc_64 -m qtmultimedia qtwebsockets -O ~/Qt`, `CMAKE_PREFIX_PATH`), an ubuntu:26.04 container (first check that `qt6-multimedia-dev` is 6.8 or later and which package has the FFmpeg plugin), or a CI job with `continue-on-error`.
+- **What to measure to decide whether to keep it**:
+  1. Speed: total time, CPU time and peak memory for a full 2D game (1280×720, 10 fps) and one minute of 3D (1920×1080, 60 fps). Is it at least 80% of ffmpeg's speed?
+  2. Quality and size: SSIM against the image sequence at the same size, and the file size.
+  3. Correctness: frame count, fps, pixel format and color space, and faststart by ffprobe. Playback in Firefox, Chrome and VLC.
+  4. Failure handling: no encoder, cancel in the middle, a full disk.
+  5. Dependency weight and reach: Qt Multimedia and the FFmpeg libraries, Qt 6.8 or later only, the benefit of not needing ffmpeg on Windows and macOS.
+- Record the results in this document, and decide whether to keep it or not to merge it (the prototype commits are moved to a separate branch).
+
+### 4.9 Autotools
+
+Only the 2D parts (stages 1-4 and 7) are built. The 3D and Qt Multimedia parts are inside `HAVE_3D_VIEW` and `HAVE_QT_MULTIMEDIA_EXPORT`.
+
+## 5. Stages
+
+Every stage builds and passes the CI.
+
+| # | Work | Completion criteria |
+|---|---|---|
+| 1 | `Options::ViewState`, `FrameScope`, `FieldCanvas::renderFrame`, File > Save Image (2D) | Tests that it equals the screen's `grab()` and that the state is restored pass with Qt5, Qt6 and autotools. The user checks HiDPI on the screen |
+| 2 | `export_timing`, the basics of `export_range` (notation of positions, the meaning of start and end, moving to existing frames, checks), `FrameSink`, `ImageSequenceSink`, `ExportJob`, `ExportDialog` (modeless; 2D, images; one range: start and end, from the current position, whole), the checks before the export (number of images, duration, disk, one overwrite question), the `Export` settings | PNG sequences of a full game and of a chosen range can be exported. The stopped frames of the end cycle are included. Cancel works. The screen is unchanged after the export |
+| 3 | Convenient range selection: marks in the main window and the band on the slider, common ranges (periods, goal scenes, around the current position), several ranges (one output per range, or joined), naming by cycle | The range tests pass. The user checks with real logs that all the goal scenes can be exported at once, and the band on the slider |
+| 4 | `FfmpegSink`, finding ffmpeg, the arguments, the video part of the dialog, ffmpeg in one CI job | The tests with the fake and the real ffmpeg pass. The mp4 plays, and its duration is N/fps (the sum when ranges are joined). Clear error messages |
+| 5 | Refactoring only: `View3DRenderer`, `TeamGraphicPainter::update()`, `CameraController::snap()`, `FieldView3D::camera()` | All tests pass. The 3D on the screen is unchanged (the user checks) |
+| 6 | `OffscreenView3D`, `gl/offscreen_target`, 3D in the dialog, the 3D Save Image, clearing the caches and `snap()`ping the camera at the start of a range | The test that the same input gives the same image passes in the CI (llvmpipe). 1080p at 60 fps can be exported. In a video of joined ranges, the camera does not glide at the boundaries. No effect on the 3D on the screen |
+| 7 | The batch command line (`--export-range` etc.), `docs/build.md` and README | A test of the 2D batch under offscreen. The user checks 3D under xvfb |
+| 8 | The Qt Multimedia prototype (OFF), its test, the measurements of §4.8 | Decide whether to keep it, and record it |
+
+Stage 5 may proceed in parallel with stages 2-4.
+
+## 6. Tests
+
+- `test_export_timing`: N, `t_n` and the duration for 2D at 10 fps, 3D at 30/60 fps, speeds 0.5 and 2, and a step other than 100 ms. The duration of joined ranges. Image names and the number of digits.
+- `test_export_range`: parsing and writing positions (`1234`, `1234.3`, errors). The start and end indices on a `DispCont` with stopped frames (the stopped frames of the end cycle included). Moving cycles outside the log or missing ones to existing frames. Checking a start after the end. Finding the periods (first half, second half, extra time, penalty shootout) from a synthetic sequence of play modes (also logs without them). Goal scenes (the seconds before and after, cut at the ends of the log, overlapping ranges of close goals). Around the current position. Names by cycle.
+- The dialog: with it open, the position can be moved and taken by "Start at the current position". The marks in the main window and the dialog's range agree. Opening another log clears the marks. The overwrite question appears only once.
+- `test_field_canvas_render`: `renderFrame( current index, size, 1.0 )` equals `grab().toImage()` (with a small tolerance if text antialiasing differs). After drawing another index at another size, `Options::viewState()` and the current index are unchanged (ball focus, zoom, automatic selection). At dpr 2 the score board is on the bottom rows (the window is logical).
+- `test_image_sequence_sink`: writes to a temporary directory and reads back.
+- `test_ffmpeg_sink` (Unix): fake ffmpeg scripts are made in a temporary directory inside the test (no executable files committed): one that writes its arguments and copies the standard input to the last argument, one that reads a little and exits with an error, a slow one, and a nonexistent path. The byte count = N×w×h×4, the arguments passed, the standard error in the error, the failure to start, cancel removing the file, `bytesToWrite()` staying under the limit. A test with the real ffmpeg (QSKIP if missing) checks the frame count with ffprobe.
+- `test_offscreen_view_3d` (QSKIP without GL 3.3, as `test_scene_3d.cpp`): drawing the same (index, position) again gives the same image, the image size, the state of `Options` and `DispHolder` restored, and the same sequence of fixed steps gives the same images twice.
+- `test_cameras_3d`: `snap()` jumps to the target pose.
+- The menu items (added to `test_view_switch` or `test_toolbar`).
+- `test_qt_multimedia_sink` (only when the prototype is built): export 30 frames at 320×240 and get a non-empty file. QSKIP without an H.264 encoder.
+- Checked by hand: compare the export with the screen on HiDPI (`QT_SCALE_FACTOR` 1.25, 1.5, 2). Each 3D camera (the broadcast glide, the player view, free, top), and the compass, minimap and labels at 4K. Playback and colors in browsers and VLC. Memory not growing over a full game. Cancel. No ffmpeg. The 3D on the screen after the refactoring. The 3D batch under xvfb.
+
+## 7. Files to change (expected)
+
+| File | Content |
+|---|---|
+| `src/options.{h,cpp}` | `ViewState`, the `Export` settings, the command line |
+| `src/frame_scope.{h,cpp}`, `src/export_timing.{h,cpp}`, `src/export_range.{h,cpp}`, `src/frame_sink.h`, `src/image_sequence_sink.{h,cpp}`, `src/ffmpeg_sink.{h,cpp}`, `src/export_job.{h,cpp}`, `src/export_dialog.{h,cpp}` (new) | The export mechanism |
+| `src/field_canvas.{h,cpp}` | `renderFrame` |
+| `src/disp_holder.{h,cpp}` | `lastIndex( cycle )` |
+| `src/log_player_slider.{h,cpp}` | The band of the range (and the goal marks; §3.3) |
+| `src/view3d/view_3d_renderer.{h,cpp}`, `src/view3d/offscreen_view_3d.{h,cpp}`, `src/view3d/gl/offscreen_target.{h,cpp}` (new) | Offscreen 3D drawing |
+| `src/view3d/field_view_3d.{h,cpp}`, `src/view3d/cameras_3d.{h,cpp}`, `src/team_graphic_painter.{h,cpp}` | Refactoring, `snap()`, `update()` |
+| `src/qt_multimedia_sink.{h,cpp}` (new, prototype) | §4.8 |
+| `src/main_window.{h,cpp}`, `src/main.cpp` | Menus, range marks, batch |
+| `CMakeLists.txt`, `src/CMakeLists.txt`, `cmake-config.h.in`, `src/Makefile.am` | Build |
+| `test/`, `.github/workflows/ci.yml` | §6, ffmpeg in the CI |
+| README, `docs/build.md`, NEWS | Documents |
+
+## 8. Out of scope
+
+- Recording the screen while playing (left to OBS etc.).
+- Audio in the videos (including the referee's whistle).
+- Exports that skip the stopped frames (the interpolation assumes neighboring indices).
+- Transition effects (fades, captions, etc.) when several ranges are joined into one video.
+- Saving the list of ranges to a file.
+
+## 9. Risks
+
+- How QPainter treats a `QImage` with a dpr: set the window and viewport explicitly, and test it.
+- Rounding to whole pixels in 2D (when dpr is above 1).
+- ffmpeg builds without libx264: offer only what `-encoders` lists.
+- Two GL contexts, and the memory of MSAA at 4K.
+- Disk use of PNG sequences (1-2 GB per game for 2D at 1080p).
+
+## 10. Record
+
+### 2026-11-22: Writing the plan
+
+- Written together with the overall plan (2026-11-22-00_v20-features_en.md). The user's decisions D1 and D2 were given.
+- The design was made after examining how 2D and 3D are drawn, and soccerwindow2's image saving (`ImageSaveDialog`: draws with `FieldCanvas::draw` into an offscreen `QImage` and names the files by the log index; no video).
+
+### 2026-11-22: Specifying the range to export (the user's request)
+
+- The user's request (D3): the range of frames to export can be specified. soccerwindow2's image saving may be referred to, but it should be improved.
+- soccerwindow2's range selection was examined (2.5), and the following were added (§4.4, S8, S9): the notation of positions (cycle.stopped number), including the stopped frames of the end cycle, a modeless dialog and marks in the main window, the band on the slider, common ranges (periods, goal scenes, around the current position), several ranges, the checks before the export, and naming by cycle.
+- The convenient range selection was added as stage 3, and the later stages were moved back by one (ffmpeg is stage 4, the Qt Multimedia prototype stage 8).

@@ -35,6 +35,8 @@ add_library(rcssmonitor_core STATIC
   toolbar_icons.cpp
   tooltip_marker.cpp
   udp_monitor_transport.cpp
+  ui_palette.cpp
+  ui_style.cpp
   vector_2d.cpp
   )
 

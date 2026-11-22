@@ -1,0 +1,159 @@
+# アイコンの刷新 (XPM から PNG へ、明るい配色用と暗い配色用) 計画
+
+| 項目 | 内容 |
+|---|---|
+| 作成日 | 2026-11-22 |
+| 対象 | rcssmonitor develop (5affd90、20.0.0-beta.1) |
+| ブランチ | `feature/icon-redesign` (配色 (F1) を取り込んだ develop から。ユーザが GitHub 上で作る) |
+| 状態 | 計画を作った (2026-11-22)。配色 (F1) の後に始める |
+| 英語版 | [2026-11-22-01_icon-redesign_en.md](2026-11-22-01_icon-redesign_en.md) (内容は同じ) |
+| 関連 | 総合の計画 [2026-11-22-00_v20-features.md](2026-11-22-00_v20-features.md) の F2。soccerwindow2 の `docs/plan/2026-11-21_icon-redesign.md` と `docs/icons.md` |
+
+## 1. 目的と方針
+
+- アイコンを XPM (ソースに `#include` する C の配列) ではなく、PNG で持つ。PNG は Qt のリソース (`.qrc`) で実行ファイルに埋め込む。
+- soccerwindow2 と同じ方法をとる (ユーザ、2026-11-22): アイコンを SVG で描き、開発のときに Inkscape で明るい配色用と暗い配色用の PNG を作ってコミットする。ビルドと CI には Inkscape は要らない。実行時は、アイコンを描くたびに配色を調べて、明るい用と暗い用を選ぶ。
+- ツールバーのアイコンはすべて (XPM の 9 個と、コードで描いている 6 個) を、統一したデザインで描き直す。アプリのアイコンも SVG で描き直し、各サイズの PNG を作る (ユーザ、2026-11-22。総合の計画の U4)。
+- 配色の判定 (`isDark(palette)`) は配色 (F1) の後に意味を持つので、F1 の後に行う。アプリのアイコンの各サイズは、デスクトップ (F3) でインストールに使う。
+
+## 2. 現状 (develop 5affd90)
+
+### 2.1 アイコンとその使われ方
+
+| 種類 | アイコン | 使われ方 |
+|---|---|---|
+| XPM (使っている) | rcss (48×48、アプリのアイコン) | `main_window.cpp:105` の `setWindowIcon( QIcon( QPixmap( rcss_xpm ) ) )` |
+| XPM (使っている) | live、play、stop、plus、minus、decelerate、accelerate、prev_score、next_score (16×16、白地に黒、透明なし) | `main_window.cpp:71〜84` で include。`MainWindow::setToolIcon()` (1432 行) で `toolIcon(xpm, palette)` に渡す。`togglePlayOrStopIcon()` (3123 行) が play と stop を入れ替える |
+| XPM (使っていない) | blank、ff、go、open、quit、rec、rev、rew | include していない (rev、rew、rec はコメントアウト) |
+| コードで描く | Open、Connect、Disconnect、KickOff、Loop、LiveDelay | `src/toolbar_icons.{h,cpp}` の `DrawnIcon`。16 単位の正方形に QPainter で描き、16、24、32、48 px の pixmap を作る。`MainWindow::setDrawnIcon()` (1458 行) |
+| コードで描く (色の塗り) | 黄色と赤のカード | `toolbar_icons.cpp` の塗りつぶし。配色によらない |
+
+- XPM とコードで描いた形は、どちらも `src/tool_icon.cpp` の `tintIcon()` で `QPalette::ButtonText` の色に塗る (黒 → その色、白 → 透明、灰色 → 半透明)。パレットが変わると `MainWindow::changeEvent()` から `updateToolIcons()` (1470 行) で塗り直す。
+- アプリのアイコンの PNG は 48×48 の `icons/rcssmonitor.png` だけ。CMake でインストールする (CMakeLists.txt:167)。
+- `icons/rcss.ico` (48×48)、`icons/rcss.icns`、`src/rcssmonitor.rc` は、どのビルドも使っていない。autotools の `EXTRA_DIST` には XPM と `rcss.ico`、`rcss.icns` がある (Makefile.am)。
+- `.qrc` は 3D 表示の 2 つ (`src/view3d/shaders/view3d_shaders.qrc`、`resources/figures/view3d_figures.qrc`) だけ。静的ライブラリ `rcssmonitor_core` に入るので `Q_INIT_RESOURCE` が要る (`gl/shader_program.cpp:56`、`figure_pack.cpp:64`)。`AUTORCC` は 3D の部分でだけ ON (src/CMakeLists.txt:114)。
+- autotools の `m4/ax_have_qt.m4` は `QT_RCC` を `AC_SUBST` しているが、`src/Makefile.am` は使っていない。
+- チームのロゴの XPM (`team_graphic*.cpp`、`rcss/rcg/parser*`) はログのデータなので、この計画とは関係ない。
+
+### 2.2 テスト
+
+- `test/test_tool_icon.cpp`: `tintIcon` の塗り分けと、Live Mode のアイコンが `ButtonText` に従うこと。
+- `test/test_toolbar.cpp`: `icons()` (`DrawnIcon` の形の画素)、`buttons()` (ボタンの順、ツールチップ、アイコンがあること、`ButtonText` が変わったときの Loop と Open の塗り直し)、`liveDelay()` など。
+- `cmake/DistCheck.cmake`: インストールされた 48×48 のアイコン。
+
+### 2.3 soccerwindow2 の実装 (移植の元)
+
+soccerwindow2 (`../../rctools/soccerwindow2`、develop 1df28c1) の計画書 `docs/plan/2026-11-21_icon-redesign.md`、文書 `docs/icons.md`。主なコミット: db7c68b (SVG、`palette.txt`/`palette.awk`、`generate.sh`、最初の PNG)、6e6d971 (`.qrc` の埋め込み、CMake と autotools)、62e92fd と c2ae992 (アプリのアイコンと hicolor へのインストール)、9dd965f と 13dc45d (古い仕組みの削除、XPM を legacy へ)。
+
+| 部品 | 内容 |
+|---|---|
+| `icons/svg/NAME.svg` | 原画。16×16 の格子。`palette.txt` の明るい色だけを使う |
+| `icons/palette.txt` | 役割ごとの明るい色と暗い色 (例 `fg #303030 #e0e0e0`、`paper #ffffff #505050`) |
+| `icons/palette.awk` | `check` (明るい色だけか)、`dark` (明るい色を暗い色に置き換える)、`palette` |
+| `icons/generate.sh` | Inkscape (`--pipe --export-type=png -w N -h N`) で `light/{16,32}/NAME.png`、`dark/{16,32}/NAME.png`、`app/{16,32,48,64,128,256}/NAME.png` を作り、`icons.qrc`、`icons.am`、`generated.sha256` も作り直す |
+| `icons/app/svg/NAME.svg` | アプリのアイコン (32×32 の格子)。`NAME.16.svg` で 16 px 用を簡単にできる |
+| `src/qt/ui_icon.{h,cpp}` | `UIIcon::fromName()` (`SchemeIconEngine`: 描くたびに `isDark(QGuiApplication::palette())` で明暗を選ぶ。HiDPI では 32 px から縮める。Qt 6.8 の論理の大きさの変更、Qt5 の `virtual_hook` の違いを扱う)、`UIIcon::appIcon()` |
+| `test/check_icons.sh` | 色、大きさ、一覧、sha256 の確認 |
+| `icons/legacy/xpm/` | 古い XPM。ビルドでは使わず、`export-ignore` |
+
+## 3. 決定事項
+
+### 3.1 ユーザの決定 (2026-11-22)
+
+| # | 内容 |
+|---|---|
+| D1 | soccerwindow2 と同じ方法 (SVG → 明るい用と暗い用の PNG → `.qrc`) |
+| D2 | ツールバーのアイコンはすべて (XPM の 9 個とコードで描く 6 個) 描き直す。アプリのアイコンも描き直す |
+
+### 3.2 設計上の判断 (Claude。段階の初めにユーザが確認する)
+
+| # | 内容 | 理由 |
+|---|---|---|
+| S1 | ファイルの置き方、`palette.txt`、`palette.awk`、`generate.sh`、`UIIcon` は soccerwindow2 のものを移植し、名前と置き場所をそろえる | 2 つのプロジェクトで保守の仕方を同じにする |
+| S2 | カード (黄と赤) は、色そのものを表すので、コードの塗りつぶしのまま残す (段階 0 で確かめる) | 配色によって変える必要がない |
+| S3 | 古い XPM は消さず、`git mv` で `icons/legacy/xpm/` に移す。`icons/legacy/README.md` に一覧と新旧の比較の画像を置く。`.gitattributes` の `export-ignore` で tarball から除く | soccerwindow2 と同じ。記録として残す |
+| S4 | `.qrc` は `rcssmonitor_core` に入れ、`AUTORCC` を常に ON にし、`Q_INIT_RESOURCE( icons )` を呼ぶ | 3D の `.qrc` と同じ形 |
+| S5 | autotools では `QT_RCC` で `qrc_icons.cpp` を作る規則を足し、`generate.sh` が作る `icons.am` を include する | soccerwindow2 と同じ |
+| S6 | 使っていない XPM (blank、ff など) に当たるアイコンは作らない | 使うところがない |
+
+### 3.3 段階の初めに決めること
+
+- アプリのアイコンの意匠: 今の意匠 (画面の中の RoboCup のロゴ) を描き直すか、rcsoccersim のロゴ (黄と赤の 2 人の選手とボール。`rcsoccersim.github.io/static/img/logo.png`) を基にするか、別の案か。段階 0 で案を並べた画像を作り、ユーザが選ぶ。
+- `rcss.ico`、`rcss.icns`、`src/rcssmonitor.rc` (どのビルドも使っていない): 新しいアイコンから作り直すか、legacy に移すか (段階 3)。
+- 文書の名前: `docs/icons.md` と英語版 (`docs/icons_en.md`。このリポジトリの `_en` の決まりにそろえる)。
+
+## 4. 設計
+
+### 4.1 アイコンの一覧 (名前は段階 0 で決める)
+
+| 今のアイコン | 新しい名前 (案) | 使うところ |
+|---|---|---|
+| live.xpm | `live_mode` | Live Mode |
+| play.xpm / stop.xpm | `play`、`stop` | 再生と停止の切り替え (`togglePlayOrStopIcon`) |
+| plus.xpm / minus.xpm | `step_forward`、`step_back` | コマ送り |
+| accelerate.xpm / decelerate.xpm | `faster`、`slower` | 速さ |
+| next_score.xpm / prev_score.xpm | `next_score`、`prev_score` | 得点へのジャンプ |
+| DrawnIcon::Open | `open` | Open Game Log |
+| DrawnIcon::Connect / Disconnect | `connect`、`disconnect` | 接続と切断 |
+| DrawnIcon::KickOff | `kick_off` | 審判のキックオフ |
+| DrawnIcon::Loop | `loop` | ループ再生 |
+| DrawnIcon::LiveDelay | `live_delay` | 遅延ライブ |
+| rcss.xpm | `rcssmonitor` (アプリ) | 窓のアイコン、インストール |
+
+### 4.2 コード
+
+- `src/ui_icon.{h,cpp}` (新規): soccerwindow2 の `UIIcon` を移す。`fromName( name )`、`appIcon( name )`。配色の判定は、配色 (F1) で `src/ui_palette.h` に置いた `UIPalette::isDark( palette )` を使う (2026-11-22。soccerwindow2 の `UIIcon::isDark()` と同じ判定)。`fromNumber` (soccerwindow2 のデバッグの番号のアイコン) は要らない。
+- 消す: `src/tool_icon.{h,cpp}`、`src/toolbar_icons.{h,cpp}` の `DrawnIcon` (カードの塗りは S2 のとおり残す場所を決める)、`MainWindow` の `M_tool_icons`、`M_drawn_icons`、`setToolIcon`、`setDrawnIcon`、`updateToolIcons`、`changeEvent` の中のパレットの変化での塗り直し。
+- `togglePlayOrStopIcon` は `UIIcon::fromName( "play" / "stop" )` に替える。
+- 窓のアイコンは `UIIcon::appIcon( "rcssmonitor" )` (各サイズ)。
+
+### 4.3 ビルド
+
+- CMake (`src/CMakeLists.txt`): `${PROJECT_SOURCE_DIR}/icons/icons.qrc` を `rcssmonitor_core` のソースに足し、`AUTORCC ON` を 3D の外に出す。
+- autotools (`src/Makefile.am`、`Makefile.am`): `include $(top_srcdir)/icons/icons.am`、`qrc_icons.cpp: $(ICONS_DIR)/icons.qrc $(ICONS_PNG_FILES)` の規則 (`$(QT_RCC) --name icons`)、`nodist_rcssmonitor_SOURCES`、`EXTRA_DIST` に SVG と PNG。XPM を `EXTRA_DIST` から除く。
+- CMake の dist (`git archive`) は `.gitattributes` に従うので、`icons/legacy/` の `export-ignore` を足す。
+
+## 5. 段階
+
+各段階で、明るい配色と暗い配色の比較の画像をユーザが見て確かめてから、コミットする。
+
+| # | 作業 | 完了条件 |
+|---|---|---|
+| 0 | デザインの決まり (線の太さ、色の役割、余白) と見本 (再生のアイコンなど数個)。明暗の比較の画像。アプリのアイコンの案 (§3.3) | ユーザがデザインの決まりとアプリのアイコンの案を決める |
+| 1 | 仕組み: `palette.txt`、`palette.awk`、`generate.sh`、`UIIcon`、`icons.qrc`、CMake と autotools。再生のアイコン (play、stop、コマ送り、速さ、得点、live) を置き換える | 両方のビルドと CI が通る。ユーザが画面で確かめる |
+| 2 | 残りのツールバーのアイコン (open、connect、disconnect、kick_off、loop、live_delay) | 同上 |
+| 3 | アプリのアイコン (SVG、各サイズの PNG、窓のアイコン)。`rcss.ico` などの扱い | 同上。各サイズで見て確かめる |
+| 4 | 古いコード (`tool_icon`、`DrawnIcon` など) の削除、XPM を `icons/legacy/xpm/` へ、`icons/legacy/README.md`、`export-ignore` | XPM の include と塗り直しのコードがなくなる。distcheck が通る |
+| 5 | 文書 (`docs/icons.md`、`docs/icons_en.md`、`docs/build.md` からの参照、README、NEWS) | ユーザが確かめる |
+
+## 6. テスト
+
+- `test_tool_icon.cpp` を `test_ui_icon.cpp` に替える: 明るいパレットと暗いパレットで違う画像が選ばれる、HiDPI (dpr 2) では 32 px の画像から描く、アプリのアイコンの各サイズがある、無い名前のときの扱い。
+- `test_toolbar.cpp`: `icons()` (DrawnIcon の画素の検査) を消し、`buttons()` の塗り直しの検査を「暗いパレットで暗い用の画像が選ばれる」に替える。ボタンの順とツールチップの検査は残す。
+- `test/check_icons.sh` (soccerwindow2 から移す): SVG が明るい色だけを使う、PNG の大きさ、`icons.qrc` と `icons.am` の一覧が SVG と合う、`generated.sha256`。CTest に登録する (Inkscape は要らない)。
+- `cmake/DistCheck.cmake` のアイコンの確認は、デスクトップ (F3) で各サイズに直す。
+
+## 7. 変更するファイル (見込み)
+
+| ファイル | 内容 |
+|---|---|
+| `icons/svg/*.svg`、`icons/app/svg/*.svg`、`icons/palette.txt`、`icons/palette.awk`、`icons/generate.sh` (新規) | 原画と作り方 |
+| `icons/{light,dark}/{16,32}/*.png`、`icons/app/*/rcssmonitor.png`、`icons/icons.qrc`、`icons/icons.am`、`icons/generated.sha256` (新規。生成物をコミット) | 埋め込む PNG |
+| `icons/legacy/xpm/*.xpm` (移動)、`icons/legacy/README.md` (新規) | 古いアイコン |
+| `src/ui_icon.{h,cpp}` (新規)、`src/tool_icon.{h,cpp}` と `src/toolbar_icons.{h,cpp}` (削除または縮小) | コード |
+| `src/main_window.{h,cpp}` | アイコンの使い方 |
+| `src/CMakeLists.txt`、`src/Makefile.am`、`Makefile.am`、`.gitattributes` | ビルドと配布 |
+| `test/test_ui_icon.cpp` (新規)、`test/test_toolbar.cpp`、`test/check_icons.sh` (新規)、`test/CMakeLists.txt` | テスト |
+| `docs/icons.md`、`docs/icons_en.md` (新規)、`docs/build.md`、README、NEWS | 文書 |
+
+## 8. 対象外
+
+- ツールバーやメニューの並びの変更。
+- フィールドの描画の色。
+
+## 9. 記録
+
+### 2026-11-22: 計画の作成
+
+- 総合の計画 (2026-11-22-00_v20-features.md) と一緒に作った。ユーザの決定 D1、D2 を受けた。
+- Inkscape 1.4.4 (snap 版、`/snap/bin/inkscape`) が手元にある。

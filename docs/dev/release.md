@@ -11,6 +11,7 @@
 ## 0. 次のリリースで忘れないこと (2026-11-22 の時点)
 
 - 版は 20.0.0-beta.1 にしてあるが、まだリリースしていない。`feature/3d-view` は develop に取り込むところまでで、公式のリリースの前に機能を足す予定である。
+- **20.0.0 には、`docs/plan/2026-11-22-00_v20-features.md` の機能 (F1〜F6: 配色、アイコン、デスクトップ、審判の笛、URL とログの一覧、画像と動画) を入れる**。どこまで入れてリリースするかは、途中でユーザが決めてよい (同書 §4)。
 - **ChangeLog の先頭の 20.0.0-beta.1 の項目の日付 (2026-11-22) は仮**。リリースの日付に直す。
 - **ブラウザ版 (rcssmonitor-web) の URL** を README と NEWS に足す。rcsoccersim の Organization に移した後の `https://rcsoccersim.github.io/rcssmonitor-web/` になる見込み。公開を確かめてから書く。
 - **master への初めての取り込み (19.0.1 の後)** では、AppImage のワークフロー `.github/workflows/main.yml` と `utils/appimage/` を消す (AppImage をやめた。計画書の D10)。`.gitignore` は master と develop の両方で足されているので add/add で衝突する。develop の方 (master の 2 行を含む) をとる。

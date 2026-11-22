@@ -41,6 +41,12 @@
     Loop, the cycle and the frame, a field to go to a cycle, and the
     time per frame.
 
+  * Add the color scheme of the menus, the tool bars and the dialogs
+    (View > UI Color Scheme, --ui-color-scheme): System (the desktop's,
+    by default), Light or Dark, the same with Qt 5 and Qt 6. The
+    checked buttons of the tool bar are drawn in the highlight color.
+    The field keeps its own colors.
+
   * Read game logs faster (with libdeflate for gzip-compressed logs, if
     it is found) and more robustly (unknown JSON keys, broken lines, a
     missing ']' and unknown lines of text logs are skipped). Read the
@@ -52,7 +58,8 @@
     parameters; the offside line; the color of the left goalie's catch
     area; Change Playmode with back_pass sent nothing; "Fix" of the
     player selection in the settings dialog; the initial color of
-    Illegal Defense; sorting the player type list.
+    Illegal Defense; sorting the player type list; the style chosen in
+    View > Window Style was not kept.
 
   * Support the TCP and WebSocket connections to rcssserver. The
     transport is selected by the new option --server-transport (udp,

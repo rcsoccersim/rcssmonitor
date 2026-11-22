@@ -11,6 +11,7 @@ Check these in this order at every official release (betas included).
 ## 0. Not to forget at the next release (as of 2026-11-22)
 
 - The version is 20.0.0-beta.1, but it has not been released. `feature/3d-view` goes as far as develop, and more features are to come before the official release.
+- **20.0.0 gets the features of `docs/plan/2026-11-22-00_v20-features_en.md`** (F1 to F6: the color scheme, the icons, the desktop, the referee's whistle, the URL and the log lists, the images and the video). The user may decide on the way how many of them go into the release (§4 there).
 - **The date of the 20.0.0-beta.1 entry at the top of ChangeLog (2026-11-22) is a placeholder.** Set it to the release date.
 - **Add the URL of the browser version (rcssmonitor-web)** to the README and NEWS. Expected to be `https://rcsoccersim.github.io/rcssmonitor-web/` after it moves to the rcsoccersim organization. Write it after checking that it is published.
 - **In the first merge into master (after 19.0.1)**, delete the AppImage workflow `.github/workflows/main.yml` and `utils/appimage/` (the AppImage was dropped; D10 of the plan). `.gitignore` was added on both master and develop, so it conflicts (add/add): take develop's (which contains master's two lines).

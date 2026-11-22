@@ -39,6 +39,8 @@ rcssmonitor_SOURCES = \
 	toolbar_icons.cpp \
 	tooltip_marker.cpp \
 	udp_monitor_transport.cpp \
+	ui_palette.cpp \
+	ui_style.cpp \
 	vector_2d.cpp \
 	main.cpp
 
@@ -97,6 +99,8 @@ noinst_HEADERS = \
 	toolbar_icons.h \
 	tooltip_marker.h \
 	udp_monitor_transport.h \
+	ui_palette.h \
+	ui_style.h \
 	vector_2d.h \
 	ws_monitor_transport.h
 
