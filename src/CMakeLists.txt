@@ -31,8 +31,6 @@ add_library(rcssmonitor_core STATIC
   team_graphic.cpp
   tcp_monitor_transport.cpp
   team_graphic_painter.cpp
-  tool_icon.cpp
-  toolbar_icons.cpp
   tooltip_marker.cpp
   udp_monitor_transport.cpp
   ui_icon.cpp

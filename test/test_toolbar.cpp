@@ -2,7 +2,7 @@
 
 /*!
   \file test_toolbar.cpp
-  \brief unit test of the tool bar: the icons drawn in code, the buttons, the labels and the cycle field
+  \brief unit test of the tool bar: the buttons, the labels and the cycle field
 */
 
 /*
@@ -33,7 +33,6 @@
 #include "main_window.h"
 #include "options.h"
 #include "connect_dialog.h"
-#include "toolbar_icons.h"
 #include "ui_icon.h"
 #include "ui_palette.h"
 
@@ -54,17 +53,6 @@
 */
 
 namespace {
-
-constexpr int SIZE = 32; //!< the icons drawn at twice the web version's 16 x 16
-
-//! the opacity of an icon at a point of the web version's 16 x 16 square
-int
-alphaAt( const QImage & image,
-         const double x,
-         const double y )
-{
-    return qAlpha( image.pixel( int( x * SIZE / 16.0 ), int( y * SIZE / 16.0 ) ) );
-}
 
 //! the tool bar's button of an action, if any
 QToolButton *
@@ -104,74 +92,12 @@ class TestToolbar
 
 private slots:
 
-    void icons();
     void buttons();
     void labels();
     void stoppedTime();
     void rows();
     void liveDelay();
 };
-
-/*-------------------------------------------------------------------*/
-/*!
-  The icons drawn in code have the web version's shapes: drawn where the
-  shapes are, clear where they are not, in the color asked; each its own.
-*/
-void
-TestToolbar::icons()
-{
-    const QColor color( 200, 100, 50 );
-    const QImage open = drawnIconImage( DrawnIcon::Open, color, SIZE );
-    QCOMPARE( open.size(), QSize( SIZE, SIZE ) );
-    QVERIFY( alphaAt( open, 1.5, 8.0 ) > 128 ); // the folder's left side
-    QVERIFY( alphaAt( open, 8.0, 12.5 ) > 128 ); // its bottom
-    QCOMPARE( alphaAt( open, 8.0, 9.5 ), 0 ); // inside it
-    QCOMPARE( alphaAt( open, 15.5, 0.5 ), 0 );
-
-    const QImage connect = drawnIconImage( DrawnIcon::Connect, color, SIZE );
-    QVERIFY( alphaAt( connect, 5.0, 8.0 ) > 128 ); // the plug
-    QVERIFY( alphaAt( connect, 7.0, 8.0 ) > 128 );
-    QVERIFY( alphaAt( connect, 14.5, 8.0 ) > 128 ); // the socket's back
-    QCOMPARE( alphaAt( connect, 12.5, 8.0 ), 0 ); // in the socket
-
-    const QImage disconnect = drawnIconImage( DrawnIcon::Disconnect, color, SIZE );
-    QVERIFY( alphaAt( disconnect, 4.0, 8.0 ) > 128 );
-    QCOMPARE( alphaAt( disconnect, 7.5, 8.0 ), 0 ); // pulled out: between the prongs
-    QVERIFY( alphaAt( disconnect, 7.5, 6.5 ) > 128 ); // a prong
-
-    const QImage kick_off = drawnIconImage( DrawnIcon::KickOff, color, SIZE );
-    QVERIFY( alphaAt( kick_off, 8.0, 8.0 ) > 128 ); // the pentagon
-    QVERIFY( alphaAt( kick_off, 14.0, 8.0 ) > 128 ); // the ball's outline
-    QCOMPARE( alphaAt( kick_off, 11.0, 4.5 ), 0 );
-    QCOMPARE( alphaAt( kick_off, 0.5, 0.5 ), 0 );
-
-    const QImage loop = drawnIconImage( DrawnIcon::Loop, color, SIZE );
-    QVERIFY( alphaAt( loop, 8.0, 3.0 ) > 128 ); // the upper arc over the top
-    QVERIFY( alphaAt( loop, 8.0, 13.0 ) > 128 ); // the lower one under the bottom
-    QVERIFY( alphaAt( loop, 12.8, 3.5 ) > 128 ); // an arrow's head
-    QCOMPARE( alphaAt( loop, 8.0, 8.0 ), 0 );
-
-    const QImage live_delay = drawnIconImage( DrawnIcon::LiveDelay, color, SIZE );
-    QVERIFY( alphaAt( live_delay, 14.0, 8.5 ) > 128 ); // the clock's face
-    QVERIFY( alphaAt( live_delay, 8.0, 6.0 ) > 128 ); // the long hand up
-    QVERIFY( alphaAt( live_delay, 5.5, 8.5 ) > 128 ); // the short one to the left
-    QCOMPARE( alphaAt( live_delay, 10.5, 11.0 ), 0 ); // the face's lower right: no hand
-    QVERIFY( alphaAt( live_delay, 8.0, 1.0 ) > 128 ); // the button on top
-
-    // in the color asked; each its own
-    for ( const QImage & image : { open, connect, disconnect, kick_off, loop, live_delay } )
-    {
-        for ( int y = 0; y < SIZE; ++y )
-        {
-            for ( int x = 0; x < SIZE; ++x )
-            {
-                const QRgb p = image.convertToFormat( QImage::Format_ARGB32 ).pixel( x, y );
-                if ( qAlpha( p ) == 255 ) QCOMPARE( QColor( p ).name(), color.name() );
-            }
-        }
-    }
-    QVERIFY( open != connect && connect != disconnect && disconnect != kick_off && kick_off != loop && loop != live_delay );
-}
 
 /*-------------------------------------------------------------------*/
 /*!

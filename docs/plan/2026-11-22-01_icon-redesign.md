@@ -5,7 +5,7 @@
 | 作成日 | 2026-11-22 |
 | 対象 | rcssmonitor develop (5affd90、20.0.0-beta.1) |
 | ブランチ | `feature/icon-redesign` (配色 (F1) を取り込んだ develop から。ユーザが GitHub 上で作る) |
-| 状態 | 計画を作った (2026-11-22)。段階 0 (デザインとアプリのアイコンの案) を済ませた。段階 1 (仕組みと再生のアイコン) をコミットした (26bc103)。段階 2 (残りのツールバーのアイコン) をコミットした (1650477)。段階 3 (アプリのアイコン) を実装し、ユーザが画面で確かめた (2026-11-23)。次は段階 4 |
+| 状態 | 計画を作った (2026-11-22)。段階 0 (デザインとアプリのアイコンの案) を済ませた。段階 1 (仕組みと再生のアイコン) をコミットした (26bc103)。段階 2 (残りのツールバーのアイコン) をコミットした (1650477)。段階 3 (アプリのアイコン) をコミットした (49100ac)。段階 4 (古い仕組みの片付け) を実装した (2026-11-23)。コミットを待つ |
 | 英語版 | [2026-11-22-01_icon-redesign_en.md](2026-11-22-01_icon-redesign_en.md) (内容は同じ) |
 | 関連 | 総合の計画 [2026-11-22-00_v20-features.md](2026-11-22-00_v20-features.md) の F2。soccerwindow2 の `docs/plan/2026-11-21_icon-redesign.md` と `docs/icons.md` |
 
@@ -246,4 +246,25 @@ soccerwindow2 (`../../rctools/soccerwindow2`、develop 1df28c1) の計画書 `do
   - ベゼルの銀色をさらに細くした案 (銀色の縁 0.7 → 0.45、0.3) を作り、ユーザは 0.3 (5f) に決めた (D8)。
   - `make_rcssmonitor_svg.py` を 5f で書き直し、PNG と `rcss.ico` を作り直した。256 px の PNG は、ユーザが見た 5f と画素まで同じことを確かめた。Qt6 と Qt5 で `ctest` の 59 個が通った。
 - ユーザが画面で確かめた。
+- この後: コミットとプッシュ、CI、`./cmake-helper.sh distcheck qt6`。
+- 段階 3 のコミット 49100ac をプッシュした。CI の 5 つのジョブがすべて通り、手元の `./cmake-helper.sh distcheck qt6` (Xvfb の下) も通った (テスト 59 個。インストールの確認を含む)。
+
+### 2026-11-23: 段階 4 (古い仕組みの片付け)
+
+- ユーザの指示で段階 4 を始めた。
+- 古いアイコンの記録 (`icons/legacy/`。S3。soccerwindow2 にならう):
+  - `git mv` で、XPM 18 個 (`icons/*.xpm`) を `icons/legacy/xpm/` に、`icons/rcssmonitor.png` と `icons/rcss.icns` を `icons/legacy/` に移した (D7)。段階 3 で作り直す前の `rcss.ico` (48×48) も、Git の履歴から `icons/legacy/rcss.ico` に置いた。
+  - コードを消す前に、古いアイコンを画像にした (XPM の元の画像、ツールバーでの見え方 (`tintIcon` で黒に塗ったもの)、コードで描いていた 6 個 (`drawnIconImage` で黒))。`icons/legacy/old-icons.png` (一覧) と `icons/legacy/comparison.png` (古いもの、新しいものの明るい配色と暗い配色) にした。
+  - `icons/legacy/README.md` と `README_en.md` (このリポジトリの `_en` の決まり。soccerwindow2 は `README.en.md`): ファイルの一覧、古いアイコンと新しいアイコンの対応、置き換えた時点で使っていなかった 8 個 (blank、ff、go、open、quit、rec、rev、rew)、2 つの画像。
+  - `.gitattributes` に `/icons/legacy export-ignore` を足した。トップの `Makefile.am` の `EXTRA_DIST` から XPM と `rcss.icns` を外した (`rcss.ico` は残す)。
+- 古いコードの削除:
+  - `src/tool_icon.{h,cpp}` (`tintIcon`、`toolIcon`) と `src/toolbar_icons.{h,cpp}` (`DrawnIcon`、`drawnIcon`、`drawnIconImage`) を消した (CMake と autotools のソースの一覧からも)。カードは `referee_menu.cpp` の `card_icon()` なので残る (S2)。
+  - `MainWindow`: `M_tool_icons`、`M_drawn_icons`、`setToolIcon`、`setDrawnIcon`、`updateToolIcons`、`changeEvent` の中の塗り直しを消した (誤りの印の付け直しは残す)。使わなくなった `<utility>` と `<vector>` の include も消した。
+  - テスト: `test/test_tool_icon.cpp` を消した (`tintIcon` の検査)。`test_toolbar.cpp` の `icons()` (コードで描いた形の検査) を消した。
+- 確かめたこと (Ubuntu 24.04):
+  - Qt 6.4.2 と Qt 5.15.13 の CMake のビルドで警告はなく、`ctest` の 58 個 (`tool_icon` が減った) が通った。
+  - ソースに XPM のファイルの `#include` と、塗り直しのコードがないこと (残る `xpm` はログのチームのロゴのもので、この計画とは関係ない)。
+  - 一時的なインデックスで作った `git archive` に `icons/legacy/` が入らないこと (icons は 171 項目)。
+  - autotools (Qt5): 作業ツリーの写しで `./bootstrap`、`./configure`、`make`、`make dist` が通り、tarball に legacy と XPM が入らないこと。
+- 画面の見た目は段階 3 から変わらない (古い仕組みは段階 2 の後、もう呼ばれていなかった)。
 - この後: コミットとプッシュ、CI、`./cmake-helper.sh distcheck qt6`。

@@ -35,8 +35,6 @@ rcssmonitor_SOURCES = \
 	tcp_monitor_transport.cpp \
 	team_graphic.cpp \
 	team_graphic_painter.cpp \
-	tool_icon.cpp \
-	toolbar_icons.cpp \
 	tooltip_marker.cpp \
 	udp_monitor_transport.cpp \
 	ui_icon.cpp \
@@ -97,8 +95,6 @@ noinst_HEADERS = \
 	tcp_monitor_transport.h \
 	team_graphic.h \
 	team_graphic_painter.h \
-	tool_icon.h \
-	toolbar_icons.h \
 	tooltip_marker.h \
 	udp_monitor_transport.h \
 	ui_icon.h \

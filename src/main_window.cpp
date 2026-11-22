@@ -51,7 +51,6 @@
 #include "referee_menu.h"
 #include "options.h"
 #include "rcg_handler.h"
-#include "tool_icon.h"
 #include "ui_icon.h"
 #include "ui_palette.h"
 #include "ui_style.h"
@@ -1464,62 +1463,6 @@ MainWindow::createConfigDialog()
 
 /*-------------------------------------------------------------------*/
 /*!
-  set the icon of a toolbar action, drawn in the text color of the
-  palette, and keep it to draw it again when the palette changes.
- */
-void
-MainWindow::setToolIcon( QAction * act,
-                         const char * const xpm[] )
-{
-    std::vector< std::pair< QAction *, const char * const * > >::iterator it
-        = std::find_if( M_tool_icons.begin(), M_tool_icons.end(),
-                        [act]( const std::pair< QAction *, const char * const * > & v )
-                        {
-                            return v.first == act;
-                        } );
-    if ( it != M_tool_icons.end() )
-    {
-        it->second = xpm;
-    }
-    else
-    {
-        M_tool_icons.emplace_back( act, xpm );
-    }
-
-    act->setIcon( toolIcon( xpm, this->palette() ) );
-}
-
-/*-------------------------------------------------------------------*/
-/*!
-
- */
-void
-MainWindow::setDrawnIcon( QAction * act,
-                          const DrawnIcon icon )
-{
-    M_drawn_icons.emplace_back( act, icon );
-    act->setIcon( drawnIcon( icon, this->palette() ) );
-}
-
-/*-------------------------------------------------------------------*/
-/*!
-
- */
-void
-MainWindow::updateToolIcons()
-{
-    for ( const std::pair< QAction *, const char * const * > & v : M_tool_icons )
-    {
-        v.first->setIcon( toolIcon( v.second, this->palette() ) );
-    }
-    for ( const std::pair< QAction *, DrawnIcon > & v : M_drawn_icons )
-    {
-        v.first->setIcon( drawnIcon( v.second, this->palette() ) );
-    }
-}
-
-/*-------------------------------------------------------------------*/
-/*!
 
  */
 void
@@ -1732,7 +1675,6 @@ MainWindow::changeEvent( QEvent * event )
 {
     if ( event->type() == QEvent::PaletteChange )
     {
-        updateToolIcons();
         // the wrong fields in this window and its dialogs, in the new colors
         UIPalette::updateWrongMarks( this );
     }
@@ -2519,8 +2461,9 @@ MainWindow::applyUIColorScheme()
 {
     const UIColorScheme scheme = Options::instance().uiColorScheme();
 
-    // the widgets get QEvent::PaletteChange: the icons of the tool bar are
-    // drawn again in its text color (changeEvent())
+    // the widgets get QEvent::PaletteChange (the wrong fields are marked
+    // again: changeEvent()); the icons choose the images of the scheme
+    // whenever they are painted (UIIcon)
     QApplication::setPalette( UIPalette::of( scheme, M_system_palette ) );
 
     for ( QAction * act : M_ui_color_scheme_act_group->actions() )

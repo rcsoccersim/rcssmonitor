@@ -5,7 +5,7 @@
 | Created | 2026-11-22 |
 | Target | rcssmonitor develop (5affd90, 20.0.0-beta.1) |
 | Branch | `feature/icon-redesign` (from develop after the color scheme (F1) is merged; the user creates it on GitHub) |
-| Status | Plan written (2026-11-22). Stage 0 (the design and the candidates for the application icon) is done. Stage 1 (the mechanism and the playback icons) is committed (26bc103). Stage 2 (the remaining toolbar icons) is committed (1650477). Stage 3 (the application icon) is implemented, and the user checked it on the screen (2026-11-23). Next: stage 4 |
+| Status | Plan written (2026-11-22). Stage 0 (the design and the candidates for the application icon) is done. Stage 1 (the mechanism and the playback icons) is committed (26bc103). Stage 2 (the remaining toolbar icons) is committed (1650477). Stage 3 (the application icon) is committed (49100ac). Stage 4 (cleaning up the old mechanism) is implemented (2026-11-23). Waiting for the commit |
 | Japanese version | [2026-11-22-01_icon-redesign.md](2026-11-22-01_icon-redesign.md) (same content) |
 | Related | F2 of the overall plan [2026-11-22-00_v20-features_en.md](2026-11-22-00_v20-features_en.md). soccerwindow2's `docs/plan/2026-11-21_icon-redesign.md` and `docs/icons.md` |
 
@@ -246,4 +246,25 @@ At each stage, the user looks at images comparing the light and the dark schemes
   - Candidates with a thinner silver rim (0.7 → 0.45 and 0.3) were made, and the user decided on 0.3 (5f; D8).
   - `make_rcssmonitor_svg.py` was rewritten with 5f, and the PNGs and `rcss.ico` were made again. The 256 px PNG was checked to be the same, pixel by pixel, as the 5f the user saw. The 59 tests of `ctest` passed with Qt6 and Qt5.
 - The user checked it on the screen.
+- Next: the commit and push, the CI, and `./cmake-helper.sh distcheck qt6`.
+- Commit 49100ac of stage 3 was pushed. All five jobs of the CI passed, and locally `./cmake-helper.sh distcheck qt6` (under Xvfb) passed too (59 tests, including the check of the installation).
+
+### 2026-11-23: Stage 4 (cleaning up the old mechanism)
+
+- Stage 4 started at the user's instruction.
+- The record of the old icons (`icons/legacy/`; S3; after soccerwindow2):
+  - By `git mv`, the 18 XPMs (`icons/*.xpm`) moved to `icons/legacy/xpm/`, and `icons/rcssmonitor.png` and `icons/rcss.icns` to `icons/legacy/` (D7). The `rcss.ico` (48×48) before it was remade in stage 3 was also put in `icons/legacy/rcss.ico` from the Git history.
+  - Before the code was removed, the old icons were written to images (the XPMs as they are, as drawn in the tool bar (recolored black by `tintIcon`), and the 6 drawn in code (black, by `drawnIconImage`)): `icons/legacy/old-icons.png` (the list) and `icons/legacy/comparison.png` (the old one, and the new one in the light and dark schemes).
+  - `icons/legacy/README.md` and `README_en.md` (the `_en` convention of this repository; soccerwindow2 has `README.en.md`): the list of the files, the old icons and the new ones, the 8 not used at the time of the replacement (blank, ff, go, open, quit, rec, rev, rew), and the two images.
+  - `/icons/legacy export-ignore` was added to `.gitattributes`. The XPMs and `rcss.icns` were removed from `EXTRA_DIST` of the top `Makefile.am` (`rcss.ico` stays).
+- The old code removed:
+  - `src/tool_icon.{h,cpp}` (`tintIcon`, `toolIcon`) and `src/toolbar_icons.{h,cpp}` (`DrawnIcon`, `drawnIcon`, `drawnIconImage`) were removed (from the source lists of CMake and autotools too). The cards are `card_icon()` of `referee_menu.cpp`, so they stay (S2).
+  - `MainWindow`: `M_tool_icons`, `M_drawn_icons`, `setToolIcon`, `setDrawnIcon`, `updateToolIcons`, and the recoloring in `changeEvent` were removed (marking the wrong fields again stays). The includes of `<utility>` and `<vector>`, no longer used, were removed too.
+  - Tests: `test/test_tool_icon.cpp` (the check of `tintIcon`) was removed, and so was `icons()` of `test_toolbar.cpp` (the check of the shapes drawn in code).
+- Checked (Ubuntu 24.04):
+  - The CMake builds with Qt 6.4.2 and Qt 5.15.13 had no warnings, and the 58 tests of `ctest` passed (`tool_icon` is gone).
+  - The sources have no `#include` of XPM files and no recoloring code (the remaining `xpm` is of the teams' logos in the logs, unrelated to this plan).
+  - `git archive` made with a temporary index has no `icons/legacy/` (171 entries of icons).
+  - autotools (Qt5): on a copy of the working tree, `./bootstrap`, `./configure`, `make` and `make dist` passed, and the tarball has no legacy and no XPMs.
+- The look on the screen is the same as in stage 3 (the old mechanism was no longer called after stage 2).
 - Next: the commit and push, the CI, and `./cmake-helper.sh distcheck qt6`.

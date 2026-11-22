@@ -37,13 +37,9 @@
 #include <QPalette>
 #include <QString>
 
-#include <utility>
-#include <vector>
-
 #include "camera_mode.h"
 #include "disp_holder.h"
 #include "referee_target.h"
-#include "toolbar_icons.h"
 
 class QActionGroup;
 class QComboBox;
@@ -141,11 +137,6 @@ private:
     QActionGroup * M_ui_color_scheme_act_group = nullptr; //!< View > UI Color Scheme
     QAction * M_show_config_dialog_act;
 
-    //! the toolbar actions and their icons (XPM in black), drawn in the
-    //! text color of the palette
-    std::vector< std::pair< QAction *, const char * const * > > M_tool_icons;
-    std::vector< std::pair< QAction *, DrawnIcon > > M_drawn_icons; //!< the icons drawn in code (toolbar_icons.h)
-
     // not used
     MainWindow( const MainWindow & ) = delete;
     const MainWindow & operator=( const MainWindow & ) = delete;
@@ -202,15 +193,9 @@ private:
     void createFieldCanvas();
     void createConfigDialog();
 
-    void setToolIcon( QAction * act,
-                      const char * const xpm[] );
-    //! the icon of a toolbar action drawn in code, drawn again when the palette changes
     //! the tips of the delayed live view's action, with its seconds
     void updateLiveDelayTips();
 
-    void setDrawnIcon( QAction * act,
-                       const DrawnIcon icon );
-    void updateToolIcons();
     /*!
       \brief set the palette of the color scheme in the options to the
       application, and check it in the menu. Called when the window starts,
