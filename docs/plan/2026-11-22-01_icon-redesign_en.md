@@ -5,7 +5,7 @@
 | Created | 2026-11-22 |
 | Target | rcssmonitor develop (5affd90, 20.0.0-beta.1) |
 | Branch | `feature/icon-redesign` (from develop after the color scheme (F1) is merged; the user creates it on GitHub) |
-| Status | Plan written (2026-11-22). Stage 0 (the design and the candidates for the application icon) is done. Stage 1 (the mechanism and the playback icons) is committed (26bc103). Stage 2 (the remaining toolbar icons) is committed (1650477). Stage 3 (the application icon) is committed (49100ac). Stage 4 (cleaning up the old mechanism) is committed (6783caa). Stage 5 (the documents) is written, and the user checked it (2026-11-23). Next: the PR |
+| Status | Plan written (2026-11-22). Stage 0 (the design and the candidates for the application icon) is done. Stage 1 (the mechanism and the playback icons) is committed (26bc103). Stage 2 (the remaining toolbar icons) is committed (1650477). Stage 3 (the application icon) is committed (49100ac). Stage 4 (cleaning up the old mechanism) is committed (6783caa). Stage 5 (the documents) is committed (2cd182e). Merged into develop by PR #72 (Squash Merge) (2026-11-23) |
 | Japanese version | [2026-11-22-01_icon-redesign.md](2026-11-22-01_icon-redesign.md) (same content) |
 | Related | F2 of the overall plan [2026-11-22-00_v20-features_en.md](2026-11-22-00_v20-features_en.md). soccerwindow2's `docs/plan/2026-11-21_icon-redesign.md` and `docs/icons.md` |
 
@@ -282,3 +282,11 @@ At each stage, the user looks at images comparing the light and the dark schemes
 - Checked: with autotools (Qt5), `make` and `make dist` passed on a copy of the working tree, and the tarball has the two documents.
 - The user checked the documents.
 - Next: the commit and push, the CI, and `./cmake-helper.sh distcheck qt6`. After that, the proposal of the PR.
+
+### 2026-11-23: Merging into develop (PR #72)
+
+- Commit 2cd182e of stage 5 was pushed. All five jobs of the CI passed, and locally `./cmake-helper.sh distcheck qt6` (under Xvfb) passed too (58 tests; the tarball has `docs/icons.md` and `docs/icons_en.md`).
+- PR: the user opened PR #72 from `feature/icon-redesign` to develop ("Renew the icons: SVG-based icons for the light and dark schemes, and the application icon with the official RoboCup logo"), with the title and description Claude proposed. The branch has the six commits of stages 0 to 5 (3011609, 26bc103, 1650477, 49100ac, 6783caa, 2cd182e) and this record.
+- It is merged by a Squash Merge (one feature, renewing the icons, whose history by stage is in this plan; §3 of the overall plan). Last time (PR #71) the commit's title became GitHub's default "Merge pull request ...", so the user was told to change it to the PR's title when merging.
+- This record was committed to the branch of PR #72 before the merge (CLAUDE.md). To stay true after the merge, it does not give the commit of the merge.
+- Next: when PR #72 is merged, the desktop (F3; §B of the overall plan) follows. The user creates `feature/desktop-entry` on GitHub from develop. Installing all the sizes of the application icon (`icons/app/`) and the scalable SVG, and `setDesktopFileName` (linking to the Wayland dash) are done in F3.

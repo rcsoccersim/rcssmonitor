@@ -5,7 +5,7 @@
 | 作成日 | 2026-11-22 |
 | 対象 | rcssmonitor develop (5affd90、20.0.0-beta.1) |
 | ブランチ | `feature/icon-redesign` (配色 (F1) を取り込んだ develop から。ユーザが GitHub 上で作る) |
-| 状態 | 計画を作った (2026-11-22)。段階 0 (デザインとアプリのアイコンの案) を済ませた。段階 1 (仕組みと再生のアイコン) をコミットした (26bc103)。段階 2 (残りのツールバーのアイコン) をコミットした (1650477)。段階 3 (アプリのアイコン) をコミットした (49100ac)。段階 4 (古い仕組みの片付け) をコミットした (6783caa)。段階 5 (文書) を書き、ユーザが確かめた (2026-11-23)。次は PR |
+| 状態 | 計画を作った (2026-11-22)。段階 0 (デザインとアプリのアイコンの案) を済ませた。段階 1 (仕組みと再生のアイコン) をコミットした (26bc103)。段階 2 (残りのツールバーのアイコン) をコミットした (1650477)。段階 3 (アプリのアイコン) をコミットした (49100ac)。段階 4 (古い仕組みの片付け) をコミットした (6783caa)。段階 5 (文書) をコミットした (2cd182e)。PR #72 (Squash Merge) で develop に取り込む (2026-11-23) |
 | 英語版 | [2026-11-22-01_icon-redesign_en.md](2026-11-22-01_icon-redesign_en.md) (内容は同じ) |
 | 関連 | 総合の計画 [2026-11-22-00_v20-features.md](2026-11-22-00_v20-features.md) の F2。soccerwindow2 の `docs/plan/2026-11-21_icon-redesign.md` と `docs/icons.md` |
 
@@ -282,3 +282,11 @@ soccerwindow2 (`../../rctools/soccerwindow2`、develop 1df28c1) の計画書 `do
 - 確かめたこと: autotools (Qt5) で、作業ツリーの写しの `make` と `make dist` が通り、tarball に 2 つの文書が入った。
 - ユーザが文書を確かめた。
 - この後: コミットとプッシュ、CI、`./cmake-helper.sh distcheck qt6`。その後、PR の案を出す。
+
+### 2026-11-23: develop への取り込み (PR #72)
+
+- 段階 5 のコミット 2cd182e をプッシュした。CI の 5 つのジョブがすべて通り、手元の `./cmake-helper.sh distcheck qt6` (Xvfb の下) も通った (テスト 58 個。tarball に `docs/icons.md` と `docs/icons_en.md` が入る)。
+- PR: ユーザが、Claude の案の題と説明で、`feature/icon-redesign` から develop への PR #72 (「Renew the icons: SVG-based icons for the light and dark schemes, and the application icon with the official RoboCup logo」) を作った。ブランチのコミットは段階 0〜5 の 6 つ (3011609、26bc103、1650477、49100ac、6783caa、2cd182e) と、この記録。
+- 取り込みは Squash Merge (アイコンの刷新という 1 つの機能のまとまりで、段階ごとの経緯はこの計画書にある。総合の計画の §3)。前回 (PR #71) はコミットの題が GitHub の既定の「Merge pull request ...」になったので、取り込むときに PR の題に書き換えることをユーザに伝えた。
+- この記録は、取り込みの前に PR #72 のブランチにコミットした (CLAUDE.md)。取り込みの後も正しいように、取り込みの結果のコミットは書かない。
+- この後: PR #72 を取り込んだら、デスクトップ (F3。総合の計画書 §B) に進む。ユーザが GitHub 上で develop から `feature/desktop-entry` を作る。アプリのアイコンの各サイズ (`icons/app/`) と scalable の SVG のインストール、`setDesktopFileName` (Wayland のダッシュとの結びつき) は F3 で行う。
