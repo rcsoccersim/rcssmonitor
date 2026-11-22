@@ -5,7 +5,7 @@
 | 作成日 | 2026-11-22 |
 | 対象 | rcssmonitor develop (5affd90、20.0.0-beta.1) |
 | ブランチ | `feature/icon-redesign` (配色 (F1) を取り込んだ develop から。ユーザが GitHub 上で作る) |
-| 状態 | 計画を作った (2026-11-22)。段階 0 (デザインとアプリのアイコンの案) を済ませた。段階 1 (仕組みと再生のアイコン) をコミットした (26bc103)。段階 2 (残りのツールバーのアイコン) を実装し、ユーザが画面で確かめた (2026-11-23)。次は段階 3 |
+| 状態 | 計画を作った (2026-11-22)。段階 0 (デザインとアプリのアイコンの案) を済ませた。段階 1 (仕組みと再生のアイコン) をコミットした (26bc103)。段階 2 (残りのツールバーのアイコン) をコミットした (1650477)。段階 3 (アプリのアイコン) を実装し、ユーザが画面で確かめた (2026-11-23)。次は段階 4 |
 | 英語版 | [2026-11-22-01_icon-redesign_en.md](2026-11-22-01_icon-redesign_en.md) (内容は同じ) |
 | 関連 | 総合の計画 [2026-11-22-00_v20-features.md](2026-11-22-00_v20-features.md) の F2。soccerwindow2 の `docs/plan/2026-11-21_icon-redesign.md` と `docs/icons.md` |
 
@@ -67,6 +67,9 @@ soccerwindow2 (`../../rctools/soccerwindow2`、develop 1df28c1) の計画書 `do
 | D3 | デザインの決まり (線、格子、余白、色の役割、`palette.txt`) は soccerwindow2 と同じにする。15 個のうち 10 個 (open、live_mode、play、stop、step_back、step_forward、slower、faster、prev_score、next_score) は soccerwindow2 の SVG (`open_rcg`、`logplayer_*`) を使い、5 個 (connect、disconnect、kick_off、loop、live_delay) は同じ決まりで新しく描く (段階 0。§4.1) |
 | D4 | PNG は 16、24、32、48 px を作る。LIVE と再生のボタンは 24 px で描くので、24 px (1x) と 48 px (2x) も要る。soccerwindow2 (16 と 32 だけ) からの変更 |
 | D5 | アプリのアイコンは、今の意匠の描き直し (画面の中の RoboCup のロゴ)。ロゴは公式のものを使う (段階 0。§4.4) |
+| D6 | アプリのアイコンの 16 px と 32 px は、同じ SVG をそのまま縮める (小さいサイズ用の SVG は作らない。段階 3) |
+| D7 | `rcss.ico` は新しいアプリのアイコンの 16、32、48、256 px から作り直し、`src/rcssmonitor.rc` とともに残す (soccerwindow2 と同じ)。`rcss.icns` は macOS 用のビルドがなく、作り直すとロゴを拡大することになるので、段階 4 で `icons/legacy/` に移す (段階 3) |
+| D8 | アプリのアイコンの外枠 (ロゴはそのまま): 細い黒いベゼル (0.8) と、その外の細い銀色の縁 (0.3。縦のグラデーションと灰色の輪郭) の画面、灰色の細い支柱、濃い灰色の丸い台 (段階 3 の 5f。今の実機のモニタの雰囲気で、暗い背景にも溶けにくい) |
 
 ### 3.2 設計上の判断 (Claude。段階の初めにユーザが確認する)
 
@@ -82,7 +85,7 @@ soccerwindow2 (`../../rctools/soccerwindow2`、develop 1df28c1) の計画書 `do
 ### 3.3 段階の初めに決めること
 
 - アプリのアイコンの意匠: 今の意匠 (画面の中の RoboCup のロゴ) を描き直すか、rcsoccersim のロゴ (黄と赤の 2 人の選手とボール。`rcsoccersim.github.io/static/img/logo.png`) を基にするか、別の案か。段階 0 で案を並べた画像を作り、ユーザが選ぶ。 → 今の意匠の描き直し、ロゴは公式のもの (D5)。
-- `rcss.ico`、`rcss.icns`、`src/rcssmonitor.rc` (どのビルドも使っていない): 新しいアイコンから作り直すか、legacy に移すか (段階 3)。
+- `rcss.ico`、`rcss.icns`、`src/rcssmonitor.rc` (どのビルドも使っていない): 新しいアイコンから作り直すか、legacy に移すか (段階 3)。 → `rcss.ico` は作り直して `rcssmonitor.rc` とともに残し、`rcss.icns` は legacy に移す (D7)。
 - 文書の名前: `docs/icons.md` と英語版 (`docs/icons_en.md`。このリポジトリの `_en` の決まりにそろえる)。
 
 ## 4. 設計
@@ -116,12 +119,12 @@ soccerwindow2 (`../../rctools/soccerwindow2`、develop 1df28c1) の計画書 `do
 - autotools (`src/Makefile.am`、`Makefile.am`): `include $(top_srcdir)/icons/icons.am`、`qrc_icons.cpp: $(ICONS_DIR)/icons.qrc $(ICONS_PNG_FILES)` の規則 (`$(QT_RCC) --name icons`)、`nodist_rcssmonitor_SOURCES`、`EXTRA_DIST` に SVG と PNG。XPM を `EXTRA_DIST` から除く。
 - CMake の dist (`git archive`) は `.gitattributes` に従うので、`icons/legacy/` の `export-ignore` を足す。
 
-### 4.4 アプリのアイコン (段階 0 で決めた。D5)
+### 4.4 アプリのアイコン (段階 0 と 3 で決めた。D5、D6、D8)
 
-- 32×32 の格子で、画面 (濃い灰色の縁、角丸) と台を描き、画面に RoboCup の公式のロゴを、手を加えずに置く。画面の縦横比はロゴ (397×252) に合わせる。
+- 32×32 の格子で、画面 (幅 27、ロゴの縦横比 397×252) と、その外の細い黒いベゼル (0.8) と細い銀色の縁 (0.3)、灰色の細い支柱と濃い灰色の丸い台を描き、画面に RoboCup の公式のロゴを、手を加えずに置く (D8)。全体を縦の中央に置く。
 - ロゴは robocup.org の `robocup_logo_ext.jpg` (750×330) のロゴの部分を切り出した PNG。SVG には data URI で埋め込む。
 - アプリのアイコンは配色で切り替えないので、色は `palette.txt` に縛られない (soccerwindow2 と同じ)。
-- 16 px と 24 px の扱い、ロゴの PNG とスクリプトの置き場所は段階 3 で決める (§9 の段階 0 の記録)。
+- 16 px と 24 px の扱い、ロゴの PNG とスクリプトの置き場所は段階 3 で決める (§9 の段階 0 の記録)。 → アプリのアイコンの大きさは 16、32、48、64、128、256 で、24 px はない。16 px と 32 px はそのまま縮める (D6)。ロゴは `icons/app/robocup_logo.png`、SVG は `icons/app/make_rcssmonitor_svg.py` が `icons/app/svg/rcssmonitor.svg` に作る。
 
 ## 5. 段階
 
@@ -216,4 +219,31 @@ soccerwindow2 (`../../rctools/soccerwindow2`、develop 1df28c1) の計画書 `do
   - autotools (Qt5): 作業ツリーの写しで `./bootstrap`、`./configure`、`make` が通り、`--help` で起動できた。
   - offscreen で、ツールバーを 1x と 2x、明るい配色と暗い配色で画像にして見た (15 個とも新しいアイコン)。
 - ユーザが画面で確かめた (Qt6 と Qt5)。
+- この後: コミットとプッシュ、CI、`./cmake-helper.sh distcheck qt6`。
+- 段階 2 のコミット 1650477 をプッシュした。CI の 5 つのジョブがすべて通り、手元の `./cmake-helper.sh distcheck qt6` (Xvfb の下) も通った (テスト 59 個)。
+
+### 2026-11-23: 段階 3 (アプリのアイコン)
+
+- 段階 3 を始める前に、ユーザが決めた: D6 (16 px と 32 px はそのまま縮める)、D7 (`rcss.ico` は作り直し、`rcss.icns` は legacy へ)。ロゴとスクリプトの置き場所は Claude の案 (`icons/app/`) のとおり。
+  - 比較のため、16 px と 32 px 用に縁を細くし画面を大きくした案も作ったが、16 px ではどちらも文字は読めず、細い縁は暗い背景に溶けた。
+- 作ったもの:
+  - `icons/app/robocup_logo.png`: robocup.org の `robocup_logo_ext.jpg` のロゴの部分 (397×252) を手を加えずに切り出した PNG (段階 0)。JPG の切り出しと画素まで同じことを確かめた。
+  - `icons/app/make_rcssmonitor_svg.py` (新規。Python 3 の標準ライブラリだけ): ロゴの大きさを PNG の IHDR から読み、画面、縁、台を 32×32 の格子に描き、ロゴを data URI で埋め込んだ `icons/app/svg/rcssmonitor.svg` (約 100 KB) を作る。最初は段階 0 の案 A (濃い灰色の平らなモニタ) を縦の中央に置いたもので作り、後で外枠を D8 に替えた (下の「外枠の選び直し」)。ロゴの出典と切り出し方は、スクリプトの先頭に書いた。
+  - `icons/generate.sh rcssmonitor` で `icons/app/{16,32,48,64,128,256}/rcssmonitor.png` を作り、一覧とチェックサムを更新した (`generate.sh` と `check_icons.sh` は、アプリのアイコンをもともと扱える)。
+  - `UIIcon::appIcon()` (soccerwindow2 と同じ) と `UIIcon::APP_SIZES`。`MainWindow` の窓のアイコンを `UIIcon::appIcon( "rcssmonitor" )` にし、`rcss.xpm` の `#include` を消した (XPM は段階 4 で legacy へ)。
+  - CMake がインストールする 48 px のアイコン (`hicolor/48x48/apps/rcssmonitor.png`) を、`icons/app/48/rcssmonitor.png` にした。ほかの大きさと scalable のインストールはデスクトップ (F3) で行う。古い `icons/rcssmonitor.png` は段階 4 で legacy へ。
+  - `icons/rcss.ico`: Pillow で `icons/app/{16,32,48,256}/rcssmonitor.png` から作り直した (D7。4 枚とも PNG と画素まで同じ)。作り方は文書 (段階 5) に書く。
+  - autotools: トップの `Makefile.am` の `EXTRA_DIST` に、ロゴの PNG とスクリプトを足した (SVG と PNG は `icons.am` の一覧に入る)。
+  - テスト: `test_ui_icon.cpp` に `appIcon()` (6 つの大きさの画像、配色で変わらないこと、無い名前、MainWindow の窓のアイコン) を足した。
+- 確かめたこと (Ubuntu 24.04):
+  - Qt 6.4.2 と Qt 5.15.13 の CMake のビルドで警告はなく、`ctest` の 59 個が通った。`check_icons.sh` は 15 個のアイコンと 1 個のアプリのアイコンで通った。
+  - CMake で一時的な場所にインストールし、48 px のアイコンが `icons/app/48/rcssmonitor.png` と同じことを確かめた。
+  - autotools (Qt5): 作業ツリーの写しで `./bootstrap`、`./configure`、`make`、`make dist` が通り、tarball に `icons/app/` が入った。
+- 気をつけること: Wayland の GNOME では、窓のアイコンではなくデスクトップエントリの `Icon=` (インストールしたアイコン) が使われ、`setDesktopFileName` がない今は結びつかないことがある。これはデスクトップ (F3) で扱う。
+- 外枠の選び直し (ユーザの求め。意匠 (画面の中のロゴ) はそのまま):
+  - 外枠を変えた 6 案 (1: 今の案、2: 銀色の一体型、3: ブラウン管、4: ノートパソコン、5: 細い黒い縁と細い支柱と丸い台、6: スタジアムの大型ビジョン) を、16〜256 px で明るい背景と暗い背景に並べた。ユーザは 5 を選んだ (今のモニタの実機の雰囲気がいちばん出ている)。
+  - 5 は暗い背景で縁が溶けるので、ベゼルを細いまま 2 の銀色を組み合わせた 3 案 (5a: 黒いベゼルの外に細い銀色の縁、5b: 銀色の縁と黒い線だけ、5c: 5a に銀色の顎) を作った。ユーザは、画面は 5a、支柱と台は元の 5 にすると決めた (5d)。
+  - ベゼルの銀色をさらに細くした案 (銀色の縁 0.7 → 0.45、0.3) を作り、ユーザは 0.3 (5f) に決めた (D8)。
+  - `make_rcssmonitor_svg.py` を 5f で書き直し、PNG と `rcss.ico` を作り直した。256 px の PNG は、ユーザが見た 5f と画素まで同じことを確かめた。Qt6 と Qt5 で `ctest` の 59 個が通った。
+- ユーザが画面で確かめた。
 - この後: コミットとプッシュ、CI、`./cmake-helper.sh distcheck qt6`。

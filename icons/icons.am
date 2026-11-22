@@ -16,7 +16,8 @@ ICONS_SVG_FILES = \
 	$(ICONS_DIR)/svg/slower.svg \
 	$(ICONS_DIR)/svg/step_back.svg \
 	$(ICONS_DIR)/svg/step_forward.svg \
-	$(ICONS_DIR)/svg/stop.svg
+	$(ICONS_DIR)/svg/stop.svg \
+	$(ICONS_DIR)/app/svg/rcssmonitor.svg
 
 ICONS_PNG_FILES = \
 	$(ICONS_DIR)/light/16/connect.png \
@@ -138,4 +139,10 @@ ICONS_PNG_FILES = \
 	$(ICONS_DIR)/dark/16/stop.png \
 	$(ICONS_DIR)/dark/24/stop.png \
 	$(ICONS_DIR)/dark/32/stop.png \
-	$(ICONS_DIR)/dark/48/stop.png
+	$(ICONS_DIR)/dark/48/stop.png \
+	$(ICONS_DIR)/app/16/rcssmonitor.png \
+	$(ICONS_DIR)/app/32/rcssmonitor.png \
+	$(ICONS_DIR)/app/48/rcssmonitor.png \
+	$(ICONS_DIR)/app/64/rcssmonitor.png \
+	$(ICONS_DIR)/app/128/rcssmonitor.png \
+	$(ICONS_DIR)/app/256/rcssmonitor.png

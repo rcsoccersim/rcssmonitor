@@ -122,5 +122,11 @@
     <file>dark/24/stop.png</file>
     <file>dark/32/stop.png</file>
     <file>dark/48/stop.png</file>
+    <file>app/16/rcssmonitor.png</file>
+    <file>app/32/rcssmonitor.png</file>
+    <file>app/48/rcssmonitor.png</file>
+    <file>app/64/rcssmonitor.png</file>
+    <file>app/128/rcssmonitor.png</file>
+    <file>app/256/rcssmonitor.png</file>
 </qresource>
 </RCC>

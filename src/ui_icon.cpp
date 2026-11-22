@@ -50,6 +50,7 @@
 #include <QVersionNumber>
 
 const int UIIcon::SIZES[4] = { 16, 24, 32, 48 };
+const int UIIcon::APP_SIZES[6] = { 16, 32, 48, 64, 128, 256 };
 
 namespace {
 
@@ -356,4 +357,30 @@ UIIcon::fromName( const QString & name )
     }
 
     return QIcon( new SchemeIconEngine( light, dark ) );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+QIcon
+UIIcon::appIcon( const QString & name )
+{
+    ensure_resources();
+
+    QIcon icon;
+    for ( const int size : APP_SIZES )
+    {
+        const QString file = QStringLiteral( ":/icons/app/%1/%2.png" ).arg( size ).arg( name );
+        const QPixmap pix( file );
+        if ( pix.isNull() )
+        {
+            qWarning( "UIIcon: the application icon \"%s\" is not found in the resources (%s).",
+                      qPrintable( name ), qPrintable( file ) );
+            return QIcon();
+        }
+        // addPixmap() does not look for the "@2x" files, unlike addFile()
+        icon.addPixmap( pix );
+    }
+    return icon;
 }

@@ -30,6 +30,8 @@ EXTRA_DIST = \
 	test/CMakeLists.txt \
 	test/check_icons.sh \
 	test/test_message_splitter.cpp \
+	icons/app/make_rcssmonitor_svg.py \
+	icons/app/robocup_logo.png \
 	icons/generate.sh \
 	icons/generated.sha256 \
 	icons/icons.am \

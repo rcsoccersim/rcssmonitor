@@ -71,7 +71,6 @@
 
 #include <cstdio>
 
-#include "icons/rcss.xpm"
 
 // #ifndef PACKAGE_STRING
 // #define PACKAGE_STRING "rcssmonitor x.x.x"
@@ -95,7 +94,7 @@ MainWindow::MainWindow()
       M_monitor_client( static_cast< MonitorClient * >( 0 ) ),
       M_log_player( new LogPlayer( M_disp_holder, this ) )
 {
-    this->setWindowIcon( QIcon( QPixmap( rcss_xpm ) ) );
+    this->setWindowIcon( UIIcon::appIcon( "rcssmonitor" ) );
     this->setWindowTitle( tr( PACKAGE_NAME ) + tr( " " ) + tr( VERSION ) );
     this->setMinimumSize( 280, 220 );
 

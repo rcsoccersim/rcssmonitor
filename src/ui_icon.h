@@ -38,13 +38,19 @@
 
 /*!
   \class UIIcon
-  \brief the icons of the tool bars, which follow the color scheme
+  \brief the icons of the tool bars, which follow the color scheme, and the
+  application icon
 
-  fromName() creates an icon from the PNG files embedded with the Qt
-  resource system (icons/icons.qrc). Each icon has the images for the light
-  and the dark color schemes (16, 24, 32 and 48 pixels each), made from an
-  SVG file by icons/generate.sh, and the images are chosen by the palette
-  of the application whenever the icon is painted (UIPalette::isDark()).
+  fromName() creates an icon of the tool bars from the PNG files embedded
+  with the Qt resource system (icons/icons.qrc). Each icon has the images
+  for the light and the dark color schemes (16, 24, 32 and 48 pixels each),
+  made from an SVG file by icons/generate.sh, and the images are chosen by
+  the palette of the application whenever the icon is painted
+  (UIPalette::isDark()).
+
+  appIcon() creates the application icon (the window's) from the embedded
+  PNG files of its sizes, made from icons/app/svg/. It does not follow the
+  color scheme, as the window manager shows it too.
 
   The same as soccerwindow2's UIIcon (docs/plan/2026-11-22-01_icon-redesign.md).
 */
@@ -57,6 +63,8 @@ public:
 
     //! the sizes of the images of an icon (pixels, in ascending order)
     static const int SIZES[4];
+    //! the sizes of the images of an application icon (pixels, in ascending order)
+    static const int APP_SIZES[6];
 
     /*!
       \brief register the icons embedded with the Qt resource system.
@@ -83,6 +91,16 @@ public:
     */
     static
     QIcon fromName( const QString & name );
+
+    /*!
+      \brief create an application icon (the window's) from the embedded PNG
+      files :/icons/app/SIZE/NAME.png (SIZE: APP_SIZES)
+      \param name the name of the icon (e.g. "rcssmonitor")
+      \return the icon. A null icon, with a warning, if there are no files
+      of the name.
+    */
+    static
+    QIcon appIcon( const QString & name );
 };
 
 #endif

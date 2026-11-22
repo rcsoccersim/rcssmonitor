@@ -112,6 +112,7 @@ private slots:
     void devicePixelRatio();
     void disabled();
     void missing();
+    void appIcon();
     void mainWindow();
 };
 
@@ -238,6 +239,39 @@ TestUIIcon::missing()
 {
     QTest::ignoreMessage( QtWarningMsg, QRegularExpression( "UIIcon: the icon \"no_such_icon\" is not found" ) );
     QVERIFY( UIIcon::fromName( "no_such_icon" ).isNull() );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  The application icon: the images of its six sizes (icons/app/), the same
+  in both color schemes; the main window's icon.
+*/
+void
+TestUIIcon::appIcon()
+{
+    UIIcon::initResources();
+    const QIcon icon = UIIcon::appIcon( "rcssmonitor" );
+    QVERIFY( ! icon.isNull() );
+    QList< QSize > sizes;
+    for ( const int s : UIIcon::APP_SIZES ) sizes << QSize( s, s );
+    QCOMPARE( icon.availableSizes(), sizes );
+    for ( const int s : UIIcon::APP_SIZES )
+    {
+        const QImage expected = QPixmap( QStringLiteral( ":/icons/app/%1/rcssmonitor.png" ).arg( s ) )
+            .toImage().convertToFormat( QImage::Format_ARGB32_Premultiplied );
+        QCOMPARE( expected.size(), QSize( s, s ) );
+        for ( const QPalette & palette : { UIPalette::light(), UIPalette::dark() } )
+        {
+            QApplication::setPalette( palette );
+            QCOMPARE( icon.pixmap( s, s ).toImage().convertToFormat( QImage::Format_ARGB32_Premultiplied ), expected );
+        }
+    }
+
+    QTest::ignoreMessage( QtWarningMsg, QRegularExpression( "UIIcon: the application icon \"no_such_app\" is not found" ) );
+    QVERIFY( UIIcon::appIcon( "no_such_app" ).isNull() );
+
+    MainWindow window;
+    QCOMPARE( window.windowIcon().availableSizes(), sizes );
 }
 
 /*-------------------------------------------------------------------*/
