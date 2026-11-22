@@ -35,10 +35,16 @@ add_library(rcssmonitor_core STATIC
   toolbar_icons.cpp
   tooltip_marker.cpp
   udp_monitor_transport.cpp
+  ui_icon.cpp
   ui_palette.cpp
   ui_style.cpp
   vector_2d.cpp
+  # the icons of the tool bars (icons/generate.sh; UIIcon)
+  ${PROJECT_SOURCE_DIR}/icons/icons.qrc
   )
+
+# the resources: the icons, and the 3D view's shaders and figure packs
+set_target_properties(rcssmonitor_core PROPERTIES AUTORCC ON)
 
 target_include_directories(rcssmonitor_core
   PUBLIC
@@ -112,8 +118,6 @@ if(HAVE_3D_VIEW)
     ${PROJECT_SOURCE_DIR}/resources/figures/view3d_figures.qrc
     ${PROJECT_SOURCE_DIR}/third_party/ufbx/ufbx.c
     )
-  # the shaders (ShaderProgram) and the bundled figure packs (FigurePacks) in the resources
-  set_target_properties(rcssmonitor_core PROPERTIES AUTORCC ON)
   target_include_directories(rcssmonitor_core PUBLIC ${PROJECT_SOURCE_DIR}/src/view3d)
   # cgltf (glTF loading, MIT), a single header: compiled in gltf_model.cpp
   target_include_directories(rcssmonitor_core PRIVATE ${PROJECT_SOURCE_DIR}/third_party/cgltf)

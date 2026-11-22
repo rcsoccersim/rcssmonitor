@@ -5,7 +5,7 @@
 | 作成日 | 2026-11-22 |
 | 対象 | rcssmonitor develop (5affd90、20.0.0-beta.1) |
 | ブランチ | `feature/icon-redesign` (配色 (F1) を取り込んだ develop から。ユーザが GitHub 上で作る) |
-| 状態 | 計画を作った (2026-11-22)。段階 0 (デザインとアプリのアイコンの案) を済ませた (2026-11-22)。次は段階 1 |
+| 状態 | 計画を作った (2026-11-22)。段階 0 (デザインとアプリのアイコンの案) を済ませた。段階 1 (仕組みと再生のアイコン) を実装し、ユーザが画面で確かめた (2026-11-22)。次は段階 2 |
 | 英語版 | [2026-11-22-01_icon-redesign_en.md](2026-11-22-01_icon-redesign_en.md) (内容は同じ) |
 | 関連 | 総合の計画 [2026-11-22-00_v20-features.md](2026-11-22-00_v20-features.md) の F2。soccerwindow2 の `docs/plan/2026-11-21_icon-redesign.md` と `docs/icons.md` |
 
@@ -181,3 +181,23 @@ soccerwindow2 (`../../rctools/soccerwindow2`、develop 1df28c1) の計画書 `do
   - ロゴの部分 (灰色の枠と緑の帯を含む 397×252 px。JPG の (175, 38) から) を手を加えずに切り出し、PNG にして SVG に埋め込んだ。画面の縦横比はロゴに合わせた。256 px でも画面の幅は約 200 px なので、ロゴを拡大しない。
   - ロゴの決まりのページによれば、RoboCup のロゴを使えるのは RoboCup Partners と参加チームで、学術と PR のためである (報道での使用は RoboCup の事務局に相談する)。rcssmonitor は RoboCup のサッカーシミュレーションの公式の道具で、今のアイコンもこのロゴを使っている。公式のロゴを使うことはユーザが決め、Claude がこの決まりの内容をユーザに伝えた。
 - 段階 3 で決めること: 16 px と 24 px ではロゴが読めない (簡略版を作るか)。ロゴの PNG と、それを埋め込んだ SVG を作るスクリプトの置き場所 (soccerwindow2 の `make_soccerwindow2_svg.py` にならう)。デスクトップ (F3) で hicolor の scalable にインストールする SVG は、PNG を埋め込んだもの (約 100 KB) になる。
+
+### 2026-11-22: 段階 1 (仕組みと再生のアイコン)
+
+- ユーザの指示で段階 1 を始めた。
+- 作ったもの:
+  - `icons/palette.txt`、`icons/palette.awk`: soccerwindow2 のものをそのまま (D3)。
+  - `icons/generate.sh`: soccerwindow2 のものを移し、大きさを 16、24、32、48 にした (D4)。大きさのディレクトリがなければ作る。`icons.am` の説明の `src/qt/Makefile.am` を `src/Makefile.am` に。
+  - `icons/svg/` の 9 個 (live_mode、play、stop、step_back、step_forward、slower、faster、prev_score、next_score): soccerwindow2 の `logplayer_*.svg` の写し。中の説明に元のファイルの名前を足した。`generate.sh` で `icons/{light,dark}/{16,24,32,48}/*.png` (72 個)、`icons.qrc`、`icons.am`、`generated.sha256` を作った (Inkscape 1.4.4)。
+  - `src/ui_icon.{h,cpp}` (新規): soccerwindow2 の `UIIcon::fromName()` と `SchemeIconEngine`。配色の判定は `UIPalette::isDark()`、大きさは `UIIcon::SIZES` (16、24、32、48)。アプリのアイコン (`appIcon`) は段階 3 で足す。数字のアイコン (`fromNumber`) は移さない。
+  - `MainWindow`: 再生の 9 個のアクションのアイコンを `UIIcon::fromName()` に替えた。`togglePlayOrStopIcon` も。使わなくなった 9 個の XPM の `#include` を消した (XPM のファイルは段階 4 で legacy に移す。`setToolIcon` などの古い仕組みは、残りのアイコン (段階 2) の後、段階 4 で消す)。
+  - CMake: `icons/icons.qrc` を `rcssmonitor_core` に入れ、`AUTORCC` を 3D の外に出して常に ON にした (S4)。
+  - autotools: `src/Makefile.am` に `icons.am` の include と `qrc_icons.cpp` の規則 (`$(QT_RCC) --name icons`)、トップの `Makefile.am` の `EXTRA_DIST` に icons の仕組みと SVG、PNG を足した (S5)。
+  - テスト: `test/check_icons.sh` (soccerwindow2 のものを移し、大きさを 4 つに) を CTest に登録 (Inkscape は要らない)。`test/test_ui_icon.cpp` (新規): 9 個のアイコンと各大きさの画像、配色に合わせた画像の選び方 (アプリのパレットを変えると同じアイコンが変わる)、描く大きさ (24 は 24 の画像、48 より大きくしない)、デバイスピクセル比 (2 で 16 は 32、24 は 48、1.5 で 16 は 24 の画像)、無効の表示、無い名前、MainWindow の再生のボタン (Play と Stop の切り替えを含む)。`test/test_tool_icon.cpp`: Live Mode の塗り直しの検査 (`followPalette`) を消した (`test_ui_icon` に移った。`tintIcon` の検査は段階 4 まで残す)。
+- 分かったこと: autotools の `m4/ax_have_qt.m4` は、`moc` と `rcc` を PATH から探す (qmake の場所からではない)。PATH に別の Qt (anaconda など) があると、そちらが使われる。前からの動き (`moc` も同じ) で、この段階では直さない。PATH から外せば `/usr/lib/qt5/bin/rcc` が使われる。
+- 確かめたこと (Ubuntu 24.04):
+  - Qt 6.4.2 と Qt 5.15.13 の CMake のビルドで警告はなく、`ctest` の 59 個 (新しい `ui_icon` と `check_icons` を含む) が通った。
+  - autotools (Qt5): 作業ツリーの写しで `./bootstrap`、`./configure`、`make` が通った。システムの `rcc` (`/usr/lib/qt5/bin/rcc`) で `qrc_icons.cpp` を作り、`--help` で起動できた。
+  - offscreen で、ツールバーを 1x と 2x、明るい配色と暗い配色で画像にして見た。
+- ユーザが画面で確かめた (Qt6 と Qt5)。
+- この後: コミットとプッシュ、CI、`./cmake-helper.sh distcheck qt6`。

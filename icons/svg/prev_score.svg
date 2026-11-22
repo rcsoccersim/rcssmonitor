@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <!-- prev_score: jump to the previous goal (a triangle and G) (soccerwindow2's logplayer_go_prev_score.svg) -->
+  <path d="M6,3 L1,8 L6,13 Z" fill="#303030"/>
+  <path d="M14,5.5 C14,4.5 13,4 11.5,4 C9.5,4 9,5.5 9,8 C9,10.5 9.5,12 11.5,12 C13,12 14,11.5 14,10 V8.5 H11.5" fill="none" stroke="#303030" stroke-width="2"/>
+</svg>

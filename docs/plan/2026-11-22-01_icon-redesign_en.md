@@ -5,7 +5,7 @@
 | Created | 2026-11-22 |
 | Target | rcssmonitor develop (5affd90, 20.0.0-beta.1) |
 | Branch | `feature/icon-redesign` (from develop after the color scheme (F1) is merged; the user creates it on GitHub) |
-| Status | Plan written (2026-11-22). Stage 0 (the design and the candidates for the application icon) is done (2026-11-22). Next: stage 1 |
+| Status | Plan written (2026-11-22). Stage 0 (the design and the candidates for the application icon) is done. Stage 1 (the mechanism and the playback icons) is implemented, and the user checked it on the screen (2026-11-22). Next: stage 2 |
 | Japanese version | [2026-11-22-01_icon-redesign.md](2026-11-22-01_icon-redesign.md) (same content) |
 | Related | F2 of the overall plan [2026-11-22-00_v20-features_en.md](2026-11-22-00_v20-features_en.md). soccerwindow2's `docs/plan/2026-11-21_icon-redesign.md` and `docs/icons.md` |
 
@@ -181,3 +181,23 @@ At each stage, the user looks at images comparing the light and the dark schemes
   - The logo's part (397×252 px with the gray box and the green band, from (175, 38) of the JPG) was cut out unmodified, saved as a PNG, and embedded in the SVG. The screen has the logo's aspect ratio. Even at 256 px the screen is about 200 px wide, so the logo is not enlarged.
   - By the guidelines page, the RoboCup logo may be used by RoboCup Partners and participating teams, for academic purposes and PR (use in the media needs consulting the RoboCup office). rcssmonitor is an official tool of the RoboCup soccer simulation, and the current icon uses this logo too. The user decided to use the official logo, and Claude told the user what the guidelines say.
 - To decide in stage 3: the logo cannot be read at 16 and 24 px (make simplified versions?). Where to keep the logo PNG and the script that makes the SVG embedding it (after soccerwindow2's `make_soccerwindow2_svg.py`). The SVG installed as hicolor's scalable icon by the desktop (F3) is the one embedding the PNG (about 100 KB).
+
+### 2026-11-22: Stage 1 (the mechanism and the playback icons)
+
+- Stage 1 started at the user's instruction.
+- Made:
+  - `icons/palette.txt`, `icons/palette.awk`: soccerwindow2's, as they are (D3).
+  - `icons/generate.sh`: moved from soccerwindow2, with the sizes 16, 24, 32 and 48 (D4). It makes the directories of the sizes if missing. In the comment of `icons.am`, `src/qt/Makefile.am` became `src/Makefile.am`.
+  - The 9 in `icons/svg/` (live_mode, play, stop, step_back, step_forward, slower, faster, prev_score, next_score): copies of soccerwindow2's `logplayer_*.svg`, with the original file's name added to the comment in each. `generate.sh` made `icons/{light,dark}/{16,24,32,48}/*.png` (72 files), `icons.qrc`, `icons.am` and `generated.sha256` (Inkscape 1.4.4).
+  - `src/ui_icon.{h,cpp}` (new): soccerwindow2's `UIIcon::fromName()` and `SchemeIconEngine`. The scheme is detected by `UIPalette::isDark()`, and the sizes are `UIIcon::SIZES` (16, 24, 32, 48). The application icon (`appIcon`) is added in stage 3. The number icons (`fromNumber`) are not moved.
+  - `MainWindow`: the icons of the 9 playback actions are now `UIIcon::fromName()`, and so is `togglePlayOrStopIcon`. The `#include`s of the 9 XPMs no longer used were removed (the XPM files move to legacy in stage 4; the old mechanism such as `setToolIcon` is removed in stage 4, after the remaining icons in stage 2).
+  - CMake: `icons/icons.qrc` is in `rcssmonitor_core`, and `AUTORCC` moved out of the 3D part to be always ON (S4).
+  - autotools: `src/Makefile.am` includes `icons.am` and has the rule of `qrc_icons.cpp` (`$(QT_RCC) --name icons`), and the top `Makefile.am` has the icon mechanism, the SVGs and the PNGs in `EXTRA_DIST` (S5).
+  - Tests: `test/check_icons.sh` (moved from soccerwindow2, with the four sizes) is registered in CTest (no Inkscape needed). `test/test_ui_icon.cpp` (new): the 9 icons and the images of each size, choosing the images by the scheme (the same icon changes when the application's palette changes), the drawn size (24 from the 24 image, never larger than 48), the device pixel ratio (at 2, 16 from the 32 image and 24 from the 48 image; at 1.5, 16 from the 24 image), the disabled look, an unknown name, and the playback buttons of MainWindow (including the switch between Play and Stop). `test/test_tool_icon.cpp`: the check of recoloring Live Mode (`followPalette`) was removed (moved to `test_ui_icon`; the check of `tintIcon` stays until stage 4).
+- Found: autotools' `m4/ax_have_qt.m4` looks for `moc` and `rcc` in PATH (not where qmake is). If PATH has another Qt (e.g. anaconda), that one is used. This is the old behavior (`moc` too) and is not fixed in this stage. Without it in PATH, `/usr/lib/qt5/bin/rcc` is used.
+- Checked (Ubuntu 24.04):
+  - The CMake builds with Qt 6.4.2 and Qt 5.15.13 had no warnings, and the 59 tests of `ctest` (including the new `ui_icon` and `check_icons`) passed.
+  - autotools (Qt5): on a copy of the working tree, `./bootstrap`, `./configure` and `make` passed. The system's `rcc` (`/usr/lib/qt5/bin/rcc`) made `qrc_icons.cpp`, and it started with `--help`.
+  - Offscreen, the tool bar was written to images at 1x and 2x in the light and dark schemes and looked at.
+- The user checked it on the screen (Qt6 and Qt5).
+- Next: the commit and push, the CI, and `./cmake-helper.sh distcheck qt6`.

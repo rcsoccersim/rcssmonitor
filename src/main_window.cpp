@@ -52,6 +52,7 @@
 #include "options.h"
 #include "rcg_handler.h"
 #include "tool_icon.h"
+#include "ui_icon.h"
 #include "ui_palette.h"
 #include "ui_style.h"
 #ifdef HAVE_3D_VIEW
@@ -71,19 +72,6 @@
 #include <cstdio>
 
 #include "icons/rcss.xpm"
-
-#include "icons/live.xpm"
-#include "icons/play.xpm"
-//#include "icons/rev.xpm"
-#include "icons/stop.xpm"
-#include "icons/plus.xpm"
-#include "icons/minus.xpm"
-#include "icons/decelerate.xpm"
-#include "icons/accelerate.xpm"
-//#include "icons/rew.xpm"
-#include "icons/next_score.xpm"
-#include "icons/prev_score.xpm"
-//#include "icons/rec.xpm"
 
 // #ifndef PACKAGE_STRING
 // #define PACKAGE_STRING "rcssmonitor x.x.x"
@@ -358,7 +346,7 @@ MainWindow::createActionsLogPlayer()
 {
     {
         QAction * act = new QAction( tr( "Live Mode" ), this );
-        setToolIcon( act, live_xpm );
+        act->setIcon( UIIcon::fromName( "live_mode" ) );
         act->setShortcut( Qt::CTRL | Qt::Key_L );
         act->setStatusTip( tr( "Set monitor to live mode.(" )
                            + act->shortcut().toString() + tr( ")" ) );
@@ -386,7 +374,7 @@ MainWindow::createActionsLogPlayer()
     }
     {
         QAction * act = new QAction( tr( "Play/Stop" ), this );
-        setToolIcon( act, play_xpm );
+        act->setIcon( UIIcon::fromName( "play" ) );
         act->setShortcut( Qt::Key_Space );
         act->setStatusTip( tr( "Play/Stop the log player. (" )
                            + act->shortcut().toString() + tr( ")" ) );
@@ -402,7 +390,7 @@ MainWindow::createActionsLogPlayer()
     }
     {
         QAction * act = new QAction( tr( "Step Backward" ), this );
-        setToolIcon( act, minus_xpm );
+        act->setIcon( UIIcon::fromName( "step_back" ) );
         act->setShortcut( Qt::Key_Left );
         act->setStatusTip( tr( "One step backward the log player.(" )
                            + act->shortcut().toString() + tr( ")" ) );
@@ -417,7 +405,7 @@ MainWindow::createActionsLogPlayer()
     }
     {
         QAction * act = new QAction( tr( "Step Forward" ), this );
-        setToolIcon( act, plus_xpm );
+        act->setIcon( UIIcon::fromName( "step_forward" ) );
         act->setShortcut( Qt::Key_Right );
         act->setStatusTip( tr( "One step forward the log player.(" )
                            + act->shortcut().toString() + tr( ")" ) );
@@ -432,7 +420,7 @@ MainWindow::createActionsLogPlayer()
     }
     {
        QAction * act = new QAction( tr( "Decelerate" ), this );
-        setToolIcon( act, decelerate_xpm );
+        act->setIcon( UIIcon::fromName( "slower" ) );
         act->setShortcut( Qt::CTRL | Qt::Key_Down );
         act->setStatusTip( tr( "Decelerate the replaying speed.(" )
                            + act->shortcut().toString() + tr( ")" ) );
@@ -445,7 +433,7 @@ MainWindow::createActionsLogPlayer()
     }
     {
         QAction * act = new QAction( tr( "Accelerate" ), this );
-        setToolIcon( act, accelerate_xpm );
+        act->setIcon( UIIcon::fromName( "faster" ) );
         act->setShortcut( Qt::CTRL | Qt::Key_Up );
         act->setStatusTip( tr( "Accelerate the replaying speed.(" )
                            + act->shortcut().toString() + tr( ")" ) );
@@ -458,7 +446,7 @@ MainWindow::createActionsLogPlayer()
     }
     {
         QAction * act = new QAction( tr( "Previous score" ), this );
-        setToolIcon( act, prev_score_xpm );
+        act->setIcon( UIIcon::fromName( "prev_score" ) );
         act->setShortcut( tr( "Ctrl+G" ) );
         act->setStatusTip( tr( "Go to the previous goal scene.(" )
                            + act->shortcut().toString() + tr(")" ) );
@@ -471,7 +459,7 @@ MainWindow::createActionsLogPlayer()
     }
     {
         QAction * act = new QAction( tr( "Next score" ), this );
-        setToolIcon( act, next_score_xpm );
+        act->setIcon( UIIcon::fromName( "next_score" ) );
         act->setShortcut( Qt::Key_G );
         act->setStatusTip( tr( "Go to the next goal scene.(" )
                            + act->shortcut().toString() + tr( ")" ) );
@@ -3220,6 +3208,5 @@ MainWindow::setLiveMode()
 void
 MainWindow::togglePlayOrStopIcon( bool checked )
 {
-    setToolIcon( M_log_player_play_or_stop_act,
-                 checked ? stop_xpm : play_xpm );
+    M_log_player_play_or_stop_act->setIcon( UIIcon::fromName( checked ? "stop" : "play" ) );
 }

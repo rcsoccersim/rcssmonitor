@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <!-- play: play forward (a triangle pointing to the right) (soccerwindow2's logplayer_play_forward.svg) -->
+  <path d="M5,3 L10,8 L5,13 Z" fill="#303030"/>
+</svg>

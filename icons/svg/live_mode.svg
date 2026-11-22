@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <!-- live_mode: live mode (LIVE in red) (soccerwindow2's logplayer_live_mode.svg) -->
+  <path d="M0,3 H2 V11 H3 V13 H0 Z M4,3 H6 V13 H4 Z M7,3 H9 L9.5,8.5 L10,3 H12 L10.5,13 H8.5 Z M13,3 H16 V5 H14 V7 H16 V9 H14 V11 H16 V13 H13 Z" fill="#d93a2f"/>
+</svg>

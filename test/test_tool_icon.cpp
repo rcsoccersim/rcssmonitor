@@ -31,41 +31,7 @@
 
 #include <QtTest>
 
-#include "main_window.h"
 #include "tool_icon.h"
-
-#include <QAction>
-
-/*
-  Options reads and writes ~/.rcssmonitor.conf; CTest runs this test with
-  HOME in the build tree (test/CMakeLists.txt).
-*/
-
-namespace {
-
-/*!
-  \brief the colors of the pixels of an icon, in a set of names with alpha.
-*/
-QSet< QString >
-iconColors( const QIcon & icon )
-{
-    const QImage image = icon.pixmap( 16, 16 ).toImage().convertToFormat( QImage::Format_ARGB32 );
-    QSet< QString > colors;
-    for ( int y = 0; y < image.height(); ++y )
-    {
-        for ( int x = 0; x < image.width(); ++x )
-        {
-            const QRgb p = image.pixel( x, y );
-            if ( qAlpha( p ) == 255 )
-            {
-                colors.insert( QColor( p ).name() );
-            }
-        }
-    }
-    return colors;
-}
-
-}
 
 /*!
   \brief unit test of the toolbar icons
@@ -77,7 +43,6 @@ class TestToolIcon
 private slots:
 
     void tint();
-    void followPalette();
 };
 
 /*-------------------------------------------------------------------*/
@@ -102,33 +67,6 @@ TestToolIcon::tint()
     QCOMPARE( qRed( tinted.pixel( 2, 0 ) ), 240 );
     QVERIFY( qAbs( qAlpha( tinted.pixel( 2, 0 ) ) - 127 ) <= 1 );
     QCOMPARE( qAlpha( tinted.pixel( 3, 0 ) ), 0 );
-}
-
-/*-------------------------------------------------------------------*/
-/*!
-  The toolbar icons are drawn in the text color of the palette, and again
-  when the palette changes (e.g. to a dark one).
-*/
-void
-TestToolIcon::followPalette()
-{
-    MainWindow window;
-
-    QAction * live = nullptr;
-    for ( QAction * act : window.findChildren< QAction * >() )
-    {
-        if ( act->text() == "Live Mode" ) live = act;
-    }
-    QVERIFY( live );
-
-    QPalette palette = window.palette();
-    palette.setColor( QPalette::ButtonText, QColor( 10, 20, 30 ) );
-    window.setPalette( palette );
-    QCOMPARE( iconColors( live->icon() ), QSet< QString >( { "#0a141e" } ) );
-
-    palette.setColor( QPalette::ButtonText, QColor( 240, 230, 220 ) );
-    window.setPalette( palette );
-    QCOMPARE( iconColors( live->icon() ), QSet< QString >( { "#f0e6dc" } ) );
 }
 
 QTEST_MAIN( TestToolIcon )

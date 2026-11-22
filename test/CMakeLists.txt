@@ -60,6 +60,7 @@ rcssmonitor_add_test(tool_icon rcssmonitor_core)
 rcssmonitor_add_test(toolbar rcssmonitor_core)
 rcssmonitor_add_test(tooltip_marker rcssmonitor_core)
 rcssmonitor_add_test(ui_color_scheme rcssmonitor_core)
+rcssmonitor_add_test(ui_icon rcssmonitor_core)
 rcssmonitor_add_test(player_type_sort Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Gui)
 rcssmonitor_add_test(game_log_file rcssmonitor_core)
 rcssmonitor_add_test(line_parser rcssrcg Qt${QT_VERSION_MAJOR}::Core)
@@ -70,6 +71,12 @@ if(HAVE_QT_WEBSOCKETS)
 else()
   rcssmonitor_add_test(monitor_transport rcssmonitor_core)
 endif()
+
+# the icons in icons/: the colors, the PNG files and their lists (no Inkscape
+# needed; icons/generate.sh makes them)
+add_test(NAME check_icons
+  COMMAND sh ${CMAKE_CURRENT_SOURCE_DIR}/check_icons.sh ${PROJECT_SOURCE_DIR}/icons
+  )
 
 # only src/view3d/gl calls OpenGL (docs/plan/2026-11-11_3d-view.md §5.3)
 rcssmonitor_add_test(gl_isolation Qt${QT_VERSION_MAJOR}::Core)
