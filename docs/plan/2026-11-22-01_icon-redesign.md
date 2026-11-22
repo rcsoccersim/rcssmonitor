@@ -5,7 +5,7 @@
 | 作成日 | 2026-11-22 |
 | 対象 | rcssmonitor develop (5affd90、20.0.0-beta.1) |
 | ブランチ | `feature/icon-redesign` (配色 (F1) を取り込んだ develop から。ユーザが GitHub 上で作る) |
-| 状態 | 計画を作った (2026-11-22)。配色 (F1) の後に始める |
+| 状態 | 計画を作った (2026-11-22)。段階 0 (デザインとアプリのアイコンの案) を済ませた (2026-11-22)。次は段階 1 |
 | 英語版 | [2026-11-22-01_icon-redesign_en.md](2026-11-22-01_icon-redesign_en.md) (内容は同じ) |
 | 関連 | 総合の計画 [2026-11-22-00_v20-features.md](2026-11-22-00_v20-features.md) の F2。soccerwindow2 の `docs/plan/2026-11-21_icon-redesign.md` と `docs/icons.md` |
 
@@ -64,6 +64,9 @@ soccerwindow2 (`../../rctools/soccerwindow2`、develop 1df28c1) の計画書 `do
 |---|---|
 | D1 | soccerwindow2 と同じ方法 (SVG → 明るい用と暗い用の PNG → `.qrc`) |
 | D2 | ツールバーのアイコンはすべて (XPM の 9 個とコードで描く 6 個) 描き直す。アプリのアイコンも描き直す |
+| D3 | デザインの決まり (線、格子、余白、色の役割、`palette.txt`) は soccerwindow2 と同じにする。15 個のうち 10 個 (open、live_mode、play、stop、step_back、step_forward、slower、faster、prev_score、next_score) は soccerwindow2 の SVG (`open_rcg`、`logplayer_*`) を使い、5 個 (connect、disconnect、kick_off、loop、live_delay) は同じ決まりで新しく描く (段階 0。§4.1) |
+| D4 | PNG は 16、24、32、48 px を作る。LIVE と再生のボタンは 24 px で描くので、24 px (1x) と 48 px (2x) も要る。soccerwindow2 (16 と 32 だけ) からの変更 |
+| D5 | アプリのアイコンは、今の意匠の描き直し (画面の中の RoboCup のロゴ)。ロゴは公式のものを使う (段階 0。§4.4) |
 
 ### 3.2 設計上の判断 (Claude。段階の初めにユーザが確認する)
 
@@ -78,13 +81,13 @@ soccerwindow2 (`../../rctools/soccerwindow2`、develop 1df28c1) の計画書 `do
 
 ### 3.3 段階の初めに決めること
 
-- アプリのアイコンの意匠: 今の意匠 (画面の中の RoboCup のロゴ) を描き直すか、rcsoccersim のロゴ (黄と赤の 2 人の選手とボール。`rcsoccersim.github.io/static/img/logo.png`) を基にするか、別の案か。段階 0 で案を並べた画像を作り、ユーザが選ぶ。
+- アプリのアイコンの意匠: 今の意匠 (画面の中の RoboCup のロゴ) を描き直すか、rcsoccersim のロゴ (黄と赤の 2 人の選手とボール。`rcsoccersim.github.io/static/img/logo.png`) を基にするか、別の案か。段階 0 で案を並べた画像を作り、ユーザが選ぶ。 → 今の意匠の描き直し、ロゴは公式のもの (D5)。
 - `rcss.ico`、`rcss.icns`、`src/rcssmonitor.rc` (どのビルドも使っていない): 新しいアイコンから作り直すか、legacy に移すか (段階 3)。
 - 文書の名前: `docs/icons.md` と英語版 (`docs/icons_en.md`。このリポジトリの `_en` の決まりにそろえる)。
 
 ## 4. 設計
 
-### 4.1 アイコンの一覧 (名前は段階 0 で決める)
+### 4.1 アイコンの一覧 (名前は段階 0 で、この案のとおりに決めた)
 
 | 今のアイコン | 新しい名前 (案) | 使うところ |
 |---|---|---|
@@ -112,6 +115,13 @@ soccerwindow2 (`../../rctools/soccerwindow2`、develop 1df28c1) の計画書 `do
 - CMake (`src/CMakeLists.txt`): `${PROJECT_SOURCE_DIR}/icons/icons.qrc` を `rcssmonitor_core` のソースに足し、`AUTORCC ON` を 3D の外に出す。
 - autotools (`src/Makefile.am`、`Makefile.am`): `include $(top_srcdir)/icons/icons.am`、`qrc_icons.cpp: $(ICONS_DIR)/icons.qrc $(ICONS_PNG_FILES)` の規則 (`$(QT_RCC) --name icons`)、`nodist_rcssmonitor_SOURCES`、`EXTRA_DIST` に SVG と PNG。XPM を `EXTRA_DIST` から除く。
 - CMake の dist (`git archive`) は `.gitattributes` に従うので、`icons/legacy/` の `export-ignore` を足す。
+
+### 4.4 アプリのアイコン (段階 0 で決めた。D5)
+
+- 32×32 の格子で、画面 (濃い灰色の縁、角丸) と台を描き、画面に RoboCup の公式のロゴを、手を加えずに置く。画面の縦横比はロゴ (397×252) に合わせる。
+- ロゴは robocup.org の `robocup_logo_ext.jpg` (750×330) のロゴの部分を切り出した PNG。SVG には data URI で埋め込む。
+- アプリのアイコンは配色で切り替えないので、色は `palette.txt` に縛られない (soccerwindow2 と同じ)。
+- 16 px と 24 px の扱い、ロゴの PNG とスクリプトの置き場所は段階 3 で決める (§9 の段階 0 の記録)。
 
 ## 5. 段階
 
@@ -157,3 +167,17 @@ soccerwindow2 (`../../rctools/soccerwindow2`、develop 1df28c1) の計画書 `do
 
 - 総合の計画 (2026-11-22-00_v20-features.md) と一緒に作った。ユーザの決定 D1、D2 を受けた。
 - Inkscape 1.4.4 (snap 版、`/snap/bin/inkscape`) が手元にある。
+
+### 2026-11-22: 段階 0 (デザインとアプリのアイコンの案)
+
+- F1 (PR #71) が develop に取り込まれた (6c950f4) 後、ユーザが GitHub 上で `feature/icon-redesign` を作った。段階 0 を始める前に、S1〜S6 を計画書のとおりとすることをユーザが確かめた。
+- 作った見本 (作業場所に置き、コミットしていない。段階 1 と 3 でリポジトリに入れる):
+  - ツールバーの 15 個の SVG。10 個は soccerwindow2 の SVG の写しで、5 個は新しく描いた (connect と disconnect はプラグとコンセント、kick_off はボール、loop は輪の矢印、live_delay はストップウォッチ。どれも今の web 版の形を soccerwindow2 の決まりで描き直したもの)。soccerwindow2 の `palette.awk` で色を確かめ、暗い配色用を作り、Inkscape で 16、24、32 px にした。
+  - 今のツールバーと、案のツールバー (1x と 2x、明暗) の比較の画像。16 px を 6 倍にした画像。
+  - アプリのアイコンの 3 案 (A: 今の意匠の描き直し、B: rcsoccersim のロゴ、C: 2D 表示の画面) を 16〜128 px で、明るい背景と暗い背景に並べた画像。
+- ユーザが決めたこと: D3 (デザインの決まりは soccerwindow2 と同じ)、D4 (16、24、32、48 px)、D5 (アプリのアイコンは案 A。RoboCup のロゴは公式のものを使う)。
+- 公式のロゴ (§4.4):
+  - ユーザが示した robocup.org の画像 `robocup_logo_ext.jpg` (750×330、JPG) を使う。ロゴの決まりのページ (`https://robocup.org/logo_guidelines`) を 2026-11-22 に確かめたが、ベクタ版や高解像度版はなかった (229×99 の PNG などだけ)。
+  - ロゴの部分 (灰色の枠と緑の帯を含む 397×252 px。JPG の (175, 38) から) を手を加えずに切り出し、PNG にして SVG に埋め込んだ。画面の縦横比はロゴに合わせた。256 px でも画面の幅は約 200 px なので、ロゴを拡大しない。
+  - ロゴの決まりのページによれば、RoboCup のロゴを使えるのは RoboCup Partners と参加チームで、学術と PR のためである (報道での使用は RoboCup の事務局に相談する)。rcssmonitor は RoboCup のサッカーシミュレーションの公式の道具で、今のアイコンもこのロゴを使っている。公式のロゴを使うことはユーザが決め、Claude がこの決まりの内容をユーザに伝えた。
+- 段階 3 で決めること: 16 px と 24 px ではロゴが読めない (簡略版を作るか)。ロゴの PNG と、それを埋め込んだ SVG を作るスクリプトの置き場所 (soccerwindow2 の `make_soccerwindow2_svg.py` にならう)。デスクトップ (F3) で hicolor の scalable にインストールする SVG は、PNG を埋め込んだもの (約 100 KB) になる。

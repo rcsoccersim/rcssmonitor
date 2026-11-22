@@ -5,7 +5,7 @@
 | Created | 2026-11-22 |
 | Target | rcssmonitor develop (5affd90, 20.0.0-beta.1) |
 | Branch | `feature/icon-redesign` (from develop after the color scheme (F1) is merged; the user creates it on GitHub) |
-| Status | Plan written (2026-11-22). Starts after the color scheme (F1) |
+| Status | Plan written (2026-11-22). Stage 0 (the design and the candidates for the application icon) is done (2026-11-22). Next: stage 1 |
 | Japanese version | [2026-11-22-01_icon-redesign.md](2026-11-22-01_icon-redesign.md) (same content) |
 | Related | F2 of the overall plan [2026-11-22-00_v20-features_en.md](2026-11-22-00_v20-features_en.md). soccerwindow2's `docs/plan/2026-11-21_icon-redesign.md` and `docs/icons.md` |
 
@@ -64,6 +64,9 @@ soccerwindow2 (`../../rctools/soccerwindow2`, develop 1df28c1): its plan `docs/p
 |---|---|
 | D1 | The same way as soccerwindow2 (SVG → PNGs for light and dark → `.qrc`) |
 | D2 | All the toolbar icons (the 9 XPMs and the 6 drawn by code) are redrawn. The application icon is redrawn too |
+| D3 | The design rules (lines, grid, margins, color roles, `palette.txt`) are the same as soccerwindow2's. Of the 15 icons, 10 (open, live_mode, play, stop, step_back, step_forward, slower, faster, prev_score, next_score) use soccerwindow2's SVGs (`open_rcg`, `logplayer_*`), and 5 (connect, disconnect, kick_off, loop, live_delay) are drawn anew by the same rules (stage 0; §4.1) |
+| D4 | PNGs of 16, 24, 32 and 48 px are made. The LIVE and play buttons are drawn at 24 px, so 24 px (1x) and 48 px (2x) are needed too. Changed from soccerwindow2 (16 and 32 only) |
+| D5 | The application icon redraws the current motif (the RoboCup logo in a screen). The logo is the official one (stage 0; §4.4) |
 
 ### 3.2 Design decisions (Claude; the user confirms them at the start of the stages)
 
@@ -78,13 +81,13 @@ soccerwindow2 (`../../rctools/soccerwindow2`, develop 1df28c1): its plan `docs/p
 
 ### 3.3 To decide at the start of the stages
 
-- The design of the application icon: redraw the current one (the RoboCup logo in a screen), base it on the rcsoccersim logo (two players, yellow and red, and a ball; `rcsoccersim.github.io/static/img/logo.png`), or something else. In stage 0, an image of the candidates side by side is made, and the user chooses.
+- The design of the application icon: redraw the current one (the RoboCup logo in a screen), base it on the rcsoccersim logo (two players, yellow and red, and a ball; `rcsoccersim.github.io/static/img/logo.png`), or something else. In stage 0, an image of the candidates side by side is made, and the user chooses. → The current motif redrawn, with the official logo (D5).
 - `rcss.ico`, `rcss.icns` and `src/rcssmonitor.rc` (used by no build): remake them from the new icon, or move them to legacy (stage 3).
 - The names of the documents: `docs/icons.md` and the English version (`docs/icons_en.md`, following the `_en` convention of this repository).
 
 ## 4. Design
 
-### 4.1 List of the icons (the names are decided in stage 0)
+### 4.1 List of the icons (the names were decided in stage 0, as proposed here)
 
 | Current icon | New name (proposed) | Used for |
 |---|---|---|
@@ -112,6 +115,13 @@ soccerwindow2 (`../../rctools/soccerwindow2`, develop 1df28c1): its plan `docs/p
 - CMake (`src/CMakeLists.txt`): add `${PROJECT_SOURCE_DIR}/icons/icons.qrc` to the sources of `rcssmonitor_core`, and move `AUTORCC ON` out of the 3D part.
 - Autotools (`src/Makefile.am`, `Makefile.am`): `include $(top_srcdir)/icons/icons.am`, the rule `qrc_icons.cpp: $(ICONS_DIR)/icons.qrc $(ICONS_PNG_FILES)` (`$(QT_RCC) --name icons`), `nodist_rcssmonitor_SOURCES`, and the SVGs and PNGs in `EXTRA_DIST`. Remove the XPMs from `EXTRA_DIST`.
 - The CMake dist (`git archive`) follows `.gitattributes`, so add `export-ignore` for `icons/legacy/`.
+
+### 4.4 The application icon (decided in stage 0; D5)
+
+- On a 32×32 grid, a screen (a dark gray frame with round corners) and a stand are drawn, and the official RoboCup logo is put in the screen, unmodified. The screen has the logo's aspect ratio (397×252).
+- The logo is a PNG cut out of the logo's part of robocup.org's `robocup_logo_ext.jpg` (750×330). It is embedded in the SVG as a data URI.
+- The application icon does not switch with the color scheme, so its colors are not bound by `palette.txt` (as in soccerwindow2).
+- How 16 and 24 px are made, and where the logo PNG and the script are kept, are decided in stage 3 (the record of stage 0 in §9).
 
 ## 5. Stages
 
@@ -157,3 +167,17 @@ At each stage, the user looks at images comparing the light and the dark schemes
 
 - Written together with the overall plan (2026-11-22-00_v20-features_en.md). The user's decisions D1 and D2 were given.
 - Inkscape 1.4.4 (the snap package, `/snap/bin/inkscape`) is available locally.
+
+### 2026-11-22: Stage 0 (the design and the candidates for the application icon)
+
+- After F1 (PR #71) was merged into develop (6c950f4), the user created `feature/icon-redesign` on GitHub. Before stage 0, the user confirmed S1 to S6 as planned.
+- Samples made (kept in the work area, not committed; they go into the repository in stages 1 and 3):
+  - The 15 toolbar SVGs. 10 are copies of soccerwindow2's SVGs, and 5 were drawn anew (connect and disconnect as a plug and a socket, kick_off as a ball, loop as arrows in a loop, live_delay as a stopwatch; each redraws the web version's shape by soccerwindow2's rules). The colors were checked and the dark versions made with soccerwindow2's `palette.awk`, and Inkscape made 16, 24 and 32 px.
+  - Images comparing the current toolbar and the proposed one (1x and 2x, light and dark), and the 16 px icons magnified 6 times.
+  - The three candidates for the application icon (A: the current motif redrawn, B: the rcsoccersim logo, C: a screen of the 2D view) at 16 to 128 px, on light and dark backgrounds.
+- Decided by the user: D3 (the same design rules as soccerwindow2), D4 (16, 24, 32 and 48 px), D5 (the application icon is candidate A, with the official RoboCup logo).
+- The official logo (§4.4):
+  - The image of robocup.org that the user pointed to, `robocup_logo_ext.jpg` (750×330, JPG), is used. The logo guidelines page (`https://robocup.org/logo_guidelines`) was checked on 2026-11-22; it offers no vector or high-resolution version (only a 229×99 PNG and so on).
+  - The logo's part (397×252 px with the gray box and the green band, from (175, 38) of the JPG) was cut out unmodified, saved as a PNG, and embedded in the SVG. The screen has the logo's aspect ratio. Even at 256 px the screen is about 200 px wide, so the logo is not enlarged.
+  - By the guidelines page, the RoboCup logo may be used by RoboCup Partners and participating teams, for academic purposes and PR (use in the media needs consulting the RoboCup office). rcssmonitor is an official tool of the RoboCup soccer simulation, and the current icon uses this logo too. The user decided to use the official logo, and Claude told the user what the guidelines say.
+- To decide in stage 3: the logo cannot be read at 16 and 24 px (make simplified versions?). Where to keep the logo PNG and the script that makes the SVG embedding it (after soccerwindow2's `make_soccerwindow2_svg.py`). The SVG installed as hicolor's scalable icon by the desktop (F3) is the one embedding the PNG (about 100 KB).
