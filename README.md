@@ -107,6 +107,7 @@ rcssmonitor --ui-color-scheme dark    # system, light or dark
 ```
 
 - `Light` and `Dark` look the same with Qt 5 and Qt 6. `System` follows a dark desktop with Qt 6, but not with Qt 5: choose `Dark` there.
+- The icons of the tool bar have images for both schemes, and switch with the scheme ([docs/icons_en.md](docs/icons_en.md) describes how they are made).
 - The field (2D and 3D) keeps its own colors, set on the `Color` tab of the settings dialog.
 - `View` -> `Window Style` chooses the style of the widgets (e.g. `Fusion`), which is kept too.
 

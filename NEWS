@@ -47,6 +47,12 @@
     checked buttons of the tool bar are drawn in the highlight color.
     The field keeps its own colors.
 
+  * Renew the icons. The icons of the tool bar are drawn in SVG in the
+    same design as soccerwindow2's, and embedded as PNG images for the
+    light and the dark color schemes (16 to 48 px, for HiDPI screens
+    too). The application icon is a monitor showing the official
+    RoboCup logo. See docs/icons_en.md.
+
   * Read game logs faster (with libdeflate for gzip-compressed logs, if
     it is found) and more robustly (unknown JSON keys, broken lines, a
     missing ']' and unknown lines of text logs are skipped). Read the

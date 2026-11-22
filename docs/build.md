@@ -274,4 +274,5 @@ The release tarballs are made by the `dist` target of CMake ([Creating the sourc
 
 - The settings are kept in `~/.rcssmonitor.conf`. To try the monitor without changing them, start it with another `HOME`, e.g. `HOME=$(mktemp -d) build/rcssmonitor`.
 - `rcssmonitor --help` shows the command line options.
+- The icons are PNG files in the repository, made from SVG files by `icons/generate.sh` with Inkscape. Inkscape is needed only to change an icon, not to build ([docs/icons_en.md](icons_en.md)).
 - A build directory configured without an optional library (e.g. Qt WebSockets) and configured again after installing it may fail to link. Remove the build directory (`./cmake-helper.sh clean`) and build again.

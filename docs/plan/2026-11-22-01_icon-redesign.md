@@ -5,7 +5,7 @@
 | 作成日 | 2026-11-22 |
 | 対象 | rcssmonitor develop (5affd90、20.0.0-beta.1) |
 | ブランチ | `feature/icon-redesign` (配色 (F1) を取り込んだ develop から。ユーザが GitHub 上で作る) |
-| 状態 | 計画を作った (2026-11-22)。段階 0 (デザインとアプリのアイコンの案) を済ませた。段階 1 (仕組みと再生のアイコン) をコミットした (26bc103)。段階 2 (残りのツールバーのアイコン) をコミットした (1650477)。段階 3 (アプリのアイコン) をコミットした (49100ac)。段階 4 (古い仕組みの片付け) を実装した (2026-11-23)。コミットを待つ |
+| 状態 | 計画を作った (2026-11-22)。段階 0 (デザインとアプリのアイコンの案) を済ませた。段階 1 (仕組みと再生のアイコン) をコミットした (26bc103)。段階 2 (残りのツールバーのアイコン) をコミットした (1650477)。段階 3 (アプリのアイコン) をコミットした (49100ac)。段階 4 (古い仕組みの片付け) をコミットした (6783caa)。段階 5 (文書) を書き、ユーザが確かめた (2026-11-23)。次は PR |
 | 英語版 | [2026-11-22-01_icon-redesign_en.md](2026-11-22-01_icon-redesign_en.md) (内容は同じ) |
 | 関連 | 総合の計画 [2026-11-22-00_v20-features.md](2026-11-22-00_v20-features.md) の F2。soccerwindow2 の `docs/plan/2026-11-21_icon-redesign.md` と `docs/icons.md` |
 
@@ -86,7 +86,7 @@ soccerwindow2 (`../../rctools/soccerwindow2`、develop 1df28c1) の計画書 `do
 
 - アプリのアイコンの意匠: 今の意匠 (画面の中の RoboCup のロゴ) を描き直すか、rcsoccersim のロゴ (黄と赤の 2 人の選手とボール。`rcsoccersim.github.io/static/img/logo.png`) を基にするか、別の案か。段階 0 で案を並べた画像を作り、ユーザが選ぶ。 → 今の意匠の描き直し、ロゴは公式のもの (D5)。
 - `rcss.ico`、`rcss.icns`、`src/rcssmonitor.rc` (どのビルドも使っていない): 新しいアイコンから作り直すか、legacy に移すか (段階 3)。 → `rcss.ico` は作り直して `rcssmonitor.rc` とともに残し、`rcss.icns` は legacy に移す (D7)。
-- 文書の名前: `docs/icons.md` と英語版 (`docs/icons_en.md`。このリポジトリの `_en` の決まりにそろえる)。
+- 文書の名前: `docs/icons.md` と英語版 (`docs/icons_en.md`。このリポジトリの `_en` の決まりにそろえる)。 → このとおりにした (段階 5)。開発者向けの文書は `docs/dev/` (tarball に入らない) にもあるが、`palette.txt` などのスクリプトが `docs/icons.md` を参照していて、仕組みのファイルは tarball に入るので、`docs/` に置いた。
 
 ## 4. 設計
 
@@ -268,3 +268,17 @@ soccerwindow2 (`../../rctools/soccerwindow2`、develop 1df28c1) の計画書 `do
   - autotools (Qt5): 作業ツリーの写しで `./bootstrap`、`./configure`、`make`、`make dist` が通り、tarball に legacy と XPM が入らないこと。
 - 画面の見た目は段階 3 から変わらない (古い仕組みは段階 2 の後、もう呼ばれていなかった)。
 - この後: コミットとプッシュ、CI、`./cmake-helper.sh distcheck qt6`。
+- 段階 4 のコミット 6783caa をプッシュした。CI の 5 つのジョブがすべて通り、手元の `./cmake-helper.sh distcheck qt6` (Xvfb の下) も通った (テスト 58 個。tarball に `icons/legacy/` と XPM は 0 件)。
+
+### 2026-11-23: 段階 5 (文書)
+
+- ユーザの指示で段階 5 を始めた。
+- 書いたもの:
+  - `docs/icons.md` (日本語) と `docs/icons_en.md` (英語。新規): soccerwindow2 の `docs/icons.md` を基に、rcssmonitor に合わせた。概要 (8 つの PNG、24 と 48 の理由、`UIIcon::fromName()`、soccerwindow2 と共通の 10 個)、ファイルの一覧、アイコンの追加・修正と削除の手順、描き方の決まり (soccerwindow2 と同じ)、アプリのアイコン (公式のロゴの出典と使い方の決まり、`make_rcssmonitor_svg.py`、インストール、`rcss.ico` の作り直し方、`.icns` は作らない)、`palette.txt`、`generate.sh` (soccerwindow2 との違いは大きさだけ)、Qt のリソースシステム (書式、CMake と autotools のビルド、`ax_have_qt.m4` が `rcc` を PATH から探すことと、その対処、`Q_INIT_RESOURCE`)、テスト。
+  - `docs/build.md` の Notes: アイコンは `icons/generate.sh` で作った PNG で、Inkscape はアイコンを変えるときだけ要る (ビルドには要らない) ことと、`docs/icons_en.md` への参照。
+  - README の配色の節: ツールバーのアイコンが配色で切り替わることと、`docs/icons_en.md` への参照。
+  - NEWS (20.0.0-beta.1 の項目) と ChangeLog: アイコンの刷新。
+  - autotools: トップの `Makefile.am` の `EXTRA_DIST` に `docs/icons.md` と `docs/icons_en.md` を足した (アイコンの仕組みのファイルと一緒に配る)。
+- 確かめたこと: autotools (Qt5) で、作業ツリーの写しの `make` と `make dist` が通り、tarball に 2 つの文書が入った。
+- ユーザが文書を確かめた。
+- この後: コミットとプッシュ、CI、`./cmake-helper.sh distcheck qt6`。その後、PR の案を出す。

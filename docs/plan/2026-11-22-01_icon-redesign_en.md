@@ -5,7 +5,7 @@
 | Created | 2026-11-22 |
 | Target | rcssmonitor develop (5affd90, 20.0.0-beta.1) |
 | Branch | `feature/icon-redesign` (from develop after the color scheme (F1) is merged; the user creates it on GitHub) |
-| Status | Plan written (2026-11-22). Stage 0 (the design and the candidates for the application icon) is done. Stage 1 (the mechanism and the playback icons) is committed (26bc103). Stage 2 (the remaining toolbar icons) is committed (1650477). Stage 3 (the application icon) is committed (49100ac). Stage 4 (cleaning up the old mechanism) is implemented (2026-11-23). Waiting for the commit |
+| Status | Plan written (2026-11-22). Stage 0 (the design and the candidates for the application icon) is done. Stage 1 (the mechanism and the playback icons) is committed (26bc103). Stage 2 (the remaining toolbar icons) is committed (1650477). Stage 3 (the application icon) is committed (49100ac). Stage 4 (cleaning up the old mechanism) is committed (6783caa). Stage 5 (the documents) is written, and the user checked it (2026-11-23). Next: the PR |
 | Japanese version | [2026-11-22-01_icon-redesign.md](2026-11-22-01_icon-redesign.md) (same content) |
 | Related | F2 of the overall plan [2026-11-22-00_v20-features_en.md](2026-11-22-00_v20-features_en.md). soccerwindow2's `docs/plan/2026-11-21_icon-redesign.md` and `docs/icons.md` |
 
@@ -86,7 +86,7 @@ soccerwindow2 (`../../rctools/soccerwindow2`, develop 1df28c1): its plan `docs/p
 
 - The design of the application icon: redraw the current one (the RoboCup logo in a screen), base it on the rcsoccersim logo (two players, yellow and red, and a ball; `rcsoccersim.github.io/static/img/logo.png`), or something else. In stage 0, an image of the candidates side by side is made, and the user chooses. → The current motif redrawn, with the official logo (D5).
 - `rcss.ico`, `rcss.icns` and `src/rcssmonitor.rc` (used by no build): remake them from the new icon, or move them to legacy (stage 3). → `rcss.ico` is remade and kept with `rcssmonitor.rc`, and `rcss.icns` moves to legacy (D7).
-- The names of the documents: `docs/icons.md` and the English version (`docs/icons_en.md`, following the `_en` convention of this repository).
+- The names of the documents: `docs/icons.md` and the English version (`docs/icons_en.md`, following the `_en` convention of this repository). → Done as planned (stage 5). Documents for developers are in `docs/dev/` too (not in the tarball), but the scripts such as `palette.txt` refer to `docs/icons.md`, and the files of the mechanism are in the tarball, so it went to `docs/`.
 
 ## 4. Design
 
@@ -268,3 +268,17 @@ At each stage, the user looks at images comparing the light and the dark schemes
   - autotools (Qt5): on a copy of the working tree, `./bootstrap`, `./configure`, `make` and `make dist` passed, and the tarball has no legacy and no XPMs.
 - The look on the screen is the same as in stage 3 (the old mechanism was no longer called after stage 2).
 - Next: the commit and push, the CI, and `./cmake-helper.sh distcheck qt6`.
+- Commit 6783caa of stage 4 was pushed. All five jobs of the CI passed, and locally `./cmake-helper.sh distcheck qt6` (under Xvfb) passed too (58 tests; no `icons/legacy/` and no XPM in the tarball).
+
+### 2026-11-23: Stage 5 (the documents)
+
+- Stage 5 started at the user's instruction.
+- Written:
+  - `docs/icons.md` (Japanese) and `docs/icons_en.md` (English; new): based on soccerwindow2's `docs/icons.md`, adapted to rcssmonitor. The overview (the eight PNGs, why 24 and 48, `UIIcon::fromName()`, the 10 shared with soccerwindow2), the list of the files, how to add, change and remove an icon, the drawing rules (the same as soccerwindow2's), the application icon (the source of the official logo and its guidelines, `make_rcssmonitor_svg.py`, the installation, how to remake `rcss.ico`, no `.icns`), `palette.txt`, `generate.sh` (the only difference from soccerwindow2's is the sizes), the Qt resource system (the format, the CMake and autotools builds, `ax_have_qt.m4` looking for `rcc` in PATH and what to do about it, `Q_INIT_RESOURCE`), and the tests.
+  - The Notes of `docs/build.md`: the icons are PNGs made by `icons/generate.sh`, and Inkscape is needed only to change an icon (not to build), with a reference to `docs/icons_en.md`.
+  - The color scheme section of the README: the toolbar icons switch with the scheme, with a reference to `docs/icons_en.md`.
+  - NEWS (the entry of 20.0.0-beta.1) and ChangeLog: the renewed icons.
+  - autotools: `docs/icons.md` and `docs/icons_en.md` were added to `EXTRA_DIST` of the top `Makefile.am` (distributed with the files of the icon mechanism).
+- Checked: with autotools (Qt5), `make` and `make dist` passed on a copy of the working tree, and the tarball has the two documents.
+- The user checked the documents.
+- Next: the commit and push, the CI, and `./cmake-helper.sh distcheck qt6`. After that, the proposal of the PR.

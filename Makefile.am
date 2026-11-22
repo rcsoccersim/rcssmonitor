@@ -5,6 +5,8 @@ SUBDIRS = rcss src .
 EXTRA_DIST = \
 	README.md \
 	docs/build.md \
+	docs/icons.md \
+	docs/icons_en.md \
 	CMakeLists.txt \
 	cmake-config.h.in \
 	icons/rcss.ico \
