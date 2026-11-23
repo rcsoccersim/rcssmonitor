@@ -59,21 +59,21 @@ jobs:
           QT_QPA_PLATFORM: offscreen
           LIBGL_ALWAYS_SOFTWARE: 1
 
-  # The oldest Qt that rcssmonitor supports (D2): Qt 6.2 of Ubuntu 22.04,
-  # with CMake 3.22.
+  # The oldest Qt that rcssmonitor supports: Qt 6.4 of Ubuntu 24.04, with
+  # CMake 3.28 (Qt 6.2 of Ubuntu 22.04 until 2026-11-24;
+  # docs/plan/2026-11-22-00_v20-features.md U20).
   cmake-qt6-oldest:
-    name: CMake, Qt6 (Ubuntu 22.04)
+    name: CMake, Qt6 (Ubuntu 24.04)
     runs-on: ubuntu-26.04
-    container: ubuntu:22.04
+    container: ubuntu:24.04
     steps:
       - uses: actions/checkout@v5
       - name: Install the packages
         run: |
           apt-get update
-          # Qt6 WebSockets is libqt6websockets6-dev on 22.04 (qt6-websockets-dev
-          # from 24.04)
+          # OpenGL and OpenGLWidgets of Qt6 are in qt6-base-dev on 24.04
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-            build-essential cmake qt6-base-dev libqt6opengl6-dev libqt6websockets6-dev qt6-multimedia-dev libgl-dev zlib1g-dev libdeflate-dev \
+            build-essential cmake qt6-base-dev qt6-websockets-dev qt6-multimedia-dev libgl-dev zlib1g-dev libdeflate-dev \
             desktop-file-utils xvfb xauth libgl1-mesa-dri
       - name: Configure
         run: |

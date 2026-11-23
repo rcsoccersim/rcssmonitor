@@ -21,7 +21,7 @@
     live game is drawn some seconds behind, in 2D and 3D, so that the
     ball can fly in a live game too.
 
-  * Support Qt 6 (6.2 or later). Qt 5.15 is still supported. CMake uses
+  * Support Qt 6 (6.4 or later). Qt 5.15 is still supported. CMake uses
     Qt 6 if it is found.
 
   * Make CMake the official build. The README describes CMake only, and

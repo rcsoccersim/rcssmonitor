@@ -23,7 +23,7 @@ The repository also keeps the autotools build, which builds the monitor with Qt 
 |---|---|---|
 | A C++ compiler | C++17 | GCC or Clang |
 | [CMake](https://cmake.org/) | 3.16 or later | |
-| [Qt](https://www.qt.io/) | Qt 6 (6.2 or later) or Qt 5 (5.15) | Core, Gui, Widgets, Network; OpenGL and OpenGLWidgets (Qt 6) for the 3D view; Test for the tests |
+| [Qt](https://www.qt.io/) | Qt 6 (6.4 or later) or Qt 5 (5.15) | Core, Gui, Widgets, Network; OpenGL and OpenGLWidgets (Qt 6) for the 3D view; Test for the tests |
 | zlib | | to read gzip-compressed game logs (`.rcg.gz`) |
 | libdeflate | | optional: if it is found, gzip-compressed game logs are read faster |
 | Qt WebSockets | | optional: the WebSocket connection to the server. Without it, the monitor is built without the WebSocket connection |
@@ -45,7 +45,6 @@ and Qt 6, whose packages differ between the releases:
 |---|---|
 | 26.04 | `qt6-base-dev libqt6opengl6-dev qt6-websockets-dev qt6-multimedia-dev` |
 | 24.04 | `qt6-base-dev qt6-websockets-dev qt6-multimedia-dev` (OpenGL and OpenGLWidgets are in `qt6-base-dev`) |
-| 22.04 | `qt6-base-dev libqt6opengl6-dev libqt6websockets6-dev qt6-multimedia-dev libgl-dev` |
 
 For example, on Ubuntu 24.04:
 

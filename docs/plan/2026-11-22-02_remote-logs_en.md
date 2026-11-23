@@ -236,3 +236,7 @@
 
 - In the CI of d56fad4, two jobs failed: CMake with Qt6, and the distcheck (Qt6). Only `timeout()` of `test_log_downloader` failed; Qt5, Qt6 (Ubuntu 22.04, Qt 6.2) and autotools passed. The CI's Qt6 is Qt 6.10.2 (Ubuntu 26.04). Qt 6.4 and Qt 5.15 here tell the transfer timeout as `OperationCanceledError` (Operation canceled), but Qt 6.10 as `TimeoutError` (Operation timed out), so `LogDownloader` did not tell it was the timeout, and the message was not "No data came for ... seconds.".
 - Fixed: `TimeoutError` is the timeout too (`LogDownloader::describe()`). The tests pass with Qt6 and Qt5 here. Qt 6.10 is checked by the CI.
+
+### 2026-11-24: Replacing the CI job of Ubuntu 22.04 with 24.04
+
+- At the user's request, the CI job of Ubuntu 22.04 (which checked Qt 6.2 as the oldest Qt supported) is removed. Without it, the CI's Qt6 would be only Qt 6.10 of Ubuntu 26.04, so replacing it with a container of 24.04 was proposed, and the user chose the replacement (the job is named "CMake, Qt6 (Ubuntu 24.04)", with the packages of 24.04). The user decided to raise the oldest Qt 6 to 6.4 (Ubuntu 24.04; the oldest Qt6 checked here), in another commit on this branch before stage 2 (U20 of the overall plan). `QT_MIN_VERSION` of `CMakeLists.txt`, the version and the row of Ubuntu 22.04 in README and `docs/build.md`, and NEWS were changed. CMake configures with Qt 6.4.2 and Qt 5.15.13 here.

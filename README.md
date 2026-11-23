@@ -11,7 +11,7 @@ To view game logs without installing anything, the browser version, rcssmonitor-
 
 ## :soccer: Quick Start
 
-rcssmonitor is written in C++17 and depends on [Qt](https://www.qt.io/) 6 (6.2 or later) or Qt 5 (5.15). It is built with [CMake](https://cmake.org/) (3.16 or later).
+rcssmonitor is written in C++17 and depends on [Qt](https://www.qt.io/) 6 (6.4 or later) or Qt 5 (5.15). It is built with [CMake](https://cmake.org/) (3.16 or later).
 
 First, install the tools and libraries. On Ubuntu:
 ```bash
@@ -23,7 +23,6 @@ and Qt 6, whose packages differ between the releases:
 |---|---|
 | 26.04 | `qt6-base-dev libqt6opengl6-dev qt6-websockets-dev qt6-multimedia-dev` |
 | 24.04 | `qt6-base-dev qt6-websockets-dev qt6-multimedia-dev` |
-| 22.04 | `qt6-base-dev libqt6opengl6-dev libqt6websockets6-dev qt6-multimedia-dev libgl-dev` |
 
 e.g. `sudo apt install qt6-base-dev qt6-websockets-dev qt6-multimedia-dev` on Ubuntu 24.04, or Qt 5 on any of them: `sudo apt install qtbase5-dev libqt5websockets5-dev qtmultimedia5-dev libqt5multimedia5-plugins`.
 libdeflate (faster reading of gzip-compressed game logs), Qt WebSockets (the WebSocket connection to the server) and Qt Multimedia ([the referee's whistle](#the-referees-whistle)) are optional.
