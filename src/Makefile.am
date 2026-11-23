@@ -41,6 +41,7 @@ rcssmonitor_SOURCES = \
 	ui_palette.cpp \
 	ui_style.cpp \
 	vector_2d.cpp \
+	whistle.cpp \
 	whistle_rules.cpp \
 	main.cpp
 
@@ -57,6 +58,7 @@ nodist_rcssmonitor_SOURCES = \
 	moc_referee_menu.cpp \
 	moc_tcp_monitor_transport.cpp \
 	moc_udp_monitor_transport.cpp \
+	moc_whistle.cpp \
 	qrc_icons.cpp
 
 noinst_HEADERS = \
@@ -102,6 +104,7 @@ noinst_HEADERS = \
 	ui_palette.h \
 	ui_style.h \
 	vector_2d.h \
+	whistle.h \
 	whistle_rules.h \
 	ws_monitor_transport.h
 

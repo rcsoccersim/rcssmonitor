@@ -41,8 +41,8 @@
 */
 enum class WhistleKind {
     None, //!< no whistle
-    Short, //!< a short whistle: to stop for a foul, to restart, the kick-off
-    Long, //!< a long whistle: a goal
+    Short, //!< a short whistle: to stop for a foul, to restart after it, a penalty kick
+    Long, //!< a long whistle: a kick-off
     LongTwice, //!< two long whistles: the end of a half
     LongThrice, //!< three long whistles: the end of the game
 };
@@ -52,20 +52,20 @@ enum class WhistleKind {
   the Laws of the Game for referees (IFAB) and how rcssserver changes the
   modes (docs/plan/2026-11-22-00_v20-features.md C.3.4):
 
-  - the kick-off after a goal, `before_kick_off`, a pause or a human
-    judge: short; a kick-off from another mode (e.g. `play_on`) is the
-    start of a new half, without `before_kick_off` in the game logs: two
-    long ones (the end of the half)
-  - `before_kick_off` after the time 0 (live), `first_half_over`: two long
+  - a kick-off (the start of the game, of a half, after a goal): long, once.
+    In the game logs, a half ends with a kick-off right after the play
+    (no `before_kick_off`): only the kick-off's whistle
+  - `before_kick_off` after the time 0 (the end of a half, live),
+    `first_half_over`: two long
   - `time_over`: three long
-  - a goal: long
   - a foul, an offside, a back pass and so on (the modes that stop the
     play for a free kick): short; and the free kick (or the indirect free
     kick) after one of them: short (the restart, after the defenders kept
     the distance)
   - `penalty_ready` (the kicker may kick): short
-  - no whistle for the others (e.g. a free kick after a catch, a kick-in, a
-    corner kick, a goal kick, a dropped ball, `play_on`)
+  - no whistle for the others (e.g. a goal: a clear goal needs none; a free
+    kick after a catch, a kick-in, a corner kick, a goal kick, a dropped
+    ball, `play_on`)
 
   \param prev the mode of the frame before
   \param next the mode of the frame
@@ -89,5 +89,13 @@ bool isWhistleStopMode( const rcss::rcg::PlayMode mode );
 */
 WhistleKind strongerWhistle( const WhistleKind a,
                              const WhistleKind b );
+
+/*!
+  \brief the whistle when the play starts from the first frame of a game
+  log: the kick-off of the game if the log starts with one (the logs have
+  no `before_kick_off` before it), or none
+  \param first the mode of the first frame
+*/
+WhistleKind whistleAtFirstFrame( const rcss::rcg::PlayMode first );
 
 #endif

@@ -37,6 +37,7 @@ add_library(rcssmonitor_core STATIC
   ui_palette.cpp
   ui_style.cpp
   vector_2d.cpp
+  whistle.cpp
   whistle_rules.cpp
   # the icons of the tool bars (icons/generate.sh; UIIcon)
   ${PROJECT_SOURCE_DIR}/icons/icons.qrc

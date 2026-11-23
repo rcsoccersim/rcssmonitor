@@ -254,6 +254,12 @@ private:
     QCheckBox * M_live_delay_cb = nullptr;
     QDoubleSpinBox * M_live_delay_seconds = nullptr;
 
+    // the referee's whistle (the Show tab, docs/plan/2026-11-22-00_v20-features.md §C)
+    QCheckBox * M_whistle_cb = nullptr;
+    QSlider * M_whistle_volume = nullptr;
+    QLabel * M_whistle_volume_label = nullptr; //!< the volume's number
+    QPushButton * M_whistle_test = nullptr; //!< enabled while the whistle is on
+
     // the Player Camera tab (only in a build with the 3D view; null otherwise)
     QButtonGroup * M_player_camera_position = nullptr;
     QButtonGroup * M_player_camera_direction = nullptr;
@@ -275,6 +281,8 @@ public:
 
     //! the fields of the delayed live view from the options (turned on or off in the tool bar)
     void updateLiveDelay();
+    //! the fields of the referee's whistle from the options (turned on or off in the menu)
+    void updateWhistle();
 private:
 
     void createWidgets();
@@ -291,6 +299,7 @@ private:
     QWidget * createFocusControls();
     QWidget * createPlayerSelectionControls();
     QWidget * createLiveControls();
+    QWidget * createSoundControls();
     QLayout * createColorList();
     void createColorItems();
     QLayout * createFontButtons();
@@ -464,6 +473,10 @@ signals:
     void canvasResized( const QSize & size );
     //! the options of the delayed live view changed (§5.10)
     void liveDelayChanged();
+    //! the options of the referee's whistle changed (and saved)
+    void whistleChanged();
+    //! Test: blow the whistle at the volume
+    void whistleTried();
 };
 
 #endif

@@ -54,6 +54,7 @@
 #include "ui_icon.h"
 #include "ui_palette.h"
 #include "ui_style.h"
+#include "whistle.h"
 #ifdef HAVE_3D_VIEW
 #include "field_view_3d.h"
 #include "popup_closer.h"
@@ -91,7 +92,8 @@ MainWindow::MainWindow()
       M_view_stack( nullptr ),
       M_field_view_3d( nullptr ),
       M_monitor_client( static_cast< MonitorClient * >( 0 ) ),
-      M_log_player( new LogPlayer( M_disp_holder, this ) )
+      M_log_player( new LogPlayer( M_disp_holder, this ) ),
+      M_whistle( new Whistle( M_disp_holder, *M_log_player, &Whistle::createSound, this ) )
 {
     this->setWindowIcon( UIIcon::appIcon( "rcssmonitor" ) );
     this->setWindowTitle( tr( PACKAGE_NAME ) + tr( " " ) + tr( VERSION ) );
@@ -115,6 +117,9 @@ MainWindow::MainWindow()
              this, SIGNAL( viewUpdated() ) );
     connect( M_log_player, SIGNAL( quitRequested() ),
              this, SLOT( setQuitTimer() ) );
+    // the referee's whistle at the changes of the play mode of the frame shown
+    connect( M_log_player, &LogPlayer::indexUpdated,
+             M_whistle, &Whistle::handleIndexUpdated );
 
     this->resize( Options::instance().windowWidth() > 0
                   ? Options::instance().windowWidth()
@@ -136,6 +141,10 @@ MainWindow::MainWindow()
  */
 MainWindow::~MainWindow()
 {
+    // the whistle's audio output closed while the widgets are whole
+    // (Whistle::releaseSound())
+    M_whistle->releaseSound();
+
     writeSettings();
 }
 
@@ -146,6 +155,11 @@ MainWindow::~MainWindow()
 void
 MainWindow::init()
 {
+    // the referee's whistle, if on: its audio output opened now, not at the
+    // first frame shown, so that the output device is awake by the first
+    // whistle (a display's speakers on HDMI take some seconds to start)
+    M_whistle->updateHold();
+
     if ( Options::instance().fullScreen() )
     {
         this->showFullScreen();
@@ -647,6 +661,27 @@ MainWindow::createActionsView()
              this, SLOT( toggleStatusBar( bool ) ) );
     this->addAction( M_toggle_status_bar_act );
 
+    // the referee's whistle (docs/plan/2026-11-22-00_v20-features.md §C):
+    // off by default, saved when chosen
+    M_toggle_whistle_act = new QAction( tr( "Referee's &Whistle" ), this );
+    M_toggle_whistle_act->setObjectName( "toggle_whistle" );
+    M_toggle_whistle_act->setCheckable( true );
+    if ( Whistle::isAvailable() )
+    {
+        M_toggle_whistle_act->setChecked( Options::instance().whistle() );
+        M_toggle_whistle_act->setStatusTip( tr( "Blow the referee's whistle at the kick-offs, the fouls, the goals "
+                                                "and the ends of the halves (the volume in the settings)." ) );
+    }
+    else
+    {
+        M_toggle_whistle_act->setEnabled( false );
+        M_toggle_whistle_act->setStatusTip( tr( "This rcssmonitor is built without the sound (Qt Multimedia)." ) );
+    }
+    M_toggle_whistle_act->setToolTip( M_toggle_whistle_act->statusTip() );
+    connect( M_toggle_whistle_act, SIGNAL( toggled( bool ) ),
+             this, SLOT( toggleWhistle( bool ) ) );
+    this->addAction( M_toggle_whistle_act );
+
     // full screen
     M_full_screen_act = new QAction( tr( "&Full Screen" ), this );
     M_full_screen_act->setShortcut( tr( "F11" ) );
@@ -836,6 +871,10 @@ MainWindow::createMenuView()
         camera_menu->addActions( M_viewpoint_act_group->actions() );
         camera_menu->addAction( M_next_viewpoint_act );
     }
+
+    menu->addSeparator();
+
+    menu->addAction( M_toggle_whistle_act );
 
     menu->addSeparator();
 
@@ -1210,6 +1249,11 @@ MainWindow::createConfigDialog()
 
     connect( M_config_dialog, SIGNAL( liveDelayChanged() ),
              this, SLOT( applyLiveDelay() ) );
+
+    connect( M_config_dialog, SIGNAL( whistleChanged() ),
+             this, SLOT( applyWhistle() ) );
+    connect( M_config_dialog, SIGNAL( whistleTried() ),
+             this, SLOT( tryWhistle() ) );
 
     // register short cut keys
     {
@@ -1627,6 +1671,62 @@ MainWindow::applyLiveDelay()
 
 /*-------------------------------------------------------------------*/
 /*!
+  the referee's whistle on or off from the menu: saved now (not the one
+  given by the command line, as the color scheme)
+ */
+void
+MainWindow::toggleWhistle( bool on )
+{
+    Options & opt = Options::instance();
+    opt.setWhistle( on );
+    opt.writeWhistle();
+    if ( ! on )
+    {
+        M_whistle->stop();
+    }
+    M_whistle->updateHold();
+    if ( M_config_dialog )
+    {
+        M_config_dialog->updateWhistle();
+    }
+    this->statusBar()->showMessage( on
+                                    ? tr( "Referee's whistle: on" )
+                                    : tr( "Referee's whistle: off" ),
+                                    3000 );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  the whistle's options changed in the settings dialog (saved there): the
+  action follows them
+ */
+void
+MainWindow::applyWhistle()
+{
+    {
+        const QSignalBlocker blocker( M_toggle_whistle_act );
+        M_toggle_whistle_act->setChecked( Options::instance().whistle() );
+    }
+    if ( ! Options::instance().whistle() )
+    {
+        M_whistle->stop();
+    }
+    M_whistle->updateHold();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  the settings dialog's Test (while the whistle is on): the short whistle
+  at the volume
+ */
+void
+MainWindow::tryWhistle()
+{
+    M_whistle->blow( WhistleKind::Short );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
 
  */
 void
@@ -1835,6 +1935,7 @@ bool
 MainWindow::openGameLogFileImpl( const QString & filepath )
 {
     M_disp_holder.clear();
+    M_whistle->clear();
 
     RCGHandler handler( this, M_disp_holder );
     // // show progress dialog
@@ -1958,6 +2059,7 @@ MainWindow::connectMonitorTo( const char * hostname )
     // reset all data
     M_disp_holder.clear();
     M_log_player->clear();
+    M_whistle->clear();
 
     if ( M_player_type_dialog )
     {

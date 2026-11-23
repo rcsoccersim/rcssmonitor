@@ -87,6 +87,7 @@ private slots:
     void table_data();
     void table();
     void sequence();
+    void firstFrame();
     void stronger();
     void sounds_data();
     void sounds();
@@ -101,23 +102,23 @@ TestWhistleRules::table_data()
     QTest::addColumn< int >( "time" );
     QTest::addColumn< WhistleKind >( "expected" );
 
-    // the kick-off: after a goal or before_kick_off, short; from the play
-    // (a new half in a log, without before_kick_off), two long
-    QTest::newRow( "goal -> kick off" ) << PM_AfterGoal_Left << PM_KickOff_Right << 6714 << WhistleKind::Short;
-    QTest::newRow( "before kick off -> kick off" ) << PM_BeforeKickOff << PM_KickOff_Left << 0 << WhistleKind::Short;
-    QTest::newRow( "before kick off (half) -> kick off" ) << PM_BeforeKickOff << PM_KickOff_Right << 3000 << WhistleKind::Short;
-    QTest::newRow( "pause -> kick off" ) << PM_Pause << PM_KickOff_Left << 1200 << WhistleKind::Short;
-    QTest::newRow( "play on -> kick off (new half)" ) << PM_PlayOn << PM_KickOff_Right << 3001 << WhistleKind::LongTwice;
-    QTest::newRow( "kick in -> kick off (new half)" ) << PM_KickIn_Left << PM_KickOff_Right << 3001 << WhistleKind::LongTwice;
+    // the kick-off: long, once (U15); also a new half in a log, right after
+    // the play without before_kick_off (U16)
+    QTest::newRow( "goal -> kick off" ) << PM_AfterGoal_Left << PM_KickOff_Right << 6714 << WhistleKind::Long;
+    QTest::newRow( "before kick off -> kick off" ) << PM_BeforeKickOff << PM_KickOff_Left << 0 << WhistleKind::Long;
+    QTest::newRow( "before kick off (half) -> kick off" ) << PM_BeforeKickOff << PM_KickOff_Right << 3000 << WhistleKind::Long;
+    QTest::newRow( "pause -> kick off" ) << PM_Pause << PM_KickOff_Left << 1200 << WhistleKind::Long;
+    QTest::newRow( "play on -> kick off (new half)" ) << PM_PlayOn << PM_KickOff_Right << 3001 << WhistleKind::Long;
+    QTest::newRow( "kick in -> kick off (new half)" ) << PM_KickIn_Left << PM_KickOff_Right << 3001 << WhistleKind::Long;
     // the end of a half in live, and of the game
     QTest::newRow( "play on -> before kick off (half)" ) << PM_PlayOn << PM_BeforeKickOff << 3000 << WhistleKind::LongTwice;
     QTest::newRow( "before kick off at 0" ) << PM_PlayOn << PM_BeforeKickOff << 0 << WhistleKind::None;
     QTest::newRow( "first half over" ) << PM_PlayOn << PM_FirstHalfOver << 3000 << WhistleKind::LongTwice;
     QTest::newRow( "time over" ) << PM_PlayOn << PM_TimeOver << 6000 << WhistleKind::LongThrice;
     QTest::newRow( "time over after a penalty" ) << PM_PenaltyScore_Left << PM_TimeOver << 6000 << WhistleKind::LongThrice;
-    // a goal
-    QTest::newRow( "goal l" ) << PM_PlayOn << PM_AfterGoal_Left << 6713 << WhistleKind::Long;
-    QTest::newRow( "goal r" ) << PM_PlayOn << PM_AfterGoal_Right << 2711 << WhistleKind::Long;
+    // a goal: none (a clear goal needs none; U18)
+    QTest::newRow( "goal l" ) << PM_PlayOn << PM_AfterGoal_Left << 6713 << WhistleKind::None;
+    QTest::newRow( "goal r" ) << PM_PlayOn << PM_AfterGoal_Right << 2711 << WhistleKind::None;
     // the stops for a free kick, and the restarts after them
     QTest::newRow( "foul charge" ) << PM_PlayOn << PM_Foul_Charge_Left << 1390 << WhistleKind::Short;
     QTest::newRow( "foul push" ) << PM_PlayOn << PM_Foul_Push_Right << 100 << WhistleKind::Short;
@@ -210,9 +211,8 @@ TestWhistleRules::sequence()
     const std::vector< WhistleKind > expected = {
         WhistleKind::Short, // the foul
         WhistleKind::Short, // the free kick after it
-        WhistleKind::LongTwice, // the end of the first half
-        WhistleKind::Long, // the goal
-        WhistleKind::Short, // the kick-off after it
+        WhistleKind::Long, // the kick-off of the second half (the end of the first half in the log)
+        WhistleKind::Long, // the kick-off after the goal (none at the goal)
         WhistleKind::LongThrice, // the end of the game
     };
     QCOMPARE( whistles.size(), expected.size() );
@@ -220,6 +220,22 @@ TestWhistleRules::sequence()
     {
         QVERIFY2( whistles[i] == expected[i], qPrintable( QString( "%1: %2" ).arg( i ).arg( kindName( whistles[i] ) ) ) );
     }
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  The play from the first frame of a log: the kick-off's whistle if the log
+  starts with one (the logs start with kick_off at the time 1).
+*/
+void
+TestWhistleRules::firstFrame()
+{
+    QVERIFY( whistleAtFirstFrame( PM_KickOff_Left ) == WhistleKind::Long );
+    QVERIFY( whistleAtFirstFrame( PM_KickOff_Right ) == WhistleKind::Long );
+    QVERIFY( whistleAtFirstFrame( PM_BeforeKickOff ) == WhistleKind::None );
+    QVERIFY( whistleAtFirstFrame( PM_PlayOn ) == WhistleKind::None );
+    QVERIFY( whistleAtFirstFrame( PM_Foul_Charge_Left ) == WhistleKind::None );
+    QVERIFY( whistleAtFirstFrame( PM_Null ) == WhistleKind::None );
 }
 
 /*-------------------------------------------------------------------*/

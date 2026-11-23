@@ -134,7 +134,7 @@ if test "x$enable_sound" = "xyes"; then
   AC_LANG_PUSH([C++])
   save_CPPFLAGS="$CPPFLAGS"
   CPPFLAGS="$CPPFLAGS $QT_CXXFLAGS"
-  AC_CHECK_HEADER([QSoundEffect], [have_qt_multimedia=yes])
+  AC_CHECK_HEADER([QAudioFormat], [have_qt_multimedia=yes])
   CPPFLAGS="$save_CPPFLAGS"
   AC_LANG_POP([C++])
   if test "x$have_qt_multimedia" != "xyes"; then

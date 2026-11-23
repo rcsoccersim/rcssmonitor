@@ -113,6 +113,11 @@ public:
     static constexpr double LIVE_DELAY_SECONDS_STEP = 0.5;
     static constexpr double DEFAULT_LIVE_DELAY_SECONDS = 3.0;
 
+    //! the referee's whistle: the volume, as the slider's (docs/plan/2026-11-22-00_v20-features.md §C)
+    static constexpr int MIN_WHISTLE_VOLUME = 0;
+    static constexpr int MAX_WHISTLE_VOLUME = 100;
+    static constexpr int DEFAULT_WHISTLE_VOLUME = 50;
+
     //! default logplayer timer step (ms).
     static constexpr int DEFAULT_TIMER_INTERVAL = 100;
 
@@ -224,6 +229,13 @@ private:
     bool M_show_tool_bar;
     bool M_show_status_bar;
     UIColorScheme M_ui_color_scheme; //!< the color scheme of the widgets (View > UI Color Scheme)
+
+    //
+    // sound options
+    //
+
+    bool M_whistle; //!< the referee's whistle (View > Referee's Whistle)
+    int M_whistle_volume; //!< its volume, MIN_WHISTLE_VOLUME to MAX_WHISTLE_VOLUME
 
     //
     // view options
@@ -600,6 +612,30 @@ public:
       (--ui-color-scheme) is not saved.
     */
     void writeUIColorScheme() const;
+
+    //
+    // sound options
+    //
+
+    /*!
+      \brief the referee's whistle at the changes of the play mode (off by
+      default: many monitors at a venue would whistle at once)
+    */
+    bool whistle() const { return M_whistle; }
+    void setWhistle( const bool on ) { M_whistle = on; }
+    //! the whistle's volume (the loudness heard), MIN_WHISTLE_VOLUME to MAX_WHISTLE_VOLUME
+    int whistleVolume() const { return M_whistle_volume; }
+    //! within MIN_WHISTLE_VOLUME and MAX_WHISTLE_VOLUME
+    void setWhistleVolume( const int volume );
+    /*!
+      \brief write the whistle's on or off to the settings file now, and
+      writeWhistleVolume() its volume. Called when they are chosen in the
+      menu or the settings dialog: the settings written when the program
+      ends do not have them, so that the ones given by the command line
+      (--whistle, --whistle-volume) are not saved.
+    */
+    void writeWhistle() const;
+    void writeWhistleVolume() const;
 
     //
     // view options

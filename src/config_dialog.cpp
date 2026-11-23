@@ -43,6 +43,7 @@
 
 #include "disp_holder.h"
 #include "options.h"
+#include "whistle.h"
 
 #ifdef HAVE_3D_VIEW
 #include "figure_pack.h"
@@ -286,6 +287,8 @@ ConfigDialog::createWidgets()
         layout->addWidget( createBallInfoControls(),
                            0, Qt::AlignLeft );
         layout->addWidget( createLiveControls(),
+                           0, Qt::AlignLeft );
+        layout->addWidget( createSoundControls(),
                            0, Qt::AlignLeft );
 
         layout->addStretch();
@@ -817,6 +820,114 @@ ConfigDialog::updateLiveDelay()
     const QSignalBlocker block_seconds( M_live_delay_seconds );
     M_live_delay_cb->setChecked( opt.liveDelay() );
     M_live_delay_seconds->setValue( opt.liveDelaySeconds() );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  the referee's whistle (docs/plan/2026-11-22-00_v20-features.md §C): on or
+  off (also View > Referee's Whistle) and the volume, saved when chosen;
+  Test blows the short whistle at the volume. Disabled in a build without
+  Qt Multimedia.
+*/
+QWidget *
+ConfigDialog::createSoundControls()
+{
+    QGroupBox * group_box = new QGroupBox( tr( "Sound" ) );
+    group_box->setObjectName( "sound" );
+    QHBoxLayout * layout = new QHBoxLayout();
+    layout->setContentsMargins( 1, 1, 1, 1 );
+
+    M_whistle_cb = new QCheckBox( tr( "Referee's whistle" ) );
+    M_whistle_cb->setObjectName( "whistle" );
+    M_whistle_cb->setToolTip( tr( "Blow the referee's whistle at the kick-offs, the fouls, the goals and the ends\n"
+                                  "of the halves, in log replay (playing, or a step forward) and live.\n"
+                                  "Also in the View menu." ) );
+    connect( M_whistle_cb, &QCheckBox::clicked,
+             this, [this]( bool on ) {
+                 Options & opt = Options::instance();
+                 opt.setWhistle( on );
+                 opt.writeWhistle();
+                 M_whistle_test->setEnabled( on );
+                 emit whistleChanged();
+             } );
+    layout->addWidget( M_whistle_cb );
+
+    layout->addSpacing( 8 );
+    QLabel * volume_label = new QLabel( tr( "Volume" ) );
+    layout->addWidget( volume_label );
+
+    M_whistle_volume = new QSlider( Qt::Horizontal );
+    M_whistle_volume->setObjectName( "whistle_volume" );
+    M_whistle_volume->setRange( Options::MIN_WHISTLE_VOLUME, Options::MAX_WHISTLE_VOLUME );
+    M_whistle_volume->setSingleStep( 5 );
+    M_whistle_volume->setPageStep( 10 );
+    M_whistle_volume->setMinimumWidth( 120 );
+    M_whistle_volume->setToolTip( tr( "The loudness of the whistle." ) );
+    volume_label->setBuddy( M_whistle_volume );
+    layout->addWidget( M_whistle_volume );
+
+    M_whistle_volume_label = new QLabel();
+    M_whistle_volume_label->setObjectName( "whistle_volume_value" );
+    // as wide as the largest volume, so that the slider does not move
+    M_whistle_volume_label->setMinimumWidth( M_whistle_volume_label->fontMetrics().horizontalAdvance( QStringLiteral( "100" ) ) );
+    M_whistle_volume_label->setAlignment( Qt::AlignRight | Qt::AlignVCenter );
+    layout->addWidget( M_whistle_volume_label );
+
+    connect( M_whistle_volume, &QSlider::valueChanged,
+             this, [this]( int volume ) {
+                 Options & opt = Options::instance();
+                 opt.setWhistleVolume( volume );
+                 M_whistle_volume_label->setText( QString::number( opt.whistleVolume() ) );
+                 // saved when the slider is let go, not at every step of a drag
+                 if ( ! M_whistle_volume->isSliderDown() )
+                 {
+                     opt.writeWhistleVolume();
+                 }
+             } );
+    connect( M_whistle_volume, &QSlider::sliderReleased,
+             this, []() {
+                 Options::instance().writeWhistleVolume();
+             } );
+
+    // only while the whistle is on: the audio output is kept open then
+    // (Whistle::updateHold()), so that the whistle is heard from its start
+    M_whistle_test = new QPushButton( tr( "Test" ) );
+    M_whistle_test->setObjectName( "whistle_test" );
+    M_whistle_test->setAutoDefault( false );
+    M_whistle_test->setToolTip( tr( "Blow the short whistle at this volume (while the whistle is on)." ) );
+    connect( M_whistle_test, &QPushButton::clicked,
+             this, &ConfigDialog::whistleTried );
+    layout->addWidget( M_whistle_test );
+
+    updateWhistle();
+
+    group_box->setLayout( layout );
+
+    if ( ! Whistle::isAvailable() )
+    {
+        group_box->setEnabled( false );
+        group_box->setToolTip( tr( "This rcssmonitor is built without the sound (Qt Multimedia)." ) );
+        for ( QWidget * w : group_box->findChildren< QWidget * >() )
+        {
+            w->setToolTip( group_box->toolTip() );
+        }
+    }
+
+    return group_box;
+}
+
+/*-------------------------------------------------------------------*/
+void
+ConfigDialog::updateWhistle()
+{
+    if ( ! M_whistle_cb ) return;
+    const Options & opt = Options::instance();
+    const QSignalBlocker block_cb( M_whistle_cb );
+    const QSignalBlocker block_volume( M_whistle_volume );
+    M_whistle_cb->setChecked( opt.whistle() );
+    M_whistle_volume->setValue( opt.whistleVolume() );
+    M_whistle_volume_label->setText( QString::number( opt.whistleVolume() ) );
+    M_whistle_test->setEnabled( opt.whistle() );
 }
 
 /*-------------------------------------------------------------------*/
@@ -2900,6 +3011,7 @@ ConfigDialog::updateAll()
     M_anti_aliasing_cb->setChecked( opt.antiAliasing() );
 
     updateLiveDelay();
+    updateWhistle();
 
     M_player_number_cb->setChecked( opt.showPlayerNumber() );
     M_player_type_cb->setChecked( opt.showPlayerType() );

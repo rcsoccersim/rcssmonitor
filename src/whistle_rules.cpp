@@ -83,27 +83,15 @@ whistleFor( const PlayMode prev,
     switch ( next ) {
     case PM_KickOff_Left:
     case PM_KickOff_Right:
-        if ( prev == PM_AfterGoal_Left
-             || prev == PM_AfterGoal_Right
-             || prev == PM_BeforeKickOff
-             || prev == PM_FirstHalfOver
-             || prev == PM_Pause
-             || prev == PM_Human )
-        {
-            return WhistleKind::Short;
-        }
-        // a new half from the play: the logs have no before_kick_off at
-        // the end of a half
-        return WhistleKind::LongTwice;
+        // any kick-off; also a new half right after the play (the logs
+        // have no before_kick_off at the end of a half)
+        return WhistleKind::Long;
     case PM_BeforeKickOff:
         return next_time > 0 ? WhistleKind::LongTwice : WhistleKind::None;
     case PM_FirstHalfOver:
         return WhistleKind::LongTwice;
     case PM_TimeOver:
         return WhistleKind::LongThrice;
-    case PM_AfterGoal_Left:
-    case PM_AfterGoal_Right:
-        return WhistleKind::Long;
     case PM_FreeKick_Left:
     case PM_FreeKick_Right:
     case PM_IndFreeKick_Left:
@@ -124,6 +112,16 @@ whistleFor( const PlayMode prev,
     }
 
     return WhistleKind::None;
+}
+
+/*-------------------------------------------------------------------*/
+WhistleKind
+whistleAtFirstFrame( const PlayMode first )
+{
+    return ( first == PM_KickOff_Left
+             || first == PM_KickOff_Right )
+        ? WhistleKind::Long
+        : WhistleKind::None;
 }
 
 /*-------------------------------------------------------------------*/
