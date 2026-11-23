@@ -40,6 +40,7 @@ Check these in this order at every official release (betas included).
 - The CI of develop passes in all its jobs.
 - `./cmake-helper.sh distcheck qt6` and `./cmake-helper.sh distcheck qt5`: the tarball builds, tests, installs and uninstalls; the installed program tells `rcssmonitor-version`.
 - On screen: 2D and 3D, log replay, live (UDP, TCP, WebSocket), the delayed live view, the figure packs.
+- By ear: the referee's whistle, with the Qt6 and the Qt5 builds (with `libqt5multimedia5-plugins`), in log replay and live (the kick-offs, a foul and its restart, the three long whistles at the end of the game, after going back, Test of the settings dialog). The tests cannot check the sound.
 
 ## 4. Merging and the tag
 

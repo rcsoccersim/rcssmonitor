@@ -18,6 +18,10 @@
 	- improve the desktop entry (keywords, the action to connect, the
 	  link to the window), and install the icon in all its sizes. the
 	  autotools build installs them too, with the RPATH of librcssrcg.
+	- add the referee's whistle at the changes of the play mode, with
+	  Qt Multimedia (optional): the sounds synthesized by
+	  tools/make_whistle.py, played on one audio output kept open while
+	  the whistle is on.
 
 2024-04-27  Hidehisa Akiyama  <hidehisaakiyama@users.noreply.github.com>
 

@@ -60,6 +60,14 @@
     installs the desktop entry and the icons too, and its installed
     rcssmonitor finds librcssrcg without LD_LIBRARY_PATH.
 
+  * Add the referee's whistle (View > Referee's Whistle, --whistle, off
+    by default): a long whistle at a kick-off, a short one at a foul, an
+    offside and so on and at the free kick after it, two long ones at
+    the end of a half (live) and three at the end of the game, in log
+    replay and live. The volume is set on the Show tab of the settings
+    dialog (--whistle-volume). It needs Qt Multimedia (optional; with
+    Qt 5, its audio plugins at run time). See README.md.
+
   * Read game logs faster (with libdeflate for gzip-compressed logs, if
     it is found) and more robustly (unknown JSON keys, broken lines, a
     missing ']' and unknown lines of text logs are skipped). Read the

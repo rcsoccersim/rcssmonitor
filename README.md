@@ -21,12 +21,12 @@ and Qt 6, whose packages differ between the releases:
 
 | Ubuntu | Qt 6 packages |
 |---|---|
-| 26.04 | `qt6-base-dev libqt6opengl6-dev qt6-websockets-dev` |
-| 24.04 | `qt6-base-dev qt6-websockets-dev` |
-| 22.04 | `qt6-base-dev libqt6opengl6-dev libqt6websockets6-dev libgl-dev` |
+| 26.04 | `qt6-base-dev libqt6opengl6-dev qt6-websockets-dev qt6-multimedia-dev` |
+| 24.04 | `qt6-base-dev qt6-websockets-dev qt6-multimedia-dev` |
+| 22.04 | `qt6-base-dev libqt6opengl6-dev libqt6websockets6-dev qt6-multimedia-dev libgl-dev` |
 
-e.g. `sudo apt install qt6-base-dev qt6-websockets-dev` on Ubuntu 24.04, or Qt 5 on any of them: `sudo apt install qtbase5-dev libqt5websockets5-dev`.
-libdeflate (faster reading of gzip-compressed game logs) and Qt WebSockets (the WebSocket connection to the server) are optional.
+e.g. `sudo apt install qt6-base-dev qt6-websockets-dev qt6-multimedia-dev` on Ubuntu 24.04, or Qt 5 on any of them: `sudo apt install qtbase5-dev libqt5websockets5-dev qtmultimedia5-dev libqt5multimedia5-plugins`.
+libdeflate (faster reading of gzip-compressed game logs), Qt WebSockets (the WebSocket connection to the server) and Qt Multimedia ([the referee's whistle](#the-referees-whistle)) are optional.
 
 Then, clone the repository, or download the tarball from the [releases section](https://github.com/rcsoccersim/rcssmonitor/releases) and extract it. From its directory, execute:
 
@@ -157,6 +157,36 @@ rcssmonitor --connect --live-delay 3    # 3 seconds behind; --live-delay 0 turns
 - Right after connecting, the first frame waits until the seconds' frames have come. When the game or the connection ends, the remaining frames are drawn to the end.
 - The referee's operations (e.g. `Kick Off`) reach the server at once, while the view shows the game some seconds ago. To operate the game, turn the delay off, or use another monitor without it.
 - The setting is kept when the monitor quits (`live_delay` and `live_delay_seconds` in `~/.rcssmonitor.conf`).
+
+### The referee's whistle
+
+`View` -> `Referee's Whistle` blows the referee's whistle when the play mode changes, as a referee in football does.
+It is off by default, so that many monitors at a venue do not whistle at once. The choice is kept in `~/.rcssmonitor.conf`.
+
+| When | Whistle |
+|---|---|
+| A kick-off: the start of the game, of the second half and of extra time, and after a goal | one long |
+| A foul, an offside, a back pass and so on, which stop the play for a free kick | short |
+| The free kick after one of them (the restart, after the defenders keep their distance) | short |
+| A kick of the penalty shootout may be taken (`penalty_ready`) | short |
+| The end of a half, in a live game | two long |
+| The end of the game | three long |
+
+As in the guidelines of the Laws of the Game, no whistle is blown for a goal, a kick-in, a corner kick, a goal kick, a free kick after the goalkeeper's catch, a dropped ball and so on.
+In a game log, the next half starts with its kick-off right after the play, without the end of the half, so only the kick-off's whistle is blown there.
+
+- In a game log, the whistle is blown when the game is played or stepped forward, not when it jumps (the slider, a cycle, the first or the last frame) nor when it goes back. Playing from the first frame blows the kick-off of the game.
+- In a live game, it is blown when the change is drawn: some seconds later with `Live Delay`.
+- `Volume` in `Sound` on the `Show` tab of the settings dialog sets the loudness (0 to 100; 50 by default). `Test` there blows the short whistle at that volume, while the whistle is on.
+- `--whistle` and `--whistle-volume` set them for a run, and are not kept:
+
+  ```bash
+  rcssmonitor --whistle on --whistle-volume 80 game.rcg.gz
+  ```
+
+- It needs a build with Qt Multimedia ([docs/build.md](docs/build.md)); without it, the menu item and the settings are disabled. With Qt 5, the audio plugins of Qt Multimedia are needed at run time (`libqt5multimedia5-plugins` on Ubuntu).
+- While the whistle is on, the monitor keeps its audio output open, playing silence between the whistles, so that the output is not put to sleep: a display's speakers on HDMI and the like lose the start of a sound while they wake up. The monitor is listed as an application playing sound then.
+- Such speakers may still take a few seconds to start sounding after the whistle is turned on or the monitor starts. A whistle in those seconds may not be heard: wait a moment before playing.
 
 ## :incoming_envelope: Contributing
 

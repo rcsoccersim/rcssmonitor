@@ -27,6 +27,7 @@ The repository also keeps the autotools build, which builds the monitor with Qt 
 | zlib | | to read gzip-compressed game logs (`.rcg.gz`) |
 | libdeflate | | optional: if it is found, gzip-compressed game logs are read faster |
 | Qt WebSockets | | optional: the WebSocket connection to the server. Without it, the monitor is built without the WebSocket connection |
+| Qt Multimedia | | optional: the referee's whistle. Without it, the monitor is built without the whistle. With Qt 5, its audio plugins are needed at run time ([Notes](#notes)) |
 | OpenGL 3.3 | at run time | the 3D view. Without it, the monitor runs with the 2D view only |
 
 ## Installing the dependencies on Ubuntu
@@ -41,20 +42,20 @@ and Qt 6, whose packages differ between the releases:
 
 | Ubuntu | Qt 6 packages |
 |---|---|
-| 26.04 | `qt6-base-dev libqt6opengl6-dev qt6-websockets-dev` |
-| 24.04 | `qt6-base-dev qt6-websockets-dev` (OpenGL and OpenGLWidgets are in `qt6-base-dev`) |
-| 22.04 | `qt6-base-dev libqt6opengl6-dev libqt6websockets6-dev libgl-dev` |
+| 26.04 | `qt6-base-dev libqt6opengl6-dev qt6-websockets-dev qt6-multimedia-dev` |
+| 24.04 | `qt6-base-dev qt6-websockets-dev qt6-multimedia-dev` (OpenGL and OpenGLWidgets are in `qt6-base-dev`) |
+| 22.04 | `qt6-base-dev libqt6opengl6-dev libqt6websockets6-dev qt6-multimedia-dev libgl-dev` |
 
 For example, on Ubuntu 24.04:
 
 ```bash
-sudo apt install qt6-base-dev qt6-websockets-dev
+sudo apt install qt6-base-dev qt6-websockets-dev qt6-multimedia-dev
 ```
 
-Or Qt 5, on any of them:
+Or Qt 5, on any of them (`libqt5multimedia5-plugins` is for the referee's whistle at run time):
 
 ```bash
-sudo apt install qtbase5-dev libqt5websockets5-dev
+sudo apt install qtbase5-dev libqt5websockets5-dev qtmultimedia5-dev libqt5multimedia5-plugins
 ```
 
 When both Qt 6 and Qt 5 are installed, CMake uses Qt 6 (see `QT_VERSION_MAJOR` in [CMake options](#cmake-options)).
@@ -127,10 +128,11 @@ To change the options of a build directory configured before, run the first comm
 | `ENABLE_3D` | `ON` | `OFF` not to build the 3D view. It is also left out if Qt 6's OpenGL or OpenGLWidgets is not found |
 | `ENABLE_LIBDEFLATE` | `ON` | `OFF` not to use libdeflate even if it is found |
 | `ENABLE_WEBSOCKET` | `ON` | `OFF` not to build the WebSocket connection even if Qt WebSockets is found |
+| `ENABLE_SOUND` | `ON` | `OFF` not to build the referee's whistle even if Qt Multimedia is found |
 | `RCSSMONITOR_DIST_DIR` | the top source directory | Where the `dist` target creates the source tarball |
 
-CMake tells what it found when it configures, e.g. `-- The 3D view is built`.
-`build/config.h` also tells it: `HAVE_3D_VIEW`, `HAVE_QT_WEBSOCKETS` and `HAVE_LIBDEFLATE` are defined when they are built.
+CMake tells what it found when it configures, e.g. `-- The 3D view is built` and `-- The referee's whistle is built`.
+`build/config.h` also tells it: `HAVE_3D_VIEW`, `HAVE_QT_WEBSOCKETS`, `HAVE_QT_MULTIMEDIA` and `HAVE_LIBDEFLATE` are defined when they are built.
 
 ### Installing and uninstalling
 
@@ -211,11 +213,11 @@ The autotools build is kept in the repository, but it is not the official build:
 The Qt 5 packages and the libraries above, and the autotools and Qt 5's qmake:
 
 ```bash
-sudo apt install build-essential zlib1g-dev libdeflate-dev qtbase5-dev libqt5websockets5-dev
+sudo apt install build-essential zlib1g-dev libdeflate-dev qtbase5-dev libqt5websockets5-dev qtmultimedia5-dev libqt5multimedia5-plugins
 sudo apt install autoconf automake libtool qt5-qmake
 ```
 
-`libdeflate-dev` and `libqt5websockets5-dev` are optional, as with CMake.
+`libdeflate-dev`, `libqt5websockets5-dev` and `qtmultimedia5-dev` (with `libqt5multimedia5-plugins` at run time) are optional, as with CMake.
 
 ### Building
 
@@ -244,6 +246,7 @@ make
 | `--prefix=DIR` | The installation directory (`/usr/local` by default) |
 | `--without-libdeflate` | Do not use libdeflate even if it is found |
 | `--disable-websocket` | Do not build the WebSocket connection even if Qt WebSockets is found |
+| `--disable-sound` | Do not build the referee's whistle even if Qt Multimedia is found |
 
 `./configure --help` shows all the options, e.g. those of the installation directories.
 
@@ -274,3 +277,4 @@ The release tarballs are made by the `dist` target of CMake ([Creating the sourc
 - Started from the desktop (the application menu, the dash), rcssmonitor gets the environment of the desktop session, not that of `~/.bashrc`. For example, `QT_QPA_PLATFORM=xcb` exported in `~/.bashrc` does not apply there, and Qt 6 may run it on Wayland instead of X11 (XWayland), with another scale: on Wayland the desktop's scale (e.g. 100%), on X11 the DPI of X (`Xft.dpi`). To give a variable to the programs started from the desktop too, write it in a file in `~/.config/environment.d/` (e.g. `~/.config/environment.d/90-qt.conf` with the line `QT_QPA_PLATFORM=xcb`), and log in again.
 - The icons are PNG files in the repository, made from SVG files by `icons/generate.sh` with Inkscape. Inkscape is needed only to change an icon, not to build ([docs/icons_en.md](icons_en.md)).
 - A build directory configured without an optional library (e.g. Qt WebSockets) and configured again after installing it may fail to link. Remove the build directory (`./cmake-helper.sh clean`) and build again.
+- The referee's whistle ([README](../README.md#the-referees-whistle)) plays on the default audio output, through Qt Multimedia: `QAudioSink` with Qt 6, which needs nothing more at run time (checked with Qt 6.4 on Ubuntu 24.04), and `QAudioOutput` with Qt 5, which needs the audio plugins of Qt Multimedia (`libqt5multimedia5-plugins` on Ubuntu). Without an audio output, rcssmonitor prints `no audio output for the referee's whistle` once, and blows no whistle. While the whistle is on, the audio output is kept open, playing silence between the whistles: PipeWire puts an output that has been silent for 5 seconds to sleep, and a display's speakers on HDMI lose the start of a sound while they wake up. The tests need no audio device.

@@ -40,6 +40,7 @@
 - develop の CI がすべて通っている。
 - `./cmake-helper.sh distcheck qt6` と `./cmake-helper.sh distcheck qt5`: tarball をビルド、テスト、インストール、アンインストールできる。インストールしたものが `rcssmonitor-版` と名乗る。
 - 画面で: 2D と 3D、ログの再生、ライブ (UDP、TCP、WebSocket)、遅延再生、人型パック。
+- 耳で: 審判の笛を、Qt6 と Qt5 (`libqt5multimedia5-plugins` を入れて) のビルドで、ログの再生とライブで聞く (キックオフ、反則とその再開、試合の終わりの長い笛 3 回、巻き戻した後、設定ダイアログの Test)。音はテストでは確かめられない。
 
 ## 4. 取り込みとタグ
 
