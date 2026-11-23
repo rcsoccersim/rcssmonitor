@@ -125,6 +125,13 @@ const char * const TRANSPORT_NAMES = "udp, tcp or ws";
 const char * const TRANSPORT_NAMES = "udp or tcp (ws is not available in this build)";
 #endif
 
+//! the help message of --whistle in a build without the sound
+#ifdef HAVE_QT_MULTIMEDIA
+#define WHISTLE_AVAILABILITY ""
+#else
+#define WHISTLE_AVAILABILITY " (not available in this build: no Qt Multimedia)"
+#endif
+
 #ifdef USE_Q_COMMAND_LINE_PARSER
 
 inline
@@ -252,6 +259,9 @@ Options::Options()
     M_show_tool_bar( false ),
     M_show_status_bar( false ),
     M_ui_color_scheme( UIColorScheme::System ),
+    // sound options
+    M_whistle( false ),
+    M_whistle_volume( DEFAULT_WHISTLE_VOLUME ),
     // view options
     M_anti_aliasing( true ),
     M_show_score_board( true ),
@@ -418,6 +428,20 @@ Options::readSettings()
     // an unknown name (of a later version) is not read
     val = settings.value( "ui_color_scheme" );
     if ( val.isValid() ) uiColorSchemeFromName( val.toString(), &M_ui_color_scheme );
+
+    settings.endGroup();
+
+    //
+    // sound
+    //
+
+    settings.beginGroup( "Sound" );
+
+    val = settings.value( "whistle" );
+    if ( val.isValid() ) M_whistle = val.toBool();
+
+    val = settings.value( "whistle_volume" );
+    if ( val.isValid() ) setWhistleVolume( val.toInt() );
 
     settings.endGroup();
 
@@ -900,6 +924,15 @@ Options::writeSettings( bool all )
         settings.endGroup();
 
         //
+        // sound: only when the file is made, as the color scheme
+        // (writeWhistle(), writeWhistleVolume())
+        //
+        settings.beginGroup( "Sound" );
+        settings.setValue( "whistle", M_whistle );
+        settings.setValue( "whistle_volume", M_whistle_volume );
+        settings.endGroup();
+
+        //
         // monitor
         //
         settings.beginGroup( "Monitor" );
@@ -1074,6 +1107,37 @@ Options::writeUIColorScheme() const
 
     settings.beginGroup( "MainWindow" );
     settings.setValue( "ui_color_scheme", uiColorSchemeName( M_ui_color_scheme ) );
+    settings.endGroup();
+}
+
+/*-------------------------------------------------------------------*/
+void
+Options::setWhistleVolume( const int volume )
+{
+    M_whistle_volume = std::min( MAX_WHISTLE_VOLUME, std::max( MIN_WHISTLE_VOLUME, volume ) );
+}
+
+/*-------------------------------------------------------------------*/
+void
+Options::writeWhistle() const
+{
+    QSettings settings( Options::CONF_FILE,
+                        QSettings::IniFormat );
+
+    settings.beginGroup( "Sound" );
+    settings.setValue( "whistle", M_whistle );
+    settings.endGroup();
+}
+
+/*-------------------------------------------------------------------*/
+void
+Options::writeWhistleVolume() const
+{
+    QSettings settings( Options::CONF_FILE,
+                        QSettings::IniFormat );
+
+    settings.beginGroup( "Sound" );
+    settings.setValue( "whistle_volume", M_whistle_volume );
     settings.endGroup();
 }
 
@@ -1303,6 +1367,21 @@ Options::parseCmdLine( int argc,
                                             "scheme",
                                             uiColorSchemeName( M_ui_color_scheme ) );
     parser.addOption( opt_ui_color_scheme );
+    // sound options
+    QCommandLineOption opt_whistle( "whistle",
+                                    "The referee's whistle at the kick-offs, the fouls, the goals and the ends of the halves"
+                                    WHISTLE_AVAILABILITY ". Not saved: View > Referee's Whistle and the settings dialog save the one chosen there."
+                                    " (Default=" + to_onoff( M_whistle ) + ")",
+                                    "bool",
+                                    to_onoff( M_whistle ) );
+    parser.addOption( opt_whistle );
+    QCommandLineOption opt_whistle_volume( "whistle-volume",
+                                           "The volume of the referee's whistle, " + QString::number( MIN_WHISTLE_VOLUME )
+                                           + " to " + QString::number( MAX_WHISTLE_VOLUME )
+                                           + ". Not saved, as --whistle. (Default=" + QString::number( M_whistle_volume ) + ")",
+                                           "int",
+                                           QString::number( M_whistle_volume ) );
+    parser.addOption( opt_whistle_volume );
     QCommandLineOption opt_view_3d( "view-3d",
                                     "Start with the 3D view. (Default=" + to_onoff( M_view_3d ) + ")",
                                     "bool",
@@ -1787,6 +1866,15 @@ Options::parseCmdLine( int argc,
          && ! uiColorSchemeFromName( parser.value( opt_ui_color_scheme ), &M_ui_color_scheme ) )
     {
         std::cerr << "Unknown value of ui-color-scheme: " << parser.value( opt_ui_color_scheme ).toStdString() << std::endl;
+    }
+    // sound options
+    if ( parser.isSet( opt_whistle ) ) M_whistle = to_bool( parser.value( opt_whistle ), M_whistle );
+    if ( parser.isSet( opt_whistle_volume ) )
+    {
+        bool ok = false;
+        const int volume = parser.value( opt_whistle_volume ).toInt( &ok );
+        if ( ok && MIN_WHISTLE_VOLUME <= volume && volume <= MAX_WHISTLE_VOLUME ) M_whistle_volume = volume;
+        else std::cerr << "Out of range: whistle-volume " << parser.value( opt_whistle_volume ).toStdString() << std::endl;
     }
     // view options
     if ( parser.isSet( opt_anti_aliasing ) ) M_anti_aliasing = to_bool( parser.value( opt_anti_aliasing ), M_anti_aliasing );

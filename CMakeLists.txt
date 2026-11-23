@@ -115,6 +115,18 @@ if(ENABLE_WEBSOCKET)
   endif()
 endif()
 
+# check Qt Multimedia (optional): the referee's whistle
+option(ENABLE_SOUND "Enable the referee's whistle (requires Qt Multimedia)" ON)
+if(ENABLE_SOUND)
+  find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Multimedia QUIET)
+  if(Qt${QT_VERSION_MAJOR}Multimedia_FOUND)
+    set(HAVE_QT_MULTIMEDIA TRUE)
+    message(STATUS "The referee's whistle is built")
+  else()
+    message(WARNING "Qt${QT_VERSION_MAJOR} Multimedia not found. The referee's whistle is disabled.")
+  endif()
+endif()
+
 # check zlib
 find_package(ZLIB)
 if(ZLIB_FOUND)

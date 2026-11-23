@@ -16,7 +16,8 @@ jobs:
   # deprecated up to Qt 5.15 or 6.0, and -Werror catches the later ones.
   # The tests run under Xvfb with Mesa's software OpenGL (llvmpipe), so that
   # the 3D view is drawn offscreen too (docs/plan/2026-11-11_3d-view.md §10.2).
-  # They are built with Qt WebSockets (the WebSocket connection).
+  # They are built with Qt WebSockets (the WebSocket connection) and Qt
+  # Multimedia (the referee's whistle).
   cmake:
     name: CMake, ${{ matrix.qt }}
     # Named, not ubuntu-latest, which moves to a new image now and then.
@@ -27,10 +28,10 @@ jobs:
         include:
           - qt: Qt5
             qt_major: 5
-            qt_packages: qtbase5-dev libqt5websockets5-dev
+            qt_packages: qtbase5-dev libqt5websockets5-dev qtmultimedia5-dev
           - qt: Qt6
             qt_major: 6
-            qt_packages: qt6-base-dev libqt6opengl6-dev qt6-websockets-dev
+            qt_packages: qt6-base-dev libqt6opengl6-dev qt6-websockets-dev qt6-multimedia-dev
     steps:
       - uses: actions/checkout@v5
       - name: Install the packages
@@ -48,6 +49,8 @@ jobs:
         run: grep -q '^#define HAVE_3D_VIEW' build/config.h
       - name: Check that the WebSocket connection is built
         run: grep -q '^#define HAVE_QT_WEBSOCKETS' build/config.h
+      - name: Check that the referee's whistle is built
+        run: grep -q '^#define HAVE_QT_MULTIMEDIA' build/config.h
       - name: Build
         run: cmake --build build --parallel "$(nproc)"
       - name: Test
@@ -70,7 +73,7 @@ jobs:
           # Qt6 WebSockets is libqt6websockets6-dev on 22.04 (qt6-websockets-dev
           # from 24.04)
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-            build-essential cmake qt6-base-dev libqt6opengl6-dev libqt6websockets6-dev libgl-dev zlib1g-dev libdeflate-dev \
+            build-essential cmake qt6-base-dev libqt6opengl6-dev libqt6websockets6-dev qt6-multimedia-dev libgl-dev zlib1g-dev libdeflate-dev \
             desktop-file-utils xvfb xauth libgl1-mesa-dri
       - name: Configure
         run: |
@@ -81,6 +84,8 @@ jobs:
         run: grep -q '^#define HAVE_3D_VIEW' build/config.h
       - name: Check that the WebSocket connection is built
         run: grep -q '^#define HAVE_QT_WEBSOCKETS' build/config.h
+      - name: Check that the referee's whistle is built
+        run: grep -q '^#define HAVE_QT_MULTIMEDIA' build/config.h
       - name: Build
         run: cmake --build build --parallel "$(nproc)"
       - name: Test
@@ -103,7 +108,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            build-essential cmake qt6-base-dev libqt6opengl6-dev qt6-websockets-dev zlib1g-dev libdeflate-dev \
+            build-essential cmake qt6-base-dev libqt6opengl6-dev qt6-websockets-dev qt6-multimedia-dev zlib1g-dev libdeflate-dev \
             desktop-file-utils xvfb xauth libgl1-mesa-dri
       - name: distcheck
         # bash: -o pipefail, so that a failure of distcheck is not hidden by tee.
@@ -119,10 +124,10 @@ jobs:
           LIBGL_ALWAYS_SOFTWARE: 1
 
   # autotools stays on Qt5 (D3). Build it so that a source file missing
-  # from the Makefile.am files is caught. It is built without libdeflate
-  # and Qt WebSockets, which the CMake jobs use, so that both ways of
-  # reading a gzip game log are compiled, and the monitor without the
-  # WebSocket connection too.
+  # from the Makefile.am files is caught. It is built without libdeflate,
+  # Qt WebSockets and Qt Multimedia, which the CMake jobs use, so that both
+  # ways of reading a gzip game log are compiled, and the monitor without
+  # the WebSocket connection and without the referee's whistle too.
   autotools-qt5:
     name: autotools, Qt5
     runs-on: ubuntu-26.04
@@ -139,5 +144,7 @@ jobs:
         # The Qt5 qmake by its full path: /usr/bin/qmake may be missing
         # or point to another Qt.
         run: ./configure QMAKE=/usr/lib/qt5/bin/qmake
+      - name: Check that the referee's whistle is not built (no Qt Multimedia)
+        run: "! grep -q '^#define HAVE_QT_MULTIMEDIA' config.h"
       - name: Build
         run: make -j"$(nproc)"

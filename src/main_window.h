@@ -56,6 +56,7 @@ class LogPlayerSlider;
 class MonitorClient;
 class PlayerTypeDialog;
 class RefereeMenu;
+class Whistle;
 
 class MainWindow
     : public QMainWindow {
@@ -81,6 +82,7 @@ private:
     MonitorClient * M_monitor_client;
     LogPlayer * M_log_player;
     //LogPlayerSlider * M_log_player_slider;
+    Whistle * M_whistle; //!< the referee's whistle at the changes of the play mode of the frame shown
 
     QLabel * M_position_label;
 
@@ -132,6 +134,7 @@ private:
     bool M_viewpoint_shown = false; //!< a viewpoint has been chosen (M_viewpoint), for Ctrl+I
     Viewpoint M_viewpoint = Viewpoint::Side;
     QAction * M_full_screen_act;
+    QAction * M_toggle_whistle_act = nullptr; //!< View > Referee's Whistle (the option whistle)
     QAction * M_show_player_type_dialog_act;
     QActionGroup * M_style_act_group;
     QActionGroup * M_ui_color_scheme_act_group = nullptr; //!< View > UI Color Scheme
@@ -281,6 +284,12 @@ private slots:
     void toggleLiveDelay( bool on );
     //! the options of the delayed live view changed in the settings dialog
     void applyLiveDelay();
+    //! the referee's whistle on or off (View > Referee's Whistle)
+    void toggleWhistle( bool on );
+    //! the whistle's options changed in the settings dialog
+    void applyWhistle();
+    //! blow the short whistle at the volume of the options (the settings dialog's Test)
+    void tryWhistle();
 
     void about();
     void printShortcutKeys();

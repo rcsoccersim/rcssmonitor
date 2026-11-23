@@ -124,6 +124,29 @@ fi
 AM_CONDITIONAL([HAVE_QT_WEBSOCKETS], [test "x$have_qt_websockets" = "xyes"])
 
 # ----------------------------------------------------------
+# check Qt Multimedia: the referee's whistle
+
+AC_ARG_ENABLE([sound],
+  [AS_HELP_STRING([--disable-sound], [disable the referee's whistle])],
+  [], [enable_sound=yes])
+have_qt_multimedia=no
+if test "x$enable_sound" = "xyes"; then
+  AC_LANG_PUSH([C++])
+  save_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $QT_CXXFLAGS"
+  AC_CHECK_HEADER([QAudioFormat], [have_qt_multimedia=yes])
+  CPPFLAGS="$save_CPPFLAGS"
+  AC_LANG_POP([C++])
+  if test "x$have_qt_multimedia" != "xyes"; then
+    AC_MSG_WARN([Qt Multimedia not found. The referee's whistle is disabled.])
+  fi
+fi
+if test "x$have_qt_multimedia" = "xyes"; then
+  AC_DEFINE([HAVE_QT_MULTIMEDIA], [1], [Define to 1 if Qt Multimedia is available.])
+fi
+AM_CONDITIONAL([HAVE_QT_MULTIMEDIA], [test "x$have_qt_multimedia" = "xyes"])
+
+# ----------------------------------------------------------
 # check boost
 
 #AX_BOOST_BASE([1.38.0])

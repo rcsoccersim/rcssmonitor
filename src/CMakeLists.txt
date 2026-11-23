@@ -37,6 +37,8 @@ add_library(rcssmonitor_core STATIC
   ui_palette.cpp
   ui_style.cpp
   vector_2d.cpp
+  whistle.cpp
+  whistle_rules.cpp
   # the icons of the tool bars (icons/generate.sh; UIIcon)
   ${PROJECT_SOURCE_DIR}/icons/icons.qrc
   )
@@ -122,6 +124,12 @@ if(HAVE_3D_VIEW)
   # ufbx (FBX loading, MIT or Unlicense), compiled from its own C file
   target_include_directories(rcssmonitor_core PRIVATE ${PROJECT_SOURCE_DIR}/third_party/ufbx)
   target_link_libraries(rcssmonitor_core PUBLIC ${QT_3D_VIEW_LIBRARIES})
+endif()
+
+if(HAVE_QT_MULTIMEDIA)
+  # the referee's whistle: the sounds (tools/make_whistle.py) in the resources
+  target_sources(rcssmonitor_core PRIVATE ${PROJECT_SOURCE_DIR}/resources/sounds/sounds.qrc)
+  target_link_libraries(rcssmonitor_core PUBLIC Qt${QT_VERSION_MAJOR}::Multimedia)
 endif()
 
 if(HAVE_QT_WEBSOCKETS)

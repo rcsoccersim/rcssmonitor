@@ -1,0 +1,8 @@
+<!DOCTYPE RCC>
+<!-- The referee's whistles, made by tools/make_whistle.py (docs/plan/2026-11-22-00_v20-features.md §C). -->
+<RCC version="1.0">
+<qresource prefix="/sounds">
+    <file>whistle_short.wav</file>
+    <file>whistle_long.wav</file>
+</qresource>
+</RCC>
