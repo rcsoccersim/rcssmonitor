@@ -18,6 +18,10 @@
 	- improve the desktop entry (keywords, the action to connect, the
 	  link to the window), and install the icon in all its sizes. the
 	  autotools build installs them too, with the RPATH of librcssrcg.
+	- open game logs from http:// and https:// URLs (the menu, the
+	  command line, a drop), downloaded into the cache; GitHub's file
+	  pages and Git LFS. open dropped game log files. save a copy of the
+	  file of the game log open.
 	- add the referee's whistle at the changes of the play mode, with
 	  Qt Multimedia (optional): the sounds synthesized by
 	  tools/make_whistle.py, played on one audio output kept open while

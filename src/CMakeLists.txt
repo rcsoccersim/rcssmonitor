@@ -12,12 +12,15 @@ add_library(rcssmonitor_core STATIC
   field_painter.cpp
   game_log_file.cpp
   line_2d.cpp
+  log_downloader.cpp
   log_player.cpp
   log_player_slider.cpp
+  log_url.cpp
   main_window.cpp
   message_splitter.cpp
   monitor_client.cpp
   monitor_transport.cpp
+  open_url_dialog.cpp
   options.cpp
   overlay_math.cpp
   play_mode_position.cpp

@@ -5,7 +5,7 @@
 | Created | 2026-11-22 |
 | Target | rcssmonitor develop (5affd90, 20.0.0-beta.1) |
 | Branch | `feature/remote-logs` (from develop after the referee's whistle (F4) is merged; the user creates it on GitHub) |
-| Status | Plan written (2026-11-22). Stage 3 (archive) is on hold until the site can be reached |
+| Status | Plan written (2026-11-22). Stage 1 (opening from URLs) started (2026-11-24, `feature/remote-logs`). Stage 3 (archive) is on hold until the site can be reached |
 | Japanese version | [2026-11-22-02_remote-logs.md](2026-11-22-02_remote-logs.md) (same content) |
 | Related | F5 of the overall plan [2026-11-22-00_v20-features_en.md](2026-11-22-00_v20-features_en.md). Reference implementation: `src/io/fetch-log.ts`, `src/ui/dialogs/open-url-dialog.ts` and `docs/protocol.md` of rcssmonitor-web |
 
@@ -53,6 +53,12 @@
 |---|---|
 | D1 | GitHub first, the archive later (the archive is `archive.robocup.info`; it cannot be reached now) |
 | D2 | The GitHub lists include a default repository (`rcsoccersim/RoboCup2026`), and the user can add `owner/repo` in the settings |
+| D3 | Downloaded logs are kept in the cache (under `QStandardPaths::CacheLocation`, e.g. `~/.cache/rcssmonitor/logs/`), one per URL. The same URL is reused if it was downloaded completely before. A way to clear the cache is provided (2026-11-24, at the start of stage 1) |
+| D4 | Drag and drop onto the window opens both URLs and local files (`.rcg`, `.rcg.gz`) (same) |
+| D5 | A way to save a copy of the file of the open log (File > Save a Copy of Game Log...) is added. It works for local logs too (same). It was named Save Game Log As... at first, but it copies the file, so the user chose Save a Copy of Game Log... (2026-11-24) |
+| D6 | The design decisions S1 to S7 are as proposed. The download size limit (S4) is 200 MB (same) |
+| D7 | The URL functions ported from the web version (global functions in `log_url.h` in stage 1) are put in classes: the static-only class `LogUrl` for reading URLs, which has no state, and the class `LogCache` (`log_cache.{h,cpp}`) for the cache, which has its directory. Not statics of `LogDownloader` (the dialog and the command line only check URLs, without depending on a `QObject` of Qt Network; the cache is not the download's job) (2026-11-24; decided by the user when stage 1 was revised) |
+| D8 | The rules of the referee's whistle (F4; global functions in `whistle_rules.h`) are put in the static-only class `WhistleRules` too, in another commit on this branch (same) |
 
 ### 3.2 Design decisions (Claude; the user confirms them at the start of the stages)
 
@@ -115,6 +121,30 @@
 - If the logs are bundled in `.tar.gz` etc., decide then how to extract them (our own tar reader, or another dependency).
 - Before starting, check whether it is public, the form of the URLs, and the rules for automated access (robots.txt etc.).
 
+### 4.4 The implementation of stage 1 (2026-11-24)
+
+4.1 was implemented as follows. What was decided beyond the plan is written too.
+
+- `src/log_url.{h,cpp}` (new; QtCore only): `parseLogUrl` of the web version (`QUrl` in StrictMode; http and https only, a host needed, a URL with a user name or a password refused; the reason of an error returned), `githubRawUrl`, `githubLfsUrl`, `lfsPointerSize` and `logNameFromUrl` were ported. Added: `isLogUrl` (telling a URL from a local path on the command line and in a drop), `cachedLogPath` (`DIR/KEY/NAME` in the cache; KEY is the first 16 hex digits of the SHA-1 of the URL, NAME the log's name made safe for a file name; the file has the log's name, used as it is by the window's title and Save As), `defaultLogCacheDir` (`QStandardPaths::CacheLocation/logs`, `~/.cache/rcssmonitor/logs`), `logCacheSize` and `clearLogCache`.
+- `src/log_downloader.{h,cpp}` (new): `LogDownloader` downloads one URL by `QNetworkAccessManager`.
+  - Written through `QSaveFile` (the plan's "written under a temporary name, then renamed", by Qt's own means; two rcssmonitors downloading the same URL at once do not mix).
+  - Redirects by `NoLessSafeRedirectPolicy` (S2), at most 10. `User-Agent: rcssmonitor/VERSION` (S5).
+  - The size limit of 200 MB (S4, D6): stopped before the body if `Content-Length` is over it, or when that much has been read without it. The content of an LFS pointer whose `size` is over it is not read.
+  - A transfer timeout of 30 s without data (`setTransferTimeout`; Qt 5.15 or later), told as such.
+  - An LFS pointer: read again from `githubLfsUrl` of `reply->url()` (the URL after the redirects), with the pointer's `size` as the total of the progress. Where it goes can be replaced for the tests (`setLfsResolver`).
+  - The progress is told each time the body is read (`QNetworkReply::downloadProgress` was not emitted each time data came).
+  - https without TLS (`QSslSocket::supportsSsl()`): told to install OpenSSL or to use http.
+  - A failure is told after `start()` returns, and not after `abort()` or the next `start()`.
+- `src/open_url_dialog.{h,cpp}` (new): the dialog of File > Open Game Log from URL. The recent URLs (an editable combo box), why the text is not a URL (in red in the dialog, which stays open), where the cache is (the home as `~`) and its size, and Clear Cache.
+- `MainWindow`:
+  - "Open Game Log from URL..." (Ctrl+Shift+O) and "Save a Copy of Game Log..." (Ctrl+Shift+S) in the File menu.
+  - A URL is opened from the cache if it is there; otherwise it is downloaded with a `QProgressDialog` (with Cancel; how many MB of how many, when the size is known), and then opened by `openGameLogFile( path )` (S1). A failure is told in a message box with its reason (and the program ends with `--auto-quit-mode`). The progress dialog is not modal (a modal `QProgressDialog` processes the events in `setValue()`, where the download ended and closed the dialog, and the call after it crashed). Opening the log and telling a failure are done after the call of `LogDownloader` returns (`QTimer::singleShot( 0 )`; reading a log and a message box both process the events). Opening another log, connecting to a server or opening the next URL stops the download.
+  - A positional argument of the command line that starts with http:// or https:// is opened as a URL.
+  - Drops (D4): the first URL; a local file is opened, an http or https URL downloaded. A dropped text that is a URL is taken too. A local file is taken whatever its extension (a file that cannot be opened is told as when chosen in the file dialog). The 3D view is a window of its own (`QOpenGLWindow`), so its drags and drops go to the same handling through the main window's event filter.
+  - Saving a copy (D5): the file of the log open is copied as it is (compressed if it is). Enabled when a log is opened, and disabled when connected to a server. If the file is not there any more (the cache cleared), that is told.
+- `Options`: the recent URLs (at most 10; `recent_urls` in `[GameLog]` of the settings), written as soon as a URL is opened (`writeRecentLogUrls()`; not at the end).
+- The tests' HOME has the cache too (`XDG_CACHE_HOME`), so that they never touch the user's cache.
+
 ## 5. Stages
 
 | # | Work | Completion criteria |
@@ -156,3 +186,34 @@
 
 - Written together with the overall plan (2026-11-22-00_v20-features_en.md). The user's decisions D1 and D2 were given.
 - The state of the external sites in §2.1 was checked on this day with curl and the GitHub API.
+
+### 2026-11-24: Stage 1 started
+
+- The user made `feature/remote-logs` from develop (6b3b4f8) after the referee's whistle (F4) was merged.
+- Decided by the user at the start of the stage: D3 (kept in the cache), D4 (dropping URLs and local files), D5 (Save As), D6 (S1 to S7 as proposed; the size limit is 200 MB).
+- The source to port (`src/io/fetch-log.ts` and `test/unit/fetch-log.test.ts` of rcssmonitor-web, 8c2b375) is in `../rcssmonitor-web` here.
+
+### 2026-11-24: Stage 1 implemented
+
+- Stage 1 was implemented (4.4). Tests: `test_log_url` (ported from `fetch-log.test.ts` of the web version; telling URLs on the command line; the cache's paths, size and clearing), `test_log_downloader` (with a small HTTP server in the test, `test/http_test_server.h`: success and progress, replacing, redirects, 404, no server, abort, the next start, the size limit (by the length, while reading), LFS (the content, the limit, not GitHub), the timeout, a place not writable), `test_remote_log` (in the main window: what a drop has, dropping a file, opening a URL and reusing the cache, a URL on the command line, Cancel, telling a failure, Save As, the dialog, the recent URLs).
+- Checked (Ubuntu 24.04):
+  - The three CMake builds, Qt 6.4.2, Qt 5.15.13 (the system's Qt5) and Qt6 without the whistle, had no warnings, and `ctest -j8`, run 3 times in each, passed all 64 tests. The autotools build (Qt5) passed without warnings too.
+  - From the real GitHub (a public repository; only the User-Agent is sent): a log of RoboCup2026 (4.8 MB) was downloaded from its file page (Qt6) and its raw link (Qt5), the same as the local copy of that log (https with TLS worked).
+  - Under Xvfb, the 3D view was shown, a drop was sent to its window, and the log opened (the offscreen tests cannot make the 3D view, so this is not in ctest).
+  - The File menu and the URL dialog were saved as images offscreen and looked at. A long path of the cache cut the last line, so the dialog now grows with its content, and shows the home as `~`.
+- Documents: a section "Opening a game log from a URL" in README, OpenSSL (at run time) and a note in `docs/build.md`, and items in NEWS and ChangeLog.
+- Next: the user checks opening real GitHub URLs (a file page, a raw link, a file of LFS) and URLs of other servers, drops (2D and 3D), Save As and the cache (the completion criteria of stage 1). Then the commit and push, and the CI.
+
+### 2026-11-24: Stage 1 revised (after the user checked)
+
+- The user checked: opening the example URL crashed with Segmentation Fault. After starting again, the same URL (in the cache) opened. After Clear Cache, it crashed again. Drops from the file manager and the browser worked, but a drop from the browser crashed too at the first download. Save Game Log As saved the file. Its name: it copies rather than saves, so "copy" fits better.
+- The cause: the progress dialog was modal (`Qt::WindowModal`). A modal `QProgressDialog` processes the events in `setValue()`. When the end of the download came there, the dialog was closed (`M_download_dialog` cleared) and the log opened, and `setLabelText()` after `setValue()` returned used the null pointer and crashed. Opening from the cache shows no progress, so it did not crash. The tests missed it, as the log was small and no progress came in the middle. A test that serves the log in two parts (`openUrlInParts`) reproduced it (Segmentation Fault all 3 times).
+- Fixed: the dialog is not modal; the text of the progress is set first and `setValue()` last, with the dialog watched by `QPointer`; opening the downloaded log and telling a failure are done after the call of `LogDownloader` returns (4.4). The new test crashed before the fix and passes after it.
+- The name: the user chose "Save a Copy of Game Log..." (D5). The menu, the function (`saveGameLogCopy`), the messages, the tests, README, NEWS and ChangeLog were changed.
+- Checked: the three CMake builds had no warnings, and `ctest -j8`, run 3 times in each, passed all 64 tests. The autotools build (Qt5) passed without warnings too.
+- Next: the user checks again (the completion criteria of stage 1). Then the commit and push, and the CI.
+
+### 2026-11-24: Deciding to revise the design
+
+- The user pointed out that the functions ported from the web version are global functions, which feels odd as C++ code, and asked whether they can be put in classes (statics of `LogDownloader`, perhaps). The functions were sorted by their roles and where they are used, and two classes were proposed: `LogUrl` (reading URLs) and `LogCache` (the cache). The user decided D7 and D8.
+- The order of the commits (decided by the user): the present state (the crash fixed, all the tests passing) is committed and pushed first, and the revision is the next commit.

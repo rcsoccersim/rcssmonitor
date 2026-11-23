@@ -83,6 +83,21 @@ rcssmonitor
 
 If you invoke `rcssmonitor` with `--help` option, available options are displayed in your console.
 
+### Opening a game log from a URL
+
+`File` -> `Open Game Log from URL...` (`Ctrl+Shift+O`) downloads a game log (`.rcg` or `.rcg.gz`) from an `http://` or `https://` URL, and opens it.
+A file page on GitHub (`https://github.com/OWNER/REPO/blob/BRANCH/PATH`) can be given as it is: it is read from its raw file, and a file stored with Git LFS from its content.
+A URL can also be given on the command line, or dropped on the window from a browser:
+
+```bash
+rcssmonitor https://github.com/rcsoccersim/RoboCup2026/blob/main/logs/Finals/202607050404-HELIOS2026_0-vs-YuShan2026_1.rcg.gz
+```
+
+- The downloaded logs are kept in `~/.cache/rcssmonitor/logs`, and a URL opened again is opened from there. `Clear Cache` in the dialog removes them. The dialog also remembers the URLs opened recently.
+- `File` -> `Save a Copy of Game Log...` (`Ctrl+Shift+S`) saves a copy of the file of the game log open, e.g. one downloaded.
+- A game log file dropped on the window is opened too, as by `File` -> `Open Game Log`.
+- A download is up to 200 MB. `https://` needs the TLS of Qt with OpenSSL ([docs/build.md](docs/build.md#notes)).
+
 ### The 3D view
 
 `D`, or the `3D View` button in the tool bar, switches between the 2D and 3D views (`--view-3d on` starts in 3D).

@@ -60,6 +60,14 @@
     installs the desktop entry and the icons too, and its installed
     rcssmonitor finds librcssrcg without LD_LIBRARY_PATH.
 
+  * Open game logs from URLs (File > Open Game Log from URL, a URL on
+    the command line, or dropped on the window): downloaded into
+    ~/.cache/rcssmonitor/logs and opened. A file page on GitHub is read
+    from its raw file (and a file of Git LFS from its content). Game log
+    files can be dropped on the window too, and File > Save a Copy of
+    Game Log saves a copy of the file of the game log open. See
+    README.md.
+
   * Add the referee's whistle (View > Referee's Whistle, --whistle, off
     by default): a long whistle at a kick-off, a short one at a foul, an
     offside and so on and at the free kick after it, two long ones at

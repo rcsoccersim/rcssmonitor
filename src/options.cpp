@@ -446,6 +446,29 @@ Options::readSettings()
     settings.endGroup();
 
     //
+    // game logs
+    //
+
+    settings.beginGroup( "GameLog" );
+
+    val = settings.value( "recent_urls" );
+    if ( val.isValid() )
+    {
+        M_recent_log_urls.clear();
+        for ( const QString & url : val.toStringList() )
+        {
+            if ( ! url.trimmed().isEmpty()
+                 && ! M_recent_log_urls.contains( url )
+                 && M_recent_log_urls.size() < MAX_RECENT_LOG_URLS )
+            {
+                M_recent_log_urls.push_back( url );
+            }
+        }
+    }
+
+    settings.endGroup();
+
+    //
     // monitor
     //
 
@@ -1115,6 +1138,32 @@ void
 Options::setWhistleVolume( const int volume )
 {
     M_whistle_volume = std::min( MAX_WHISTLE_VOLUME, std::max( MIN_WHISTLE_VOLUME, volume ) );
+}
+
+/*-------------------------------------------------------------------*/
+void
+Options::addRecentLogUrl( const QString & url )
+{
+    const QString u = url.trimmed();
+    if ( u.isEmpty() ) return;
+    M_recent_log_urls.removeAll( u );
+    M_recent_log_urls.push_front( u );
+    while ( M_recent_log_urls.size() > MAX_RECENT_LOG_URLS )
+    {
+        M_recent_log_urls.pop_back();
+    }
+}
+
+/*-------------------------------------------------------------------*/
+void
+Options::writeRecentLogUrls() const
+{
+    QSettings settings( Options::CONF_FILE,
+                        QSettings::IniFormat );
+
+    settings.beginGroup( "GameLog" );
+    settings.setValue( "recent_urls", M_recent_log_urls );
+    settings.endGroup();
 }
 
 /*-------------------------------------------------------------------*/
