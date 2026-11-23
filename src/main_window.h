@@ -39,6 +39,7 @@
 
 #include "camera_mode.h"
 #include "disp_holder.h"
+#include "log_cache.h"
 #include "referee_target.h"
 
 class QActionGroup;
@@ -87,6 +88,7 @@ private:
     //LogPlayerSlider * M_log_player_slider;
     Whistle * M_whistle; //!< the referee's whistle at the changes of the play mode of the frame shown
 
+    LogCache M_log_cache; //!< the game logs downloaded
     LogDownloader * M_log_downloader = nullptr; //!< a game log from a URL (File > Open Game Log from URL)
     QProgressDialog * M_download_dialog = nullptr; //!< while it downloads
     QString M_game_log_path; //!< the file of the game log open (Save a Copy), or empty (none, or live)
@@ -261,7 +263,7 @@ public:
       4.1): from the cache if it was downloaded before, or downloaded into the
       cache with a progress dialog (Cancel), and then opened. A URL that cannot
       be opened is told in a message box.
-      \param text the URL, as given (parseLogUrl())
+      \param text the URL, as given (LogUrl::parse())
     */
     void openGameLogUrl( const QString & text );
 
@@ -272,8 +274,8 @@ public:
     */
     bool saveGameLogCopy( const QString & path );
 
-    //! the cache directory of the downloaded game logs
-    static QString gameLogCacheDir();
+    //! the cache of the downloaded game logs
+    const LogCache & gameLogCache() const { return M_log_cache; }
 
 private:
 

@@ -397,7 +397,7 @@ TestLogDownloader::lfsTooLarge()
 }
 
 /*-------------------------------------------------------------------*/
-//! a pointer not on raw.githubusercontent.com (githubLfsUrl()): failed
+//! a pointer not on raw.githubusercontent.com (LogUrl::githubLfsUrl()): failed
 void
 TestLogDownloader::lfsWithoutResolver()
 {

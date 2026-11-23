@@ -226,7 +226,7 @@ MainWindow::init()
     {
         std::cerr << "open game log " << Options::instance().gameLogFile() << std::endl;
         const QString log = QString::fromStdString( Options::instance().gameLogFile() );
-        if ( isLogUrl( log ) )
+        if ( LogUrl::isUrl( log ) )
         {
             // an http:// or https:// URL: downloaded (docs/plan/2026-11-22-02_remote-logs.md 4.1)
             QTimer::singleShot( 100, this, [this, log]() { openGameLogUrl( log ); } );
@@ -2310,7 +2310,7 @@ MainWindow::openGameLogFile()
     if ( s_last_path.isEmpty() )
     {
         if ( ! Options::instance().gameLogFile().empty()
-             && ! isLogUrl( QString::fromStdString( Options::instance().gameLogFile() ) ) )
+             && ! LogUrl::isUrl( QString::fromStdString( Options::instance().gameLogFile() ) ) )
         {
             s_last_path = QString::fromStdString( Options::instance().gameLogFile() );
         }
@@ -2342,17 +2342,10 @@ MainWindow::openGameLogFile()
 }
 
 /*-------------------------------------------------------------------*/
-QString
-MainWindow::gameLogCacheDir()
-{
-    return defaultLogCacheDir();
-}
-
-/*-------------------------------------------------------------------*/
 void
 MainWindow::openGameLogUrl()
 {
-    OpenUrlDialog dialog( this, Options::instance().recentLogUrls(), gameLogCacheDir() );
+    OpenUrlDialog dialog( this, Options::instance().recentLogUrls(), M_log_cache );
     if ( dialog.exec() != QDialog::Accepted )
     {
         return;
@@ -2365,7 +2358,7 @@ void
 MainWindow::openGameLogUrl( const QString & text )
 {
     QString error;
-    const QUrl url = parseLogUrl( text, &error );
+    const QUrl url = LogUrl::parse( text, &error );
     if ( ! url.isValid() )
     {
         std::cerr << "cannot open a game log: " << error.toStdString() << std::endl;
@@ -2380,8 +2373,8 @@ MainWindow::openGameLogUrl( const QString & text )
     Options::instance().writeRecentLogUrls();
 
     // downloaded before: from the cache
-    const QString path = cachedLogPath( gameLogCacheDir(), url );
-    if ( QFile::exists( path ) )
+    const QString path = M_log_cache.pathOf( url );
+    if ( M_log_cache.contains( url ) )
     {
         std::cerr << "open game log " << url.toString().toStdString()
                   << " from the cache " << path.toStdString() << std::endl;
@@ -2395,7 +2388,7 @@ MainWindow::openGameLogUrl( const QString & text )
 
     M_download_dialog = new QProgressDialog( this );
     M_download_dialog->setWindowTitle( tr( "Open Game Log from URL" ) );
-    M_download_dialog->setLabelText( tr( "Downloading %1 ..." ).arg( logNameFromUrl( url ) ) );
+    M_download_dialog->setLabelText( tr( "Downloading %1 ..." ).arg( LogUrl::name( url ) ) );
     M_download_dialog->setRange( 0, 0 ); // busy until the size is known
     M_download_dialog->setAutoClose( false );
     M_download_dialog->setAutoReset( false );
@@ -2437,7 +2430,7 @@ MainWindow::showDownloadProgress( qint64 received,
     const QPointer< QProgressDialog > dialog( M_download_dialog );
     if ( ! dialog ) return;
 
-    const QString name = logNameFromUrl( M_log_downloader->url() );
+    const QString name = LogUrl::name( M_log_downloader->url() );
     if ( total > 0 )
     {
         dialog->setLabelText( tr( "Downloading %1 ...\n%2 of %3" )
@@ -2583,7 +2576,7 @@ MainWindow::droppedGameLog( const QMimeData * data )
     if ( data->hasText() )
     {
         const QString text = data->text().trimmed();
-        if ( isLogUrl( text )
+        if ( LogUrl::isUrl( text )
              && ! text.contains( QLatin1Char( '\n' ) ) )
         {
             return text;
@@ -2633,7 +2626,7 @@ MainWindow::dropEvent( QDropEvent * event )
     event->acceptProposedAction();
 
     // opened after the drop is done (the source waits for it to end)
-    if ( isLogUrl( log ) )
+    if ( LogUrl::isUrl( log ) )
     {
         QTimer::singleShot( 0, this, [this, log]() { openGameLogUrl( log ); } );
     }

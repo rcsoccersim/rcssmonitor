@@ -2,8 +2,8 @@
 
 /*!
   \file log_url.cpp
-  \brief the URLs of game logs: what the user gives, GitHub's files, the
-  name of a log and where it is kept. Source File.
+  \brief the URLs of game logs: what the user gives, GitHub's files and the
+  name of a log. Source File.
 */
 
 /*
@@ -38,19 +38,14 @@
 #include "log_url.h"
 
 #include <QCoreApplication>
-#include <QCryptographicHash>
-#include <QDir>
-#include <QDirIterator>
-#include <QFileInfo>
 #include <QRegularExpression>
-#include <QStandardPaths>
 #include <QStringList>
 
 namespace {
 
 const char * const LFS_VERSION = "version https://git-lfs.github.com/spec/v1\n";
 
-//! the messages of parseLogUrl(), translated in the context of LogUrl
+//! the messages of LogUrl::parse(), translated in the context of LogUrl (not a QObject)
 QString
 tr( const char * text )
 {
@@ -61,7 +56,7 @@ tr( const char * text )
 
 /*-------------------------------------------------------------------*/
 bool
-isLogUrl( const QString & text )
+LogUrl::isUrl( const QString & text )
 {
     const QString t = text.trimmed();
     return t.startsWith( QLatin1String( "http://" ), Qt::CaseInsensitive )
@@ -70,8 +65,8 @@ isLogUrl( const QString & text )
 
 /*-------------------------------------------------------------------*/
 QUrl
-parseLogUrl( const QString & text,
-             QString * error )
+LogUrl::parse( const QString & text,
+               QString * error )
 {
     const auto fail = [error]( const QString & message ) {
         if ( error ) *error = message;
@@ -113,7 +108,7 @@ parseLogUrl( const QString & text,
 
 /*-------------------------------------------------------------------*/
 QUrl
-githubRawUrl( const QUrl & url )
+LogUrl::githubRawUrl( const QUrl & url )
 {
     const QString host = url.host().toLower();
     if ( host != QLatin1String( "github.com" )
@@ -135,7 +130,7 @@ githubRawUrl( const QUrl & url )
 
 /*-------------------------------------------------------------------*/
 QUrl
-githubLfsUrl( const QUrl & url )
+LogUrl::githubLfsUrl( const QUrl & url )
 {
     if ( url.host().toLower() != QLatin1String( "raw.githubusercontent.com" ) )
     {
@@ -148,7 +143,7 @@ githubLfsUrl( const QUrl & url )
 
 /*-------------------------------------------------------------------*/
 qint64
-lfsPointerSize( const QByteArray & bytes )
+LogUrl::lfsPointerSize( const QByteArray & bytes )
 {
     const QByteArray version( LFS_VERSION );
     if ( bytes.size() >= 1024
@@ -171,7 +166,7 @@ lfsPointerSize( const QByteArray & bytes )
 
 /*-------------------------------------------------------------------*/
 QString
-logNameFromUrl( const QUrl & url )
+LogUrl::name( const QUrl & url )
 {
     QString last;
     for ( const QString & part : url.path( QUrl::FullyEncoded ).split( QLatin1Char( '/' ) ) )
@@ -190,67 +185,4 @@ logNameFromUrl( const QUrl & url )
     const QByteArray bytes = QByteArray::fromPercentEncoding( last.toUtf8() );
     const QString decoded = QString::fromUtf8( bytes );
     return decoded.toUtf8() == bytes ? decoded : last;
-}
-
-/*-------------------------------------------------------------------*/
-QString
-cachedLogPath( const QString & cache_dir,
-               const QUrl & url )
-{
-    const QByteArray hash = QCryptographicHash::hash( url.toString( QUrl::FullyEncoded ).toUtf8(),
-                                                      QCryptographicHash::Sha1 ).toHex();
-
-    // the log's name, safe for a file name on any system
-    QString name = logNameFromUrl( url );
-    for ( QChar & c : name )
-    {
-        if ( c < QLatin1Char( ' ' )
-             || c == QLatin1Char( '/' ) || c == QLatin1Char( '\\' )
-             || c == QLatin1Char( ':' ) || c == QLatin1Char( '*' )
-             || c == QLatin1Char( '?' ) || c == QLatin1Char( '"' )
-             || c == QLatin1Char( '<' ) || c == QLatin1Char( '>' )
-             || c == QLatin1Char( '|' ) )
-        {
-            c = QLatin1Char( '_' );
-        }
-    }
-    name = name.trimmed();
-    if ( name.size() > 200 ) name = name.right( 200 );
-    if ( name.isEmpty()
-         || name == QLatin1String( "." )
-         || name == QLatin1String( ".." ) )
-    {
-        name = QStringLiteral( "game.rcg" );
-    }
-
-    return QDir( cache_dir ).filePath( QString::fromLatin1( hash.left( 16 ) ) + QLatin1Char( '/' ) + name );
-}
-
-/*-------------------------------------------------------------------*/
-QString
-defaultLogCacheDir()
-{
-    return QDir( QStandardPaths::writableLocation( QStandardPaths::CacheLocation ) ).filePath( QStringLiteral( "logs" ) );
-}
-
-/*-------------------------------------------------------------------*/
-qint64
-logCacheSize( const QString & cache_dir )
-{
-    qint64 size = 0;
-    QDirIterator it( cache_dir, QDir::Files | QDir::Hidden, QDirIterator::Subdirectories );
-    while ( it.hasNext() )
-    {
-        it.next();
-        size += it.fileInfo().size();
-    }
-    return size;
-}
-
-/*-------------------------------------------------------------------*/
-bool
-clearLogCache( const QString & cache_dir )
-{
-    QDir dir( cache_dir );
-    return ! dir.exists() || dir.removeRecursively();
 }

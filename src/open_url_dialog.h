@@ -33,6 +33,8 @@
 #ifndef RCSSMONITOR_OPEN_URL_DIALOG_H
 #define RCSSMONITOR_OPEN_URL_DIALOG_H
 
+#include "log_cache.h"
+
 #include <QDialog>
 #include <QString>
 #include <QStringList>
@@ -47,7 +49,7 @@ class QPushButton;
   \brief File > Open Game Log from URL (docs/plan/2026-11-22-02_remote-logs.md
   4.1): the URL of a game log, with the ones opened recently, and the cache
   of the downloaded logs (its size, and a button to clear it). Open is
-  accepted only for a URL that parseLogUrl() takes; otherwise the reason is
+  accepted only for a URL that LogUrl::parse() takes; otherwise the reason is
   shown in the dialog.
 */
 class OpenUrlDialog
@@ -57,7 +59,7 @@ class OpenUrlDialog
 
 private:
 
-    QString M_cache_dir;
+    LogCache M_cache;
     QComboBox * M_url_box;
     QLabel * M_error_label;
     QLabel * M_cache_label;
@@ -69,17 +71,17 @@ public:
     /*!
       \param parent the parent widget
       \param recent the URLs opened recently, the newest first
-      \param cache_dir the cache directory of the downloaded logs
+      \param cache the cache of the downloaded logs
     */
     OpenUrlDialog( QWidget * parent,
                    const QStringList & recent,
-                   const QString & cache_dir );
+                   const LogCache & cache );
 
     //! the text typed or chosen
     QString text() const;
     void setText( const QString & text );
 
-    //! the URL to download, when accepted (parseLogUrl())
+    //! the URL to download, when accepted (LogUrl::parse())
     const QUrl & url() const { return M_url; }
 
     /*!

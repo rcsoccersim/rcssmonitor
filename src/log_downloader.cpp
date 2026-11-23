@@ -63,7 +63,7 @@ LogDownloader::LogDownloader( QObject * parent )
       M_file( nullptr ),
       M_max_bytes( MAX_BYTES ),
       M_transfer_timeout( TRANSFER_TIMEOUT ),
-      M_lfs_resolver( &githubLfsUrl ),
+      M_lfs_resolver( &LogUrl::githubLfsUrl ),
       M_received( 0 ),
       M_total( -1 ),
       M_lfs( false ),
@@ -210,7 +210,7 @@ LogDownloader::readBody()
 
     // as the data comes (QNetworkReply::downloadProgress() may not tell each)
     if ( ! data.isEmpty()
-         && ! ( M_lfs == false && M_received < 1024 && lfsPointerSize( M_head ) >= 0 ) )
+         && ! ( M_lfs == false && M_received < 1024 && LogUrl::lfsPointerSize( M_head ) >= 0 ) )
     {
         const QVariant length = M_reply->header( QNetworkRequest::ContentLengthHeader );
         reportProgress( M_received, length.isValid() ? length.toLongLong() : -1 );
@@ -261,7 +261,7 @@ LogDownloader::handleFinished()
     if ( ! M_lfs
          && M_received < 1024 )
     {
-        const qint64 size = lfsPointerSize( M_head );
+        const qint64 size = LogUrl::lfsPointerSize( M_head );
         if ( size >= 0 )
         {
             const QUrl media = ( M_lfs_resolver ? M_lfs_resolver( reply->url() ) : QUrl() );

@@ -16,6 +16,7 @@ rcssmonitor_SOURCES = \
 	field_painter.cpp \
 	game_log_file.cpp \
 	line_2d.cpp \
+	log_cache.cpp \
 	log_downloader.cpp \
 	log_player.cpp \
 	log_player_slider.cpp \
@@ -79,6 +80,7 @@ noinst_HEADERS = \
 	field_painter.h \
 	game_log_file.h \
 	line_2d.h \
+	log_cache.h \
 	log_downloader.h \
 	log_player.h \
 	log_player_slider.h \

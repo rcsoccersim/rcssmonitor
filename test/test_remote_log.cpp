@@ -30,7 +30,7 @@
 #include <QtTest>
 
 #include "http_test_server.h"
-#include "log_url.h"
+#include "log_cache.h"
 #include "main_window.h"
 #include "open_url_dialog.h"
 #include "options.h"
@@ -117,11 +117,11 @@ private slots:
 
     void init()
       {
-          clearLogCache( MainWindow::gameLogCacheDir() );
+          LogCache().clear();
           Options::instance().setGameLogFile( std::string() );
       }
 
-    void cacheDir();
+    void cache();
     void droppedGameLog();
     void dropFile();
     void openUrl();
@@ -135,13 +135,12 @@ private slots:
 };
 
 /*-------------------------------------------------------------------*/
-//! under the cache location: ~/.cache/APP/logs (in the test's HOME here)
+//! the window's cache: the default one (~/.cache/APP/logs; in the test's cache here)
 void
-TestRemoteLog::cacheDir()
+TestRemoteLog::cache()
 {
-    const QString dir = MainWindow::gameLogCacheDir();
-    QVERIFY2( dir.endsWith( "/logs" ), qPrintable( dir ) );
-    QVERIFY2( dir.startsWith( qEnvironmentVariable( "XDG_CACHE_HOME", QDir::homePath() ) ), qPrintable( dir ) );
+    MainWindow window;
+    QCOMPARE( window.gameLogCache().dir(), LogCache::defaultDir() );
 }
 
 /*-------------------------------------------------------------------*/
@@ -240,7 +239,7 @@ TestRemoteLog::openUrl()
     window.openGameLogUrl( url.toString() );
     QVERIFY( waitForTitle( window, "head_v5.rcg" ) );
     QCOMPARE( server.requests( "/logs/head_v5.rcg" ), 1 );
-    const QString cached = cachedLogPath( MainWindow::gameLogCacheDir(), url );
+    const QString cached = LogCache().pathOf( url );
     QCOMPARE( contentOf( cached ), contentOf( LOG ) );
     QVERIFY( save_copy->isEnabled() );
     QCOMPARE( Options::instance().recentLogUrls().value( 0 ), url.toString() );
@@ -273,7 +272,7 @@ TestRemoteLog::openUrlInParts()
     QVERIFY( QTest::qWaitForWindowExposed( &window ) );
     for ( int i = 0; i < 3; ++i )
     {
-        clearLogCache( MainWindow::gameLogCacheDir() );
+        LogCache().clear();
         window.setWindowTitle( "none" );
         window.openGameLogUrl( server.url( "/parts/head_v5.rcg" ).toString() );
         QVERIFY( waitForTitle( window, "head_v5.rcg" ) );
@@ -322,7 +321,7 @@ TestRemoteLog::cancel()
     progress->cancel();
     QTRY_VERIFY( ! progress || ! progress->isVisible() ); // deleted later
 
-    QVERIFY( ! QFile::exists( cachedLogPath( MainWindow::gameLogCacheDir(), server.url( "/slow.rcg" ) ) ) );
+    QVERIFY( ! LogCache().contains( server.url( "/slow.rcg" ) ) );
     QVERIFY( window.windowTitle().startsWith( "head_v5.rcg" ) );
     QVERIFY( window.findChild< QAction * >( "save_copy" )->isEnabled() );
 }
@@ -390,7 +389,7 @@ TestRemoteLog::dialog()
 {
     QTemporaryDir tmp;
     QVERIFY( tmp.isValid() );
-    const QString cache = tmp.filePath( "logs" );
+    const LogCache cache( tmp.filePath( "logs" ) );
 
     {
         OpenUrlDialog dialog( nullptr, { "https://a.example.org/x.rcg", "https://b.example.org/y.rcg" }, cache );
@@ -420,7 +419,7 @@ TestRemoteLog::dialog()
     }
 
     // a cache with logs: cleared
-    const QString path = cachedLogPath( cache, QUrl( "https://example.org/a.rcg" ) );
+    const QString path = cache.pathOf( QUrl( "https://example.org/a.rcg" ) );
     QVERIFY( QDir().mkpath( QFileInfo( path ).absolutePath() ) );
     {
         QFile file( path );
@@ -431,7 +430,7 @@ TestRemoteLog::dialog()
     QLabel * label = dialog.findChild< QLabel * >( "cache" );
     QPushButton * clear = dialog.findChild< QPushButton * >( "clear_cache" );
     QVERIFY2( label->text().contains( "2.0 KB" ), qPrintable( label->text() ) );
-    QCOMPARE( label->toolTip(), QDir::toNativeSeparators( cache ) );
+    QCOMPARE( label->toolTip(), QDir::toNativeSeparators( cache.dir() ) );
     QVERIFY( clear->isEnabled() );
     clear->click();
     QVERIFY( ! QFile::exists( path ) );

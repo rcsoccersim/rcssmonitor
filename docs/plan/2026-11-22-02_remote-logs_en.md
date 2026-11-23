@@ -125,7 +125,9 @@
 
 4.1 was implemented as follows. What was decided beyond the plan is written too.
 
-- `src/log_url.{h,cpp}` (new; QtCore only): `parseLogUrl` of the web version (`QUrl` in StrictMode; http and https only, a host needed, a URL with a user name or a password refused; the reason of an error returned), `githubRawUrl`, `githubLfsUrl`, `lfsPointerSize` and `logNameFromUrl` were ported. Added: `isLogUrl` (telling a URL from a local path on the command line and in a drop), `cachedLogPath` (`DIR/KEY/NAME` in the cache; KEY is the first 16 hex digits of the SHA-1 of the URL, NAME the log's name made safe for a file name; the file has the log's name, used as it is by the window's title and Save As), `defaultLogCacheDir` (`QStandardPaths::CacheLocation/logs`, `~/.cache/rcssmonitor/logs`), `logCacheSize` and `clearLogCache`.
+- `src/log_url.{h,cpp}` (new; QtCore only): the static-only class `LogUrl`, which has no state (D7). `parseLogUrl` of the web version was ported as `LogUrl::parse` (`QUrl` in StrictMode; http and https only, a host needed, a URL with a user name or a password refused; the reason of an error returned), `githubRawUrl`, `githubLfsUrl` and `lfsPointerSize` under the same names, and `logNameFromUrl` as `LogUrl::name`. Added: `LogUrl::isUrl` (telling a URL from a local path on the command line and in a drop).
+- `src/log_cache.{h,cpp}` (new; QtCore only): the class `LogCache`, which has its directory (D7). `pathOf` (`DIR/KEY/NAME` in the cache; KEY is the first 16 hex digits of the SHA-1 of the URL, NAME the log's name made safe for a file name; the file has the log's name, used as it is by the window's title and Save a Copy), `contains`, `size`, `clear` and `defaultDir` (`QStandardPaths::CacheLocation/logs`, `~/.cache/rcssmonitor/logs`). The main window has a `LogCache` of the default place, and gives it to the dialog.
+- In the first version of stage 1 (d56fad4), these were global functions in `log_url.h`. At the user's remark, they were made into the two classes above (D7).
 - `src/log_downloader.{h,cpp}` (new): `LogDownloader` downloads one URL by `QNetworkAccessManager`.
   - Written through `QSaveFile` (the plan's "written under a temporary name, then renamed", by Qt's own means; two rcssmonitors downloading the same URL at once do not mix).
   - Redirects by `NoLessSafeRedirectPolicy` (S2), at most 10. `User-Agent: rcssmonitor/VERSION` (S5).
@@ -165,7 +167,7 @@
 
 | File | Content |
 |---|---|
-| `src/log_url.{h,cpp}`, `src/log_downloader.{h,cpp}` (new) | Stage 1 |
+| `src/log_url.{h,cpp}`, `src/log_cache.{h,cpp}`, `src/log_downloader.{h,cpp}`, `src/open_url_dialog.{h,cpp}` (new) | Stage 1 |
 | `src/github_log_index.{h,cpp}`, `src/log_file_name.{h,cpp}`, `src/log_browser_dialog.{h,cpp}` (new) | Stage 2 |
 | `src/main_window.{h,cpp}` | Menus, dropping, connecting the download to opening |
 | `src/options.{h,cpp}` | Recent URLs, the repository list, cache settings, the command line |
@@ -217,3 +219,10 @@
 
 - The user pointed out that the functions ported from the web version are global functions, which feels odd as C++ code, and asked whether they can be put in classes (statics of `LogDownloader`, perhaps). The functions were sorted by their roles and where they are used, and two classes were proposed: `LogUrl` (reading URLs) and `LogCache` (the cache). The user decided D7 and D8.
 - The order of the commits (decided by the user): the present state (the crash fixed, all the tests passing) is committed and pushed first, and the revision is the next commit.
+
+### 2026-11-24: The design revised (D7)
+
+- The first version of stage 1 was committed as d56fad4 and pushed.
+- The URL functions were made into the static-only class `LogUrl` (`log_url.{h,cpp}`) and the class `LogCache` (`log_cache.{h,cpp}`, new), which has its directory (4.4). The main window has a `LogCache` (`gameLogCache()`), and gives it to the dialog. `MainWindow::gameLogCacheDir()` was removed. The tests were split into `test_log_url` (`LogUrl`) and the new `test_log_cache` (the place, `pathOf`, `contains`, the size and clearing). The behavior is not changed.
+- Checked: the three CMake builds had no warnings, and `ctest -j8`, run 3 times in each, passed all 65 tests. autotools (Qt5): the builds with the whistle and with `--disable-sound` passed (no warnings).
+- The user checked with the revised version that the crash at the first opening is fixed.

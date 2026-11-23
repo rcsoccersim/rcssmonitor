@@ -52,9 +52,9 @@
 /*-------------------------------------------------------------------*/
 OpenUrlDialog::OpenUrlDialog( QWidget * parent,
                               const QStringList & recent,
-                              const QString & cache_dir )
+                              const LogCache & cache )
     : QDialog( parent ),
-      M_cache_dir( cache_dir )
+      M_cache( cache )
 {
     this->setWindowTitle( tr( "Open Game Log from URL" ) );
 
@@ -155,7 +155,7 @@ void
 OpenUrlDialog::accept()
 {
     QString error;
-    const QUrl url = parseLogUrl( text(), &error );
+    const QUrl url = LogUrl::parse( text(), &error );
     if ( ! url.isValid() )
     {
         M_error_label->setText( error );
@@ -173,11 +173,11 @@ OpenUrlDialog::accept()
 void
 OpenUrlDialog::clearCache()
 {
-    if ( ! clearLogCache( M_cache_dir ) )
+    if ( ! M_cache.clear() )
     {
         QMessageBox::warning( this,
                               tr( "Clear Cache" ),
-                              tr( "Cannot remove %1." ).arg( QDir::toNativeSeparators( M_cache_dir ) ) );
+                              tr( "Cannot remove %1." ).arg( QDir::toNativeSeparators( M_cache.dir() ) ) );
     }
     updateCacheLabel();
 }
@@ -186,15 +186,15 @@ OpenUrlDialog::clearCache()
 void
 OpenUrlDialog::updateCacheLabel()
 {
-    const qint64 size = logCacheSize( M_cache_dir );
+    const qint64 size = M_cache.size();
     // the home as ~, shorter
-    QString dir = QDir::toNativeSeparators( M_cache_dir );
+    QString dir = QDir::toNativeSeparators( M_cache.dir() );
     const QString home = QDir::toNativeSeparators( QDir::homePath() );
     if ( dir.startsWith( home + QDir::separator() ) )
     {
         dir = QLatin1Char( '~' ) + dir.mid( home.size() );
     }
     M_cache_label->setText( tr( "Downloaded logs are kept in %1 (%2)." ).arg( dir, formatBytes( size ) ) );
-    M_cache_label->setToolTip( QDir::toNativeSeparators( M_cache_dir ) );
+    M_cache_label->setToolTip( QDir::toNativeSeparators( M_cache.dir() ) );
     M_clear_cache_button->setEnabled( size > 0 );
 }

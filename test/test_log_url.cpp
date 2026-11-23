@@ -2,7 +2,7 @@
 
 /*!
   \file test_log_url.cpp
-  \brief unit test of the URLs of game logs (log_url.h)
+  \brief unit test of LogUrl: the URLs of game logs
 */
 
 /*
@@ -30,10 +30,6 @@
 
 #include "log_url.h"
 
-#include <QDir>
-#include <QFile>
-#include <QFileInfo>
-#include <QTemporaryDir>
 
 /*
   Ported from test/unit/fetch-log.test.ts of rcssmonitor-web
@@ -44,20 +40,20 @@ namespace {
 
 const QString LOG = QStringLiteral( "logs/Finals/202607050404-HELIOS2026_0-vs-YuShan2026_1.rcg.gz" );
 
-//! parseLogUrl() of a text: the URL, or the error
+//! LogUrl::parse() of a text: the URL, or the error
 QString
 parsed( const QString & text )
 {
     QString error;
-    const QUrl url = parseLogUrl( text, &error );
+    const QUrl url = LogUrl::parse( text, &error );
     return url.isValid() ? url.toString( QUrl::FullyEncoded ) : QStringLiteral( "error: " ) + error;
 }
 
-//! githubRawUrl(), or "none"
+//! LogUrl::githubRawUrl(), or "none"
 QString
 raw( const QString & url )
 {
-    const QUrl r = githubRawUrl( QUrl( url ) );
+    const QUrl r = LogUrl::githubRawUrl( QUrl( url ) );
     return r.isValid() ? r.toString( QUrl::FullyEncoded ) : QStringLiteral( "none" );
 }
 
@@ -73,7 +69,7 @@ lfsPointer( const qint64 size )
 }
 
 /*!
-  \brief unit test of the URLs of game logs
+  \brief unit test of LogUrl
 */
 class TestLogUrl
     : public QObject {
@@ -81,8 +77,8 @@ class TestLogUrl
 
 private slots:
 
-    void isLogUrl_data();
-    void isLogUrl();
+    void isUrl_data();
+    void isUrl();
     void parse();
     void refused();
     void githubRaw();
@@ -90,13 +86,11 @@ private slots:
     void githubLfs();
     void lfsPointer();
     void name();
-    void cachePath();
-    void cacheSizeAndClear();
 };
 
 /*-------------------------------------------------------------------*/
 void
-TestLogUrl::isLogUrl_data()
+TestLogUrl::isUrl_data()
 {
     QTest::addColumn< QString >( "text" );
     QTest::addColumn< bool >( "url" );
@@ -118,11 +112,11 @@ TestLogUrl::isLogUrl_data()
   anything else is a local path.
 */
 void
-TestLogUrl::isLogUrl()
+TestLogUrl::isUrl()
 {
     QFETCH( QString, text );
     QFETCH( bool, url );
-    QCOMPARE( ::isLogUrl( text ), url );
+    QCOMPARE( LogUrl::isUrl( text ), url );
 }
 
 /*-------------------------------------------------------------------*/
@@ -204,97 +198,44 @@ TestLogUrl::githubOthers()
 void
 TestLogUrl::githubLfs()
 {
-    QCOMPARE( githubLfsUrl( QUrl( "https://raw.githubusercontent.com/o/r/main/a/game.rcg" ) ).toString(),
+    QCOMPARE( LogUrl::githubLfsUrl( QUrl( "https://raw.githubusercontent.com/o/r/main/a/game.rcg" ) ).toString(),
               QString( "https://media.githubusercontent.com/media/o/r/main/a/game.rcg" ) );
-    QCOMPARE( githubLfsUrl( QUrl( "https://raw.githubusercontent.com/o/r/main/a%20b.rcg" ) ).toString( QUrl::FullyEncoded ),
+    QCOMPARE( LogUrl::githubLfsUrl( QUrl( "https://raw.githubusercontent.com/o/r/main/a%20b.rcg" ) ).toString( QUrl::FullyEncoded ),
               QString( "https://media.githubusercontent.com/media/o/r/main/a%20b.rcg" ) );
-    QVERIFY( ! githubLfsUrl( QUrl( "https://example.org/o/r/main/game.rcg" ) ).isValid() );
-    QVERIFY( ! githubLfsUrl( QUrl( "http://127.0.0.1:8000/game.rcg" ) ).isValid() );
+    QVERIFY( ! LogUrl::githubLfsUrl( QUrl( "https://example.org/o/r/main/game.rcg" ) ).isValid() );
+    QVERIFY( ! LogUrl::githubLfsUrl( QUrl( "http://127.0.0.1:8000/game.rcg" ) ).isValid() );
 }
 
 /*-------------------------------------------------------------------*/
 void
 TestLogUrl::lfsPointer()
 {
-    QCOMPARE( lfsPointerSize( ::lfsPointer( 870464 ) ), qint64( 870464 ) );
-    QCOMPARE( lfsPointerSize( ::lfsPointer( 0 ) ), qint64( 0 ) );
+    QCOMPARE( LogUrl::lfsPointerSize( ::lfsPointer( 870464 ) ), qint64( 870464 ) );
+    QCOMPARE( LogUrl::lfsPointerSize( ::lfsPointer( 0 ) ), qint64( 0 ) );
 
     // anything else
-    QCOMPARE( lfsPointerSize( QByteArray( "\x1f\x8b\x08\x00", 4 ) ), qint64( -1 ) );
-    QCOMPARE( lfsPointerSize( "ULG\n" ), qint64( -1 ) );
-    QCOMPARE( lfsPointerSize( QByteArray() ), qint64( -1 ) );
-    QCOMPARE( lfsPointerSize( "version https://git-lfs.github.com/spec/v1\noid sha256:00\n" ), qint64( -1 ) );
+    QCOMPARE( LogUrl::lfsPointerSize( QByteArray( "\x1f\x8b\x08\x00", 4 ) ), qint64( -1 ) );
+    QCOMPARE( LogUrl::lfsPointerSize( "ULG\n" ), qint64( -1 ) );
+    QCOMPARE( LogUrl::lfsPointerSize( QByteArray() ), qint64( -1 ) );
+    QCOMPARE( LogUrl::lfsPointerSize( "version https://git-lfs.github.com/spec/v1\noid sha256:00\n" ), qint64( -1 ) );
     // a pointer is under 1024 bytes: a log that starts like one is not one
     QByteArray long_one = ::lfsPointer( 10 );
     long_one.append( QByteArray( 2048, 'x' ) );
-    QCOMPARE( lfsPointerSize( long_one ), qint64( -1 ) );
+    QCOMPARE( LogUrl::lfsPointerSize( long_one ), qint64( -1 ) );
 }
 
 /*-------------------------------------------------------------------*/
 void
 TestLogUrl::name()
 {
-    QCOMPARE( logNameFromUrl( QUrl( "https://example.org/logs/game.rcg.gz?raw=1#x" ) ), QString( "game.rcg.gz" ) );
-    QCOMPARE( logNameFromUrl( QUrl( "https://example.org/logs/HELIOS%20vs%20CYRUS.rcg" ) ), QString( "HELIOS vs CYRUS.rcg" ) );
-    QCOMPARE( logNameFromUrl( QUrl( "https://example.org/logs/" ) ), QString( "logs" ) );
-    QCOMPARE( logNameFromUrl( QUrl( "https://example.org/logs/%E8%A9%A6%E5%90%88.rcg" ) ), QString::fromUtf8( "試合.rcg" ) );
+    QCOMPARE( LogUrl::name( QUrl( "https://example.org/logs/game.rcg.gz?raw=1#x" ) ), QString( "game.rcg.gz" ) );
+    QCOMPARE( LogUrl::name( QUrl( "https://example.org/logs/HELIOS%20vs%20CYRUS.rcg" ) ), QString( "HELIOS vs CYRUS.rcg" ) );
+    QCOMPARE( LogUrl::name( QUrl( "https://example.org/logs/" ) ), QString( "logs" ) );
+    QCOMPARE( LogUrl::name( QUrl( "https://example.org/logs/%E8%A9%A6%E5%90%88.rcg" ) ), QString::fromUtf8( "試合.rcg" ) );
     // the host, or the raw text if it is not UTF-8
-    QCOMPARE( logNameFromUrl( QUrl( "https://example.org:8080/" ) ), QString( "example.org:8080" ) );
-    QCOMPARE( logNameFromUrl( QUrl( "https://example.org" ) ), QString( "example.org" ) );
-    QCOMPARE( logNameFromUrl( QUrl( "https://example.org/%E0%A4.rcg" ) ), QString( "%E0%A4.rcg" ) );
-}
-
-/*-------------------------------------------------------------------*/
-/*!
-  DIR/KEY/NAME: the same URL the same file, another URL of the same name
-  another directory, and a name safe for a file name.
-*/
-void
-TestLogUrl::cachePath()
-{
-    const QString dir = QStringLiteral( "/cache/logs" );
-    const QString a = cachedLogPath( dir, QUrl( "https://example.org/a/game.rcg.gz" ) );
-    const QString b = cachedLogPath( dir, QUrl( "https://example.org/b/game.rcg.gz" ) );
-    QCOMPARE( a, cachedLogPath( dir, QUrl( "https://example.org/a/game.rcg.gz" ) ) );
-    QVERIFY( a != b );
-    QCOMPARE( QFileInfo( a ).fileName(), QString( "game.rcg.gz" ) );
-    QCOMPARE( QFileInfo( b ).fileName(), QString( "game.rcg.gz" ) );
-    QCOMPARE( QFileInfo( a ).dir().dirName().size(), 16 );
-    QCOMPARE( QFileInfo( QFileInfo( a ).absolutePath() ).absolutePath(), dir );
-
-    QCOMPARE( QFileInfo( cachedLogPath( dir, QUrl( "https://example.org/a%2Fb%3Ac.rcg" ) ) ).fileName(),
-              QString( "a_b_c.rcg" ) );
-    QCOMPARE( QFileInfo( cachedLogPath( dir, QUrl( "https://example.org/" ) ) ).fileName(),
-              QString( "example.org" ) );
-    QCOMPARE( QFileInfo( cachedLogPath( dir, QUrl( "https://example.org/.." ) ) ).fileName(),
-              QString( "game.rcg" ) );
-}
-
-/*-------------------------------------------------------------------*/
-void
-TestLogUrl::cacheSizeAndClear()
-{
-    QTemporaryDir tmp;
-    QVERIFY( tmp.isValid() );
-    const QString dir = tmp.filePath( "logs" );
-    QCOMPARE( logCacheSize( dir ), qint64( 0 ) );
-    QVERIFY( clearLogCache( dir ) ); // not there
-
-    const QString a = cachedLogPath( dir, QUrl( "https://example.org/a.rcg" ) );
-    const QString b = cachedLogPath( dir, QUrl( "https://example.org/b.rcg" ) );
-    for ( const QString & path : { a, b } )
-    {
-        QVERIFY( QDir().mkpath( QFileInfo( path ).absolutePath() ) );
-        QFile file( path );
-        QVERIFY( file.open( QIODevice::WriteOnly ) );
-        file.write( QByteArray( 1000, 'x' ) );
-    }
-    QCOMPARE( logCacheSize( dir ), qint64( 2000 ) );
-
-    QVERIFY( clearLogCache( dir ) );
-    QVERIFY( ! QFile::exists( a ) );
-    QVERIFY( ! QDir( dir ).exists() );
-    QCOMPARE( logCacheSize( dir ), qint64( 0 ) );
+    QCOMPARE( LogUrl::name( QUrl( "https://example.org:8080/" ) ), QString( "example.org:8080" ) );
+    QCOMPARE( LogUrl::name( QUrl( "https://example.org" ) ), QString( "example.org" ) );
+    QCOMPARE( LogUrl::name( QUrl( "https://example.org/%E0%A4.rcg" ) ), QString( "%E0%A4.rcg" ) );
 }
 
 QTEST_GUILESS_MAIN( TestLogUrl )

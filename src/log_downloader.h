@@ -55,7 +55,7 @@ class QSaveFile;
   - Redirects are followed, but not from https to http
     (NoLessSafeRedirectPolicy).
   - A Git LFS pointer on GitHub is followed to the file it stands for
-    (githubLfsUrl()), whose size is the total of the progress.
+    (LogUrl::githubLfsUrl()), whose size is the total of the progress.
   - A download larger than maxBytes() fails: at once if the server tells
     its length, or when that much has come.
   - The requests have the User-Agent rcssmonitor/VERSION, without anything
@@ -108,7 +108,7 @@ public:
     void setMaxBytes( const qint64 bytes ) { M_max_bytes = bytes; }
     //! the time without data after which a download fails (ms; 0 for none)
     void setTransferTimeout( const int ms ) { M_transfer_timeout = ms; }
-    //! where a Git LFS pointer is followed (githubLfsUrl() by default; the tests give their server's)
+    //! where a Git LFS pointer is followed (LogUrl::githubLfsUrl() by default; the tests give their server's)
     void setLfsResolver( LfsResolver resolver ) { M_lfs_resolver = std::move( resolver ); }
 
     //! a download is going on
@@ -121,7 +121,7 @@ public:
       \brief download a URL into a file, stopping a download going on.
       finished() or failed() tells the end, not before this returns; nothing
       does if abort() stops it.
-      \param url an http:// or https:// URL (parseLogUrl())
+      \param url an http:// or https:// URL (LogUrl::parse())
       \param path where the log goes; its directory is made
     */
     void start( const QUrl & url,
