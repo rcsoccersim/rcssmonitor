@@ -5,7 +5,7 @@
 | Created | 2026-11-22 |
 | Target | rcssmonitor develop (5affd90, 20.0.0-beta.1) |
 | Branch | `feature/remote-logs` (from develop after the referee's whistle (F4) is merged; the user creates it on GitHub) |
-| Status | Plan written (2026-11-22). Stage 1 (opening from URLs) started (2026-11-24, `feature/remote-logs`). Stage 3 (archive) is on hold until the site can be reached |
+| Status | Plan written (2026-11-22). Stage 1 (opening from URLs) started (2026-11-24, `feature/remote-logs`). Stage 1 done. Stage 2 (the lists of logs on GitHub) started (2026-11-24, `feature/remote-logs`). Stage 3 (archive) is made on this branch after stage 2, now that the site can be reached (D11) |
 | Japanese version | [2026-11-22-02_remote-logs.md](2026-11-22-02_remote-logs.md) (same content) |
 | Related | F5 of the overall plan [2026-11-22-00_v20-features_en.md](2026-11-22-00_v20-features_en.md). Reference implementation: `src/io/fetch-log.ts`, `src/ui/dialogs/open-url-dialog.ts` and `docs/protocol.md` of rcssmonitor-web |
 
@@ -37,6 +37,8 @@
 **The archive**
 - `archive.robocup.org` (the name the user first wrote; a mistake): HTTPS gives a TLS error (`tlsv1 unrecognized name`). HTTP gives the default page of Nginx Proxy Manager.
 - `archive.robocup.info` (the right name): cannot be connected over either HTTPS or HTTP.
+- Checked again on 2026-11-24: `archive.robocup.info` answers over HTTPS and HTTP (200). Its robots.txt is empty (no rules). It is made with h5ai (which shows listings of directories), and the lists can be read from the table of the listing without JavaScript (`fb-n`, `fb-d`, `fb-s`) and from its JSON API (`POST /`, `action=get&items[href]=DIR&items[what]=1`; sizes in bytes, times in ms). The 2D logs are under `/Soccer/Simulation/2D/logs/`: `RoboCup/` (2004 to 2023; no 2020) and `RCAP/` (2018), with rounds and groups nested under a year (how deep depends on the year). The files are `.rcg.gz`, one a game (with `.rcl.gz`, and `.log.gz` in old years). The names have the form `DATE-LEFT_SCORE-vs-RIGHT_SCORE.rcg.gz` since 2004, with a date of 12 or 14 digits (to the second).
+- On the same day, the rcsoccersim organization has 7 public repositories, and only RoboCup2026 has a name starting with RoboCup. The tree of RoboCup2026 comes in one request (`truncated` false): 144 logs in 21 directories. The plan's reading of the file names (4.2) read all 144 (3 with a penalty shootout; 13 teams).
 
 ### 2.2 rcssmonitor-web's implementation (the source to port)
 
@@ -58,6 +60,9 @@
 | D5 | A way to save a copy of the file of the open log (File > Save a Copy of Game Log...) is added. It works for local logs too (same). It was named Save Game Log As... at first, but it copies the file, so the user chose Save a Copy of Game Log... (2026-11-24) |
 | D6 | The design decisions S1 to S7 are as proposed. The download size limit (S4) is 200 MB (same) |
 | D7 | The URL functions ported from the web version (global functions in `log_url.h` in stage 1) are put in classes: the static-only class `LogUrl` for reading URLs, which has no state, and the class `LogCache` (`log_cache.{h,cpp}`) for the cache, which has its directory. Not statics of `LogDownloader` (the dialog and the command line only check URLs, without depending on a `QObject` of Qt Network; the cache is not the download's job) (2026-11-24; decided by the user when stage 1 was revised) |
+| D9 | The list of logs is a tree of the directories (Finals, GroupA and so on). Its columns: the date and time, the left team, the score (the scores of a penalty shootout in parentheses), the right team, the size. A field to filter by team names, and sorting by the column headers (2026-11-24; decided by the user at the start of stage 2) |
+| D10 | The dialog of the list of logs (File > Browse Game Logs...) is modeless, and stays open after a log is opened (to open one game after another; as Player Type List) (same) |
+| D11 | The default sources: `rcsoccersim/RoboCup2026` on GitHub and all the 2D logs of archive.robocup.info (`/Soccer/Simulation/2D/logs/`; RoboCup and RCAP). The archive is made on this branch as stage 3 after stage 2. The logs are to be gathered on GitHub in the future (the user), so the archive can be taken out of the sources then (same) |
 | D8 | The rules of the referee's whistle (F4; global functions in `whistle_rules.h`) are put in the static-only class `WhistleRules` too, in another commit on this branch (same) |
 
 ### 3.2 Design decisions (Claude; the user confirms them at the start of the stages)
@@ -103,7 +108,7 @@
   - On the right, the tree of logs: grouped by directory (Finals, GroupA, ...), with the columns date and time, left team, scores, right team, size. A field to filter by team name.
   - Double-click or "Open" passes it to the download of stage 1.
   - "Reload" fetches the list again.
-- `src/github_log_index.{h,cpp}` (new):
+- `src/github_log_index.{h,cpp}` (new; implemented as `github_log_source.{h,cpp}`, one of the sources of the common interface `LogSource`; 4.5):
   - `GET https://api.github.com/repos/OWNER/REPO/git/trees/REF?recursive=1` (`REF` defaults to `HEAD`), `Accept: application/vnd.github+json`.
   - From the JSON of the response (`QJsonDocument`, in QtCore), take the entries whose `type` is `blob` and whose name ends with `.rcg` or `.rcg.gz` (path, size). If `truncated` is true, show that the list is incomplete.
   - The URL of a file is `https://raw.githubusercontent.com/OWNER/REPO/REF/PATH`.
@@ -114,12 +119,13 @@
   - Examples: `FRA-UNIted_0_4` → `FRA-UNIted`, 0, 4. `RoboTech_Coach_base_0` → `RoboTech_Coach_base`, 0.
   - If it cannot be parsed, show the name as is.
 
-### 4.3 Stage 3: archive.robocup.info (on hold)
+### 4.3 Stage 3: archive.robocup.info
 
-- Starts when the site can be reached. Until then, the status of this document says "on hold".
-- Make the way to get the list a generic source of "directory listings" (the autoindex HTML of Apache or nginx), as one of the sources of the stage 2 dialog (the same interface as the GitHub source).
-- If the logs are bundled in `.tar.gz` etc., decide then how to extract them (our own tar reader, or another dependency).
-- Before starting, check whether it is public, the form of the URLs, and the rules for automated access (robots.txt etc.).
+- The site can be reached since 2026-11-24 (§2.1). Made on this branch after stage 2 (D11).
+- One of the sources of the stage 2 dialog (the same interface as the GitHub source). Its root is `/Soccer/Simulation/2D/logs/` (D11).
+- Listed by the JSON API of h5ai (`POST /`, `action=get&items[href]=DIR&items[what]=1`), one directory at a time. It is deep and large, so a directory is read only when its branch of the tree is opened.
+- The logs are `.rcg.gz` files, one a game, not bundled (no tar to extract). `.rcl.gz` and `.log.gz` are not shown.
+- The lists are cached (as S6); requests are made only when a branch is opened and when reloaded.
 
 ### 4.4 The implementation of stage 1 (2026-11-24)
 
@@ -147,19 +153,45 @@
 - `Options`: the recent URLs (at most 10; `recent_urls` in `[GameLog]` of the settings), written as soon as a URL is opened (`writeRecentLogUrls()`; not at the end).
 - The tests' HOME has the cache too (`XDG_CACHE_HOME`), so that they never touch the user's cache.
 
+### 4.5 The implementation of stage 2 (2026-11-24)
+
+4.2 was implemented as follows. What was decided beyond the plan is written too.
+
+- `src/log_file_name.{h,cpp}` (new; QtCore only): the value class `LogFileName` (in line with D7). `parse()` reads the date and time, the left and right teams, the scores and the penalty scores (-1 if none), and `score()` returns "2 - 1" or "0 (4) - 0 (2)". Dates of 12 digits and of 14 digits (to the second, e.g. the archive's of 2023) are accepted. A date that does not exist, an empty team name, and a name without scores (the archive's old logs) cannot be parsed, and the list shows such a name as it is. The penalty scores use `capturedStart()` (`hasCaptured()` is from Qt 6.3, not in Qt 5).
+- `src/log_source.{h,cpp}` (new): the abstract class of the sources of logs, `LogSource` (a `QObject`). `list( dir, reload )` reads the entries under a directory (`LogSourceEntry`: the path, whether it is a directory, whether it is a directory not read yet, the size, the URL), and tells them by `listed` or `failed` after `list()` returns. `noted` tells a note (e.g. the list is from the cache). Nothing is told after `abort()`. GitHub returns the whole tree at once, and the archive (stage 3) returns a directory at a time (a directory not read yet is read when its branch is opened).
+- `src/github_log_source.{h,cpp}` (new): `GitHubLogSource`.
+  - A repository is given as `OWNER/REPO`, `OWNER/REPO@REF` (REF may have `/`), or `https://github.com/OWNER/REPO` (also with `.git` or `/tree/REF`, or without the scheme) (`parseRepository`). It is shown as `OWNER/REPO` or `OWNER/REPO@REF` (`repositoryText`).
+  - One request to the Git Trees API; only the `blob`s whose names are game logs (`.rcg`, `.rcg.gz`) are taken (`parseTree`). The URL of a file is `https://raw.githubusercontent.com/OWNER/REPO/REF/PATH` (stage 1 reads the content of a file of LFS).
+  - The cache (S6): the JSON of the response is written to `~/.cache/rcssmonitor/github/OWNER/REPO/REF.json` with `QSaveFile`, and the time of the file is the time it was read. For an hour (`CACHE_SECONDS`), the cache is used, with a note of it and the time. Reload always reads again.
+  - When GitHub cannot be read (the limit, 404, a timeout, the network), the cache is shown if there is one, however old, with a note of the reason and the time of the list. Without one, the failure is told.
+  - The limit (403 or 429 with `x-ratelimit-remaining: 0`): "60 requests an hour are used up until TIME". 404: the repository is not public, or the branch is not there. The timeout is 30 seconds (both `TimeoutError` of Qt 6.10 and `OperationCanceledError` before it).
+  - If `truncated` is true, a note says the list is a part.
+  - `User-Agent: rcssmonitor/VERSION` (S5). The places of the API and of the raw files can be replaced for the tests (`setApiBase`, `setRawBase`).
+- `src/log_browser_dialog.{h,cpp}` (new): the dialog of File > Browse Game Logs (D9, D10).
+  - On the left, the sources, Add... (a repository entered with `QInputDialog`; an error in a message box), and Remove (only those the user added). On the right, the field of a team name (Team:), Reload, the tree of logs, and the status line. At the bottom, Open and Close.
+  - The tree is grouped by directory, with the columns Date, Left, Score, Right and Size. Sorting compares the date as `yyyyMMddHHmmss` and the size as a number, and puts the directories first in either order. A log whose name cannot be parsed shows its name in the Date column. A directory alone at the top (`logs` of GitHub) is expanded (and one alone in it, and so on).
+  - The filter matches the left and right team names (case-insensitively), or the name of a log whose name cannot be parsed, and expands the directories with a matching log. A directory not read yet is not hidden (it may have a matching log).
+  - The status line shows "N game logs." ("M of N game logs." while filtering) and the source's note. With no logs and a note (while reading, a failure), only the note is shown. A failure is shown in red. The plural is written by hand (with no translation file, the `(s)` of `%n` would be shown as it is).
+  - A source is read when it is chosen for the first time (when the dialog is made, only the first source). Choosing another and coming back does not read it again.
+  - A double click (Enter) or Open tells the log's URL by `openRequested`, and the dialog stays open (D10). Open is not the default button: as the default button, Enter in the tree triggered both `itemActivated` and the default button, and opened the same log twice (`QDialogButtonBox` makes the first AcceptRole button the default one when shown, so Open has ActionRole).
+- `MainWindow`: "Browse Game Logs..." (Ctrl+Shift+B) after Open Game Log from URL in the File menu. The dialog is made when it is first shown, with the default repositories (`GitHubLogSource::DEFAULT_REPOSITORIES`, not removable) and the repositories saved in the settings (removable). `openRequested` goes to `openGameLogUrl()`, and `repositoriesChanged` to the settings, written at once.
+- `Options`: the repositories added (`github_repositories` in `[GameLog]` of the settings; `writeLogRepositories()`).
+- Checked with the real GitHub (2026-11-24): the list of RoboCup2026 has 144 games, read by one request in 0.7 s; the second time from the cache in 4 ms. A game of the Finals (4.6 MB) was opened from the list.
+
 ## 5. Stages
 
 | # | Work | Completion criteria |
 |---|---|---|
 | 1 | Open from a URL (4.1). Decide the stage 1 items of §3.3 | Unit tests and the CI pass. The user checks that real GitHub URLs (file pages, raw links, LFS files) and URLs of other servers can be opened |
 | 2 | GitHub log lists (4.2) | Unit tests and the CI pass. The user checks opening from the list and the message when the limit is hit |
-| 3 | Archive lists (4.3; on hold) | Decided when the site can be reached |
+| 3 | Archive lists (4.3) | Unit tests and the CI pass. The user checks opening from the list of the archive |
 
 ## 6. Tests
 
 - `test_log_url`: parsing URLs (port the web version's `fetch-log.test.ts`): GitHub blob, raw and raw.githubusercontent.com, other hosts, relative URLs, rejecting `ftp:` etc., rejecting URLs with a user name, taking the name, detecting LFS pointers.
 - `test_log_downloader`: a small HTTP server with `QTcpServer` in the test; success, redirects (http → http; https → http is not followed), 404, abort in the middle, the size limit, LFS pointer → the real file. The CI uses no external network.
-- `test_github_log_index`: parsing a tree JSON in `test/data` (a part of RoboCup2026's), `truncated`, parsing the rate-limit response.
+- `test_github_log_source` (`test_github_log_index` in the plan): parsing `test/data/github_tree.json` (a part of RoboCup2026's tree: 21 logs, `.rcl.gz`, README and so on), parsing the repositories given, reading from the test's HTTP server, the cache (no request for an hour, Reload, an old cache), the rate-limit response (without a cache, with an old cache), 404, `truncated`, `abort()`.
+- `test_log_browser_dialog`: the tree from a source of the test (the columns, the directories first, a directory not read yet read when opened, read again when opened after a failure), the filter, sorting (the size as a number), Open and Enter (opened once), a failure, Reload and notes, switching the sources, adding and removing repositories (with the test's HTTP server), and File > Browse Game Logs of the main window (the default and saved repositories, modeless, a log downloaded and opened from the list, a repository added saved in the settings).
 - `test_log_file_name`: parsing file names (penalty scores, `-` and `_` in team names, names that cannot be parsed).
 - Downloading and opening a broken file (not gzip, truncated, not an rcg) does not crash.
 
@@ -168,7 +200,7 @@
 | File | Content |
 |---|---|
 | `src/log_url.{h,cpp}`, `src/log_cache.{h,cpp}`, `src/log_downloader.{h,cpp}`, `src/open_url_dialog.{h,cpp}` (new) | Stage 1 |
-| `src/github_log_index.{h,cpp}`, `src/log_file_name.{h,cpp}`, `src/log_browser_dialog.{h,cpp}` (new) | Stage 2 |
+| `src/log_source.{h,cpp}`, `src/github_log_source.{h,cpp}` (`github_log_index` in the plan), `src/log_file_name.{h,cpp}`, `src/log_browser_dialog.{h,cpp}` (new) | Stage 2 |
 | `src/main_window.{h,cpp}` | Menus, dropping, connecting the download to opening |
 | `src/options.{h,cpp}` | Recent URLs, the repository list, cache settings, the command line |
 | `src/CMakeLists.txt`, `src/Makefile.am` | Sources (the moc list of autotools is written by hand) |
@@ -240,3 +272,16 @@
 ### 2026-11-24: Replacing the CI job of Ubuntu 22.04 with 24.04
 
 - At the user's request, the CI job of Ubuntu 22.04 (which checked Qt 6.2 as the oldest Qt supported) is removed. Without it, the CI's Qt6 would be only Qt 6.10 of Ubuntu 26.04, so replacing it with a container of 24.04 was proposed, and the user chose the replacement (the job is named "CMake, Qt6 (Ubuntu 24.04)", with the packages of 24.04). The user decided to raise the oldest Qt 6 to 6.4 (Ubuntu 24.04; the oldest Qt6 checked here), in another commit on this branch before stage 2 (U20 of the overall plan). `QT_MIN_VERSION` of `CMakeLists.txt`, the version and the row of Ubuntu 22.04 in README and `docs/build.md`, and NEWS were changed. CMake configures with Qt 6.4.2 and Qt 5.15.13 here.
+
+### 2026-11-24: Stage 2 started
+
+- In the CI of stage 1 (26b4935), all 5 jobs passed (the new "CMake, Qt6 (Ubuntu 24.04)" ran 65 tests with Qt 6.4.2). Stage 2 was started at the user's instruction.
+- GitHub and the archive were checked again (§2.1). archive.robocup.info can be reached now.
+- Decided by the user at the start of the stage: D9 (a tree of the directories), D10 (a modeless dialog), D11 (the default sources are RoboCup2026 and all the 2D logs of the archive; the archive after stage 2, on this branch). 4.3 was rewritten.
+
+### 2026-11-24: Stage 2 implemented
+
+- Implemented as in 4.5. The tests `log_file_name`, `github_log_source` and `log_browser_dialog` were added.
+- Found by the tests and fixed: Enter in the tree opened the same log twice (Open is not the default button); the filter hid the directories not read yet; the plural of the status line was shown as "log(s)"; `setFilter()` did not change the filter field; Qt 5 has no `QRegularExpressionMatch::hasCaptured()`.
+- With the CMake builds of Qt 6 (6.4.2), Qt 5 (5.15.13) and without Qt Multimedia, all 68 tests passed. The autotools build (Qt 5) passed too.
+- Checked with the real GitHub (4.5). README, NEWS, ChangeLog and `docs/build.md` (the lists added to the requirement of TLS) were updated.

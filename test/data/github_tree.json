@@ -1,0 +1,363 @@
+{
+  "sha": "b1e22ba4aedcb78e5c776024c9e68d57229954d2",
+  "url": "https://api.github.com/repos/rcsoccersim/RoboCup2026/git/trees/HEAD",
+  "tree": [
+    {
+      "path": ".gitattributes",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0eae27c4ad4963224d9b870cd3e4d4a3dfe15c74",
+      "size": 20,
+      "url": "https://api.github.com/repos/o/r/git/blobs/0eae27c4ad4963224d9b870cd3e4d4a3dfe15c74"
+    },
+    {
+      "path": "README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d71717fb9ac1df12f09a5994d5e7319450fcdb34",
+      "size": 758,
+      "url": "https://api.github.com/repos/o/r/git/blobs/d71717fb9ac1df12f09a5994d5e7319450fcdb34"
+    },
+    {
+      "path": "logs",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "51bf31466a006f36bbdb64bf864c9fe019c96e4d",
+      "url": "https://api.github.com/repos/o/r/git/trees/51bf31466a006f36bbdb64bf864c9fe019c96e4d"
+    },
+    {
+      "path": "logs/Finals",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "53160e527c476cd85b07819169741baeba6ef784",
+      "url": "https://api.github.com/repos/o/r/git/trees/53160e527c476cd85b07819169741baeba6ef784"
+    },
+    {
+      "path": "logs/Finals/202607042328-KETE_1-vs-FC-AIT_2.rcg.gz",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2d81d04f22800dae682fcb68d390ebf44bb2cc85",
+      "size": 4821280,
+      "url": "https://api.github.com/repos/o/r/git/blobs/2d81d04f22800dae682fcb68d390ebf44bb2cc85"
+    },
+    {
+      "path": "logs/Finals/202607042328-KETE_1-vs-FC-AIT_2.rcl.gz",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e5025ebcf1156ef308098bdc8712c5a6cdf3bec4",
+      "size": 1353936,
+      "url": "https://api.github.com/repos/o/r/git/blobs/e5025ebcf1156ef308098bdc8712c5a6cdf3bec4"
+    },
+    {
+      "path": "logs/Finals/202607042347-FC-AIT_0-vs-RoboTech_Coach_base_3.rcg.gz",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2b255c4647d9ab388adf5e23aefc6cb1e372e1a6",
+      "size": 4838833,
+      "url": "https://api.github.com/repos/o/r/git/blobs/2b255c4647d9ab388adf5e23aefc6cb1e372e1a6"
+    },
+    {
+      "path": "logs/Finals/202607042347-FC-AIT_0-vs-RoboTech_Coach_base_3.rcl.gz",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "fa0f801290773c2abf3211f9d51c7db9e32de549",
+      "size": 1395631,
+      "url": "https://api.github.com/repos/o/r/git/blobs/fa0f801290773c2abf3211f9d51c7db9e32de549"
+    },
+    {
+      "path": "logs/Finals/202607050000-RoboTech_Coach_base_0-vs-FRA-UNIted_3.rcg.gz",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a33659b1f12dfc4db92cbd07f57f712b2b8b2639",
+      "size": 5690711,
+      "url": "https://api.github.com/repos/o/r/git/blobs/a33659b1f12dfc4db92cbd07f57f712b2b8b2639"
+    },
+    {
+      "path": "logs/Finals/202607050000-RoboTech_Coach_base_0-vs-FRA-UNIted_3.rcl.gz",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2e69e9956bdd57e57276ebe629f609d550e846a3",
+      "size": 2692388,
+      "url": "https://api.github.com/repos/o/r/git/blobs/2e69e9956bdd57e57276ebe629f609d550e846a3"
+    },
+    {
+      "path": "logs/Finals/202607050012-FRA-UNIted_1-vs-Rinobot-Team_0.rcg.gz",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ca1d38db2d9e059d8328230250e623f7c9f13504",
+      "size": 5109257,
+      "url": "https://api.github.com/repos/o/r/git/blobs/ca1d38db2d9e059d8328230250e623f7c9f13504"
+    },
+    {
+      "path": "logs/Finals/202607050012-FRA-UNIted_1-vs-Rinobot-Team_0.rcl.gz",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "69031cb9dcc6c4ad1cb113877d207ea09dcaa203",
+      "size": 2639849,
+      "url": "https://api.github.com/repos/o/r/git/blobs/69031cb9dcc6c4ad1cb113877d207ea09dcaa203"
+    },
+    {
+      "path": "logs/Finals/202607050025-FRA-UNIted_0_4-vs-NexusPrime_0_2.rcg.gz",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6845d1b835ba6803bcc124682970456ee5d078e2",
+      "size": 7740690,
+      "url": "https://api.github.com/repos/o/r/git/blobs/6845d1b835ba6803bcc124682970456ee5d078e2"
+    },
+    {
+      "path": "logs/Finals/202607050025-FRA-UNIted_0_4-vs-NexusPrime_0_2.rcl.gz",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "03c54eb412ff8f05ceb4349f483b566db9da44ea",
+      "size": 3834477,
+      "url": "https://api.github.com/repos/o/r/git/blobs/03c54eb412ff8f05ceb4349f483b566db9da44ea"
+    },
+    {
+      "path": "logs/Finals/202607050042-FRA-UNIted_1-vs-Oxsy_0.rcg.gz",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b151109560eea1bba71c34df2b38208ffb69fcbc",
+      "size": 5568702,
+      "url": "https://api.github.com/repos/o/r/git/blobs/b151109560eea1bba71c34df2b38208ffb69fcbc"
+    },
+    {
+      "path": "logs/Finals/202607050042-FRA-UNIted_1-vs-Oxsy_0.rcl.gz",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f982b12c76fd6db418cb4948111d24683b680c42",
+      "size": 3064545,
+      "url": "https://api.github.com/repos/o/r/git/blobs/f982b12c76fd6db418cb4948111d24683b680c42"
+    },
+    {
+      "path": "logs/Finals/202607050054-FRA-UNIted_0-vs-Easter_4.rcg.gz",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e6521e56003c22e5716775bf50568e0dfe50def0",
+      "size": 5515395,
+      "url": "https://api.github.com/repos/o/r/git/blobs/e6521e56003c22e5716775bf50568e0dfe50def0"
+    },
+    {
+      "path": "logs/Finals/202607050054-FRA-UNIted_0-vs-Easter_4.rcl.gz",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "eefc5b5b9bc4a6f40e26c763abd77128ee872e90",
+      "size": 2658611,
+      "url": "https://api.github.com/repos/o/r/git/blobs/eefc5b5b9bc4a6f40e26c763abd77128ee872e90"
+    },
+    {
+      "path": "logs/Finals/202607050107-Easter_1_2-vs-ITAndroids_1_3.rcg.gz",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5e09aa7bd5fd0cc53c36bec4fa87182c73173b3b",
+      "size": 7486902,
+      "url": "https://api.github.com/repos/o/r/git/blobs/5e09aa7bd5fd0cc53c36bec4fa87182c73173b3b"
+    },
+    {
+      "path": "logs/Finals/202607050107-Easter_1_2-vs-ITAndroids_1_3.rcl.gz",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f6631ec8107adb2b5b3a4526a04726816b7fa83f",
+      "size": 2170149,
+      "url": "https://api.github.com/repos/o/r/git/blobs/f6631ec8107adb2b5b3a4526a04726816b7fa83f"
+    },
+    {
+      "path": "logs/Finals/202607050125-ITAndroids_1-vs-RoboCIn_0.rcg.gz",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d9f20f079dd8eea9a49442967bd852dc1c81bfd1",
+      "size": 5487234,
+      "url": "https://api.github.com/repos/o/r/git/blobs/d9f20f079dd8eea9a49442967bd852dc1c81bfd1"
+    },
+    {
+      "path": "logs/Finals/202607050125-ITAndroids_1-vs-RoboCIn_0.rcl.gz",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "041b4ccb836e8306f2e25cc8a8e114cb772b7867",
+      "size": 1655311,
+      "url": "https://api.github.com/repos/o/r/git/blobs/041b4ccb836e8306f2e25cc8a8e114cb772b7867"
+    },
+    {
+      "path": "logs/Finals/202607050138-ITAndroids_0-vs-TitasDaRobotica_1.rcg.gz",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b65edbb6f0550c170b2c3befb8fd5331533b54b3",
+      "size": 5355472,
+      "url": "https://api.github.com/repos/o/r/git/blobs/b65edbb6f0550c170b2c3befb8fd5331533b54b3"
+    },
+    {
+      "path": "logs/Finals/202607050138-ITAndroids_0-vs-TitasDaRobotica_1.rcl.gz",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "186ad8238b1c51e8d17b9eae2cc8f33c1989055f",
+      "size": 1612886,
+      "url": "https://api.github.com/repos/o/r/git/blobs/186ad8238b1c51e8d17b9eae2cc8f33c1989055f"
+    },
+    {
+      "path": "logs/Finals/202607050150-TitasDaRobotica_0_2-vs-HELIOS2026_0_3.rcg.gz",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "db67971c8ac02787b04a2215e4e52e5cf47d7c8d",
+      "size": 6735879,
+      "url": "https://api.github.com/repos/o/r/git/blobs/db67971c8ac02787b04a2215e4e52e5cf47d7c8d"
+    },
+    {
+      "path": "logs/Finals/202607050150-TitasDaRobotica_0_2-vs-HELIOS2026_0_3.rcl.gz",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "37876efb7b745f73488e4643fc9437a2310e6807",
+      "size": 2307624,
+      "url": "https://api.github.com/repos/o/r/git/blobs/37876efb7b745f73488e4643fc9437a2310e6807"
+    },
+    {
+      "path": "logs/Finals/202607050404-HELIOS2026_0-vs-YuShan2026_1.rcg.gz",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0e6728b76b7353ba2bef5922c45cfea9c7ab0289",
+      "size": 4829651,
+      "url": "https://api.github.com/repos/o/r/git/blobs/0e6728b76b7353ba2bef5922c45cfea9c7ab0289"
+    },
+    {
+      "path": "logs/Finals/202607050404-HELIOS2026_0-vs-YuShan2026_1.rcl.gz",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2b9c33cc9b5161a6ff5a105780a63239f59603e3",
+      "size": 1504007,
+      "url": "https://api.github.com/repos/o/r/git/blobs/2b9c33cc9b5161a6ff5a105780a63239f59603e3"
+    },
+    {
+      "path": "logs/GroupA",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "3a0885f2a7d71648007738f2902dca66ae43da67",
+      "url": "https://api.github.com/repos/o/r/git/trees/3a0885f2a7d71648007738f2902dca66ae43da67"
+    },
+    {
+      "path": "logs/GroupA/202607020202-KETE_0-vs-HELIOS2026_11.rcg.gz",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "18ab3830ba63bbbce8f4a21bce478925031ed622",
+      "size": 5167905,
+      "url": "https://api.github.com/repos/o/r/git/blobs/18ab3830ba63bbbce8f4a21bce478925031ed622"
+    },
+    {
+      "path": "logs/GroupA/202607020202-KETE_0-vs-HELIOS2026_11.rcl.gz",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "91743f155a4f4ea8231f4b7ef67f43000400c392",
+      "size": 1529140,
+      "url": "https://api.github.com/repos/o/r/git/blobs/91743f155a4f4ea8231f4b7ef67f43000400c392"
+    },
+    {
+      "path": "logs/GroupA/202607020215-RoboTech_Coach_base_2-vs-KETE_2.rcg.gz",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e2f23d42ff51f46e0ec00d3a73dd71561aafdbf4",
+      "size": 5293444,
+      "url": "https://api.github.com/repos/o/r/git/blobs/e2f23d42ff51f46e0ec00d3a73dd71561aafdbf4"
+    },
+    {
+      "path": "logs/GroupA/202607020215-RoboTech_Coach_base_2-vs-KETE_2.rcl.gz",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ea52fedb015c4fda6447d7754071dfe9d3714476",
+      "size": 1467196,
+      "url": "https://api.github.com/repos/o/r/git/blobs/ea52fedb015c4fda6447d7754071dfe9d3714476"
+    },
+    {
+      "path": "logs/GroupA/202607020227-ITAndroids_7-vs-RoboTech_Coach_base_0.rcg.gz",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f8e0814d7a73598051fad107bf2767c4ecd571e0",
+      "size": 5509819,
+      "url": "https://api.github.com/repos/o/r/git/blobs/f8e0814d7a73598051fad107bf2767c4ecd571e0"
+    },
+    {
+      "path": "logs/GroupA/202607020227-ITAndroids_7-vs-RoboTech_Coach_base_0.rcl.gz",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2dc2198f37e994851265ee2eb23c719f16239ad5",
+      "size": 1562926,
+      "url": "https://api.github.com/repos/o/r/git/blobs/2dc2198f37e994851265ee2eb23c719f16239ad5"
+    },
+    {
+      "path": "logs/GroupA/202607020240-RoboTech_Coach_base_0-vs-HELIOS2026_8.rcg.gz",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "cdf720d24e71b8305911418b082205162061fa97",
+      "size": 5272910,
+      "url": "https://api.github.com/repos/o/r/git/blobs/cdf720d24e71b8305911418b082205162061fa97"
+    },
+    {
+      "path": "logs/GroupA/202607020240-RoboTech_Coach_base_0-vs-HELIOS2026_8.rcl.gz",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8805fdc08bd95e0f8b098e1a32ab96045db734cb",
+      "size": 1563015,
+      "url": "https://api.github.com/repos/o/r/git/blobs/8805fdc08bd95e0f8b098e1a32ab96045db734cb"
+    },
+    {
+      "path": "logs/GroupA/202607020253-ITAndroids_4-vs-KETE_0.rcg.gz",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "323ba2c6fce8b8d27e10d2f3f5dde6dd27e09fcd",
+      "size": 5231104,
+      "url": "https://api.github.com/repos/o/r/git/blobs/323ba2c6fce8b8d27e10d2f3f5dde6dd27e09fcd"
+    },
+    {
+      "path": "logs/GroupA/202607020253-ITAndroids_4-vs-KETE_0.rcl.gz",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3986de4b399095ebafc035b10849b59e195e6585",
+      "size": 1526281,
+      "url": "https://api.github.com/repos/o/r/git/blobs/3986de4b399095ebafc035b10849b59e195e6585"
+    },
+    {
+      "path": "logs/GroupA/202607020305-ITAndroids_0-vs-HELIOS2026_1.rcg.gz",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "efcd5b6d41515e61b66d7f21bd25e4e516c18cbd",
+      "size": 5032989,
+      "url": "https://api.github.com/repos/o/r/git/blobs/efcd5b6d41515e61b66d7f21bd25e4e516c18cbd"
+    },
+    {
+      "path": "logs/GroupA/202607020305-ITAndroids_0-vs-HELIOS2026_1.rcl.gz",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "79959cce355ab7c6063432ab20edf691c2995de6",
+      "size": 1569387,
+      "url": "https://api.github.com/repos/o/r/git/blobs/79959cce355ab7c6063432ab20edf691c2995de6"
+    },
+    {
+      "path": "logs/GroupQ",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "cf3313cb474cc1902f3091fedd6f11e164221e37",
+      "url": "https://api.github.com/repos/o/r/git/trees/cf3313cb474cc1902f3091fedd6f11e164221e37"
+    },
+    {
+      "path": "logs/GroupQ/202607040043-HELIOS2026_0-vs-ITAndroids_0.rcg.gz",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2013c0490cc3170934efb6e19aab8c3409e4e36a",
+      "size": 5040349,
+      "url": "https://api.github.com/repos/o/r/git/blobs/2013c0490cc3170934efb6e19aab8c3409e4e36a"
+    },
+    {
+      "path": "logs/GroupQ/202607040055-ITAndroids_0-vs-RoboCIn_1.rcg.gz",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "dfa3f4edb9a5ac63500c9e545c6c59ff2d5720c4",
+      "size": 5291352,
+      "url": "https://api.github.com/repos/o/r/git/blobs/dfa3f4edb9a5ac63500c9e545c6c59ff2d5720c4"
+    },
+    {
+      "path": "logs/GroupQ/202607040107-RoboCIn_0-vs-YuShan2026_0.rcg.gz",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b9af4d6bf599343ed13d86877658c99b60bc0b16",
+      "size": 5208250,
+      "url": "https://api.github.com/repos/o/r/git/blobs/b9af4d6bf599343ed13d86877658c99b60bc0b16"
+    }
+  ],
+  "truncated": false
+}

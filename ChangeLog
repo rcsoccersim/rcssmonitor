@@ -22,6 +22,9 @@
 	  command line, a drop), downloaded into the cache; GitHub's file
 	  pages and Git LFS. open dropped game log files. save a copy of the
 	  file of the game log open.
+	- list the game logs in repositories on GitHub (File > Browse Game
+	  Logs), from the Git Trees API, kept in the cache for an hour; the
+	  date, the teams and the score read from the file names.
 	- add the referee's whistle at the changes of the play mode, with
 	  Qt Multimedia (optional): the sounds synthesized by
 	  tools/make_whistle.py, played on one audio output kept open while

@@ -42,6 +42,8 @@
 #include "connect_dialog.h"
 #include "field_canvas.h"
 #include "game_log_file.h"
+#include "github_log_source.h"
+#include "log_browser_dialog.h"
 #include "log_downloader.h"
 #include "log_player.h"
 #include "log_player_slider.h"
@@ -328,6 +330,15 @@ MainWindow::createActionsFile()
     connect( M_open_url_act, &QAction::triggered,
              this, [this]() { openGameLogUrl(); } );
     this->addAction( M_open_url_act );
+
+    // the lists of game logs on GitHub (docs/plan/2026-11-22-02_remote-logs.md 4.2)
+    M_browse_logs_act = new QAction( tr( "&Browse Game Logs..." ), this );
+    M_browse_logs_act->setObjectName( "browse_logs" );
+    M_browse_logs_act->setShortcut( Qt::CTRL | Qt::SHIFT | Qt::Key_B );
+    M_browse_logs_act->setStatusTip( tr( "Browse the game logs on GitHub (e.g. those of RoboCup 2026), and open them." ) );
+    connect( M_browse_logs_act, &QAction::triggered,
+             this, &MainWindow::showLogBrowser );
+    this->addAction( M_browse_logs_act );
 
     // the file of the game log open, e.g. one downloaded
     M_save_copy_act = new QAction( tr( "Save a &Copy of Game Log..." ), this );
@@ -831,6 +842,7 @@ MainWindow::createMenuFile()
 
     menu->addAction( M_open_act );
     menu->addAction( M_open_url_act );
+    menu->addAction( M_browse_logs_act );
     menu->addAction( M_save_copy_act );
 
     menu->addSeparator();
@@ -2339,6 +2351,42 @@ MainWindow::openGameLogFile()
     std::cerr << "update the last path [" << s_last_path.toStdString() << ']' << std::endl;
 
     openGameLogFile( file_path );
+}
+
+/*-------------------------------------------------------------------*/
+void
+MainWindow::showLogBrowser()
+{
+    if ( ! M_log_browser )
+    {
+        M_log_browser = new LogBrowserDialog( this );
+        // the default ones, then those the user added (not read until chosen)
+        const auto add = [this]( const QString & text, const bool removable ) {
+            QString owner, repo, ref;
+            if ( GitHubLogSource::parseRepository( text, &owner, &repo, &ref ) )
+            {
+                M_log_browser->addSource( new GitHubLogSource( owner, repo, ref ), removable );
+            }
+        };
+        for ( const QString & text : GitHubLogSource::DEFAULT_REPOSITORIES )
+        {
+            add( text, false );
+        }
+        for ( const QString & text : Options::instance().logRepositories() )
+        {
+            add( text, true );
+        }
+        connect( M_log_browser, &LogBrowserDialog::repositoriesChanged,
+                 this, []( const QStringList & repositories ) {
+                     Options::instance().setLogRepositories( repositories );
+                     Options::instance().writeLogRepositories();
+                 } );
+        connect( M_log_browser, &LogBrowserDialog::openRequested,
+                 this, [this]( const QUrl & url ) { openGameLogUrl( url.toString() ); } );
+    }
+    M_log_browser->show();
+    M_log_browser->raise();
+    M_log_browser->activateWindow();
 }
 
 /*-------------------------------------------------------------------*/

@@ -11,11 +11,15 @@ add_library(rcssmonitor_core STATIC
   field_canvas.cpp
   field_painter.cpp
   game_log_file.cpp
+  github_log_source.cpp
   line_2d.cpp
+  log_browser_dialog.cpp
   log_cache.cpp
   log_downloader.cpp
+  log_file_name.cpp
   log_player.cpp
   log_player_slider.cpp
+  log_source.cpp
   log_url.cpp
   main_window.cpp
   message_splitter.cpp

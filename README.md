@@ -97,6 +97,15 @@ rcssmonitor https://github.com/rcsoccersim/RoboCup2026/blob/main/logs/Finals/202
 - A game log file dropped on the window is opened too, as by `File` -> `Open Game Log`.
 - A download is up to 200 MB. `https://` needs the TLS of Qt with OpenSSL ([docs/build.md](docs/build.md#notes)).
 
+### Browsing game logs
+
+`File` -> `Browse Game Logs...` (`Ctrl+Shift+B`) lists the game logs of RoboCup 2026 on GitHub ([rcsoccersim/RoboCup2026](https://github.com/rcsoccersim/RoboCup2026)) in the directories of the repository: the date, the teams, the score (the penalty shootout in parentheses) and the size of each log.
+A double click, or `Open`, downloads a log and opens it, as a URL does; the dialog stays open, to open one game after another.
+`Team:` shows only the games of the teams whose names have the text, and a click on a column's header sorts the logs by the column.
+
+- `Add...` adds another public repository on GitHub with game logs (`OWNER/REPO`, `OWNER/REPO@BRANCH`, or its URL), and `Remove` removes it. The repositories added are kept in the settings.
+- The list of a repository is read by one request to the GitHub API, and kept in `~/.cache/rcssmonitor/github` for an hour (`Reload` reads it again). GitHub allows 60 requests an hour without an account: when they are used up, the dialog tells until when, and shows the list kept before, however old.
+
 ### The 3D view
 
 `D`, or the `3D View` button in the tool bar, switches between the 2D and 3D views (`--view-3d on` starts in 3D).

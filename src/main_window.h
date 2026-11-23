@@ -54,6 +54,7 @@ class ConfigDialog;
 class FieldCanvas;
 class FieldView3D;
 class QStackedWidget;
+class LogBrowserDialog;
 class LogDownloader;
 class LogPlayer;
 class LogPlayerSlider;
@@ -91,6 +92,7 @@ private:
     LogCache M_log_cache; //!< the game logs downloaded
     LogDownloader * M_log_downloader = nullptr; //!< a game log from a URL (File > Open Game Log from URL)
     QProgressDialog * M_download_dialog = nullptr; //!< while it downloads
+    LogBrowserDialog * M_log_browser = nullptr; //!< File > Browse Game Logs, made when it is first shown
     QString M_game_log_path; //!< the file of the game log open (Save a Copy), or empty (none, or live)
 
     QLabel * M_position_label;
@@ -98,6 +100,7 @@ private:
     // file actions
     QAction * M_open_act;
     QAction * M_open_url_act = nullptr; //!< File > Open Game Log from URL
+    QAction * M_browse_logs_act = nullptr; //!< File > Browse Game Logs
     QAction * M_save_copy_act = nullptr; //!< File > Save a Copy of Game Log: enabled while a game log is open
     QAction * M_exit_act;
 
@@ -349,6 +352,8 @@ private slots:
     void openGameLogFile();
     //! File > Open Game Log from URL: the dialog
     void openGameLogUrl();
+    //! File > Browse Game Logs: the dialog (modeless), made when it is first shown
+    void showLogBrowser();
     //! File > Save a Copy of Game Log: the file dialog
     void saveGameLogCopy();
     //! the download of a game log: its progress, its end

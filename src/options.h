@@ -246,6 +246,7 @@ private:
     //
 
     QStringList M_recent_log_urls; //!< the URLs of game logs opened recently, the newest first
+    QStringList M_log_repositories; //!< the repositories on GitHub added to File > Browse Game Logs
 
     //
     // view options
@@ -657,6 +658,12 @@ public:
     void addRecentLogUrl( const QString & url );
     //! write the recent URLs to the settings file now (called when one is opened)
     void writeRecentLogUrls() const;
+
+    //! the repositories on GitHub the user added to File > Browse Game Logs (OWNER/REPO[@REF])
+    const QStringList & logRepositories() const { return M_log_repositories; }
+    void setLogRepositories( const QStringList & repositories ) { M_log_repositories = repositories; }
+    //! write them to the settings file now (called when one is added or removed)
+    void writeLogRepositories() const;
 
     //
     // view options

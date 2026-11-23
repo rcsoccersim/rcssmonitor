@@ -68,6 +68,12 @@
     Game Log saves a copy of the file of the game log open. See
     README.md.
 
+  * Browse the game logs of RoboCup 2026 on GitHub (File > Browse Game
+    Logs): the date, the teams, the score and the size of each log, in
+    the directories of the repository, filtered by a team and sorted by
+    a column; a log is opened by a double click. Other public
+    repositories on GitHub can be added. See README.md.
+
   * Add the referee's whistle (View > Referee's Whistle, --whistle, off
     by default): a long whistle at a kick-off, a short one at a foul, an
     offside and so on and at the free kick after it, two long ones at

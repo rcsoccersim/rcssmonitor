@@ -15,11 +15,15 @@ rcssmonitor_SOURCES = \
 	field_canvas.cpp \
 	field_painter.cpp \
 	game_log_file.cpp \
+	github_log_source.cpp \
 	line_2d.cpp \
+	log_browser_dialog.cpp \
 	log_cache.cpp \
 	log_downloader.cpp \
+	log_file_name.cpp \
 	log_player.cpp \
 	log_player_slider.cpp \
+	log_source.cpp \
 	log_url.cpp \
 	main_window.cpp \
 	message_splitter.cpp \
@@ -53,9 +57,12 @@ nodist_rcssmonitor_SOURCES = \
 	moc_config_dialog.cpp \
 	moc_connect_dialog.cpp \
 	moc_field_canvas.cpp \
+	moc_github_log_source.cpp \
+	moc_log_browser_dialog.cpp \
 	moc_log_downloader.cpp \
 	moc_log_player.cpp \
 	moc_log_player_slider.cpp \
+	moc_log_source.cpp \
 	moc_main_window.cpp \
 	moc_monitor_client.cpp \
 	moc_monitor_transport.cpp \
@@ -79,11 +86,15 @@ noinst_HEADERS = \
 	field_canvas.h \
 	field_painter.h \
 	game_log_file.h \
+	github_log_source.h \
 	line_2d.h \
+	log_browser_dialog.h \
 	log_cache.h \
 	log_downloader.h \
+	log_file_name.h \
 	log_player.h \
 	log_player_slider.h \
+	log_source.h \
 	log_url.h \
 	main_window.h \
 	message_splitter.h \

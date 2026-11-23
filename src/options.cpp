@@ -451,6 +451,9 @@ Options::readSettings()
 
     settings.beginGroup( "GameLog" );
 
+    val = settings.value( "github_repositories" );
+    if ( val.isValid() ) M_log_repositories = val.toStringList();
+
     val = settings.value( "recent_urls" );
     if ( val.isValid() )
     {
@@ -1163,6 +1166,18 @@ Options::writeRecentLogUrls() const
 
     settings.beginGroup( "GameLog" );
     settings.setValue( "recent_urls", M_recent_log_urls );
+    settings.endGroup();
+}
+
+/*-------------------------------------------------------------------*/
+void
+Options::writeLogRepositories() const
+{
+    QSettings settings( Options::CONF_FILE,
+                        QSettings::IniFormat );
+
+    settings.beginGroup( "GameLog" );
+    settings.setValue( "github_repositories", M_log_repositories );
     settings.endGroup();
 }
 
