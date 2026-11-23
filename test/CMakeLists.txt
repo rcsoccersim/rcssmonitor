@@ -77,6 +77,16 @@ add_test(NAME check_icons
   COMMAND sh ${CMAKE_CURRENT_SOURCE_DIR}/check_icons.sh ${PROJECT_SOURCE_DIR}/icons
   )
 
+# the desktop entry: Exec, the action "connect", Icon and StartupWMClass,
+# and desktop-file-validate (skipped if desktop-file-utils is missing)
+add_test(NAME check_desktop_entry
+  COMMAND sh ${CMAKE_CURRENT_SOURCE_DIR}/check_desktop_entry.sh ${PROJECT_SOURCE_DIR}
+  )
+set_tests_properties(check_desktop_entry
+  PROPERTIES
+  SKIP_RETURN_CODE 77
+  )
+
 # only src/view3d/gl calls OpenGL (docs/plan/2026-11-11_3d-view.md §5.3)
 rcssmonitor_add_test(gl_isolation Qt${QT_VERSION_MAJOR}::Core)
 

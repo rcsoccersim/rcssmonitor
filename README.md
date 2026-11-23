@@ -55,7 +55,7 @@ cmake --install build
 ```
 
 installs the monitor into `~/.local` by default (`--prefix DIR` installs into another directory).
-It also installs the desktop entry, so that rcssmonitor appears in the application menu.
+It also installs the desktop entry, so that rcssmonitor appears in the application menu: search for `rcssmonitor`, `RoboCup` or `soccer` (e.g. in GNOME's Activities), and right-click it for `Connect to the Server`.
 On Ubuntu, `~/.local/bin` is in `PATH` after you log in again, and `rcssmonitor` can be started by its name.
 See [docs/build.md](docs/build.md#installing-and-uninstalling) for the details.
 

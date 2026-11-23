@@ -138,7 +138,7 @@ python3 icons/app/make_rcssmonitor_svg.py
 icons/generate.sh rcssmonitor
 ```
 
-CMake は、48×48 の画像を freedesktop.org の hicolor テーマの場所 (`PREFIX/share/icons/hicolor/48x48/apps/rcssmonitor.png`) にインストールする (トップの `CMakeLists.txt`)。
+CMake と autotools は、6 つの大きさの画像と SVG を、freedesktop.org の hicolor テーマの場所 (`PREFIX/share/icons/hicolor/SIZExSIZE/apps/rcssmonitor.png` と `PREFIX/share/icons/hicolor/scalable/apps/rcssmonitor.svg`) にインストールする (トップの `CMakeLists.txt` と `Makefile.am`)。デスクトップエントリ (`data/rcssmonitor.desktop.in`) の `Icon=rcssmonitor` が、これを指す。
 
 Windows 用のアイコン `icons/rcss.ico` (`src/rcssmonitor.rc` が参照する。今の CMake と autotools のビルドでは使わない) は、16、32、48、256 ピクセルの PNG から作った。
 作り直すときは、Python の Pillow で次のように作る。

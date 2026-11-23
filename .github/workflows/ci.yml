@@ -38,7 +38,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             build-essential cmake ${{ matrix.qt_packages }} zlib1g-dev libdeflate-dev \
-            xvfb xauth libgl1-mesa-dri
+            desktop-file-utils xvfb xauth libgl1-mesa-dri
       - name: Configure
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
@@ -71,7 +71,7 @@ jobs:
           # from 24.04)
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             build-essential cmake qt6-base-dev libqt6opengl6-dev libqt6websockets6-dev libgl-dev zlib1g-dev libdeflate-dev \
-            xvfb xauth libgl1-mesa-dri
+            desktop-file-utils xvfb xauth libgl1-mesa-dri
       - name: Configure
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \

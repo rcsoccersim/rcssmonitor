@@ -147,10 +147,13 @@ The files installed:
 | `PREFIX/lib/librcssrcg.so*` | the library that reads game logs |
 | `PREFIX/include/rcss/rcg/*.h` | its headers |
 | `PREFIX/share/applications/rcssmonitor.desktop` | the desktop entry: rcssmonitor in the application menu |
-| `PREFIX/share/icons/hicolor/48x48/apps/rcssmonitor.png` | its icon |
+| `PREFIX/share/icons/hicolor/SIZExSIZE/apps/rcssmonitor.png` | its icon (SIZE: 16, 32, 48, 64, 128, 256) |
+| `PREFIX/share/icons/hicolor/scalable/apps/rcssmonitor.svg` | its icon, scalable |
 
 - The installed `rcssmonitor` finds `librcssrcg` in `PREFIX/lib` by itself (its RPATH is `$ORIGIN/../lib`): `LD_LIBRARY_PATH` is not needed.
 - The desktop entry starts the installed `rcssmonitor` by its full path, so it works even if `PREFIX/bin` is not in `PATH`.
+- In the desktop's search (e.g. GNOME's Activities), the entry is found by `rcssmonitor`, `RoboCup`, `soccer`, `simulator`, `monitor` or `logplayer`. Its menu (a right click) has `Connect to the Server`, which starts `rcssmonitor --connect`.
+- The window of `rcssmonitor` is linked to the entry (the Wayland app_id by `QGuiApplication::setDesktopFileName()`, and `StartupWMClass` on X11), so that the dash shows it with the entry's icon.
 - To start `rcssmonitor` from a terminal by its name, `PREFIX/bin` must be in `PATH`. On Ubuntu, `~/.local/bin` is added to `PATH` by `~/.profile` when you log in, if the directory exists then (log in again after the first installation). For another directory, add a line like this at the bottom of `~/.profile`, and log in again:
   ```
   PATH="/opt/rcss/bin:$PATH"
@@ -202,7 +205,6 @@ The autotools build is kept in the repository, but it is not the official build:
 
 - It builds the monitor with Qt 5 only.
 - It does not build the 3D view, nor the tests.
-- It does not install the desktop entry and the icon.
 
 ### Requirements
 
@@ -252,16 +254,11 @@ make install     # sudo make install, for /usr/local
 make uninstall   # in the same directory, after configure with the same options
 ```
 
-`make install` installs `PREFIX/bin/rcssmonitor`, `PREFIX/lib/librcssrcg.so*` and `PREFIX/include/rcss/rcg/*.h`.
+`make install` installs the same files as the CMake build: `PREFIX/bin/rcssmonitor`, `PREFIX/lib/librcssrcg.so*`, `PREFIX/include/rcss/rcg/*.h`, the desktop entry and its icons ([Installing and uninstalling](#installing-and-uninstalling)).
 `make uninstall` removes them, but not the directories created by the installation.
 
-Unlike the CMake build, the installed `rcssmonitor` may not find `librcssrcg` by itself:
-
-- In `/usr/local`, run `sudo ldconfig` after the installation.
-- In another directory, add its `lib` to `LD_LIBRARY_PATH`, e.g. at the bottom of `~/.bashrc`, and open a new terminal:
-  ```
-  export LD_LIBRARY_PATH="YOUR_INSTALLATION_DIR/lib:$LD_LIBRARY_PATH"
-  ```
+The installed `rcssmonitor` finds `librcssrcg` in `PREFIX/lib` by itself: libtool puts that directory in it (RPATH), so `LD_LIBRARY_PATH` is not needed.
+It is the full path of the directory (unlike `$ORIGIN/../lib` of CMake), so install again after moving the installation.
 
 As with CMake, `PREFIX/bin` must be in `PATH` to start `rcssmonitor` by its name ([Installing and uninstalling](#installing-and-uninstalling)).
 
@@ -274,5 +271,6 @@ The release tarballs are made by the `dist` target of CMake ([Creating the sourc
 
 - The settings are kept in `~/.rcssmonitor.conf`. To try the monitor without changing them, start it with another `HOME`, e.g. `HOME=$(mktemp -d) build/rcssmonitor`.
 - `rcssmonitor --help` shows the command line options.
+- Started from the desktop (the application menu, the dash), rcssmonitor gets the environment of the desktop session, not that of `~/.bashrc`. For example, `QT_QPA_PLATFORM=xcb` exported in `~/.bashrc` does not apply there, and Qt 6 may run it on Wayland instead of X11 (XWayland), with another scale: on Wayland the desktop's scale (e.g. 100%), on X11 the DPI of X (`Xft.dpi`). To give a variable to the programs started from the desktop too, write it in a file in `~/.config/environment.d/` (e.g. `~/.config/environment.d/90-qt.conf` with the line `QT_QPA_PLATFORM=xcb`), and log in again.
 - The icons are PNG files in the repository, made from SVG files by `icons/generate.sh` with Inkscape. Inkscape is needed only to change an icon, not to build ([docs/icons_en.md](icons_en.md)).
 - A build directory configured without an optional library (e.g. Qt WebSockets) and configured again after installing it may fail to link. Remove the build directory (`./cmake-helper.sh clean`) and build again.

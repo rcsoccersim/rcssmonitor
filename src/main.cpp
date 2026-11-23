@@ -63,6 +63,10 @@ main( int argc,
     QApplication app( argc, argv );
     QApplication::setApplicationName( PACKAGE_NAME );
     QApplication::setApplicationVersion( VERSION );
+    // the name of the desktop entry (rcssmonitor.desktop): the app_id of
+    // Wayland, by which the desktop (e.g. GNOME's dash) links the window to
+    // the entry and its icon. On X11, WM_CLASS and StartupWMClass do it.
+    QGuiApplication::setDesktopFileName( QStringLiteral( "rcssmonitor" ) );
 
     std::locale::global( std::locale::classic() );
 

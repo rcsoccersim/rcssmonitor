@@ -15,6 +15,9 @@
 	- renew the icons: SVG files made into PNG images for the light and
 	  dark color schemes, and the application icon with the official
 	  RoboCup logo.
+	- improve the desktop entry (keywords, the action to connect, the
+	  link to the window), and install the icon in all its sizes. the
+	  autotools build installs them too, with the RPATH of librcssrcg.
 
 2024-04-27  Hidehisa Akiyama  <hidehisaakiyama@users.noreply.github.com>
 
