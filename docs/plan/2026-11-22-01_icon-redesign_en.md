@@ -290,3 +290,7 @@ At each stage, the user looks at images comparing the light and the dark schemes
 - It is merged by a Squash Merge (one feature, renewing the icons, whose history by stage is in this plan; §3 of the overall plan). Last time (PR #71) the commit's title became GitHub's default "Merge pull request ...", so the user was told to change it to the PR's title when merging.
 - This record was committed to the branch of PR #72 before the merge (CLAUDE.md). To stay true after the merge, it does not give the commit of the merge.
 - Next: when PR #72 is merged, the desktop (F3; §B of the overall plan) follows. The user creates `feature/desktop-entry` on GitHub from develop. Installing all the sizes of the application icon (`icons/app/`) and the scalable SVG, and `setDesktopFileName` (linking to the Wayland dash) are done in F3.
+
+### 2026-11-23: Correction (the Qt5 builds)
+
+- "The CMake build with Qt 5.15.13" in the records of this plan was actually Qt 5.15.2 of an anaconda environment (the PATH of the work environment has anaconda at its head, and CMake found Qt5 there). The autotools checks and the Qt5 job of the CI used the system's Qt5. See the entry "stage 1 of §C the referee's whistle" of 2026-11-23 in §6 of the overall plan [2026-11-22-00_v20-features_en.md](2026-11-22-00_v20-features_en.md).

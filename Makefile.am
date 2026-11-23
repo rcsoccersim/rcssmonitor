@@ -17,6 +17,10 @@ EXTRA_DIST = \
 	test/test_message_splitter.cpp \
 	icons/app/make_rcssmonitor_svg.py \
 	icons/app/robocup_logo.png \
+	resources/sounds/sounds.qrc \
+	resources/sounds/whistle_long.wav \
+	resources/sounds/whistle_short.wav \
+	tools/make_whistle.py \
 	icons/generate.sh \
 	icons/generated.sha256 \
 	icons/icons.am \

@@ -41,6 +41,7 @@ rcssmonitor_SOURCES = \
 	ui_palette.cpp \
 	ui_style.cpp \
 	vector_2d.cpp \
+	whistle_rules.cpp \
 	main.cpp
 
 nodist_rcssmonitor_SOURCES = \
@@ -101,7 +102,16 @@ noinst_HEADERS = \
 	ui_palette.h \
 	ui_style.h \
 	vector_2d.h \
+	whistle_rules.h \
 	ws_monitor_transport.h
+
+if HAVE_QT_MULTIMEDIA
+# the referee's whistle: the sounds (tools/make_whistle.py) in the resources
+nodist_rcssmonitor_SOURCES += qrc_sounds.cpp
+endif
+
+qrc_sounds.cpp: $(top_srcdir)/resources/sounds/sounds.qrc $(top_srcdir)/resources/sounds/whistle_short.wav $(top_srcdir)/resources/sounds/whistle_long.wav
+	$(QT_RCC) --name sounds --output $@ $(top_srcdir)/resources/sounds/sounds.qrc
 
 if HAVE_QT_WEBSOCKETS
 rcssmonitor_SOURCES += ws_monitor_transport.cpp

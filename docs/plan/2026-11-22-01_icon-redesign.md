@@ -290,3 +290,7 @@ soccerwindow2 (`../../rctools/soccerwindow2`、develop 1df28c1) の計画書 `do
 - 取り込みは Squash Merge (アイコンの刷新という 1 つの機能のまとまりで、段階ごとの経緯はこの計画書にある。総合の計画の §3)。前回 (PR #71) はコミットの題が GitHub の既定の「Merge pull request ...」になったので、取り込むときに PR の題に書き換えることをユーザに伝えた。
 - この記録は、取り込みの前に PR #72 のブランチにコミットした (CLAUDE.md)。取り込みの後も正しいように、取り込みの結果のコミットは書かない。
 - この後: PR #72 を取り込んだら、デスクトップ (F3。総合の計画書 §B) に進む。ユーザが GitHub 上で develop から `feature/desktop-entry` を作る。アプリのアイコンの各サイズ (`icons/app/`) と scalable の SVG のインストール、`setDesktopFileName` (Wayland のダッシュとの結びつき) は F3 で行う。
+
+### 2026-11-23: 訂正 (Qt5 のビルド)
+
+- この計画書の記録の「Qt 5.15.13 の CMake のビルド」は、実際には anaconda の環境の Qt 5.15.2 だった (作業の環境の PATH の先頭に anaconda があり、CMake がそこから Qt5 を見つけていた)。autotools の確認と CI の Qt5 のジョブは、システムの Qt5 だった。詳しくは総合の計画書 [2026-11-22-00_v20-features.md](2026-11-22-00_v20-features.md) §6 の 2026-11-23 の「§C 審判の笛の段階 1」の項目。
