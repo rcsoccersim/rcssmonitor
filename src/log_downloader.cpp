@@ -366,8 +366,10 @@ LogDownloader::describe( QNetworkReply * reply ) const
             : QStringLiteral( "HTTP %1 %2" ).arg( status ).arg( reason );
     }
     // this aborts a reply only after disconnecting it (abort()) or with a
-    // reason (M_error): canceled otherwise is the transfer timeout
-    if ( reply->error() == QNetworkReply::OperationCanceledError
+    // reason (M_error): canceled otherwise is the transfer timeout (Qt 6.4
+    // and 5.15 tell it as canceled, Qt 6.10 as timed out)
+    if ( ( reply->error() == QNetworkReply::OperationCanceledError
+           || reply->error() == QNetworkReply::TimeoutError )
          && M_transfer_timeout > 0 )
     {
         return tr( "No data came for %1 seconds." ).arg( M_transfer_timeout / 1000.0 );

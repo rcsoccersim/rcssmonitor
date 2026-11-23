@@ -231,3 +231,8 @@
 
 - After the first commit ce0870e (D7), the rules of the referee's whistle (global functions in `whistle_rules.h`) were put in the static-only class `WhistleRules` (`whistleFor` → `WhistleRules::whistle`, `isWhistleStopMode` → `isStopMode`, `strongerWhistle` → `stronger`, `whistleAtFirstFrame` → `atFirstFrame`). The rules are not changed. The name in C.3.4 and the record in §6 of the overall plan were changed too.
 - Next: the push and the CI. Then stage 2 (the lists of logs on GitHub), confirmed with the user before it starts.
+
+### 2026-11-24: The timeout with Qt 6.10 of the CI
+
+- In the CI of d56fad4, two jobs failed: CMake with Qt6, and the distcheck (Qt6). Only `timeout()` of `test_log_downloader` failed; Qt5, Qt6 (Ubuntu 22.04, Qt 6.2) and autotools passed. The CI's Qt6 is Qt 6.10.2 (Ubuntu 26.04). Qt 6.4 and Qt 5.15 here tell the transfer timeout as `OperationCanceledError` (Operation canceled), but Qt 6.10 as `TimeoutError` (Operation timed out), so `LogDownloader` did not tell it was the timeout, and the message was not "No data came for ... seconds.".
+- Fixed: `TimeoutError` is the timeout too (`LogDownloader::describe()`). The tests pass with Qt6 and Qt5 here. Qt 6.10 is checked by the CI.
