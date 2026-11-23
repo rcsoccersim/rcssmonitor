@@ -226,3 +226,8 @@
 - The URL functions were made into the static-only class `LogUrl` (`log_url.{h,cpp}`) and the class `LogCache` (`log_cache.{h,cpp}`, new), which has its directory (4.4). The main window has a `LogCache` (`gameLogCache()`), and gives it to the dialog. `MainWindow::gameLogCacheDir()` was removed. The tests were split into `test_log_url` (`LogUrl`) and the new `test_log_cache` (the place, `pathOf`, `contains`, the size and clearing). The behavior is not changed.
 - Checked: the three CMake builds had no warnings, and `ctest -j8`, run 3 times in each, passed all 65 tests. autotools (Qt5): the builds with the whistle and with `--disable-sound` passed (no warnings).
 - The user checked with the revised version that the crash at the first opening is fixed.
+
+### 2026-11-24: The class of the whistle's rules (D8)
+
+- After the first commit ce0870e (D7), the rules of the referee's whistle (global functions in `whistle_rules.h`) were put in the static-only class `WhistleRules` (`whistleFor` → `WhistleRules::whistle`, `isWhistleStopMode` → `isStopMode`, `strongerWhistle` → `stronger`, `whistleAtFirstFrame` → `atFirstFrame`). The rules are not changed. The name in C.3.4 and the record in §6 of the overall plan were changed too.
+- Next: the push and the CI. Then stage 2 (the lists of logs on GitHub), confirmed with the user before it starts.

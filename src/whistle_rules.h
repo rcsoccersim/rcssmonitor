@@ -48,54 +48,73 @@ enum class WhistleKind {
 };
 
 /*!
-  \brief the whistle at a change of the play mode, after the guidelines of
-  the Laws of the Game for referees (IFAB) and how rcssserver changes the
-  modes (docs/plan/2026-11-22-00_v20-features.md C.3.4):
-
-  - a kick-off (the start of the game, of a half, after a goal): long, once.
-    In the game logs, a half ends with a kick-off right after the play
-    (no `before_kick_off`): only the kick-off's whistle
-  - `before_kick_off` after the time 0 (the end of a half, live),
-    `first_half_over`: two long
-  - `time_over`: three long
-  - a foul, an offside, a back pass and so on (the modes that stop the
-    play for a free kick): short; and the free kick (or the indirect free
-    kick) after one of them: short (the restart, after the defenders kept
-    the distance)
-  - `penalty_ready` (the kicker may kick): short
-  - no whistle for the others (e.g. a goal: a clear goal needs none; a free
-    kick after a catch, a kick-in, a corner kick, a goal kick, a dropped
-    ball, `play_on`)
-
-  \param prev the mode of the frame before
-  \param next the mode of the frame
-  \param next_time the time (cycle) of the frame
-  \return the whistle. None if the mode does not change, or if the mode
-  before is unknown (PM_Null).
+  \class WhistleRules
+  \brief the rules of the referee's whistle at the changes of the play mode
+  (docs/plan/2026-11-22-00_v20-features.md C.3.4). It has no state: only
+  static functions.
 */
-WhistleKind whistleFor( const rcss::rcg::PlayMode prev,
-                        const rcss::rcg::PlayMode next,
-                        const int next_time );
+class WhistleRules {
+private:
+    // not used
+    WhistleRules() = delete;
 
-/*!
-  \brief whether a mode stops the play for a free kick (a foul, an offside,
-  a back pass, a fault of a free kick or a catch, an illegal defense)
-*/
-bool isWhistleStopMode( const rcss::rcg::PlayMode mode );
+public:
 
-/*!
-  \brief the stronger of two whistles (the one to blow when a live update
-  has more than one change)
-*/
-WhistleKind strongerWhistle( const WhistleKind a,
-                             const WhistleKind b );
+    /*!
+      \brief the whistle at a change of the play mode, after the guidelines
+      of the Laws of the Game for referees (IFAB) and how rcssserver changes
+      the modes:
 
-/*!
-  \brief the whistle when the play starts from the first frame of a game
-  log: the kick-off of the game if the log starts with one (the logs have
-  no `before_kick_off` before it), or none
-  \param first the mode of the first frame
-*/
-WhistleKind whistleAtFirstFrame( const rcss::rcg::PlayMode first );
+      - a kick-off (the start of the game, of a half, after a goal): long,
+        once. In the game logs, a half ends with a kick-off right after the
+        play (no `before_kick_off`): only the kick-off's whistle
+      - `before_kick_off` after the time 0 (the end of a half, live),
+        `first_half_over`: two long
+      - `time_over`: three long
+      - a foul, an offside, a back pass and so on (the modes that stop the
+        play for a free kick): short; and the free kick (or the indirect
+        free kick) after one of them: short (the restart, after the
+        defenders kept the distance)
+      - `penalty_ready` (the kicker may kick): short
+      - no whistle for the others (e.g. a goal: a clear goal needs none; a
+        free kick after a catch, a kick-in, a corner kick, a goal kick, a
+        dropped ball, `play_on`)
+
+      \param prev the mode of the frame before
+      \param next the mode of the frame
+      \param next_time the time (cycle) of the frame
+      \return the whistle. None if the mode does not change, or if the mode
+      before is unknown (PM_Null).
+    */
+    static
+    WhistleKind whistle( const rcss::rcg::PlayMode prev,
+                         const rcss::rcg::PlayMode next,
+                         const int next_time );
+
+    /*!
+      \brief whether a mode stops the play for a free kick (a foul, an
+      offside, a back pass, a fault of a free kick or a catch, an illegal
+      defense)
+    */
+    static
+    bool isStopMode( const rcss::rcg::PlayMode mode );
+
+    /*!
+      \brief the stronger of two whistles (the one to blow when a live update
+      has more than one change)
+    */
+    static
+    WhistleKind stronger( const WhistleKind a,
+                          const WhistleKind b );
+
+    /*!
+      \brief the whistle when the play starts from the first frame of a game
+      log: the kick-off of the game if the log starts with one (the logs have
+      no `before_kick_off` before it), or none
+      \param first the mode of the first frame
+    */
+    static
+    WhistleKind atFirstFrame( const rcss::rcg::PlayMode first );
+};
 
 #endif
