@@ -164,8 +164,15 @@ install(CODE "
 install(FILES ${PROJECT_BINARY_DIR}/rcssmonitor.desktop
   DESTINATION ${CMAKE_INSTALL_DATADIR}/applications
   )
-install(FILES icons/app/48/rcssmonitor.png
-  DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/48x48/apps
+# the application icon of all the sizes, and the scalable one, in the
+# freedesktop.org hicolor theme (the desktop entry's Icon=rcssmonitor)
+foreach(size 16 32 48 64 128 256)
+  install(FILES icons/app/${size}/rcssmonitor.png
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/${size}x${size}/apps
+    )
+endforeach()
+install(FILES icons/app/svg/rcssmonitor.svg
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps
   )
 
 # unit tests

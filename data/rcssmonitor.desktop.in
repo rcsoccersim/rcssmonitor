@@ -1,14 +1,23 @@
 # The desktop entry of rcssmonitor (freedesktop.org Desktop Entry).
 # It is installed as PREFIX/share/applications/rcssmonitor.desktop, and the
 # placeholder of the directory of the executable in TryExec and Exec is
-# replaced with PREFIX/bin at the installation (CMakeLists.txt), so that the
-# entry starts it even if PREFIX/bin (e.g. ~/.local/bin) is not in PATH.
+# replaced with PREFIX/bin at the installation (CMakeLists.txt and
+# Makefile.am), so that the entry starts it even if PREFIX/bin (e.g.
+# ~/.local/bin) is not in PATH. test/check_desktop_entry.sh checks it.
 [Desktop Entry]
 Type=Application
 Name=rcssmonitor
+GenericName=RoboCup Soccer Simulator Monitor
 Comment=Monitor for the RoboCup Soccer Simulator
 TryExec=@RCSSMONITOR_BINDIR@/rcssmonitor
 Exec="@RCSSMONITOR_BINDIR@/rcssmonitor"
 Icon=rcssmonitor
 Terminal=false
-Categories=Development;
+Categories=Science;ArtificialIntelligence;
+Keywords=RoboCup;soccer;simulator;monitor;logplayer;
+StartupWMClass=rcssmonitor
+Actions=connect;
+
+[Desktop Action connect]
+Name=Connect to the Server
+Exec="@RCSSMONITOR_BINDIR@/rcssmonitor" --connect

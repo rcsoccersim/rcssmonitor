@@ -138,7 +138,13 @@ distcheck_run("install" ${CMAKE_COMMAND} --install "${build_dir}" --prefix "${in
 foreach(file
     bin/rcssmonitor
     include/rcss/rcg/types.h
+    share/icons/hicolor/16x16/apps/rcssmonitor.png
+    share/icons/hicolor/32x32/apps/rcssmonitor.png
     share/icons/hicolor/48x48/apps/rcssmonitor.png
+    share/icons/hicolor/64x64/apps/rcssmonitor.png
+    share/icons/hicolor/128x128/apps/rcssmonitor.png
+    share/icons/hicolor/256x256/apps/rcssmonitor.png
+    share/icons/hicolor/scalable/apps/rcssmonitor.svg
     share/applications/rcssmonitor.desktop)
   if(NOT EXISTS "${install_dir}/${file}")
     message(FATAL_ERROR "distcheck: ${file} is not installed. "
@@ -146,10 +152,11 @@ foreach(file
   endif()
 endforeach()
 
-# Exec of the desktop entry runs the installed executable.
+# Exec of the desktop entry, and of its action "connect", runs the installed
+# executable.
 set(desktop_file "${install_dir}/share/applications/rcssmonitor.desktop")
 file(STRINGS "${desktop_file}" desktop_exec REGEX "^(Try)?Exec=")
-set(expected_exec "TryExec=${install_dir}/bin/rcssmonitor;Exec=\"${install_dir}/bin/rcssmonitor\"")
+set(expected_exec "TryExec=${install_dir}/bin/rcssmonitor;Exec=\"${install_dir}/bin/rcssmonitor\";Exec=\"${install_dir}/bin/rcssmonitor\" --connect")
 if(NOT desktop_exec STREQUAL expected_exec)
   message(FATAL_ERROR "distcheck: Exec of the desktop entry is wrong: ${desktop_exec} "
     "(expected: ${expected_exec}). The files are left in ${WORK_DIR} for inspection.")

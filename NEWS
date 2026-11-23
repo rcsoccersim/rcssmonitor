@@ -53,6 +53,13 @@
     too). The application icon is a monitor showing the official
     RoboCup logo. See docs/icons_en.md.
 
+  * Improve the desktop entry: it is found by RoboCup, soccer and so
+    on, its menu has Connect to the Server (--connect), and the window
+    is linked to it (the dash shows its icon, on Wayland too). The icon
+    is installed in all its sizes and as an SVG. The autotools build
+    installs the desktop entry and the icons too, and its installed
+    rcssmonitor finds librcssrcg without LD_LIBRARY_PATH.
+
   * Read game logs faster (with libdeflate for gzip-compressed logs, if
     it is found) and more robustly (unknown JSON keys, broken lines, a
     missing ']' and unknown lines of text logs are skipped). Read the

@@ -138,7 +138,7 @@ python3 icons/app/make_rcssmonitor_svg.py
 icons/generate.sh rcssmonitor
 ```
 
-CMake installs the 48×48 image to the place of the freedesktop.org hicolor theme (`PREFIX/share/icons/hicolor/48x48/apps/rcssmonitor.png`; the top `CMakeLists.txt`).
+CMake and autotools install the images of the six sizes and the SVG to the place of the freedesktop.org hicolor theme (`PREFIX/share/icons/hicolor/SIZExSIZE/apps/rcssmonitor.png` and `PREFIX/share/icons/hicolor/scalable/apps/rcssmonitor.svg`; the top `CMakeLists.txt` and `Makefile.am`). `Icon=rcssmonitor` of the desktop entry (`data/rcssmonitor.desktop.in`) refers to them.
 
 The icon for Windows, `icons/rcss.ico` (`src/rcssmonitor.rc` refers to it; today's CMake and autotools builds do not use it), was made from the PNGs of 16, 32, 48 and 256 pixels.
 To make it again, use Python's Pillow:
