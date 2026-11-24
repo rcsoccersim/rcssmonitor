@@ -2,8 +2,8 @@
 
 /*!
   \file archive_log_source.cpp
-  \brief the game logs in a directory listed by h5ai, as
-  archive.robocup.info. Source File.
+  \brief the game logs in a directory listed by a web server (h5ai, or a
+  page of links), as archive.robocup.info. Source File.
 */
 
 /*
@@ -48,6 +48,7 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QRegularExpression>
 #include <QSaveFile>
 #include <QStandardPaths>
 #include <QTimer>
@@ -67,6 +68,58 @@ time_text( const QDateTime & time )
     return time.toLocalTime().toString( QStringLiteral( "yyyy-MM-dd HH:mm" ) );
 }
 
+//! a text of HTML with its character references decoded (&nbsp; as a space)
+QString
+decode_html( const QString & text )
+{
+    if ( ! text.contains( QLatin1Char( '&' ) ) )
+    {
+        return text;
+    }
+
+    static const QRegularExpression reference( QStringLiteral( "&(#[0-9]{1,7}|#[xX][0-9a-fA-F]{1,6}|[a-zA-Z]+);" ) );
+    QString result;
+    int last = 0;
+    QRegularExpressionMatchIterator it = reference.globalMatch( text );
+    while ( it.hasNext() )
+    {
+        const QRegularExpressionMatch m = it.next();
+        result += text.mid( last, m.capturedStart() - last );
+        last = m.capturedEnd();
+
+        const QString name = m.captured( 1 );
+        QString decoded;
+        if ( name.startsWith( QLatin1Char( '#' ) ) )
+        {
+            const bool hex = name.size() > 1 && ( name[1] == QLatin1Char( 'x' ) || name[1] == QLatin1Char( 'X' ) );
+            bool ok = false;
+            const uint code = name.mid( hex ? 2 : 1 ).toUInt( &ok, hex ? 16 : 10 );
+            if ( ok && 0 < code && code <= 0x10FFFF )
+            {
+                if ( QChar::requiresSurrogates( code ) )
+                {
+                    decoded += QChar( QChar::highSurrogate( code ) );
+                    decoded += QChar( QChar::lowSurrogate( code ) );
+                }
+                else
+                {
+                    decoded = QChar( static_cast< ushort >( code ) );
+                }
+            }
+        }
+        else if ( name == QLatin1String( "amp" ) ) decoded = QStringLiteral( "&" );
+        else if ( name == QLatin1String( "lt" ) ) decoded = QStringLiteral( "<" );
+        else if ( name == QLatin1String( "gt" ) ) decoded = QStringLiteral( ">" );
+        else if ( name == QLatin1String( "quot" ) ) decoded = QStringLiteral( "\"" );
+        else if ( name == QLatin1String( "apos" ) ) decoded = QStringLiteral( "'" );
+        else if ( name == QLatin1String( "nbsp" ) ) decoded = QStringLiteral( " " );
+
+        result += decoded.isEmpty() ? m.captured( 0 ) : decoded;
+    }
+    result += text.mid( last );
+    return result;
+}
+
 }
 
 /*-------------------------------------------------------------------*/
@@ -76,6 +129,7 @@ ArchiveLogSource::ArchiveLogSource( const QUrl & url,
     : LogSource( parent ),
       M_url( url ),
       M_cache_dir( cache_dir ),
+      M_listing( UNKNOWN_LISTING ),
       M_manager( new QNetworkAccessManager( this ) ),
       M_generation( 0 ),
       M_reloaded( false )
@@ -193,6 +247,153 @@ ArchiveLogSource::parseItems( const QByteArray & json,
 }
 
 /*-------------------------------------------------------------------*/
+QVector< LogSourceEntry >
+ArchiveLogSource::parseIndex( const QByteArray & html,
+                              const QUrl & dir_url,
+                              const QString & dir,
+                              QString * error )
+{
+    QVector< LogSourceEntry > entries;
+    if ( error ) error->clear();
+
+    const QString page = QString::fromUtf8( html );
+    static const QRegularExpression html_tag( QStringLiteral( "<(a|html|body|!doctype)[\\s>]" ),
+                                              QRegularExpression::CaseInsensitiveOption );
+    if ( ! html_tag.match( page ).hasMatch() )
+    {
+        if ( error ) *error = tr( "The server did not answer with a list of files." );
+        return entries;
+    }
+
+    // <a href="...">, href quoted or not
+    static const QRegularExpression link( QStringLiteral( "<a\\s(?:[^>]*\\s)?href\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)'|([^\\s>]+))[^>]*>" ),
+                                          QRegularExpression::CaseInsensitiveOption );
+    static const QRegularExpression link_end( QStringLiteral( "</a\\s*>" ),
+                                              QRegularExpression::CaseInsensitiveOption );
+    // the text after a link: up to the next link, the end of the line, the row
+    static const QRegularExpression text_end( QStringLiteral( "<a[\\s>]|</?tr[\\s>]|</?li[\\s>]|\\n" ),
+                                              QRegularExpression::CaseInsensitiveOption );
+    static const QRegularExpression tag( QStringLiteral( "<[^>]*>" ) );
+
+    const QString scheme = dir_url.scheme();
+    const int default_port = ( scheme == QLatin1String( "https" ) ? 443 : 80 );
+    const QString dir_path = dir_url.path( QUrl::FullyDecoded );
+    QHash< QString, int > found; // the index of each entry, by its name (with '/' for a directory)
+
+    QRegularExpressionMatchIterator it = link.globalMatch( page );
+    while ( it.hasNext() )
+    {
+        const QRegularExpressionMatch m = it.next();
+        const QString href = decode_html( m.captured( 1 ) + m.captured( 2 ) + m.captured( 3 ) ).trimmed();
+        if ( href.isEmpty() )
+        {
+            continue;
+        }
+        const QUrl url = dir_url.resolved( QUrl( href, QUrl::TolerantMode ) );
+        if ( ! url.isValid()
+             || url.scheme() != scheme
+             || url.host().compare( dir_url.host(), Qt::CaseInsensitive ) != 0
+             || url.port( default_port ) != dir_url.port( default_port )
+             || url.hasQuery() // the links to sort the list
+             || url.hasFragment() )
+        {
+            continue;
+        }
+
+        // right under the directory
+        const QString path = url.path( QUrl::FullyDecoded );
+        if ( ! path.startsWith( dir_path )
+             || path.size() == dir_path.size() )
+        {
+            continue;
+        }
+        QString name = path.mid( dir_path.size() );
+        const bool directory = name.endsWith( QLatin1Char( '/' ) );
+        if ( directory )
+        {
+            name.chop( 1 );
+        }
+        if ( name.isEmpty()
+             || name.contains( QLatin1Char( '/' ) )
+             || name == QLatin1String( "." )
+             || name == QLatin1String( ".." )
+             || ( ! directory && ! isGameLog( name ) ) )
+        {
+            continue;
+        }
+
+        // the size in the text after the link
+        qint64 size = -1;
+        if ( ! directory )
+        {
+            const QRegularExpressionMatch end_of_link = link_end.match( page, m.capturedEnd() );
+            const int start = end_of_link.hasMatch() ? end_of_link.capturedEnd() : m.capturedEnd();
+            const QRegularExpressionMatch end_of_text = text_end.match( page, start );
+            QString text = page.mid( start, ( end_of_text.hasMatch() ? end_of_text.capturedStart() : page.size() ) - start );
+            text.replace( tag, QStringLiteral( " " ) );
+            size = parseSize( decode_html( text ) );
+        }
+
+        const QString key = directory ? name + QLatin1Char( '/' ) : name;
+        if ( found.contains( key ) )
+        {
+            // e.g. an icon linked to the same file
+            LogSourceEntry & entry = entries[found.value( key )];
+            if ( entry.size < 0 )
+            {
+                entry.size = size;
+            }
+            continue;
+        }
+        found.insert( key, entries.size() );
+
+        LogSourceEntry entry;
+        entry.path = dir.isEmpty() ? name : dir + QLatin1Char( '/' ) + name;
+        if ( directory )
+        {
+            entry.directory = true;
+            entry.listed = false; // read when it is opened
+        }
+        else
+        {
+            entry.size = size;
+            entry.url = url;
+        }
+        entries.push_back( entry );
+    }
+    return entries;
+}
+
+/*-------------------------------------------------------------------*/
+qint64
+ArchiveLogSource::parseSize( const QString & text )
+{
+    // a word of a number, with a unit or not (not a part of a date or a time)
+    static const QRegularExpression size( QStringLiteral( "(?:^|\\s)([0-9]+(?:\\.[0-9]+)?)\\s?([KMGT](?:i?B)?|B|bytes)?(?=\\s|$)" ),
+                                          QRegularExpression::CaseInsensitiveOption );
+    QRegularExpressionMatch last;
+    QRegularExpressionMatchIterator it = size.globalMatch( text );
+    while ( it.hasNext() )
+    {
+        last = it.next();
+    }
+    if ( ! last.hasMatch() )
+    {
+        return -1;
+    }
+
+    double bytes = last.captured( 1 ).toDouble();
+    const QString unit = last.captured( 2 ).toUpper();
+    // K: 1, M: 2, G: 3, T: 4; B and bytes: 0
+    const int power = unit.isEmpty() ? 0 : QStringLiteral( "KMGT" ).indexOf( unit.at( 0 ) ) + 1;
+    for ( int i = 0; i < power; ++i )
+    {
+        bytes *= 1024.0;
+    }
+    return static_cast< qint64 >( bytes + 0.5 );
+}
+
+/*-------------------------------------------------------------------*/
 QString
 ArchiveLogSource::defaultCacheDir()
 {
@@ -219,12 +420,33 @@ ArchiveLogSource::dirUrl( const QString & dir ) const
 
 /*-------------------------------------------------------------------*/
 QString
-ArchiveLogSource::cachePath( const QString & dir ) const
+ArchiveLogSource::cachePath( const QString & dir,
+                             const Listing listing ) const
 {
     const QByteArray hash = QCryptographicHash::hash( dirUrl( dir ).toString( QUrl::FullyEncoded ).toUtf8(),
                                                       QCryptographicHash::Sha1 ).toHex();
     return QDir( M_cache_dir ).filePath( M_url.host() + QLatin1Char( '/' )
-                                         + QString::fromLatin1( hash.left( 16 ) ) + QStringLiteral( ".json" ) );
+                                         + QString::fromLatin1( hash.left( 16 ) )
+                                         + ( listing == INDEX_LISTING ? QStringLiteral( ".html" ) : QStringLiteral( ".json" ) ) );
+}
+
+/*-------------------------------------------------------------------*/
+ArchiveLogSource::Listing
+ArchiveLogSource::cachedListing( const QString & dir ) const
+{
+    if ( M_listing != UNKNOWN_LISTING )
+    {
+        return QFileInfo::exists( cachePath( dir, M_listing ) ) ? M_listing : UNKNOWN_LISTING;
+    }
+
+    // not found out yet: the newer one
+    const QFileInfo h5ai( cachePath( dir, H5AI_LISTING ) );
+    const QFileInfo index( cachePath( dir, INDEX_LISTING ) );
+    if ( h5ai.isFile() && ( ! index.isFile() || h5ai.lastModified() >= index.lastModified() ) )
+    {
+        return H5AI_LISTING;
+    }
+    return index.isFile() ? INDEX_LISTING : UNKNOWN_LISTING;
 }
 
 /*-------------------------------------------------------------------*/
@@ -251,7 +473,8 @@ ArchiveLogSource::text() const
 QString
 ArchiveLogSource::description() const
 {
-    return tr( "The game logs under %1 (listed by h5ai). A directory is read when it is opened." )
+    return tr( "The game logs under %1 (listed by the web server: h5ai, or a page of links such as Apache's)."
+               " A directory is read when it is opened." )
         .arg( M_url.toDisplayString() );
 }
 
@@ -266,12 +489,14 @@ ArchiveLogSource::list( const QString & dir,
         // files: they may be in the same millisecond)
         M_reloaded = true;
         M_read.clear();
+        // and how the server lists them, found out again
+        M_listing = UNKNOWN_LISTING;
     }
 
     // one request at a time for a directory
     for ( auto it = M_replies.begin(); it != M_replies.end(); )
     {
-        if ( it.value() == dir )
+        if ( it.value().dir == dir )
         {
             QNetworkReply * reply = it.key();
             it = M_replies.erase( it );
@@ -287,8 +512,9 @@ ArchiveLogSource::list( const QString & dir,
 
     if ( ! reload )
     {
-        const QFileInfo info( cachePath( dir ) );
-        if ( info.isFile()
+        const Listing cached = cachedListing( dir );
+        const QFileInfo info( cachePath( dir, cached ) );
+        if ( cached != UNKNOWN_LISTING
              && info.lastModified().secsTo( QDateTime::currentDateTime() ) < CACHE_SECONDS
              && ( ! M_reloaded || M_read.contains( dir ) ) )
         {
@@ -304,22 +530,42 @@ ArchiveLogSource::list( const QString & dir,
         }
     }
 
-    // the API of h5ai, at the directory
+    // h5ai first, until the server is found to list the directories by pages
+    request( dir, M_listing == INDEX_LISTING ? INDEX_LISTING : H5AI_LISTING );
+}
+
+/*-------------------------------------------------------------------*/
+void
+ArchiveLogSource::request( const QString & dir,
+                           const Listing listing )
+{
     const QUrl url = dirUrl( dir );
     QNetworkRequest request( url );
     request.setAttribute( QNetworkRequest::RedirectPolicyAttribute,
                           QNetworkRequest::NoLessSafeRedirectPolicy );
-    request.setHeader( QNetworkRequest::ContentTypeHeader, QStringLiteral( "application/x-www-form-urlencoded" ) );
-    request.setRawHeader( "Accept", "application/json" );
     // nothing of the user
     request.setHeader( QNetworkRequest::UserAgentHeader, QStringLiteral( "rcssmonitor/" VERSION ) );
     request.setTransferTimeout( 30 * 1000 );
-    const QByteArray body = "action=get&items[href]="
-        + QUrl::toPercentEncoding( url.path( QUrl::FullyEncoded ) )
-        + "&items[what]=1";
 
-    QNetworkReply * reply = M_manager->post( request, body );
-    M_replies.insert( reply, dir );
+    QNetworkReply * reply = nullptr;
+    if ( listing == INDEX_LISTING )
+    {
+        // the page of the directory
+        request.setRawHeader( "Accept", "text/html" );
+        reply = M_manager->get( request );
+    }
+    else
+    {
+        // the API of h5ai, at the directory
+        request.setHeader( QNetworkRequest::ContentTypeHeader, QStringLiteral( "application/x-www-form-urlencoded" ) );
+        request.setRawHeader( "Accept", "application/json" );
+        const QByteArray body = "action=get&items[href]="
+            + QUrl::toPercentEncoding( url.path( QUrl::FullyEncoded ) )
+            + "&items[what]=1";
+        reply = M_manager->post( request, body );
+    }
+
+    M_replies.insert( reply, Request{ dir, listing } );
     connect( reply, &QNetworkReply::finished,
              this, [this, reply]() { handleReply( reply ); } );
 }
@@ -344,17 +590,28 @@ bool
 ArchiveLogSource::listCache( const QString & dir,
                              const QString & failure )
 {
-    QFile file( cachePath( dir ) );
+    const Listing listing = cachedListing( dir );
+    if ( listing == UNKNOWN_LISTING )
+    {
+        return false;
+    }
+    QFile file( cachePath( dir, listing ) );
     if ( ! file.open( QIODevice::ReadOnly ) )
     {
         return false;
     }
     const QDateTime time = QFileInfo( file ).lastModified();
     QString error;
-    const QVector< LogSourceEntry > entries = parseItems( file.readAll(), dirUrl( dir ), dir, &error );
+    const QVector< LogSourceEntry > entries = ( listing == INDEX_LISTING
+                                                ? parseIndex( file.readAll(), dirUrl( dir ), dir, &error )
+                                                : parseItems( file.readAll(), dirUrl( dir ), dir, &error ) );
     if ( ! error.isEmpty() )
     {
         return false;
+    }
+    if ( M_listing == UNKNOWN_LISTING )
+    {
+        M_listing = listing;
     }
 
     emit listed( dir, entries );
@@ -394,7 +651,8 @@ ArchiveLogSource::handleReply( QNetworkReply * reply )
     {
         return;
     }
-    const QString dir = M_replies.take( reply );
+    const Request sent = M_replies.take( reply );
+    const QString & dir = sent.dir;
     reply->deleteLater();
 
     // a failure: the list in the cache, however old, if there is one
@@ -405,28 +663,45 @@ ArchiveLogSource::handleReply( QNetworkReply * reply )
         }
     };
 
-    if ( reply->error() != QNetworkReply::NoError )
+    QByteArray body;
+    QVector< LogSourceEntry > entries;
+    QString error;
+    if ( reply->error() == QNetworkReply::NoError )
     {
-        fail( describe( reply ) );
+        body = reply->readAll();
+        entries = ( sent.listing == INDEX_LISTING
+                    ? parseIndex( body, dirUrl( dir ), dir, &error )
+                    : parseItems( body, dirUrl( dir ), dir, &error ) );
+    }
+
+    if ( reply->error() != QNetworkReply::NoError
+         || ! error.isEmpty() )
+    {
+        // the server answered, but not by h5ai: the page of the directory
+        if ( sent.listing == H5AI_LISTING
+             && M_listing == UNKNOWN_LISTING
+             && reply->attribute( QNetworkRequest::HttpStatusCodeAttribute ).toInt() > 0 )
+        {
+            request( dir, INDEX_LISTING );
+            return;
+        }
+        fail( reply->error() != QNetworkReply::NoError ? describe( reply ) : error );
         return;
     }
 
-    const QByteArray json = reply->readAll();
-    QString error;
-    const QVector< LogSourceEntry > entries = parseItems( json, dirUrl( dir ), dir, &error );
-    if ( ! error.isEmpty() )
+    if ( M_listing == UNKNOWN_LISTING )
     {
-        fail( error );
-        return;
+        M_listing = sent.listing;
     }
 
     // kept for a day
     M_read.insert( dir );
-    QDir().mkpath( QFileInfo( cachePath( dir ) ).absolutePath() );
-    QSaveFile file( cachePath( dir ) );
+    const QString path = cachePath( dir, sent.listing );
+    QDir().mkpath( QFileInfo( path ).absolutePath() );
+    QSaveFile file( path );
     if ( file.open( QIODevice::WriteOnly ) )
     {
-        file.write( json );
+        file.write( body );
         file.commit();
     }
 

@@ -46,7 +46,8 @@
   \class HttpTestServer
   \brief answers GET (and POST) requests on 127.0.0.1 by the responses set
   for their paths (404 for the others), and counts them; the bodies of POST
-  requests are kept. One request a connection (Connection: close).
+  requests are kept. A response can be set for a method of a path too. One
+  request a connection (Connection: close).
 */
 class HttpTestServer {
 public:
@@ -67,8 +68,8 @@ public:
 private:
 
     QTcpServer M_server;
-    QHash< QByteArray, Response > M_routes;
-    QHash< QByteArray, int > M_requests;
+    QHash< QByteArray, Response > M_routes; //!< by "PATH" or "METHOD PATH"
+    QHash< QByteArray, int > M_requests; //!< by "PATH" and "METHOD PATH"
     QHash< QByteArray, QByteArray > M_bodies; //!< the body of the last request of each path
     QByteArray M_user_agent; //!< of the last request
 
@@ -101,6 +102,25 @@ public:
           M_routes[path] = response;
       }
 
+    //! a response for a method of a path ("GET", "POST"), before the one for the path
+    void route( const QByteArray & method,
+                const QByteArray & path,
+                const Response & response )
+      {
+          M_routes[method + ' ' + path] = response;
+      }
+
+    //! a response of an error
+    static Response error( const int status,
+                           const QByteArray & reason )
+      {
+          Response r;
+          r.status = status;
+          r.reason = reason;
+          r.body = reason;
+          return r;
+      }
+
     //! a 200 response with a body
     static Response ok( const QByteArray & body )
       {
@@ -120,6 +140,9 @@ public:
       }
 
     int requests( const QByteArray & path ) const { return M_requests.value( path ); }
+    //! the requests of a method ("GET", "POST") to a path
+    int requests( const QByteArray & method,
+                  const QByteArray & path ) const { return M_requests.value( method + ' ' + path ); }
     //! the body of the last request of a path (POST)
     QByteArray body( const QByteArray & path ) const { return M_bodies.value( path ); }
     const QByteArray & userAgent() const { return M_user_agent; }
@@ -150,6 +173,7 @@ private:
                                 QObject::disconnect( socket, &QTcpSocket::readyRead, nullptr, nullptr );
 
                                 const QList< QByteArray > first = lines.value( 0 ).trimmed().split( ' ' );
+                                const QByteArray method = first.value( 0 );
                                 const QByteArray path = first.value( 1 );
                                 for ( const QByteArray & line : lines )
                                 {
@@ -159,16 +183,22 @@ private:
                                     }
                                 }
                                 ++M_requests[path];
+                                ++M_requests[method + ' ' + path];
                                 M_bodies[path] = request->mid( end + 4, length );
-                                respond( socket, path );
+                                respond( socket, method, path );
                             } );
       }
 
     void respond( QTcpSocket * socket,
+                  const QByteArray & method,
                   const QByteArray & path )
       {
           Response r;
-          if ( M_routes.contains( path ) )
+          if ( M_routes.contains( method + ' ' + path ) )
+          {
+              r = M_routes.value( method + ' ' + path );
+          }
+          else if ( M_routes.contains( path ) )
           {
               r = M_routes.value( path );
           }

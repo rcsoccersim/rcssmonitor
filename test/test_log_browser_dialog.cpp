@@ -279,6 +279,7 @@ private slots:
     void sources();
     void addAndRemove();
     void archive();
+    void indexListing();
     void mainWindow();
 };
 
@@ -801,6 +802,43 @@ TestLogBrowserDialog::archive()
     robocup->setExpanded( true );
     QTRY_COMPARE( robocup->childCount(), 2 );
     QCOMPARE( server.requests( "/logs/RoboCup/" ), 2 );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  A directory listed by a page of links (Apache; a POST answered with 404):
+  its directories read when they are opened, with the sizes of the page.
+*/
+void
+TestLogBrowserDialog::indexListing()
+{
+    const auto page_of = []( const QString & name ) {
+        QFile file( QStringLiteral( TEST_DATA_DIR "/" ) + name );
+        return file.open( QIODevice::ReadOnly ) ? file.readAll() : QByteArray();
+    };
+    HttpTestServer server;
+    server.route( "POST", "/logs/RoboCup2025/", HttpTestServer::error( 404, "Not Found" ) );
+    server.route( "GET", "/logs/RoboCup2025/", HttpTestServer::ok( page_of( "index_apache_2025.html" ) ) );
+    server.route( "GET", "/logs/RoboCup2025/Finals/", HttpTestServer::ok( page_of( "index_apache_finals.html" ) ) );
+
+    LogBrowserDialog dialog;
+    QString error;
+    QVERIFY( dialog.addSource( server.url( "/logs/RoboCup2025/" ).toString(), &error ) );
+    QTRY_COMPARE( dialog.tree()->topLevelItemCount(), 13 );
+    QCOMPARE( dialog.tree()->topLevelItem( 0 )->text( LogBrowserDialog::DATE_COLUMN ), QString( "Finals" ) );
+    QCOMPARE( dialog.statusText(), QString( "Open a directory to list its game logs." ) );
+
+    QTreeWidgetItem * finals = dialog.tree()->topLevelItem( 0 );
+    finals->setExpanded( true );
+    QTRY_COMPARE( finals->childCount(), 4 );
+    QCOMPARE( dialog.statusText(), QString( "4 game logs." ) );
+    QTreeWidgetItem * game = finals->child( 0 );
+    QCOMPARE( game->text( LogBrowserDialog::DATE_COLUMN ), QString( "2025-07-20 12:42" ) );
+    QCOMPARE( game->text( LogBrowserDialog::LEFT_COLUMN ), QString( "SIRLab" ) );
+    QCOMPARE( game->text( LogBrowserDialog::SIZE_COLUMN ), QString( "5.0 MB" ) );
+    QCOMPARE( LogBrowserDialog::urlOf( game ),
+              server.url( "/logs/RoboCup2025/Finals/202507201242-SIRLab_5-vs-ITAndroids_0.rcg.gz" ) );
+    QCOMPARE( server.requests( "POST", "/logs/RoboCup2025/Finals/" ), 0 );
 }
 
 /*-------------------------------------------------------------------*/

@@ -72,10 +72,11 @@
     the score and the size of each log, in the directories of its
     source, filtered by a team (on a side), its opponent, its result
     and the dates, and sorted by a column; a log is opened by a double
-    click. The sources are the logs of RoboCup 2026 on
-    GitHub and the 2D logs of archive.robocup.info at first; the user
-    can add public repositories on GitHub and directories listed by
-    h5ai, and remove any. See README.md.
+    click. The sources are the logs of RoboCup 2026 on GitHub and the 2D
+    logs of archive.robocup.info at first; the user can add public
+    repositories on GitHub and directories of web servers (listed by
+    h5ai, or by a page of links as Apache and nginx do), and remove any.
+    See README.md.
 
   * Add the referee's whistle (View > Referee's Whistle, --whistle, off
     by default): a long whistle at a kick-off, a short one at a foul, an

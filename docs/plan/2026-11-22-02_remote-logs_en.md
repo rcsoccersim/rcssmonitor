@@ -5,7 +5,7 @@
 | Created | 2026-11-22 |
 | Target | rcssmonitor develop (5affd90, 20.0.0-beta.1) |
 | Branch | `feature/remote-logs` (from develop after the referee's whistle (F4) is merged; the user creates it on GitHub) |
-| Status | Plan written (2026-11-22). Stage 1 (opening from URLs) started (2026-11-24, `feature/remote-logs`). Stage 1 done. Stage 2 (the lists of logs on GitHub) started (2026-11-24, `feature/remote-logs`). Stage 3 (archive) is made on this branch after stage 2, now that the site can be reached (D11) |
+| Status | Plan written (2026-11-22). Stage 1 (opening from URLs), stage 2 (the lists of logs on GitHub), stage 3 (archive) and stage 4 (filters of the list of logs) are done on `feature/remote-logs` (2026-11-24). Stage 5 (lists of files of web servers, D15) implemented (2026-11-24) |
 | Japanese version | [2026-11-22-02_remote-logs.md](2026-11-22-02_remote-logs.md) (same content) |
 | Related | F5 of the overall plan [2026-11-22-00_v20-features_en.md](2026-11-22-00_v20-features_en.md). Reference implementation: `src/io/fetch-log.ts`, `src/ui/dialogs/open-url-dialog.ts` and `docs/protocol.md` of rcssmonitor-web |
 
@@ -66,6 +66,7 @@
 | D12 | The lists of the archive are used from the cache for a day, a directory at a time (the archive has the logs of past competitions, which hardly change; Reload reads them again) (2026-11-24, decided by the user at the start of stage 3) |
 | D13 | The user can add and remove any source, the default ones (RoboCup2026 and the archive) too (it is handier that the user can change the default sources too). This replaces the default sources that cannot be removed of D2 and D11. When the archive is to be dropped in the future, it is dropped from the default list (same) |
 | D14 | More filters of the list of logs: the left team, the right team, both teams (a match), a range of dates, and the win or loss of the team given. The fields are "Team (a team's name) + Side (either, left, right) + vs (the opponent)", and Result (win, draw, loss) is seen from the team of Team. In a penalty shootout, its winner wins (a draw is only a tie without a shootout). No search across the sources. Made as stage 4 on this branch (2026-11-24, decided by the user) |
+| D15 | Besides h5ai, a plain list of files of a web server (the autoindex of Apache and so on: a page of links) can be a source too. Whether it is h5ai or a plain list is found out by itself (the API of h5ai is tried first, and if the answer is not of h5ai, the page is read by GET; the kind found is remembered). The example server the user gave (the table form of Apache's FancyIndexing; now the logs of RoboCup2025) is not one of the default sources (the user adds it by Add...). Made as stage 5 on this branch, and included in the PR of F5 (2026-11-24, decided by the user) |
 | D8 | The rules of the referee's whistle (F4; global functions in `whistle_rules.h`) are put in the static-only class `WhistleRules` too, in another commit on this branch (same) |
 
 ### 3.2 Design decisions (Claude; the user confirms them at the start of the stages)
@@ -228,6 +229,41 @@
   - The public slot `setFilter( QString )` of stage 2 was removed.
 - Checked with the real list of RoboCup2026 (144 games): HELIOS's wins from 4 July are 6 games (with a win in a shootout), and the games of FRA-UNIted on the left against NexusPrime are 2.
 
+### 4.9 Stage 5: lists of files of web servers (D15)
+
+- `ArchiveLogSource` reads both h5ai and plain lists (not another class: both are directories of a web server, with the same handling of the URL, the cache, the reading a directory at a time, and the failures). Each source has the kind of its list, `Listing` (not known yet, h5ai, a page of links).
+- Finding out the kind: while it is not known, a request to the API of h5ai (POST) is sent. If the answer is of h5ai, the kind is h5ai. If the server answered by HTTP but not by h5ai (an error such as 404, 405 or 501, or a 200 that is not JSON), the same URL is read by GET as a page. If the server cannot be reached, or does not answer in time, it fails without a GET. The kind found is remembered, and the directories after it are read by one request. Reload (of the root) forgets the kind and finds it out again. On 2026-11-24, the example Apache server was checked to answer a POST with 404.
+- Reading a page (`parseIndex`):
+  - Only the `<a href>`s that point right under the directory are taken: the same scheme, host and port, without a query (`?C=N;O=D` and so on) or `#`. One that ends with `/` is a directory.
+  - The parent directory, the links to sort, and the links to other sites are not taken. The same link is taken once.
+  - The character references of an `href` (`&amp;` and so on) are decoded, and then it is resolved against the URL of the directory (relative, absolute from `/`, or a full URL). Of the files, only `.rcg` and `.rcg.gz`.
+  - The size: the last word that looks like a size (a number, and a unit such as K, M, G, T, KB or MiB; a unit is 1024 times) in the text after the link (up to the next link, the end of the line, or the row of the table). Apache gives a rounded value (`5.0M`), nginx the bytes by default, the page of h5ai `5123 KB`, and Python's http.server no size (-1). A rounded value is taken as an approximation (the column shows the MB with one decimal, so it looks the same).
+  - An answer that does not look like HTML (no `<a`, `<html` and so on) is an error.
+- The cache: a page is kept as `.html`, apart from the answers of h5ai (`.json`). While the kind is not known, a cache found gives the kind. Kept for a day (D12), the same.
+- The texts: "a list given by h5ai" in the dialog (Add... and the description of a source), README, NEWS and ChangeLog becomes "a list of files of a web server (h5ai, or a page of links such as Apache's)".
+- The example server is not one of the defaults (D15). The test data copies the form of the example server's page, with the host name and the paths changed.
+
+### 4.10 The implementation of stage 5 (2026-11-24)
+
+4.9 was implemented as follows. What was decided beyond the plan is written too.
+
+- `ArchiveLogSource` (`archive_log_source.{h,cpp}`):
+  - The kind of the list, `Listing` (`UNKNOWN_LISTING`, `H5AI_LISTING`, `INDEX_LISTING`), and `listing()` were added. Each request remembers its directory and its kind (`Request`).
+  - `request( dir, listing )`: a POST for h5ai (`Accept: application/json`), a GET for a page (`Accept: text/html`). Both with `User-Agent: rcssmonitor/VERSION`, a timeout of 30 seconds, and `NoLessSafeRedirectPolicy`.
+  - Handling an answer: if a request for h5ai failed or was not answered by h5ai, the kind is not known yet, and the server answered by HTTP (with a status code), the same directory is read by GET. When an answer is read, its kind is remembered.
+  - `parseIndex()`: as in 4.9. The links are taken from `<a ... href=...>` (in double quotes, single quotes, without quotes, and in capitals; not `data-href` and so on). If two links go to the same file (`IconsAreLinks` of Apache), the size known of them is used.
+  - `parseSize()`: the last word of a number that is not a part of a date or a time. K, M, G and T (with B or iB too) are 1024 times. When a word that is not a unit follows, as in `5 X`, the number alone is the size (bytes).
+  - The character references decoded are `&amp;`, `&lt;`, `&gt;`, `&quot;`, `&apos;`, `&nbsp;` (as a space), and the numeric ones.
+  - The cache: `cachePath( dir, listing )` is `.json` for h5ai, and `.html` for a page. `cachedListing()` uses the file of the kind if it is known, and the newer one if not.
+  - The description of a source (`description()`) became "listed by the web server: h5ai, or a page of links such as Apache's".
+- `LogBrowserDialog`: the tooltip of Add..., its input dialog, and the text for a text that is not a source were changed.
+- `test/http_test_server.h`: responses by method (`route( method, path, response )`), the counts by method (`requests( method, path )`), and a response of an error (`error()`) were added.
+- The test data:
+  - `test/data/index_apache_2025.html` and `index_apache_finals.html`: the pages of the example server, with the host name changed to example.org and the paths to `/logs/`; 4 games of the 9 of Finals kept.
+  - `h5ai_finals.html`: the page of Finals of the archive, with 4 games kept.
+  - The pages of nginx, of the preformatted form of Apache, and of Python's http.server (really given by 3.12) are written in the test.
+- Checked (2026-11-24): the example server (Apache), added as a source, was listed at the root in 55 ms (a POST answered with 404, and a GET), and RoboCup2025 (13 directories) and Finals (9 games, with sizes such as 5.0 MB) in about 50 ms each. A game (4.2 MB) was opened from the list. The archive was found to be h5ai, and read down to Finals of 2023 (25 games).
+
 ## 5. Stages
 
 | # | Work | Completion criteria |
@@ -236,6 +272,7 @@
 | 2 | GitHub log lists (4.2) | Unit tests and the CI pass. The user checks opening from the list and the message when the limit is hit |
 | 3 | Archive lists (4.3) | Unit tests and the CI pass. The user checks opening from the list of the archive |
 | 4 | Filters of the list of logs (4.7, D14) | Unit tests and the CI pass. The user checks narrowing the games down by the filters |
+| 5 | Lists of files of web servers (4.9, D15) | Unit tests and the CI pass. The user checks opening logs from the list of the example Apache server |
 
 ## 6. Tests
 
@@ -247,6 +284,8 @@
 - `test_log_browser_dialog` (added in stage 3): adding and removing sources (GitHub, a directory of h5ai, the same one, not a source, a file on github.com, the default sources offered by Add..., the one chosen after removing the first and the last, removing all), the tree of a directory of h5ai (read when opened, Reload), and the main window (the sources of the settings, texts that are not sources skipped, a default one removable and written to the settings, an empty list written as an empty text).
 - `test_log_filter` (stage 4): combinations of a team, a side, an opponent, a result and dates (both ends, a reversed range) on 7 names (wins on the left and the right, a loss, a draw, a shootout won and lost, 2023, a name not parsed); `resultOf()`, `isEmpty()`.
 - `test_log_browser_dialog` (changed in stage 4): the fields of the filter (Team, Side, vs, Result, From and To, Clear, `setFilter()` and `filter()`), the first values of the dates, and their change with a directory read later.
+- `test_archive_log_source` (stage 5): reading pages (the table and the preformatted forms of Apache, nginx, Python's http.server, the page of h5ai), the links not taken (the parent, sorting, other hosts, outside the directory, the same one, not game logs), the forms of the sizes, answers that are not HTML, finding out the kind (a GET after a POST answered with 404, no GET with h5ai, only a GET for the second directory, no GET when the server cannot be reached, found out again by Reload), and the cache of `.html`.
+- `test_log_browser_dialog` (stage 5): the tree of a source of a page of links (read when opened, the sizes).
 - `test_log_file_name`: parsing file names (penalty scores, `-` and `_` in team names, names that cannot be parsed).
 - Downloading and opening a broken file (not gzip, truncated, not an rcg) does not crash.
 
@@ -258,6 +297,7 @@
 | `src/log_source.{h,cpp}`, `src/github_log_source.{h,cpp}` (`github_log_index` in the plan), `src/log_file_name.{h,cpp}`, `src/log_browser_dialog.{h,cpp}` (new) | Stage 2 |
 | `src/archive_log_source.{h,cpp}` (new) | Stage 3 |
 | `src/log_filter.{h,cpp}` (new) | Stage 4 |
+| `src/archive_log_source.{h,cpp}`, `test/http_test_server.h` | Stage 5 (pages of links, responses by method of the test server) |
 | `src/main_window.{h,cpp}` | Menus, dropping, connecting the download to opening |
 | `src/options.{h,cpp}` | Recent URLs, the repository list, cache settings, the command line |
 | `src/CMakeLists.txt`, `src/Makefile.am` | Sources (the moc list of autotools is written by hand) |
@@ -372,3 +412,19 @@
 - Implemented as in 4.8. The test `log_filter` was added, and the test of the filter of `log_browser_dialog` was rewritten.
 - With the CMake builds of Qt 6 (6.4.2) and Qt 5 (5.15.13) with the whistle, and of `ENABLE_SOUND=OFF`, all 70 tests passed. The autotools build (Qt 5) passed too.
 - README, NEWS and ChangeLog were updated.
+
+### 2026-11-24: Stage 4 committed, and stage 5 started
+
+- The user checked on the screen that the filters narrow down the games (the end of stage 4). Stage 4 was committed as 96eb9a2 and pushed. In the CI, all 5 jobs passed. `./cmake-helper.sh distcheck qt6` (under Xvfb) passed locally too (with the whistle; 70 tests in the build of the tarball).
+- The lines of the item of F5 in NEWS were wrapped evenly (the text is not changed).
+- When the title and the description of the PR were proposed, the user decided to support plain lists of files of Apache besides h5ai (D15; the estimate is in the record "Stage 3 committed, and stage 4 started").
+- The example server was checked. It is the table form of FancyIndexing of Apache 2.4: it answers a POST to the API of h5ai with 404, and a GET with the page of the list (the sizes rounded, as `5.0M`). The GET page of the archive (h5ai) has a table of links too, shown without JavaScript (the sizes as `5123 KB`).
+- Decided by the user: made as stage 5 on this branch, and included in the PR of F5. The kind is found out by itself. The example server is not one of the default sources. 4.9 was written. The PR is opened after stage 5.
+
+### 2026-11-24: Stage 5 implemented
+
+- Implemented as in 4.10. Reading pages (the example server's pages, the forms of other servers, the links not taken, the sizes) and finding out the kind were added to the test `archive_log_source`, and the test of the failures of h5ai was changed for the behavior after the kind is found out. The tree of a source of pages of links was added to `log_browser_dialog`.
+- With the CMake builds of Qt 6 (6.4.2) and Qt 5 (5.15.13) with the whistle, and of `ENABLE_SOUND=OFF`, there were no warnings, and all 70 tests passed. The autotools build (Qt 5) passed too, without warnings of the compiler.
+- Checked with the real example server and the archive (4.10). README, NEWS and ChangeLog were updated.
+- The user checked opening logs from the list of the example server (the end of stage 5).
+- Next: the commit and the push, the CI, and the proposal of the PR.

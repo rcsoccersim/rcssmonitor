@@ -154,7 +154,8 @@ LogBrowserDialog::LogBrowserDialog( QWidget * parent )
         M_add_button->setObjectName( "add_source" );
         M_add_button->setAutoDefault( false );
         M_add_button->setToolTip( tr( "Add a source: a public repository on GitHub (OWNER/REPO, OWNER/REPO@BRANCH, or its URL),"
-                                      " or the URL of a directory listed by h5ai. A default source removed can be added again." ) );
+                                      " or the URL of a directory listed by its web server (h5ai, or a page of links such as Apache's)."
+                                      " A default source removed can be added again." ) );
         connect( M_add_button, &QPushButton::clicked,
                  this, &LogBrowserDialog::addSourceByDialog );
         buttons->addWidget( M_add_button );
@@ -354,7 +355,7 @@ LogBrowserDialog::createSource( const QString & text,
 
     if ( error ) *error = tr( "Not a source of game logs: %1\n"
                               "(a repository on GitHub: OWNER/REPO, OWNER/REPO@BRANCH, or its URL;"
-                              " or the URL of a directory listed by h5ai, as archive.robocup.info)" ).arg( t );
+                              " or the URL of a directory listed by its web server, as archive.robocup.info)" ).arg( t );
     return nullptr;
 }
 
@@ -509,7 +510,8 @@ LogBrowserDialog::addSourceByDialog()
                                                 tr( "Add a Source" ),
                                                 tr( "A source of game logs:\n"
                                                     "- a public repository on GitHub: OWNER/REPO, OWNER/REPO@BRANCH, or its URL\n"
-                                                    "- the URL of a directory listed by h5ai, as archive.robocup.info\n"
+                                                    "- the URL of a directory listed by its web server (h5ai, or a page of links\n"
+                                                    "  such as Apache's), as archive.robocup.info\n"
                                                     "The default sources removed are in the list." ),
                                                 items,
                                                 0,

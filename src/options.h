@@ -668,7 +668,8 @@ public:
 
     /*!
       the sources of File > Browse Game Logs, as the user enters them
-      (OWNER/REPO[@REF] on GitHub, the URL of a directory listed by h5ai);
+      (OWNER/REPO[@REF] on GitHub, the URL of a directory listed by its
+      web server);
       DEFAULT_LOG_SOURCES if not in the settings
     */
     const QStringList & logSources() const { return M_log_sources; }

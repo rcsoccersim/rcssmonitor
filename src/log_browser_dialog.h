@@ -59,7 +59,8 @@ class QTreeWidgetItem;
   \class LogBrowserDialog
   \brief File > Browse Game Logs (docs/plan/2026-11-22-02_remote-logs.md
   4.2, 4.3, D9, D10, D13): the sources of game logs on the left (the
-  repositories on GitHub, the directories listed by h5ai as the archive),
+  repositories on GitHub, the directories listed by web servers as the
+  archive; 4.9, D15),
   and the logs of the one chosen on the right, as a
   tree of its directories with the date, the teams, the score and the size
   of each log (LogFileName), filtered by a team's name and sorted by a
@@ -69,7 +70,7 @@ class QTreeWidgetItem;
   directory whose entries are not known yet is read when it is opened.
 
   The user can add sources (createSource(): OWNER/REPO, OWNER/REPO@REF, the
-  URL of a directory listed by h5ai), the default ones removed too, and
+  URL of a directory listed by its web server), the default ones removed too, and
   remove any (sourcesChanged()).
 */
 class LogBrowserDialog
@@ -131,7 +132,8 @@ public:
     /*!
       \brief make a source from the text the user gives: a repository on
       GitHub (OWNER/REPO, OWNER/REPO@REF or its URL), or the URL of a
-      directory listed by h5ai (as archive.robocup.info)
+      directory listed by its web server (h5ai, or a page of links such as
+      Apache's; as archive.robocup.info)
       \param error set to the reason if it is not one (may be null)
       \return the source (not read yet), or null
     */
