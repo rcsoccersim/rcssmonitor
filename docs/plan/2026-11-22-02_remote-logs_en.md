@@ -6,7 +6,7 @@
 | Last updated | 2026-11-24 |
 | Target | rcssmonitor develop (5affd90, 20.0.0-beta.1) |
 | Branch | `feature/remote-logs` (from develop after the referee's whistle (F4) is merged; the user creates it on GitHub) |
-| Status | Plan written (2026-11-22). Stages 1 to 5 are done on `feature/remote-logs` (2026-11-24). The progress of each stage is in the table of "Progress" below |
+| Status | Plan written (2026-11-22). Stages 1 to 5 are done on `feature/remote-logs`, and merged into develop by PR #75 (Squash Merge) (2026-11-24). The progress of each stage is in the table of "Progress" below |
 | Japanese version | [2026-11-22-02_remote-logs.md](2026-11-22-02_remote-logs.md) (same content) |
 | Related | F5 of the overall plan [2026-11-22-00_v20-features_en.md](2026-11-22-00_v20-features_en.md). Reference implementation: `src/io/fetch-log.ts`, `src/ui/dialogs/open-url-dialog.ts` and `docs/protocol.md` of rcssmonitor-web |
 
@@ -22,7 +22,7 @@ The work and the conditions of the end of each stage are in §5, and the history
 | 3 | The list of the archive, and editing the sources (4.3; D12, D13) | Done | Done | Passed | 42e08a1 (the test environment: bec0f96) | Done |
 | 4 | Filters of the list of logs (4.4; D14) | Done | Done | Passed | 96eb9a2 | Done |
 | 5 | Lists of files of web servers (4.5; D15) | Done | Done | Passed | b76e4bf | Done |
-| — | Merging into develop (PR, Squash Merge) | Not started | — | — | — | — |
+| — | Merging into develop (PR #75, Squash Merge) | In progress | — | Passed (e9f699f) | — | — |
 
 ## 1. Goal and approach
 
@@ -473,3 +473,11 @@ For each stage, the design when it was planned (4.N.1) is followed by what was i
 - This plan was aligned to the format: the last update was added to the header table, the words of the status in the table of the progress were changed, and a column of the push was added.
 - Decided by the user (Claude's proposal): the other plans are changed in the first commit of the branch of F6, after F5 is merged, together with the record of the merge of F5 in the overall plan.
 - Next: the commit and the push of the changes of this plan, and the CI. Then the PR of F5.
+
+### 2026-11-24: Merging into develop (PR #75)
+
+- The commit of the rearranged plan, e9f699f, was pushed. In the CI, all 5 jobs passed.
+- PR: the user opened PR #75 from `feature/remote-logs` to develop ("Open game logs from URLs, and browse the game logs on GitHub and web servers such as archive.robocup.info"), with the title and description Claude proposed. The branch has 11 commits (d56fad4 of stage 1, ce0870e and f1bccac of the classes made again, 4d08f2b and 26b4935 of the CI, ec341e2 of stage 2, bec0f96 of the test environment, 42e08a1 of stage 3, 96eb9a2 of stage 4, b76e4bf of stage 5, e9f699f of the rearranged plan) and this record.
+- Merged by Squash Merge (§3 of the overall plan; one unit of a feature, the URLs and the lists of logs, whose history by stage is in this plan). The title is the PR's title.
+- This record was committed to the branch of PR #75 before the merge (CLAUDE.md). To stay true after the merge, it does not give the commit of the merge. The row of the merge in the table of the progress is made "Done", with the commit of the merge, in the first commit of the branch of F6.
+- Next: when PR #75 is merged, the export of images and videos (F6, [2026-11-22-03_frame-export_en.md](2026-11-22-03_frame-export_en.md)) follows. The user creates `feature/frame-export` on GitHub from develop. Its first commit adds the table of the progress and the last update to the other plans, and the record of the merge of F5 to the overall plan (the record "The format of the plans unified"). Stage 1 of F6 is checked with the user before it starts.
