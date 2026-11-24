@@ -37,6 +37,7 @@
 #include "image_sequence_sink.h"
 
 #include <QDir>
+#include <QFileInfo>
 #include <QImageWriter>
 
 /*-------------------------------------------------------------------*/
@@ -92,6 +93,13 @@ ImageSequenceSink::write( const QImage & image )
     }
 
     const QString path = QDir( M_dir ).filePath( M_names[M_written] );
+    // a name may have a directory of its range
+    const QString parent = QFileInfo( path ).absolutePath();
+    if ( ! QDir().mkpath( parent ) )
+    {
+        M_error = tr( "Could not make the directory %1." ).arg( QDir::toNativeSeparators( parent ) );
+        return FAILED;
+    }
     QImageWriter writer( path, M_format );
     if ( ! writer.write( image ) )
     {

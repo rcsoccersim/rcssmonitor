@@ -58,6 +58,49 @@ framesOf( const std::vector< std::pair< int, int > > & times )
 const DispCont FRAMES = framesOf( { { 0, 0 }, { 0, 1 }, { 0, 2 }, { 1, 0 }, { 2, 0 },
                                      { 3, 0 }, { 3, 1 }, { 3, 2 }, { 4, 0 }, { 6, 0 }, { 7, 0 } } );
 
+//! a frame of a game: its cycle, play mode and scores
+DispPtr
+frame( const int cycle,
+       const rcss::rcg::PlayMode mode,
+       const int left = 0,
+       const int right = 0,
+       const int stopped = 0 )
+{
+    DispPtr disp( new rcss::rcg::DispInfoT() );
+    disp->show_.time_ = cycle;
+    disp->show_.stime_ = stopped;
+    disp->pmode_ = mode;
+    disp->team_[0].name_ = "LEFT";
+    disp->team_[1].name_ = "RIGHT";
+    disp->team_[0].score_ = left;
+    disp->team_[1].score_ = right;
+    return disp;
+}
+
+//! the server's parameters of the halves: 300 s and 100 s of 100 ms (not copyable)
+const rcss::rcg::ServerParamT &
+params( const int normal = 2,
+        const int extra = 2,
+        const int half_time = 300 )
+{
+    static rcss::rcg::ServerParamT param;
+    param.simulator_step_ = 100;
+    param.half_time_ = half_time;
+    param.nr_normal_halfs_ = normal;
+    param.extra_half_time_ = 100;
+    param.nr_extra_halfs_ = extra;
+    return param;
+}
+
+//! the parts as "key first-last"
+QString
+textOf( const std::vector< ExportPeriod > & periods )
+{
+    QStringList list;
+    for ( const ExportPeriod & p : periods ) list << QString( "%1 %2-%3" ).arg( p.key ).arg( p.first ).arg( p.last );
+    return list.join( ", " );
+}
+
 ExportPosition
 pos( const int cycle,
      const int stopped = -1 )
@@ -88,6 +131,9 @@ private slots:
     void endIndex();
     void range();
     void gameTime();
+    void periods();
+    void goals();
+    void around();
 };
 
 /*-------------------------------------------------------------------*/
@@ -249,6 +295,131 @@ TestExportRange::gameTime()
     QCOMPARE( ExportRange::gameTime( 6000, 100 ), QString( "10:00" ) );
     QCOMPARE( ExportRange::gameTime( 6000, 50 ), QString( "5:00" ) );
     QCOMPARE( ExportRange::gameTime( -5, 100 ), QString( "0:00" ) );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  The parts of a game by the cycles of the server's parameters (no play
+  mode at the end of a half), the shootout from its first play mode.
+*/
+void
+TestExportRange::periods()
+{
+    using namespace rcss::rcg;
+
+    // a game of two halves: 0, 3000 (the end, stopped), 3001, 6000 (time over)
+    const DispCont game = { frame( 0, PM_BeforeKickOff ), frame( 1, PM_KickOff_Left ), frame( 3000, PM_PlayOn ),
+                            frame( 3000, PM_PlayOn, 0, 0, 1 ), frame( 3001, PM_KickOff_Right ), frame( 5999, PM_PlayOn ),
+                            frame( 6000, PM_TimeOver ) };
+    QCOMPARE( textOf( ExportRange::periods( game, params() ) ), QString( "first-half 0-3, second-half 4-6" ) );
+    QCOMPARE( ExportRange::periods( game, params() ).front().label, QString( "First half" ) );
+
+    // the extra time and the shootout
+    const DispCont extra = { frame( 0, PM_BeforeKickOff ), frame( 3000, PM_PlayOn ), frame( 3001, PM_KickOff_Right ),
+                             frame( 6000, PM_PlayOn ), frame( 6001, PM_KickOff_Left ), frame( 7000, PM_PlayOn ),
+                             frame( 7001, PM_KickOff_Right ), frame( 8000, PM_PlayOn ),
+                             frame( 8001, PM_PenaltySetup_Left ), frame( 8002, PM_PenaltyReady_Left ),
+                             frame( 8010, PM_PenaltyScore_Left ), frame( 8100, PM_TimeOver ) };
+    QCOMPARE( textOf( ExportRange::periods( extra, params() ) ),
+              QString( "first-half 0-1, second-half 2-3, extra-1 4-5, extra-2 6-7, penalties 8-11" ) );
+    QCOMPARE( ExportRange::periods( extra, params() ).at( 2 ).label, QString( "Extra time 1" ) );
+    QCOMPARE( ExportRange::periods( extra, params() ).back().label, QString( "Penalty shootout" ) );
+
+    // a log that starts in the second half (e.g. a live game joined): only the parts there
+    const DispCont later = { frame( 4000, PM_PlayOn ), frame( 6000, PM_TimeOver ) };
+    QCOMPARE( textOf( ExportRange::periods( later, params() ) ), QString( "second-half 0-1" ) );
+
+    // after the last end: in the last part
+    const DispCont beyond = { frame( 100, PM_PlayOn ), frame( 9000, PM_PlayOn ) };
+    QCOMPARE( textOf( ExportRange::periods( beyond, params( 2, 0 ) ) ), QString( "first-half 0-0, second-half 1-1" ) );
+
+    // no time of the halves: the whole game
+    QCOMPARE( textOf( ExportRange::periods( game, params( 2, 2, -1 ) ) ), QString( "game 0-6" ) );
+
+    // no frames
+    QVERIFY( ExportRange::periods( DispCont(), params() ).empty() );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  The goals: the changes of the score that DispHolder saw (the index of
+  the last frame before the new score, D10), the team and the score from
+  the frame after.
+*/
+void
+TestExportRange::goals()
+{
+    using namespace rcss::rcg;
+    const DispCont game = { frame( 0, PM_BeforeKickOff ), frame( 100, PM_PlayOn ), frame( 101, PM_AfterGoal_Left, 1, 0 ),
+                            frame( 102, PM_KickOff_Right, 1, 0 ), frame( 500, PM_AfterGoal_Right, 1, 1 ),
+                            frame( 501, PM_PlayOn, 1, 1 ), frame( 800, PM_AfterGoal_Right, 1, 2 ) };
+    // as DispHolder keeps them: the frames before 101, 500 and 800
+    std::vector< ExportGoal > goals = ExportRange::goals( game, { 1, 3, 5 } );
+    QCOMPARE( goals.size(), std::size_t( 3 ) );
+    QCOMPARE( goals[0].index, std::size_t( 1 ) );
+    QCOMPARE( goals[0].cycle, 101 );
+    QCOMPARE( goals[0].side, 0 );
+    QCOMPARE( goals[0].team, QString( "LEFT" ) );
+    QCOMPARE( goals[1].index, std::size_t( 3 ) );
+    QCOMPARE( goals[1].cycle, 500 );
+    QCOMPARE( goals[1].side, 1 );
+    QCOMPARE( goals[2].left, 1 );
+    QCOMPARE( goals[2].right, 2 );
+    QCOMPARE( goals[2].team, QString( "RIGHT" ) );
+
+    // the index at the first frame with the new score (another order of
+    // the records): the side by the score before, not by that frame
+    goals = ExportRange::goals( game, { 2, 4, 6 } );
+    QCOMPARE( goals.size(), std::size_t( 3 ) );
+    QCOMPARE( goals[0].side, 0 );
+    QCOMPARE( goals[1].side, 1 );
+    QCOMPARE( goals[2].side, 1 );
+    QCOMPARE( goals[2].cycle, 800 ); // the last frame: itself
+
+    // a change where no score goes up, and an index out of the frames: no goals
+    const DispCont reset = { frame( 0, PM_PlayOn ), frame( 10, PM_PlayOn, 1, 0 ), frame( 20, PM_PlayOn, 0, 0 ),
+                             frame( 30, PM_PlayOn, 0, 1 ) };
+    goals = ExportRange::goals( reset, { 0, 1, 2, 100 } );
+    QCOMPARE( goals.size(), std::size_t( 2 ) );
+    QCOMPARE( goals[0].cycle, 10 );
+    QCOMPARE( goals[1].cycle, 30 );
+    QCOMPARE( goals[1].side, 1 );
+
+    QVERIFY( ExportRange::goals( FRAMES, {} ).empty() );
+    QCOMPARE( ExportRange::cyclesOf( 10.0, 100 ), 100 );
+    QCOMPARE( ExportRange::cyclesOf( 2.5, 50 ), 50 );
+}
+
+/*-------------------------------------------------------------------*/
+//! around a cycle: the seconds before and after, cut by the ends of the log
+void
+TestExportRange::around()
+{
+    // 0 to 300 a frame a cycle, with 200 stopped twice
+    DispCont game;
+    for ( int c = 0; c <= 300; ++c )
+    {
+        game.push_back( frame( c, rcss::rcg::PM_PlayOn ) );
+        if ( c == 200 ) game.push_back( frame( c, rcss::rcg::PM_PlayOn, 0, 0, 1 ) );
+    }
+
+    ExportRange r = ExportRange::around( game, 150, 10.0, 5.0, 100 );
+    QCOMPARE( r.first, std::size_t( 50 ) );
+    QCOMPARE( r.last, std::size_t( 201 ) ); // the stopped frame of 200 too
+    QCOMPARE( ExportRange::positionText( game, r.last ), QString( "200.1" ) );
+
+    // cut by the ends
+    r = ExportRange::around( game, 20, 10.0, 5.0, 100 );
+    QCOMPARE( r.first, std::size_t( 0 ) );
+    r = ExportRange::around( game, 290, 1.0, 5.0, 100 );
+    QCOMPARE( r.last, game.size() - 1 );
+
+    // a step of 50 ms: twice the cycles
+    r = ExportRange::around( game, 150, 1.0, 1.0, 50 );
+    QCOMPARE( ExportRange::positionText( game, r.first ), QString( "130" ) );
+    QCOMPARE( ExportRange::positionText( game, r.last ), QString( "170" ) );
+
+    QVERIFY( ! ExportRange::around( DispCont(), 0, 1.0, 1.0, 100 ).isValid() );
 }
 
 QTEST_GUILESS_MAIN( TestExportRange )

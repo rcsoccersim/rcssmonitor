@@ -38,6 +38,10 @@
 	- export a range of the frames as images (File > Export Images /
 	  Video): ExportDialog, ExportJob, ImageSequenceSink, the timing
 	  (ExportTiming) and the positions and ranges (ExportRange).
+	- mark the range to export by [ and ], shown on the slider with the
+	  goals (LogPlayerSlider); the halves, the goal scenes and the frames
+	  around the position shown as presets; several ranges at once
+	  (ExportRangeList), each in its own directory or in one sequence.
 	- filter the list of game logs by a team on a side, its opponent,
 	  its result (the winner of a penalty shootout wins) and a range of
 	  dates.

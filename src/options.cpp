@@ -525,6 +525,21 @@ Options::readSettings()
     val = settings.value( "name_by_cycle" );
     if ( val.isValid() ) M_export_settings.name_by_cycle = val.toBool();
 
+    val = settings.value( "separate_ranges" );
+    if ( val.isValid() ) M_export_settings.separate_ranges = val.toBool();
+
+    val = settings.value( "goal_before" );
+    if ( val.isValid() && val.toDouble() >= 0.0 ) M_export_settings.goal_before = val.toDouble();
+
+    val = settings.value( "goal_after" );
+    if ( val.isValid() && val.toDouble() >= 0.0 ) M_export_settings.goal_after = val.toDouble();
+
+    val = settings.value( "around_before" );
+    if ( val.isValid() && val.toDouble() >= 0.0 ) M_export_settings.around_before = val.toDouble();
+
+    val = settings.value( "around_after" );
+    if ( val.isValid() && val.toDouble() >= 0.0 ) M_export_settings.around_after = val.toDouble();
+
     settings.endGroup();
 
     //
@@ -1257,6 +1272,11 @@ Options::writeExportSettings() const
     settings.setValue( "fps", M_export_settings.fps );
     settings.setValue( "speed", M_export_settings.speed );
     settings.setValue( "name_by_cycle", M_export_settings.name_by_cycle );
+    settings.setValue( "separate_ranges", M_export_settings.separate_ranges );
+    settings.setValue( "goal_before", M_export_settings.goal_before );
+    settings.setValue( "goal_after", M_export_settings.goal_after );
+    settings.setValue( "around_before", M_export_settings.around_before );
+    settings.setValue( "around_after", M_export_settings.around_after );
     settings.endGroup();
 }
 

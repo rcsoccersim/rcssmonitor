@@ -56,6 +56,7 @@ class FieldCanvas;
 class FieldView3D;
 class QStackedWidget;
 class ExportDialog;
+class ExportRangeList;
 class LogBrowserDialog;
 class LogDownloader;
 class LogPlayer;
@@ -88,8 +89,9 @@ private:
     FieldView3D * M_view_3d = nullptr; //!< the 3D view: a window in M_field_view_3d
     MonitorClient * M_monitor_client;
     LogPlayer * M_log_player;
-    //LogPlayerSlider * M_log_player_slider;
+    LogPlayerSlider * M_log_player_slider = nullptr; //!< the frames, with the ranges to export and the goals
     Whistle * M_whistle; //!< the referee's whistle at the changes of the play mode of the frame shown
+    ExportRangeList * M_export_ranges; //!< the ranges to export: marked here, edited in the export dialog
 
     LogCache M_log_cache; //!< the game logs downloaded
     LogDownloader * M_log_downloader = nullptr; //!< a game log from a URL (File > Open Game Log from URL)
@@ -107,6 +109,9 @@ private:
     QAction * M_save_copy_act = nullptr; //!< File > Save a Copy of Game Log: enabled while a game log is open
     QAction * M_save_image_act = nullptr; //!< File > Save Image of This Frame: the 2D view (disabled while the 3D view is shown)
     QAction * M_export_act = nullptr; //!< File > Export Images / Video: enabled with frames, not connected
+    QAction * M_mark_start_act = nullptr; //!< File > Export Range > Mark the Start ([): as the export
+    QAction * M_mark_end_act = nullptr; //!< File > Export Range > Mark the End (])
+    QAction * M_clear_marks_act = nullptr; //!< File > Export Range > Clear the Marks
     QAction * M_exit_act;
 
     // monitor actions
@@ -305,6 +310,12 @@ public:
     //! the dialog of File > Export Images / Video, or null before it is first shown
     ExportDialog * exportDialog() const { return M_export_dialog; }
 
+    //! the ranges to export
+    ExportRangeList * exportRanges() const { return M_export_ranges; }
+
+    //! the slider of the frames
+    LogPlayerSlider * logPlayerSlider() const { return M_log_player_slider; }
+
     //! the cache of the downloaded game logs
     const LogCache & gameLogCache() const { return M_log_cache; }
 
@@ -330,6 +341,9 @@ private:
 
     //! File > Export Images / Video: enabled with frames, while not connected to a server (S1)
     void updateExportAction();
+
+    //! the bands of the ranges to export and the ticks of the goals on the slider (D9)
+    void updateRangeMarks();
 
     //! a pixel of the window below the 3D view when it would cover all of a full screen window (viewMargins())
     void updateViewMargins();

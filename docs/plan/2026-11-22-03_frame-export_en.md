@@ -3,10 +3,10 @@
 | Item | Content |
 |---|---|
 | Created | 2026-11-22 |
-| Last updated | 2026-11-24 |
+| Last updated | 2026-11-25 |
 | Target | rcssmonitor develop (5affd90, 20.0.0-beta.1) |
 | Branch | `feature/frame-export` (from develop after the URLs and log lists (F5) are merged; the user creates it on GitHub) |
-| Status | Plan written (2026-11-22). The user created `feature/frame-export` from develop (b3762c3). Stage 1 is done, and stage 2 started (2026-11-24). The last feature of the overall plan. The progress of each stage is in the table of "Progress" below |
+| Status | Plan written (2026-11-22). The user created `feature/frame-export` from develop (b3762c3). Stages 1 and 2 are done, and stage 3 started (2026-11-24). The last feature of the overall plan. The progress of each stage is in the table of "Progress" below |
 | Japanese version | [2026-11-22-03_frame-export.md](2026-11-22-03_frame-export.md) (same content) |
 | Related | F6 of the overall plan [2026-11-22-00_v20-features_en.md](2026-11-22-00_v20-features_en.md). soccerwindow2's `src/qt/image_save_dialog.cpp` (2D image sequences) |
 
@@ -17,8 +17,8 @@ The work and the conditions of the end of each stage are in §5, and the history
 | Stage | Content | Status | Checked by the user | CI | Commits | Pushed |
 |---|---|---|---|---|---|---|
 | 1 | A 2D image (File > Save Image) (§4.1, §4.10; D4, D5) | Done | Done | Passed | e9a9e96 | Done |
-| 2 | The basics of the ranges and image sequences, the export dialog (§4.3 to §4.6, §4.11; D6) | In progress | Done | Not yet | — | Not yet |
-| 3 | Handy ways to give the ranges (§4.4) | Not started | Not yet | Not yet | — | Not yet |
+| 2 | The basics of the ranges and image sequences, the export dialog (§4.3 to §4.6, §4.11; D6) | Done | Done | Passed | d7adf47 | Done |
+| 3 | Handy ways to give the ranges (§4.4, §4.12; D7 to D12) | In progress | Done | Not yet | — | Not yet |
 | 4 | Videos by ffmpeg (§4.5) | Not started | Not yet | Not yet | — | Not yet |
 | 5 | Rearranging the 3D drawing (refactoring only; §4.2) | Not started | Not yet | Not yet | — | Not yet |
 | 6 | Offscreen 3D drawing (§4.2) | Not started | Not yet | Not yet | — | Not yet |
@@ -86,6 +86,12 @@ File > Save Image of soccerwindow2 (`../../rctools/soccerwindow2`; `src/qt/image
 | D4 | The design decisions S1 to S9 are as proposed (2026-11-24, decided by the user at the start of stage 1) |
 | D5 | The shortcut of File > Save Image... is Ctrl+Shift+I (Ctrl+Shift+E is planned for Export Images / Video... of stage 2). While the 3D view is shown, it is disabled until stage 6 adds saving the 3D view (no image other than the view seen is saved) (the same) |
 | D6 | Saving one image and exporting a range stay separate items of the File menu, with names that make their roles clear (option A): "Save Image of This Frame..." (Ctrl+Shift+I; the current frame saved in one step, without the fields of a dialog) and "Export Images / Video..." (Ctrl+Shift+E; a modeless dialog to choose the range, the size and the fps). Compared with one item (as soccerwindow2, one image with the same start and end), the frequent saving of one image takes one step, and the different defaults and kinds of dialogs stay apart (2026-11-24, decided by the user at the start of stage 2) |
+| D7 | The shortcuts to mark the start and the end of a range are `[` and `]` (at the position shown). Clearing the marks, seldom used, is in the menu only (2026-11-24, decided by the user at the start of stage 3) |
+| D8 | The default seconds of the handy ranges: a goal scene from 10 s before the goal to 5 s after it, and around the position shown from 5 s before to 5 s after. They can be changed in the dialog, and are kept in the settings (the same) |
+| D9 | The playback slider shows the marks of the goals too, besides the band of the range chosen (the same) |
+| D10 | The positions of the goals follow `DispHolder::scoreChangedIndex()` (the index of the last frame before the new score, kept when the record of the teams comes; "go to the next score" of the log player uses it too). The team and the score are read from the frame after. At first the goals were found again where a score goes up in the frames; at the user's question, it was changed for one way to decide the goals (option B; 2026-11-24, decided by the user before checking stage 3) |
+| D11 | In the File menu, the items of the export are grouped in "Export Images / Video": Open the Export Dialog... (Ctrl+Shift+E), Start the Range Here (`[`), End the Range Here (`]`), Clear the Range. With the first "Export Images / Video..." and "Export Range" (Mark the Start, Mark the End, Clear the Marks), it was hard to see that they work together, and what they do. The user also proposed removing the items of the marks from the menu, leaving the dialog the only entry; but menus are where the shortcuts are found, and grouped in one item they are seen to work together, so this was chosen (2026-11-24, asked by the user checking stage 3, decided on Claude's advice) |
+| D12 | "All" of the export dialog (the current range over the whole log) is renamed "Clear", as Clear the Range of the menu. The tooltips of the buttons Now tell `[` and `]` of the main window (and their menu items) (the same) |
 
 ### 3.2 Design decisions (Claude; the user confirms them at the start of the stages)
 
@@ -316,6 +322,29 @@ The basics of 4.3 and 4.4, the image sequences of 4.5, and the export dialog of 
   - The test of the view unchanged waits for the rows of the tool bars laid out again after opening the log (a timer of 0 ms) before comparing. Without waiting, the size of the 2D view changed during the export.
 - Checked (2026-11-24): 1000 to 1299 of a real game log (RoboCup 2026; 330 frames with the stopped ones) were exported as PNG of 1920×1080 in 10.3 s (31 ms an image), with about 110 MB of memory, and 35 MB on the disk (106 KB an image). The texts and the logos of the images were in the same proportion as in the view. The dialog was drawn into an image and looked at, and the widths of the fields were fixed (the start and the end as wide, the texts beside them in one line, cut when long).
 
+### 4.12 The implementation of stage 3 (2026-11-24)
+
+The handy ways to give the ranges of 4.4 were implemented as follows. What was decided beyond the plan is written too.
+
+- The parts of a game are found in another way: rcssserver 19 makes the play mode `before_kick_off` at the end of a half (`Stadium::callHalfTime()`), and does not use `first_half_over`. Moreover, a real log had no `before_kick_off` recorded at the end of a half either (checked with a game of 2022 with extra time). So the plan's "split at `first_half_over` and `time_over`" was dropped: the parts are split at the cycles given by the server's parameters in the log (`half_time`, `nr_normal_halfs`, `extra_half_time`, `nr_extra_halfs`, `simulator_step`): the first half 0 to 3000, the second 3001 to 6000, and the extra time 1000 cycles each. The penalty shootout is from its first play mode on. Only the parts with frames are given. If the halves have no time, the whole game is one part.
+- `ExportRange` (added): `periods()`, `goals()` (for each index of `DispHolder::scoreChangedIndex()`, the team and the score of the frame after it; the side that scored by the score of the goal before; changes where no score goes up left out; D10), `around()` (some seconds before and after a cycle, cut by the ends of the log), `cyclesOf()`.
+- `src/export_range_list.{h,cpp}` (new): `ExportRangeList` (the model of the ranges; a `QObject`) and `ExportRangeSpec` (the texts of the positions of the start and the end, and a name). One or more ranges, and the current one. `resolve()` (from the texts to frames), `newName()`, `safeName()` (for a directory). The main window has it; the marks, the dialog and the slider see the same list. Cleared when another log is opened or a server is connected.
+- `MainWindow`: in File > Export Images / Video, Open the Export Dialog... (Ctrl+Shift+E), Start the Range Here (`[`), End the Range Here (`]`), Clear the Range (D7, D11; at first Mark the Start, Mark the End and Clear the Marks of File > Export Range). The menu items show their tooltips too. They set the start and the end of the current range at the position shown, told in the status bar. Enabled as Export. The slider is a member, and whenever the list changes it gets the bands and the goals (`updateRangeMarks()`). The whole log (both ends empty) is not a band. Nothing is shown while connected.
+- `LogPlayerSlider`: `setBands()` and `setGoals()`. After the groove, the bands of the ranges (the current one darker) and the ticks of the goals are drawn, and the handle last (with the parts drawn given explicitly, as `QSlider::paintEvent()`). The bands in the highlight of the scheme, the goals in an orange by the scheme (D9).
+- `ExportDialog`:
+  - The list of the ranges (`QListWidget`: the name, the start and the end, the frames or an error), with Add, Remove, Up and Down. Clear makes the current range the whole log (All at first; D12). The tooltips of the buttons Now tell `[` and `]` of the main window and their menu items (D12). The fields of the name, the start and the end of the current range follow the list both ways.
+  - Presets (a menu): the whole log, the parts (the halves, the extra time, the penalty shootout, with the game time), each goal (the time, the team, the score), all the goals (a range each: in place of the list if it is the whole log alone, after it otherwise), around the position shown. The names are `first-half`, `goal1-c6713`, `around-c1234` and so on. The fields of the seconds (before and after a goal, before and after the position shown; D8) are kept in the settings.
+  - With several ranges: each in its own directory (its name made safe by `safeName()`, `-2` and so on for the same names), or all in one sequence (the numbers go on over the ranges; an error if the names by the cycles repeat). With one range, one directory as before.
+  - The summary is the total of all the ranges. An error is given with the name of its range.
+- `ImageSequenceSink`: a name may have a directory (the directory of a range, made when its first image is written).
+- `Options::ExportSettings` (added): `separate_ranges`, `goal_before`, `goal_after`, `around_before`, `around_after`.
+- Tests:
+  - `export_range` (added): the parts (two halves, the extra time and the shootout, a log starting in the second half, after the last end, halves without time, no frames), the goals (the indexes as `DispHolder` keeps them, indexes at the frames with the new scores, changes where no score goes up, indexes out of the frames), around (stopped frames, the ends of the log, a step of 50 ms).
+  - `export_range_list` (new): editing, adding, removing and moving (the current one kept), the names, from the texts to frames.
+  - `log_player_slider` (new): the order and the ends of the positions, the bands (the current one darker), the color of the goals (light and dark), unchanged outside the bands.
+  - `export_dialog` (added): the marks (`[` and `]`, the menu, shown in the dialog and on the slider, cleared, gone with another log), the presets (a game of two halves and two goals made of live JSON frames), several ranges (directories of their own, the same names, one sequence, repeated names by the cycles, a wrong range, the buttons of the list).
+- Checked (2026-11-24): with a log of a game of 2022 with extra time, the parts were the first half (frames 0 to 3147), the second half, extra time 1 and extra time 2, and the goal (6713, HELIOS2022) was found. All the goal scenes (6613 to 6763, 201 images with the stopped frames) were exported at 1280×720 in 3.1 s. After D10, a log of 2023 (Oxsy vs YuShan2023) had 4 goals found, whose cycles (437, 797, 1075, 3536) were those of `goal_l` and `goal_r` in the play modes of the log. The 4 ranges (804 images) were exported each in its own directory in 12.9 s. The dialog and the slider were drawn into images and looked at.
+
 ## 5. Stages
 
 Every stage builds and passes the CI.
@@ -433,3 +462,38 @@ Stage 5 may proceed in parallel with stages 2-4.
 - Image sequences of PNG of 1920×1080 were checked with a real game log (4.11). README ("Saving images of the view"), NEWS and ChangeLog were updated.
 - The user checked the export (the end of stage 2).
 - Next: the commit and the push, and the CI.
+
+### 2026-11-24: Stage 2 committed, the CI, and stage 3 started
+
+- Stage 2 was committed as d7adf47 and pushed. At the user's instruction, the CI was not watched, and the work paused. When it resumed, the user told that the CI had passed.
+- The scratchpad of the working environment moved, and the build directories of Qt 6 and Qt 5 were made again (Qt 6.4.2 and Qt 5.15.13, with the whistle; no warnings).
+- Stage 3 started at the user's instruction. Decided by the user at the start of the stage: D7 (the marks by `[` and `]`, cleared in the menu only), D8 (from 10 s before a goal to 5 s after, and from 5 s before the position shown to 5 s after), D9 (the slider shows the goals too). Checked to choose the keys: of the single keys, F, J, M, Q, W, Y and `[` `]` were free (I and O are used).
+
+### 2026-11-24: Stage 3 implemented
+
+- Implemented as in 4.12. The tests `export_range_list` and `log_player_slider` were added, and stage 3 was added to `export_range` and `export_dialog`.
+- Found and changed from the plan: the parts of a game are split by the cycles of the server's parameters, not by the play modes (4.12: rcssserver 19 does not use `first_half_over` at the end of a half, and the log had no `before_kick_off` recorded either).
+- Found by the tests and fixed: drawing the bands of the slider, the groove was not drawn, as `initStyleOption()` gives no parts to draw (they are given explicitly). `ServerParamT` cannot be copied (the helper of the test was changed).
+- With the CMake builds of Qt 6 (6.4.2) and Qt 5 (5.15.13) with the whistle, and of `ENABLE_SOUND=OFF`, there were no warnings, and `ctest -j8` run 3 times on each passed all 77 tests. The autotools build (Qt 5) passed too, without warnings of the compiler.
+- The parts, the goals, exporting the goal scenes, the dialog and the slider were checked with a real game log (4.12). README, NEWS and ChangeLog were updated.
+- Next: the user checks exporting the goal scenes at once with a real log, and the bands of the slider (the end of stage 3). Then the commit and the push, and the CI.
+
+### 2026-11-24: The positions of the goals follow DispHolder (D10)
+
+- The user asked whether the indexes of the goals kept by `DispHolder` were left unused on purpose. The reasons (the menu needs the team and the score; a pure function to test) and what was found (`scoreChangedIndex()` points to the last frame before the new score, one frame from `goals()`; "go to the next score" of the log player moves to 50 frames before it) were told, with A (as it is) and B (following `scoreChangedIndex()`). The user chose B (D10).
+- `ExportRange::goals()` takes the list of the indexes, and the dialog and the main window give it `scoreChangedIndex()`. The tests were changed (4.12). With Qt 6, all the tests of the export passed. Checked with two real logs (4.12).
+- With the CMake builds of Qt 6 and Qt 5 with the whistle, and of `ENABLE_SOUND=OFF`, there were no warnings, and `ctest -j8` run 3 times on each passed all 77 tests. The autotools build (Qt 5) passed too.
+- Next: the user checks stage 3 (the end of stage 3). Then the commit and the push, and the CI.
+
+### 2026-11-24: Stage 3 checked, and the menu and the dialog changed (D11, D12)
+
+- The user checked it working (the end of stage 3), and asked for these: marking the range of Export Range only by the menu was hard to find, and the names in the menu did not tell what they do; the tooltips of the buttons Now should tell the shortcuts; the dialog should have a button to clear the range too.
+- It was told that "All" of the dialog does the same as clearing the current range, and the user chose to rename it "Clear" (D12). For the menu, the user proposed two ways (removing the items of the marks from the menu, leaving the dialog the only entry; or grouping the dialog, the start and the end of the range, and clearing in Export Images), and Claude advised the latter (D11).
+- Changed: the menu (four items in File > Export Images / Video, with tooltips), Clear of the dialog and the tooltips of Now, and the paths of the menu in README. The test `export_dialog` was changed for the menu, the names of the items, the button Clear and the tooltips of Now. With Qt 6, all the tests of the export passed. The menu and the dialog were drawn into images and looked at.
+- With the CMake builds of Qt 6 and Qt 5 with the whistle, and of `ENABLE_SOUND=OFF`, there were no warnings, and `ctest -j8` run 3 times on each passed all 77 tests. The autotools build (Qt 5) passed too.
+- Next: the user checks the menu and the dialog. Then the commit and the push, and the CI.
+
+### 2026-11-25: The separators of the menu, and the end of checking stage 3
+
+- The user checked the menu and the dialog. As the items of the File menu were all in one run and hard to read, the user added separators (between opening, the URL and the lists, saving a copy, the images and the export, and quitting). With the CMake builds of Qt 6 and Qt 5 with the whistle, and of `ENABLE_SOUND=OFF`, all 77 tests passed.
+- Next: the commit and the push of stage 3, and the CI.

@@ -16,6 +16,7 @@ rcssmonitor_SOURCES = \
 	export_dialog.cpp \
 	export_job.cpp \
 	export_range.cpp \
+	export_range_list.cpp \
 	export_timing.cpp \
 	field_canvas.cpp \
 	field_painter.cpp \
@@ -68,6 +69,7 @@ nodist_rcssmonitor_SOURCES = \
 	moc_connect_dialog.cpp \
 	moc_export_dialog.cpp \
 	moc_export_job.cpp \
+	moc_export_range_list.cpp \
 	moc_field_canvas.cpp \
 	moc_frame_sink.cpp \
 	moc_github_log_source.cpp \
@@ -101,6 +103,7 @@ noinst_HEADERS = \
 	export_dialog.h \
 	export_job.h \
 	export_range.h \
+	export_range_list.h \
 	export_timing.h \
 	field_canvas.h \
 	field_painter.h \

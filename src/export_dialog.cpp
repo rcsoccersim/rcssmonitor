@@ -38,6 +38,7 @@
 
 #include "disp_holder.h"
 #include "export_job.h"
+#include "export_range_list.h"
 #include "export_timing.h"
 #include "field_canvas.h"
 #include "image_sequence_sink.h"
@@ -57,18 +58,24 @@
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QImageWriter>
+#include <QKeySequence>
 #include <QLabel>
 #include <QLineEdit>
+#include <QListWidget>
+#include <QMenu>
 #include <QMessageBox>
 #include <QProgressDialog>
 #include <QPushButton>
+#include <QRadioButton>
 #include <QSizePolicy>
 #include <QSpinBox>
 #include <QStorageInfo>
+#include <QToolButton>
 #include <QVBoxLayout>
 
 #include <algorithm>
 #include <cmath>
+#include <set>
 
 namespace {
 
@@ -119,17 +126,21 @@ existingDirectory( const QString & dir )
 /*-------------------------------------------------------------------*/
 ExportDialog::ExportDialog( DispHolder & disp_holder,
                             FieldCanvas & canvas,
+                            ExportRangeList & ranges,
                             QWidget * parent )
     : QDialog( parent ),
       M_disp_holder( disp_holder ),
       M_canvas( canvas ),
+      M_ranges( ranges ),
       M_allowed( true )
 {
     this->setWindowTitle( tr( "Export Images / Video" ) );
     createWidgets();
     readSettings();
-    updateSummary();
-    this->resize( std::max( 640, this->sizeHint().width() ), this->sizeHint().height() );
+    connect( &M_ranges, &ExportRangeList::changed,
+             this, &ExportDialog::showRanges );
+    showRanges();
+    this->resize( std::max( 680, this->sizeHint().width() ), this->sizeHint().height() );
 }
 
 /*-------------------------------------------------------------------*/
@@ -142,61 +153,172 @@ ExportDialog::~ExportDialog()
 }
 
 /*-------------------------------------------------------------------*/
+QWidget *
+ExportDialog::createRangeBox()
+{
+    QGroupBox * box = new QGroupBox( tr( "Ranges" ) );
+    QVBoxLayout * top = new QVBoxLayout( box );
+
+    // the list of the ranges, with the buttons to edit it
+    {
+        M_range_list = new QListWidget();
+        M_range_list->setObjectName( "ranges" );
+        M_range_list->setMaximumHeight( M_range_list->fontMetrics().height() * 5 + 8 );
+        connect( M_range_list, &QListWidget::currentRowChanged,
+                 &M_ranges, &ExportRangeList::setCurrent );
+
+        const auto button = [this]( const QString & text, const char * name, const QString & tip, void ( ExportDialog::*slot )() ) {
+            QPushButton * b = new QPushButton( text );
+            b->setObjectName( name );
+            b->setToolTip( tip );
+            b->setAutoDefault( false );
+            connect( b, &QPushButton::clicked, this, slot );
+            return b;
+        };
+        M_add_button = button( tr( "Add" ), "add_range", tr( "A range of the whole log at the end" ), &ExportDialog::addRange );
+        M_remove_button = button( tr( "Remove" ), "remove_range", tr( "Remove the range chosen" ), &ExportDialog::removeRange );
+        M_up_button = button( tr( "Up" ), "range_up", tr( "Move the range chosen up" ), &ExportDialog::moveRangeUp );
+        M_down_button = button( tr( "Down" ), "range_down", tr( "Move the range chosen down" ), &ExportDialog::moveRangeDown );
+
+        QVBoxLayout * buttons = new QVBoxLayout();
+        buttons->addWidget( M_add_button );
+        buttons->addWidget( M_remove_button );
+        buttons->addWidget( M_up_button );
+        buttons->addWidget( M_down_button );
+        buttons->addStretch( 1 );
+        QHBoxLayout * row = new QHBoxLayout();
+        row->addWidget( M_range_list, 1 );
+        row->addLayout( buttons );
+        top->addLayout( row );
+    }
+
+    QFormLayout * form = new QFormLayout();
+    top->addLayout( form );
+
+    // the name, and the presets
+    {
+        M_name_edit = new QLineEdit();
+        M_name_edit->setObjectName( "range_name" );
+        M_name_edit->setToolTip( tr( "The name of the range: the directory of its images, when the ranges are each in their own" ) );
+        M_name_edit->setMaximumWidth( 200 );
+        connect( M_name_edit, &QLineEdit::textEdited,
+                 &M_ranges, &ExportRangeList::setName );
+
+        M_presets_menu = new QMenu( this );
+        M_presets_menu->setObjectName( "presets_menu" );
+        connect( M_presets_menu, &QMenu::aboutToShow,
+                 this, &ExportDialog::buildPresetsMenu );
+        M_presets_button = new QToolButton();
+        M_presets_button->setObjectName( "presets" );
+        M_presets_button->setText( tr( "Presets" ) );
+        M_presets_button->setToolTip( tr( "The whole log, a half, a goal scene, all the goals, or around the position shown" ) );
+        M_presets_button->setPopupMode( QToolButton::InstantPopup );
+        M_presets_button->setMenu( M_presets_menu );
+
+        // as Clear the Range of the main window (D12)
+        QPushButton * clear = new QPushButton( tr( "Clear" ) );
+        clear->setObjectName( "clear_range" );
+        clear->setToolTip( tr( "Clear the start and the end: the whole log.\n"
+                               "In the main window: File > Export Images / Video > Clear the Range." ) );
+        clear->setAutoDefault( false );
+        connect( clear, &QPushButton::clicked, this, &ExportDialog::clearRange );
+
+        QHBoxLayout * row = new QHBoxLayout();
+        row->addWidget( M_name_edit );
+        row->addWidget( clear );
+        row->addWidget( M_presets_button );
+        row->addStretch( 1 );
+        form->addRow( tr( "Name:" ), row );
+    }
+
+    // the start and the end of the current range
+    const auto position = [this, form]( const QString & label,
+                                        const char * name,
+                                        const QString & placeholder,
+                                        QLineEdit ** edit,
+                                        QLabel ** info,
+                                        void ( ExportRangeList::*set )( const QString & ),
+                                        void ( ExportDialog::*now )(),
+                                        const QString & now_tip ) {
+        *edit = new QLineEdit();
+        ( *edit )->setObjectName( name );
+        ( *edit )->setPlaceholderText( placeholder );
+        ( *edit )->setToolTip( tr( "A cycle (e.g. 1234), or a cycle and a stopped frame (e.g. 1234.3, as the status bar shows it)." ) );
+        // as wide for the start and the end, however long the texts beside them
+        ( *edit )->setFixedWidth( ( *edit )->fontMetrics().horizontalAdvance( QStringLiteral( "000000.000" ) ) + 16 );
+        connect( *edit, &QLineEdit::textEdited,
+                 &M_ranges, set );
+        QPushButton * button = new QPushButton( tr( "Now" ) );
+        button->setObjectName( QString( name ) + "_now" );
+        button->setToolTip( now_tip );
+        button->setAutoDefault( false );
+        connect( button, &QPushButton::clicked, this, now );
+        // one line, cut by the width of the dialog: the whole text in the
+        // tooltip, and the reason of a wrong one in the summary too
+        *info = new QLabel();
+        ( *info )->setSizePolicy( QSizePolicy::Ignored, QSizePolicy::Preferred );
+        ( *info )->setMinimumWidth( 120 );
+        QHBoxLayout * layout = new QHBoxLayout();
+        layout->addWidget( *edit );
+        layout->addWidget( button );
+        layout->addWidget( *info, 1 );
+        form->addRow( label, layout );
+    };
+    // the shortcuts of the main window that do the same (D7, D12)
+    position( tr( "Start:" ), "start", tr( "the first frame" ), &M_start_edit, &M_start_info,
+              &ExportRangeList::setStart, &ExportDialog::setStartToCurrent,
+              tr( "Take the frame shown now as the start.\n"
+                  "In the main window, %1 does it too, with this dialog closed\n"
+                  "(File > Export Images / Video > Start the Range Here)." )
+              .arg( QKeySequence( Qt::Key_BracketLeft ).toString( QKeySequence::NativeText ) ) );
+    position( tr( "End:" ), "end", tr( "the last frame" ), &M_end_edit, &M_end_info,
+              &ExportRangeList::setEnd, &ExportDialog::setEndToCurrent,
+              tr( "Take the frame shown now as the end.\n"
+                  "In the main window, %1 does it too, with this dialog closed\n"
+                  "(File > Export Images / Video > End the Range Here)." )
+              .arg( QKeySequence( Qt::Key_BracketRight ).toString( QKeySequence::NativeText ) ) );
+
+    // the seconds of the presets (D8)
+    {
+        const auto seconds = [this]( const char * name ) {
+            QDoubleSpinBox * spin = new QDoubleSpinBox();
+            spin->setObjectName( name );
+            spin->setRange( 0.0, 600.0 );
+            spin->setDecimals( 1 );
+            spin->setSuffix( tr( " s" ) );
+            return spin;
+        };
+        M_goal_before_spin = seconds( "goal_before" );
+        M_goal_after_spin = seconds( "goal_after" );
+        M_around_before_spin = seconds( "around_before" );
+        M_around_after_spin = seconds( "around_after" );
+
+        QHBoxLayout * row = new QHBoxLayout();
+        row->addWidget( new QLabel( tr( "Goal scenes:" ) ) );
+        row->addWidget( M_goal_before_spin );
+        row->addWidget( new QLabel( tr( "before," ) ) );
+        row->addWidget( M_goal_after_spin );
+        row->addWidget( new QLabel( tr( "after." ) ) );
+        row->addSpacing( 12 );
+        row->addWidget( new QLabel( tr( "Around now:" ) ) );
+        row->addWidget( M_around_before_spin );
+        row->addWidget( new QLabel( tr( "before," ) ) );
+        row->addWidget( M_around_after_spin );
+        row->addWidget( new QLabel( tr( "after." ) ) );
+        row->addStretch( 1 );
+        form->addRow( tr( "Presets:" ), row );
+    }
+
+    return box;
+}
+
+/*-------------------------------------------------------------------*/
 void
 ExportDialog::createWidgets()
 {
     QVBoxLayout * top = new QVBoxLayout( this );
 
-    // the range (4.4)
-    {
-        QGroupBox * box = new QGroupBox( tr( "Range" ) );
-        QFormLayout * form = new QFormLayout( box );
-
-        const auto row = [this, form]( const QString & label,
-                                       const char * name,
-                                       const QString & placeholder,
-                                       QLineEdit ** edit,
-                                       QLabel ** info,
-                                       void ( ExportDialog::*now )() ) {
-            *edit = new QLineEdit();
-            ( *edit )->setObjectName( name );
-            ( *edit )->setPlaceholderText( placeholder );
-            ( *edit )->setToolTip( tr( "A cycle (e.g. 1234), or a cycle and a stopped frame (e.g. 1234.3, as the status bar shows it)." ) );
-            // as wide for the start and the end, however long the texts beside them
-            ( *edit )->setFixedWidth( ( *edit )->fontMetrics().horizontalAdvance( QStringLiteral( "000000.000" ) ) + 16 );
-            connect( *edit, &QLineEdit::textChanged,
-                     this, &ExportDialog::updateSummary );
-            QPushButton * button = new QPushButton( tr( "Now" ) );
-            button->setObjectName( QString( name ) + "_now" );
-            button->setToolTip( tr( "The position shown now" ) );
-            button->setAutoDefault( false );
-            connect( button, &QPushButton::clicked, this, now );
-            // one line, cut by the width of the dialog: the whole text in the
-            // tooltip, and the reason of a wrong one in the summary too
-            *info = new QLabel();
-            ( *info )->setSizePolicy( QSizePolicy::Ignored, QSizePolicy::Preferred );
-            ( *info )->setMinimumWidth( 120 );
-            QHBoxLayout * layout = new QHBoxLayout();
-            layout->addWidget( *edit );
-            layout->addWidget( button );
-            layout->addWidget( *info, 1 );
-            form->addRow( label, layout );
-        };
-        row( tr( "Start:" ), "start", tr( "the first frame" ), &M_start_edit, &M_start_info, &ExportDialog::setStartToCurrent );
-        row( tr( "End:" ), "end", tr( "the last frame" ), &M_end_edit, &M_end_info, &ExportDialog::setEndToCurrent );
-
-        QPushButton * all = new QPushButton( tr( "All" ) );
-        all->setObjectName( "all" );
-        all->setToolTip( tr( "From the first frame to the last one" ) );
-        all->setAutoDefault( false );
-        connect( all, &QPushButton::clicked, this, &ExportDialog::setAll );
-        QHBoxLayout * buttons = new QHBoxLayout();
-        buttons->addWidget( all );
-        buttons->addStretch( 1 );
-        form->addRow( QString(), buttons );
-
-        top->addWidget( box );
-    }
+    top->addWidget( createRangeBox() );
 
     // the images
     {
@@ -308,6 +430,18 @@ ExportDialog::createWidgets()
                  this, &ExportDialog::updateSummary );
         form->addRow( QString(), M_name_by_cycle_check );
 
+        M_separate_radio = new QRadioButton( tr( "Each in its own directory, by its name" ) );
+        M_separate_radio->setObjectName( "separate_ranges" );
+        M_one_sequence_radio = new QRadioButton( tr( "All in one sequence" ) );
+        M_one_sequence_radio->setObjectName( "one_sequence" );
+        connect( M_separate_radio, &QRadioButton::toggled,
+                 this, &ExportDialog::updateSummary );
+        QHBoxLayout * ranges = new QHBoxLayout();
+        ranges->addWidget( M_separate_radio );
+        ranges->addWidget( M_one_sequence_radio );
+        ranges->addStretch( 1 );
+        form->addRow( tr( "Ranges:" ), ranges );
+
         top->addWidget( box );
     }
 
@@ -352,6 +486,11 @@ ExportDialog::readSettings()
     const int format = M_format_combo->findData( s.format );
     M_format_combo->setCurrentIndex( format >= 0 ? format : 0 );
     M_name_by_cycle_check->setChecked( s.name_by_cycle );
+    ( s.separate_ranges ? M_separate_radio : M_one_sequence_radio )->setChecked( true );
+    M_goal_before_spin->setValue( s.goal_before );
+    M_goal_after_spin->setValue( s.goal_after );
+    M_around_before_spin->setValue( s.around_before );
+    M_around_after_spin->setValue( s.around_after );
 }
 
 /*-------------------------------------------------------------------*/
@@ -369,71 +508,375 @@ ExportDialog::writeSettings() const
     s.fps = M_fps_spin->value();
     s.speed = M_speed_spin->value();
     s.name_by_cycle = M_name_by_cycle_check->isChecked();
+    s.separate_ranges = M_separate_radio->isChecked();
+    s.goal_before = M_goal_before_spin->value();
+    s.goal_after = M_goal_after_spin->value();
+    s.around_before = M_around_before_spin->value();
+    s.around_after = M_around_after_spin->value();
     Options::instance().setExportSettings( s );
     Options::instance().writeExportSettings();
-}
-
-/*-------------------------------------------------------------------*/
-std::size_t
-ExportDialog::positionIndex( const QLineEdit * edit,
-                             const bool start,
-                             bool * snapped,
-                             QString * error ) const
-{
-    if ( snapped ) *snapped = false;
-    const DispCont & frames = M_disp_holder.dispCont();
-    if ( frames.empty() )
-    {
-        if ( error ) *error = tr( "There is no game log." );
-        return DispHolder::INVALID_INDEX;
-    }
-    if ( edit->text().trimmed().isEmpty() )
-    {
-        return start ? 0 : frames.size() - 1;
-    }
-
-    ExportPosition pos;
-    if ( ! ExportRange::parsePosition( edit->text(), &pos, error ) )
-    {
-        return DispHolder::INVALID_INDEX;
-    }
-    const std::size_t index = ( start
-                                ? ExportRange::startIndex( frames, pos, snapped )
-                                : ExportRange::endIndex( frames, pos, snapped ) );
-    if ( index == DispHolder::INVALID_INDEX && error )
-    {
-        *error = ( start
-                   ? tr( "The start %1 is after the last frame (%2)." ).arg( edit->text().trimmed(), ExportRange::positionText( frames, frames.size() - 1 ) )
-                   : tr( "The end %1 is before the first frame (%2)." ).arg( edit->text().trimmed(), ExportRange::positionText( frames, 0 ) ) );
-    }
-    return index;
 }
 
 /*-------------------------------------------------------------------*/
 ExportRange
 ExportDialog::range( QString * error ) const
 {
-    ExportRange r;
-    QString e;
-    r.first = positionIndex( M_start_edit, true, nullptr, &e );
-    if ( r.first != DispHolder::INVALID_INDEX )
-    {
-        r.last = positionIndex( M_end_edit, false, nullptr, &e );
-    }
-    if ( r.first != DispHolder::INVALID_INDEX
-         && r.last != DispHolder::INVALID_INDEX
-         && r.first > r.last )
-    {
-        e = tr( "The start is after the end." );
-    }
-    if ( ! r.isValid() )
-    {
-        r = ExportRange();
-    }
-    if ( error ) *error = e;
-    return r;
+    return ExportRangeList::resolve( M_ranges.currentRange(), M_disp_holder.dispCont(), error );
 }
 
+/*-------------------------------------------------------------------*/
+std::vector< ExportRange >
+ExportDialog::ranges( QString * error ) const
+{
+    std::vector< ExportRange > list;
+    if ( error ) error->clear();
+    for ( const ExportRangeSpec & spec : M_ranges.ranges() )
+    {
+        QString e;
+        const ExportRange r = ExportRangeList::resolve( spec, M_disp_holder.dispCont(), &e );
+        if ( ! r.isValid() )
+        {
+            if ( error ) *error = ( M_ranges.size() > 1 ? spec.name + QStringLiteral( ": " ) + e : e );
+            return std::vector< ExportRange >();
+        }
+        list.push_back( r );
+    }
+    return list;
+}
+
+/*-------------------------------------------------------------------*/
+QStringList
+ExportDialog::allImageNames( const std::vector< std::vector< std::size_t > > & frames,
+                             QString * error ) const
+{
+    if ( error ) error->clear();
+    if ( frames.size() == 1 )
+    {
+        return imageNames( frames.front() );
+    }
+
+    QStringList names;
+    if ( M_separate_radio->isChecked() )
+    {
+        // each range in its own directory: the safe name, made unique
+        std::set< QString > dirs;
+        for ( std::size_t r = 0; r < frames.size(); ++r )
+        {
+            QString dir = ExportRangeList::safeName( M_ranges.ranges()[static_cast< int >( r )].name );
+            const QString base = dir;
+            for ( int n = 2; dirs.count( dir ) > 0; ++n )
+            {
+                dir = base + QString( "-%1" ).arg( n );
+            }
+            dirs.insert( dir );
+            for ( const QString & name : imageNames( frames[r] ) )
+            {
+                names << dir + QLatin1Char( '/' ) + name;
+            }
+        }
+        return names;
+    }
+
+    // one sequence: the numbers go on over the ranges
+    std::vector< std::size_t > all;
+    for ( const std::vector< std::size_t > & f : frames ) all.insert( all.end(), f.begin(), f.end() );
+    names = imageNames( all );
+    if ( std::set< QString >( names.begin(), names.end() ).size() != static_cast< std::size_t >( names.size() ) )
+    {
+        if ( error ) *error = tr( "The ranges have the same frames: the names by the cycles repeat in one sequence." );
+        return QStringList();
+    }
+    return names;
+}
+
+/*-------------------------------------------------------------------*/
+std::vector< ExportPeriod >
+ExportDialog::periods() const
+{
+    return ExportRange::periods( M_disp_holder.dispCont(), M_disp_holder.serverParam() );
+}
+
+/*-------------------------------------------------------------------*/
+std::vector< ExportGoal >
+ExportDialog::goals() const
+{
+    return ExportRange::goals( M_disp_holder.dispCont(), M_disp_holder.scoreChangedIndex() );
+}
+
+/*-------------------------------------------------------------------*/
+ExportRangeSpec
+ExportDialog::specOf( const ExportRange & range,
+                      const QString & name ) const
+{
+    const DispCont & frames = M_disp_holder.dispCont();
+    return ExportRangeSpec{ ExportRange::positionText( frames, range.first ),
+                            ExportRange::positionText( frames, range.last ),
+                            name };
+}
+
+/*-------------------------------------------------------------------*/
+QString
+ExportDialog::rangeText( const ExportRangeSpec & spec ) const
+{
+    QString error;
+    const ExportRange r = ExportRangeList::resolve( spec, M_disp_holder.dispCont(), &error );
+    const QString start = spec.start.trimmed().isEmpty() ? tr( "first" ) : spec.start.trimmed();
+    const QString end = spec.end.trimmed().isEmpty() ? tr( "last" ) : spec.end.trimmed();
+    QString text = QString( "%1: %2 - %3" ).arg( spec.name, start, end );
+    if ( r.isValid() )
+    {
+        text += ( r.size() == 1 ? tr( " (1 frame)" ) : tr( " (%1 frames)" ).arg( r.size() ) );
+    }
+    else if ( ! M_disp_holder.dispCont().empty() )
+    {
+        text += QStringLiteral( " (" ) + error + QLatin1Char( ')' );
+    }
+    return text;
+}
+
+/*-------------------------------------------------------------------*/
+void
+ExportDialog::setStart( const QString & text )
+{
+    M_ranges.setStart( text );
+}
+
+/*-------------------------------------------------------------------*/
+void
+ExportDialog::setEnd( const QString & text )
+{
+    M_ranges.setEnd( text );
+}
+
+/*-------------------------------------------------------------------*/
+void
+ExportDialog::setStartToCurrent()
+{
+    const DispConstPtr disp = M_disp_holder.currentDisp();
+    if ( disp ) M_ranges.setStart( ExportRange::positionText( disp->show_ ) );
+}
+
+/*-------------------------------------------------------------------*/
+void
+ExportDialog::setEndToCurrent()
+{
+    const DispConstPtr disp = M_disp_holder.currentDisp();
+    if ( disp ) M_ranges.setEnd( ExportRange::positionText( disp->show_ ) );
+}
+
+/*-------------------------------------------------------------------*/
+void
+ExportDialog::clearRange()
+{
+    ExportRangeSpec spec = M_ranges.currentRange();
+    spec.start.clear();
+    spec.end.clear();
+    M_ranges.setCurrentRange( spec );
+}
+
+/*-------------------------------------------------------------------*/
+void
+ExportDialog::choosePeriod( const int index )
+{
+    const std::vector< ExportPeriod > list = periods();
+    if ( index < 0 || static_cast< int >( list.size() ) <= index )
+    {
+        return;
+    }
+    ExportRange r;
+    r.first = list[index].first;
+    r.last = list[index].last;
+    M_ranges.setCurrentRange( specOf( r, list[index].key ) );
+}
+
+/*-------------------------------------------------------------------*/
+void
+ExportDialog::chooseGoal( const int index )
+{
+    const std::vector< ExportGoal > list = goals();
+    if ( index < 0 || static_cast< int >( list.size() ) <= index )
+    {
+        return;
+    }
+    const int step = std::max( 1, M_disp_holder.serverParam().simulator_step_ );
+    const ExportRange r = ExportRange::around( M_disp_holder.dispCont(), list[index].cycle,
+                                               M_goal_before_spin->value(), M_goal_after_spin->value(), step );
+    if ( r.isValid() )
+    {
+        M_ranges.setCurrentRange( specOf( r, QString( "goal%1-c%2" ).arg( index + 1 ).arg( list[index].cycle ) ) );
+    }
+}
+
+/*-------------------------------------------------------------------*/
+void
+ExportDialog::chooseAllGoals()
+{
+    const std::vector< ExportGoal > list = goals();
+    if ( list.empty() )
+    {
+        return;
+    }
+    const int step = std::max( 1, M_disp_holder.serverParam().simulator_step_ );
+    QVector< ExportRangeSpec > specs;
+    // after the ranges given, or in place of the whole log
+    const bool whole = ( M_ranges.size() == 1
+                         && M_ranges.currentRange().start.trimmed().isEmpty()
+                         && M_ranges.currentRange().end.trimmed().isEmpty() );
+    if ( ! whole )
+    {
+        specs = M_ranges.ranges();
+    }
+    for ( std::size_t i = 0; i < list.size(); ++i )
+    {
+        const ExportRange r = ExportRange::around( M_disp_holder.dispCont(), list[i].cycle,
+                                                   M_goal_before_spin->value(), M_goal_after_spin->value(), step );
+        if ( r.isValid() )
+        {
+            specs.push_back( specOf( r, QString( "goal%1-c%2" ).arg( i + 1 ).arg( list[i].cycle ) ) );
+        }
+    }
+    M_ranges.setRanges( specs );
+}
+
+/*-------------------------------------------------------------------*/
+void
+ExportDialog::chooseAround()
+{
+    const DispConstPtr disp = M_disp_holder.currentDisp();
+    if ( ! disp )
+    {
+        return;
+    }
+    const int step = std::max( 1, M_disp_holder.serverParam().simulator_step_ );
+    const int cycle = static_cast< int >( disp->show_.time_ );
+    const ExportRange r = ExportRange::around( M_disp_holder.dispCont(), cycle,
+                                               M_around_before_spin->value(), M_around_after_spin->value(), step );
+    if ( r.isValid() )
+    {
+        M_ranges.setCurrentRange( specOf( r, QString( "around-c%1" ).arg( cycle ) ) );
+    }
+}
+
+/*-------------------------------------------------------------------*/
+void
+ExportDialog::addRange()
+{
+    M_ranges.add( ExportRangeSpec{ QString(), QString(), M_ranges.newName() } );
+}
+
+/*-------------------------------------------------------------------*/
+void
+ExportDialog::removeRange()
+{
+    M_ranges.remove( M_ranges.current() );
+}
+
+/*-------------------------------------------------------------------*/
+void
+ExportDialog::moveRangeUp()
+{
+    M_ranges.move( M_ranges.current(), M_ranges.current() - 1 );
+}
+
+/*-------------------------------------------------------------------*/
+void
+ExportDialog::moveRangeDown()
+{
+    M_ranges.move( M_ranges.current(), M_ranges.current() + 1 );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  The presets of the log open: the whole log, the parts of the game, the
+  goals (each, and all of them as ranges), and around the position shown.
+*/
+void
+ExportDialog::buildPresetsMenu()
+{
+    M_presets_menu->clear();
+    const DispCont & frames = M_disp_holder.dispCont();
+    if ( frames.empty() )
+    {
+        M_presets_menu->addAction( tr( "There is no game log." ) )->setEnabled( false );
+        return;
+    }
+    const int step = std::max( 1, M_disp_holder.serverParam().simulator_step_ );
+
+    QAction * all = M_presets_menu->addAction( tr( "The whole log" ) );
+    connect( all, &QAction::triggered, this, &ExportDialog::clearRange );
+
+    M_presets_menu->addSeparator();
+    const std::vector< ExportPeriod > parts = periods();
+    for ( std::size_t i = 0; i < parts.size(); ++i )
+    {
+        QAction * act = M_presets_menu->addAction( QString( "%1 (%2 - %3)" )
+                                                   .arg( parts[i].label,
+                                                         ExportRange::gameTime( frames[parts[i].first]->show_.time_, step ),
+                                                         ExportRange::gameTime( frames[parts[i].last]->show_.time_, step ) ) );
+        act->setObjectName( QStringLiteral( "preset_" ) + parts[i].key );
+        const int index = static_cast< int >( i );
+        connect( act, &QAction::triggered, this, [this, index]() { choosePeriod( index ); } );
+    }
+
+    M_presets_menu->addSeparator();
+    const std::vector< ExportGoal > list = goals();
+    if ( list.empty() )
+    {
+        M_presets_menu->addAction( tr( "No goals" ) )->setEnabled( false );
+    }
+    for ( std::size_t i = 0; i < list.size(); ++i )
+    {
+        QAction * act = M_presets_menu->addAction( tr( "Goal %1: %2 %3 (%4 - %5)" )
+                                                   .arg( i + 1 )
+                                                   .arg( ExportRange::gameTime( list[i].cycle, step ), list[i].team )
+                                                   .arg( list[i].left ).arg( list[i].right ) );
+        act->setObjectName( QString( "preset_goal%1" ).arg( i + 1 ) );
+        const int index = static_cast< int >( i );
+        connect( act, &QAction::triggered, this, [this, index]() { chooseGoal( index ); } );
+    }
+    if ( ! list.empty() )
+    {
+        QAction * every = M_presets_menu->addAction( tr( "All the goals, a range each" ) );
+        every->setObjectName( "preset_all_goals" );
+        connect( every, &QAction::triggered, this, &ExportDialog::chooseAllGoals );
+    }
+
+    M_presets_menu->addSeparator();
+    QAction * around = M_presets_menu->addAction( tr( "Around the position shown" ) );
+    around->setObjectName( "preset_around" );
+    connect( around, &QAction::triggered, this, &ExportDialog::chooseAround );
+}
+
+/*-------------------------------------------------------------------*/
+void
+ExportDialog::showRanges()
+{
+    // the list
+    {
+        const QSignalBlocker block( M_range_list );
+        M_range_list->clear();
+        for ( const ExportRangeSpec & spec : M_ranges.ranges() )
+        {
+            M_range_list->addItem( rangeText( spec ) );
+        }
+        M_range_list->setCurrentRow( M_ranges.current() );
+    }
+
+    // the fields of the current range: only when they differ, not to move
+    // the cursor of a field being edited
+    const ExportRangeSpec & spec = M_ranges.currentRange();
+    if ( M_name_edit->text() != spec.name ) M_name_edit->setText( spec.name );
+    if ( M_start_edit->text() != spec.start ) M_start_edit->setText( spec.start );
+    if ( M_end_edit->text() != spec.end ) M_end_edit->setText( spec.end );
+
+    M_up_button->setEnabled( M_ranges.current() > 0 );
+    M_down_button->setEnabled( M_ranges.current() + 1 < M_ranges.size() );
+    M_remove_button->setEnabled( M_ranges.size() > 1 || ! M_ranges.isCleared() );
+    M_separate_radio->setEnabled( M_ranges.size() > 1 );
+    M_one_sequence_radio->setEnabled( M_ranges.size() > 1 );
+
+    updateSummary();
+}
 /*-------------------------------------------------------------------*/
 double
 ExportDialog::framesPerImage() const
@@ -569,44 +1012,6 @@ ExportDialog::isExporting() const
 
 /*-------------------------------------------------------------------*/
 void
-ExportDialog::setStart( const QString & text )
-{
-    M_start_edit->setText( text );
-}
-
-/*-------------------------------------------------------------------*/
-void
-ExportDialog::setEnd( const QString & text )
-{
-    M_end_edit->setText( text );
-}
-
-/*-------------------------------------------------------------------*/
-void
-ExportDialog::setStartToCurrent()
-{
-    const DispConstPtr disp = M_disp_holder.currentDisp();
-    if ( disp ) M_start_edit->setText( ExportRange::positionText( disp->show_ ) );
-}
-
-/*-------------------------------------------------------------------*/
-void
-ExportDialog::setEndToCurrent()
-{
-    const DispConstPtr disp = M_disp_holder.currentDisp();
-    if ( disp ) M_end_edit->setText( ExportRange::positionText( disp->show_ ) );
-}
-
-/*-------------------------------------------------------------------*/
-void
-ExportDialog::setAll()
-{
-    M_start_edit->clear();
-    M_end_edit->clear();
-}
-
-/*-------------------------------------------------------------------*/
-void
 ExportDialog::setDirectory( const QString & dir )
 {
     M_dir_edit->setText( dir );
@@ -644,36 +1049,80 @@ ExportDialog::showMessage( const QString & text,
 
 /*-------------------------------------------------------------------*/
 void
+ExportDialog::abortExport()
+{
+    if ( M_job )
+    {
+        M_job->abort();
+    }
+}
+
+/*-------------------------------------------------------------------*/
+void
+ExportDialog::handleFinished( bool ok,
+                              const QString & message )
+{
+    if ( M_progress )
+    {
+        M_progress->hide();
+        M_progress->deleteLater();
+        M_progress = nullptr;
+    }
+    if ( M_job )
+    {
+        M_job->deleteLater();
+        M_job = nullptr;
+    }
+
+    showMessage( ok ? tr( "Exported %1." ).arg( message ) : message, ! ok );
+    updateSummary();
+    emit exportFinished( ok, message );
+}
+/*-------------------------------------------------------------------*/
+void
 ExportDialog::updateSummary()
 {
     const DispCont & frames = M_disp_holder.dispCont();
     const int step = std::max( 1, M_disp_holder.serverParam().simulator_step_ );
 
-    // the frame of each field, or why not
-    const auto info = [&]( QLineEdit * edit, QLabel * label, const bool start ) {
+    // the texts of the ranges: their frames follow the log open
+    for ( int i = 0; i < M_range_list->count() && i < M_ranges.size(); ++i )
+    {
+        const QString text = rangeText( M_ranges.ranges()[i] );
+        if ( M_range_list->item( i )->text() != text ) M_range_list->item( i )->setText( text );
+    }
+
+    // the frame of each end of the current range, or why not
+    const ExportRangeSpec & spec = M_ranges.currentRange();
+    const auto info = [&]( const bool start, QLabel * label ) {
         bool snapped = false;
         QString error;
-        const std::size_t index = positionIndex( edit, start, &snapped, &error );
-        if ( index == DispHolder::INVALID_INDEX )
+        const ExportRange r = ExportRangeList::resolve( start
+                                                        ? ExportRangeSpec{ spec.start, QString(), QString() }
+                                                        : ExportRangeSpec{ QString(), spec.end, QString() },
+                                                        frames, &error,
+                                                        start ? &snapped : nullptr,
+                                                        start ? nullptr : &snapped );
+        if ( ! r.isValid() )
         {
             label->setText( frames.empty() ? QString() : error );
             label->setToolTip( label->text() );
             UIPalette::markWrongText( label, ! frames.empty() );
             return;
         }
-        const rcss::rcg::ShowInfoT & show = frames[index]->show_;
+        const rcss::rcg::ShowInfoT & show = frames[start ? r.first : r.last]->show_;
         QString text = QString( "%1 (%2)" ).arg( ExportRange::positionText( show ),
                                                  ExportRange::gameTime( show.time_, step ) );
         if ( snapped )
         {
-            text += tr( ": no frame at %1" ).arg( edit->text().trimmed() );
+            text += tr( ": no frame at %1" ).arg( ( start ? spec.start : spec.end ).trimmed() );
         }
         label->setText( text );
         label->setToolTip( text );
         UIPalette::markWrongText( label, false );
     };
-    info( M_start_edit, M_start_info, true );
-    info( M_end_edit, M_end_info, false );
+    info( true, M_start_info );
+    info( false, M_end_info );
 
     const bool custom = ( M_size_combo->currentData().toString() == QLatin1String( "custom" ) );
     M_width_spin->setEnabled( custom );
@@ -689,10 +1138,25 @@ ExportDialog::updateSummary()
 
     M_name_by_cycle_check->setEnabled( canNameByCycle() );
 
+    // all the ranges
     QString error;
-    const ExportRange r = range( &error );
-    const std::vector< std::size_t > images = imageFrames( r );
-    if ( ! r.isValid() || images.empty() )
+    const std::vector< ExportRange > list = ranges( &error );
+    std::vector< std::vector< std::size_t > > images;
+    std::size_t image_count = 0;
+    std::size_t frame_count = 0;
+    for ( const ExportRange & r : list )
+    {
+        images.push_back( imageFrames( r ) );
+        image_count += images.back().size();
+        frame_count += r.size();
+    }
+    if ( error.isEmpty() && ! list.empty() )
+    {
+        allImageNames( images, &error );
+    }
+
+    const bool ok = error.isEmpty() && image_count > 0;
+    if ( ! ok )
     {
         M_summary_label->setText( error.isEmpty() ? tr( "There is no frame to export." ) : error );
         UIPalette::markWrongText( M_summary_label, ! frames.empty() );
@@ -700,34 +1164,30 @@ ExportDialog::updateSummary()
     else
     {
         const QSize size = imageSize();
-        const QString count = ( images.size() == 1
+        const QString count = ( image_count == 1
                                 ? tr( "1 image" )
-                                : tr( "%1 images" ).arg( images.size() ) );
-        const QString of = ( r.size() == 1
+                                : tr( "%1 images" ).arg( image_count ) );
+        const QString of = ( frame_count == 1
                              ? tr( "of 1 frame" )
-                             : tr( "of %1 frames" ).arg( r.size() ) );
-        M_summary_label->setText( tr( "%1 %2, %3 to %4. %5 x %6 pixels; %7 s of a video at %8 images/s." )
-                                  .arg( count, of,
-                                        ExportRange::gameTime( frames[r.first]->show_.time_, step ),
-                                        ExportRange::gameTime( frames[r.last]->show_.time_, step ) )
+                             : tr( "of %1 frames" ).arg( frame_count ) );
+        const QString where = ( list.size() == 1
+                                ? tr( "%1 to %2" ).arg( ExportRange::gameTime( frames[list.front().first]->show_.time_, step ),
+                                                        ExportRange::gameTime( frames[list.front().last]->show_.time_, step ) )
+                                : tr( "in %1 ranges" ).arg( list.size() ) );
+        M_summary_label->setText( tr( "%1 %2, %3. %4 x %5 pixels; %6 s of a video at %7 images/s." )
+                                  .arg( count, of, where )
                                   .arg( size.width() ).arg( size.height() )
-                                  .arg( ExportTiming::duration( images.size(), M_fps_spin->value() ), 0, 'f', 1 )
+                                  .arg( ExportTiming::duration( image_count, M_fps_spin->value() ), 0, 'f', 1 )
                                   .arg( M_fps_spin->value() ) );
         UIPalette::markWrongText( M_summary_label, false );
     }
 
     M_export_button->setEnabled( M_allowed
                                  && ! isExporting()
-                                 && r.isValid()
-                                 && ! images.empty() );
-    if ( ! M_allowed )
-    {
-        M_export_button->setToolTip( tr( "Not available while connected to a server: the frames are exported after disconnecting." ) );
-    }
-    else
-    {
-        M_export_button->setToolTip( QString() );
-    }
+                                 && ok );
+    M_export_button->setToolTip( M_allowed
+                                 ? QString()
+                                 : tr( "Not available while connected to a server: the frames are exported after disconnecting." ) );
 }
 
 /*-------------------------------------------------------------------*/
@@ -745,18 +1205,29 @@ ExportDialog::startExport( const bool ask )
     }
 
     QString error;
-    const ExportRange r = range( &error );
-    const std::vector< std::size_t > frames = imageFrames( r );
-    if ( ! r.isValid() || frames.empty() )
+    const std::vector< ExportRange > list = ranges( &error );
+    std::vector< std::vector< std::size_t > > by_range;
+    std::vector< std::size_t > frames;
+    for ( const ExportRange & r : list )
+    {
+        by_range.push_back( imageFrames( r ) );
+        frames.insert( frames.end(), by_range.back().begin(), by_range.back().end() );
+    }
+    if ( ! error.isEmpty() || frames.empty() )
     {
         showMessage( error.isEmpty() ? tr( "There is no frame to export." ) : error, true );
+        return false;
+    }
+    const QStringList names = allImageNames( by_range, &error );
+    if ( ! error.isEmpty() )
+    {
+        showMessage( error, true );
         return false;
     }
 
     const QSize pixels = imageSize();
     const qreal dpr = imageRatio();
     const QByteArray format = M_format_combo->currentData().toString().toLatin1();
-    const QStringList names = imageNames( frames );
 
     // the files there: asked once, not for each image
     QString dir = directory();
@@ -867,36 +1338,4 @@ ExportDialog::startExport( const bool ask )
     updateSummary();
     job->start();
     return true;
-}
-
-/*-------------------------------------------------------------------*/
-void
-ExportDialog::abortExport()
-{
-    if ( M_job )
-    {
-        M_job->abort();
-    }
-}
-
-/*-------------------------------------------------------------------*/
-void
-ExportDialog::handleFinished( bool ok,
-                              const QString & message )
-{
-    if ( M_progress )
-    {
-        M_progress->hide();
-        M_progress->deleteLater();
-        M_progress = nullptr;
-    }
-    if ( M_job )
-    {
-        M_job->deleteLater();
-        M_job = nullptr;
-    }
-
-    showMessage( ok ? tr( "Exported %1." ).arg( message ) : message, ! ok );
-    updateSummary();
-    emit exportFinished( ok, message );
 }

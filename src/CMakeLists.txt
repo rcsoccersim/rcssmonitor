@@ -12,6 +12,7 @@ add_library(rcssmonitor_core STATIC
   export_dialog.cpp
   export_job.cpp
   export_range.cpp
+  export_range_list.cpp
   export_timing.cpp
   field_canvas.cpp
   field_painter.cpp

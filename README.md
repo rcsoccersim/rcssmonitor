@@ -117,9 +117,12 @@ The default name is the game log's name and the cycle, e.g. `202607050404-HELIOS
 The texts are drawn with grayscale antialiasing.
 It is not available while the 3D view is shown yet.
 
-`File` -> `Export Images / Video...` (`Ctrl+Shift+E`) exports a range of the frames of the game log as image files (PNG or JPEG), drawn by the 2D view:
+`File` -> `Export Images / Video` -> `Open the Export Dialog...` (`Ctrl+Shift+E`) exports a range of the frames of the game log as image files (PNG or JPEG), drawn by the 2D view:
 
-- The range: the start and the end are cycles (`1234`) or stopped frames (`1234.3`, as the status bar shows them), empty for the first and the last frames. A cycle as the end includes its stopped frames. `Now` takes the position shown: the dialog stays open while you move through the log. `All` empties both.
+- The range: the start and the end are cycles (`1234`) or stopped frames (`1234.3`, as the status bar shows them), empty for the first and the last frames. A cycle as the end includes its stopped frames. `Now` takes the position shown: the dialog stays open while you move through the log. `Clear` empties both.
+- `[` and `]` (`File` -> `Export Images / Video` -> `Start the Range Here`, `End the Range Here`) mark the start and the end of the range at the position shown, with the dialog closed too; `Clear the Range` empties both. The slider shows the ranges marked as bands, and the goals as orange ticks.
+- `Presets` gives the whole log, a half (the extra time and the penalty shootout too), a goal scene (from 10 s before the goal to 5 s after it, by default), all the goals as a range each, or the frames around the position shown (5 s before and after).
+- Several ranges can be exported at once (`Add`, `Remove`, `Up`, `Down`): each in its own directory by its name, or all in one sequence. The ranges are forgotten when another game log is opened.
 - The size: as the view, 1280 × 720, 1920 × 1080, 3840 × 2160, or any. `Scale the texts with the image` draws the texts as large in the image as in the view.
 - The rate: the images a second and the speed (10 images/s at × 1 draws each frame once).
 - The images are named by their numbers (`image-00000.png`), or by the cycles (`image-c01234.00.png`) when an image is a frame. The files already there are told once before the export, and the disk space is estimated.

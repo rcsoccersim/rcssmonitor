@@ -30,6 +30,8 @@
 
 #include "disp_holder.h"
 #include "export_dialog.h"
+#include "export_range_list.h"
+#include "log_player_slider.h"
 #include "field_canvas.h"
 #include "main_window.h"
 #include "options.h"
@@ -43,7 +45,9 @@
 #include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QListWidget>
 #include <QPushButton>
+#include <QRadioButton>
 #include <QSpinBox>
 #include <QStatusBar>
 #include <QTemporaryDir>
@@ -86,8 +90,45 @@ openDialog( MainWindow & window,
     child< QCheckBox >( *dialog, "name_by_cycle" )->setChecked( false );
     child< QLineEdit >( *dialog, "prefix" )->setText( "img-" );
     dialog->setDirectory( dir );
-    dialog->setAll();
+    dialog->clearRange();
     return dialog;
+}
+
+/*!
+  a game in live frames: the cycles 0 to 6000, a goal of the left at 100
+  and of the right at 3100
+*/
+void
+addGame( DispHolder & holder )
+{
+    const std::vector< std::pair< int, const char * > > frames = {
+        { 0, "before_kick_off" }, { 50, "play_on" }, { 100, "goal_l" }, { 101, "kick_off_r" }, { 140, "play_on" },
+        { 160, "play_on" }, { 2990, "play_on" }, { 3000, "play_on" }, { 3001, "kick_off_r" }, { 3100, "goal_r" },
+        { 3101, "kick_off_l" }, { 3200, "play_on" }, { 6000, "time_over" } };
+    for ( const auto & f : frames )
+    {
+        const int left = ( f.first >= 100 ? 1 : 0 );
+        const int right = ( f.first >= 3100 ? 1 : 0 );
+        const std::string msg = "{\"show\":{\"time\":" + std::to_string( f.first )
+            + ",\"mode\":\"" + f.second + "\""
+            + ",\"team\":{\"l\":{\"name\":\"LEFT\",\"score\":" + std::to_string( left ) + "},"
+            + "\"r\":{\"name\":\"RIGHT\",\"score\":" + std::to_string( right ) + "}}"
+            + ",\"ball\":{\"x\":0,\"y\":0,\"vx\":0,\"vy\":0},\"players\":[]}}";
+        QVERIFY( holder.addJSON( msg.c_str() ) );
+    }
+}
+
+//! the ranges as "name[start,end]", the current one with "*"
+QString
+textOf( const ExportRangeList & list )
+{
+    QStringList texts;
+    for ( int i = 0; i < list.size(); ++i )
+    {
+        const ExportRangeSpec & s = list.ranges()[i];
+        texts << ( i == list.current() ? "*" : "" ) + s.name + "[" + s.start + "," + s.end + "]";
+    }
+    return texts.join( ' ' );
 }
 
 //! export and wait for the end: ok and the message, or "not started"
@@ -120,12 +161,16 @@ private slots:
     void sizes();
     void filesThere();
     void connected();
+    void marks();
+    void presets();
+    void severalRanges();
 };
 
 /*-------------------------------------------------------------------*/
 /*!
-  File > Export Images / Video (Ctrl+Shift+E): in the File menu after Save
-  Image of This Frame; enabled with a game log; a modeless dialog, once.
+  File > Export Images / Video > Open the Export Dialog (Ctrl+Shift+E): the
+  submenu after Save Image of This Frame (D11); enabled with a game log; a
+  modeless dialog, once.
 */
 void
 TestExportDialog::action()
@@ -141,13 +186,17 @@ TestExportDialog::action()
     QAction * save_image = window.findChild< QAction * >( "save_image" );
     QVERIFY( save_image );
     QCOMPARE( save_image->text(), QString( "Save &Image of This Frame..." ) );
+    QCOMPARE( act->text(), QString( "Open the Export &Dialog..." ) );
+    QMenu * submenu = window.findChild< QMenu * >( "export_menu" );
+    QVERIFY( submenu );
+    QCOMPARE( submenu->title(), QString( "&Export Images / Video" ) );
+    QCOMPARE( submenu->actions().first(), act );
     for ( QAction * menu : window.menuBar()->actions() )
     {
         if ( menu->menu() && menu->text() == "&File" )
         {
             const QList< QAction * > items = menu->menu()->actions();
-            QVERIFY( items.contains( act ) );
-            QCOMPARE( items.indexOf( act ), items.indexOf( save_image ) + 1 );
+            QCOMPARE( items.indexOf( submenu->menuAction() ), items.indexOf( save_image ) + 1 );
         }
     }
 
@@ -224,7 +273,7 @@ TestExportDialog::range()
     QVERIFY( ! dialog->startExport( false ) );
     QVERIFY2( dialog->messageText().contains( "Not a position" ), qPrintable( dialog->messageText() ) );
 
-    dialog->setAll();
+    dialog->clearRange();
     QVERIFY( dialog->range( &error ).isValid() );
     QVERIFY( button->isEnabled() );
 }
@@ -404,6 +453,222 @@ TestExportDialog::connected()
 
     dialog->setExportAllowed( true );
     QVERIFY( child< QPushButton >( *dialog, "export" )->isEnabled() );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  The marks of the main window (D7): [ and ] at the position shown, in the
+  dialog and on the slider; cleared by the menu, and by another log.
+*/
+void
+TestExportDialog::marks()
+{
+    MainWindow window;
+    window.show();
+    QVERIFY( QTest::qWaitForWindowExposed( &window ) );
+    QAction * start = window.findChild< QAction * >( "mark_start" );
+    QAction * end = window.findChild< QAction * >( "mark_end" );
+    QAction * clear = window.findChild< QAction * >( "clear_marks" );
+    QVERIFY( start && end && clear );
+    QCOMPARE( start->shortcut(), QKeySequence( Qt::Key_BracketLeft ) );
+    QCOMPARE( end->shortcut(), QKeySequence( Qt::Key_BracketRight ) );
+    QVERIFY( clear->shortcut().isEmpty() );
+    // in the submenu of the export, after its dialog (D11)
+    QMenu * submenu = window.findChild< QMenu * >( "export_menu" );
+    QVERIFY( submenu );
+    QList< QAction * > items;
+    for ( QAction * a : submenu->actions() ) if ( ! a->isSeparator() ) items << a;
+    QCOMPARE( items, QList< QAction * >( { window.findChild< QAction * >( "export" ), start, end, clear } ) );
+    QCOMPARE( start->text(), QString( "&Start the Range Here" ) );
+    QCOMPARE( end->text(), QString( "&End the Range Here" ) );
+    QCOMPARE( clear->text(), QString( "&Clear the Range" ) );
+    QVERIFY( ! start->isEnabled() );
+
+    window.openGameLogFile( LOG );
+    QVERIFY( start->isEnabled() );
+    ExportRangeList * ranges = window.exportRanges();
+    LogPlayerSlider * slider = window.logPlayerSlider();
+    QVERIFY( ranges && slider );
+    QVERIFY( slider->bands().empty() ); // the whole log: no band
+
+    QTest::keyClick( &window, Qt::Key_BracketLeft );
+    QTest::keyClick( &window, Qt::Key_Right );
+    QTest::keyClick( &window, Qt::Key_Right );
+    QTest::keyClick( &window, Qt::Key_BracketRight );
+    QCOMPARE( textOf( *ranges ), QString( "*range1[1,4]" ) );
+    QCOMPARE( slider->bands().size(), std::size_t( 1 ) );
+    QCOMPARE( slider->bands().front().first, std::size_t( 0 ) );
+    QCOMPARE( slider->bands().front().last, std::size_t( 2 ) );
+    QVERIFY( slider->bands().front().current );
+    QVERIFY2( window.statusBar()->currentMessage().contains( "4" ), qPrintable( window.statusBar()->currentMessage() ) );
+
+    // the dialog shows them, and changes them
+    QTemporaryDir tmp;
+    ExportDialog * dialog = openDialog( window, tmp.path() );
+    QVERIFY( dialog );
+    QCOMPARE( textOf( *ranges ), QString( "*range1[,]" ) ); // openDialog() takes the whole log
+    QTest::keyClick( &window, Qt::Key_BracketRight );
+    QCOMPARE( child< QLineEdit >( *dialog, "end" )->text(), QString( "4" ) );
+    QTest::keyClick( &window, Qt::Key_Left );
+    QTest::keyClick( &window, Qt::Key_BracketLeft );
+    QCOMPARE( child< QLineEdit >( *dialog, "start" )->text(), QString( "2" ) );
+    QCOMPARE( slider->bands().front().first, std::size_t( 1 ) );
+
+    clear->trigger();
+    QCOMPARE( textOf( *ranges ), QString( "*range1[,]" ) );
+    QVERIFY( slider->bands().empty() );
+    QCOMPARE( child< QLineEdit >( *dialog, "start" )->text(), QString() );
+
+    // the button Clear of the dialog does the same (D12); Now tells the keys
+    QTest::keyClick( &window, Qt::Key_BracketLeft );
+    QVERIFY( ! slider->bands().empty() );
+    QPushButton * clear_button = child< QPushButton >( *dialog, "clear_range" );
+    QVERIFY( clear_button );
+    QCOMPARE( clear_button->text(), QString( "Clear" ) );
+    clear_button->click();
+    QCOMPARE( textOf( *ranges ), QString( "*range1[,]" ) );
+    QVERIFY( slider->bands().empty() );
+    QVERIFY2( child< QPushButton >( *dialog, "start_now" )->toolTip().contains( "[" ), qPrintable( child< QPushButton >( *dialog, "start_now" )->toolTip() ) );
+    QVERIFY( child< QPushButton >( *dialog, "start_now" )->toolTip().contains( "Start the Range Here" ) );
+    QVERIFY( child< QPushButton >( *dialog, "end_now" )->toolTip().contains( "]" ) );
+
+    // another log: the ranges of the one before are gone
+    QTest::keyClick( &window, Qt::Key_BracketLeft );
+    dialog->addRange();
+    QCOMPARE( ranges->size(), 2 );
+    window.openGameLogFile( LOG );
+    QCOMPARE( textOf( *ranges ), QString( "*range1[,]" ) );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  The presets: the halves, a goal scene, all the goals as ranges, around
+  the position shown, by the seconds of the fields (D8).
+*/
+void
+TestExportDialog::presets()
+{
+    DispHolder holder;
+    addGame( holder );
+    QCOMPARE( holder.dispCont().size(), std::size_t( 13 ) );
+    FieldCanvas canvas( holder );
+    ExportRangeList ranges;
+    ExportDialog dialog( holder, canvas, ranges );
+
+    QCOMPARE( child< QDoubleSpinBox >( dialog, "goal_before" )->value(), 10.0 );
+    QCOMPARE( child< QDoubleSpinBox >( dialog, "goal_after" )->value(), 5.0 );
+    QCOMPARE( child< QDoubleSpinBox >( dialog, "around_before" )->value(), 5.0 );
+    QCOMPARE( child< QDoubleSpinBox >( dialog, "around_after" )->value(), 5.0 );
+
+    // the menu of the presets
+    QMenu * menu = child< QMenu >( dialog, "presets_menu" );
+    QVERIFY( menu );
+    emit menu->aboutToShow();
+    QStringList names;
+    for ( QAction * act : menu->actions() ) if ( ! act->objectName().isEmpty() ) names << act->objectName();
+    QCOMPARE( names, QStringList( { "preset_first-half", "preset_second-half", "preset_goal1", "preset_goal2",
+                                    "preset_all_goals", "preset_around" } ) );
+
+    // the halves
+    dialog.choosePeriod( 1 );
+    QCOMPARE( textOf( ranges ), QString( "*second-half[3001,6000]" ) );
+    dialog.choosePeriod( 0 );
+    QCOMPARE( textOf( ranges ), QString( "*first-half[0,3000]" ) );
+
+    // a goal: 10 s before, 5 s after (the frames there)
+    dialog.chooseGoal( 0 );
+    QCOMPARE( textOf( ranges ), QString( "*goal1-c100[0,140]" ) );
+    child< QDoubleSpinBox >( dialog, "goal_before" )->setValue( 1.0 );
+    dialog.chooseGoal( 1 );
+    QCOMPARE( textOf( ranges ), QString( "*goal2-c3100[3100,3101]" ) );
+
+    // all the goals: in place of the whole log
+    child< QDoubleSpinBox >( dialog, "goal_before" )->setValue( 10.0 );
+    ranges.clear();
+    dialog.chooseAllGoals();
+    QCOMPARE( textOf( ranges ), QString( "*goal1-c100[0,140] goal2-c3100[3000,3101]" ) );
+    // after the ranges given
+    ranges.setRanges( { ExportRangeSpec{ "50", "100", "mine" } } );
+    dialog.chooseAllGoals();
+    QCOMPARE( textOf( ranges ), QString( "*mine[50,100] goal1-c100[0,140] goal2-c3100[3000,3101]" ) );
+
+    // around the position shown
+    ranges.clear();
+    holder.setIndex( 9 ); // 3100
+    dialog.chooseAround();
+    QCOMPARE( textOf( ranges ), QString( "*around-c3100[3100,3101]" ) );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  Several ranges: each in its own directory by its name, or all in one
+  sequence (the numbers go on; the names by the cycles must not repeat).
+*/
+void
+TestExportDialog::severalRanges()
+{
+    MainWindow window;
+    window.show();
+    QVERIFY( QTest::qWaitForWindowExposed( &window ) );
+    window.openGameLogFile( LOG );
+    QTemporaryDir tmp;
+    ExportDialog * dialog = openDialog( window, tmp.filePath( "separate" ) );
+    QVERIFY( dialog );
+    ExportRangeList * ranges = window.exportRanges();
+    QRadioButton * separate = child< QRadioButton >( *dialog, "separate_ranges" );
+    QRadioButton * one = child< QRadioButton >( *dialog, "one_sequence" );
+    QVERIFY( ! separate->isEnabled() ); // one range
+
+    ranges->setRanges( { ExportRangeSpec{ "1", "2", "a b" }, ExportRangeSpec{ "4", "", "c" } } );
+    QVERIFY( separate->isEnabled() );
+    separate->setChecked( true );
+    QVERIFY2( dialog->summaryText().startsWith( "3 images of 3 frames, in 2 ranges" ), qPrintable( dialog->summaryText() ) );
+    QString result = exportNow( *dialog );
+    QVERIFY2( result.startsWith( "ok: " ), qPrintable( result ) );
+    QCOMPARE( QDir( tmp.filePath( "separate/a_b" ) ).entryList( QDir::Files ), QStringList( { "img-00000.png", "img-00001.png" } ) );
+    QCOMPARE( QDir( tmp.filePath( "separate/c" ) ).entryList( QDir::Files ), QStringList( { "img-00000.png" } ) );
+    QVERIFY( Options::instance().exportSettings().separate_ranges );
+
+    // the same names: made unique
+    ranges->setRanges( { ExportRangeSpec{ "1", "1", "x" }, ExportRangeSpec{ "2", "2", "x" } } );
+    QCOMPARE( dialog->allImageNames( { { 0 }, { 1 } }, nullptr ), QStringList( { "x/img-00000.png", "x-2/img-00000.png" } ) );
+
+    // one sequence
+    dialog->setDirectory( tmp.filePath( "one" ) );
+    one->setChecked( true );
+    ranges->setRanges( { ExportRangeSpec{ "4", "", "c" }, ExportRangeSpec{ "1", "2", "a" } } );
+    result = exportNow( *dialog );
+    QVERIFY2( result.startsWith( "ok: 3 images" ), qPrintable( result ) );
+    QCOMPARE( QDir( tmp.filePath( "one" ) ).entryList( QDir::Files ), QStringList( { "img-00000.png", "img-00001.png", "img-00002.png" } ) );
+    QVERIFY( ! Options::instance().exportSettings().separate_ranges );
+
+    // by the cycles in one sequence: the same frames twice is wrong
+    child< QCheckBox >( *dialog, "name_by_cycle" )->setChecked( true );
+    ranges->setRanges( { ExportRangeSpec{ "1", "2", "a" }, ExportRangeSpec{ "2", "4", "b" } } );
+    QVERIFY2( dialog->summaryText().contains( "names by the cycles repeat" ), qPrintable( dialog->summaryText() ) );
+    QVERIFY( ! child< QPushButton >( *dialog, "export" )->isEnabled() );
+    QCOMPARE( exportNow( *dialog ), QString( "not started" ) );
+
+    // a wrong range: told with its name
+    child< QCheckBox >( *dialog, "name_by_cycle" )->setChecked( false );
+    ranges->setRanges( { ExportRangeSpec{ "1", "2", "a" }, ExportRangeSpec{ "4", "2", "b" } } );
+    QCOMPARE( dialog->summaryText(), QString( "b: The start is after the end." ) );
+    QVERIFY( child< QListWidget >( *dialog, "ranges" )->item( 1 )->text().contains( "The start is after the end." ) );
+
+    // the buttons of the list
+    ranges->setRanges( { ExportRangeSpec{ "1", "2", "a" }, ExportRangeSpec{ "4", "", "b" } } );
+    ranges->setCurrent( 0 );
+    child< QPushButton >( *dialog, "range_down" )->click();
+    QCOMPARE( textOf( *ranges ), QString( "b[4,] *a[1,2]" ) );
+    child< QPushButton >( *dialog, "add_range" )->click();
+    QCOMPARE( textOf( *ranges ), QString( "b[4,] a[1,2] *range1[,]" ) );
+    child< QPushButton >( *dialog, "remove_range" )->click();
+    QCOMPARE( textOf( *ranges ), QString( "b[4,] *a[1,2]" ) );
+    child< QLineEdit >( *dialog, "range_name" )->setText( "" );
+    QTest::keyClicks( child< QLineEdit >( *dialog, "range_name" ), "z" );
+    QCOMPARE( textOf( *ranges ), QString( "b[4,] *z[1,2]" ) );
+    child< QListWidget >( *dialog, "ranges" )->setCurrentRow( 0 );
+    QCOMPARE( child< QLineEdit >( *dialog, "start" )->text(), QString( "4" ) );
 }
 
 QTEST_MAIN( TestExportDialog )

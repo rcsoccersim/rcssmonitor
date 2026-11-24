@@ -43,7 +43,9 @@
   \class ImageSequenceSink
   \brief the exported images as files in a directory, by QImageWriter
   (docs/plan/2026-11-22-03_frame-export.md 4.5), one file a name given.
-  The files written are kept when it is aborted.
+  A name may have a directory in it (a range's own directory), made when
+  its first image is written. The files written are kept when it is
+  aborted.
 */
 class ImageSequenceSink
     : public FrameSink {

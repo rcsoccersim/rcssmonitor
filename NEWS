@@ -81,8 +81,10 @@
   * Save the frame shown in the 2D view as an image (File > Save Image
     of This Frame, Ctrl+Shift+I), and export a range of the frames as
     images (File > Export Images / Video, Ctrl+Shift+E): the start and
-    the end as cycles or stopped frames, the size, the rate and the
-    names of the images. See README.md.
+    the end as cycles or stopped frames, marked by [ and ] too, shown on
+    the slider with the goals; the halves, the goal scenes and the frames
+    around the position shown as presets; several ranges at once; the
+    size, the rate and the names of the images. See README.md.
 
   * Add the referee's whistle (View > Referee's Whistle, --whistle, off
     by default): a long whistle at a kick-off, a short one at a foul, an

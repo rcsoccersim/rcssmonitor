@@ -41,6 +41,7 @@
 #include "config_dialog.h"
 #include "connect_dialog.h"
 #include "export_dialog.h"
+#include "export_range_list.h"
 #include "field_canvas.h"
 #include "game_log_file.h"
 #include "log_browser_dialog.h"
@@ -98,7 +99,8 @@ MainWindow::MainWindow()
       M_field_view_3d( nullptr ),
       M_monitor_client( static_cast< MonitorClient * >( 0 ) ),
       M_log_player( new LogPlayer( M_disp_holder, this ) ),
-      M_whistle( new Whistle( M_disp_holder, *M_log_player, &Whistle::createSound, this ) )
+      M_whistle( new Whistle( M_disp_holder, *M_log_player, &Whistle::createSound, this ) ),
+      M_export_ranges( new ExportRangeList( this ) )
 {
     this->setWindowIcon( UIIcon::appIcon( "rcssmonitor" ) );
     this->setWindowTitle( tr( PACKAGE_NAME ) + tr( " " ) + tr( VERSION ) );
@@ -362,13 +364,57 @@ MainWindow::createActionsFile()
 
     // a range of frames as images (docs/plan/2026-11-22-03_frame-export.md
     // 4.6, D6): the dialog, modeless
-    M_export_act = new QAction( tr( "&Export Images / Video..." ), this );
+    M_export_act = new QAction( tr( "Open the Export &Dialog..." ), this );
     M_export_act->setObjectName( "export" );
     M_export_act->setShortcut( Qt::CTRL | Qt::SHIFT | Qt::Key_E );
-    M_export_act->setStatusTip( tr( "Export a range of the frames of the game log as images." ) );
+    M_export_act->setStatusTip( tr( "Choose the ranges of the frames of the game log, and export them as images." ) );
+    M_export_act->setToolTip( M_export_act->statusTip() );
     connect( M_export_act, &QAction::triggered,
              this, &MainWindow::showExportDialog );
     this->addAction( M_export_act );
+
+    // the marks of the range to export at the position shown (4.4, D7)
+    M_mark_start_act = new QAction( tr( "&Start the Range Here" ), this );
+    M_mark_start_act->setObjectName( "mark_start" );
+    M_mark_start_act->setShortcut( Qt::Key_BracketLeft );
+    M_mark_start_act->setStatusTip( tr( "Make the frame shown the start of the range to export (Start of the export dialog)." ) );
+    M_mark_start_act->setToolTip( M_mark_start_act->statusTip() );
+    connect( M_mark_start_act, &QAction::triggered,
+             this, [this]() {
+                 const DispConstPtr disp = M_disp_holder.currentDisp();
+                 if ( ! disp ) return;
+                 const QString pos = ExportRange::positionText( disp->show_ );
+                 M_export_ranges->setStart( pos );
+                 this->statusBar()->showMessage( tr( "The start of the range to export: %1" ).arg( pos ), 3000 );
+             } );
+    this->addAction( M_mark_start_act );
+
+    M_mark_end_act = new QAction( tr( "&End the Range Here" ), this );
+    M_mark_end_act->setObjectName( "mark_end" );
+    M_mark_end_act->setShortcut( Qt::Key_BracketRight );
+    M_mark_end_act->setStatusTip( tr( "Make the frame shown the end of the range to export (End of the export dialog)." ) );
+    M_mark_end_act->setToolTip( M_mark_end_act->statusTip() );
+    connect( M_mark_end_act, &QAction::triggered,
+             this, [this]() {
+                 const DispConstPtr disp = M_disp_holder.currentDisp();
+                 if ( ! disp ) return;
+                 const QString pos = ExportRange::positionText( disp->show_ );
+                 M_export_ranges->setEnd( pos );
+                 this->statusBar()->showMessage( tr( "The end of the range to export: %1" ).arg( pos ), 3000 );
+             } );
+    this->addAction( M_mark_end_act );
+
+    M_clear_marks_act = new QAction( tr( "&Clear the Range" ), this );
+    M_clear_marks_act->setObjectName( "clear_marks" );
+    M_clear_marks_act->setStatusTip( tr( "Clear the start and the end of the range to export: the whole log." ) );
+    M_clear_marks_act->setToolTip( M_clear_marks_act->statusTip() );
+    connect( M_clear_marks_act, &QAction::triggered,
+             this, [this]() {
+                 M_export_ranges->setStart( QString() );
+                 M_export_ranges->setEnd( QString() );
+             } );
+    this->addAction( M_clear_marks_act );
+
     updateExportAction();
 
     //
@@ -862,11 +908,25 @@ MainWindow::createMenuFile()
     QMenu * menu = menuBar()->addMenu( tr( "&File" ) );
 
     menu->addAction( M_open_act );
+    menu->addSeparator();
     menu->addAction( M_open_url_act );
     menu->addAction( M_browse_logs_act );
+    menu->addSeparator();
     menu->addAction( M_save_copy_act );
+    menu->addSeparator();
     menu->addAction( M_save_image_act );
-    menu->addAction( M_export_act );
+    {
+        // the export: its dialog, and the range to export marked here
+        // (D11 of docs/plan/2026-11-22-03_frame-export.md)
+        QMenu * submenu = menu->addMenu( tr( "&Export Images / Video" ) );
+        submenu->setObjectName( "export_menu" );
+        submenu->setToolTipsVisible( true );
+        submenu->addAction( M_export_act );
+        submenu->addSeparator();
+        submenu->addAction( M_mark_start_act );
+        submenu->addAction( M_mark_end_act );
+        submenu->addAction( M_clear_marks_act );
+    }
 
     menu->addSeparator();
 
@@ -1146,7 +1206,11 @@ MainWindow::createToolBars()
     //
 
     LogPlayerSlider * log_player_slider = new LogPlayerSlider();
+    M_log_player_slider = log_player_slider;
     M_position_tool_bar->addWidget( log_player_slider );
+    // the ranges to export on it
+    connect( M_export_ranges, &ExportRangeList::changed,
+             this, &MainWindow::updateRangeMarks );
 
     connect( log_player_slider, SIGNAL( valueChanged( int ) ),
              M_log_player, SLOT( goToIndex( int ) ) );
@@ -2046,6 +2110,8 @@ MainWindow::openGameLogFileImpl( const QString & filepath )
 {
     M_disp_holder.clear();
     M_whistle->clear();
+    // the ranges to export were of the log before
+    M_export_ranges->clear();
 
     RCGHandler handler( this, M_disp_holder );
     // // show progress dialog
@@ -2171,6 +2237,7 @@ MainWindow::connectMonitorTo( const char * hostname )
     M_disp_holder.clear();
     M_log_player->clear();
     M_whistle->clear();
+    M_export_ranges->clear();
     M_game_log_path.clear();
     M_save_copy_act->setEnabled( false );
 
@@ -3066,12 +3133,56 @@ void
 MainWindow::updateExportAction()
 {
     const bool connected = ( M_monitor_client != nullptr );
-    M_export_act->setEnabled( ! connected
-                              && ! M_disp_holder.dispCont().empty() );
+    const bool enabled = ( ! connected
+                           && ! M_disp_holder.dispCont().empty() );
+    M_export_act->setEnabled( enabled );
+    M_mark_start_act->setEnabled( enabled );
+    M_mark_end_act->setEnabled( enabled );
+    M_clear_marks_act->setEnabled( enabled );
     if ( M_export_dialog )
     {
         M_export_dialog->setExportAllowed( ! connected );
     }
+    updateRangeMarks();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  The bands of the ranges to export (the current one darker) and the
+  ticks of the goals, on the slider. None while connected: the frames
+  change, and nothing is exported (S1).
+ */
+void
+MainWindow::updateRangeMarks()
+{
+    if ( ! M_log_player_slider )
+    {
+        return;
+    }
+    std::vector< LogPlayerSlider::Band > bands;
+    std::vector< std::size_t > goals;
+    const DispCont & frames = M_disp_holder.dispCont();
+    if ( M_monitor_client == nullptr
+         && ! frames.empty() )
+    {
+        // the whole log is not a band: only the ranges marked
+        for ( int i = 0; i < M_export_ranges->size(); ++i )
+        {
+            const ExportRangeSpec & spec = M_export_ranges->ranges()[i];
+            if ( spec.start.trimmed().isEmpty() && spec.end.trimmed().isEmpty() ) continue;
+            const ExportRange r = ExportRangeList::resolve( spec, frames, nullptr );
+            if ( r.isValid() )
+            {
+                bands.push_back( LogPlayerSlider::Band{ r.first, r.last, i == M_export_ranges->current() } );
+            }
+        }
+        for ( const ExportGoal & goal : ExportRange::goals( frames, M_disp_holder.scoreChangedIndex() ) )
+        {
+            goals.push_back( goal.index );
+        }
+    }
+    M_log_player_slider->setBands( bands );
+    M_log_player_slider->setGoals( goals );
 }
 
 /*-------------------------------------------------------------------*/
@@ -3080,7 +3191,7 @@ MainWindow::showExportDialog()
 {
     if ( ! M_export_dialog )
     {
-        M_export_dialog = new ExportDialog( M_disp_holder, *M_field_canvas, this );
+        M_export_dialog = new ExportDialog( M_disp_holder, *M_field_canvas, *M_export_ranges, this );
         // the frame shown stays while exporting
         connect( M_export_dialog, &ExportDialog::stopRequested,
                  M_log_player, &LogPlayer::stop );
