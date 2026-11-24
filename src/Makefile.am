@@ -6,6 +6,7 @@ bin_PROGRAMS = rcssmonitor
 
 rcssmonitor_SOURCES = \
 	angle_deg.cpp \
+	archive_log_source.cpp \
 	ball_painter.cpp \
 	circle_2d.cpp \
 	config_dialog.cpp \
@@ -54,6 +55,7 @@ rcssmonitor_SOURCES = \
 	main.cpp
 
 nodist_rcssmonitor_SOURCES = \
+	moc_archive_log_source.cpp \
 	moc_config_dialog.cpp \
 	moc_connect_dialog.cpp \
 	moc_field_canvas.cpp \
@@ -76,6 +78,7 @@ nodist_rcssmonitor_SOURCES = \
 
 noinst_HEADERS = \
 	angle_deg.h \
+	archive_log_source.h \
 	ball_painter.h \
 	camera_mode.h \
 	circle_2d.h \

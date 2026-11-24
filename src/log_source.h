@@ -71,6 +71,13 @@ public:
     //! the name to show (e.g. "rcsoccersim/RoboCup2026")
     virtual QString name() const = 0;
 
+    /*!
+      \brief the text that makes this source again, as the user enters it
+      (LogBrowserDialog::createSource(); kept in the settings): OWNER/REPO
+      for GitHub, the URL for the archive
+    */
+    virtual QString text() const = 0;
+
     //! what it is, for a tip
     virtual QString description() const = 0;
 

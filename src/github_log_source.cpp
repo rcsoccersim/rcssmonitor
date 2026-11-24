@@ -54,7 +54,6 @@
 #define VERSION "x.x.x"
 #endif
 
-const QStringList GitHubLogSource::DEFAULT_REPOSITORIES = { QStringLiteral( "rcsoccersim/RoboCup2026" ) };
 const int GitHubLogSource::CACHE_SECONDS = 60 * 60;
 
 namespace {

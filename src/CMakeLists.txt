@@ -2,6 +2,7 @@
 # The application except main(), as a library that the unit tests link too.
 add_library(rcssmonitor_core STATIC
   angle_deg.cpp
+  archive_log_source.cpp
   ball_painter.cpp
   circle_2d.cpp
   config_dialog.cpp

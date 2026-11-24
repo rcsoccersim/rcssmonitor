@@ -122,6 +122,13 @@ public:
     //! the URLs of game logs remembered (File > Open Game Log from URL)
     static constexpr int MAX_RECENT_LOG_URLS = 10;
 
+    /*!
+      the sources of File > Browse Game Logs at first (the user can change
+      them): the logs of RoboCup 2026 on GitHub, and the 2D logs of
+      archive.robocup.info (docs/plan/2026-11-22-02_remote-logs.md D11, D13)
+    */
+    static const QStringList DEFAULT_LOG_SOURCES;
+
     //! default logplayer timer step (ms).
     static constexpr int DEFAULT_TIMER_INTERVAL = 100;
 
@@ -246,7 +253,7 @@ private:
     //
 
     QStringList M_recent_log_urls; //!< the URLs of game logs opened recently, the newest first
-    QStringList M_log_repositories; //!< the repositories on GitHub added to File > Browse Game Logs
+    QStringList M_log_sources; //!< the sources of File > Browse Game Logs
 
     //
     // view options
@@ -659,11 +666,15 @@ public:
     //! write the recent URLs to the settings file now (called when one is opened)
     void writeRecentLogUrls() const;
 
-    //! the repositories on GitHub the user added to File > Browse Game Logs (OWNER/REPO[@REF])
-    const QStringList & logRepositories() const { return M_log_repositories; }
-    void setLogRepositories( const QStringList & repositories ) { M_log_repositories = repositories; }
+    /*!
+      the sources of File > Browse Game Logs, as the user enters them
+      (OWNER/REPO[@REF] on GitHub, the URL of a directory listed by h5ai);
+      DEFAULT_LOG_SOURCES if not in the settings
+    */
+    const QStringList & logSources() const { return M_log_sources; }
+    void setLogSources( const QStringList & sources ) { M_log_sources = sources; }
     //! write them to the settings file now (called when one is added or removed)
-    void writeLogRepositories() const;
+    void writeLogSources() const;
 
     //
     // view options

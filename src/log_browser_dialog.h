@@ -54,16 +54,18 @@ class QTreeWidgetItem;
 /*!
   \class LogBrowserDialog
   \brief File > Browse Game Logs (docs/plan/2026-11-22-02_remote-logs.md
-  4.2, D9, D10): the sources of game logs on the left (the repositories on
-  GitHub, the archive), and the logs of the one chosen on the right, as a
+  4.2, 4.3, D9, D10, D13): the sources of game logs on the left (the
+  repositories on GitHub, the directories listed by h5ai as the archive),
+  and the logs of the one chosen on the right, as a
   tree of its directories with the date, the teams, the score and the size
   of each log (LogFileName), filtered by a team's name and sorted by a
   column. A log is opened by a double click or Open (openRequested()); the
   dialog stays open (modeless), to open one game after another. A
   directory whose entries are not known yet is read when it is opened.
 
-  The user can add repositories on GitHub (OWNER/REPO or OWNER/REPO@REF),
-  and remove those added (repositoriesChanged()).
+  The user can add sources (createSource(): OWNER/REPO, OWNER/REPO@REF, the
+  URL of a directory listed by h5ai), the default ones removed too, and
+  remove any (sourcesChanged()).
 */
 class LogBrowserDialog
     : public QDialog {
@@ -87,7 +89,6 @@ private:
     //! a source and what it told
     struct Source {
         LogSource * source = nullptr;
-        bool removable = false; //!< a repository the user added
         bool requested = false; //!< its root was asked for
         QMap< QString, LogSourceEntry > entries; //!< by path
         QString status; //!< a note or a failure
@@ -114,11 +115,24 @@ public:
     ~LogBrowserDialog() override;
 
     /*!
-      \brief add a source (the dialog takes it)
-      \param removable whether the user can remove it (a repository added)
+      \brief make a source from the text the user gives: a repository on
+      GitHub (OWNER/REPO, OWNER/REPO@REF or its URL), or the URL of a
+      directory listed by h5ai (as archive.robocup.info)
+      \param error set to the reason if it is not one (may be null)
+      \return the source (not read yet), or null
     */
-    void addSource( LogSource * source,
-                    const bool removable );
+    static
+    LogSource * createSource( const QString & text,
+                              QString * error );
+
+    //! add a source (the dialog takes it), not chosen if another is
+    void addSource( LogSource * source );
+
+    /*!
+      \brief set the sources (those of the settings), the first one chosen;
+      the texts that are not sources (createSource()) are left out
+    */
+    void setSources( const QStringList & texts );
 
     int sourceCount() const { return M_sources.size(); }
     LogSource * source( const int index ) const;
@@ -126,16 +140,19 @@ public:
     void setCurrentSource( const int index );
 
     /*!
-      \brief add a repository on GitHub (OWNER/REPO, OWNER/REPO@REF or its URL)
-      and show it
+      \brief add a source the user gives (createSource()) and show it
+      (sourcesChanged())
       \param error set to the reason if it is not added (may be null)
-      \return false if it is not a repository, or it is there already
+      \return false if it is not a source, or it is there already
     */
-    bool addRepository( const QString & text,
-                        QString * error );
+    bool addSource( const QString & text,
+                    QString * error );
 
-    //! the repositories the user added (OWNER/REPO or OWNER/REPO@REF)
-    QStringList addedRepositories() const;
+    //! the texts of the sources (LogSource::text()), to keep in the settings
+    QStringList sourceTexts() const;
+
+    //! the default sources not in the list (offered by Add...)
+    QStringList missingDefaultSources() const;
 
     //! the tree (for the tests)
     QTreeWidget * tree() const { return M_tree; }
@@ -162,8 +179,8 @@ signals:
     //! a log to open
     void openRequested( const QUrl & url );
 
-    //! the repositories added changed (addedRepositories())
-    void repositoriesChanged( const QStringList & repositories );
+    //! a source was added or removed (sourceTexts())
+    void sourcesChanged( const QStringList & sources );
 
 private:
 
@@ -194,7 +211,7 @@ private:
 private slots:
 
     void showCurrentSource();
-    void addRepositoryByDialog();
+    void addSourceByDialog();
     void removeCurrentSource();
     void readDirectory( QTreeWidgetItem * item );
 };

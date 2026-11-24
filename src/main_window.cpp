@@ -42,7 +42,6 @@
 #include "connect_dialog.h"
 #include "field_canvas.h"
 #include "game_log_file.h"
-#include "github_log_source.h"
 #include "log_browser_dialog.h"
 #include "log_downloader.h"
 #include "log_player.h"
@@ -2360,26 +2359,13 @@ MainWindow::showLogBrowser()
     if ( ! M_log_browser )
     {
         M_log_browser = new LogBrowserDialog( this );
-        // the default ones, then those the user added (not read until chosen)
-        const auto add = [this]( const QString & text, const bool removable ) {
-            QString owner, repo, ref;
-            if ( GitHubLogSource::parseRepository( text, &owner, &repo, &ref ) )
-            {
-                M_log_browser->addSource( new GitHubLogSource( owner, repo, ref ), removable );
-            }
-        };
-        for ( const QString & text : GitHubLogSource::DEFAULT_REPOSITORIES )
-        {
-            add( text, false );
-        }
-        for ( const QString & text : Options::instance().logRepositories() )
-        {
-            add( text, true );
-        }
-        connect( M_log_browser, &LogBrowserDialog::repositoriesChanged,
-                 this, []( const QStringList & repositories ) {
-                     Options::instance().setLogRepositories( repositories );
-                     Options::instance().writeLogRepositories();
+        // those of the settings (the defaults at first; the first one read now,
+        // the others when chosen)
+        M_log_browser->setSources( Options::instance().logSources() );
+        connect( M_log_browser, &LogBrowserDialog::sourcesChanged,
+                 this, []( const QStringList & sources ) {
+                     Options::instance().setLogSources( sources );
+                     Options::instance().writeLogSources();
                  } );
         connect( M_log_browser, &LogBrowserDialog::openRequested,
                  this, [this]( const QUrl & url ) { openGameLogUrl( url.toString() ); } );

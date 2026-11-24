@@ -70,6 +70,11 @@ const QString Options::CONF_FILE = QDir::currentPath() + QDir::separator() + QSt
 const QString Options::CONF_FILE = QDir::homePath() + QDir::separator() + QString( ".rcssmonitor.conf" );
 #endif
 
+const QStringList Options::DEFAULT_LOG_SOURCES = {
+    QStringLiteral( "rcsoccersim/RoboCup2026" ),
+    QStringLiteral( "https://archive.robocup.info/Soccer/Simulation/2D/logs/" ),
+};
+
 const QColor Options::FIELD_COLOR( 31, 160, 31 );
 const QColor Options::LINE_COLOR( 255, 255, 255 );
 const QColor Options::MEASURE_LINE_COLOR( 0, 255, 255 );
@@ -262,6 +267,9 @@ Options::Options()
     // sound options
     M_whistle( false ),
     M_whistle_volume( DEFAULT_WHISTLE_VOLUME ),
+    // game logs
+    M_recent_log_urls(),
+    M_log_sources( DEFAULT_LOG_SOURCES ),
     // view options
     M_anti_aliasing( true ),
     M_show_score_board( true ),
@@ -451,8 +459,16 @@ Options::readSettings()
 
     settings.beginGroup( "GameLog" );
 
-    val = settings.value( "github_repositories" );
-    if ( val.isValid() ) M_log_repositories = val.toStringList();
+    val = settings.value( "log_sources" );
+    if ( val.isValid() )
+    {
+        // none: an empty text (writeLogSources())
+        M_log_sources.clear();
+        for ( const QString & source : val.toStringList() )
+        {
+            if ( ! source.trimmed().isEmpty() ) M_log_sources.push_back( source.trimmed() );
+        }
+    }
 
     val = settings.value( "recent_urls" );
     if ( val.isValid() )
@@ -1171,13 +1187,15 @@ Options::writeRecentLogUrls() const
 
 /*-------------------------------------------------------------------*/
 void
-Options::writeLogRepositories() const
+Options::writeLogSources() const
 {
     QSettings settings( Options::CONF_FILE,
                         QSettings::IniFormat );
 
     settings.beginGroup( "GameLog" );
-    settings.setValue( "github_repositories", M_log_repositories );
+    // none as an empty text: an empty list is not read back (not the defaults then)
+    settings.setValue( "log_sources",
+                       M_log_sources.isEmpty() ? QVariant( QString() ) : QVariant( M_log_sources ) );
     settings.endGroup();
 }
 

@@ -37,9 +37,11 @@
 
 #include "log_browser_dialog.h"
 
+#include "archive_log_source.h"
 #include "github_log_source.h"
 #include "log_file_name.h"
 #include "open_url_dialog.h"
+#include "options.h"
 #include "ui_palette.h"
 
 #include <QDialogButtonBox>
@@ -51,12 +53,15 @@
 #include <QListWidget>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QSignalBlocker>
 #include <QSplitter>
 #include <QTreeWidget>
 #include <QTreeWidgetItemIterator>
 #include <QVBoxLayout>
 
+#include <algorithm>
 #include <functional>
+#include <iostream>
 
 namespace {
 
@@ -134,21 +139,25 @@ LogBrowserDialog::LogBrowserDialog( QWidget * parent )
         left->addWidget( new QLabel( tr( "Sources" ) ) );
         M_source_list = new QListWidget();
         M_source_list->setObjectName( "sources" );
+        // a long name (e.g. the archive's URL) cut in the middle: the whole in the tip
+        M_source_list->setTextElideMode( Qt::ElideMiddle );
+        M_source_list->setHorizontalScrollBarPolicy( Qt::ScrollBarAlwaysOff );
         connect( M_source_list, &QListWidget::currentRowChanged,
                  this, &LogBrowserDialog::showCurrentSource );
         left->addWidget( M_source_list );
         QHBoxLayout * buttons = new QHBoxLayout();
         M_add_button = new QPushButton( tr( "Add..." ) );
-        M_add_button->setObjectName( "add_repository" );
+        M_add_button->setObjectName( "add_source" );
         M_add_button->setAutoDefault( false );
-        M_add_button->setToolTip( tr( "Add a public repository on GitHub: OWNER/REPO, OWNER/REPO@BRANCH, or its URL." ) );
+        M_add_button->setToolTip( tr( "Add a source: a public repository on GitHub (OWNER/REPO, OWNER/REPO@BRANCH, or its URL),"
+                                      " or the URL of a directory listed by h5ai. A default source removed can be added again." ) );
         connect( M_add_button, &QPushButton::clicked,
-                 this, &LogBrowserDialog::addRepositoryByDialog );
+                 this, &LogBrowserDialog::addSourceByDialog );
         buttons->addWidget( M_add_button );
         M_remove_button = new QPushButton( tr( "Remove" ) );
-        M_remove_button->setObjectName( "remove_repository" );
+        M_remove_button->setObjectName( "remove_source" );
         M_remove_button->setAutoDefault( false );
-        M_remove_button->setToolTip( tr( "Remove a repository added." ) );
+        M_remove_button->setToolTip( tr( "Remove the source chosen (a default one can be added again)." ) );
         connect( M_remove_button, &QPushButton::clicked,
                  this, &LogBrowserDialog::removeCurrentSource );
         buttons->addWidget( M_remove_button );
@@ -212,7 +221,7 @@ LogBrowserDialog::LogBrowserDialog( QWidget * parent )
     }
     splitter->setStretchFactor( 0, 0 );
     splitter->setStretchFactor( 1, 1 );
-    splitter->setSizes( { 200, 700 } );
+    splitter->setSizes( { 240, 660 } );
     layout->addWidget( splitter, 1 );
 
     QDialogButtonBox * buttons = new QDialogButtonBox();
@@ -247,14 +256,38 @@ LogBrowserDialog::~LogBrowserDialog()
 }
 
 /*-------------------------------------------------------------------*/
+LogSource *
+LogBrowserDialog::createSource( const QString & text,
+                                QString * error )
+{
+    QString owner, repo, ref;
+    if ( GitHubLogSource::parseRepository( text, &owner, &repo, &ref ) )
+    {
+        if ( error ) error->clear();
+        return new GitHubLogSource( owner, repo, ref );
+    }
+
+    const QString t = text.trimmed();
+    if ( t.startsWith( QLatin1String( "http://" ), Qt::CaseInsensitive )
+         || t.startsWith( QLatin1String( "https://" ), Qt::CaseInsensitive ) )
+    {
+        const QUrl url = ArchiveLogSource::parseUrl( t, error );
+        return url.isValid() ? new ArchiveLogSource( url ) : nullptr;
+    }
+
+    if ( error ) *error = tr( "Not a source of game logs: %1\n"
+                              "(a repository on GitHub: OWNER/REPO, OWNER/REPO@BRANCH, or its URL;"
+                              " or the URL of a directory listed by h5ai, as archive.robocup.info)" ).arg( t );
+    return nullptr;
+}
+
+/*-------------------------------------------------------------------*/
 void
-LogBrowserDialog::addSource( LogSource * source,
-                             const bool removable )
+LogBrowserDialog::addSource( LogSource * source )
 {
     source->setParent( this );
     Source s;
     s.source = source;
-    s.removable = removable;
     M_sources.push_back( s );
 
     connect( source, &LogSource::listed,
@@ -278,6 +311,28 @@ LogBrowserDialog::addSource( LogSource * source,
         M_source_list->setCurrentRow( 0 );
     }
     updateButtons();
+}
+
+/*-------------------------------------------------------------------*/
+void
+LogBrowserDialog::setSources( const QStringList & texts )
+{
+    for ( const QString & text : texts )
+    {
+        QString error;
+        LogSource * s = createSource( text, &error );
+        if ( ! s )
+        {
+            std::cerr << "(LogBrowserDialog::setSources) " << error.toStdString() << std::endl;
+            continue;
+        }
+        if ( sourceTexts().contains( s->text(), Qt::CaseInsensitive ) )
+        {
+            delete s;
+            continue;
+        }
+        addSource( s );
+    }
 }
 
 /*-------------------------------------------------------------------*/
@@ -314,64 +369,83 @@ LogBrowserDialog::indexOf( const LogSource * source ) const
 
 /*-------------------------------------------------------------------*/
 bool
-LogBrowserDialog::addRepository( const QString & text,
-                                 QString * error )
+LogBrowserDialog::addSource( const QString & text,
+                             QString * error )
 {
-    QString owner, repo, ref;
-    if ( ! GitHubLogSource::parseRepository( text, &owner, &repo, &ref ) )
+    LogSource * source = createSource( text, error );
+    if ( ! source )
     {
-        if ( error ) *error = tr( "Not a repository on GitHub: %1 (OWNER/REPO, OWNER/REPO@BRANCH, or its URL)" ).arg( text.trimmed() );
         return false;
     }
-    const QString name = GitHubLogSource::repositoryText( owner, repo, ref );
     for ( int i = 0; i < M_sources.size(); ++i )
     {
-        if ( M_sources[i].source->name().compare( name, Qt::CaseInsensitive ) == 0 )
+        if ( M_sources[i].source->text().compare( source->text(), Qt::CaseInsensitive ) == 0 )
         {
             if ( error ) *error = tr( "%1 is in the list already." ).arg( M_sources[i].source->name() );
+            delete source;
             setCurrentSource( i );
             return false;
         }
     }
 
-    addSource( new GitHubLogSource( owner, repo, ref ), true );
+    addSource( source );
     setCurrentSource( M_sources.size() - 1 );
-    emit repositoriesChanged( addedRepositories() );
+    emit sourcesChanged( sourceTexts() );
     return true;
 }
 
 /*-------------------------------------------------------------------*/
 QStringList
-LogBrowserDialog::addedRepositories() const
+LogBrowserDialog::sourceTexts() const
 {
     QStringList list;
     for ( const Source & s : M_sources )
     {
-        if ( s.removable ) list << s.source->name();
+        list << s.source->text();
+    }
+    return list;
+}
+
+/*-------------------------------------------------------------------*/
+QStringList
+LogBrowserDialog::missingDefaultSources() const
+{
+    // the defaults are written as text() gives them
+    const QStringList texts = sourceTexts();
+    QStringList list;
+    for ( const QString & text : Options::DEFAULT_LOG_SOURCES )
+    {
+        if ( ! texts.contains( text, Qt::CaseInsensitive ) ) list << text;
     }
     return list;
 }
 
 /*-------------------------------------------------------------------*/
 void
-LogBrowserDialog::addRepositoryByDialog()
+LogBrowserDialog::addSourceByDialog()
 {
+    // the field: the default sources removed as its items
+    QStringList items = missingDefaultSources();
+    items.prepend( QString() );
     bool ok = false;
-    const QString text = QInputDialog::getText( this,
-                                                tr( "Add a Repository" ),
-                                                tr( "A public repository on GitHub with game logs:\n"
-                                                    "OWNER/REPO, OWNER/REPO@BRANCH, or its URL." ),
-                                                QLineEdit::Normal,
-                                                QString(),
+    const QString text = QInputDialog::getItem( this,
+                                                tr( "Add a Source" ),
+                                                tr( "A source of game logs:\n"
+                                                    "- a public repository on GitHub: OWNER/REPO, OWNER/REPO@BRANCH, or its URL\n"
+                                                    "- the URL of a directory listed by h5ai, as archive.robocup.info\n"
+                                                    "The default sources removed are in the list." ),
+                                                items,
+                                                0,
+                                                true,
                                                 &ok );
     if ( ! ok || text.trimmed().isEmpty() )
     {
         return;
     }
     QString error;
-    if ( ! addRepository( text, &error ) )
+    if ( ! addSource( text, &error ) )
     {
-        QMessageBox::warning( this, tr( "Add a Repository" ), error );
+        QMessageBox::warning( this, tr( "Add a Source" ), error );
     }
 }
 
@@ -380,17 +454,22 @@ void
 LogBrowserDialog::removeCurrentSource()
 {
     const int index = currentSource();
-    if ( index < 0
-         || ! M_sources[index].removable )
+    if ( index < 0 )
     {
         return;
     }
     LogSource * removed = M_sources[index].source;
     removed->abort();
-    M_sources.remove( index );
-    delete M_source_list->takeItem( index );
+    {
+        // not shown while the list and the sources differ: takeItem() changes
+        // the current row before the item is gone
+        const QSignalBlocker blocker( M_source_list );
+        delete M_source_list->takeItem( index );
+        M_sources.remove( index );
+        M_source_list->setCurrentRow( std::min( index, int( M_sources.size() ) - 1 ) );
+    }
     removed->deleteLater();
-    emit repositoriesChanged( addedRepositories() );
+    emit sourcesChanged( sourceTexts() );
     showCurrentSource();
 }
 
@@ -759,8 +838,14 @@ LogBrowserDialog::updateStatus()
 
     int logs = 0;
     int shown = 0;
+    int unread = 0; //!< directories not read yet
     for ( QTreeWidgetItemIterator it( M_tree ); *it; ++it )
     {
+        if ( ( *it )->data( DATE_COLUMN, PATH_ROLE ).isValid()
+             && ! ( *it )->data( DATE_COLUMN, LISTED_ROLE ).toBool() )
+        {
+            ++unread;
+        }
         if ( urlOf( *it ).isValid() )
         {
             ++logs;
@@ -773,20 +858,25 @@ LogBrowserDialog::updateStatus()
         }
     }
 
-    // no translation: the plural by hand
-    const QString count = ( logs == 1 ) ? tr( "1 game log" ) : tr( "%1 game logs" ).arg( logs );
-    QString text = ( logs == shown )
-        ? count + QLatin1Char( '.' )
-        : tr( "%1 of %2." ).arg( shown ).arg( count );
-    if ( logs == 0
-         && ! s.status.isEmpty() )
+    QString text;
+    if ( logs == 0 && unread > 0 )
     {
-        // e.g. "Reading the list...", a failure: not "0 game logs." before it
-        text = s.status;
+        // e.g. the archive: its logs are in the directories
+        text = tr( "Open a directory to list its game logs." );
     }
-    else if ( ! s.status.isEmpty() )
+    else if ( logs > 0 || s.status.isEmpty() )
     {
-        text += QLatin1Char( ' ' ) + s.status;
+        // not "0 game logs." before e.g. "Reading the list..." or a failure
+
+        // no translation: the plural by hand
+        const QString count = ( logs == 1 ) ? tr( "1 game log" ) : tr( "%1 game logs" ).arg( logs );
+        text = ( logs == shown )
+            ? count + QLatin1Char( '.' )
+            : tr( "%1 of %2." ).arg( shown ).arg( count );
+    }
+    if ( ! s.status.isEmpty() )
+    {
+        text = text.isEmpty() ? s.status : text + QLatin1Char( ' ' ) + s.status;
     }
     M_status_label->setText( text );
     UIPalette::markWrongText( M_status_label, s.failure );
@@ -797,7 +887,7 @@ void
 LogBrowserDialog::updateButtons()
 {
     const int index = currentSource();
-    M_remove_button->setEnabled( index >= 0 && M_sources[index].removable );
+    M_remove_button->setEnabled( index >= 0 );
     M_reload_button->setEnabled( index >= 0 );
     M_open_button->setEnabled( urlOf( M_tree->currentItem() ).isValid() );
 }

@@ -31,6 +31,7 @@
 
 #include "github_log_source.h"
 #include "http_test_server.h"
+#include "options.h"
 
 #include <QDateTime>
 #include <QFile>
@@ -126,7 +127,7 @@ private slots:
 void
 TestGitHubLogSource::defaults()
 {
-    QCOMPARE( GitHubLogSource::DEFAULT_REPOSITORIES, QStringList( { "rcsoccersim/RoboCup2026" } ) );
+    QVERIFY( Options::DEFAULT_LOG_SOURCES.contains( "rcsoccersim/RoboCup2026" ) );
     QCOMPARE( GitHubLogSource::CACHE_SECONDS, 3600 );
     QCOMPARE( GitHubLogSource::apiBase(), QUrl( "https://api.github.com" ) );
     QCOMPARE( GitHubLogSource::rawBase(), QUrl( "https://raw.githubusercontent.com" ) );
@@ -134,12 +135,14 @@ TestGitHubLogSource::defaults()
 
     const GitHubLogSource source( "rcsoccersim", "RoboCup2026", "" );
     QCOMPARE( source.name(), QString( "rcsoccersim/RoboCup2026" ) );
+    QCOMPARE( source.text(), QString( "rcsoccersim/RoboCup2026" ) );
     QCOMPARE( source.ref(), QString( "HEAD" ) );
     QVERIFY( source.description().contains( "default branch" ) );
     QVERIFY( source.cachePath().endsWith( "/github/rcsoccersim/RoboCup2026/HEAD.json" ) );
 
     const GitHubLogSource branch( "o", "r", "feature/x", "/cache" );
     QCOMPARE( branch.name(), QString( "o/r@feature/x" ) );
+    QCOMPARE( branch.text(), QString( "o/r@feature/x" ) );
     QCOMPARE( branch.cachePath(), QString( "/cache/o/r/feature%2Fx.json" ) );
 }
 

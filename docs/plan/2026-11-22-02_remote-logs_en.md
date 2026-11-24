@@ -63,6 +63,8 @@
 | D9 | The list of logs is a tree of the directories (Finals, GroupA and so on). Its columns: the date and time, the left team, the score (the scores of a penalty shootout in parentheses), the right team, the size. A field to filter by team names, and sorting by the column headers (2026-11-24; decided by the user at the start of stage 2) |
 | D10 | The dialog of the list of logs (File > Browse Game Logs...) is modeless, and stays open after a log is opened (to open one game after another; as Player Type List) (same) |
 | D11 | The default sources: `rcsoccersim/RoboCup2026` on GitHub and all the 2D logs of archive.robocup.info (`/Soccer/Simulation/2D/logs/`; RoboCup and RCAP). The archive is made on this branch as stage 3 after stage 2. The logs are to be gathered on GitHub in the future (the user), so the archive can be taken out of the sources then (same) |
+| D12 | The lists of the archive are used from the cache for a day, a directory at a time (the archive has the logs of past competitions, which hardly change; Reload reads them again) (2026-11-24, decided by the user at the start of stage 3) |
+| D13 | The user can add and remove any source, the default ones (RoboCup2026 and the archive) too (it is handier that the user can change the default sources too). This replaces the default sources that cannot be removed of D2 and D11. When the archive is to be dropped in the future, it is dropped from the default list (same) |
 | D8 | The rules of the referee's whistle (F4; global functions in `whistle_rules.h`) are put in the static-only class `WhistleRules` too, in another commit on this branch (same) |
 
 ### 3.2 Design decisions (Claude; the user confirms them at the start of the stages)
@@ -121,11 +123,16 @@
 
 ### 4.3 Stage 3: archive.robocup.info
 
-- The site can be reached since 2026-11-24 (§2.1). Made on this branch after stage 2 (D11).
-- One of the sources of the stage 2 dialog (the same interface as the GitHub source). Its root is `/Soccer/Simulation/2D/logs/` (D11).
-- Listed by the JSON API of h5ai (`POST /`, `action=get&items[href]=DIR&items[what]=1`), one directory at a time. It is deep and large, so a directory is read only when its branch of the tree is opened.
-- The logs are `.rcg.gz` files, one a game, not bundled (no tar to extract). `.rcl.gz` and `.log.gz` are not shown.
-- The lists are cached (as S6); requests are made only when a branch is opened and when reloaded.
+- The site can be reached since 2026-11-24 (§2.1). It is made after stage 2, on this branch (D11).
+- `src/archive_log_source.{h,cpp}` (new): `ArchiveLogSource`, one of the `LogSource`s of stage 2. Its root is the URL of a directory listed by h5ai (by default `https://archive.robocup.info/Soccer/Simulation/2D/logs/`, D11).
+  - The lists are read with the JSON API of h5ai (`POST /`, `action=get&items[href]=DIR&items[what]=1`), a directory at a time. As the tree is deep and large, a directory is read when its branch is opened. The response has, besides the entries right under the directory, the siblings of each level up to the root (checked on 2026-11-24), so only those right under it are taken. The `href` of a directory ends with `/`. A file has its `size` (bytes).
+  - The directories right under it are returned as directories not read yet. Of the files, only `.rcg` and `.rcg.gz` (not `.rcl.gz` nor `.log.gz`). The logs are a `.rcg.gz` a game, not bundled (no tar to extract). The URL of a file is made from the server's `href`.
+  - The JSON of the response is cached a directory at a time (`~/.cache/rcssmonitor/archive/`) and used for a day (D12). When it cannot be read, the cache is shown, however old, with a note (as for GitHub). Reload reads the root again, and the directories opened after it are read without the caches from before the Reload.
+  - A source can read several directories at once (branches opened one after another).
+- The list of sources (D13): the settings keep the list of sources as the texts the user enters (`log_sources` in `[GameLog]`; `OWNER/REPO[@REF]` for GitHub, the URL for the archive). Without it in the settings, the default list (`Options::DEFAULT_LOG_SOURCES`: `rcsoccersim/RoboCup2026` and the archive). `github_repositories` of stage 2 is replaced, as it has not been released.
+  - Remove removes any source.
+  - Add... takes a repository on GitHub (`OWNER/REPO`, `OWNER/REPO@REF`, a URL) and the URL of a directory listed by h5ai (e.g. a year of the archive). The field is an editable combo box, whose items are the default sources not in the list (a default source removed can be chosen again).
+  - The dialog makes a source from a text (`LogBrowserDialog::createSource`). `LogSource` gets the text that makes the source again (`text()`).
 
 ### 4.4 The implementation of stage 1 (2026-11-24)
 
@@ -177,6 +184,29 @@
 - `MainWindow`: "Browse Game Logs..." (Ctrl+Shift+B) after Open Game Log from URL in the File menu. The dialog is made when it is first shown, with the default repositories (`GitHubLogSource::DEFAULT_REPOSITORIES`, not removable) and the repositories saved in the settings (removable). `openRequested` goes to `openGameLogUrl()`, and `repositoriesChanged` to the settings, written at once.
 - `Options`: the repositories added (`github_repositories` in `[GameLog]` of the settings; `writeLogRepositories()`).
 - Checked with the real GitHub (2026-11-24): the list of RoboCup2026 has 144 games, read by one request in 0.7 s; the second time from the cache in 4 ms. A game of the Finals (4.6 MB) was opened from the list.
+- In stage 3, the handling of the sources (the default ones, Remove, Add..., the settings) was changed after D13 (4.6).
+
+### 4.6 The implementation of stage 3 (2026-11-24)
+
+4.3 was implemented as follows. What was decided beyond the plan is written too.
+
+- `src/archive_log_source.{h,cpp}` (new): `ArchiveLogSource`.
+  - Reading a URL (`parseUrl`): http or https with a host, without a user name or a password, and not github.com (GitHub is added as a repository). `/` is added to the end of the path, and the query and the fragment are dropped.
+  - Reading an answer (`parseItems`): the `href`s are decoded, and only the entries right under the directory asked for are taken. A directory is one not read yet, and of the files only the game logs. The URL of a file is its `href` (as encoded) resolved against the URL of the directory. What is not JSON (e.g. a page of a server without h5ai) is an error.
+  - The request is a `POST` to the URL of the directory (checked on 2026-11-24 that the archive answers a `POST` to a directory, not only to `/` of the server; it works with a server whose h5ai is only in a part of the site). `items[href]` in the body is the encoded path of the directory (encoded again for the form). `User-Agent: rcssmonitor/VERSION`. A timeout of 30 seconds.
+  - The cache: under `~/.cache/rcssmonitor/archive/HOST/`, named by the first 16 digits of the SHA-1 of the directory's URL. Used for a day (`CACHE_SECONDS`, D12). After a Reload (the root read again), only the caches of the directories read from the server after it are used. At first the time of the file was compared with the time of the Reload, but within the same millisecond an old cache was used, so the directories read are remembered instead.
+  - One request at a time for a directory (reading the same directory again stops the earlier request). Different directories can be read at once.
+  - Errors: 404 (no such directory), other HTTP errors, a timeout (30 seconds), not an answer of h5ai. If there is a cache, it is shown, however old, with a note.
+- The sources (D13):
+  - `LogSource::text()` (the text that makes the source again) was added: `OWNER/REPO[@REF]` for GitHub, the URL (encoded) for the archive.
+  - `Options::DEFAULT_LOG_SOURCES` (`rcsoccersim/RoboCup2026` and the archive's URL) is the default list, and the list is kept in `log_sources` of `[GameLog]` in the settings (`logSources()`, `setLogSources()`, `writeLogSources()`). An empty list is written as an empty text (`QSettings` does not read an empty list back, and the defaults would come back). `GitHubLogSource::DEFAULT_REPOSITORIES` and `github_repositories` were removed.
+  - `LogBrowserDialog`: `createSource()` (a source from a text: a repository on GitHub if it reads as one, a directory of h5ai if it is http or https), `setSources()` (the list of the settings; the texts that are not sources are skipped), `addSource( text, error )` (not the same one twice), `sourceTexts()`, `missingDefaultSources()`, and the signal `sourcesChanged`. Remove removes any source. Add... is an editable combo box offering the default sources not in the list.
+  - `MainWindow`: gives the dialog `setSources( Options::logSources() )`, and writes the settings on `sourcesChanged`.
+- Changes to the dialog: with only directories not read yet (e.g. the root of the archive), the status line says "Open a directory to list its game logs." In the list of sources, a long name (the archive's URL) is cut in the middle, without a horizontal scroll bar (the whole in the tooltip). The left side is 240 wide.
+- Found by the tests and fixed: removing a source removed it from the internal list before `takeItem()`, so the change of the current row inside `takeItem()` read the source of a shifted index and crashed (a latent error since stage 2, which came out when the default sources became removable). Now the item of the list is taken first, and the current row is chosen again with the signals blocked, then shown.
+- The test environment: with the plugin of the plastique style of Qt 5 (`qt5-style-plugins`) installed, the "unknown style name" (plastique) of `test_ui_color_scheme` was a known style, and the test failed. There, a name that no style has is used.
+- Checked with the real archive (2026-11-24): the root is listed in 1.9 s, and each directory in about 1 s. 19 years under RoboCup, 6 directories under 2023, 25 games in Finals. A game of the Finals (4.6 MB) was opened from the list. The second time from the cache within 50 ms.
+
 
 ## 5. Stages
 
@@ -192,6 +222,8 @@
 - `test_log_downloader`: a small HTTP server with `QTcpServer` in the test; success, redirects (http → http; https → http is not followed), 404, abort in the middle, the size limit, LFS pointer → the real file. The CI uses no external network.
 - `test_github_log_source` (`test_github_log_index` in the plan): parsing `test/data/github_tree.json` (a part of RoboCup2026's tree: 21 logs, `.rcl.gz`, README and so on), parsing the repositories given, reading from the test's HTTP server, the cache (no request for an hour, Reload, an old cache), the rate-limit response (without a cache, with an old cache), 404, `truncated`, `abort()`.
 - `test_log_browser_dialog`: the tree from a source of the test (the columns, the directories first, a directory not read yet read when opened, read again when opened after a failure), the filter, sorting (the size as a number), Open and Enter (opened once), a failure, Reload and notes, switching the sources, adding and removing repositories (with the test's HTTP server), and File > Browse Game Logs of the main window (the default and saved repositories, modeless, a log downloaded and opened from the list, a repository added saved in the settings).
+- `test_archive_log_source` (stage 3): parsing `test/data/h5ai_2023.json` and `h5ai_finals.json` (real answers of the archive; Finals cut down to 4 games) (only those right under, only the logs, the sizes and URLs), encoded names, answers not of h5ai, parsing URLs, the POST to the test's HTTP server (its body), the cache (a day, after a Reload), several directories at once, 404, HTTP errors, an old cache, `abort()`.
+- `test_log_browser_dialog` (added in stage 3): adding and removing sources (GitHub, a directory of h5ai, the same one, not a source, a file on github.com, the default sources offered by Add..., the one chosen after removing the first and the last, removing all), the tree of a directory of h5ai (read when opened, Reload), and the main window (the sources of the settings, texts that are not sources skipped, a default one removable and written to the settings, an empty list written as an empty text).
 - `test_log_file_name`: parsing file names (penalty scores, `-` and `_` in team names, names that cannot be parsed).
 - Downloading and opening a broken file (not gzip, truncated, not an rcg) does not crash.
 
@@ -201,6 +233,7 @@
 |---|---|
 | `src/log_url.{h,cpp}`, `src/log_cache.{h,cpp}`, `src/log_downloader.{h,cpp}`, `src/open_url_dialog.{h,cpp}` (new) | Stage 1 |
 | `src/log_source.{h,cpp}`, `src/github_log_source.{h,cpp}` (`github_log_index` in the plan), `src/log_file_name.{h,cpp}`, `src/log_browser_dialog.{h,cpp}` (new) | Stage 2 |
+| `src/archive_log_source.{h,cpp}` (new) | Stage 3 |
 | `src/main_window.{h,cpp}` | Menus, dropping, connecting the download to opening |
 | `src/options.{h,cpp}` | Recent URLs, the repository list, cache settings, the command line |
 | `src/CMakeLists.txt`, `src/Makefile.am` | Sources (the moc list of autotools is written by hand) |
@@ -285,3 +318,19 @@
 - Found by the tests and fixed: Enter in the tree opened the same log twice (Open is not the default button); the filter hid the directories not read yet; the plural of the status line was shown as "log(s)"; `setFilter()` did not change the filter field; Qt 5 has no `QRegularExpressionMatch::hasCaptured()`.
 - With the CMake builds of Qt 6 (6.4.2), Qt 5 (5.15.13) and without Qt Multimedia, all 68 tests passed. The autotools build (Qt 5) passed too.
 - Checked with the real GitHub (4.5). README, NEWS, ChangeLog and `docs/build.md` (the lists added to the requirement of TLS) were updated.
+
+### 2026-11-24: Stage 2 committed, and its CI
+
+- Stage 2 was committed as ec341e2 and pushed. All 5 jobs of the CI passed.
+
+### 2026-11-24: Stage 3 started
+
+- The user resumed, and stage 3 was started. The API of h5ai was checked again (4.3: the response has the siblings of each level up to the root too; a file has its size and time).
+- Decided by the user at the start of the stage: D12 (the archive's cache for a day), D13 (the user can change the list of sources, the default ones too). 4.3 was rewritten.
+
+### 2026-11-24: Stage 3 implemented
+
+- Implemented as in 4.6. The test `archive_log_source` was added, and `log_browser_dialog` and `github_log_source` were changed after D13.
+- The tests found a crash when a source is removed, and it was fixed (4.6).
+- This environment had no development package of Qt Multimedia, so the CMake builds of Qt 6 (6.4.2) and Qt 5 (5.15.13) were both without the whistle (the CI checks the builds with it). With them and the build of `ENABLE_SOUND=OFF`, all 69 tests passed. The autotools build (Qt 5) passed too.
+- Checked with the real archive (4.6). README, NEWS, ChangeLog and `docs/build.md` were updated.

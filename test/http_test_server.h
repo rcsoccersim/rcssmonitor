@@ -44,9 +44,9 @@
 
 /*!
   \class HttpTestServer
-  \brief answers GET requests on 127.0.0.1 by the responses set for their
-  paths (404 for the others), and counts them. One request a connection
-  (Connection: close).
+  \brief answers GET (and POST) requests on 127.0.0.1 by the responses set
+  for their paths (404 for the others), and counts them; the bodies of POST
+  requests are kept. One request a connection (Connection: close).
 */
 class HttpTestServer {
 public:
@@ -69,6 +69,7 @@ private:
     QTcpServer M_server;
     QHash< QByteArray, Response > M_routes;
     QHash< QByteArray, int > M_requests;
+    QHash< QByteArray, QByteArray > M_bodies; //!< the body of the last request of each path
     QByteArray M_user_agent; //!< of the last request
 
 public:
@@ -119,6 +120,8 @@ public:
       }
 
     int requests( const QByteArray & path ) const { return M_requests.value( path ); }
+    //! the body of the last request of a path (POST)
+    QByteArray body( const QByteArray & path ) const { return M_bodies.value( path ); }
     const QByteArray & userAgent() const { return M_user_agent; }
 
 private:
@@ -133,9 +136,19 @@ private:
                                 request->append( socket->readAll() );
                                 const int end = request->indexOf( "\r\n\r\n" );
                                 if ( end < 0 ) return;
-                                QObject::disconnect( socket, &QTcpSocket::readyRead, nullptr, nullptr );
 
                                 const QList< QByteArray > lines = request->left( end ).split( '\n' );
+                                int length = 0;
+                                for ( const QByteArray & line : lines )
+                                {
+                                    if ( line.toLower().startsWith( "content-length:" ) )
+                                    {
+                                        length = line.mid( 15 ).trimmed().toInt();
+                                    }
+                                }
+                                if ( request->size() < end + 4 + length ) return; // the body to come
+                                QObject::disconnect( socket, &QTcpSocket::readyRead, nullptr, nullptr );
+
                                 const QList< QByteArray > first = lines.value( 0 ).trimmed().split( ' ' );
                                 const QByteArray path = first.value( 1 );
                                 for ( const QByteArray & line : lines )
@@ -146,6 +159,7 @@ private:
                                     }
                                 }
                                 ++M_requests[path];
+                                M_bodies[path] = request->mid( end + 4, length );
                                 respond( socket, path );
                             } );
       }

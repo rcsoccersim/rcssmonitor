@@ -30,6 +30,7 @@
 
 #include <QtTest>
 
+#include "archive_log_source.h"
 #include "github_log_source.h"
 #include "http_test_server.h"
 #include "log_browser_dialog.h"
@@ -48,6 +49,7 @@
 #include <QMessageBox>
 #include <QNetworkProxy>
 #include <QPushButton>
+#include <QSettings>
 #include <QTreeWidget>
 #include <QTreeWidgetItemIterator>
 
@@ -101,6 +103,7 @@ public:
       { }
 
     QString name() const override { return M_name; }
+    QString text() const override { return "fake:" + M_name; }
     QString description() const override { return "a source of the test"; }
 
     void list( const QString & dir,
@@ -195,9 +198,10 @@ contentOf( const QString & path )
     return file.open( QIODevice::ReadOnly ) ? file.readAll() : QByteArray();
 }
 
-//! answer the input dialog that comes with a text, or close a message box
+//! answer the input dialog that comes with a text (keeping its items), or close a message box
 struct DialogAnswerer {
     QString input;
+    QStringList items;
     QString message;
     QTimer timer;
 
@@ -210,6 +214,7 @@ struct DialogAnswerer {
                   if ( ! w->isVisible() ) continue;
                   if ( QInputDialog * d = qobject_cast< QInputDialog * >( w ) )
                   {
+                      items = d->comboBoxItems();
                       d->setTextValue( input );
                       d->accept();
                   }
@@ -243,6 +248,7 @@ private slots:
     void init()
       {
           QDir( GitHubLogSource::defaultCacheDir() ).removeRecursively();
+          QDir( ArchiveLogSource::defaultCacheDir() ).removeRecursively();
           LogCache().clear();
       }
 
@@ -259,7 +265,8 @@ private slots:
     void open();
     void failure();
     void sources();
-    void repositories();
+    void addAndRemove();
+    void archive();
     void mainWindow();
 };
 
@@ -272,7 +279,7 @@ void
 TestLogBrowserDialog::columns()
 {
     LogBrowserDialog dialog;
-    dialog.addSource( makeSource(), false );
+    dialog.addSource( makeSource() );
     QCOMPARE( dialog.currentSource(), 0 );
     QTRY_COMPARE( dialog.tree()->topLevelItemCount(), 3 );
 
@@ -311,7 +318,7 @@ TestLogBrowserDialog::lazyDirectory()
     LogBrowserDialog dialog;
     FakeSource * source = makeSource();
     source->M_failures["2004/round1"] = "No way to read it.";
-    dialog.addSource( source, false );
+    dialog.addSource( source );
     QTRY_COMPARE( dialog.tree()->topLevelItemCount(), 3 );
     QCOMPARE( source->M_asked, QStringList( { "" } ) );
 
@@ -354,7 +361,7 @@ void
 TestLogBrowserDialog::filter()
 {
     LogBrowserDialog dialog;
-    dialog.addSource( makeSource(), false );
+    dialog.addSource( makeSource() );
     QTRY_COMPARE( dialog.tree()->topLevelItemCount(), 3 );
     QLineEdit * edit = dialog.findChild< QLineEdit * >( "filter" );
     QVERIFY( edit );
@@ -399,7 +406,7 @@ void
 TestLogBrowserDialog::sort()
 {
     LogBrowserDialog dialog;
-    dialog.addSource( makeSource(), false );
+    dialog.addSource( makeSource() );
     QTRY_COMPARE( dialog.tree()->topLevelItemCount(), 3 );
     QTreeWidgetItem * year = dialog.tree()->topLevelItem( 1 );
     QTreeWidgetItem * finals = year->child( 0 );
@@ -437,7 +444,7 @@ TestLogBrowserDialog::open()
     QVERIFY( ! dialog.isModal() );
     dialog.show();
     QVERIFY( QTest::qWaitForWindowExposed( &dialog ) );
-    dialog.addSource( makeSource(), false );
+    dialog.addSource( makeSource() );
     QTRY_COMPARE( dialog.tree()->topLevelItemCount(), 3 );
     QSignalSpy spy( &dialog, &LogBrowserDialog::openRequested );
     QPushButton * open = dialog.findChild< QPushButton * >( "open" );
@@ -490,7 +497,7 @@ TestLogBrowserDialog::failure()
     LogBrowserDialog dialog;
     FakeSource * source = makeSource();
     source->M_failures[""] = "The server did not answer.";
-    dialog.addSource( source, false );
+    dialog.addSource( source );
     QLabel * status = dialog.findChild< QLabel * >( "status" );
     QTRY_COMPARE( dialog.statusText(), QString( "The server did not answer." ) );
     QVERIFY( markedWrong( status ) );
@@ -520,8 +527,8 @@ TestLogBrowserDialog::sources()
     FakeSource * first = makeSource( "first" );
     FakeSource * second = new FakeSource( "second" );
     second->M_dirs[""] = { logEntry( "202607050404-HELIOS2026_0-vs-YuShan2026_1.rcg.gz", 100 ) };
-    dialog.addSource( first, false );
-    dialog.addSource( second, false );
+    dialog.addSource( first );
+    dialog.addSource( second );
     QCOMPARE( dialog.sourceCount(), 2 );
     QCOMPARE( dialog.source( 1 ), second );
     QCOMPARE( dialog.source( 2 ), nullptr );
@@ -548,7 +555,7 @@ TestLogBrowserDialog::sources()
         LogBrowserDialog * d = new LogBrowserDialog();
         FakeSource * s = makeSource();
         QSignalSpy gone( s, &QObject::destroyed );
-        d->addSource( s, false );
+        d->addSource( s );
         delete d;
         QCOMPARE( gone.count(), 1 );
     }
@@ -556,11 +563,12 @@ TestLogBrowserDialog::sources()
 
 /*-------------------------------------------------------------------*/
 /*!
-  The repositories on GitHub that the user adds (read from the server of
-  the test) and removes; the default ones cannot be removed.
+  The sources the user adds (a repository on GitHub, a directory of h5ai,
+  read from the server of the test) and removes, any of them; the default
+  ones removed offered by Add...
 */
 void
-TestLogBrowserDialog::repositories()
+TestLogBrowserDialog::addAndRemove()
 {
     HttpTestServer server;
     QFile tree( QStringLiteral( TEST_DATA_DIR "/github_tree.json" ) );
@@ -570,21 +578,21 @@ TestLogBrowserDialog::repositories()
     GitHubLogSource::setRawBase( server.url( "/raw" ) );
 
     LogBrowserDialog dialog;
-    dialog.addSource( makeSource(), false );
-    QSignalSpy spy( &dialog, &LogBrowserDialog::repositoriesChanged );
-    QPushButton * remove = dialog.findChild< QPushButton * >( "remove_repository" );
+    dialog.addSource( makeSource() );
+    QSignalSpy spy( &dialog, &LogBrowserDialog::sourcesChanged );
+    QPushButton * remove = dialog.findChild< QPushButton * >( "remove_source" );
     QVERIFY( remove );
-    QVERIFY( ! remove->isEnabled() );
+    QVERIFY( remove->isEnabled() );
+    QCOMPARE( dialog.missingDefaultSources(), Options::DEFAULT_LOG_SOURCES );
 
     QString error;
-    QVERIFY( dialog.addRepository( " https://github.com/o/r ", &error ) );
+    QVERIFY( dialog.addSource( " https://github.com/o/r ", &error ) );
     QCOMPARE( dialog.sourceCount(), 2 );
     QCOMPARE( dialog.currentSource(), 1 );
     QCOMPARE( dialog.source( 1 )->name(), QString( "o/r" ) );
     QCOMPARE( spy.count(), 1 );
-    QCOMPARE( spy.last().at( 0 ).toStringList(), QStringList( { "o/r" } ) );
-    QCOMPARE( dialog.addedRepositories(), QStringList( { "o/r" } ) );
-    QVERIFY( remove->isEnabled() );
+    QCOMPARE( spy.last().at( 0 ).toStringList(), QStringList( { "fake:fake", "o/r" } ) );
+    QCOMPARE( dialog.sourceTexts(), QStringList( { "fake:fake", "o/r" } ) );
     QTRY_COMPARE( dialog.statusText(), QString( "21 game logs." ) );
     QCOMPARE( server.requests( "/repos/o/r/git/trees/HEAD?recursive=1" ), 1 );
     QCOMPARE( childTexts( dialog.tree()->invisibleRootItem() ), QStringList( { "logs" } ) );
@@ -593,49 +601,133 @@ TestLogBrowserDialog::repositories()
     QCOMPARE( childTexts( dialog.tree()->topLevelItem( 0 ) ), QStringList( { "Finals", "GroupA", "GroupQ" } ) );
     QVERIFY( ! dialog.tree()->topLevelItem( 0 )->child( 0 )->isExpanded() );
 
-    // there already, or not a repository
+    // a directory of h5ai
+    QVERIFY( dialog.addSource( server.url( "/logs" ).toString(), &error ) );
+    QCOMPARE( dialog.source( 2 )->text(), server.url( "/logs/" ).toString() );
+    QCOMPARE( spy.count(), 2 );
+
+    // there already, or not a source
     dialog.setCurrentSource( 0 );
-    QVERIFY( ! dialog.addRepository( "O/R", &error ) );
+    QVERIFY( ! dialog.addSource( "O/R", &error ) );
     QVERIFY2( error.contains( "o/r is in the list already" ), qPrintable( error ) );
     QCOMPARE( dialog.currentSource(), 1 );
-    QVERIFY( ! dialog.addRepository( "rcsoccersim", &error ) );
-    QVERIFY2( error.contains( "Not a repository on GitHub" ), qPrintable( error ) );
-    QCOMPARE( dialog.sourceCount(), 2 );
-    QCOMPARE( spy.count(), 1 );
+    QVERIFY( ! dialog.addSource( server.url( "/logs/" ).toString(), &error ) );
+    QVERIFY2( error.contains( "is in the list already" ), qPrintable( error ) );
+    QCOMPARE( dialog.currentSource(), 2 );
+    QVERIFY( ! dialog.addSource( "rcsoccersim", &error ) );
+    QVERIFY2( error.contains( "Not a source of game logs: rcsoccersim" ), qPrintable( error ) );
+    QVERIFY( ! dialog.addSource( "https://github.com/o/r/blob/main/game.rcg", &error ) );
+    QVERIFY2( error.contains( "is on GitHub" ), qPrintable( error ) );
+    QVERIFY( ! dialog.addSource( "ftp://example.org/logs/", &error ) );
+    QCOMPARE( dialog.sourceCount(), 3 );
+    QCOMPARE( spy.count(), 2 );
 
-    // by the button: the input dialog
+    // by the button: the input dialog, with the default sources
     {
         DialogAnswerer answerer;
         answerer.input = "o/r@dev";
-        dialog.findChild< QPushButton * >( "add_repository" )->click();
-        QCOMPARE( dialog.sourceCount(), 3 );
-        QCOMPARE( spy.last().at( 0 ).toStringList(), QStringList( { "o/r", "o/r@dev" } ) );
+        dialog.findChild< QPushButton * >( "add_source" )->click();
+        QCOMPARE( answerer.items, QStringList( { QString() } ) + Options::DEFAULT_LOG_SOURCES );
+        QCOMPARE( dialog.sourceCount(), 4 );
+        QCOMPARE( spy.last().at( 0 ).toStringList(),
+                  QStringList( { "fake:fake", "o/r", server.url( "/logs/" ).toString(), "o/r@dev" } ) );
         // not on GitHub
         QTRY_VERIFY( dialog.statusText().contains( "o/r@dev is not found on GitHub" ) );
 
-        answerer.input = "not a repository";
-        dialog.findChild< QPushButton * >( "add_repository" )->click();
-        QTRY_VERIFY( answerer.message.contains( "Not a repository on GitHub" ) );
-        QCOMPARE( dialog.sourceCount(), 3 );
+        answerer.input = "not a source";
+        dialog.findChild< QPushButton * >( "add_source" )->click();
+        QTRY_VERIFY( answerer.message.contains( "Not a source of game logs" ) );
+        QCOMPARE( dialog.sourceCount(), 4 );
+
+        // a default one: not offered again
+        answerer.input = Options::DEFAULT_LOG_SOURCES.first();
+        dialog.findChild< QPushButton * >( "add_source" )->click();
+        QCOMPARE( dialog.sourceCount(), 5 );
+        QCOMPARE( dialog.source( 4 )->text(), Options::DEFAULT_LOG_SOURCES.first() );
+        QCOMPARE( dialog.missingDefaultSources(), Options::DEFAULT_LOG_SOURCES.mid( 1 ) );
     }
 
-    // removed
+    // removed: any of them
     dialog.setCurrentSource( 1 );
     remove->click();
-    QCOMPARE( dialog.sourceCount(), 2 );
-    QCOMPARE( spy.last().at( 0 ).toStringList(), QStringList( { "o/r@dev" } ) );
-    QCOMPARE( dialog.source( 1 )->name(), QString( "o/r@dev" ) );
-    dialog.setCurrentSource( 0 );
-    QVERIFY( ! remove->isEnabled() );
+    QCOMPARE( dialog.sourceCount(), 4 );
+    QCOMPARE( spy.last().at( 0 ).toStringList().value( 1 ), server.url( "/logs/" ).toString() );
+    dialog.setCurrentSource( 3 );
     remove->click();
-    QCOMPARE( dialog.sourceCount(), 2 );
+    QCOMPARE( dialog.missingDefaultSources(), Options::DEFAULT_LOG_SOURCES );
+    // the first and the last one (the next one, or the one before, chosen and shown)
+    QCOMPARE( dialog.sourceTexts(), QStringList( { "fake:fake", server.url( "/logs/" ).toString(), "o/r@dev" } ) );
+    dialog.setCurrentSource( 0 );
+    remove->click();
+    QCOMPARE( dialog.currentSource(), 0 );
+    QCOMPARE( dialog.source( 0 )->text(), server.url( "/logs/" ).toString() );
+    dialog.setCurrentSource( 1 );
+    QTRY_VERIFY( dialog.statusText().contains( "o/r@dev is not found on GitHub" ) );
+    remove->click();
+    QCOMPARE( dialog.currentSource(), 0 );
+    QVERIFY( ! dialog.statusText().contains( "o/r@dev" ) );
+    while ( dialog.sourceCount() > 0 )
+    {
+        QVERIFY( remove->isEnabled() );
+        remove->click();
+    }
+    QCOMPARE( spy.last().at( 0 ).toStringList(), QStringList() );
+    QCOMPARE( dialog.currentSource(), -1 );
+    QVERIFY( ! remove->isEnabled() );
+    QCOMPARE( dialog.tree()->topLevelItemCount(), 0 );
+    QCOMPARE( dialog.statusText(), QString() );
 }
 
 /*-------------------------------------------------------------------*/
 /*!
-  File > Browse Game Logs: the dialog of the default repository and those
-  saved, made once, not modal; a log opened from it (downloaded) in the
-  window; a repository added saved in the options.
+  A directory of h5ai (as the archive): its directories read when they are
+  opened; Reload reads the root, and those opened after it, again.
+*/
+void
+TestLogBrowserDialog::archive()
+{
+    HttpTestServer server;
+    server.route( "/logs/", HttpTestServer::ok( "{\"items\":[{\"href\":\"/logs/\"},"
+                                                "{\"href\":\"/logs/RCAP/\"},{\"href\":\"/logs/RoboCup/\"}]}" ) );
+    server.route( "/logs/RoboCup/", HttpTestServer::ok( "{\"items\":[{\"href\":\"/logs/RoboCup/2023/\"},"
+                                                        "{\"href\":\"/logs/RoboCup/20230709095223-Hermes2D_3-vs-R3CESBU_3.rcg.gz\",\"size\":5123351},"
+                                                        "{\"href\":\"/logs/RoboCup/20230709095223-Hermes2D_3-vs-R3CESBU_3.rcl.gz\",\"size\":1450300}]}" ) );
+
+    LogBrowserDialog dialog;
+    QString error;
+    QVERIFY( dialog.addSource( server.url( "/logs/" ).toString(), &error ) );
+    QTRY_COMPARE( dialog.tree()->topLevelItemCount(), 2 );
+    QCOMPARE( childTexts( dialog.tree()->invisibleRootItem() ), QStringList( { "RCAP", "RoboCup" } ) );
+    QCOMPARE( dialog.statusText(), QString( "Open a directory to list its game logs." ) );
+    QCOMPARE( server.body( "/logs/" ), QByteArray( "action=get&items[href]=%2Flogs%2F&items[what]=1" ) );
+
+    QTreeWidgetItem * robocup = dialog.tree()->topLevelItem( 1 );
+    QCOMPARE( robocup->childIndicatorPolicy(), QTreeWidgetItem::ShowIndicator );
+    robocup->setExpanded( true );
+    QTRY_COMPARE( robocup->childCount(), 2 );
+    QCOMPARE( childTexts( robocup ), QStringList( { "2023", "2023-07-09 09:52" } ) );
+    QCOMPARE( robocup->child( 1 )->text( LogBrowserDialog::LEFT_COLUMN ), QString( "Hermes2D" ) );
+    QCOMPARE( LogBrowserDialog::urlOf( robocup->child( 1 ) ),
+              server.url( "/logs/RoboCup/20230709095223-Hermes2D_3-vs-R3CESBU_3.rcg.gz" ) );
+    QCOMPARE( dialog.statusText(), QString( "1 game log." ) );
+    QCOMPARE( server.requests( "/logs/RoboCup/" ), 1 );
+
+    // Reload: the root, then the directory opened again
+    dialog.reload();
+    QTRY_COMPARE( server.requests( "/logs/" ), 2 );
+    QTRY_COMPARE( dialog.statusText(), QString( "Open a directory to list its game logs." ) );
+    robocup = dialog.tree()->topLevelItem( 1 );
+    QCOMPARE( robocup->childCount(), 0 );
+    robocup->setExpanded( true );
+    QTRY_COMPARE( robocup->childCount(), 2 );
+    QCOMPARE( server.requests( "/logs/RoboCup/" ), 2 );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  File > Browse Game Logs: the dialog of the sources in the settings, made
+  once, not modal; a log opened from it (downloaded) in the window; the
+  sources added and removed saved in the settings, none too.
 */
 void
 TestLogBrowserDialog::mainWindow()
@@ -652,8 +744,8 @@ TestLogBrowserDialog::mainWindow()
                   HttpTestServer::ok( contentOf( QStringLiteral( TEST_DATA_DIR "/head_v5.rcg" ) ) ) );
     GitHubLogSource::setApiBase( server.url( "" ) );
     GitHubLogSource::setRawBase( server.url( "/raw" ) );
-    const QStringList saved = Options::instance().logRepositories();
-    Options::instance().setLogRepositories( { "o/saved" } );
+    const QStringList saved = Options::instance().logSources();
+    Options::instance().setLogSources( { "rcsoccersim/RoboCup2026", "o/saved", "not a source" } );
 
     MainWindow window;
     window.show();
@@ -668,10 +760,7 @@ TestLogBrowserDialog::mainWindow()
     QVERIFY( dialog );
     QVERIFY( dialog->isVisible() );
     QVERIFY( ! dialog->isModal() );
-    QCOMPARE( dialog->sourceCount(), 2 );
-    QCOMPARE( dialog->source( 0 )->name(), QString( "rcsoccersim/RoboCup2026" ) );
-    QCOMPARE( dialog->source( 1 )->name(), QString( "o/saved" ) );
-    QCOMPARE( dialog->addedRepositories(), QStringList( { "o/saved" } ) );
+    QCOMPARE( dialog->sourceTexts(), QStringList( { "rcsoccersim/RoboCup2026", "o/saved" } ) );
     QCOMPARE( dialog->currentSource(), 0 );
     QTRY_COMPARE( dialog->statusText(), QString( "1 game log." ) );
 
@@ -683,20 +772,35 @@ TestLogBrowserDialog::mainWindow()
     QVERIFY( QTest::qWaitFor( [&]() { return window.windowTitle().startsWith( name ); }, 10000 ) );
     QVERIFY( dialog->isVisible() );
 
-    // added: saved
+    // added and removed (a default one too): saved
+    QSettings settings( Options::CONF_FILE, QSettings::IniFormat );
     QString error;
-    QVERIFY( dialog->addRepository( "o/added", &error ) );
-    QCOMPARE( Options::instance().logRepositories(), QStringList( { "o/saved", "o/added" } ) );
+    QVERIFY( dialog->addSource( "o/added", &error ) );
+    QCOMPARE( Options::instance().logSources(), QStringList( { "rcsoccersim/RoboCup2026", "o/saved", "o/added" } ) );
+    dialog->setCurrentSource( 0 );
+    dialog->findChild< QPushButton * >( "remove_source" )->click();
+    QCOMPARE( Options::instance().logSources(), QStringList( { "o/saved", "o/added" } ) );
+    settings.sync();
+    QCOMPARE( settings.value( "GameLog/log_sources" ).toStringList(), QStringList( { "o/saved", "o/added" } ) );
 
     // the same dialog again
     dialog->close();
     browse->trigger();
     QCOMPARE( window.findChildren< LogBrowserDialog * >().size(), 1 );
     QVERIFY( dialog->isVisible() );
-    QCOMPARE( dialog->sourceCount(), 3 );
+    QCOMPARE( dialog->sourceCount(), 2 );
 
-    Options::instance().setLogRepositories( saved );
-    Options::instance().writeLogRepositories();
+    // none: kept as an empty text (an empty list would not be read back)
+    while ( dialog->sourceCount() > 0 )
+    {
+        dialog->findChild< QPushButton * >( "remove_source" )->click();
+    }
+    QCOMPARE( Options::instance().logSources(), QStringList() );
+    settings.sync();
+    QCOMPARE( settings.value( "GameLog/log_sources" ), QVariant( QString() ) );
+
+    Options::instance().setLogSources( saved );
+    Options::instance().writeLogSources();
 }
 
 QTEST_MAIN( TestLogBrowserDialog )

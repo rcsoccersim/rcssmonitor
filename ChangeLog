@@ -25,6 +25,10 @@
 	- list the game logs in repositories on GitHub (File > Browse Game
 	  Logs), from the Git Trees API, kept in the cache for an hour; the
 	  date, the teams and the score read from the file names.
+	- list the game logs of archive.robocup.info (and other directories
+	  listed by h5ai) a directory at a time, kept in the cache for a
+	  day. the sources of the list are kept in the settings, and the
+	  user can remove the default ones too.
 	- add the referee's whistle at the changes of the play mode, with
 	  Qt Multimedia (optional): the sounds synthesized by
 	  tools/make_whistle.py, played on one audio output kept open while

@@ -37,7 +37,6 @@
 
 #include <QByteArray>
 #include <QDateTime>
-#include <QStringList>
 
 class QNetworkAccessManager;
 class QNetworkReply;
@@ -63,8 +62,6 @@ class GitHubLogSource
 
 public:
 
-    //! the repositories listed by default: the logs of RoboCup 2026
-    static const QStringList DEFAULT_REPOSITORIES;
     //! how long the tree in the cache is used without asking GitHub (s)
     static const int CACHE_SECONDS;
 
@@ -149,6 +146,7 @@ public:
     QString cachePath() const;
 
     QString name() const override;
+    QString text() const override { return name(); }
     QString description() const override;
     void list( const QString & dir,
                const bool reload ) override;
