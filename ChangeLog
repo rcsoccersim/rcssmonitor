@@ -33,8 +33,11 @@
 	  of links (the autoindex of Apache, nginx and so on), read when the
 	  server does not answer as h5ai; the sizes from the page.
 	- save the frame shown in the 2D view as an image (File > Save
-	  Image), drawn by FieldCanvas::renderFrame() with the state of the
-	  view kept (FrameScope).
+	  Image of This Frame), drawn by FieldCanvas::renderFrame() with the
+	  state of the view kept (FrameScope).
+	- export a range of the frames as images (File > Export Images /
+	  Video): ExportDialog, ExportJob, ImageSequenceSink, the timing
+	  (ExportTiming) and the positions and ranges (ExportRange).
 	- filter the list of game logs by a team on a side, its opponent,
 	  its result (the winner of a penalty shootout wins) and a range of
 	  dates.

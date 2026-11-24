@@ -40,6 +40,7 @@
 
 #include "config_dialog.h"
 #include "connect_dialog.h"
+#include "export_dialog.h"
 #include "field_canvas.h"
 #include "game_log_file.h"
 #include "log_browser_dialog.h"
@@ -351,13 +352,24 @@ MainWindow::createActionsFile()
 
     // the frame shown, as an image (docs/plan/2026-11-22-03_frame-export.md
     // 4.6, D5): the 2D view; disabled while the 3D view is shown
-    M_save_image_act = new QAction( tr( "Save &Image..." ), this );
+    M_save_image_act = new QAction( tr( "Save &Image of This Frame..." ), this );
     M_save_image_act->setObjectName( "save_image" );
     M_save_image_act->setShortcut( Qt::CTRL | Qt::SHIFT | Qt::Key_I );
     connect( M_save_image_act, &QAction::triggered,
              this, [this]() { saveImage(); } );
     this->addAction( M_save_image_act );
     updateSaveImageAction();
+
+    // a range of frames as images (docs/plan/2026-11-22-03_frame-export.md
+    // 4.6, D6): the dialog, modeless
+    M_export_act = new QAction( tr( "&Export Images / Video..." ), this );
+    M_export_act->setObjectName( "export" );
+    M_export_act->setShortcut( Qt::CTRL | Qt::SHIFT | Qt::Key_E );
+    M_export_act->setStatusTip( tr( "Export a range of the frames of the game log as images." ) );
+    connect( M_export_act, &QAction::triggered,
+             this, &MainWindow::showExportDialog );
+    this->addAction( M_export_act );
+    updateExportAction();
 
     //
     M_exit_act = new QAction( tr( "&Quit" ), this );
@@ -854,6 +866,7 @@ MainWindow::createMenuFile()
     menu->addAction( M_browse_logs_act );
     menu->addAction( M_save_copy_act );
     menu->addAction( M_save_image_act );
+    menu->addAction( M_export_act );
 
     menu->addSeparator();
 
@@ -1937,6 +1950,7 @@ MainWindow::openGameLogFile( const QString & filepath )
 
     if ( ! openGameLogFileImpl( filepath ) )
     {
+        updateExportAction();
         QString err_msg = tr( "Failed to read [" );
         err_msg += filepath;
         err_msg += tr( "]" );
@@ -2011,6 +2025,7 @@ MainWindow::openGameLogFile( const QString & filepath )
 
     M_game_log_path = QFileInfo( filepath ).absoluteFilePath();
     M_save_copy_act->setEnabled( true );
+    updateExportAction();
 
     M_toggle_tool_bar_act->setChecked( true );
 
@@ -2179,6 +2194,7 @@ MainWindow::connectMonitorTo( const char * hostname )
     M_connect_monitor_act->setEnabled( false );
     M_connect_monitor_to_act->setEnabled( false );
     M_disconnect_monitor_act->setEnabled( true );
+    updateExportAction();
 
     M_log_player->setLiveMode();
 
@@ -2640,7 +2656,7 @@ MainWindow::saveImage()
     }
 
     const QString path = QFileDialog::getSaveFileName( this,
-                                                       tr( "Save Image" ),
+                                                       tr( "Save Image of This Frame" ),
                                                        QDir( s_last_dir ).filePath( defaultImageName() ),
                                                        tr( "PNG (*.png);;JPEG (*.jpg *.jpeg);;All files (*)" ) );
     if ( path.isEmpty() )
@@ -2656,7 +2672,7 @@ MainWindow::saveImage()
     }
     else
     {
-        QMessageBox::warning( this, tr( "Save Image" ), error );
+        QMessageBox::warning( this, tr( "Save Image of This Frame" ), error );
     }
 }
 
@@ -2897,6 +2913,7 @@ MainWindow::disconnectMonitor()
     M_connect_monitor_act->setEnabled( true );
     M_connect_monitor_to_act->setEnabled( true );
     M_disconnect_monitor_act->setEnabled( false );
+    updateExportAction();
 }
 
 /*-------------------------------------------------------------------*/
@@ -3041,7 +3058,49 @@ MainWindow::toggleView3D( bool on )
 
 /*-------------------------------------------------------------------*/
 /*!
-  File > Save Image saves the 2D view: disabled while the 3D view is shown,
+  The frames are exported offline (S1): while connected to a server, the
+  action and the dialog's export are disabled; the frames kept after
+  disconnecting can be exported.
+ */
+void
+MainWindow::updateExportAction()
+{
+    const bool connected = ( M_monitor_client != nullptr );
+    M_export_act->setEnabled( ! connected
+                              && ! M_disp_holder.dispCont().empty() );
+    if ( M_export_dialog )
+    {
+        M_export_dialog->setExportAllowed( ! connected );
+    }
+}
+
+/*-------------------------------------------------------------------*/
+void
+MainWindow::showExportDialog()
+{
+    if ( ! M_export_dialog )
+    {
+        M_export_dialog = new ExportDialog( M_disp_holder, *M_field_canvas, this );
+        // the frame shown stays while exporting
+        connect( M_export_dialog, &ExportDialog::stopRequested,
+                 M_log_player, &LogPlayer::stop );
+        connect( M_export_dialog, &ExportDialog::exportFinished,
+                 this, [this]( bool ok, const QString & message ) {
+                     this->statusBar()->showMessage( ok ? tr( "Exported %1" ).arg( message ) : message, 10000 );
+                 } );
+        // the summary follows the log (its frames and the step)
+        connect( this, &MainWindow::viewUpdated,
+                 M_export_dialog, &ExportDialog::updateSummary );
+    }
+    M_export_dialog->setExportAllowed( M_monitor_client == nullptr );
+    M_export_dialog->show();
+    M_export_dialog->raise();
+    M_export_dialog->activateWindow();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  File > Save Image of This Frame saves the 2D view: disabled while the 3D view is shown,
   until saving the 3D view is made (D5).
  */
 void

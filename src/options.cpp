@@ -490,6 +490,44 @@ Options::readSettings()
     settings.endGroup();
 
     //
+    // export (docs/plan/2026-11-22-03_frame-export.md S7)
+    //
+
+    settings.beginGroup( "Export" );
+
+    val = settings.value( "directory" );
+    if ( val.isValid() ) M_export_settings.directory = val.toString();
+
+    val = settings.value( "prefix" );
+    if ( val.isValid() ) M_export_settings.prefix = val.toString();
+
+    val = settings.value( "format" );
+    if ( val.isValid() && ! val.toString().isEmpty() ) M_export_settings.format = val.toString();
+
+    val = settings.value( "size" );
+    if ( val.isValid() && ! val.toString().isEmpty() ) M_export_settings.size = val.toString();
+
+    val = settings.value( "width" );
+    if ( val.isValid() && val.toInt() > 0 ) M_export_settings.width = val.toInt();
+
+    val = settings.value( "height" );
+    if ( val.isValid() && val.toInt() > 0 ) M_export_settings.height = val.toInt();
+
+    val = settings.value( "scale_texts" );
+    if ( val.isValid() ) M_export_settings.scale_texts = val.toBool();
+
+    val = settings.value( "fps" );
+    if ( val.isValid() && val.toDouble() > 0.0 ) M_export_settings.fps = val.toDouble();
+
+    val = settings.value( "speed" );
+    if ( val.isValid() && val.toDouble() > 0.0 ) M_export_settings.speed = val.toDouble();
+
+    val = settings.value( "name_by_cycle" );
+    if ( val.isValid() ) M_export_settings.name_by_cycle = val.toBool();
+
+    settings.endGroup();
+
+    //
     // monitor
     //
 
@@ -1198,6 +1236,27 @@ Options::writeLogSources() const
     // none as an empty text: an empty list is not read back (not the defaults then)
     settings.setValue( "log_sources",
                        M_log_sources.isEmpty() ? QVariant( QString() ) : QVariant( M_log_sources ) );
+    settings.endGroup();
+}
+
+/*-------------------------------------------------------------------*/
+void
+Options::writeExportSettings() const
+{
+    QSettings settings( Options::CONF_FILE,
+                        QSettings::IniFormat );
+
+    settings.beginGroup( "Export" );
+    settings.setValue( "directory", M_export_settings.directory );
+    settings.setValue( "prefix", M_export_settings.prefix );
+    settings.setValue( "format", M_export_settings.format );
+    settings.setValue( "size", M_export_settings.size );
+    settings.setValue( "width", M_export_settings.width );
+    settings.setValue( "height", M_export_settings.height );
+    settings.setValue( "scale_texts", M_export_settings.scale_texts );
+    settings.setValue( "fps", M_export_settings.fps );
+    settings.setValue( "speed", M_export_settings.speed );
+    settings.setValue( "name_by_cycle", M_export_settings.name_by_cycle );
     settings.endGroup();
 }
 

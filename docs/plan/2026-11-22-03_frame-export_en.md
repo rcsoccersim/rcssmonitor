@@ -6,7 +6,7 @@
 | Last updated | 2026-11-24 |
 | Target | rcssmonitor develop (5affd90, 20.0.0-beta.1) |
 | Branch | `feature/frame-export` (from develop after the URLs and log lists (F5) are merged; the user creates it on GitHub) |
-| Status | Plan written (2026-11-22). The user created `feature/frame-export` from develop (b3762c3), and stage 1 started (2026-11-24). The last feature of the overall plan. The progress of each stage is in the table of "Progress" below |
+| Status | Plan written (2026-11-22). The user created `feature/frame-export` from develop (b3762c3). Stage 1 is done, and stage 2 started (2026-11-24). The last feature of the overall plan. The progress of each stage is in the table of "Progress" below |
 | Japanese version | [2026-11-22-03_frame-export.md](2026-11-22-03_frame-export.md) (same content) |
 | Related | F6 of the overall plan [2026-11-22-00_v20-features_en.md](2026-11-22-00_v20-features_en.md). soccerwindow2's `src/qt/image_save_dialog.cpp` (2D image sequences) |
 
@@ -16,8 +16,8 @@ The work and the conditions of the end of each stage are in §5, and the history
 
 | Stage | Content | Status | Checked by the user | CI | Commits | Pushed |
 |---|---|---|---|---|---|---|
-| 1 | A 2D image (File > Save Image) (§4.1, §4.10; D4, D5) | In progress | Done | Not yet | — | Not yet |
-| 2 | The basics of the ranges and image sequences, the export dialog (§4.3 to §4.6) | Not started | Not yet | Not yet | — | Not yet |
+| 1 | A 2D image (File > Save Image) (§4.1, §4.10; D4, D5) | Done | Done | Passed | e9a9e96 | Done |
+| 2 | The basics of the ranges and image sequences, the export dialog (§4.3 to §4.6, §4.11; D6) | In progress | Done | Not yet | — | Not yet |
 | 3 | Handy ways to give the ranges (§4.4) | Not started | Not yet | Not yet | — | Not yet |
 | 4 | Videos by ffmpeg (§4.5) | Not started | Not yet | Not yet | — | Not yet |
 | 5 | Rearranging the 3D drawing (refactoring only; §4.2) | Not started | Not yet | Not yet | — | Not yet |
@@ -85,6 +85,7 @@ File > Save Image of soccerwindow2 (`../../rctools/soccerwindow2`; `src/qt/image
 | D3 | The range of frames to export can be specified. soccerwindow2's image saving may be referred to, but it should be improved (§4.4) |
 | D4 | The design decisions S1 to S9 are as proposed (2026-11-24, decided by the user at the start of stage 1) |
 | D5 | The shortcut of File > Save Image... is Ctrl+Shift+I (Ctrl+Shift+E is planned for Export Images / Video... of stage 2). While the 3D view is shown, it is disabled until stage 6 adds saving the 3D view (no image other than the view seen is saved) (the same) |
+| D6 | Saving one image and exporting a range stay separate items of the File menu, with names that make their roles clear (option A): "Save Image of This Frame..." (Ctrl+Shift+I; the current frame saved in one step, without the fields of a dialog) and "Export Images / Video..." (Ctrl+Shift+E; a modeless dialog to choose the range, the size and the fps). Compared with one item (as soccerwindow2, one image with the same start and end), the frequent saving of one image takes one step, and the different defaults and kinds of dialogs stay apart (2026-11-24, decided by the user at the start of stage 2) |
 
 ### 3.2 Design decisions (Claude; the user confirms them at the start of the stages)
 
@@ -220,7 +221,7 @@ Based on soccerwindow2 (2.5), as follows.
 
 ### 4.6 UI
 
-- File > Save Image...: saves the current view as one PNG or JPG. 2D: `renderFrame( current index, screen size × dpr, dpr )`; 3D: `renderStill`.
+- File > Save Image of This Frame... (D6; Save Image... when planned): saves the current view as one PNG or JPG. 2D: `renderFrame( current index, screen size × dpr, dpr )`; 3D: `renderStill`.
 - File > Export Images / Video...: `src/export_dialog.{h,cpp}` (new). Modeless (S8).
   - View: 2D / 3D (3D only with `HAVE_3D_VIEW` and an empty `OffscreenView3D::unavailableReason()`).
   - Range (§4.4): the list of ranges, and the start and end of the chosen range (cycle or cycle.stopped number, and the time). "Start at the current position", "End at the current position", the common ranges (whole, periods, goal scenes, around the current position), adding and removing ranges, and the choice of one output per range or joined. The number of images and the duration per range and in total, and the estimated disk use.
@@ -272,7 +273,7 @@ Only the 2D parts (stages 1-4 and 7) are built. The 3D and Qt Multimedia parts a
   - The painters were checked: each looks only at `DispHolder::currentDisp()`, and keeps no state across frames (the cache of the team logos is by the team's name).
   - The antialiasing of the texts: Qt uses subpixel antialiasing, by the font settings, only when drawing for a widget (through `paintEvent`, even into an image by `QWidget::render()`), and grayscale when drawing straight into an image. So the texts of the image do not match the view's pixel by pixel, and with Qt 5 their advances differ a little too. Grayscale suits the exported images and videos better (no color fringes when scaled or compressed), so it is kept.
 - `MainWindow`:
-  - File > Save Image... (Ctrl+Shift+I, `save_image`), after Save a Copy of Game Log in the File menu. Enabled only while the 2D view is shown (D5). `updateSaveImageAction()` is called after `toggleView3D()` changes the view. While the 3D view is shown, the reason is in the status tip and the tooltip.
+  - File > Save Image... (Ctrl+Shift+I, `save_image`; renamed "Save Image of This Frame..." by D6 at the start of stage 2), after Save a Copy of Game Log in the File menu. Enabled only while the 2D view is shown (D5). `updateSaveImageAction()` is called after `toggleView3D()` changes the view. While the 3D view is shown, the reason is in the status tip and the tooltip.
   - The current frame when chosen is drawn into an image first, and then the file dialog is shown (the log goes on playing behind the dialog). The image is the size of the 2D view times the screen's dpr (`renderImage()`).
   - The default name is the game log's name (without `.rcg` or `.rcg.gz`; `rcssmonitor` in live) and the cycle (`1234.3` when stopped), e.g. `head_v5-1.png` (`defaultImageName()`). Without an extension, PNG. The format is by the extension (`QImageWriter`). The directory saved to is remembered while the program runs (as Save a Copy).
   - It works in live too: one image does not meet the reasons to draw offline (S1: results independent of the machine's speed, shifting indexes). Without a frame, "There is no frame to save." in the status bar.
@@ -285,6 +286,35 @@ Only the 2D parts (stages 1-4 and 7) are built. The 3D and Qt Multimedia parts a
   - Save Image of the main window: the shortcut, the File menu, no frame, the size and the content of the image, the name, PNG and JPEG, a place that cannot be written.
   - The test of the menu item is in this test, which uses the same log and images, not in `test_toolbar` as planned. `test_view_switch` got a check that Save Image stays enabled when the 3D view is not available and the 2D view stays. Being disabled while the 3D view is shown is checked by hand, as offscreen cannot make the 3D view.
 - Checked (2026-11-24): with a real game log (RoboCup 2026), saved offscreen with `QT_SCALE_FACTOR` 1 and 2. With 2, the image was 2000×1226, with the texts and the team logos at twice the resolution, and the score board at the bottom.
+
+### 4.11 The implementation of stage 2 (2026-11-24)
+
+The basics of 4.3 and 4.4, the image sequences of 4.5, and the export dialog of 4.6 (2D, images, one range) were implemented as follows. What was decided beyond the plan is written too.
+
+- `src/export_timing.{h,cpp}` (new): the static-only class `ExportTiming`. `framesPerImage()`, `imageCount()`, `position()`, `frameAt()`, `frames2D()` (the frame of each 2D image), `duration()`, `nameDigits()`, `imageName()`. The positions are computed from n (not added up).
+- `src/export_range.{h,cpp}` (new): `ExportPosition` (a cycle and a stopped frame) and `ExportRange` (a range of indexes, and static functions). `parsePosition()`, `positionText()`, `startIndex()`, `endIndex()`, `gameTime()`.
+  - `DispHolder::lastIndex( cycle )` of the plan was not made: pure functions on a `DispCont` (in the order of the cycles and the stopped frames) instead, as the tests can make the frames.
+  - A start is the first frame at or after the position, and an end the last frame at or before it (for a cycle, up to its stopped frames). When there is none, it is moved, and that is told.
+- `src/frame_sink.{h,cpp}` (new): the interface `FrameSink` (`open`, `write` answering ACCEPTED / BUSY / FAILED, `finish`, `abort`, `readyForFrame`, `finished`). `frame_sink.cpp` is for moc (AUTOMOC of CMake may miss a header without its .cpp).
+- `src/image_sequence_sink.{h,cpp}` (new): `ImageSequenceSink`. Writes an image at a time with `QImageWriter` in a directory (made if it is not there) under the names given. When aborted, the images written are kept (the question of aborting in §3.3 is for the videos of stage 4). The formats are PNG and JPEG (`formats()`).
+- `src/export_job.{h,cpp}` (new): `ExportJob`. After `start()`, draws an image at a time with `FieldCanvas::renderFrame()` in the event loop and gives it to the sink (`QTimer::singleShot( 0 )`). On BUSY, waits for `readyForFrame`. Signals of the progress and the end. `abort()` tells the end at once.
+- `src/export_dialog.{h,cpp}` (new): `ExportDialog` (modeless).
+  - The range: the fields of the start and the end (empty: the first and the last frames), "Now" (the position shown), "All" (both empty). Beside the fields: the position moved to and the game time, that it was moved, and errors.
+  - The images: the size (as the view, 1280×720, 1920×1080, 3840×2160, any). "Scale the texts with the image" makes the dpr "the height of the image ÷ the height of the 2D view" (the texts in the same proportion as in the view); off, dpr 1. The speed and the fps (10 images/s and ×1 by default). The button "the same speed as the monitor's playback" is not made yet.
+  - The output: the directory, the start of the names, the format. "Name the images by the cycles" can be chosen only when an image is a frame. The names are `PREFIXc01234.00.png` (the stopped frame always in 2 digits or more, for the order of the names to be the order of the frames).
+  - The summary: the numbers of the images and the frames, the game time of the range, the size, the length of a video. On an error, its reason, and Export cannot be pressed.
+  - Export: the files already there under the names are counted at once, and asked about once (overwrite / another directory / cancel). The first image drawn and compressed, times the images, times 1.1, is the estimate, and a warning is given if it is more than the free space (`QStorageInfo`). The settings are saved, the playback stopped (`stopRequested`), and the `ExportJob` started. The progress is an application-modal `QProgressDialog` (Stop aborts). As `setValue()` of a modal one processes the events, the text is set first and the value last, and at the end it is removed by `deleteLater()` (avoiding the crash found in stage 1 of F5).
+  - Nothing is exported while connected (S1: the button disabled, with the reason).
+  - With the 3D view shown, the 2D images are exported (the group is titled "Images (2D view)"). 3D in stage 6.
+- `Options::ExportSettings` and `writeExportSettings()` (the group `Export`; S7): the directory, the start of the names, the format, the size, the custom size, scaling the texts, the fps, the speed, the names by the cycles. Written when an export starts.
+- `MainWindow`: File > Export Images / Video... (Ctrl+Shift+E, `export`; after Save Image of This Frame). Enabled only with frames and while not connected (`updateExportAction()`, called when a log is opened, and when connecting and disconnecting). The dialog is made when first shown, and `viewUpdated` updates its summary.
+- Tests:
+  - `export_timing` (new): the frames an image advances (2D, 3D, speeds, steps), the counts, the frames of 2D (half the speed, 30 fps, the end of a long range), the length, the digits of the names.
+  - `export_range` (new): reading positions (wrong ones too), writing them, the indexes of the starts and the ends (stopped frames, missing cycles, out of the log, moved), the ranges, the game time.
+  - `image_sequence_sink` (new): files under the names (PNG, JPEG, the directory made), a directory that cannot be made, more images than names. `ExportJob`: the images the same as `renderFrame()`, drawn after `start()`, the view's state unchanged, aborted (the images written kept), an error of the sink, no frames.
+  - `export_dialog` (new): the menu (the shortcut, after Save Image of This Frame, enabled with a log, modeless, only one), the range (empty fields, Now, moved, wrong ones cannot be exported), the export (the names and the sizes of the files, the playback stopped, the view unchanged, the settings saved, the status), the names by the cycles (when they can be chosen, half the speed), the sizes (as the view, 1920×1080, scaling the texts), the files already there (asked once; cancel writes nothing), while connected.
+  - The test of the view unchanged waits for the rows of the tool bars laid out again after opening the log (a timer of 0 ms) before comparing. Without waiting, the size of the 2D view changed during the export.
+- Checked (2026-11-24): 1000 to 1299 of a real game log (RoboCup 2026; 330 frames with the stopped ones) were exported as PNG of 1920×1080 in 10.3 s (31 ms an image), with about 110 MB of memory, and 35 MB on the disk (106 KB an image). The texts and the logos of the images were in the same proportion as in the view. The dialog was drawn into an image and looked at, and the widths of the fields were fixed (the start and the end as wide, the texts beside them in one line, cut when long).
 
 ## 5. Stages
 
@@ -383,4 +413,23 @@ Stage 5 may proceed in parallel with stages 2-4.
 - With the CMake builds of Qt 6 (6.4.2) and Qt 5 (5.15.13) with the whistle, and of `ENABLE_SOUND=OFF`, there were no warnings, and `ctest -j8` run 3 times on each passed all 71 tests. The autotools build (Qt 5) passed too, without warnings of the compiler.
 - Saving with the scales 1 and 2 was checked with a real game log (4.10). README ("Saving an image of the view"), NEWS and ChangeLog were updated.
 - The user checked Save Image on the screen (the end of stage 1).
+- Next: the commit and the push, and the CI.
+
+### 2026-11-24: Stage 1 committed, and the CI
+
+- Stage 1 was committed as e9a9e96 and pushed. In the CI, all 5 jobs passed.
+- Next: stage 2 (the basics of the ranges and image sequences, the export dialog) is checked with the user before it starts.
+
+### 2026-11-24: Stage 2 started, and the names of the menu items (D6)
+
+- The user asked why saving one image and exporting a range are separate menu items. The merits of separating them (one image in one step, different defaults, different kinds of dialogs) and the demerits (two similar items, unlike the one entry of soccerwindow2) were given, with three options (A: separate, with names that tell them apart; B: one item; C: one item, keeping saving in one step). The user chose A (D6). Save Image... was renamed "Save Image of This Frame..." (the menu, the title of the dialog, README, NEWS, ChangeLog).
+- Stage 2 started at the user's instruction. The shortcut of Export Images / Video... is Ctrl+Shift+E, as planned with D5.
+
+### 2026-11-24: Stage 2 implemented
+
+- Implemented as in 4.11. The tests `export_timing`, `export_range`, `image_sequence_sink` and `export_dialog` were added.
+- Found by the tests and on the screen, and fixed: the field of the end in the export dialog was narrowed by a long error text beside it (the fields got a fixed width, and the texts one line). The test of the view unchanged failed as the rows of the tool bars, laid out again after opening the log, changed the size of the 2D view (the test waits for the layout).
+- With the CMake builds of Qt 6 (6.4.2) and Qt 5 (5.15.13) with the whistle, and of `ENABLE_SOUND=OFF`, there were no warnings, and `ctest -j8` run 3 times on each passed all 75 tests. The autotools build (Qt 5) passed too, without warnings of the compiler.
+- Image sequences of PNG of 1920×1080 were checked with a real game log (4.11). README ("Saving images of the view"), NEWS and ChangeLog were updated.
+- The user checked the export (the end of stage 2).
 - Next: the commit and the push, and the CI.

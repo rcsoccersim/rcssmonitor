@@ -55,6 +55,7 @@ class ConfigDialog;
 class FieldCanvas;
 class FieldView3D;
 class QStackedWidget;
+class ExportDialog;
 class LogBrowserDialog;
 class LogDownloader;
 class LogPlayer;
@@ -94,6 +95,7 @@ private:
     LogDownloader * M_log_downloader = nullptr; //!< a game log from a URL (File > Open Game Log from URL)
     QProgressDialog * M_download_dialog = nullptr; //!< while it downloads
     LogBrowserDialog * M_log_browser = nullptr; //!< File > Browse Game Logs, made when it is first shown
+    ExportDialog * M_export_dialog = nullptr; //!< File > Export Images / Video, made when it is first shown
     QString M_game_log_path; //!< the file of the game log open (Save a Copy), or empty (none, or live)
 
     QLabel * M_position_label;
@@ -103,7 +105,8 @@ private:
     QAction * M_open_url_act = nullptr; //!< File > Open Game Log from URL
     QAction * M_browse_logs_act = nullptr; //!< File > Browse Game Logs
     QAction * M_save_copy_act = nullptr; //!< File > Save a Copy of Game Log: enabled while a game log is open
-    QAction * M_save_image_act = nullptr; //!< File > Save Image: the 2D view (disabled while the 3D view is shown)
+    QAction * M_save_image_act = nullptr; //!< File > Save Image of This Frame: the 2D view (disabled while the 3D view is shown)
+    QAction * M_export_act = nullptr; //!< File > Export Images / Video: enabled with frames, not connected
     QAction * M_exit_act;
 
     // monitor actions
@@ -292,12 +295,15 @@ public:
 
     /*!
       \brief save the frame shown in the 2D view to an image file (File >
-      Save Image). The format is by the extension (PNG if there is none).
+      Save Image of This Frame). The format is by the extension (PNG if there is none).
       \param error set to the reason if it fails (may be null)
       \return false if there is no frame, or the file cannot be written
     */
     bool saveImage( const QString & path,
                     QString * error = nullptr ) const;
+
+    //! the dialog of File > Export Images / Video, or null before it is first shown
+    ExportDialog * exportDialog() const { return M_export_dialog; }
 
     //! the cache of the downloaded game logs
     const LogCache & gameLogCache() const { return M_log_cache; }
@@ -319,8 +325,11 @@ private:
     //! the keyboard focus to the view shown: the 2D view, or the views' stack (the 3D view's window takes none)
     void focusView();
 
-    //! File > Save Image: enabled while the 2D view is shown (D5 of docs/plan/2026-11-22-03_frame-export.md)
+    //! File > Save Image of This Frame: enabled while the 2D view is shown (D5 of docs/plan/2026-11-22-03_frame-export.md)
     void updateSaveImageAction();
+
+    //! File > Export Images / Video: enabled with frames, while not connected to a server (S1)
+    void updateExportAction();
 
     //! a pixel of the window below the 3D view when it would cover all of a full screen window (viewMargins())
     void updateViewMargins();
@@ -379,9 +388,11 @@ private slots:
     void openGameLogUrl();
     //! File > Browse Game Logs: the dialog (modeless), made when it is first shown
     void showLogBrowser();
+    //! File > Export Images / Video: the dialog (modeless), made when it is first shown
+    void showExportDialog();
     //! File > Save a Copy of Game Log: the file dialog
     void saveGameLogCopy();
-    //! File > Save Image: the frame shown when chosen, then the file dialog
+    //! File > Save Image of This Frame: the frame shown when chosen, then the file dialog
     void saveImage();
     //! the download of a game log: its progress, its end
     void showDownloadProgress( qint64 received,

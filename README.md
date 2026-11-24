@@ -110,12 +110,20 @@ A click on a column's header sorts the logs by the column.
 - The archive, and any directory on a web server, is read a directory at a time, when it is opened, and kept in `~/.cache/rcssmonitor/archive` for a day (`Reload` reads the directories again as they are opened). When it cannot be read, the list kept is shown, however old. The sizes on a page of links are as the page shows them: rounded by Apache (e.g. `5.0M`), and none by some servers.
 - The filter applies to the logs listed: a directory of the archive not read yet is shown until it is opened.
 
-### Saving an image of the view
+### Saving images of the view
 
-`File` -> `Save Image...` (`Ctrl+Shift+I`) saves the frame shown in the 2D view to an image file (PNG, or JPEG by the extension), as large as the view: on a high-DPI screen, with as many pixels as the screen shows.
+`File` -> `Save Image of This Frame...` (`Ctrl+Shift+I`) saves the frame shown in the 2D view to an image file (PNG, or JPEG by the extension), as large as the view: on a high-DPI screen, with as many pixels as the screen shows.
 The default name is the game log's name and the cycle, e.g. `202607050404-HELIOS2026_0-vs-YuShan2026_1-301.png`.
 The texts are drawn with grayscale antialiasing.
 It is not available while the 3D view is shown yet.
+
+`File` -> `Export Images / Video...` (`Ctrl+Shift+E`) exports a range of the frames of the game log as image files (PNG or JPEG), drawn by the 2D view:
+
+- The range: the start and the end are cycles (`1234`) or stopped frames (`1234.3`, as the status bar shows them), empty for the first and the last frames. A cycle as the end includes its stopped frames. `Now` takes the position shown: the dialog stays open while you move through the log. `All` empties both.
+- The size: as the view, 1280 × 720, 1920 × 1080, 3840 × 2160, or any. `Scale the texts with the image` draws the texts as large in the image as in the view.
+- The rate: the images a second and the speed (10 images/s at × 1 draws each frame once).
+- The images are named by their numbers (`image-00000.png`), or by the cycles (`image-c01234.00.png`) when an image is a frame. The files already there are told once before the export, and the disk space is estimated.
+- It is not available while connected to a server. The view and the frame shown do not change.
 
 ### The 3D view
 

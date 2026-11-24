@@ -13,11 +13,17 @@ rcssmonitor_SOURCES = \
 	connect_dialog.cpp \
 	disp_holder.cpp \
 	draw_info_painter.cpp \
+	export_dialog.cpp \
+	export_job.cpp \
+	export_range.cpp \
+	export_timing.cpp \
 	field_canvas.cpp \
 	field_painter.cpp \
 	frame_scope.cpp \
+	frame_sink.cpp \
 	game_log_file.cpp \
 	github_log_source.cpp \
+	image_sequence_sink.cpp \
 	line_2d.cpp \
 	log_browser_dialog.cpp \
 	log_cache.cpp \
@@ -60,8 +66,12 @@ nodist_rcssmonitor_SOURCES = \
 	moc_archive_log_source.cpp \
 	moc_config_dialog.cpp \
 	moc_connect_dialog.cpp \
+	moc_export_dialog.cpp \
+	moc_export_job.cpp \
 	moc_field_canvas.cpp \
+	moc_frame_sink.cpp \
 	moc_github_log_source.cpp \
+	moc_image_sequence_sink.cpp \
 	moc_log_browser_dialog.cpp \
 	moc_log_downloader.cpp \
 	moc_log_player.cpp \
@@ -88,11 +98,17 @@ noinst_HEADERS = \
 	connect_dialog.h \
 	disp_holder.h \
 	draw_info_painter.h \
+	export_dialog.h \
+	export_job.h \
+	export_range.h \
+	export_timing.h \
 	field_canvas.h \
 	field_painter.h \
 	frame_scope.h \
+	frame_sink.h \
 	game_log_file.h \
 	github_log_source.h \
+	image_sequence_sink.h \
 	line_2d.h \
 	log_browser_dialog.h \
 	log_cache.h \

@@ -258,6 +258,30 @@ private:
     QStringList M_recent_log_urls; //!< the URLs of game logs opened recently, the newest first
     QStringList M_log_sources; //!< the sources of File > Browse Game Logs
 
+public:
+
+    /*!
+      \struct ExportSettings
+      \brief the settings of File > Export Images / Video, kept in the group
+      Export of the settings (docs/plan/2026-11-22-03_frame-export.md S7)
+    */
+    struct ExportSettings {
+        QString directory; //!< where the images are written (empty: the home)
+        QString prefix = QStringLiteral( "image-" ); //!< the start of the names of the images
+        QString format = QStringLiteral( "png" ); //!< the image format
+        QString size = QStringLiteral( "view" ); //!< view, 1280x720, 1920x1080, 3840x2160, or custom
+        int width = 1920; //!< the custom size
+        int height = 1080;
+        bool scale_texts = true; //!< the texts as large in the image as in the view (by the device pixel ratio)
+        double fps = 10.0; //!< the images a second (2D)
+        double speed = 1.0; //!< how many times as fast as the game is played
+        bool name_by_cycle = false; //!< the images named by the cycles (one frame an image)
+    };
+
+private:
+
+    ExportSettings M_export_settings;
+
     //
     // view options
     //
@@ -679,6 +703,15 @@ public:
     void setLogSources( const QStringList & sources ) { M_log_sources = sources; }
     //! write them to the settings file now (called when one is added or removed)
     void writeLogSources() const;
+
+    //
+    // export
+    //
+
+    const ExportSettings & exportSettings() const { return M_export_settings; }
+    void setExportSettings( const ExportSettings & settings ) { M_export_settings = settings; }
+    //! write them to the settings file now (called when an export starts)
+    void writeExportSettings() const;
 
     //
     // view options

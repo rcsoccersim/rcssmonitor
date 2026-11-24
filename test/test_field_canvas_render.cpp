@@ -3,7 +3,7 @@
 /*!
   \file test_field_canvas_render.cpp
   \brief unit test of FieldCanvas::renderFrame(), FrameScope and File >
-  Save Image
+  Save Image of This Frame
 */
 
 /*
@@ -363,7 +363,7 @@ TestFieldCanvasRender::emptySize()
 
 /*-------------------------------------------------------------------*/
 /*!
-  File > Save Image (Ctrl+Shift+I): the frame shown, as large as the view;
+  File > Save Image of This Frame (Ctrl+Shift+I): the frame shown, as large as the view;
   the name of the log and the cycle; PNG without an extension; no frame.
 */
 void
