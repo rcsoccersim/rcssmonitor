@@ -169,7 +169,7 @@ TestWhistleRules::table()
     QFETCH( int, time );
     QFETCH( WhistleKind, expected );
 
-    const WhistleKind kind = whistleFor( prev, next, time );
+    const WhistleKind kind = WhistleRules::whistle( prev, next, time );
     QVERIFY2( kind == expected,
               qPrintable( QString( "%1 (expected %2)" ).arg( kindName( kind ), kindName( expected ) ) ) );
 }
@@ -204,7 +204,7 @@ TestWhistleRules::sequence()
     std::vector< WhistleKind > whistles;
     for ( std::size_t i = 1; i < frames.size(); ++i )
     {
-        const WhistleKind k = whistleFor( frames[i - 1].second, frames[i].second, frames[i].first );
+        const WhistleKind k = WhistleRules::whistle( frames[i - 1].second, frames[i].second, frames[i].first );
         if ( k != WhistleKind::None ) whistles.push_back( k );
     }
 
@@ -230,22 +230,22 @@ TestWhistleRules::sequence()
 void
 TestWhistleRules::firstFrame()
 {
-    QVERIFY( whistleAtFirstFrame( PM_KickOff_Left ) == WhistleKind::Long );
-    QVERIFY( whistleAtFirstFrame( PM_KickOff_Right ) == WhistleKind::Long );
-    QVERIFY( whistleAtFirstFrame( PM_BeforeKickOff ) == WhistleKind::None );
-    QVERIFY( whistleAtFirstFrame( PM_PlayOn ) == WhistleKind::None );
-    QVERIFY( whistleAtFirstFrame( PM_Foul_Charge_Left ) == WhistleKind::None );
-    QVERIFY( whistleAtFirstFrame( PM_Null ) == WhistleKind::None );
+    QVERIFY( WhistleRules::atFirstFrame( PM_KickOff_Left ) == WhistleKind::Long );
+    QVERIFY( WhistleRules::atFirstFrame( PM_KickOff_Right ) == WhistleKind::Long );
+    QVERIFY( WhistleRules::atFirstFrame( PM_BeforeKickOff ) == WhistleKind::None );
+    QVERIFY( WhistleRules::atFirstFrame( PM_PlayOn ) == WhistleKind::None );
+    QVERIFY( WhistleRules::atFirstFrame( PM_Foul_Charge_Left ) == WhistleKind::None );
+    QVERIFY( WhistleRules::atFirstFrame( PM_Null ) == WhistleKind::None );
 }
 
 /*-------------------------------------------------------------------*/
 void
 TestWhistleRules::stronger()
 {
-    QVERIFY( strongerWhistle( WhistleKind::Short, WhistleKind::Long ) == WhistleKind::Long );
-    QVERIFY( strongerWhistle( WhistleKind::LongThrice, WhistleKind::LongTwice ) == WhistleKind::LongThrice );
-    QVERIFY( strongerWhistle( WhistleKind::None, WhistleKind::Short ) == WhistleKind::Short );
-    QVERIFY( strongerWhistle( WhistleKind::None, WhistleKind::None ) == WhistleKind::None );
+    QVERIFY( WhistleRules::stronger( WhistleKind::Short, WhistleKind::Long ) == WhistleKind::Long );
+    QVERIFY( WhistleRules::stronger( WhistleKind::LongThrice, WhistleKind::LongTwice ) == WhistleKind::LongThrice );
+    QVERIFY( WhistleRules::stronger( WhistleKind::None, WhistleKind::Short ) == WhistleKind::Short );
+    QVERIFY( WhistleRules::stronger( WhistleKind::None, WhistleKind::None ) == WhistleKind::None );
 }
 
 /*-------------------------------------------------------------------*/

@@ -2,8 +2,9 @@
 # write the user's ~/.rcssmonitor.conf (Options reads and writes it). Each
 # test removes the settings that an earlier run left there before it starts
 # (fresh_settings.cpp), when HOME is RCSSMONITOR_TEST_HOME. The XDG data
-# folders are there too, so that they never read the user's figure packs
-# (FigurePacks). Each test has a HOME of its own (home/<name>): run at once
+# folders and the cache (the downloaded game logs) are there too, so that
+# they never read the user's figure packs (FigurePacks) nor touch the
+# user's cache. Each test has a HOME of its own (home/<name>): run at once
 # (ctest -j), a test starting removed the settings file that another one
 # was checking.
 set(TEST_HOME ${CMAKE_CURRENT_BINARY_DIR}/home)
@@ -43,7 +44,7 @@ function(rcssmonitor_add_test name)
   # skipped, not as passed
   set_tests_properties(${name}
     PROPERTIES
-    ENVIRONMENT "HOME=${home};RCSSMONITOR_TEST_HOME=${home};XDG_DATA_HOME=${home}/share;XDG_DATA_DIRS=${home}/share-system;QT_QPA_PLATFORM=offscreen"
+    ENVIRONMENT "HOME=${home};RCSSMONITOR_TEST_HOME=${home};XDG_DATA_HOME=${home}/share;XDG_DATA_DIRS=${home}/share-system;XDG_CACHE_HOME=${home}/cache;QT_QPA_PLATFORM=offscreen"
     SKIP_REGULAR_EXPRESSION "\nSKIP   : "
     )
 endfunction()
@@ -66,6 +67,15 @@ rcssmonitor_add_test(ui_color_scheme rcssmonitor_core)
 rcssmonitor_add_test(ui_icon rcssmonitor_core)
 rcssmonitor_add_test(whistle_rules rcssmonitor_core)
 rcssmonitor_add_test(whistle rcssmonitor_core)
+rcssmonitor_add_test(log_url rcssmonitor_core)
+rcssmonitor_add_test(log_cache rcssmonitor_core)
+rcssmonitor_add_test(log_downloader rcssmonitor_core)
+rcssmonitor_add_test(remote_log rcssmonitor_core)
+rcssmonitor_add_test(log_file_name rcssmonitor_core)
+rcssmonitor_add_test(log_filter rcssmonitor_core)
+rcssmonitor_add_test(github_log_source rcssmonitor_core)
+rcssmonitor_add_test(archive_log_source rcssmonitor_core)
+rcssmonitor_add_test(log_browser_dialog rcssmonitor_core)
 rcssmonitor_add_test(player_type_sort Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Gui)
 rcssmonitor_add_test(game_log_file rcssmonitor_core)
 rcssmonitor_add_test(line_parser rcssrcg Qt${QT_VERSION_MAJOR}::Core)

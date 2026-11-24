@@ -39,10 +39,13 @@
 
 #include "camera_mode.h"
 #include "disp_holder.h"
+#include "log_cache.h"
 #include "referee_target.h"
 
 class QActionGroup;
 class QComboBox;
+class QMimeData;
+class QProgressDialog;
 class QToolButton;
 class QLabel;
 class QLineEdit;
@@ -51,6 +54,8 @@ class ConfigDialog;
 class FieldCanvas;
 class FieldView3D;
 class QStackedWidget;
+class LogBrowserDialog;
+class LogDownloader;
 class LogPlayer;
 class LogPlayerSlider;
 class MonitorClient;
@@ -84,10 +89,19 @@ private:
     //LogPlayerSlider * M_log_player_slider;
     Whistle * M_whistle; //!< the referee's whistle at the changes of the play mode of the frame shown
 
+    LogCache M_log_cache; //!< the game logs downloaded
+    LogDownloader * M_log_downloader = nullptr; //!< a game log from a URL (File > Open Game Log from URL)
+    QProgressDialog * M_download_dialog = nullptr; //!< while it downloads
+    LogBrowserDialog * M_log_browser = nullptr; //!< File > Browse Game Logs, made when it is first shown
+    QString M_game_log_path; //!< the file of the game log open (Save a Copy), or empty (none, or live)
+
     QLabel * M_position_label;
 
     // file actions
     QAction * M_open_act;
+    QAction * M_open_url_act = nullptr; //!< File > Open Game Log from URL
+    QAction * M_browse_logs_act = nullptr; //!< File > Browse Game Logs
+    QAction * M_save_copy_act = nullptr; //!< File > Save a Copy of Game Log: enabled while a game log is open
     QAction * M_exit_act;
 
     // monitor actions
@@ -225,13 +239,51 @@ protected:
     void resizeEvent( QResizeEvent * event ) override;
     void wheelEvent( QWheelEvent * event );
 
-//     void dragEnterEvent( QDragEnterEvent * event );
-//     void dropEvent( QDropEvent * event );
+    //! a game log file or URL dragged over the window
+    void dragEnterEvent( QDragEnterEvent * event ) override;
+    void dragMoveEvent( QDragMoveEvent * event ) override;
+    //! a game log file or URL dropped: opened
+    void dropEvent( QDropEvent * event ) override;
 
 private:
 
-    void openGameLogFile( const QString & filepath );
     bool openGameLogFileImpl( const QString & filepath );
+
+public:
+
+    //! open a game log file (File > Open Game Log, the command line, a drop, a download)
+    void openGameLogFile( const QString & filepath );
+
+    /*!
+      \brief the game log in dropped data: the first URL, a local file's path
+      or an http:// or https:// URL; or a text that is such a URL. Empty if
+      none.
+    */
+    static QString droppedGameLog( const QMimeData * data );
+
+    /*!
+      \brief open a game log from a URL (docs/plan/2026-11-22-02_remote-logs.md
+      4.1): from the cache if it was downloaded before, or downloaded into the
+      cache with a progress dialog (Cancel), and then opened. A URL that cannot
+      be opened is told in a message box.
+      \param text the URL, as given (LogUrl::parse())
+    */
+    void openGameLogUrl( const QString & text );
+
+    /*!
+      \brief copy the file of the game log open to a path (File > Save a Copy
+      of Game Log). The file is kept as it is (e.g. compressed).
+      \return false if no game log is open or it cannot be copied
+    */
+    bool saveGameLogCopy( const QString & path );
+
+    //! the cache of the downloaded game logs
+    const LogCache & gameLogCache() const { return M_log_cache; }
+
+private:
+
+    //! stop a download going on, and close its dialog
+    void cancelDownload();
 
     //! use the camera of the 3D view: in the options, the menu, the tool bar and the view
     void setCamera3D( const CameraMode mode );
@@ -298,6 +350,17 @@ private slots:
 
     // file menu action slots
     void openGameLogFile();
+    //! File > Open Game Log from URL: the dialog
+    void openGameLogUrl();
+    //! File > Browse Game Logs: the dialog (modeless), made when it is first shown
+    void showLogBrowser();
+    //! File > Save a Copy of Game Log: the file dialog
+    void saveGameLogCopy();
+    //! the download of a game log: its progress, its end
+    void showDownloadProgress( qint64 received,
+                               qint64 total );
+    void openDownloadedLog( const QString & path );
+    void showDownloadError( const QString & message );
 
     // monitor menu action slots
     void kickOff();

@@ -18,6 +18,23 @@
 	- improve the desktop entry (keywords, the action to connect, the
 	  link to the window), and install the icon in all its sizes. the
 	  autotools build installs them too, with the RPATH of librcssrcg.
+	- open game logs from http:// and https:// URLs (the menu, the
+	  command line, a drop), downloaded into the cache; GitHub's file
+	  pages and Git LFS. open dropped game log files. save a copy of the
+	  file of the game log open.
+	- list the game logs in repositories on GitHub (File > Browse Game
+	  Logs), from the Git Trees API, kept in the cache for an hour; the
+	  date, the teams and the score read from the file names.
+	- list the game logs of archive.robocup.info (and other directories
+	  listed by h5ai) a directory at a time, kept in the cache for a
+	  day. the sources of the list are kept in the settings, and the
+	  user can remove the default ones too.
+	- list the game logs of directories of web servers listed by a page
+	  of links (the autoindex of Apache, nginx and so on), read when the
+	  server does not answer as h5ai; the sizes from the page.
+	- filter the list of game logs by a team on a side, its opponent,
+	  its result (the winner of a penalty shootout wins) and a range of
+	  dates.
 	- add the referee's whistle at the changes of the play mode, with
 	  Qt Multimedia (optional): the sounds synthesized by
 	  tools/make_whistle.py, played on one audio output kept open while

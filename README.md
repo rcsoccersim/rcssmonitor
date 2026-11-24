@@ -11,7 +11,7 @@ To view game logs without installing anything, the browser version, rcssmonitor-
 
 ## :soccer: Quick Start
 
-rcssmonitor is written in C++17 and depends on [Qt](https://www.qt.io/) 6 (6.2 or later) or Qt 5 (5.15). It is built with [CMake](https://cmake.org/) (3.16 or later).
+rcssmonitor is written in C++17 and depends on [Qt](https://www.qt.io/) 6 (6.4 or later) or Qt 5 (5.15). It is built with [CMake](https://cmake.org/) (3.16 or later).
 
 First, install the tools and libraries. On Ubuntu:
 ```bash
@@ -23,7 +23,6 @@ and Qt 6, whose packages differ between the releases:
 |---|---|
 | 26.04 | `qt6-base-dev libqt6opengl6-dev qt6-websockets-dev qt6-multimedia-dev` |
 | 24.04 | `qt6-base-dev qt6-websockets-dev qt6-multimedia-dev` |
-| 22.04 | `qt6-base-dev libqt6opengl6-dev libqt6websockets6-dev qt6-multimedia-dev libgl-dev` |
 
 e.g. `sudo apt install qt6-base-dev qt6-websockets-dev qt6-multimedia-dev` on Ubuntu 24.04, or Qt 5 on any of them: `sudo apt install qtbase5-dev libqt5websockets5-dev qtmultimedia5-dev libqt5multimedia5-plugins`.
 libdeflate (faster reading of gzip-compressed game logs), Qt WebSockets (the WebSocket connection to the server) and Qt Multimedia ([the referee's whistle](#the-referees-whistle)) are optional.
@@ -82,6 +81,34 @@ rcssmonitor
 ```
 
 If you invoke `rcssmonitor` with `--help` option, available options are displayed in your console.
+
+### Opening a game log from a URL
+
+`File` -> `Open Game Log from URL...` (`Ctrl+Shift+O`) downloads a game log (`.rcg` or `.rcg.gz`) from an `http://` or `https://` URL, and opens it.
+A file page on GitHub (`https://github.com/OWNER/REPO/blob/BRANCH/PATH`) can be given as it is: it is read from its raw file, and a file stored with Git LFS from its content.
+A URL can also be given on the command line, or dropped on the window from a browser:
+
+```bash
+rcssmonitor https://github.com/rcsoccersim/RoboCup2026/blob/main/logs/Finals/202607050404-HELIOS2026_0-vs-YuShan2026_1.rcg.gz
+```
+
+- The downloaded logs are kept in `~/.cache/rcssmonitor/logs`, and a URL opened again is opened from there. `Clear Cache` in the dialog removes them. The dialog also remembers the URLs opened recently.
+- `File` -> `Save a Copy of Game Log...` (`Ctrl+Shift+S`) saves a copy of the file of the game log open, e.g. one downloaded.
+- A game log file dropped on the window is opened too, as by `File` -> `Open Game Log`.
+- A download is up to 200 MB. `https://` needs the TLS of Qt with OpenSSL ([docs/build.md](docs/build.md#notes)).
+
+### Browsing game logs
+
+`File` -> `Browse Game Logs...` (`Ctrl+Shift+B`) lists game logs in the directories of their sources: the date, the teams, the score (the penalty shootout in parentheses) and the size of each log.
+The sources are, at first, the logs of RoboCup 2026 on GitHub ([rcsoccersim/RoboCup2026](https://github.com/rcsoccersim/RoboCup2026)) and the 2D logs of the archive ([archive.robocup.info](https://archive.robocup.info/Soccer/Simulation/2D/logs/), RoboCup 2004 to 2023 and RCAP).
+A double click, or `Open`, downloads a log and opens it, as a URL does; the dialog stays open, to open one game after another.
+The filter shows only the games of a team (`Team:`, a part of its name in any case) on either side or one side (`Side:`), against an opponent (`vs:`), with the result of the team (`Result:`: a win, a draw or a loss; the winner of a penalty shootout wins), and between the dates checked (`From:`, `To:`); `Clear` shows all the games again.
+A click on a column's header sorts the logs by the column.
+
+- `Add...` adds a source: a public repository on GitHub with game logs (`OWNER/REPO`, `OWNER/REPO@BRANCH`, or its URL), or the URL of a directory on a web server that lists its files: by [h5ai](https://larsjung.de/h5ai/), as the archive (e.g. a year of it), or by a plain page of links, as the autoindex of Apache or nginx (which one is found out by itself). `Remove` removes any source, a default one too; `Add...` offers the default ones removed. The sources are kept in the settings.
+- The list of a repository is read by one request to the GitHub API, and kept in `~/.cache/rcssmonitor/github` for an hour (`Reload` reads it again). GitHub allows 60 requests an hour without an account: when they are used up, the dialog tells until when, and shows the list kept before, however old.
+- The archive, and any directory on a web server, is read a directory at a time, when it is opened, and kept in `~/.cache/rcssmonitor/archive` for a day (`Reload` reads the directories again as they are opened). When it cannot be read, the list kept is shown, however old. The sizes on a page of links are as the page shows them: rounded by Apache (e.g. `5.0M`), and none by some servers.
+- The filter applies to the logs listed: a directory of the archive not read yet is shown until it is opened.
 
 ### The 3D view
 

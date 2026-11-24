@@ -21,7 +21,7 @@
     live game is drawn some seconds behind, in 2D and 3D, so that the
     ball can fly in a live game too.
 
-  * Support Qt 6 (6.2 or later). Qt 5.15 is still supported. CMake uses
+  * Support Qt 6 (6.4 or later). Qt 5.15 is still supported. CMake uses
     Qt 6 if it is found.
 
   * Make CMake the official build. The README describes CMake only, and
@@ -59,6 +59,24 @@
     is installed in all its sizes and as an SVG. The autotools build
     installs the desktop entry and the icons too, and its installed
     rcssmonitor finds librcssrcg without LD_LIBRARY_PATH.
+
+  * Open game logs from URLs (File > Open Game Log from URL, a URL on
+    the command line, or dropped on the window): downloaded into
+    ~/.cache/rcssmonitor/logs and opened. A file page on GitHub is read
+    from its raw file (and a file of Git LFS from its content). Game log
+    files can be dropped on the window too, and File > Save a Copy of
+    Game Log saves a copy of the file of the game log open. See
+    README.md.
+
+  * Browse game logs (File > Browse Game Logs): the date, the teams,
+    the score and the size of each log, in the directories of its
+    source, filtered by a team (on a side), its opponent, its result
+    and the dates, and sorted by a column; a log is opened by a double
+    click. The sources are the logs of RoboCup 2026 on GitHub and the 2D
+    logs of archive.robocup.info at first; the user can add public
+    repositories on GitHub and directories of web servers (listed by
+    h5ai, or by a page of links as Apache and nginx do), and remove any.
+    See README.md.
 
   * Add the referee's whistle (View > Referee's Whistle, --whistle, off
     by default): a long whistle at a kick-off, a short one at a foul, an

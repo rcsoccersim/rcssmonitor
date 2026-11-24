@@ -2,6 +2,7 @@
 # The application except main(), as a library that the unit tests link too.
 add_library(rcssmonitor_core STATIC
   angle_deg.cpp
+  archive_log_source.cpp
   ball_painter.cpp
   circle_2d.cpp
   config_dialog.cpp
@@ -11,13 +12,22 @@ add_library(rcssmonitor_core STATIC
   field_canvas.cpp
   field_painter.cpp
   game_log_file.cpp
+  github_log_source.cpp
   line_2d.cpp
+  log_browser_dialog.cpp
+  log_cache.cpp
+  log_downloader.cpp
+  log_file_name.cpp
+  log_filter.cpp
   log_player.cpp
   log_player_slider.cpp
+  log_source.cpp
+  log_url.cpp
   main_window.cpp
   message_splitter.cpp
   monitor_client.cpp
   monitor_transport.cpp
+  open_url_dialog.cpp
   options.cpp
   overlay_math.cpp
   play_mode_position.cpp

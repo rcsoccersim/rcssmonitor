@@ -57,7 +57,7 @@ check_include_file_cxx("arpa/inet.h" HAVE_ARPA_INET_H)
 # Not find_package(QT NAMES Qt6 Qt5): it takes the one that it finds first
 # in the directory, which is not always Qt6.
 if(NOT QT_VERSION_MAJOR)
-  find_package(Qt6 6.2 QUIET COMPONENTS Core)
+  find_package(Qt6 6.4 QUIET COMPONENTS Core)
   if(Qt6_FOUND)
     set(QT_VERSION_MAJOR 6 CACHE STRING "The major version of Qt: 5 or 6")
   else()
@@ -65,7 +65,8 @@ if(NOT QT_VERSION_MAJOR)
   endif()
 endif()
 if(QT_VERSION_MAJOR EQUAL 6)
-  set(QT_MIN_VERSION 6.2)
+  # Qt 6.4 of Ubuntu 24.04: the oldest Qt6 checked
+  set(QT_MIN_VERSION 6.4)
   # use none of the API that Qt 6.0 or earlier deprecated
   set(QT_DISABLE_DEPRECATED_BEFORE 0x060000)
 elseif(QT_VERSION_MAJOR EQUAL 5)

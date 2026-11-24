@@ -139,14 +139,14 @@ public:
   \class Whistle
   \brief the referee's whistle (docs/plan/2026-11-22-00_v20-features.md §C):
   watches the frame shown (LogPlayer::indexUpdated()), and blows the
-  whistle of whistleFor() when its play mode changes from the frame shown
+  whistle of WhistleRules::whistle() when its play mode changes from the frame shown
   before. Only when the whistle is on in the options (Options::whistle()).
 
   - Log replay: only when the frame shown is the one after the frame shown
     before (playing, or a step forward). Not after a jump, a step back, or
     going to the first or the last frame. The play from the first frame
     blows the kick-off of the game if the log starts with one
-    (whistleAtFirstFrame()): the logs have no frame before it.
+    (WhistleRules::atFirstFrame()): the logs have no frame before it.
   - Live and the delayed live view: an update may go on by more than one
     frame (MAX_LIVE_STEP at most). The changes in the frames passed blow
     the strongest whistle of them, once.

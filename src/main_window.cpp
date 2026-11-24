@@ -42,10 +42,14 @@
 #include "connect_dialog.h"
 #include "field_canvas.h"
 #include "game_log_file.h"
+#include "log_browser_dialog.h"
+#include "log_downloader.h"
 #include "log_player.h"
 #include "log_player_slider.h"
+#include "log_url.h"
 #include "monitor_client.h"
 #include "monitor_transport.h"
+#include "open_url_dialog.h"
 #include "play_mode_position.h"
 #include "player_type_dialog.h"
 #include "referee_menu.h"
@@ -108,6 +112,16 @@ MainWindow::MainWindow()
     createFieldCanvas();
 
     createConfigDialog();
+
+    // game logs from URLs, and dropped game logs (files and URLs)
+    M_log_downloader = new LogDownloader( this );
+    connect( M_log_downloader, &LogDownloader::progress,
+             this, &MainWindow::showDownloadProgress );
+    connect( M_log_downloader, &LogDownloader::finished,
+             this, &MainWindow::openDownloadedLog );
+    connect( M_log_downloader, &LogDownloader::failed,
+             this, &MainWindow::showDownloadError );
+    this->setAcceptDrops( true );
 
     connect( M_field_canvas, SIGNAL( focusChanged( const QPoint & ) ),
              this, SLOT( setFocusPoint( const QPoint & ) ) );
@@ -212,7 +226,16 @@ MainWindow::init()
     if ( ! Options::instance().gameLogFile().empty() )
     {
         std::cerr << "open game log " << Options::instance().gameLogFile() << std::endl;
-        QTimer::singleShot( 100, [this]() { openGameLogFile( QString::fromStdString( Options::instance().gameLogFile() ) ); } );
+        const QString log = QString::fromStdString( Options::instance().gameLogFile() );
+        if ( LogUrl::isUrl( log ) )
+        {
+            // an http:// or https:// URL: downloaded (docs/plan/2026-11-22-02_remote-logs.md 4.1)
+            QTimer::singleShot( 100, this, [this, log]() { openGameLogUrl( log ); } );
+        }
+        else
+        {
+            QTimer::singleShot( 100, this, [this, log]() { openGameLogFile( log ); } );
+        }
     }
     else if ( Options::instance().connect() )
     {
@@ -297,6 +320,34 @@ MainWindow::createActionsFile()
     connect( M_open_act, SIGNAL( triggered() ),
              this, SLOT( openGameLogFile() ) );
     this->addAction( M_open_act );
+
+    // a game log from a URL (docs/plan/2026-11-22-02_remote-logs.md 4.1)
+    M_open_url_act = new QAction( tr( "Open Game Log from &URL..." ), this );
+    M_open_url_act->setObjectName( "open_url" );
+    M_open_url_act->setShortcut( Qt::CTRL | Qt::SHIFT | Qt::Key_O );
+    M_open_url_act->setStatusTip( tr( "Download a game log from a URL (http:// or https://, e.g. a file page on GitHub), and open it." ) );
+    connect( M_open_url_act, &QAction::triggered,
+             this, [this]() { openGameLogUrl(); } );
+    this->addAction( M_open_url_act );
+
+    // the lists of game logs on GitHub (docs/plan/2026-11-22-02_remote-logs.md 4.2)
+    M_browse_logs_act = new QAction( tr( "&Browse Game Logs..." ), this );
+    M_browse_logs_act->setObjectName( "browse_logs" );
+    M_browse_logs_act->setShortcut( Qt::CTRL | Qt::SHIFT | Qt::Key_B );
+    M_browse_logs_act->setStatusTip( tr( "Browse the game logs on GitHub (e.g. those of RoboCup 2026), and open them." ) );
+    connect( M_browse_logs_act, &QAction::triggered,
+             this, &MainWindow::showLogBrowser );
+    this->addAction( M_browse_logs_act );
+
+    // the file of the game log open, e.g. one downloaded
+    M_save_copy_act = new QAction( tr( "Save a &Copy of Game Log..." ), this );
+    M_save_copy_act->setObjectName( "save_copy" );
+    M_save_copy_act->setShortcut( Qt::CTRL | Qt::SHIFT | Qt::Key_S );
+    M_save_copy_act->setStatusTip( tr( "Save a copy of the file of the game log open, e.g. one downloaded from a URL." ) );
+    M_save_copy_act->setEnabled( false );
+    connect( M_save_copy_act, &QAction::triggered,
+             this, [this]() { saveGameLogCopy(); } );
+    this->addAction( M_save_copy_act );
 
     //
     M_exit_act = new QAction( tr( "&Quit" ), this );
@@ -789,6 +840,9 @@ MainWindow::createMenuFile()
     QMenu * menu = menuBar()->addMenu( tr( "&File" ) );
 
     menu->addAction( M_open_act );
+    menu->addAction( M_open_url_act );
+    menu->addAction( M_browse_logs_act );
+    menu->addAction( M_save_copy_act );
 
     menu->addSeparator();
 
@@ -1763,6 +1817,26 @@ MainWindow::eventFilter( QObject * watched,
         focusView();
         return true;
     }
+#ifdef HAVE_3D_VIEW
+    // a game log dragged over the 3D view, a window of its own: as over the
+    // widgets (if the platform gives the drag to that window)
+    if ( watched != nullptr
+         && watched == M_view_3d
+         && ( event->type() == QEvent::DragEnter
+              || event->type() == QEvent::DragMove
+              || event->type() == QEvent::Drop ) )
+    {
+        if ( event->type() == QEvent::Drop )
+        {
+            dropEvent( static_cast< QDropEvent * >( event ) );
+        }
+        else
+        {
+            dragMoveEvent( static_cast< QDragMoveEvent * >( event ) );
+        }
+        return true;
+    }
+#endif
     return QMainWindow::eventFilter( watched, event );
 }
 
@@ -1840,8 +1914,15 @@ MainWindow::openGameLogFile( const QString & filepath )
         return;
     }
 
+    // a download going on is not opened after this one
+    cancelDownload();
+
     M_log_player->stop();
     disconnectMonitor();
+
+    // the game log shown is gone, whether this one opens or not
+    M_game_log_path.clear();
+    M_save_copy_act->setEnabled( false );
 
     if ( ! openGameLogFileImpl( filepath ) )
     {
@@ -1916,6 +1997,9 @@ MainWindow::openGameLogFile( const QString & filepath )
 
     //M_log_player_slider->updateIndex( 0, M_disp_holder.dispCont().size() );
     M_log_player->goToFirst();
+
+    M_game_log_path = QFileInfo( filepath ).absoluteFilePath();
+    M_save_copy_act->setEnabled( true );
 
     M_toggle_tool_bar_act->setChecked( true );
 
@@ -2057,9 +2141,12 @@ MainWindow::connectMonitorTo( const char * hostname )
                                     5000 );
 
     // reset all data
+    cancelDownload();
     M_disp_holder.clear();
     M_log_player->clear();
     M_whistle->clear();
+    M_game_log_path.clear();
+    M_save_copy_act->setEnabled( false );
 
     if ( M_player_type_dialog )
     {
@@ -2233,7 +2320,8 @@ MainWindow::openGameLogFile()
 #endif
     if ( s_last_path.isEmpty() )
     {
-        if ( ! Options::instance().gameLogFile().empty() )
+        if ( ! Options::instance().gameLogFile().empty()
+             && ! LogUrl::isUrl( QString::fromStdString( Options::instance().gameLogFile() ) ) )
         {
             s_last_path = QString::fromStdString( Options::instance().gameLogFile() );
         }
@@ -2262,6 +2350,324 @@ MainWindow::openGameLogFile()
     std::cerr << "update the last path [" << s_last_path.toStdString() << ']' << std::endl;
 
     openGameLogFile( file_path );
+}
+
+/*-------------------------------------------------------------------*/
+void
+MainWindow::showLogBrowser()
+{
+    if ( ! M_log_browser )
+    {
+        M_log_browser = new LogBrowserDialog( this );
+        // those of the settings (the defaults at first; the first one read now,
+        // the others when chosen)
+        M_log_browser->setSources( Options::instance().logSources() );
+        connect( M_log_browser, &LogBrowserDialog::sourcesChanged,
+                 this, []( const QStringList & sources ) {
+                     Options::instance().setLogSources( sources );
+                     Options::instance().writeLogSources();
+                 } );
+        connect( M_log_browser, &LogBrowserDialog::openRequested,
+                 this, [this]( const QUrl & url ) { openGameLogUrl( url.toString() ); } );
+    }
+    M_log_browser->show();
+    M_log_browser->raise();
+    M_log_browser->activateWindow();
+}
+
+/*-------------------------------------------------------------------*/
+void
+MainWindow::openGameLogUrl()
+{
+    OpenUrlDialog dialog( this, Options::instance().recentLogUrls(), M_log_cache );
+    if ( dialog.exec() != QDialog::Accepted )
+    {
+        return;
+    }
+    openGameLogUrl( dialog.text() );
+}
+
+/*-------------------------------------------------------------------*/
+void
+MainWindow::openGameLogUrl( const QString & text )
+{
+    QString error;
+    const QUrl url = LogUrl::parse( text, &error );
+    if ( ! url.isValid() )
+    {
+        std::cerr << "cannot open a game log: " << error.toStdString() << std::endl;
+        QMessageBox::warning( this, tr( "Open Game Log from URL" ), error );
+        if ( Options::instance().autoQuitMode() )
+        {
+            QTimer::singleShot( 100, qApp, SLOT( quit() ) );
+        }
+        return;
+    }
+    Options::instance().addRecentLogUrl( text );
+    Options::instance().writeRecentLogUrls();
+
+    // downloaded before: from the cache
+    const QString path = M_log_cache.pathOf( url );
+    if ( M_log_cache.contains( url ) )
+    {
+        std::cerr << "open game log " << url.toString().toStdString()
+                  << " from the cache " << path.toStdString() << std::endl;
+        openGameLogFile( path );
+        return;
+    }
+
+    cancelDownload();
+    std::cerr << "download game log " << url.toString().toStdString() << std::endl;
+    M_log_downloader->start( url, path );
+
+    M_download_dialog = new QProgressDialog( this );
+    M_download_dialog->setWindowTitle( tr( "Open Game Log from URL" ) );
+    M_download_dialog->setLabelText( tr( "Downloading %1 ..." ).arg( LogUrl::name( url ) ) );
+    M_download_dialog->setRange( 0, 0 ); // busy until the size is known
+    M_download_dialog->setAutoClose( false );
+    M_download_dialog->setAutoReset( false );
+    M_download_dialog->setMinimumDuration( 0 );
+    // not modal: a modal one runs the events in setValue(), where the end
+    // of the download closed it under the call (a crash). The window stays
+    // usable; opening another log or connecting stops the download.
+    M_download_dialog->setWindowModality( Qt::NonModal );
+    connect( M_download_dialog, &QProgressDialog::canceled,
+             this, [this]() {
+                 cancelDownload();
+                 this->statusBar()->showMessage( tr( "The download was canceled." ), 5000 );
+             } );
+    M_download_dialog->show();
+}
+
+/*-------------------------------------------------------------------*/
+void
+MainWindow::cancelDownload()
+{
+    M_log_downloader->abort();
+    if ( M_download_dialog )
+    {
+        // closing it would tell canceled() again
+        QProgressDialog * dialog = M_download_dialog;
+        M_download_dialog = nullptr;
+        dialog->disconnect( this );
+        dialog->hide();
+        dialog->deleteLater();
+    }
+}
+
+/*-------------------------------------------------------------------*/
+void
+MainWindow::showDownloadProgress( qint64 received,
+                                  qint64 total )
+{
+    // the dialog may be gone after a call that runs the events
+    const QPointer< QProgressDialog > dialog( M_download_dialog );
+    if ( ! dialog ) return;
+
+    const QString name = LogUrl::name( M_log_downloader->url() );
+    if ( total > 0 )
+    {
+        dialog->setLabelText( tr( "Downloading %1 ...\n%2 of %3" )
+                              .arg( name,
+                                    OpenUrlDialog::formatBytes( received ),
+                                    OpenUrlDialog::formatBytes( total ) ) );
+        // in KB: the range is int. setValue() last
+        dialog->setRange( 0, static_cast< int >( total / 1024 ) );
+        if ( dialog ) dialog->setValue( static_cast< int >( std::min( received, total ) / 1024 ) );
+    }
+    else
+    {
+        dialog->setLabelText( tr( "Downloading %1 ...\n%2" )
+                              .arg( name, OpenUrlDialog::formatBytes( received ) ) );
+    }
+}
+
+/*-------------------------------------------------------------------*/
+void
+MainWindow::openDownloadedLog( const QString & path )
+{
+    cancelDownload(); // the dialog
+    // opened after the downloader's call returns, out of its signal
+    QTimer::singleShot( 0, this, [this, path]() { openGameLogFile( path ); } );
+}
+
+/*-------------------------------------------------------------------*/
+void
+MainWindow::showDownloadError( const QString & message )
+{
+    const QString url = M_log_downloader->url().toDisplayString();
+    cancelDownload(); // the dialog
+
+    std::cerr << "cannot download a game log: " << message.toStdString() << std::endl;
+    this->statusBar()->showMessage( tr( "Cannot open the game log from the URL." ), 5000 );
+
+    // told after the downloader's call returns: a message box runs the events
+    QTimer::singleShot( 0, this, [this, url, message]() {
+        QMessageBox::warning( this,
+                              tr( "Open Game Log from URL" ),
+                              url.isEmpty()
+                              ? message
+                              : tr( "Cannot open the game log from\n%1\n\n%2" ).arg( url, message ) );
+        if ( Options::instance().autoQuitMode() )
+        {
+            QTimer::singleShot( 100, qApp, SLOT( quit() ) );
+        }
+    } );
+}
+
+/*-------------------------------------------------------------------*/
+bool
+MainWindow::saveGameLogCopy( const QString & path )
+{
+    if ( M_game_log_path.isEmpty()
+         || ! QFile::exists( M_game_log_path ) )
+    {
+        return false;
+    }
+    if ( QFileInfo( path ).absoluteFilePath() == M_game_log_path )
+    {
+        return true;
+    }
+    if ( QFile::exists( path )
+         && ! QFile::remove( path ) )
+    {
+        return false;
+    }
+    return QFile::copy( M_game_log_path, path );
+}
+
+/*-------------------------------------------------------------------*/
+void
+MainWindow::saveGameLogCopy()
+{
+    static QString s_last_dir;
+
+    if ( M_game_log_path.isEmpty() )
+    {
+        return;
+    }
+    if ( ! QFile::exists( M_game_log_path ) )
+    {
+        QMessageBox::warning( this,
+                              tr( "Save a Copy of Game Log" ),
+                              tr( "The file of the game log is not there any more (e.g. the cache was cleared):\n%1" )
+                              .arg( QDir::toNativeSeparators( M_game_log_path ) ) );
+        return;
+    }
+    if ( s_last_dir.isEmpty() )
+    {
+        s_last_dir = QDir::homePath();
+    }
+
+    const QString path = QFileDialog::getSaveFileName( this,
+                                                       tr( "Save a copy of the game log" ),
+                                                       QDir( s_last_dir ).filePath( QFileInfo( M_game_log_path ).fileName() ),
+                                                       tr( "Game Log files (*.rcg *.rcg.gz);;All files (*)" ) );
+    if ( path.isEmpty() )
+    {
+        return;
+    }
+    s_last_dir = QFileInfo( path ).absolutePath();
+
+    if ( saveGameLogCopy( path ) )
+    {
+        this->statusBar()->showMessage( tr( "Saved a copy of the game log to %1" ).arg( QDir::toNativeSeparators( path ) ), 5000 );
+    }
+    else
+    {
+        QMessageBox::warning( this,
+                              tr( "Save a Copy of Game Log" ),
+                              tr( "Cannot save a copy of the game log to\n%1" ).arg( QDir::toNativeSeparators( path ) ) );
+    }
+}
+
+/*-------------------------------------------------------------------*/
+QString
+MainWindow::droppedGameLog( const QMimeData * data )
+{
+    if ( ! data )
+    {
+        return QString();
+    }
+    if ( data->hasUrls() )
+    {
+        for ( const QUrl & url : data->urls() )
+        {
+            if ( url.isLocalFile() )
+            {
+                const QString path = url.toLocalFile();
+                if ( QFileInfo( path ).isFile() ) return path;
+                continue;
+            }
+            const QString scheme = url.scheme().toLower();
+            if ( scheme == QLatin1String( "http" )
+                 || scheme == QLatin1String( "https" ) )
+            {
+                return url.toString();
+            }
+        }
+    }
+    if ( data->hasText() )
+    {
+        const QString text = data->text().trimmed();
+        if ( LogUrl::isUrl( text )
+             && ! text.contains( QLatin1Char( '\n' ) ) )
+        {
+            return text;
+        }
+    }
+    return QString();
+}
+
+/*-------------------------------------------------------------------*/
+void
+MainWindow::dragEnterEvent( QDragEnterEvent * event )
+{
+    if ( ! droppedGameLog( event->mimeData() ).isEmpty() )
+    {
+        event->acceptProposedAction();
+    }
+    else
+    {
+        event->ignore();
+    }
+}
+
+/*-------------------------------------------------------------------*/
+void
+MainWindow::dragMoveEvent( QDragMoveEvent * event )
+{
+    if ( ! droppedGameLog( event->mimeData() ).isEmpty() )
+    {
+        event->acceptProposedAction();
+    }
+    else
+    {
+        event->ignore();
+    }
+}
+
+/*-------------------------------------------------------------------*/
+void
+MainWindow::dropEvent( QDropEvent * event )
+{
+    const QString log = droppedGameLog( event->mimeData() );
+    if ( log.isEmpty() )
+    {
+        event->ignore();
+        return;
+    }
+    event->acceptProposedAction();
+
+    // opened after the drop is done (the source waits for it to end)
+    if ( LogUrl::isUrl( log ) )
+    {
+        QTimer::singleShot( 0, this, [this, log]() { openGameLogUrl( log ); } );
+    }
+    else
+    {
+        QTimer::singleShot( 0, this, [this, log]() { openGameLogFile( log ); } );
+    }
 }
 
 /*-------------------------------------------------------------------*/
@@ -2470,6 +2876,8 @@ MainWindow::toggleView3D( bool on )
         container->setFocusPolicy( Qt::NoFocus );
         // a click on it closes the menus open, as on the widgets (Wayland)
         view->installEventFilter( new PopupCloser( view ) );
+        // a game log dropped on it is opened (eventFilter())
+        view->installEventFilter( this );
         M_view_stack->addWidget( container );
         // kept while the 2D view is shown: hidden, the window is not exposed,
         // and update() asks for no drawing

@@ -35,6 +35,7 @@
 
 #include <QColor>
 #include <QString>
+#include <QStringList>
 #include <QPoint>
 #include <QPointF>
 #include <QPen>
@@ -117,6 +118,16 @@ public:
     static constexpr int MIN_WHISTLE_VOLUME = 0;
     static constexpr int MAX_WHISTLE_VOLUME = 100;
     static constexpr int DEFAULT_WHISTLE_VOLUME = 50;
+
+    //! the URLs of game logs remembered (File > Open Game Log from URL)
+    static constexpr int MAX_RECENT_LOG_URLS = 10;
+
+    /*!
+      the sources of File > Browse Game Logs at first (the user can change
+      them): the logs of RoboCup 2026 on GitHub, and the 2D logs of
+      archive.robocup.info (docs/plan/2026-11-22-02_remote-logs.md D11, D13)
+    */
+    static const QStringList DEFAULT_LOG_SOURCES;
 
     //! default logplayer timer step (ms).
     static constexpr int DEFAULT_TIMER_INTERVAL = 100;
@@ -236,6 +247,13 @@ private:
 
     bool M_whistle; //!< the referee's whistle (View > Referee's Whistle)
     int M_whistle_volume; //!< its volume, MIN_WHISTLE_VOLUME to MAX_WHISTLE_VOLUME
+
+    //
+    // game logs
+    //
+
+    QStringList M_recent_log_urls; //!< the URLs of game logs opened recently, the newest first
+    QStringList M_log_sources; //!< the sources of File > Browse Game Logs
 
     //
     // view options
@@ -636,6 +654,28 @@ public:
     */
     void writeWhistle() const;
     void writeWhistleVolume() const;
+
+    //
+    // game logs
+    //
+
+    //! the URLs of game logs opened recently, the newest first (at most MAX_RECENT_LOG_URLS)
+    const QStringList & recentLogUrls() const { return M_recent_log_urls; }
+    //! a URL opened: the newest of the recent ones (once)
+    void addRecentLogUrl( const QString & url );
+    //! write the recent URLs to the settings file now (called when one is opened)
+    void writeRecentLogUrls() const;
+
+    /*!
+      the sources of File > Browse Game Logs, as the user enters them
+      (OWNER/REPO[@REF] on GitHub, the URL of a directory listed by its
+      web server);
+      DEFAULT_LOG_SOURCES if not in the settings
+    */
+    const QStringList & logSources() const { return M_log_sources; }
+    void setLogSources( const QStringList & sources ) { M_log_sources = sources; }
+    //! write them to the settings file now (called when one is added or removed)
+    void writeLogSources() const;
 
     //
     // view options

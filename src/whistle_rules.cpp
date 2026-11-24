@@ -40,7 +40,7 @@ using namespace rcss::rcg;
 
 /*-------------------------------------------------------------------*/
 bool
-isWhistleStopMode( const PlayMode mode )
+WhistleRules::isStopMode( const PlayMode mode )
 {
     switch ( mode ) {
     case PM_Foul_Charge_Left:
@@ -70,9 +70,9 @@ isWhistleStopMode( const PlayMode mode )
 
 /*-------------------------------------------------------------------*/
 WhistleKind
-whistleFor( const PlayMode prev,
-            const PlayMode next,
-            const int next_time )
+WhistleRules::whistle( const PlayMode prev,
+                       const PlayMode next,
+                       const int next_time )
 {
     if ( prev == next
          || prev == PM_Null )
@@ -97,7 +97,7 @@ whistleFor( const PlayMode prev,
     case PM_IndFreeKick_Left:
     case PM_IndFreeKick_Right:
         // the restart after a foul (not a free kick after a catch)
-        return isWhistleStopMode( prev ) ? WhistleKind::Short : WhistleKind::None;
+        return isStopMode( prev ) ? WhistleKind::Short : WhistleKind::None;
     case PM_PenaltyReady_Left:
     case PM_PenaltyReady_Right:
         return WhistleKind::Short;
@@ -105,8 +105,8 @@ whistleFor( const PlayMode prev,
         break;
     }
 
-    if ( isWhistleStopMode( next )
-         && ! isWhistleStopMode( prev ) )
+    if ( isStopMode( next )
+         && ! isStopMode( prev ) )
     {
         return WhistleKind::Short;
     }
@@ -116,7 +116,7 @@ whistleFor( const PlayMode prev,
 
 /*-------------------------------------------------------------------*/
 WhistleKind
-whistleAtFirstFrame( const PlayMode first )
+WhistleRules::atFirstFrame( const PlayMode first )
 {
     return ( first == PM_KickOff_Left
              || first == PM_KickOff_Right )
@@ -126,8 +126,8 @@ whistleAtFirstFrame( const PlayMode first )
 
 /*-------------------------------------------------------------------*/
 WhistleKind
-strongerWhistle( const WhistleKind a,
-                 const WhistleKind b )
+WhistleRules::stronger( const WhistleKind a,
+                        const WhistleKind b )
 {
     return static_cast< int >( a ) >= static_cast< int >( b ) ? a : b;
 }

@@ -484,10 +484,10 @@ Whistle::whistleTo( const std::size_t index ) const
     WhistleKind kind = WhistleKind::None;
     for ( std::size_t i = from + 1; i <= index && from < index; ++i )
     {
-        kind = strongerWhistle( kind,
-                                whistleFor( frames[i - 1]->pmode_,
-                                            frames[i]->pmode_,
-                                            static_cast< int >( frames[i]->show_.time_ ) ) );
+        kind = WhistleRules::stronger( kind,
+                                       WhistleRules::whistle( frames[i - 1]->pmode_,
+                                                              frames[i]->pmode_,
+                                                              static_cast< int >( frames[i]->show_.time_ ) ) );
     }
 
     // the play from the first frame of a log: the kick-off of the game,
@@ -496,7 +496,7 @@ Whistle::whistleTo( const std::size_t index ) const
          && from == 0
          && from < index )
     {
-        kind = strongerWhistle( kind, whistleAtFirstFrame( frames[0]->pmode_ ) );
+        kind = WhistleRules::stronger( kind, WhistleRules::atFirstFrame( frames[0]->pmode_ ) );
     }
     return kind;
 }
