@@ -3,11 +3,28 @@
 | Item | Content |
 |---|---|
 | Created | 2026-11-22 |
+| Last updated | 2026-11-24 |
 | Target | rcssmonitor develop (5affd90, 20.0.0-beta.1) |
 | Branch | `feature/frame-export` (from develop after the URLs and log lists (F5) are merged; the user creates it on GitHub) |
-| Status | Plan written (2026-11-22). The last feature of the overall plan |
+| Status | Plan written (2026-11-22). The user created `feature/frame-export` from develop (b3762c3) (2026-11-24). The last feature of the overall plan. The progress of each stage is in the table of "Progress" below |
 | Japanese version | [2026-11-22-03_frame-export.md](2026-11-22-03_frame-export.md) (same content) |
 | Related | F6 of the overall plan [2026-11-22-00_v20-features_en.md](2026-11-22-00_v20-features_en.md). soccerwindow2's `src/qt/image_save_dialog.cpp` (2D image sequences) |
+
+## Progress
+
+The work and the conditions of the end of each stage are in §5, and the history in §10.
+
+| Stage | Content | Status | Checked by the user | CI | Commits | Pushed |
+|---|---|---|---|---|---|---|
+| 1 | A 2D image (File > Save Image) (§4.1) | Not started | Not yet | Not yet | — | Not yet |
+| 2 | The basics of the ranges and image sequences, the export dialog (§4.3 to §4.6) | Not started | Not yet | Not yet | — | Not yet |
+| 3 | Handy ways to give the ranges (§4.4) | Not started | Not yet | Not yet | — | Not yet |
+| 4 | Videos by ffmpeg (§4.5) | Not started | Not yet | Not yet | — | Not yet |
+| 5 | Rearranging the 3D drawing (refactoring only; §4.2) | Not started | Not yet | Not yet | — | Not yet |
+| 6 | Offscreen 3D drawing (§4.2) | Not started | Not yet | Not yet | — | Not yet |
+| 7 | The batch command line (§4.7) | Not started | Not yet | Not yet | — | Not yet |
+| 8 | The Qt Multimedia prototype (§4.8) | Not started | Not yet | Not yet | — | Not yet |
+| — | Merging into develop (PR, Squash Merge) | Not started | — | — | — | — |
 
 ## 1. Goal and approach
 
@@ -315,3 +332,9 @@ Stage 5 may proceed in parallel with stages 2-4.
 - The user's request (D3): the range of frames to export can be specified. soccerwindow2's image saving may be referred to, but it should be improved.
 - soccerwindow2's range selection was examined (2.5), and the following were added (§4.4, S8, S9): the notation of positions (cycle.stopped number), including the stopped frames of the end cycle, a modeless dialog and marks in the main window, the band on the slider, common ranges (periods, goal scenes, around the current position), several ranges, the checks before the export, and naming by cycle.
 - The convenient range selection was added as stage 3, and the later stages were moved back by one (ffmpeg is stage 4, the Qt Multimedia prototype stage 8).
+
+### 2026-11-24: The branch created, and the unified format
+
+- After F5 (PR #75) was merged into develop (b3762c3), the user created `feature/frame-export` on GitHub.
+- Following the unified format of the plans ("計画書の書式" of CLAUDE.md; the record of 2026-11-24 of the plan of the URLs and the lists of logs), the last update was added to the header table, and the table of the progress was put. §4 (the design) is not in sections by stage, so it is not rearranged; the implementation of each stage is added after the sections of the design.
+- Next: stage 1 is checked with the user before it starts (deciding the items of stage 1 in §3.3).

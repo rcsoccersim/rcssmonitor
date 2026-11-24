@@ -3,11 +3,22 @@
 | Item | Content |
 |---|---|
 | Created | 2026-11-21 |
+| Last updated | 2026-11-24 |
 | Target | rcssmonitor develop (a6df084, 19.0.1) |
 | Branch | `feature/cmake-helper` (from develop; the user creates it on GitHub) |
-| Status | Implemented and tested locally. Committed to `feature/cmake-helper` (a7e6880), and all the CI jobs passed (2026-11-21). The PR to develop is still to come |
+| Status | Done. Merged into develop by PR #69 (Squash Merge) (c392514, 2026-11-21). The progress is in the table of "Progress" below |
 | Japanese version | [2026-11-21_cmake-helper.md](2026-11-21_cmake-helper.md) (same content) |
 | Related | The 3D view plan (`docs/plan/2026-11-11_3d-view.md` on `feature/3d-view`): §14 "2026-11-21" and Phase 10 |
+
+## Progress
+
+The steps are in §5, and the history in §6. The merge into develop, and then into `feature/3d-view`, are recorded in §14 (2026-11-21) of the 3D view plan.
+
+| Stage | Content | Status | Checked by the user | CI | Commits | Pushed |
+|---|---|---|---|---|---|---|
+| 1 to 4 | `cmake-helper.sh` and the documents, the local tests, the CI (steps 1 to 4 of §5) | Done | Done | Passed | a7e6880 | Done |
+| 5 | Merging into develop (PR #69, Squash Merge) | Done | Done | Passed | c392514 | Done |
+| 6 | Merging develop into `feature/3d-view` | Done | — | — | §14 (2026-11-21) of the 3D view plan | Done |
 
 ## 1. Goal and approach
 
@@ -109,3 +120,8 @@ Problems found and their fixes:
 - The user opens the PR to develop on GitHub and Squash Merges it.
 - On develop, the 3D view plan is still `docs/PLAN_3D-VIEW*.md`, which is not `export-ignore`d. When `feature/3d-view` is merged into develop it moves into `docs/plan`, and is left out from then on.
 - When develop is merged into master, `.gitignore` is expected to conflict (add/add). The new file contains master's lines, so take the new file.
+
+### 2026-11-24: The header table and the table of the progress (the unified format)
+
+- Following the unified format of the plans ("計画書の書式" of CLAUDE.md; the record of 2026-11-24 of the plan of the URLs and the lists of logs), the last update was added to the header table, the status was shortened, and the table of the progress was put. The chapters are not changed.
+- The PR and the merge of "What remains" were done on 2026-11-21. The user merged PR #69 into develop by Squash Merge (c392514), and develop into `feature/3d-view` (§14 of the 3D view plan).

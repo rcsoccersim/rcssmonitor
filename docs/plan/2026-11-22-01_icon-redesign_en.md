@@ -3,11 +3,26 @@
 | Item | Content |
 |---|---|
 | Created | 2026-11-22 |
+| Last updated | 2026-11-24 |
 | Target | rcssmonitor develop (5affd90, 20.0.0-beta.1) |
 | Branch | `feature/icon-redesign` (from develop after the color scheme (F1) is merged; the user creates it on GitHub) |
-| Status | Plan written (2026-11-22). Stage 0 (the design and the candidates for the application icon) is done. Stage 1 (the mechanism and the playback icons) is committed (26bc103). Stage 2 (the remaining toolbar icons) is committed (1650477). Stage 3 (the application icon) is committed (49100ac). Stage 4 (cleaning up the old mechanism) is committed (6783caa). Stage 5 (the documents) is committed (2cd182e). Merged into develop by PR #72 (Squash Merge) (2026-11-23) |
+| Status | Done. Stages 0 to 5 are done, and merged into develop by PR #72 (Squash Merge) (4494eaa, 2026-11-23). The progress of each stage is in the table of "Progress" below |
 | Japanese version | [2026-11-22-01_icon-redesign.md](2026-11-22-01_icon-redesign.md) (same content) |
 | Related | F2 of the overall plan [2026-11-22-00_v20-features_en.md](2026-11-22-00_v20-features_en.md). soccerwindow2's `docs/plan/2026-11-21_icon-redesign.md` and `docs/icons.md` |
+
+## Progress
+
+The work and the conditions of the end of each stage are in §5, and the history in §9. The CI of stage 0 is not recorded.
+
+| Stage | Content | Status | Checked by the user | CI | Commits | Pushed |
+|---|---|---|---|---|---|---|
+| 0 | The design rules and samples, and the candidates for the application icon (D3 to D5) | Done | Done | — | 3011609 | Done |
+| 1 | The mechanism and the playback icons (§4.2, §4.3) | Done | Done | Passed | 26bc103 | Done |
+| 2 | The remaining toolbar icons (§4.1) | Done | Done | Passed | 1650477 | Done |
+| 3 | The application icon (§4.4; D6, D8) | Done | Done | Passed | 49100ac | Done |
+| 4 | Cleaning up the old mechanism | Done | Done | Passed | 6783caa | Done |
+| 5 | The documents | Done | Done | Passed | 2cd182e | Done |
+| — | Merging into develop (PR #72, Squash Merge) | Done | Done | Passed | 4494eaa | Done |
 
 ## 1. Goal and approach
 
@@ -294,3 +309,7 @@ At each stage, the user looks at images comparing the light and the dark schemes
 ### 2026-11-23: Correction (the Qt5 builds)
 
 - "The CMake build with Qt 5.15.13" in the records of this plan was actually Qt 5.15.2 of an anaconda environment (the PATH of the work environment has anaconda at its head, and CMake found Qt5 there). The autotools checks and the Qt5 job of the CI used the system's Qt5. See the entry "stage 1 of §C the referee's whistle" of 2026-11-23 in §6 of the overall plan [2026-11-22-00_v20-features_en.md](2026-11-22-00_v20-features_en.md).
+
+### 2026-11-24: The header table and the table of the progress (the unified format)
+
+- Following the unified format of the plans ("計画書の書式" of CLAUDE.md; the record of 2026-11-24 of the plan of the URLs and the lists of logs), the last update was added to the header table, the status was shortened, and the table of the progress was put. The chapters are not changed.
