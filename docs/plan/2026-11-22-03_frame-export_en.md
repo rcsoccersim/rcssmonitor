@@ -6,7 +6,7 @@
 | Last updated | 2026-11-25 |
 | Target | rcssmonitor develop (5affd90, 20.0.0-beta.1) |
 | Branch | `feature/frame-export` (from develop after the URLs and log lists (F5) are merged; the user creates it on GitHub) |
-| Status | Plan written (2026-11-22). The user created `feature/frame-export` from develop (b3762c3). Stages 1 to 3 are done, and stage 4 is implemented. The name of the check to enlarge the texts is corrected after the user's check (2026-11-25; D16). The last feature of the overall plan. The progress of each stage is in the table of "Progress" below |
+| Status | Plan written (2026-11-22). The user created `feature/frame-export` from develop (b3762c3). Stages 1 to 4 are done, and stage 5 is implemented and checked by the user (2026-11-25; its CI is not recorded yet). The last feature of the overall plan. The progress of each stage is in the table of "Progress" below |
 | Japanese version | [2026-11-22-03_frame-export.md](2026-11-22-03_frame-export.md) (same content) |
 | Related | F6 of the overall plan [2026-11-22-00_v20-features_en.md](2026-11-22-00_v20-features_en.md). soccerwindow2's `src/qt/image_save_dialog.cpp` (2D image sequences) |
 
@@ -19,8 +19,8 @@ The work and the conditions of the end of each stage are in §5, and the history
 | 1 | A 2D image (File > Save Image) (§4.1, §4.10; D4, D5) | Done | Done | Passed | e9a9e96 | Done |
 | 2 | The basics of the ranges and image sequences, the export dialog (§4.3 to §4.6, §4.11; D6) | Done | Done | Passed | d7adf47 | Done |
 | 3 | Handy ways to give the ranges (§4.4, §4.12; D7 to D12) | Done | Done | Passed | d7a5cd1 | Done |
-| 4 | Videos by ffmpeg (§4.5, §4.13; D13 to D16) | In progress | Done | Not yet | — | Not yet |
-| 5 | Rearranging the 3D drawing (refactoring only; §4.2) | Not started | Not yet | Not yet | — | Not yet |
+| 4 | Videos by ffmpeg (§4.5, §4.13; D13 to D16) | Done | Done | Passed | 83ab35e | Done |
+| 5 | Rearranging the 3D drawing (refactoring only; §4.2, §4.14) | In progress | Done | Not yet | — | Not yet |
 | 6 | Offscreen 3D drawing (§4.2) | Not started | Not yet | Not yet | — | Not yet |
 | 7 | The batch command line (§4.7) | Not started | Not yet | Not yet | — | Not yet |
 | 8 | The Qt Multimedia prototype (§4.8) | Not started | Not yet | Not yet | — | Not yet |
@@ -380,6 +380,31 @@ The videos by ffmpeg of 4.5 and the fields of the videos of 4.6 were implemented
   - `ffmpeg_sink` (new): the arguments (the whole of libx264, without tune, `.mkv`, 12.5 fps, mpeg4, libopenh264). Finding the program. Probing (the version, the choice of the three encoders, an audio "libx264" not taken, no encoder, failing, missing). Writing to a fake ffmpeg (a shell script made in the test): the arguments, the number of bytes, the colors. Backpressure (BUSY and `readyForFrame()`; no slow fake ffmpeg was made: checked by writing without running the event loop). Not opened (odd sizes, the directory, not started; a file there kept). Errors (at once, in the middle of the input; the end of the standard error, the file removed). Stopped (the file removed, no end told). Several videos (written one after another; the first kept when the second is stopped). The real ffmpeg (by ffprobe: h264, the size, yuv420p, the number of frames, a length of 0.4 s; mp4 and mkv; the error of a wrong preset).
   - `export_dialog` (added): a video (the fields switched, the default CRF and preset, the state, `.mp4` added, the CRF and the preset in the arguments, even sizes, the summary, the size of the file, the settings, a wrong extension, asking about a file there), several videos (the names of the files of the ranges, the same names, one for all, the settings read again), no ffmpeg (the state, the summary, Export disabled, the images still exported, the text and the arguments with mpeg4), the button of the playback speed.
 - Checked (2026-11-25): the 4 goal scenes of a log of 2023 (Oxsy vs YuShan2023) were exported at 1280×720 as 4 mp4 files, one for each range, in 1.9 s. By ffprobe, they were H.264 (High), yuv420p, bt709 (the tv range), 10 fps, 201 frames and 20.1 s each. As one video, 804 frames and 80.4 s (the sum). The whole first half (3299 frames with the stopped ones) was exported at 1920×1080 in 14.3 s, 24 MB. Frames taken out of the videos were looked at, and were the same pictures as the view. The dialog was drawn into an image and looked at.
+### 4.14 The implementation of stage 5 (2026-11-25)
+
+The refactoring of 4.2 was implemented as follows. The 3D view looks the same on the screen (the only change: the team logos are on the boards from the first frame). What was decided beyond the plan is written too.
+
+- `src/view3d/view_3d_renderer.{h,cpp}` (new): `View3DRenderer`.
+  - It keeps: the 2D painters (`FieldPainter`, `ScoreBoardPainter`, `TeamGraphicPainter`), `LabelAtlas`, `FrameBuilder3D`, `Scene3D`, `SceneContent`, the caches of the images (the ground, the boards and banners of the ends, the stands, the pitch of the minimap) with their keys, and which figure pack's bodies were sent.
+  - `initialize()` (makes the GPU's resources in the current context and reads the figures once; in a new context, the images are sent again), `release()`, `ready()`, `setTiming()`, `takeGpuTime()`.
+  - `build( at, live, delay_frames, mode )`: the automatic selection of a player, the images (the ground, the ends, the stands; only when they change), `FrameBuilder3D::build()`, the bodies of the figures to the GPU.
+  - `subject()`: what the cameras follow.
+  - `render( fbo, camera, logical, dpr, samples )`: adds the number labels, the cards and the aids of the ball, sized for the camera and the height of the view, sends the image of the labels, and draws by `Scene3D::render()` (the arguments of the plan's `render`; the labels are made once the camera is known, so they are here, not in `build()`).
+  - `drawHud( painter, camera, logical, dpr, mode )`: the score board, the team logos, the texts of the overlays, the compass and the minimap. The caller sets the window and the viewport of the QPainter to the logical size.
+  - `minimapShown( mode )` (static): for where the FPS is shown (the FPS is of the screen only, so it stays in `FieldView3D`).
+  - `buildTime()`, `submitTime()`: the CPU times, measured in the renderer (`RCSSMONITOR_3D_TIMING`). The build time is "the making part of `build()` + the labels of `render()`", and no longer includes the update of the camera (microseconds).
+  - `state( camera )`, `targetAt( camera, size, point )`: the state for the tests, and the target of a right click.
+  - The messages to the standard error (`(FieldView3D) OpenGL 3.3 core is not available` and so on) stay.
+- `FieldView3D`: keeps the clocks (the position between the frames, the live clock, the time of the camera's glide), the camera, the mouse, the FPS and the timing, and `paintGL` is now "decide the position → `build` → move the camera → `render` → HUD (`drawHud`, FPS)". `camera()` (new) is for the export of stage 6 to copy the camera.
+- `TeamGraphicPainter::update()` (new): the part making the images of the logos from the tiles is separated from `draw()`. `draw()` calls it and then draws (2D does not change). `View3DRenderer::build()` calls it before making the boards of the ends, so the boards have the logos from the first frame (before, from the frame after the HUD drew the logos).
+- `CameraController::snap()` (new): the next `update()` jumps to where the camera goes (as after a change of the camera; the player camera starts again). The free and the top cameras stay as they are.
+- Found and fixed on the way: the constructor of `DispHolder` did not initialize `M_playmode` (only `clear()` set it to `PM_Null`). For a frame before any play mode, the score board read the array of the names of the play modes at an undefined index. The new test crashed, which showed it. The constructor sets `PM_Null` now (the application calls `clear()` before reading, so the screen does not change).
+- Tests:
+  - `view_3d_renderer` (new; skipped without an OpenGL 3.3 context): initializing, the steps `build` → camera → `render`, the same frame is the same image, another frame is another image, the state (22 players, the position, labels), the color of the ground. `drawHud` draws the score board at the bottom, and nothing in the middle. The logos are on the boards from the first frame (with the camera behind the right goal, the first frame equals the next one after the HUD is drawn; checked to fail without `update()`).
+  - `team_graphic_painter` (new): `update()` alone makes the logos (the size, the color, made again with more tiles), `draw()` draws at the top left, and nothing is made with the option off or without a frame.
+  - `cameras_3d` (added): `snap()` (the broadcast and the close-up cameras jump, then glide again; the free camera does not move).
+  - `disp_holder` (added): the play mode of a new `DispHolder` is `PM_Null`.
+- Checked (2026-11-25): on Xvfb (llvmpipe), the monitors before (83ab35e) and after the change opened the same 2023 log, and the 3D view (1100×624) was read from its framebuffer and compared pixel by pixel. With the broadcast camera at the cycles 1, 437, 1000 and 2500, and the close-up (ball), top and player cameras (with the compass and the minimap) at the cycles 437 and 1000, no pixel differed.
 
 ## 5. Stages
 
@@ -556,3 +581,18 @@ Stage 5 may proceed in parallel with stages 2-4.
 - The user chose plan A (D16): the behavior stays, the check is renamed "Enlarge the texts, logos and lines with the image", and the tooltip, the README and the comments of the source are corrected.
 - The user checked the corrected name and explanation, and asked for the commit and the push.
 - Next: stage 4 is committed and pushed, and the CI runs.
+
+### 2026-11-25: Stage 4 committed, and the CI
+
+- Stage 4 was committed as 83ab35e and pushed to `feature/frame-export` (the first push was stopped with the command and did not arrive, so only the push was done again).
+- The CI passed in all the jobs (autotools Qt5, CMake Qt6, Qt6 (Ubuntu 24.04), Qt5, distcheck). In the CMake Qt6 job, ffmpeg was installed, and the test `ffmpeg_sink` (with the real ffmpeg) passed with `RCSSMONITOR_REQUIRE_FFMPEG=1`.
+- Next: stage 5 (tidying the 3D drawing; a refactoring only). The user is asked before it starts.
+
+### 2026-11-25: Stage 5 started and implemented
+
+- Stage 5 was started on the user's instruction. Nothing was to be decided at its start (§3.3).
+- Implemented as in §4.14. Decided beyond the plan: the labels and the aids of the ball are made once the camera is known, so they are in `render()`. The FPS is of the screen only, so it stays in `FieldView3D`, and `minimapShown()` was added for its place. The CPU times are measured in the renderer (the build time no longer includes the update of the camera).
+- Found and fixed on the way: the constructor of `DispHolder` did not initialize `M_playmode` (§4.14).
+- Checked: with the CMake builds of Qt 6 and Qt 5 with the whistle, and of `ENABLE_SOUND=OFF`, it built without warnings, and all 80 tests (with the new `view_3d_renderer` and `team_graphic_painter`; the 3D tests ran, not skipped) passed three times each. It built with autotools (Qt 5, without 3D) too (the only warning is the old one of `configure.ac`). On Xvfb, the 3D view before and after the change was compared pixel by pixel, with no difference (§4.14).
+- The user checked the 3D view on the screen, and asked for the commit and the push. The user moves to another working environment, so the work pauses here. The user checks the CI later.
+- Next: check the CI of stage 5, and write the commit hash of stage 5 and its CI in the table of the progress (in the next commit). Then stage 6 (the offscreen drawing of 3D; the user is asked before it starts).

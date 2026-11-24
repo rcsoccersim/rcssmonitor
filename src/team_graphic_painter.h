@@ -63,10 +63,19 @@ public:
     explicit
     TeamGraphicPainter( const DispHolder & disp_holder );
 
+    //! draw the team graphics at the top corners (update() first)
     void draw( QPainter & painter ) override;
 
     /*!
-      \brief the team graphic of a team as the last draw() made it (null
+      \brief make the team graphics of the frame shown from the tiles
+      received, when they or the team names changed (nothing when the Team
+      Graphic option is off). draw() calls it; the 3D view calls it before
+      the ends use pixmap() (View3DRenderer::build()).
+    */
+    void update();
+
+    /*!
+      \brief the team graphic of a team as the last update() made it (null
       before it arrives, or when the Team Graphic option is off)
       \param left the left team, or the right
     */

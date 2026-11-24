@@ -286,6 +286,19 @@ public:
     //! the camera does not move unless the ball does (it has arrived)
     bool settled() const { return M_settled; }
 
+    /*!
+      \brief jump to where the camera goes at the next update(), instead of
+      gliding there, as after a change of the camera: the player camera
+      starts again. The free and the top cameras stay as they are. An
+      export calls it at its first frame, and at the start of each range
+      (docs/plan/2026-11-22-03_frame-export.md 4.2).
+    */
+    void snap()
+      {
+          M_snap = true;
+          M_settled = false;
+      }
+
     //! the mouse moves the camera (all but the top camera and the player camera)
     bool takesMouse() const { return M_mode != CameraMode::Top && M_mode != CameraMode::Player; }
 

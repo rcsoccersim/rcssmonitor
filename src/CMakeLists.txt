@@ -122,6 +122,7 @@ if(HAVE_3D_VIEW)
     view3d/ball_flight_3d.cpp
     view3d/fps_meter.cpp
     view3d/sun_3d.cpp
+    view3d/view_3d_renderer.cpp
     view3d/gl/billboard_mesh.cpp
     view3d/gl/frame.cpp
     view3d/gl/gpu_timer.cpp
