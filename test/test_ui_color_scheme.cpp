@@ -495,14 +495,19 @@ TestUIColorScheme::styleChange()
 /*!
   A style saved that is unknown (e.g. "plastique" by an older version,
   which Qt5 and Qt6 do not have): the platform's style, and not saved again.
+  Where the plugin of plastique is installed (qt5-style-plugins), a name
+  that no style has.
 */
 void
 TestUIColorScheme::savedStyle()
 {
     const QString original = QApplication::style()->objectName();
+    const QString unknown = QStyleFactory::keys().contains( "plastique", Qt::CaseInsensitive )
+        ? QString( "nosuchstyle" )
+        : QString( "plastique" );
     {
         QSettings settings( Options::CONF_FILE, QSettings::IniFormat );
-        settings.setValue( "MainWindow/window_style", "plastique" );
+        settings.setValue( "MainWindow/window_style", unknown );
     }
     {
         MainWindow window;
