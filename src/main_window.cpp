@@ -349,6 +349,16 @@ MainWindow::createActionsFile()
              this, [this]() { saveGameLogCopy(); } );
     this->addAction( M_save_copy_act );
 
+    // the frame shown, as an image (docs/plan/2026-11-22-03_frame-export.md
+    // 4.6, D5): the 2D view; disabled while the 3D view is shown
+    M_save_image_act = new QAction( tr( "Save &Image..." ), this );
+    M_save_image_act->setObjectName( "save_image" );
+    M_save_image_act->setShortcut( Qt::CTRL | Qt::SHIFT | Qt::Key_I );
+    connect( M_save_image_act, &QAction::triggered,
+             this, [this]() { saveImage(); } );
+    this->addAction( M_save_image_act );
+    updateSaveImageAction();
+
     //
     M_exit_act = new QAction( tr( "&Quit" ), this );
     M_exit_act->setShortcut( Qt::CTRL | Qt::Key_Q );
@@ -843,6 +853,7 @@ MainWindow::createMenuFile()
     menu->addAction( M_open_url_act );
     menu->addAction( M_browse_logs_act );
     menu->addAction( M_save_copy_act );
+    menu->addAction( M_save_image_act );
 
     menu->addSeparator();
 
@@ -2537,6 +2548,119 @@ MainWindow::saveGameLogCopy( const QString & path )
 }
 
 /*-------------------------------------------------------------------*/
+QImage
+MainWindow::renderImage() const
+{
+    if ( ! M_disp_holder.currentDisp() )
+    {
+        return QImage();
+    }
+    const qreal dpr = M_field_canvas->devicePixelRatioF();
+    const QSize pixels( static_cast< int >( std::lround( M_field_canvas->width() * dpr ) ),
+                        static_cast< int >( std::lround( M_field_canvas->height() * dpr ) ) );
+    return M_field_canvas->renderFrame( M_disp_holder.currentIndex(), pixels, dpr );
+}
+
+/*-------------------------------------------------------------------*/
+QString
+MainWindow::defaultImageName() const
+{
+    // the game log's name without .rcg(.gz), or the program's in live
+    QString name = QFileInfo( M_game_log_path ).fileName();
+    if ( name.endsWith( QLatin1String( ".gz" ) ) ) name.chop( 3 );
+    if ( name.endsWith( QLatin1String( ".rcg" ) ) ) name.chop( 4 );
+    if ( name.isEmpty() ) name = QString::fromLatin1( PACKAGE_NAME );
+
+    const DispConstPtr disp = M_disp_holder.currentDisp();
+    if ( disp )
+    {
+        // the cycle as shown in the status bar: 1234, or 1234.3 when stopped
+        const rcss::rcg::ShowInfoT & show = disp->show_;
+        name += QLatin1Char( '-' ) + ( show.stime_ > 0
+                                       ? QString( "%1.%2" ).arg( show.time_ ).arg( show.stime_ )
+                                       : QString::number( show.time_ ) );
+    }
+    return name + QStringLiteral( ".png" );
+}
+
+/*-------------------------------------------------------------------*/
+namespace {
+
+//! write an image, PNG if the path has no extension
+bool
+write_image( const QImage & image,
+             const QString & path,
+             QString * error )
+{
+    if ( image.isNull() )
+    {
+        if ( error ) *error = QObject::tr( "There is no frame to save." );
+        return false;
+    }
+    const QString file = ( QFileInfo( path ).suffix().isEmpty()
+                           ? path + QStringLiteral( ".png" )
+                           : path );
+    QImageWriter writer( file );
+    if ( ! writer.write( image ) )
+    {
+        if ( error ) *error = QObject::tr( "Could not write the image to %1:\n%2" )
+                         .arg( QDir::toNativeSeparators( file ), writer.errorString() );
+        return false;
+    }
+    if ( error ) error->clear();
+    return true;
+}
+
+}
+
+/*-------------------------------------------------------------------*/
+bool
+MainWindow::saveImage( const QString & path,
+                       QString * error ) const
+{
+    return write_image( renderImage(), path, error );
+}
+
+/*-------------------------------------------------------------------*/
+void
+MainWindow::saveImage()
+{
+    static QString s_last_dir;
+
+    // the frame shown now: the log may go on playing behind the dialog
+    const QImage image = renderImage();
+    if ( image.isNull() )
+    {
+        this->statusBar()->showMessage( tr( "There is no frame to save." ), 5000 );
+        return;
+    }
+    if ( s_last_dir.isEmpty() )
+    {
+        s_last_dir = QDir::homePath();
+    }
+
+    const QString path = QFileDialog::getSaveFileName( this,
+                                                       tr( "Save Image" ),
+                                                       QDir( s_last_dir ).filePath( defaultImageName() ),
+                                                       tr( "PNG (*.png);;JPEG (*.jpg *.jpeg);;All files (*)" ) );
+    if ( path.isEmpty() )
+    {
+        return;
+    }
+    s_last_dir = QFileInfo( path ).absolutePath();
+
+    QString error;
+    if ( write_image( image, path, &error ) )
+    {
+        this->statusBar()->showMessage( tr( "Saved the image to %1" ).arg( QDir::toNativeSeparators( path ) ), 5000 );
+    }
+    else
+    {
+        QMessageBox::warning( this, tr( "Save Image" ), error );
+    }
+}
+
+/*-------------------------------------------------------------------*/
 void
 MainWindow::saveGameLogCopy()
 {
@@ -2909,9 +3033,27 @@ MainWindow::toggleView3D( bool on )
     // the buttons are wider with the 3D view's: one row or two again, once laid out
     QTimer::singleShot( 0, this, [this]() { updateToolBarRows(); } );
     Options::instance().setView3D( on );
+    updateSaveImageAction();
 #else
     Q_UNUSED( on );
 #endif
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  File > Save Image saves the 2D view: disabled while the 3D view is shown,
+  until saving the 3D view is made (D5).
+ */
+void
+MainWindow::updateSaveImageAction()
+{
+    const bool view_2d = ( ! M_view_stack
+                           || M_view_stack->currentWidget() == M_field_canvas );
+    M_save_image_act->setEnabled( view_2d );
+    M_save_image_act->setStatusTip( view_2d
+                                    ? tr( "Save the frame shown to an image file (PNG or JPEG), as large as the view." )
+                                    : tr( "Not available while the 3D view is shown: only the 2D view can be saved for now." ) );
+    M_save_image_act->setToolTip( M_save_image_act->statusTip() );
 }
 
 /*-------------------------------------------------------------------*/

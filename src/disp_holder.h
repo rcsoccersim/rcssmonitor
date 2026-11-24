@@ -190,6 +190,12 @@ public:
     bool setIndexStepBack();
     bool setIndexStepForward();
     bool setIndex( const size_t idx );
+    /*!
+      \brief set the current index as it was, INVALID_INDEX too (FrameScope:
+      back to the frame shown after drawing another one)
+      \param idx a value of currentIndex()
+    */
+    void restoreIndex( const size_t idx ) { M_current_index = idx; }
     bool setCycle( const int cycle );
     size_t getIndex( const int cycle ) const;
 

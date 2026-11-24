@@ -15,6 +15,7 @@ rcssmonitor_SOURCES = \
 	draw_info_painter.cpp \
 	field_canvas.cpp \
 	field_painter.cpp \
+	frame_scope.cpp \
 	game_log_file.cpp \
 	github_log_source.cpp \
 	line_2d.cpp \
@@ -89,6 +90,7 @@ noinst_HEADERS = \
 	draw_info_painter.h \
 	field_canvas.h \
 	field_painter.h \
+	frame_scope.h \
 	game_log_file.h \
 	github_log_source.h \
 	line_2d.h \

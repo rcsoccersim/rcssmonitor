@@ -6,7 +6,7 @@
 | Last updated | 2026-11-24 |
 | Target | rcssmonitor develop (5affd90, 20.0.0-beta.1) |
 | Branch | `feature/frame-export` (from develop after the URLs and log lists (F5) are merged; the user creates it on GitHub) |
-| Status | Plan written (2026-11-22). The user created `feature/frame-export` from develop (b3762c3) (2026-11-24). The last feature of the overall plan. The progress of each stage is in the table of "Progress" below |
+| Status | Plan written (2026-11-22). The user created `feature/frame-export` from develop (b3762c3), and stage 1 started (2026-11-24). The last feature of the overall plan. The progress of each stage is in the table of "Progress" below |
 | Japanese version | [2026-11-22-03_frame-export.md](2026-11-22-03_frame-export.md) (same content) |
 | Related | F6 of the overall plan [2026-11-22-00_v20-features_en.md](2026-11-22-00_v20-features_en.md). soccerwindow2's `src/qt/image_save_dialog.cpp` (2D image sequences) |
 
@@ -16,7 +16,7 @@ The work and the conditions of the end of each stage are in §5, and the history
 
 | Stage | Content | Status | Checked by the user | CI | Commits | Pushed |
 |---|---|---|---|---|---|---|
-| 1 | A 2D image (File > Save Image) (§4.1) | Not started | Not yet | Not yet | — | Not yet |
+| 1 | A 2D image (File > Save Image) (§4.1, §4.10; D4, D5) | In progress | Done | Not yet | — | Not yet |
 | 2 | The basics of the ranges and image sequences, the export dialog (§4.3 to §4.6) | Not started | Not yet | Not yet | — | Not yet |
 | 3 | Handy ways to give the ranges (§4.4) | Not started | Not yet | Not yet | — | Not yet |
 | 4 | Videos by ffmpeg (§4.5) | Not started | Not yet | Not yet | — | Not yet |
@@ -83,6 +83,8 @@ File > Save Image of soccerwindow2 (`../../rctools/soccerwindow2`; `src/qt/image
 | D1 | Image sequences and videos by an external ffmpeg are the main way |
 | D2 | Direct video encoding by Qt Multimedia is prototyped too, Qt6 only being fine |
 | D3 | The range of frames to export can be specified. soccerwindow2's image saving may be referred to, but it should be improved (§4.4) |
+| D4 | The design decisions S1 to S9 are as proposed (2026-11-24, decided by the user at the start of stage 1) |
+| D5 | The shortcut of File > Save Image... is Ctrl+Shift+I (Ctrl+Shift+E is planned for Export Images / Video... of stage 2). While the 3D view is shown, it is disabled until stage 6 adds saving the 3D view (no image other than the view seen is saved) (the same) |
 
 ### 3.2 Design decisions (Claude; the user confirms them at the start of the stages)
 
@@ -256,6 +258,34 @@ Based on soccerwindow2 (2.5), as follows.
 
 Only the 2D parts (stages 1-4 and 7) are built. The 3D and Qt Multimedia parts are inside `HAVE_3D_VIEW` and `HAVE_QT_MULTIMEDIA_EXPORT`.
 
+### 4.10 The implementation of stage 1 (2026-11-24)
+
+4.1, and File > Save Image (2D) of 4.6, were implemented as follows. What was decided beyond the plan is written too.
+
+- `Options::ViewState` (`options.h`): the scale, the center of the field, the size of the canvas, whether the team logos and the score board were shown when the scale was fit, the focus point, and the selected number. `viewState()` and `setViewState()`.
+  - `updateFieldSize()` kept whether the logos and the score board were shown when the scale was fit in static variables in the function. Drawing another frame changed them to the current items, so when an image was saved right after the items shown changed, the view set back used its old scale (found by the tests). They are members of `Options` (`M_sized_with_team_graphic`, `M_sized_with_score_board`) in `ViewState`.
+- `DispHolder::restoreIndex()` (new): sets the current index back as it was, an invalid one too (`INVALID_INDEX`: the newest frame is drawn), because `setIndex()` does not take an invalid index.
+- `src/frame_scope.{h,cpp}` (new): `FrameScope`. Made, it keeps the current index and `viewState()` and changes the index; destroyed, it sets both back. An index out of the frames is ignored (the current frame is drawn).
+- `FieldCanvas`:
+  - `draw( QPainter &, const QSize & logical )`. `paintEvent` gives `size()`.
+  - `renderFrame( index, pixels, dpr )`: an image of `Format_RGB32` filled with the color of the field, `setDevicePixelRatio( dpr )`, and a `FrameScope`. When zoomed and the logical height differs from the view's, the scale follows the ratio of the heights. The window and the viewport of the QPainter are the logical size, and `draw` is called. The line of the measure by the middle button is not drawn. An empty size gives a null image.
+  - The painters were checked: each looks only at `DispHolder::currentDisp()`, and keeps no state across frames (the cache of the team logos is by the team's name).
+  - The antialiasing of the texts: Qt uses subpixel antialiasing, by the font settings, only when drawing for a widget (through `paintEvent`, even into an image by `QWidget::render()`), and grayscale when drawing straight into an image. So the texts of the image do not match the view's pixel by pixel, and with Qt 5 their advances differ a little too. Grayscale suits the exported images and videos better (no color fringes when scaled or compressed), so it is kept.
+- `MainWindow`:
+  - File > Save Image... (Ctrl+Shift+I, `save_image`), after Save a Copy of Game Log in the File menu. Enabled only while the 2D view is shown (D5). `updateSaveImageAction()` is called after `toggleView3D()` changes the view. While the 3D view is shown, the reason is in the status tip and the tooltip.
+  - The current frame when chosen is drawn into an image first, and then the file dialog is shown (the log goes on playing behind the dialog). The image is the size of the 2D view times the screen's dpr (`renderImage()`).
+  - The default name is the game log's name (without `.rcg` or `.rcg.gz`; `rcssmonitor` in live) and the cycle (`1234.3` when stopped), e.g. `head_v5-1.png` (`defaultImageName()`). Without an extension, PNG. The format is by the extension (`QImageWriter`). The directory saved to is remembered while the program runs (as Save a Copy).
+  - It works in live too: one image does not meet the reasons to draw offline (S1: results independent of the machine's speed, shifting indexes). Without a frame, "There is no frame to save." in the status bar.
+  - `saveImage( path, error )` is public (for the tests).
+- The test `field_canvas_render` (new):
+  - Without the texts (the player numbers and types, the score board), the image matches both `QWidget::render()` and `grab()` pixel by pixel. With the texts, they are drawn, and the same conditions give the same image.
+  - After drawing another frame, the view is unchanged, and showing that frame gives the same image.
+  - The state of the focus on the ball, the zoom, the automatic selection, and the current index (`INVALID_INDEX` too) are set back (by `FrameScope` alone too).
+  - dpr 2: the size and the dpr of the image, the score board at the bottom, the goal line at twice the position. The scale when zoomed. An empty size.
+  - Save Image of the main window: the shortcut, the File menu, no frame, the size and the content of the image, the name, PNG and JPEG, a place that cannot be written.
+  - The test of the menu item is in this test, which uses the same log and images, not in `test_toolbar` as planned. `test_view_switch` got a check that Save Image stays enabled when the 3D view is not available and the 2D view stays. Being disabled while the 3D view is shown is checked by hand, as offscreen cannot make the 3D view.
+- Checked (2026-11-24): with a real game log (RoboCup 2026), saved offscreen with `QT_SCALE_FACTOR` 1 and 2. With 2, the image was 2000×1226, with the texts and the team logos at twice the resolution, and the score board at the bottom.
+
 ## 5. Stages
 
 Every stage builds and passes the CI.
@@ -338,3 +368,19 @@ Stage 5 may proceed in parallel with stages 2-4.
 - After F5 (PR #75) was merged into develop (b3762c3), the user created `feature/frame-export` on GitHub.
 - Following the unified format of the plans ("計画書の書式" of CLAUDE.md; the record of 2026-11-24 of the plan of the URLs and the lists of logs), the last update was added to the header table, and the table of the progress was put. §4 (the design) is not in sections by stage, so it is not rearranged; the implementation of each stage is added after the sections of the design.
 - Next: stage 1 is checked with the user before it starts (deciding the items of stage 1 in §3.3).
+
+### 2026-11-24: Stage 1 started
+
+- The first commit of the branch of F6, 9a1853b (the unified format of the plans), was pushed. In the CI, all 5 jobs passed.
+- Stage 1 started at the user's instruction. Decided by the user at the start of the stage: D4 (S1 to S9 as proposed), D5 (the shortcut of Save Image is Ctrl+Shift+I; disabled while the 3D view is shown, until stage 6).
+- Checked to choose the shortcut: the File menu uses Ctrl+O, Ctrl+Shift+O, Ctrl+Shift+B, Ctrl+Shift+S and Ctrl+Q. Ctrl+I is Next Viewpoint, and Ctrl+S is Show Score Board. Ctrl+Shift+I and Ctrl+Shift+E are free, and do not clash with the keys of the 3D view (which uses no keys with modifiers).
+- Checked in the 2D painters: every painter looks only at `DispHolder::currentDisp()`, and keeps no state across frames (the cache of the team logos is by the team's name). The global state changed when drawing is the focus point and the selected number changed by `updateFocus()`, and the size of the canvas, the scale and the center of the field changed by `Options::updateFieldSize()` (`ViewState` of §4.1).
+
+### 2026-11-24: Stage 1 implemented
+
+- Implemented as in 4.10. The test `field_canvas_render` was added, and a check of Save Image to `test_view_switch`.
+- Found by the tests and fixed: because of the static variables of `updateFieldSize()`, drawing another frame right after the items shown changed set the view back with its old scale (4.10). As the antialiasing of the texts differs between the view (subpixel) and the image (grayscale), the comparison with the view is made pixel by pixel without the texts (with Qt 5, the advances of the texts differed too).
+- With the CMake builds of Qt 6 (6.4.2) and Qt 5 (5.15.13) with the whistle, and of `ENABLE_SOUND=OFF`, there were no warnings, and `ctest -j8` run 3 times on each passed all 71 tests. The autotools build (Qt 5) passed too, without warnings of the compiler.
+- Saving with the scales 1 and 2 was checked with a real game log (4.10). README ("Saving an image of the view"), NEWS and ChangeLog were updated.
+- The user checked Save Image on the screen (the end of stage 1).
+- Next: the commit and the push, and the CI.

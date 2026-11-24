@@ -78,6 +78,9 @@
     h5ai, or by a page of links as Apache and nginx do), and remove any.
     See README.md.
 
+  * Save the frame shown in the 2D view as an image (File > Save Image,
+    Ctrl+Shift+I), as large as the view. See README.md.
+
   * Add the referee's whistle (View > Referee's Whistle, --whistle, off
     by default): a long whistle at a kick-off, a short one at a foul, an
     offside and so on and at the free kick after it, two long ones at

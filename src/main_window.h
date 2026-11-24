@@ -33,6 +33,7 @@
 #ifndef RCSSMONITOR_MAIN_WINDOW_H
 #define RCSSMONITOR_MAIN_WINDOW_H
 
+#include <QImage>
 #include <QMainWindow>
 #include <QPalette>
 #include <QString>
@@ -102,6 +103,7 @@ private:
     QAction * M_open_url_act = nullptr; //!< File > Open Game Log from URL
     QAction * M_browse_logs_act = nullptr; //!< File > Browse Game Logs
     QAction * M_save_copy_act = nullptr; //!< File > Save a Copy of Game Log: enabled while a game log is open
+    QAction * M_save_image_act = nullptr; //!< File > Save Image: the 2D view (disabled while the 3D view is shown)
     QAction * M_exit_act;
 
     // monitor actions
@@ -277,6 +279,26 @@ public:
     */
     bool saveGameLogCopy( const QString & path );
 
+    /*!
+      \brief draw the frame shown in the 2D view into an image, as large as
+      the view on the screen, with its device pixel ratio
+      (docs/plan/2026-11-22-03_frame-export.md 4.6)
+      \return the image, or a null image if there is no frame
+    */
+    QImage renderImage() const;
+
+    //! the file name of the image of the frame shown: the game log's name and the cycle
+    QString defaultImageName() const;
+
+    /*!
+      \brief save the frame shown in the 2D view to an image file (File >
+      Save Image). The format is by the extension (PNG if there is none).
+      \param error set to the reason if it fails (may be null)
+      \return false if there is no frame, or the file cannot be written
+    */
+    bool saveImage( const QString & path,
+                    QString * error = nullptr ) const;
+
     //! the cache of the downloaded game logs
     const LogCache & gameLogCache() const { return M_log_cache; }
 
@@ -296,6 +318,9 @@ private:
 
     //! the keyboard focus to the view shown: the 2D view, or the views' stack (the 3D view's window takes none)
     void focusView();
+
+    //! File > Save Image: enabled while the 2D view is shown (D5 of docs/plan/2026-11-22-03_frame-export.md)
+    void updateSaveImageAction();
 
     //! a pixel of the window below the 3D view when it would cover all of a full screen window (viewMargins())
     void updateViewMargins();
@@ -356,6 +381,8 @@ private slots:
     void showLogBrowser();
     //! File > Save a Copy of Game Log: the file dialog
     void saveGameLogCopy();
+    //! File > Save Image: the frame shown when chosen, then the file dialog
+    void saveImage();
     //! the download of a game log: its progress, its end
     void showDownloadProgress( qint64 received,
                                qint64 total );

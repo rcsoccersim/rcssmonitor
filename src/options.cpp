@@ -235,6 +235,8 @@ Options::Options()
     M_full_screen( false ),
     M_canvas_width( -1 ),
     M_canvas_height( -1 ),
+    M_sized_with_team_graphic( true ),
+    M_sized_with_score_board( true ),
     M_show_menu_bar( true ),
     M_view_3d( false ),
     M_camera_3d( DEFAULT_CAMERA_MODE ),
@@ -2459,19 +2461,18 @@ void
 Options::updateFieldSize( const int canvas_width,
                           const int canvas_height )
 {
-    static bool s_team_graphic = true;
-    static bool s_score_board = true;
-
+    // members, not static variables: kept and set back with the rest of
+    // the view's state when another frame is drawn (viewState())
     if ( M_canvas_width != canvas_width
          || M_canvas_height != canvas_height
-         || s_team_graphic != showTeamGraphic()
-         || s_score_board != showScoreBoard() )
+         || M_sized_with_team_graphic != showTeamGraphic()
+         || M_sized_with_score_board != showScoreBoard() )
     {
         M_canvas_width = canvas_width;
         M_canvas_height = canvas_height;
 
-        s_team_graphic = showTeamGraphic();
-        s_score_board = showScoreBoard();
+        M_sized_with_team_graphic = showTeamGraphic();
+        M_sized_with_score_board = showScoreBoard();
 
         // adjust field scale to window size.
         if ( ! zoomed() )

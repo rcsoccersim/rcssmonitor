@@ -110,6 +110,13 @@ A click on a column's header sorts the logs by the column.
 - The archive, and any directory on a web server, is read a directory at a time, when it is opened, and kept in `~/.cache/rcssmonitor/archive` for a day (`Reload` reads the directories again as they are opened). When it cannot be read, the list kept is shown, however old. The sizes on a page of links are as the page shows them: rounded by Apache (e.g. `5.0M`), and none by some servers.
 - The filter applies to the logs listed: a directory of the archive not read yet is shown until it is opened.
 
+### Saving an image of the view
+
+`File` -> `Save Image...` (`Ctrl+Shift+I`) saves the frame shown in the 2D view to an image file (PNG, or JPEG by the extension), as large as the view: on a high-DPI screen, with as many pixels as the screen shows.
+The default name is the game log's name and the cycle, e.g. `202607050404-HELIOS2026_0-vs-YuShan2026_1-301.png`.
+The texts are drawn with grayscale antialiasing.
+It is not available while the 3D view is shown yet.
+
 ### The 3D view
 
 `D`, or the `3D View` button in the tool bar, switches between the 2D and 3D views (`--view-3d on` starts in 3D).

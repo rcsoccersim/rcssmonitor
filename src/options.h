@@ -209,6 +209,9 @@ private:
 
     int M_canvas_width;
     int M_canvas_height;
+    //! showTeamGraphic() and showScoreBoard() when the scale was fit to the canvas (updateFieldSize())
+    bool M_sized_with_team_graphic;
+    bool M_sized_with_score_board;
 
     bool M_show_menu_bar;
     bool M_view_3d; //!< show the 3D view instead of the 2D view
@@ -817,6 +820,45 @@ public:
       {
           M_field_scale = t.scale;
           M_field_center = t.center;
+      }
+
+    /*!
+      \brief the state of the 2D view that drawing a frame changes
+      (docs/plan/2026-11-22-03_frame-export.md 4.1, S2): the mapping of the
+      field and the size of the canvas, with the items shown when the scale
+      was fit to it (updateFieldSize()), the focus point and the player
+      selected automatically (FieldCanvas::updateFocus()).
+      Whether it is zoomed and the kinds of the focus and the selection do
+      not change when drawing, and are not in it.
+    */
+    struct ViewState {
+        double field_scale;
+        QPoint field_center;
+        int canvas_width;
+        int canvas_height;
+        bool sized_with_team_graphic;
+        bool sized_with_score_board;
+        QPointF focus_point;
+        int selected_number;
+    };
+    ViewState viewState() const
+      {
+          return ViewState{ M_field_scale, M_field_center,
+                            M_canvas_width, M_canvas_height,
+                            M_sized_with_team_graphic, M_sized_with_score_board,
+                            M_focus_point, M_selected_number };
+      }
+    //! set the state back, e.g. after drawing a frame into an image (FrameScope)
+    void setViewState( const ViewState & s )
+      {
+          M_field_scale = s.field_scale;
+          M_field_center = s.field_center;
+          M_canvas_width = s.canvas_width;
+          M_canvas_height = s.canvas_height;
+          M_sized_with_team_graphic = s.sized_with_team_graphic;
+          M_sized_with_score_board = s.sized_with_score_board;
+          M_focus_point = s.focus_point;
+          M_selected_number = s.selected_number;
       }
 
     FocusType focusType() const { return M_focus_type; }

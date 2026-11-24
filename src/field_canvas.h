@@ -35,12 +35,14 @@
 
 #include <QWidget>
 
+#include <QImage>
 #include <QPen>
 #include <QFont>
 
 #include "mouse_state.h"
 #include "referee_target.h"
 
+#include <cstddef>
 #include <memory>
 
 class DispHolder;
@@ -77,6 +79,23 @@ public:
     FieldCanvas( DispHolder & disp_holder );
     ~FieldCanvas();
 
+    /*!
+      \brief draw a frame into an image, as the view draws it
+      (docs/plan/2026-11-22-03_frame-export.md 4.1): the state of the view
+      and the frame shown are set back afterward (FrameScope). The line of
+      the measure by the middle button is not drawn. When zoomed, the scale
+      follows the ratio of the heights, to show the same range as the view.
+      \param index the frame (an index out of the frames: the frame shown)
+      \param pixels the size of the image
+      \param dpr the device pixel ratio of the image: the frame is drawn in
+      the logical size pixels / dpr, and the texts are dpr times as large
+      as in that size
+      \return the image (Format_RGB32), null if the size is empty
+    */
+    QImage renderFrame( const std::size_t index,
+                        const QSize & pixels,
+                        const qreal dpr );
+
 private:
 
     void createPainters();
@@ -97,7 +116,12 @@ protected:
 
 private:
 
-    void draw( QPainter & painter );
+    /*!
+      \brief draw the frame shown
+      \param logical the size of the canvas (the window of the painter)
+    */
+    void draw( QPainter & painter,
+               const QSize & logical );
     void drawMouseMeasure( QPainter & painter );
 
 signals:
