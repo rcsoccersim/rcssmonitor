@@ -45,7 +45,7 @@ class QNetworkReply;
 /*!
   \class ArchiveLogSource
   \brief the game logs under a directory of a web server, as
-  archive.robocup.info (docs/plan/2026-11-22-02_remote-logs.md 4.3, 4.9):
+  archive.robocup.info (docs/plan/2026-11-22-02_remote-logs.md 4.3, 4.5):
   a directory at a time, read when its branch is opened. The directories
   under it are told as not read yet, and of the files only the game logs.
 

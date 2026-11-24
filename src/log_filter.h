@@ -42,7 +42,7 @@ class LogFileName;
 /*!
   \class LogFilter
   \brief the conditions of the games shown in File > Browse Game Logs
-  (docs/plan/2026-11-22-02_remote-logs.md 4.7, D14): a team on a side
+  (docs/plan/2026-11-22-02_remote-logs.md 4.4, D14): a team on a side
   (either, left or right), its opponent, its result, and a range of dates.
   The names match a part of the teams' names, in any case. An empty
   condition is any.

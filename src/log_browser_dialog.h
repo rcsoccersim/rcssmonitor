@@ -60,12 +60,12 @@ class QTreeWidgetItem;
   \brief File > Browse Game Logs (docs/plan/2026-11-22-02_remote-logs.md
   4.2, 4.3, D9, D10, D13): the sources of game logs on the left (the
   repositories on GitHub, the directories listed by web servers as the
-  archive; 4.9, D15),
+  archive; 4.5, D15),
   and the logs of the one chosen on the right, as a
   tree of its directories with the date, the teams, the score and the size
   of each log (LogFileName), filtered by a team's name and sorted by a
   column (LogFilter: a team on a side, its opponent and result, a range of
-  dates; 4.7, D14). A log is opened by a double click or Open (openRequested()); the
+  dates; 4.4, D14). A log is opened by a double click or Open (openRequested()); the
   dialog stays open (modeless), to open one game after another. A
   directory whose entries are not known yet is read when it is opened.
 

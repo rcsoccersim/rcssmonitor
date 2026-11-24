@@ -176,7 +176,7 @@ LogBrowserDialog::LogBrowserDialog( QWidget * parent )
         QWidget * box = new QWidget();
         QVBoxLayout * right = new QVBoxLayout();
         right->setContentsMargins( 0, 0, 0, 0 );
-        // the filter (4.7, D14): a team, its side, its opponent, its result
+        // the filter (4.4, D14): a team, its side, its opponent, its result
         QHBoxLayout * row = new QHBoxLayout();
         QLabel * label = new QLabel( tr( "Team:" ) );
         row->addWidget( label );

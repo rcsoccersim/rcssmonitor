@@ -3,11 +3,26 @@
 | Item | Content |
 |---|---|
 | Created | 2026-11-22 |
+| Last updated | 2026-11-24 |
 | Target | rcssmonitor develop (5affd90, 20.0.0-beta.1) |
 | Branch | `feature/remote-logs` (from develop after the referee's whistle (F4) is merged; the user creates it on GitHub) |
-| Status | Plan written (2026-11-22). Stage 1 (opening from URLs), stage 2 (the lists of logs on GitHub), stage 3 (archive) and stage 4 (filters of the list of logs) are done on `feature/remote-logs` (2026-11-24). Stage 5 (lists of files of web servers, D15) implemented (2026-11-24) |
+| Status | Plan written (2026-11-22). Stages 1 to 5 are done on `feature/remote-logs` (2026-11-24). The progress of each stage is in the table of "Progress" below |
 | Japanese version | [2026-11-22-02_remote-logs.md](2026-11-22-02_remote-logs.md) (same content) |
 | Related | F5 of the overall plan [2026-11-22-00_v20-features_en.md](2026-11-22-00_v20-features_en.md). Reference implementation: `src/io/fetch-log.ts`, `src/ui/dialogs/open-url-dialog.ts` and `docs/protocol.md` of rcssmonitor-web |
+
+## Progress
+
+The work and the conditions of the end of each stage are in §5, and the history in §9.
+
+| Stage | Content | Status | Checked by the user | CI | Commits | Pushed |
+|---|---|---|---|---|---|---|
+| 1 | Opening from URLs, drops, saving a copy (4.1; D3 to D8) | Done | Done | Passed | d56fad4, ce0870e (D7), f1bccac (D8) | Done |
+| — | The CI: the timeout of Qt 6.10, Ubuntu 24.04 and Qt 6.4 (U20 of the overall plan) | Done | — | Passed | 4d08f2b, 26b4935 | Done |
+| 2 | The lists of logs on GitHub (4.2; D9 to D11) | Done | Done | Passed | ec341e2 | Done |
+| 3 | The list of the archive, and editing the sources (4.3; D12, D13) | Done | Done | Passed | 42e08a1 (the test environment: bec0f96) | Done |
+| 4 | Filters of the list of logs (4.4; D14) | Done | Done | Passed | 96eb9a2 | Done |
+| 5 | Lists of files of web servers (4.5; D15) | Done | Done | Passed | b76e4bf | Done |
+| — | Merging into develop (PR, Squash Merge) | Not started | — | — | — | — |
 
 ## 1. Goal and approach
 
@@ -89,9 +104,13 @@
 - **Columns and filter of the list (stage 2)**: date and time, teams, scores, size, directory. Filter by team name.
 - **Default repositories (stage 2)**: whether to add others than `rcsoccersim/RoboCup2026` (as of 2026-11-22, RoboCup2026 is the only repository of the rcsoccersim organization whose name starts with RoboCup).
 
-## 4. Design
+## 4. Design and implementation of each stage
+
+For each stage, the design when it was planned (4.N.1) is followed by what was implemented (4.N.2).
 
 ### 4.1 Stage 1: open from a URL
+
+#### 4.1.1 Design
 
 - Menu File > Open Game Log from URL...: a dialog to enter a URL, with a combo box of the recent URLs (saved in the settings). GitHub file page URLs are accepted.
 - Command line: a positional argument starting with `http://` or `https://` is opened as a URL (`rcssmonitor https://…/game.rcg.gz`).
@@ -105,40 +124,9 @@
   - Write to a temporary name, and rename it at the end (an interrupted file is never reused).
 - `MainWindow`: shows a `QProgressDialog` (with a cancel button) during the download. When done, it opens the file by `openGameLogFile( path )` and shows the log's name (`logNameFromUrl`) in the window title. Opening another log or connecting to a server stops the download.
 
-### 4.2 Stage 2: GitHub log lists
+#### 4.1.2 Implementation (2026-11-24)
 
-- Menu File > Browse Game Logs...: a dialog with the list of logs (`src/log_browser_dialog.{h,cpp}`, new).
-  - On the left, the repositories (default `rcsoccersim/RoboCup2026`; the user adds `owner/repo` or `owner/repo@ref`, and removes them; saved in the settings).
-  - On the right, the tree of logs: grouped by directory (Finals, GroupA, ...), with the columns date and time, left team, scores, right team, size. A field to filter by team name.
-  - Double-click or "Open" passes it to the download of stage 1.
-  - "Reload" fetches the list again.
-- `src/github_log_index.{h,cpp}` (new; implemented as `github_log_source.{h,cpp}`, one of the sources of the common interface `LogSource`; 4.5):
-  - `GET https://api.github.com/repos/OWNER/REPO/git/trees/REF?recursive=1` (`REF` defaults to `HEAD`), `Accept: application/vnd.github+json`.
-  - From the JSON of the response (`QJsonDocument`, in QtCore), take the entries whose `type` is `blob` and whose name ends with `.rcg` or `.rcg.gz` (path, size). If `truncated` is true, show that the list is incomplete.
-  - The URL of a file is `https://raw.githubusercontent.com/OWNER/REPO/REF/PATH`.
-  - Cache of the lists (S6): the JSON and the time it was fetched, under `CacheLocation`.
-  - Errors: on 403/429 with `x-ratelimit-remaining: 0`, show when the limit is lifted, from `x-ratelimit-reset`. 404 means no such repository or branch.
-- `src/log_file_name.{h,cpp}` (new): parsing of file names (pure functions).
-  - Split into the date and time and the two sides by `^(\d{12})-(.+)-vs-(.+)\.rcg(\.gz)?$`, then each side into the team name, the score and the penalty score by `^(.*?)_(\d+)(?:_(\d+))?$` (the shortest team name).
-  - Examples: `FRA-UNIted_0_4` → `FRA-UNIted`, 0, 4. `RoboTech_Coach_base_0` → `RoboTech_Coach_base`, 0.
-  - If it cannot be parsed, show the name as is.
-
-### 4.3 Stage 3: archive.robocup.info
-
-- The site can be reached since 2026-11-24 (§2.1). It is made after stage 2, on this branch (D11).
-- `src/archive_log_source.{h,cpp}` (new): `ArchiveLogSource`, one of the `LogSource`s of stage 2. Its root is the URL of a directory listed by h5ai (by default `https://archive.robocup.info/Soccer/Simulation/2D/logs/`, D11).
-  - The lists are read with the JSON API of h5ai (`POST /`, `action=get&items[href]=DIR&items[what]=1`), a directory at a time. As the tree is deep and large, a directory is read when its branch is opened. The response has, besides the entries right under the directory, the siblings of each level up to the root (checked on 2026-11-24), so only those right under it are taken. The `href` of a directory ends with `/`. A file has its `size` (bytes).
-  - The directories right under it are returned as directories not read yet. Of the files, only `.rcg` and `.rcg.gz` (not `.rcl.gz` nor `.log.gz`). The logs are a `.rcg.gz` a game, not bundled (no tar to extract). The URL of a file is made from the server's `href`.
-  - The JSON of the response is cached a directory at a time (`~/.cache/rcssmonitor/archive/`) and used for a day (D12). When it cannot be read, the cache is shown, however old, with a note (as for GitHub). Reload reads the root again, and the directories opened after it are read without the caches from before the Reload.
-  - A source can read several directories at once (branches opened one after another).
-- The list of sources (D13): the settings keep the list of sources as the texts the user enters (`log_sources` in `[GameLog]`; `OWNER/REPO[@REF]` for GitHub, the URL for the archive). Without it in the settings, the default list (`Options::DEFAULT_LOG_SOURCES`: `rcsoccersim/RoboCup2026` and the archive). `github_repositories` of stage 2 is replaced, as it has not been released.
-  - Remove removes any source.
-  - Add... takes a repository on GitHub (`OWNER/REPO`, `OWNER/REPO@REF`, a URL) and the URL of a directory listed by h5ai (e.g. a year of the archive). The field is an editable combo box, whose items are the default sources not in the list (a default source removed can be chosen again).
-  - The dialog makes a source from a text (`LogBrowserDialog::createSource`). `LogSource` gets the text that makes the source again (`text()`).
-
-### 4.4 The implementation of stage 1 (2026-11-24)
-
-4.1 was implemented as follows. What was decided beyond the plan is written too.
+4.1.1 was implemented as follows. What was decided beyond the plan is written too.
 
 - `src/log_url.{h,cpp}` (new; QtCore only): the static-only class `LogUrl`, which has no state (D7). `parseLogUrl` of the web version was ported as `LogUrl::parse` (`QUrl` in StrictMode; http and https only, a host needed, a URL with a user name or a password refused; the reason of an error returned), `githubRawUrl`, `githubLfsUrl` and `lfsPointerSize` under the same names, and `logNameFromUrl` as `LogUrl::name`. Added: `LogUrl::isUrl` (telling a URL from a local path on the command line and in a drop).
 - `src/log_cache.{h,cpp}` (new; QtCore only): the class `LogCache`, which has its directory (D7). `pathOf` (`DIR/KEY/NAME` in the cache; KEY is the first 16 hex digits of the SHA-1 of the URL, NAME the log's name made safe for a file name; the file has the log's name, used as it is by the window's title and Save a Copy), `contains`, `size`, `clear` and `defaultDir` (`QStandardPaths::CacheLocation/logs`, `~/.cache/rcssmonitor/logs`). The main window has a `LogCache` of the default place, and gives it to the dialog.
@@ -162,9 +150,29 @@
 - `Options`: the recent URLs (at most 10; `recent_urls` in `[GameLog]` of the settings), written as soon as a URL is opened (`writeRecentLogUrls()`; not at the end).
 - The tests' HOME has the cache too (`XDG_CACHE_HOME`), so that they never touch the user's cache.
 
-### 4.5 The implementation of stage 2 (2026-11-24)
+### 4.2 Stage 2: GitHub log lists
 
-4.2 was implemented as follows. What was decided beyond the plan is written too.
+#### 4.2.1 Design
+
+- Menu File > Browse Game Logs...: a dialog with the list of logs (`src/log_browser_dialog.{h,cpp}`, new).
+  - On the left, the repositories (default `rcsoccersim/RoboCup2026`; the user adds `owner/repo` or `owner/repo@ref`, and removes them; saved in the settings).
+  - On the right, the tree of logs: grouped by directory (Finals, GroupA, ...), with the columns date and time, left team, scores, right team, size. A field to filter by team name.
+  - Double-click or "Open" passes it to the download of stage 1.
+  - "Reload" fetches the list again.
+- `src/github_log_index.{h,cpp}` (new; implemented as `github_log_source.{h,cpp}`, one of the sources of the common interface `LogSource`; 4.2.2):
+  - `GET https://api.github.com/repos/OWNER/REPO/git/trees/REF?recursive=1` (`REF` defaults to `HEAD`), `Accept: application/vnd.github+json`.
+  - From the JSON of the response (`QJsonDocument`, in QtCore), take the entries whose `type` is `blob` and whose name ends with `.rcg` or `.rcg.gz` (path, size). If `truncated` is true, show that the list is incomplete.
+  - The URL of a file is `https://raw.githubusercontent.com/OWNER/REPO/REF/PATH`.
+  - Cache of the lists (S6): the JSON and the time it was fetched, under `CacheLocation`.
+  - Errors: on 403/429 with `x-ratelimit-remaining: 0`, show when the limit is lifted, from `x-ratelimit-reset`. 404 means no such repository or branch.
+- `src/log_file_name.{h,cpp}` (new): parsing of file names (pure functions).
+  - Split into the date and time and the two sides by `^(\d{12})-(.+)-vs-(.+)\.rcg(\.gz)?$`, then each side into the team name, the score and the penalty score by `^(.*?)_(\d+)(?:_(\d+))?$` (the shortest team name).
+  - Examples: `FRA-UNIted_0_4` → `FRA-UNIted`, 0, 4. `RoboTech_Coach_base_0` → `RoboTech_Coach_base`, 0.
+  - If it cannot be parsed, show the name as is.
+
+#### 4.2.2 Implementation (2026-11-24)
+
+4.2.1 was implemented as follows. What was decided beyond the plan is written too.
 
 - `src/log_file_name.{h,cpp}` (new; QtCore only): the value class `LogFileName` (in line with D7). `parse()` reads the date and time, the left and right teams, the scores and the penalty scores (-1 if none), and `score()` returns "2 - 1" or "0 (4) - 0 (2)". Dates of 12 digits and of 14 digits (to the second, e.g. the archive's of 2023) are accepted. A date that does not exist, an empty team name, and a name without scores (the archive's old logs) cannot be parsed, and the list shows such a name as it is. The penalty scores use `capturedStart()` (`hasCaptured()` is from Qt 6.3, not in Qt 5).
 - `src/log_source.{h,cpp}` (new): the abstract class of the sources of logs, `LogSource` (a `QObject`). `list( dir, reload )` reads the entries under a directory (`LogSourceEntry`: the path, whether it is a directory, whether it is a directory not read yet, the size, the URL), and tells them by `listed` or `failed` after `list()` returns. `noted` tells a note (e.g. the list is from the cache). Nothing is told after `abort()`. GitHub returns the whole tree at once, and the archive (stage 3) returns a directory at a time (a directory not read yet is read when its branch is opened).
@@ -186,11 +194,26 @@
 - `MainWindow`: "Browse Game Logs..." (Ctrl+Shift+B) after Open Game Log from URL in the File menu. The dialog is made when it is first shown, with the default repositories (`GitHubLogSource::DEFAULT_REPOSITORIES`, not removable) and the repositories saved in the settings (removable). `openRequested` goes to `openGameLogUrl()`, and `repositoriesChanged` to the settings, written at once.
 - `Options`: the repositories added (`github_repositories` in `[GameLog]` of the settings; `writeLogRepositories()`).
 - Checked with the real GitHub (2026-11-24): the list of RoboCup2026 has 144 games, read by one request in 0.7 s; the second time from the cache in 4 ms. A game of the Finals (4.6 MB) was opened from the list.
-- In stage 3, the handling of the sources (the default ones, Remove, Add..., the settings) was changed after D13 (4.6).
+- In stage 3, the handling of the sources (the default ones, Remove, Add..., the settings) was changed after D13 (4.3.2).
 
-### 4.6 The implementation of stage 3 (2026-11-24)
+### 4.3 Stage 3: archive.robocup.info
 
-4.3 was implemented as follows. What was decided beyond the plan is written too.
+#### 4.3.1 Design
+
+- The site can be reached since 2026-11-24 (§2.1). It is made after stage 2, on this branch (D11).
+- `src/archive_log_source.{h,cpp}` (new): `ArchiveLogSource`, one of the `LogSource`s of stage 2. Its root is the URL of a directory listed by h5ai (by default `https://archive.robocup.info/Soccer/Simulation/2D/logs/`, D11).
+  - The lists are read with the JSON API of h5ai (`POST /`, `action=get&items[href]=DIR&items[what]=1`), a directory at a time. As the tree is deep and large, a directory is read when its branch is opened. The response has, besides the entries right under the directory, the siblings of each level up to the root (checked on 2026-11-24), so only those right under it are taken. The `href` of a directory ends with `/`. A file has its `size` (bytes).
+  - The directories right under it are returned as directories not read yet. Of the files, only `.rcg` and `.rcg.gz` (not `.rcl.gz` nor `.log.gz`). The logs are a `.rcg.gz` a game, not bundled (no tar to extract). The URL of a file is made from the server's `href`.
+  - The JSON of the response is cached a directory at a time (`~/.cache/rcssmonitor/archive/`) and used for a day (D12). When it cannot be read, the cache is shown, however old, with a note (as for GitHub). Reload reads the root again, and the directories opened after it are read without the caches from before the Reload.
+  - A source can read several directories at once (branches opened one after another).
+- The list of sources (D13): the settings keep the list of sources as the texts the user enters (`log_sources` in `[GameLog]`; `OWNER/REPO[@REF]` for GitHub, the URL for the archive). Without it in the settings, the default list (`Options::DEFAULT_LOG_SOURCES`: `rcsoccersim/RoboCup2026` and the archive). `github_repositories` of stage 2 is replaced, as it has not been released.
+  - Remove removes any source.
+  - Add... takes a repository on GitHub (`OWNER/REPO`, `OWNER/REPO@REF`, a URL) and the URL of a directory listed by h5ai (e.g. a year of the archive). The field is an editable combo box, whose items are the default sources not in the list (a default source removed can be chosen again).
+  - The dialog makes a source from a text (`LogBrowserDialog::createSource`). `LogSource` gets the text that makes the source again (`text()`).
+
+#### 4.3.2 Implementation (2026-11-24)
+
+4.3.1 was implemented as follows. What was decided beyond the plan is written too.
 
 - `src/archive_log_source.{h,cpp}` (new): `ArchiveLogSource`.
   - Reading a URL (`parseUrl`): http or https with a host, without a user name or a password, and not github.com (GitHub is added as a repository). `/` is added to the end of the path, and the query and the fragment are dropped.
@@ -209,8 +232,9 @@
 - The test environment: with the plugin of the plastique style of Qt 5 (`qt5-style-plugins`) installed, the "unknown style name" (plastique) of `test_ui_color_scheme` was a known style, and the test failed. There, a name that no style has is used.
 - Checked with the real archive (2026-11-24): the root is listed in 1.9 s, and each directory in about 1 s. 19 years under RoboCup, 6 directories under 2023, 25 games in Finals. A game of the Finals (4.6 MB) was opened from the list. The second time from the cache within 50 ms.
 
+### 4.4 Stage 4: filters of the list of logs (D14)
 
-### 4.7 Stage 4: filters of the list of logs (D14)
+#### 4.4.1 Design
 
 - `src/log_filter.{h,cpp}` (new; QtCore only): the value class `LogFilter`: a team's name (`team`), its side (`Side`: either, left, right), the opponent (`opponent`), the result (`Result`: any, win, draw, loss), and a range of dates (`from`, `to`; an invalid date is no limit; both ends included). `matches( LogFileName, file name )` decides.
   - A team's name matches a part, case-insensitively (as in stage 2).
@@ -219,9 +243,9 @@
   - A log whose name cannot be parsed: it matches if its file name has the text of Team (as in stage 2). It does not match if a condition other than Team is given (Side, vs, Result, dates).
 - The dialog: Team, Side, vs and Result in the first row; in the second, From and To (dates enabled by their check boxes, chosen from a calendar, at first the oldest and the newest days of the logs listed of the source), Clear (all back), and Reload. The filter is applied to the tree whenever a condition changes (the directories not read yet are not hidden, as in stage 2). `setFilter( LogFilter )` and `filter()` are public (for the tests).
 
-### 4.8 The implementation of stage 4 (2026-11-24)
+#### 4.4.2 Implementation (2026-11-24)
 
-4.7 was implemented as follows. What was decided beyond the plan is written too.
+4.4.1 was implemented as follows. What was decided beyond the plan is written too.
 
 - `src/log_filter.{h,cpp}` (new): `LogFilter`. `matches()` looks at the date (the day of the log's date; both ends included), then, for each way round the Side allows (either, left, right), at Team and vs (a part, case-insensitively) and Result. The result is the static `resultOf( goals, penalties, the opponent's goals, the opponent's penalties )`: by the goals if they differ, by the penalties in a tie with a shootout whose goals differ, a draw otherwise. An empty Team is any team on its side (without Team, Side=left and Result=win is "the games the left team won").
 - `LogBrowserDialog`: the field of a team of stage 2 (`filter`) was replaced with Team (`team`), Side (`side`), vs (`opponent`), Result (`result`), From and To (`from_check`, `from`, `to_check`, `to`), and Clear (`clear_filter`). Whenever a field changes, `applyFilter()` applies it to the tree. `setFilter( LogFilter )` sets the fields with their signals blocked, and applies it once. A log's item of the tree keeps its file name (`NAME_ROLE`), read with `LogFileName` when applied.
@@ -229,7 +253,9 @@
   - The public slot `setFilter( QString )` of stage 2 was removed.
 - Checked with the real list of RoboCup2026 (144 games): HELIOS's wins from 4 July are 6 games (with a win in a shootout), and the games of FRA-UNIted on the left against NexusPrime are 2.
 
-### 4.9 Stage 5: lists of files of web servers (D15)
+### 4.5 Stage 5: lists of files of web servers (D15)
+
+#### 4.5.1 Design
 
 - `ArchiveLogSource` reads both h5ai and plain lists (not another class: both are directories of a web server, with the same handling of the URL, the cache, the reading a directory at a time, and the failures). Each source has the kind of its list, `Listing` (not known yet, h5ai, a page of links).
 - Finding out the kind: while it is not known, a request to the API of h5ai (POST) is sent. If the answer is of h5ai, the kind is h5ai. If the server answered by HTTP but not by h5ai (an error such as 404, 405 or 501, or a 200 that is not JSON), the same URL is read by GET as a page. If the server cannot be reached, or does not answer in time, it fails without a GET. The kind found is remembered, and the directories after it are read by one request. Reload (of the root) forgets the kind and finds it out again. On 2026-11-24, the example Apache server was checked to answer a POST with 404.
@@ -243,15 +269,15 @@
 - The texts: "a list given by h5ai" in the dialog (Add... and the description of a source), README, NEWS and ChangeLog becomes "a list of files of a web server (h5ai, or a page of links such as Apache's)".
 - The example server is not one of the defaults (D15). The test data copies the form of the example server's page, with the host name and the paths changed.
 
-### 4.10 The implementation of stage 5 (2026-11-24)
+#### 4.5.2 Implementation (2026-11-24)
 
-4.9 was implemented as follows. What was decided beyond the plan is written too.
+4.5.1 was implemented as follows. What was decided beyond the plan is written too.
 
 - `ArchiveLogSource` (`archive_log_source.{h,cpp}`):
   - The kind of the list, `Listing` (`UNKNOWN_LISTING`, `H5AI_LISTING`, `INDEX_LISTING`), and `listing()` were added. Each request remembers its directory and its kind (`Request`).
   - `request( dir, listing )`: a POST for h5ai (`Accept: application/json`), a GET for a page (`Accept: text/html`). Both with `User-Agent: rcssmonitor/VERSION`, a timeout of 30 seconds, and `NoLessSafeRedirectPolicy`.
   - Handling an answer: if a request for h5ai failed or was not answered by h5ai, the kind is not known yet, and the server answered by HTTP (with a status code), the same directory is read by GET. When an answer is read, its kind is remembered.
-  - `parseIndex()`: as in 4.9. The links are taken from `<a ... href=...>` (in double quotes, single quotes, without quotes, and in capitals; not `data-href` and so on). If two links go to the same file (`IconsAreLinks` of Apache), the size known of them is used.
+  - `parseIndex()`: as in 4.5.1. The links are taken from `<a ... href=...>` (in double quotes, single quotes, without quotes, and in capitals; not `data-href` and so on). If two links go to the same file (`IconsAreLinks` of Apache), the size known of them is used.
   - `parseSize()`: the last word of a number that is not a part of a date or a time. K, M, G and T (with B or iB too) are 1024 times. When a word that is not a unit follows, as in `5 X`, the number alone is the size (bytes).
   - The character references decoded are `&amp;`, `&lt;`, `&gt;`, `&quot;`, `&apos;`, `&nbsp;` (as a space), and the numeric ones.
   - The cache: `cachePath( dir, listing )` is `.json` for h5ai, and `.html` for a page. `cachedListing()` uses the file of the kind if it is known, and the newer one if not.
@@ -271,8 +297,8 @@
 | 1 | Open from a URL (4.1). Decide the stage 1 items of §3.3 | Unit tests and the CI pass. The user checks that real GitHub URLs (file pages, raw links, LFS files) and URLs of other servers can be opened |
 | 2 | GitHub log lists (4.2) | Unit tests and the CI pass. The user checks opening from the list and the message when the limit is hit |
 | 3 | Archive lists (4.3) | Unit tests and the CI pass. The user checks opening from the list of the archive |
-| 4 | Filters of the list of logs (4.7, D14) | Unit tests and the CI pass. The user checks narrowing the games down by the filters |
-| 5 | Lists of files of web servers (4.9, D15) | Unit tests and the CI pass. The user checks opening logs from the list of the example Apache server |
+| 4 | Filters of the list of logs (4.4, D14) | Unit tests and the CI pass. The user checks narrowing the games down by the filters |
+| 5 | Lists of files of web servers (4.5, D15) | Unit tests and the CI pass. The user checks opening logs from the list of the example Apache server |
 
 ## 6. Tests
 
@@ -326,7 +352,7 @@
 
 ### 2026-11-24: Stage 1 implemented
 
-- Stage 1 was implemented (4.4). Tests: `test_log_url` (ported from `fetch-log.test.ts` of the web version; telling URLs on the command line; the cache's paths, size and clearing), `test_log_downloader` (with a small HTTP server in the test, `test/http_test_server.h`: success and progress, replacing, redirects, 404, no server, abort, the next start, the size limit (by the length, while reading), LFS (the content, the limit, not GitHub), the timeout, a place not writable), `test_remote_log` (in the main window: what a drop has, dropping a file, opening a URL and reusing the cache, a URL on the command line, Cancel, telling a failure, Save As, the dialog, the recent URLs).
+- Stage 1 was implemented (4.1.2). Tests: `test_log_url` (ported from `fetch-log.test.ts` of the web version; telling URLs on the command line; the cache's paths, size and clearing), `test_log_downloader` (with a small HTTP server in the test, `test/http_test_server.h`: success and progress, replacing, redirects, 404, no server, abort, the next start, the size limit (by the length, while reading), LFS (the content, the limit, not GitHub), the timeout, a place not writable), `test_remote_log` (in the main window: what a drop has, dropping a file, opening a URL and reusing the cache, a URL on the command line, Cancel, telling a failure, Save As, the dialog, the recent URLs).
 - Checked (Ubuntu 24.04):
   - The three CMake builds, Qt 6.4.2, Qt 5.15.13 (the system's Qt5) and Qt6 without the whistle, had no warnings, and `ctest -j8`, run 3 times in each, passed all 64 tests. The autotools build (Qt5) passed without warnings too.
   - From the real GitHub (a public repository; only the User-Agent is sent): a log of RoboCup2026 (4.8 MB) was downloaded from its file page (Qt6) and its raw link (Qt5), the same as the local copy of that log (https with TLS worked).
@@ -339,7 +365,7 @@
 
 - The user checked: opening the example URL crashed with Segmentation Fault. After starting again, the same URL (in the cache) opened. After Clear Cache, it crashed again. Drops from the file manager and the browser worked, but a drop from the browser crashed too at the first download. Save Game Log As saved the file. Its name: it copies rather than saves, so "copy" fits better.
 - The cause: the progress dialog was modal (`Qt::WindowModal`). A modal `QProgressDialog` processes the events in `setValue()`. When the end of the download came there, the dialog was closed (`M_download_dialog` cleared) and the log opened, and `setLabelText()` after `setValue()` returned used the null pointer and crashed. Opening from the cache shows no progress, so it did not crash. The tests missed it, as the log was small and no progress came in the middle. A test that serves the log in two parts (`openUrlInParts`) reproduced it (Segmentation Fault all 3 times).
-- Fixed: the dialog is not modal; the text of the progress is set first and `setValue()` last, with the dialog watched by `QPointer`; opening the downloaded log and telling a failure are done after the call of `LogDownloader` returns (4.4). The new test crashed before the fix and passes after it.
+- Fixed: the dialog is not modal; the text of the progress is set first and `setValue()` last, with the dialog watched by `QPointer`; opening the downloaded log and telling a failure are done after the call of `LogDownloader` returns (4.1.2). The new test crashed before the fix and passes after it.
 - The name: the user chose "Save a Copy of Game Log..." (D5). The menu, the function (`saveGameLogCopy`), the messages, the tests, README, NEWS and ChangeLog were changed.
 - Checked: the three CMake builds had no warnings, and `ctest -j8`, run 3 times in each, passed all 64 tests. The autotools build (Qt5) passed without warnings too.
 - Next: the user checks again (the completion criteria of stage 1). Then the commit and push, and the CI.
@@ -352,7 +378,7 @@
 ### 2026-11-24: The design revised (D7)
 
 - The first version of stage 1 was committed as d56fad4 and pushed.
-- The URL functions were made into the static-only class `LogUrl` (`log_url.{h,cpp}`) and the class `LogCache` (`log_cache.{h,cpp}`, new), which has its directory (4.4). The main window has a `LogCache` (`gameLogCache()`), and gives it to the dialog. `MainWindow::gameLogCacheDir()` was removed. The tests were split into `test_log_url` (`LogUrl`) and the new `test_log_cache` (the place, `pathOf`, `contains`, the size and clearing). The behavior is not changed.
+- The URL functions were made into the static-only class `LogUrl` (`log_url.{h,cpp}`) and the class `LogCache` (`log_cache.{h,cpp}`, new), which has its directory (4.1.2). The main window has a `LogCache` (`gameLogCache()`), and gives it to the dialog. `MainWindow::gameLogCacheDir()` was removed. The tests were split into `test_log_url` (`LogUrl`) and the new `test_log_cache` (the place, `pathOf`, `contains`, the size and clearing). The behavior is not changed.
 - Checked: the three CMake builds had no warnings, and `ctest -j8`, run 3 times in each, passed all 65 tests. autotools (Qt5): the builds with the whistle and with `--disable-sound` passed (no warnings).
 - The user checked with the revised version that the crash at the first opening is fixed.
 
@@ -378,10 +404,10 @@
 
 ### 2026-11-24: Stage 2 implemented
 
-- Implemented as in 4.5. The tests `log_file_name`, `github_log_source` and `log_browser_dialog` were added.
+- Implemented as in 4.2.2. The tests `log_file_name`, `github_log_source` and `log_browser_dialog` were added.
 - Found by the tests and fixed: Enter in the tree opened the same log twice (Open is not the default button); the filter hid the directories not read yet; the plural of the status line was shown as "log(s)"; `setFilter()` did not change the filter field; Qt 5 has no `QRegularExpressionMatch::hasCaptured()`.
 - With the CMake builds of Qt 6 (6.4.2), Qt 5 (5.15.13) and without Qt Multimedia, all 68 tests passed. The autotools build (Qt 5) passed too.
-- Checked with the real GitHub (4.5). README, NEWS, ChangeLog and `docs/build.md` (the lists added to the requirement of TLS) were updated.
+- Checked with the real GitHub (4.2.2). README, NEWS, ChangeLog and `docs/build.md` (the lists added to the requirement of TLS) were updated.
 
 ### 2026-11-24: Stage 2 committed, and its CI
 
@@ -394,22 +420,22 @@
 
 ### 2026-11-24: Stage 3 implemented
 
-- Implemented as in 4.6. The test `archive_log_source` was added, and `log_browser_dialog` and `github_log_source` were changed after D13.
-- The tests found a crash when a source is removed, and it was fixed (4.6).
+- Implemented as in 4.3.2. The test `archive_log_source` was added, and `log_browser_dialog` and `github_log_source` were changed after D13.
+- The tests found a crash when a source is removed, and it was fixed (4.3.2).
 - This environment had no development package of Qt Multimedia, so the CMake builds of Qt 6 (6.4.2) and Qt 5 (5.15.13) were both without the whistle (the CI checks the builds with it). With them and the build of `ENABLE_SOUND=OFF`, all 69 tests passed. The autotools build (Qt 5) passed too.
-- Checked with the real archive (4.6). README, NEWS, ChangeLog and `docs/build.md` were updated.
+- Checked with the real archive (4.3.2). README, NEWS, ChangeLog and `docs/build.md` were updated.
 
 ### 2026-11-24: Stage 3 committed, and stage 4 started
 
 - The user checked, and stage 3 was committed as 42e08a1, with the fix of the test environment (`test_ui_color_scheme`) apart as bec0f96, and pushed.
 - The user installed Qt Multimedia again. With the builds of Qt 6 and Qt 5 with the whistle, all 69 tests passed.
 - Answered the user's question: supporting directory listings other than h5ai (Apache's autoindex, nginx, Python's http.server and so on) would be half to two thirds of stage 3 (a source taking the entries right under a directory from `<a href>` of the HTML; the API of h5ai tried first, and HTML read if the answer is not JSON; the sizes exact, rounded or none by the server). Whether to support it is not decided.
-- The only filter planned in stage 2 was a team's name. The user decided D14, as stage 4 on this branch. 4.7 was written.
+- The only filter planned in stage 2 was a team's name. The user decided D14, as stage 4 on this branch. 4.4.1 was written.
 
 ### 2026-11-24: Stage 4 implemented
 
 - In the CI of stage 3 (42e08a1), all 5 jobs passed.
-- Implemented as in 4.8. The test `log_filter` was added, and the test of the filter of `log_browser_dialog` was rewritten.
+- Implemented as in 4.4.2. The test `log_filter` was added, and the test of the filter of `log_browser_dialog` was rewritten.
 - With the CMake builds of Qt 6 (6.4.2) and Qt 5 (5.15.13) with the whistle, and of `ENABLE_SOUND=OFF`, all 70 tests passed. The autotools build (Qt 5) passed too.
 - README, NEWS and ChangeLog were updated.
 
@@ -419,12 +445,31 @@
 - The lines of the item of F5 in NEWS were wrapped evenly (the text is not changed).
 - When the title and the description of the PR were proposed, the user decided to support plain lists of files of Apache besides h5ai (D15; the estimate is in the record "Stage 3 committed, and stage 4 started").
 - The example server was checked. It is the table form of FancyIndexing of Apache 2.4: it answers a POST to the API of h5ai with 404, and a GET with the page of the list (the sizes rounded, as `5.0M`). The GET page of the archive (h5ai) has a table of links too, shown without JavaScript (the sizes as `5123 KB`).
-- Decided by the user: made as stage 5 on this branch, and included in the PR of F5. The kind is found out by itself. The example server is not one of the default sources. 4.9 was written. The PR is opened after stage 5.
+- Decided by the user: made as stage 5 on this branch, and included in the PR of F5. The kind is found out by itself. The example server is not one of the default sources. 4.5.1 was written. The PR is opened after stage 5.
 
 ### 2026-11-24: Stage 5 implemented
 
-- Implemented as in 4.10. Reading pages (the example server's pages, the forms of other servers, the links not taken, the sizes) and finding out the kind were added to the test `archive_log_source`, and the test of the failures of h5ai was changed for the behavior after the kind is found out. The tree of a source of pages of links was added to `log_browser_dialog`.
+- Implemented as in 4.5.2. Reading pages (the example server's pages, the forms of other servers, the links not taken, the sizes) and finding out the kind were added to the test `archive_log_source`, and the test of the failures of h5ai was changed for the behavior after the kind is found out. The tree of a source of pages of links was added to `log_browser_dialog`.
 - With the CMake builds of Qt 6 (6.4.2) and Qt 5 (5.15.13) with the whistle, and of `ENABLE_SOUND=OFF`, there were no warnings, and all 70 tests passed. The autotools build (Qt 5) passed too, without warnings of the compiler.
-- Checked with the real example server and the archive (4.10). README, NEWS and ChangeLog were updated.
+- Checked with the real example server and the archive (4.5.2). README, NEWS and ChangeLog were updated.
 - The user checked opening logs from the list of the example server (the end of stage 5).
 - Next: the commit and the push, the CI, and the proposal of the PR.
+
+### 2026-11-24: Stage 5 committed, the CI, and the table of the progress
+
+- Stage 5 was committed as b76e4bf and pushed. In the CI, all 5 jobs passed. `./cmake-helper.sh distcheck qt6` (under Xvfb) passed locally too (the new test data in the tarball; 70 tests).
+- At the user's request, a table of the stages and their progress ("Progress": the status, the user's check, the CI, the commits) was put near the top of the plan. The "Status" of the header was shortened to point to the table. The plans from now on have the same table. Whether to add it to the other existing plans is checked with the user.
+
+### 2026-11-24: §4 rearranged
+
+- At the user's request, §4, where the designs and the implementations of the stages were mixed and hard to read, was arranged by stage. In each stage (4.N), the design when it was planned (4.N.1) is followed by what was implemented (4.N.2). Splitting it into two chapters was another way, but it would change the numbers of §5 to §9 and many references, so the numbers of the chapters were kept.
+- The numbers of the sections (old → new): 4.1 → 4.1.1, 4.2 → 4.2.1, 4.3 → 4.3.1, 4.4 → 4.1.2, 4.5 → 4.2.2, 4.6 → 4.3.2, 4.7 → 4.4.1, 4.8 → 4.4.2, 4.9 → 4.5.1, 4.10 → 4.5.2. The references in this plan (in the records before this one too) and in the comments of the sources and the tests (old 4.7 → 4.4, old 4.9 → 4.5) were changed.
+- The plans from now on also give the design and the implementation of each stage one after the other.
+
+### 2026-11-24: The format of the plans unified
+
+- Decided by the user: the other existing plans (the overall plan, transport, 3d-view, cmake-helper, icon-redesign, frame-export) also get the table of the progress near the top. The design and the implementation by stage are not forced into a plan whose design is not in sections by stage.
+- At the user's request, a unified format based on the plans so far was written in "計画書の書式" (the format of the plans) of CLAUDE.md: the items of the header table and their order, the columns of the table of the progress (the status as Not started, In progress or Done; a column of the push), the chapters, the numbers and the references, and how to write the record.
+- This plan was aligned to the format: the last update was added to the header table, the words of the status in the table of the progress were changed, and a column of the push was added.
+- Decided by the user (Claude's proposal): the other plans are changed in the first commit of the branch of F6, after F5 is merged, together with the record of the merge of F5 in the overall plan.
+- Next: the commit and the push of the changes of this plan, and the CI. Then the PR of F5.

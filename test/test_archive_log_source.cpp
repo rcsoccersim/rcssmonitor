@@ -41,7 +41,7 @@
 #include <QTemporaryDir>
 
 /*
-  docs/plan/2026-11-22-02_remote-logs.md 4.3, 4.9. test/data/h5ai_2023.json
+  docs/plan/2026-11-22-02_remote-logs.md 4.3, 4.5. test/data/h5ai_2023.json
   and h5ai_finals.json are the answers of archive.robocup.info (2026-11-24)
   for /Soccer/Simulation/2D/logs/RoboCup/2023/ and its Finals/ (4 games of
   its 25 kept): the directories up to the root and those beside them, and

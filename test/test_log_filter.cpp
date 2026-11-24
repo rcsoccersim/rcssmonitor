@@ -32,7 +32,7 @@
 #include "log_filter.h"
 
 /*
-  docs/plan/2026-11-22-02_remote-logs.md 4.7, D14.
+  docs/plan/2026-11-22-02_remote-logs.md 4.4, D14.
 */
 
 namespace {
