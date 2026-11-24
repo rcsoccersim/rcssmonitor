@@ -102,11 +102,13 @@ rcssmonitor https://github.com/rcsoccersim/RoboCup2026/blob/main/logs/Finals/202
 `File` -> `Browse Game Logs...` (`Ctrl+Shift+B`) lists game logs in the directories of their sources: the date, the teams, the score (the penalty shootout in parentheses) and the size of each log.
 The sources are, at first, the logs of RoboCup 2026 on GitHub ([rcsoccersim/RoboCup2026](https://github.com/rcsoccersim/RoboCup2026)) and the 2D logs of the archive ([archive.robocup.info](https://archive.robocup.info/Soccer/Simulation/2D/logs/), RoboCup 2004 to 2023 and RCAP).
 A double click, or `Open`, downloads a log and opens it, as a URL does; the dialog stays open, to open one game after another.
-`Team:` shows only the games of the teams whose names have the text, and a click on a column's header sorts the logs by the column.
+The filter shows only the games of a team (`Team:`, a part of its name in any case) on either side or one side (`Side:`), against an opponent (`vs:`), with the result of the team (`Result:`: a win, a draw or a loss; the winner of a penalty shootout wins), and between the dates checked (`From:`, `To:`); `Clear` shows all the games again.
+A click on a column's header sorts the logs by the column.
 
 - `Add...` adds a source: a public repository on GitHub with game logs (`OWNER/REPO`, `OWNER/REPO@BRANCH`, or its URL), or the URL of a directory listed by [h5ai](https://larsjung.de/h5ai/), as the archive (e.g. a year of it). `Remove` removes any source, a default one too; `Add...` offers the default ones removed. The sources are kept in the settings.
 - The list of a repository is read by one request to the GitHub API, and kept in `~/.cache/rcssmonitor/github` for an hour (`Reload` reads it again). GitHub allows 60 requests an hour without an account: when they are used up, the dialog tells until when, and shows the list kept before, however old.
 - The archive is read a directory at a time, when it is opened, and kept in `~/.cache/rcssmonitor/archive` for a day (`Reload` reads the directories again as they are opened). When it cannot be read, the list kept is shown, however old.
+- The filter applies to the logs listed: a directory of the archive not read yet is shown until it is opened.
 
 ### The 3D view
 

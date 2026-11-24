@@ -34,6 +34,7 @@
 #ifndef RCSSMONITOR_LOG_BROWSER_DIALOG_H
 #define RCSSMONITOR_LOG_BROWSER_DIALOG_H
 
+#include "log_filter.h"
 #include "log_source.h"
 
 #include <QDialog>
@@ -44,6 +45,9 @@
 #include <QUrl>
 #include <QVector>
 
+class QCheckBox;
+class QComboBox;
+class QDateEdit;
 class QLabel;
 class QLineEdit;
 class QListWidget;
@@ -59,7 +63,8 @@ class QTreeWidgetItem;
   and the logs of the one chosen on the right, as a
   tree of its directories with the date, the teams, the score and the size
   of each log (LogFileName), filtered by a team's name and sorted by a
-  column. A log is opened by a double click or Open (openRequested()); the
+  column (LogFilter: a team on a side, its opponent and result, a range of
+  dates; 4.7, D14). A log is opened by a double click or Open (openRequested()); the
   dialog stays open (modeless), to open one game after another. A
   directory whose entries are not known yet is read when it is opened.
 
@@ -100,7 +105,16 @@ private:
     QListWidget * M_source_list;
     QPushButton * M_add_button;
     QPushButton * M_remove_button;
-    QLineEdit * M_filter;
+    // the filter (LogFilter)
+    QLineEdit * M_team;
+    QComboBox * M_side;
+    QLineEdit * M_opponent;
+    QComboBox * M_result;
+    QCheckBox * M_from_check;
+    QDateEdit * M_from;
+    QCheckBox * M_to_check;
+    QDateEdit * M_to;
+    QPushButton * M_clear_button;
     QPushButton * M_reload_button;
     QTreeWidget * M_tree;
     QLabel * M_status_label;
@@ -163,13 +177,22 @@ public:
     //! the URL of a log's item, or an invalid one (a directory)
     static QUrl urlOf( const QTreeWidgetItem * item );
 
+    //! the filter of the fields
+    LogFilter filter() const;
+
+    //! set the fields of the filter, and show the logs that match
+    void setFilter( const LogFilter & filter );
+
 public slots:
 
     //! read the source shown again from its server
     void reload();
 
-    //! show only the logs whose team (or file name) has the text (set in the field too)
-    void setFilter( const QString & text );
+    //! show only the logs that match the filter of the fields
+    void applyFilter();
+
+    //! no filter: all the logs shown
+    void clearFilter();
 
     //! open the log chosen (openRequested())
     void openCurrent();
@@ -204,6 +227,9 @@ private:
                        const QString & message );
     void handleNoted( LogSource * source,
                       const QString & text );
+
+    //! the dates of the filter not checked: the oldest and the newest days of the logs listed
+    void updateDateRange();
 
     void updateStatus();
     void updateButtons();

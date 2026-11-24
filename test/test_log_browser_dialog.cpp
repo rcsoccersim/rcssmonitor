@@ -41,6 +41,9 @@
 
 #include <QAction>
 #include <QApplication>
+#include <QCheckBox>
+#include <QComboBox>
+#include <QDateEdit>
 #include <QDir>
 #include <QFile>
 #include <QInputDialog>
@@ -183,6 +186,15 @@ isShown( const QTreeWidgetItem * item )
         if ( item->isHidden() ) return false;
     }
     return true;
+}
+
+//! a filter of a team on either side
+LogFilter
+teamFilter( const QString & team )
+{
+    LogFilter f;
+    f.setTeam( team );
+    return f;
 }
 
 bool
@@ -363,10 +375,13 @@ TestLogBrowserDialog::filter()
     LogBrowserDialog dialog;
     dialog.addSource( makeSource() );
     QTRY_COMPARE( dialog.tree()->topLevelItemCount(), 3 );
-    QLineEdit * edit = dialog.findChild< QLineEdit * >( "filter" );
-    QVERIFY( edit );
+    QLineEdit * team = dialog.findChild< QLineEdit * >( "team" );
+    QVERIFY( team );
+    QVERIFY( dialog.filter().isEmpty() );
 
-    edit->setText( "helios" );
+    // a team, on either side
+    team->setText( "helios" );
+    QCOMPARE( dialog.filter().team(), QString( "helios" ) );
     QVERIFY( isShown( itemOf( dialog, HELIOS_YUSHAN ) ) );
     QVERIFY( isShown( itemOf( dialog, HELIOS_OXSY ) ) );
     QVERIFY( ! isShown( itemOf( dialog, FRA_NEXUS ) ) );
@@ -377,24 +392,89 @@ TestLogBrowserDialog::filter()
     QVERIFY( dialog.tree()->topLevelItem( 2 )->isHidden() ); // other
     QCOMPARE( dialog.statusText(), QString( "2 of 5 game logs." ) );
 
-    dialog.setFilter( "Yushan" );
+    dialog.setFilter( teamFilter( "Yushan" ) );
+    QCOMPARE( team->text(), QString( "Yushan" ) );
     QVERIFY( isShown( itemOf( dialog, HELIOS_YUSHAN ) ) );
     QVERIFY( ! isShown( itemOf( dialog, HELIOS_OXSY ) ) );
     QCOMPARE( dialog.statusText(), QString( "1 of 5 game logs." ) );
 
-    dialog.setFilter( "game" );
+    dialog.setFilter( teamFilter( "game" ) );
     QVERIFY( isShown( itemOf( dialog, OTHER ) ) );
     QCOMPARE( dialog.statusText(), QString( "1 of 5 game logs." ) );
 
-    // the logs read later: filtered too
-    dialog.setFilter( "mersad" );
+    // the side, the opponent and the result of the team
+    team->setText( "yushan" );
+    QComboBox * side = dialog.findChild< QComboBox * >( "side" );
+    QVERIFY( side );
+    side->setCurrentIndex( LogFilter::LEFT_SIDE );
+    QCOMPARE( dialog.statusText(), QString( "0 of 5 game logs." ) );
+    side->setCurrentIndex( LogFilter::RIGHT_SIDE );
+    QCOMPARE( dialog.statusText(), QString( "1 of 5 game logs." ) );
+    side->setCurrentIndex( LogFilter::EITHER_SIDE );
+    team->setText( "helios" );
+    dialog.findChild< QLineEdit * >( "opponent" )->setText( "OXSY" );
+    QVERIFY( isShown( itemOf( dialog, HELIOS_OXSY ) ) );
+    QVERIFY( ! isShown( itemOf( dialog, HELIOS_YUSHAN ) ) );
+    QCOMPARE( dialog.statusText(), QString( "1 of 5 game logs." ) );
+    dialog.findChild< QLineEdit * >( "opponent" )->clear();
+    QComboBox * result = dialog.findChild< QComboBox * >( "result" );
+    QVERIFY( result );
+    result->setCurrentIndex( LogFilter::LOSS );
+    QCOMPARE( dialog.filter().result(), LogFilter::LOSS );
+    QVERIFY( isShown( itemOf( dialog, HELIOS_YUSHAN ) ) );
+    QVERIFY( ! isShown( itemOf( dialog, HELIOS_OXSY ) ) );
+    team->clear();
+    result->setCurrentIndex( LogFilter::WIN );
+    QCOMPARE( dialog.statusText(), QString( "4 of 5 game logs." ) ); // a winner: not the log of another name
+    side->setCurrentIndex( LogFilter::LEFT_SIDE );
+    QVERIFY( isShown( itemOf( dialog, FRA_NEXUS ) ) ); // won the shootout
+    QCOMPARE( dialog.statusText(), QString( "3 of 5 game logs." ) );
+
+    // the dates: at first those of the logs listed
+    dialog.findChild< QPushButton * >( "clear_filter" )->click();
+    QVERIFY( dialog.filter().isEmpty() );
+    QCOMPARE( side->currentIndex(), int( LogFilter::EITHER_SIDE ) );
+    QCOMPARE( dialog.statusText(), QString( "5 game logs." ) );
+    QCheckBox * from_check = dialog.findChild< QCheckBox * >( "from_check" );
+    QDateEdit * from = dialog.findChild< QDateEdit * >( "from" );
+    QDateEdit * to = dialog.findChild< QDateEdit * >( "to" );
+    QVERIFY( from_check && from && to );
+    QVERIFY( ! from->isEnabled() );
+    QCOMPARE( from->date(), QDate( 2026, 7, 1 ) );
+    QCOMPARE( to->date(), QDate( 2026, 7, 5 ) );
+    from_check->setChecked( true );
+    QVERIFY( from->isEnabled() );
+    QCOMPARE( dialog.filter().from(), QDate( 2026, 7, 1 ) );
+    QCOMPARE( dialog.statusText(), QString( "4 of 5 game logs." ) ); // not the log of another name
+    from->setDate( QDate( 2026, 7, 5 ) );
+    QVERIFY( isShown( itemOf( dialog, HELIOS_YUSHAN ) ) );
+    QVERIFY( isShown( itemOf( dialog, FRA_NEXUS ) ) );
+    QVERIFY( ! isShown( itemOf( dialog, HELIOS_OXSY ) ) );
+    QCOMPARE( dialog.statusText(), QString( "2 of 5 game logs." ) );
+    LogFilter range;
+    range.setFrom( QDate( 2026, 7, 2 ) );
+    range.setTo( QDate( 2026, 7, 4 ) );
+    dialog.setFilter( range );
+    QVERIFY( dialog.findChild< QCheckBox * >( "to_check" )->isChecked() );
+    QVERIFY( to->isEnabled() );
+    QCOMPARE( to->date(), QDate( 2026, 7, 4 ) );
+    QVERIFY( dialog.filter() == range );
+    QVERIFY( isShown( itemOf( dialog, HELIOS_OXSY ) ) );
+    QCOMPARE( dialog.statusText(), QString( "1 of 5 game logs." ) );
+    dialog.clearFilter();
+    QVERIFY( ! from_check->isChecked() );
+    QVERIFY( ! from->isEnabled() );
+
+    // the logs read later: filtered too; the dates not checked follow them
+    dialog.setFilter( teamFilter( "mersad" ) );
     dialog.tree()->topLevelItem( 0 )->setExpanded( true );
     QTRY_VERIFY( itemOf( dialog, MERSAD ) );
     QVERIFY( isShown( itemOf( dialog, MERSAD ) ) );
     QVERIFY( ! isShown( itemOf( dialog, HELIOS_YUSHAN ) ) );
     QCOMPARE( dialog.statusText(), QString( "1 of 6 game logs." ) );
+    QCOMPARE( from->date(), QDate( 2004, 7, 3 ) );
 
-    edit->clear();
+    team->clear();
     QVERIFY( isShown( itemOf( dialog, FRA_NEXUS ) ) );
     QVERIFY( isShown( itemOf( dialog, OTHER ) ) );
     QCOMPARE( dialog.statusText(), QString( "6 game logs." ) );
@@ -478,7 +558,7 @@ TestLogBrowserDialog::open()
     QCOMPARE( spy.count(), 3 );
 
     // Enter in the filter: nothing opened
-    QLineEdit * filter = dialog.findChild< QLineEdit * >( "filter" );
+    QLineEdit * filter = dialog.findChild< QLineEdit * >( "team" );
     filter->setFocus();
     QTest::keyClick( filter, Qt::Key_Return );
     QTest::qWait( 50 );

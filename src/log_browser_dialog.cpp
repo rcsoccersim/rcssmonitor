@@ -44,6 +44,9 @@
 #include "options.h"
 #include "ui_palette.h"
 
+#include <QCheckBox>
+#include <QComboBox>
+#include <QDateEdit>
 #include <QDialogButtonBox>
 #include <QHBoxLayout>
 #include <QHeaderView>
@@ -70,6 +73,7 @@ const int URL_ROLE = Qt::UserRole + 1; //!< a log's URL (the first column)
 const int SORT_ROLE = Qt::UserRole + 2; //!< what a column is sorted by
 const int PATH_ROLE = Qt::UserRole + 3; //!< a directory's path (the first column)
 const int LISTED_ROLE = Qt::UserRole + 4; //!< a directory whose entries are known
+const int NAME_ROLE = Qt::UserRole + 5; //!< a log's file name (the first column)
 
 //! the parent directory of a path ("" for the root)
 QString
@@ -171,18 +175,91 @@ LogBrowserDialog::LogBrowserDialog( QWidget * parent )
         QWidget * box = new QWidget();
         QVBoxLayout * right = new QVBoxLayout();
         right->setContentsMargins( 0, 0, 0, 0 );
+        // the filter (4.7, D14): a team, its side, its opponent, its result
         QHBoxLayout * row = new QHBoxLayout();
         QLabel * label = new QLabel( tr( "Team:" ) );
         row->addWidget( label );
-        M_filter = new QLineEdit();
-        M_filter->setObjectName( "filter" );
-        M_filter->setClearButtonEnabled( true );
-        M_filter->setPlaceholderText( tr( "a team's name" ) );
-        M_filter->setToolTip( tr( "Show only the games of the teams whose names have this." ) );
-        label->setBuddy( M_filter );
-        connect( M_filter, &QLineEdit::textChanged,
-                 this, &LogBrowserDialog::setFilter );
-        row->addWidget( M_filter, 1 );
+        M_team = new QLineEdit();
+        M_team->setObjectName( "team" );
+        M_team->setClearButtonEnabled( true );
+        M_team->setPlaceholderText( tr( "a team's name" ) );
+        M_team->setToolTip( tr( "Show only the games of the teams whose names have this (on the side chosen)." ) );
+        label->setBuddy( M_team );
+        connect( M_team, &QLineEdit::textChanged,
+                 this, &LogBrowserDialog::applyFilter );
+        row->addWidget( M_team, 2 );
+
+        label = new QLabel( tr( "Side:" ) );
+        row->addWidget( label );
+        M_side = new QComboBox();
+        M_side->setObjectName( "side" );
+        M_side->addItems( { tr( "Either" ), tr( "Left" ), tr( "Right" ) } ); // LogFilter::Side
+        M_side->setToolTip( tr( "The side of the team of Team: either, left or right." ) );
+        label->setBuddy( M_side );
+        connect( M_side, QOverload< int >::of( &QComboBox::currentIndexChanged ),
+                 this, &LogBrowserDialog::applyFilter );
+        row->addWidget( M_side );
+
+        label = new QLabel( tr( "vs:" ) );
+        row->addWidget( label );
+        M_opponent = new QLineEdit();
+        M_opponent->setObjectName( "opponent" );
+        M_opponent->setClearButtonEnabled( true );
+        M_opponent->setPlaceholderText( tr( "the opponent" ) );
+        M_opponent->setToolTip( tr( "Show only the games against the teams whose names have this." ) );
+        label->setBuddy( M_opponent );
+        connect( M_opponent, &QLineEdit::textChanged,
+                 this, &LogBrowserDialog::applyFilter );
+        row->addWidget( M_opponent, 2 );
+
+        label = new QLabel( tr( "Result:" ) );
+        row->addWidget( label );
+        M_result = new QComboBox();
+        M_result->setObjectName( "result" );
+        M_result->addItems( { tr( "Any" ), tr( "Win" ), tr( "Draw" ), tr( "Loss" ) } ); // LogFilter::Result
+        M_result->setToolTip( tr( "The result of the team of Team (any team on its side if Team is empty)."
+                                  " The winner of a penalty shootout wins." ) );
+        label->setBuddy( M_result );
+        connect( M_result, QOverload< int >::of( &QComboBox::currentIndexChanged ),
+                 this, &LogBrowserDialog::applyFilter );
+        row->addWidget( M_result );
+        right->addLayout( row );
+
+        // the dates, and the buttons
+        row = new QHBoxLayout();
+        const auto add_date = [this, row]( QCheckBox * check, QDateEdit * edit, const char * name ) {
+            check->setObjectName( QString( name ) + "_check" );
+            edit->setObjectName( name );
+            edit->setCalendarPopup( true );
+            edit->setDisplayFormat( QStringLiteral( "yyyy-MM-dd" ) );
+            edit->setEnabled( false );
+            connect( check, &QCheckBox::toggled,
+                     this, [this, edit]( bool on ) {
+                         edit->setEnabled( on );
+                         applyFilter();
+                     } );
+            connect( edit, &QDateEdit::dateChanged,
+                     this, &LogBrowserDialog::applyFilter );
+            row->addWidget( check );
+            row->addWidget( edit );
+        };
+        M_from_check = new QCheckBox( tr( "From:" ) );
+        M_from_check->setToolTip( tr( "Show only the games from this day." ) );
+        M_from = new QDateEdit();
+        add_date( M_from_check, M_from, "from" );
+        M_to_check = new QCheckBox( tr( "To:" ) );
+        M_to_check->setToolTip( tr( "Show only the games until this day." ) );
+        M_to = new QDateEdit();
+        add_date( M_to_check, M_to, "to" );
+        row->addStretch( 1 );
+
+        M_clear_button = new QPushButton( tr( "Clear" ) );
+        M_clear_button->setObjectName( "clear_filter" );
+        M_clear_button->setAutoDefault( false );
+        M_clear_button->setToolTip( tr( "Show all the games: no filter." ) );
+        connect( M_clear_button, &QPushButton::clicked,
+                 this, &LogBrowserDialog::clearFilter );
+        row->addWidget( M_clear_button );
         M_reload_button = new QPushButton( tr( "Reload" ) );
         M_reload_button->setObjectName( "reload" );
         M_reload_button->setAutoDefault( false );
@@ -540,6 +617,7 @@ LogBrowserDialog::addItem( const LogSourceEntry & entry )
         item->setTextAlignment( SIZE_COLUMN, Qt::AlignRight | Qt::AlignVCenter );
     }
     item->setData( DATE_COLUMN, URL_ROLE, entry.url );
+    item->setData( DATE_COLUMN, NAME_ROLE, file_name );
     item->setToolTip( DATE_COLUMN, entry.path );
 }
 
@@ -599,7 +677,8 @@ LogBrowserDialog::showEntries( const Source & source,
         }
     }
     M_tree->setSortingEnabled( true );
-    setFilter( M_filter->text() );
+    updateDateRange();
+    applyFilter();
 }
 
 /*-------------------------------------------------------------------*/
@@ -747,20 +826,58 @@ LogBrowserDialog::handleNoted( LogSource * source,
 }
 
 /*-------------------------------------------------------------------*/
-void
-LogBrowserDialog::setFilter( const QString & text )
+LogFilter
+LogBrowserDialog::filter() const
 {
-    if ( M_filter->text() != text )
-    {
-        // the field too: this is called again by it
-        M_filter->setText( text );
-        return;
-    }
-    const QString t = text.trimmed();
+    LogFilter f;
+    f.setTeam( M_team->text() );
+    f.setSide( static_cast< LogFilter::Side >( M_side->currentIndex() ) );
+    f.setOpponent( M_opponent->text() );
+    f.setResult( static_cast< LogFilter::Result >( M_result->currentIndex() ) );
+    if ( M_from_check->isChecked() ) f.setFrom( M_from->date() );
+    if ( M_to_check->isChecked() ) f.setTo( M_to->date() );
+    return f;
+}
 
-    // a log is shown if a team (or its name) has the text; a directory if
-    // it has a log shown, its entries are not read yet (it may have one),
-    // or nothing is filtered
+/*-------------------------------------------------------------------*/
+void
+LogBrowserDialog::setFilter( const LogFilter & filter )
+{
+    {
+        // applied once, after all
+        const QSignalBlocker b1( M_team ), b2( M_side ), b3( M_opponent ), b4( M_result );
+        const QSignalBlocker b5( M_from_check ), b6( M_from ), b7( M_to_check ), b8( M_to );
+        M_team->setText( filter.team() );
+        M_side->setCurrentIndex( filter.side() );
+        M_opponent->setText( filter.opponent() );
+        M_result->setCurrentIndex( filter.result() );
+        M_from_check->setChecked( filter.from().isValid() );
+        if ( filter.from().isValid() ) M_from->setDate( filter.from() );
+        M_from->setEnabled( filter.from().isValid() );
+        M_to_check->setChecked( filter.to().isValid() );
+        if ( filter.to().isValid() ) M_to->setDate( filter.to() );
+        M_to->setEnabled( filter.to().isValid() );
+    }
+    applyFilter();
+}
+
+/*-------------------------------------------------------------------*/
+void
+LogBrowserDialog::clearFilter()
+{
+    setFilter( LogFilter() );
+    updateDateRange();
+}
+
+/*-------------------------------------------------------------------*/
+void
+LogBrowserDialog::applyFilter()
+{
+    const LogFilter f = filter();
+    const bool all = f.isEmpty();
+
+    // a log is shown if it matches; a directory if it has a log shown, its
+    // entries are not read yet (it may have one), or nothing is filtered
     std::function< bool( QTreeWidgetItem * ) > apply = [&]( QTreeWidgetItem * item ) -> bool {
         bool shown = false;
         if ( item->data( DATE_COLUMN, PATH_ROLE ).isValid() )
@@ -769,7 +886,7 @@ LogBrowserDialog::setFilter( const QString & text )
             {
                 if ( apply( item->child( i ) ) ) shown = true;
             }
-            if ( t.isEmpty()
+            if ( all
                  || ! item->data( DATE_COLUMN, LISTED_ROLE ).toBool() )
             {
                 shown = true;
@@ -781,11 +898,8 @@ LogBrowserDialog::setFilter( const QString & text )
         }
         else
         {
-            shown = t.isEmpty()
-                || item->text( LEFT_COLUMN ).contains( t, Qt::CaseInsensitive )
-                || item->text( RIGHT_COLUMN ).contains( t, Qt::CaseInsensitive )
-                || ( item->text( LEFT_COLUMN ).isEmpty()
-                     && item->text( DATE_COLUMN ).contains( t, Qt::CaseInsensitive ) );
+            const QString name = item->data( DATE_COLUMN, NAME_ROLE ).toString();
+            shown = all || f.matches( LogFileName::parse( name ), name );
         }
         item->setHidden( ! shown );
         return shown;
@@ -797,6 +911,28 @@ LogBrowserDialog::setFilter( const QString & text )
         apply( root->child( i ) );
     }
     updateStatus();
+}
+
+/*-------------------------------------------------------------------*/
+void
+LogBrowserDialog::updateDateRange()
+{
+    QDate first, last;
+    for ( QTreeWidgetItemIterator it( M_tree ); *it; ++it )
+    {
+        const LogFileName name = LogFileName::parse( ( *it )->data( DATE_COLUMN, NAME_ROLE ).toString() );
+        if ( ! name.isValid() ) continue;
+        const QDate date = name.dateTime().date();
+        if ( ! first.isValid() || date < first ) first = date;
+        if ( ! last.isValid() || date > last ) last = date;
+    }
+    if ( ! first.isValid() )
+    {
+        return;
+    }
+    const QSignalBlocker b1( M_from ), b2( M_to );
+    if ( ! M_from_check->isChecked() ) M_from->setDate( first );
+    if ( ! M_to_check->isChecked() ) M_to->setDate( last );
 }
 
 /*-------------------------------------------------------------------*/

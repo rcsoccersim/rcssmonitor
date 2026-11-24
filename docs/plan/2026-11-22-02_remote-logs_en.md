@@ -65,6 +65,7 @@
 | D11 | The default sources: `rcsoccersim/RoboCup2026` on GitHub and all the 2D logs of archive.robocup.info (`/Soccer/Simulation/2D/logs/`; RoboCup and RCAP). The archive is made on this branch as stage 3 after stage 2. The logs are to be gathered on GitHub in the future (the user), so the archive can be taken out of the sources then (same) |
 | D12 | The lists of the archive are used from the cache for a day, a directory at a time (the archive has the logs of past competitions, which hardly change; Reload reads them again) (2026-11-24, decided by the user at the start of stage 3) |
 | D13 | The user can add and remove any source, the default ones (RoboCup2026 and the archive) too (it is handier that the user can change the default sources too). This replaces the default sources that cannot be removed of D2 and D11. When the archive is to be dropped in the future, it is dropped from the default list (same) |
+| D14 | More filters of the list of logs: the left team, the right team, both teams (a match), a range of dates, and the win or loss of the team given. The fields are "Team (a team's name) + Side (either, left, right) + vs (the opponent)", and Result (win, draw, loss) is seen from the team of Team. In a penalty shootout, its winner wins (a draw is only a tie without a shootout). No search across the sources. Made as stage 4 on this branch (2026-11-24, decided by the user) |
 | D8 | The rules of the referee's whistle (F4; global functions in `whistle_rules.h`) are put in the static-only class `WhistleRules` too, in another commit on this branch (same) |
 
 ### 3.2 Design decisions (Claude; the user confirms them at the start of the stages)
@@ -208,6 +209,25 @@
 - Checked with the real archive (2026-11-24): the root is listed in 1.9 s, and each directory in about 1 s. 19 years under RoboCup, 6 directories under 2023, 25 games in Finals. A game of the Finals (4.6 MB) was opened from the list. The second time from the cache within 50 ms.
 
 
+### 4.7 Stage 4: filters of the list of logs (D14)
+
+- `src/log_filter.{h,cpp}` (new; QtCore only): the value class `LogFilter`: a team's name (`team`), its side (`Side`: either, left, right), the opponent (`opponent`), the result (`Result`: any, win, draw, loss), and a range of dates (`from`, `to`; an invalid date is no limit; both ends included). `matches( LogFileName, file name )` decides.
+  - A team's name matches a part, case-insensitively (as in stage 2).
+  - With the side "either", either way round may match. Team matches the left (right) team, vs the other side, and the result is seen from Team's side. An empty Team is any team on its side.
+  - The result: by the goals, and in a tie with a penalty shootout by its goals. A tie without a shootout is a draw.
+  - A log whose name cannot be parsed: it matches if its file name has the text of Team (as in stage 2). It does not match if a condition other than Team is given (Side, vs, Result, dates).
+- The dialog: Team, Side, vs and Result in the first row; in the second, From and To (dates enabled by their check boxes, chosen from a calendar, at first the oldest and the newest days of the logs listed of the source), Clear (all back), and Reload. The filter is applied to the tree whenever a condition changes (the directories not read yet are not hidden, as in stage 2). `setFilter( LogFilter )` and `filter()` are public (for the tests).
+
+### 4.8 The implementation of stage 4 (2026-11-24)
+
+4.7 was implemented as follows. What was decided beyond the plan is written too.
+
+- `src/log_filter.{h,cpp}` (new): `LogFilter`. `matches()` looks at the date (the day of the log's date; both ends included), then, for each way round the Side allows (either, left, right), at Team and vs (a part, case-insensitively) and Result. The result is the static `resultOf( goals, penalties, the opponent's goals, the opponent's penalties )`: by the goals if they differ, by the penalties in a tie with a shootout whose goals differ, a draw otherwise. An empty Team is any team on its side (without Team, Side=left and Result=win is "the games the left team won").
+- `LogBrowserDialog`: the field of a team of stage 2 (`filter`) was replaced with Team (`team`), Side (`side`), vs (`opponent`), Result (`result`), From and To (`from_check`, `from`, `to_check`, `to`), and Clear (`clear_filter`). Whenever a field changes, `applyFilter()` applies it to the tree. `setFilter( LogFilter )` sets the fields with their signals blocked, and applies it once. A log's item of the tree keeps its file name (`NAME_ROLE`), read with `LogFileName` when applied.
+  - The fields of the dates are `QDateEdit`s enabled by their check boxes (with a calendar, `yyyy-MM-dd`). A field not checked follows the oldest and the newest days of the logs in the tree (whenever the list is shown, and on Clear).
+  - The public slot `setFilter( QString )` of stage 2 was removed.
+- Checked with the real list of RoboCup2026 (144 games): HELIOS's wins from 4 July are 6 games (with a win in a shootout), and the games of FRA-UNIted on the left against NexusPrime are 2.
+
 ## 5. Stages
 
 | # | Work | Completion criteria |
@@ -215,6 +235,7 @@
 | 1 | Open from a URL (4.1). Decide the stage 1 items of §3.3 | Unit tests and the CI pass. The user checks that real GitHub URLs (file pages, raw links, LFS files) and URLs of other servers can be opened |
 | 2 | GitHub log lists (4.2) | Unit tests and the CI pass. The user checks opening from the list and the message when the limit is hit |
 | 3 | Archive lists (4.3) | Unit tests and the CI pass. The user checks opening from the list of the archive |
+| 4 | Filters of the list of logs (4.7, D14) | Unit tests and the CI pass. The user checks narrowing the games down by the filters |
 
 ## 6. Tests
 
@@ -224,6 +245,8 @@
 - `test_log_browser_dialog`: the tree from a source of the test (the columns, the directories first, a directory not read yet read when opened, read again when opened after a failure), the filter, sorting (the size as a number), Open and Enter (opened once), a failure, Reload and notes, switching the sources, adding and removing repositories (with the test's HTTP server), and File > Browse Game Logs of the main window (the default and saved repositories, modeless, a log downloaded and opened from the list, a repository added saved in the settings).
 - `test_archive_log_source` (stage 3): parsing `test/data/h5ai_2023.json` and `h5ai_finals.json` (real answers of the archive; Finals cut down to 4 games) (only those right under, only the logs, the sizes and URLs), encoded names, answers not of h5ai, parsing URLs, the POST to the test's HTTP server (its body), the cache (a day, after a Reload), several directories at once, 404, HTTP errors, an old cache, `abort()`.
 - `test_log_browser_dialog` (added in stage 3): adding and removing sources (GitHub, a directory of h5ai, the same one, not a source, a file on github.com, the default sources offered by Add..., the one chosen after removing the first and the last, removing all), the tree of a directory of h5ai (read when opened, Reload), and the main window (the sources of the settings, texts that are not sources skipped, a default one removable and written to the settings, an empty list written as an empty text).
+- `test_log_filter` (stage 4): combinations of a team, a side, an opponent, a result and dates (both ends, a reversed range) on 7 names (wins on the left and the right, a loss, a draw, a shootout won and lost, 2023, a name not parsed); `resultOf()`, `isEmpty()`.
+- `test_log_browser_dialog` (changed in stage 4): the fields of the filter (Team, Side, vs, Result, From and To, Clear, `setFilter()` and `filter()`), the first values of the dates, and their change with a directory read later.
 - `test_log_file_name`: parsing file names (penalty scores, `-` and `_` in team names, names that cannot be parsed).
 - Downloading and opening a broken file (not gzip, truncated, not an rcg) does not crash.
 
@@ -234,6 +257,7 @@
 | `src/log_url.{h,cpp}`, `src/log_cache.{h,cpp}`, `src/log_downloader.{h,cpp}`, `src/open_url_dialog.{h,cpp}` (new) | Stage 1 |
 | `src/log_source.{h,cpp}`, `src/github_log_source.{h,cpp}` (`github_log_index` in the plan), `src/log_file_name.{h,cpp}`, `src/log_browser_dialog.{h,cpp}` (new) | Stage 2 |
 | `src/archive_log_source.{h,cpp}` (new) | Stage 3 |
+| `src/log_filter.{h,cpp}` (new) | Stage 4 |
 | `src/main_window.{h,cpp}` | Menus, dropping, connecting the download to opening |
 | `src/options.{h,cpp}` | Recent URLs, the repository list, cache settings, the command line |
 | `src/CMakeLists.txt`, `src/Makefile.am` | Sources (the moc list of autotools is written by hand) |
@@ -334,3 +358,17 @@
 - The tests found a crash when a source is removed, and it was fixed (4.6).
 - This environment had no development package of Qt Multimedia, so the CMake builds of Qt 6 (6.4.2) and Qt 5 (5.15.13) were both without the whistle (the CI checks the builds with it). With them and the build of `ENABLE_SOUND=OFF`, all 69 tests passed. The autotools build (Qt 5) passed too.
 - Checked with the real archive (4.6). README, NEWS, ChangeLog and `docs/build.md` were updated.
+
+### 2026-11-24: Stage 3 committed, and stage 4 started
+
+- The user checked, and stage 3 was committed as 42e08a1, with the fix of the test environment (`test_ui_color_scheme`) apart as bec0f96, and pushed.
+- The user installed Qt Multimedia again. With the builds of Qt 6 and Qt 5 with the whistle, all 69 tests passed.
+- Answered the user's question: supporting directory listings other than h5ai (Apache's autoindex, nginx, Python's http.server and so on) would be half to two thirds of stage 3 (a source taking the entries right under a directory from `<a href>` of the HTML; the API of h5ai tried first, and HTML read if the answer is not JSON; the sizes exact, rounded or none by the server). Whether to support it is not decided.
+- The only filter planned in stage 2 was a team's name. The user decided D14, as stage 4 on this branch. 4.7 was written.
+
+### 2026-11-24: Stage 4 implemented
+
+- In the CI of stage 3 (42e08a1), all 5 jobs passed.
+- Implemented as in 4.8. The test `log_filter` was added, and the test of the filter of `log_browser_dialog` was rewritten.
+- With the CMake builds of Qt 6 (6.4.2) and Qt 5 (5.15.13) with the whistle, and of `ENABLE_SOUND=OFF`, all 70 tests passed. The autotools build (Qt 5) passed too.
+- README, NEWS and ChangeLog were updated.

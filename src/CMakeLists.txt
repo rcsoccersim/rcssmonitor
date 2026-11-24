@@ -18,6 +18,7 @@ add_library(rcssmonitor_core STATIC
   log_cache.cpp
   log_downloader.cpp
   log_file_name.cpp
+  log_filter.cpp
   log_player.cpp
   log_player_slider.cpp
   log_source.cpp

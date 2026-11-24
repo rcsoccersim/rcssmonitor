@@ -22,6 +22,7 @@ rcssmonitor_SOURCES = \
 	log_cache.cpp \
 	log_downloader.cpp \
 	log_file_name.cpp \
+	log_filter.cpp \
 	log_player.cpp \
 	log_player_slider.cpp \
 	log_source.cpp \
@@ -95,6 +96,7 @@ noinst_HEADERS = \
 	log_cache.h \
 	log_downloader.h \
 	log_file_name.h \
+	log_filter.h \
 	log_player.h \
 	log_player_slider.h \
 	log_source.h \
