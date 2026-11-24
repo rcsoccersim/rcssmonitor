@@ -90,8 +90,46 @@ openDialog( MainWindow & window,
     child< QCheckBox >( *dialog, "name_by_cycle" )->setChecked( false );
     child< QLineEdit >( *dialog, "prefix" )->setText( "img-" );
     dialog->setDirectory( dir );
+    dialog->setVideo( false );
     dialog->clearRange();
     return dialog;
+}
+
+/*!
+  \brief a fake ffmpeg: it answers -version and -encoders, writes its
+  arguments to OUT.args and its input (the raw frames) to OUT
+  \param encoders the video encoders it has
+*/
+QString
+fakeFfmpeg( const QTemporaryDir & dir,
+            const QString & name,
+            const QStringList & encoders )
+{
+    QString list = "Encoders:\n";
+    for ( const QString & e : encoders ) list += " V....D " + e + "    the encoder " + e + "\n";
+    const QString path = dir.filePath( name );
+    QFile file( path );
+    if ( ! file.open( QIODevice::WriteOnly | QIODevice::Text ) ) return QString();
+    file.write( ( "#!/bin/sh\n"
+                  "case \"$1 $2\" in\n"
+                  "  \"-hide_banner -version\") echo 'ffmpeg version 9.9-fake Copyright (c) the tests'; exit 0 ;;\n"
+                  "  \"-hide_banner -encoders\") printf '%s' '" + list + "'; exit 0 ;;\n"
+                  "esac\n"
+                  "for a in \"$@\"; do last=\"$a\"; done\n"
+                  "printf '%s\\n' \"$@\" > \"$last.args\"\n"
+                  "exec cat > \"$last\"\n" ).toUtf8() );
+    file.close();
+    file.setPermissions( file.permissions() | QFileDevice::ExeOwner | QFileDevice::ExeUser );
+    return path;
+}
+
+//! the arguments the fake ffmpeg was run with, a line each
+QString
+argsOf( const QString & video )
+{
+    QFile file( video + ".args" );
+    if ( ! file.open( QIODevice::ReadOnly | QIODevice::Text ) ) return QString();
+    return QString::fromUtf8( file.readAll() );
 }
 
 /*!
@@ -164,6 +202,10 @@ private slots:
     void marks();
     void presets();
     void severalRanges();
+    void exportVideo();
+    void severalVideos();
+    void noFfmpeg();
+    void playbackSpeed();
 };
 
 /*-------------------------------------------------------------------*/
@@ -669,6 +711,223 @@ TestExportDialog::severalRanges()
     QCOMPARE( textOf( *ranges ), QString( "b[4,] *z[1,2]" ) );
     child< QListWidget >( *dialog, "ranges" )->setCurrentRow( 0 );
     QCOMPARE( child< QLineEdit >( *dialog, "start" )->text(), QString( "4" ) );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  A video by ffmpeg (a fake one: the raw frames written to the file, D14):
+  the fields of the video shown; .mp4 when the file has no extension; the
+  quality and the speed given; the size even; the settings kept; a wrong
+  extension and a file there.
+*/
+void
+TestExportDialog::exportVideo()
+{
+#ifdef Q_OS_WIN
+    QSKIP( "the fake ffmpeg is a shell script" );
+#endif
+    MainWindow window;
+    window.show();
+    QVERIFY( QTest::qWaitForWindowExposed( &window ) );
+    window.openGameLogFile( LOG );
+    QTemporaryDir tmp;
+    ExportDialog * dialog = openDialog( window, tmp.filePath( "images" ) );
+    QVERIFY( dialog );
+    const QString program = fakeFfmpeg( tmp, "ffmpeg", { "mpeg4", "libx264" } );
+
+    QVERIFY( child< QLineEdit >( *dialog, "directory" )->isVisible() );
+    QVERIFY( ! child< QLineEdit >( *dialog, "video_file" )->isVisible() );
+    child< QRadioButton >( *dialog, "output_video" )->setChecked( true );
+    QVERIFY( dialog->isVideo() );
+    QVERIFY( ! child< QLineEdit >( *dialog, "directory" )->isVisible() );
+    QVERIFY( child< QLineEdit >( *dialog, "video_file" )->isVisible() );
+    QCOMPARE( child< QRadioButton >( *dialog, "separate_ranges" )->text(), QString( "A video for each, by its name" ) );
+    QCOMPARE( child< QRadioButton >( *dialog, "one_sequence" )->text(), QString( "All in one video" ) );
+    // the defaults (D15)
+    QCOMPARE( child< QSpinBox >( *dialog, "crf" )->value(), 18 );
+    QCOMPARE( child< QComboBox >( *dialog, "preset" )->currentText(), QString( "medium" ) );
+
+    dialog->setFfmpeg( program );
+    QCOMPARE( child< QLabel >( *dialog, "ffmpeg_status" )->text(), QString( "ffmpeg version 9.9-fake; H.264 by libx264." ) );
+    QCOMPARE( dialog->ffmpegInfo().encoder, QString( "libx264" ) );
+    dialog->setVideoFile( tmp.filePath( "out" ) );
+    QCOMPARE( dialog->videoFile(), tmp.filePath( "out.mp4" ) );
+    child< QSpinBox >( *dialog, "crf" )->setValue( 20 );
+    child< QComboBox >( *dialog, "preset" )->setCurrentText( "fast" );
+
+    // the size even (yuv420p)
+    child< QSpinBox >( *dialog, "width" )->setValue( 161 );
+    child< QSpinBox >( *dialog, "height" )->setValue( 121 );
+    QCOMPARE( dialog->imageSize(), QSize( 160, 120 ) );
+    QVERIFY2( dialog->summaryText().startsWith( "3 images of 3 frames, " ), qPrintable( dialog->summaryText() ) );
+    QVERIFY2( dialog->summaryText().endsWith( "160 x 120 pixels; a video of 0.3 s at 10 images/s." ), qPrintable( dialog->summaryText() ) );
+
+    QSignalSpy stop( dialog, &ExportDialog::stopRequested );
+    const QString video = tmp.filePath( "out.mp4" );
+    QCOMPARE( exportNow( *dialog ), "ok: the video " + QDir::toNativeSeparators( video ) );
+    QCOMPARE( stop.count(), 1 );
+    QCOMPARE( dialog->messageText(), "Exported the video " + QDir::toNativeSeparators( video ) + "." );
+    QVERIFY2( window.statusBar()->currentMessage().startsWith( "Exported the video " ), qPrintable( window.statusBar()->currentMessage() ) );
+    QCOMPARE( QFileInfo( video ).size(), qint64( 3 ) * 160 * 120 * 4 );
+    const QString args = argsOf( video );
+    QVERIFY2( args.contains( "-video_size\n160x120\n-framerate\n10\n" ), qPrintable( args ) );
+    QVERIFY2( args.contains( "-c:v\nlibx264\n-preset\nfast\n-crf\n20\n-tune\nanimation\n" ), qPrintable( args ) );
+    QVERIFY( ! QDir( tmp.filePath( "images" ) ).exists() );
+
+    // the settings written
+    const Options::ExportSettings & s = Options::instance().exportSettings();
+    QVERIFY( s.video );
+    QCOMPARE( s.video_file, tmp.filePath( "out" ) );
+    QCOMPARE( s.crf, 20 );
+    QCOMPARE( s.preset, QString( "fast" ) );
+    QCOMPARE( s.ffmpeg, program );
+
+    // a wrong extension
+    dialog->setVideoFile( tmp.filePath( "out.avi" ) );
+    QCOMPARE( dialog->summaryText(), QString( "A video is a .mp4, .mov or .mkv file: not .avi." ) );
+    QVERIFY( ! child< QPushButton >( *dialog, "export" )->isEnabled() );
+    QCOMPARE( exportNow( *dialog ), QString( "not started" ) );
+    dialog->setVideoFile( tmp.filePath( "out.MKV" ) );
+    QVERIFY( child< QPushButton >( *dialog, "export" )->isEnabled() );
+
+    // the file there: asked (cancel: not exported)
+    dialog->setVideoFile( video );
+    int asked = 0;
+    QString question;
+    QTimer::singleShot( 200, [&]() {
+        QMessageBox * box = qobject_cast< QMessageBox * >( QApplication::activeModalWidget() );
+        if ( ! box ) return;
+        ++asked;
+        question = box->text();
+        box->button( QMessageBox::Cancel )->click();
+    } );
+    QCOMPARE( exportNow( *dialog, true ), QString( "not started" ) );
+    QCOMPARE( asked, 1 );
+    QCOMPARE( question, QDir::toNativeSeparators( video ) + " is already there." );
+}
+
+/*-------------------------------------------------------------------*/
+//! several ranges: a video for each (FILE-NAME.mp4), or one for all
+void
+TestExportDialog::severalVideos()
+{
+#ifdef Q_OS_WIN
+    QSKIP( "the fake ffmpeg is a shell script" );
+#endif
+    MainWindow window;
+    window.show();
+    QVERIFY( QTest::qWaitForWindowExposed( &window ) );
+    window.openGameLogFile( LOG );
+    QTemporaryDir tmp;
+    ExportDialog * dialog = openDialog( window, tmp.path() );
+    QVERIFY( dialog );
+    dialog->setVideo( true );
+    dialog->setFfmpeg( fakeFfmpeg( tmp, "ffmpeg", { "libx264" } ) );
+    dialog->setVideoFile( tmp.filePath( "game.mp4" ) );
+    ExportRangeList * ranges = window.exportRanges();
+
+    ranges->setRanges( { ExportRangeSpec{ "1", "2", "a b" }, ExportRangeSpec{ "4", "", "c" } } );
+    child< QRadioButton >( *dialog, "separate_ranges" )->setChecked( true );
+    QCOMPARE( dialog->videoFiles( 2 ), QStringList( { tmp.filePath( "game-a_b.mp4" ), tmp.filePath( "game-c.mp4" ) } ) );
+    QVERIFY2( dialog->summaryText().endsWith( "2 videos, 0.3 s in all at 10 images/s." ), qPrintable( dialog->summaryText() ) );
+    QCOMPARE( exportNow( *dialog ), "ok: 2 videos in " + QDir::toNativeSeparators( tmp.path() ) );
+    QCOMPARE( QFileInfo( tmp.filePath( "game-a_b.mp4" ) ).size(), qint64( 2 ) * 160 * 120 * 4 );
+    QCOMPARE( QFileInfo( tmp.filePath( "game-c.mp4" ) ).size(), qint64( 1 ) * 160 * 120 * 4 );
+    QVERIFY( ! QFile::exists( tmp.filePath( "game.mp4" ) ) );
+
+    // both kept, and read again: a video, a video for each range
+    QVERIFY( Options::instance().exportSettings().video );
+    QVERIFY( Options::instance().exportSettings().separate_ranges );
+    {
+        MainWindow other;
+        other.openGameLogFile( LOG );
+        other.findChild< QAction * >( "export" )->trigger();
+        QVERIFY( other.exportDialog() );
+        QVERIFY( child< QRadioButton >( *other.exportDialog(), "output_video" )->isChecked() );
+        QVERIFY( child< QRadioButton >( *other.exportDialog(), "separate_ranges" )->isChecked() );
+    }
+
+    // the same names: made unique
+    ranges->setRanges( { ExportRangeSpec{ "1", "1", "x" }, ExportRangeSpec{ "2", "2", "x" } } );
+    QCOMPARE( dialog->videoFiles( 2 ), QStringList( { tmp.filePath( "game-x.mp4" ), tmp.filePath( "game-x-2.mp4" ) } ) );
+
+    // one for all
+    child< QRadioButton >( *dialog, "one_sequence" )->setChecked( true );
+    ranges->setRanges( { ExportRangeSpec{ "4", "", "c" }, ExportRangeSpec{ "1", "2", "a" } } );
+    QCOMPARE( dialog->videoFiles( 2 ), QStringList( tmp.filePath( "game.mp4" ) ) );
+    QVERIFY2( dialog->summaryText().endsWith( "a video of 0.3 s at 10 images/s." ), qPrintable( dialog->summaryText() ) );
+    QCOMPARE( exportNow( *dialog ), "ok: the video " + QDir::toNativeSeparators( tmp.filePath( "game.mp4" ) ) );
+    QCOMPARE( QFileInfo( tmp.filePath( "game.mp4" ) ).size(), qint64( 3 ) * 160 * 120 * 4 );
+}
+
+/*-------------------------------------------------------------------*/
+//! no ffmpeg: told, no export; another encoder (mpeg4) told, and used (D14)
+void
+TestExportDialog::noFfmpeg()
+{
+#ifdef Q_OS_WIN
+    QSKIP( "the fake ffmpeg is a shell script" );
+#endif
+    MainWindow window;
+    window.show();
+    QVERIFY( QTest::qWaitForWindowExposed( &window ) );
+    window.openGameLogFile( LOG );
+    QTemporaryDir tmp;
+    ExportDialog * dialog = openDialog( window, tmp.path() );
+    QVERIFY( dialog );
+    dialog->setVideo( true );
+    dialog->setVideoFile( tmp.filePath( "v.mp4" ) );
+    QLabel * status = child< QLabel >( *dialog, "ffmpeg_status" );
+    QPushButton * button = child< QPushButton >( *dialog, "export" );
+
+    dialog->setFfmpeg( tmp.filePath( "missing" ) );
+    QVERIFY( ! dialog->ffmpegInfo().found );
+    QVERIFY2( status->text().contains( "is not found" ), qPrintable( status->text() ) );
+    QVERIFY2( status->text().endsWith( "A video needs ffmpeg: install it, or choose it." ), qPrintable( status->text() ) );
+    QVERIFY2( dialog->summaryText().endsWith( "is not found, or cannot be run." ), qPrintable( dialog->summaryText() ) );
+    QVERIFY( ! button->isEnabled() );
+    QCOMPARE( exportNow( *dialog ), QString( "not started" ) );
+    QVERIFY2( dialog->messageText().contains( "is not found" ), qPrintable( dialog->messageText() ) );
+
+    // the images need no ffmpeg
+    dialog->setVideo( false );
+    QVERIFY( button->isEnabled() );
+    dialog->setVideo( true );
+    QVERIFY( ! button->isEnabled() );
+
+    // no H.264: MPEG-4 Part 2, the quality and the speed not used
+    dialog->setFfmpeg( fakeFfmpeg( tmp, "ffmpeg", { "mpeg4" } ) );
+    QVERIFY( dialog->ffmpegInfo().found );
+    QVERIFY2( status->text().contains( "no H.264: MPEG-4 Part 2 by mpeg4" ), qPrintable( status->text() ) );
+    QVERIFY( ! child< QSpinBox >( *dialog, "crf" )->isEnabled() );
+    QVERIFY( ! child< QComboBox >( *dialog, "preset" )->isEnabled() );
+    QVERIFY( button->isEnabled() );
+    QVERIFY( exportNow( *dialog ).startsWith( "ok: the video " ) );
+    const QString args = argsOf( tmp.filePath( "v.mp4" ) );
+    QVERIFY2( args.contains( "-c:v\nmpeg4\n-q:v\n2\n" ), qPrintable( args ) );
+    QVERIFY( ! args.contains( "-crf" ) );
+
+    dialog->setFfmpeg( fakeFfmpeg( tmp, "ffmpeg264", { "libx264" } ) );
+    QVERIFY( child< QSpinBox >( *dialog, "crf" )->isEnabled() );
+}
+
+/*-------------------------------------------------------------------*/
+//! the speed as the monitor plays the log: the step / the interval of the playback
+void
+TestExportDialog::playbackSpeed()
+{
+    MainWindow window;
+    window.show();
+    QVERIFY( QTest::qWaitForWindowExposed( &window ) );
+    window.openGameLogFile( LOG );
+    QTemporaryDir tmp;
+    ExportDialog * dialog = openDialog( window, tmp.path() );
+    QVERIFY( dialog );
+    QDoubleSpinBox * speed = child< QDoubleSpinBox >( *dialog, "speed" );
+    speed->setValue( 3.0 );
+    child< QPushButton >( *dialog, "playback_speed" )->click();
+    const double expected = std::round( 100.0 / Options::instance().timerInterval() * 100.0 ) / 100.0;
+    QCOMPARE( speed->value(), expected );
 }
 
 QTEST_MAIN( TestExportDialog )

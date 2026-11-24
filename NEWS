@@ -84,7 +84,10 @@
     the end as cycles or stopped frames, marked by [ and ] too, shown on
     the slider with the goals; the halves, the goal scenes and the frames
     around the position shown as presets; several ranges at once; the
-    size, the rate and the names of the images. See README.md.
+    size, the rate and the names of the images. Or as a video written
+    by ffmpeg (installed separately): H.264 at a quality (CRF) and an
+    encoding speed, a video for each range or one for all. See
+    README.md.
 
   * Add the referee's whistle (View > Referee's Whistle, --whistle, off
     by default): a long whistle at a kick-off, a short one at a foul, an

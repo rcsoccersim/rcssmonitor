@@ -272,7 +272,7 @@ public:
         QString size = QStringLiteral( "view" ); //!< view, 1280x720, 1920x1080, 3840x2160, or custom
         int width = 1920; //!< the custom size
         int height = 1080;
-        bool scale_texts = true; //!< the texts as large in the image as in the view (by the device pixel ratio)
+        bool scale_texts = true; //!< the view enlarged: the texts, the logos and the lines as large in the image as in the view (by the device pixel ratio)
         double fps = 10.0; //!< the images a second (2D)
         double speed = 1.0; //!< how many times as fast as the game is played
         bool name_by_cycle = false; //!< the images named by the cycles (one frame an image)
@@ -281,6 +281,11 @@ public:
         double goal_after = 5.0; //!< to these seconds after it
         double around_before = 5.0; //!< around the position shown: from these seconds before it
         double around_after = 5.0; //!< to these seconds after it
+        bool video = false; //!< a video (by ffmpeg), or images
+        QString video_file; //!< the video (empty: rcssmonitor.mp4 in the home)
+        int crf = 18; //!< the quality of the video (D15)
+        QString preset = QStringLiteral( "medium" ); //!< the speed of the compression (D15)
+        QString ffmpeg; //!< the path of ffmpeg (empty: in the PATH)
     };
 
 private:

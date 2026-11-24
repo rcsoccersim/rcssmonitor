@@ -18,6 +18,7 @@ rcssmonitor_SOURCES = \
 	export_range.cpp \
 	export_range_list.cpp \
 	export_timing.cpp \
+	ffmpeg_sink.cpp \
 	field_canvas.cpp \
 	field_painter.cpp \
 	frame_scope.cpp \
@@ -70,6 +71,7 @@ nodist_rcssmonitor_SOURCES = \
 	moc_export_dialog.cpp \
 	moc_export_job.cpp \
 	moc_export_range_list.cpp \
+	moc_ffmpeg_sink.cpp \
 	moc_field_canvas.cpp \
 	moc_frame_sink.cpp \
 	moc_github_log_source.cpp \
@@ -105,6 +107,7 @@ noinst_HEADERS = \
 	export_range.h \
 	export_range_list.h \
 	export_timing.h \
+	ffmpeg_sink.h \
 	field_canvas.h \
 	field_painter.h \
 	frame_scope.h \

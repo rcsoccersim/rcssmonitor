@@ -36,6 +36,7 @@
 #include <QImage>
 #include <QObject>
 #include <QSize>
+#include <QStringList>
 
 #include <cstddef>
 #include <vector>
@@ -44,11 +45,25 @@ class FieldCanvas;
 class FrameSink;
 
 /*!
+  \struct ExportPart
+  \brief a part of an export: a sink and the frames of its images (e.g. a
+  video of a range)
+*/
+struct ExportPart {
+    FrameSink * sink;
+    std::vector< std::size_t > frames;
+};
+
+/*!
   \class ExportJob
-  \brief draws the frames and gives them to a sink, an image at a time in
+  \brief draws the frames and gives them to the sinks, an image at a time in
   the event loop (docs/plan/2026-11-22-03_frame-export.md 4.5): the window
   stays responsive, and the export can be aborted. The 2D view draws the
   frames (FieldCanvas::renderFrame(): the view is not changed).
+
+  The parts are exported one after another: a part's sink is opened, given
+  its images, finished, and then the next one is opened. When aborted, the
+  sink of the part being exported is aborted, and those finished are kept.
 */
 class ExportJob
     : public QObject {
@@ -58,13 +73,16 @@ class ExportJob
 private:
 
     FieldCanvas & M_canvas;
-    FrameSink * M_sink; //!< a child of this
-    std::vector< std::size_t > M_frames; //!< the frame of each image
+    std::vector< ExportPart > M_parts; //!< their sinks are children of this
     QSize M_pixels;
     qreal M_dpr;
     double M_fps;
 
-    std::size_t M_done; //!< the images the sink has taken
+    std::size_t M_part; //!< the part being exported
+    std::size_t M_done_in_part; //!< the images its sink has taken
+    std::size_t M_done; //!< the images all the sinks have taken
+    std::size_t M_total;
+    QStringList M_messages; //!< of the parts finished
     QImage M_pending; //!< drawn, not taken yet (BUSY)
     bool M_started;
     bool M_ended; //!< finished() told
@@ -73,12 +91,19 @@ public:
 
     /*!
       \param canvas the 2D view that draws the frames
-      \param sink where the images go: made a child of this
-      \param frames the frame of each image (ExportTiming::frames2D())
+      \param parts the sinks (made children of this) and their frames (ExportTiming::frames2D())
       \param pixels the size of the images
       \param dpr the device pixel ratio of the images (FieldCanvas::renderFrame())
       \param fps the images a second (for a video)
     */
+    ExportJob( FieldCanvas & canvas,
+               const std::vector< ExportPart > & parts,
+               const QSize & pixels,
+               const qreal dpr,
+               const double fps,
+               QObject * parent = nullptr );
+
+    //! one sink of all the frames
     ExportJob( FieldCanvas & canvas,
                FrameSink * sink,
                const std::vector< std::size_t > & frames,
@@ -90,12 +115,12 @@ public:
     ~ExportJob() override;
 
     std::size_t done() const { return M_done; }
-    std::size_t total() const { return M_frames.size(); }
+    std::size_t total() const { return M_total; }
     bool isRunning() const { return M_started && ! M_ended; }
 
     /*!
-      \brief open the sink and start: the images are drawn after this
-      returns, and finished() tells the end (an error of the sink too)
+      \brief open the first sink and start: the images are drawn after this
+      returns, and finished() tells the end (an error of a sink too)
     */
     void start();
 
@@ -104,17 +129,25 @@ public:
 
 signals:
 
+    //! the images all the sinks have taken; done == total: the sinks finishing
     void progressed( std::size_t done,
                      std::size_t total );
 
-    //! the end: ok, or why not
+    //! the end: ok and the messages of the sinks (one a line), or why not
     void finished( bool ok,
                    const QString & message );
 
 private:
 
-    //! draw the next image and give it to the sink
+    //! open the sink of the part, and go on
+    void openPart();
+
+    //! draw the next image and give it to the sink of the part
     void step();
+
+    void partFinished( FrameSink * sink,
+                       const bool ok,
+                       const QString & message );
 
     void end( const bool ok,
               const QString & message );

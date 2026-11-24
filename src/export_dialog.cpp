@@ -46,11 +46,13 @@
 #include "ui_palette.h"
 
 #include <QBuffer>
+#include <QButtonGroup>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QDir>
 #include <QDoubleSpinBox>
+#include <QElapsedTimer>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFontMetrics>
@@ -75,6 +77,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <memory>
 #include <set>
 
 namespace {
@@ -109,6 +112,18 @@ bytesText( const qint64 bytes )
     return QObject::tr( "%1 GB" ).arg( bytes / ( 1024.0 * 1024.0 * 1024.0 ), 0, 'f', 2 );
 }
 
+//! the time left to read: about 40 s, about 3 min
+QString
+leftText( const qint64 msecs )
+{
+    const qint64 secs = std::max< qint64 >( 1, ( msecs + 500 ) / 1000 );
+    if ( secs < 60 ) return QObject::tr( "about %1 s left" ).arg( secs );
+    return QObject::tr( "about %1 min left" ).arg( ( secs + 30 ) / 60 );
+}
+
+//! the extensions of the videos: their formats (D14)
+const char * const VIDEO_EXTENSIONS[] = { "mp4", "mov", "mkv" };
+
 //! the nearest directory that is there: the free space of where the images go
 QString
 existingDirectory( const QString & dir )
@@ -132,7 +147,9 @@ ExportDialog::ExportDialog( DispHolder & disp_holder,
       M_disp_holder( disp_holder ),
       M_canvas( canvas ),
       M_ranges( ranges ),
-      M_allowed( true )
+      M_ffmpeg_probed( false ),
+      M_allowed( true ),
+      M_job_video( false )
 {
     this->setWindowTitle( tr( "Export Images / Video" ) );
     createWidgets();
@@ -353,9 +370,10 @@ ExportDialog::createWidgets()
         size->addStretch( 1 );
         form->addRow( tr( "Size:" ), size );
 
-        M_scale_texts_check = new QCheckBox( tr( "Scale the texts with the image" ) );
+        M_scale_texts_check = new QCheckBox( tr( "Enlarge the texts, logos and lines with the image" ) );
         M_scale_texts_check->setObjectName( "scale_texts" );
-        M_scale_texts_check->setToolTip( tr( "The texts as large in the image as in the view. Off: in their sizes, smaller in a large image." ) );
+        M_scale_texts_check->setToolTip( tr( "The image looks as the view, enlarged: the texts, the team logos and the widths of the lines grow with the image. "
+                                             "Off: they keep their sizes in pixels, smaller and thinner in a large image, and the players move more smoothly." ) );
         connect( M_scale_texts_check, &QCheckBox::toggled,
                  this, &ExportDialog::updateSummary );
         form->addRow( QString(), M_scale_texts_check );
@@ -380,67 +398,159 @@ ExportDialog::createWidgets()
         rate->addWidget( M_fps_spin );
         rate->addWidget( new QLabel( tr( "Speed:" ) ) );
         rate->addWidget( M_speed_spin );
+        M_playback_speed_button = new QPushButton( tr( "As the Playback" ) );
+        M_playback_speed_button->setObjectName( "playback_speed" );
+        M_playback_speed_button->setToolTip( tr( "The speed of the playback of the monitor: the simulation step / the interval of the playback" ) );
+        M_playback_speed_button->setAutoDefault( false );
+        connect( M_playback_speed_button, &QPushButton::clicked,
+                 this, &ExportDialog::setPlaybackSpeed );
+        rate->addWidget( M_playback_speed_button );
         rate->addStretch( 1 );
         form->addRow( tr( "Rate:" ), rate );
 
         top->addWidget( box );
     }
 
-    // where they go
+    // where they go: images, or a video
     {
         QGroupBox * box = new QGroupBox( tr( "Output" ) );
-        QFormLayout * form = new QFormLayout( box );
+        QVBoxLayout * layout = new QVBoxLayout( box );
 
-        M_dir_edit = new QLineEdit();
-        M_dir_edit->setObjectName( "directory" );
-        connect( M_dir_edit, &QLineEdit::textChanged,
-                 this, &ExportDialog::updateSummary );
-        QPushButton * browse = new QPushButton( tr( "Browse..." ) );
-        browse->setAutoDefault( false );
-        connect( browse, &QPushButton::clicked,
-                 this, &ExportDialog::chooseDirectory );
-        QHBoxLayout * dir = new QHBoxLayout();
-        dir->addWidget( M_dir_edit, 1 );
-        dir->addWidget( browse );
-        form->addRow( tr( "Directory:" ), dir );
+        M_images_radio = new QRadioButton( tr( "Images" ) );
+        M_images_radio->setObjectName( "output_images" );
+        M_video_radio = new QRadioButton( tr( "Video (ffmpeg)" ) );
+        M_video_radio->setObjectName( "output_video" );
+        connect( M_video_radio, &QRadioButton::toggled,
+                 this, &ExportDialog::showOutput );
+        // exclusive in pairs, not with the radio buttons of the ranges
+        QButtonGroup * kind_group = new QButtonGroup( box );
+        kind_group->addButton( M_images_radio );
+        kind_group->addButton( M_video_radio );
+        QHBoxLayout * kind = new QHBoxLayout();
+        kind->addWidget( M_images_radio );
+        kind->addWidget( M_video_radio );
+        kind->addStretch( 1 );
+        layout->addLayout( kind );
 
-        M_prefix_edit = new QLineEdit();
-        M_prefix_edit->setObjectName( "prefix" );
-        M_prefix_edit->setMaximumWidth( 160 );
-        connect( M_prefix_edit, &QLineEdit::textChanged,
-                 this, &ExportDialog::updateSummary );
-        M_format_combo = new QComboBox();
-        M_format_combo->setObjectName( "format" );
-        for ( const QByteArray & f : ImageSequenceSink::formats() )
+        // the images
+        M_images_widget = new QWidget();
         {
-            M_format_combo->addItem( QString::fromLatin1( f ).toUpper(), QString::fromLatin1( f ) );
+            QFormLayout * form = new QFormLayout( M_images_widget );
+            form->setContentsMargins( 0, 0, 0, 0 );
+
+            M_dir_edit = new QLineEdit();
+            M_dir_edit->setObjectName( "directory" );
+            connect( M_dir_edit, &QLineEdit::textChanged,
+                     this, &ExportDialog::updateSummary );
+            QPushButton * browse = new QPushButton( tr( "Browse..." ) );
+            browse->setAutoDefault( false );
+            connect( browse, &QPushButton::clicked,
+                     this, &ExportDialog::chooseDirectory );
+            QHBoxLayout * dir = new QHBoxLayout();
+            dir->addWidget( M_dir_edit, 1 );
+            dir->addWidget( browse );
+            form->addRow( tr( "Directory:" ), dir );
+
+            M_prefix_edit = new QLineEdit();
+            M_prefix_edit->setObjectName( "prefix" );
+            M_prefix_edit->setMaximumWidth( 160 );
+            connect( M_prefix_edit, &QLineEdit::textChanged,
+                     this, &ExportDialog::updateSummary );
+            M_format_combo = new QComboBox();
+            M_format_combo->setObjectName( "format" );
+            for ( const QByteArray & f : ImageSequenceSink::formats() )
+            {
+                M_format_combo->addItem( QString::fromLatin1( f ).toUpper(), QString::fromLatin1( f ) );
+            }
+            connect( M_format_combo, QOverload< int >::of( &QComboBox::currentIndexChanged ),
+                     this, &ExportDialog::updateSummary );
+            QHBoxLayout * name = new QHBoxLayout();
+            name->addWidget( M_prefix_edit );
+            name->addWidget( M_format_combo );
+            name->addStretch( 1 );
+            form->addRow( tr( "Names:" ), name );
+
+            M_name_by_cycle_check = new QCheckBox( tr( "Name the images by the cycles" ) );
+            M_name_by_cycle_check->setObjectName( "name_by_cycle" );
+            M_name_by_cycle_check->setToolTip( tr( "e.g. image-c01234.00.png: when an image is a frame (10 images/s at x 1)" ) );
+            connect( M_name_by_cycle_check, &QCheckBox::toggled,
+                     this, &ExportDialog::updateSummary );
+            form->addRow( QString(), M_name_by_cycle_check );
         }
-        connect( M_format_combo, QOverload< int >::of( &QComboBox::currentIndexChanged ),
-                 this, &ExportDialog::updateSummary );
-        QHBoxLayout * name = new QHBoxLayout();
-        name->addWidget( M_prefix_edit );
-        name->addWidget( M_format_combo );
-        name->addStretch( 1 );
-        form->addRow( tr( "Names:" ), name );
+        layout->addWidget( M_images_widget );
 
-        M_name_by_cycle_check = new QCheckBox( tr( "Name the images by the cycles" ) );
-        M_name_by_cycle_check->setObjectName( "name_by_cycle" );
-        M_name_by_cycle_check->setToolTip( tr( "e.g. image-c01234.00.png: when an image is a frame (10 images/s at x 1)" ) );
-        connect( M_name_by_cycle_check, &QCheckBox::toggled,
-                 this, &ExportDialog::updateSummary );
-        form->addRow( QString(), M_name_by_cycle_check );
+        // the video (D14, D15)
+        M_video_widget = new QWidget();
+        {
+            QFormLayout * form = new QFormLayout( M_video_widget );
+            form->setContentsMargins( 0, 0, 0, 0 );
 
-        M_separate_radio = new QRadioButton( tr( "Each in its own directory, by its name" ) );
+            M_video_edit = new QLineEdit();
+            M_video_edit->setObjectName( "video_file" );
+            M_video_edit->setToolTip( tr( "The format is by the extension: .mp4, .mov or .mkv (.mp4 when there is none)." ) );
+            connect( M_video_edit, &QLineEdit::textChanged,
+                     this, &ExportDialog::updateSummary );
+            QPushButton * browse = new QPushButton( tr( "Browse..." ) );
+            browse->setAutoDefault( false );
+            connect( browse, &QPushButton::clicked,
+                     this, &ExportDialog::chooseVideoFile );
+            QHBoxLayout * file = new QHBoxLayout();
+            file->addWidget( M_video_edit, 1 );
+            file->addWidget( browse );
+            form->addRow( tr( "File:" ), file );
+
+            M_crf_spin = new QSpinBox();
+            M_crf_spin->setObjectName( "crf" );
+            M_crf_spin->setRange( 0, 51 );
+            M_crf_spin->setToolTip( tr( "The CRF of H.264: smaller is better and larger (18: hardly any loss to see; 23: the default of ffmpeg)." ) );
+            M_preset_combo = new QComboBox();
+            M_preset_combo->setObjectName( "preset" );
+            M_preset_combo->addItems( FfmpegSink::PRESETS );
+            M_preset_combo->setToolTip( tr( "The speed of the compression: slower makes smaller files of the same quality." ) );
+            QHBoxLayout * quality = new QHBoxLayout();
+            quality->addWidget( M_crf_spin );
+            quality->addWidget( new QLabel( tr( "Encoding speed:" ) ) );
+            quality->addWidget( M_preset_combo );
+            quality->addStretch( 1 );
+            form->addRow( tr( "Quality (CRF):" ), quality );
+
+            M_ffmpeg_edit = new QLineEdit();
+            M_ffmpeg_edit->setObjectName( "ffmpeg" );
+            M_ffmpeg_edit->setPlaceholderText( tr( "ffmpeg in the PATH" ) );
+            connect( M_ffmpeg_edit, &QLineEdit::editingFinished,
+                     this, &ExportDialog::probeFfmpeg );
+            QPushButton * find = new QPushButton( tr( "Browse..." ) );
+            find->setAutoDefault( false );
+            connect( find, &QPushButton::clicked,
+                     this, &ExportDialog::chooseFfmpeg );
+            QHBoxLayout * program = new QHBoxLayout();
+            program->addWidget( M_ffmpeg_edit, 1 );
+            program->addWidget( find );
+            form->addRow( tr( "ffmpeg:" ), program );
+
+            M_ffmpeg_label = new QLabel();
+            M_ffmpeg_label->setObjectName( "ffmpeg_status" );
+            M_ffmpeg_label->setWordWrap( true );
+            form->addRow( QString(), M_ffmpeg_label );
+        }
+        layout->addWidget( M_video_widget );
+
+        // several ranges
+        M_separate_radio = new QRadioButton();
         M_separate_radio->setObjectName( "separate_ranges" );
-        M_one_sequence_radio = new QRadioButton( tr( "All in one sequence" ) );
+        M_one_sequence_radio = new QRadioButton();
         M_one_sequence_radio->setObjectName( "one_sequence" );
         connect( M_separate_radio, &QRadioButton::toggled,
                  this, &ExportDialog::updateSummary );
+        QButtonGroup * ranges_group = new QButtonGroup( box );
+        ranges_group->addButton( M_separate_radio );
+        ranges_group->addButton( M_one_sequence_radio );
         QHBoxLayout * ranges = new QHBoxLayout();
+        ranges->addWidget( new QLabel( tr( "Ranges:" ) ) );
         ranges->addWidget( M_separate_radio );
         ranges->addWidget( M_one_sequence_radio );
         ranges->addStretch( 1 );
-        form->addRow( tr( "Ranges:" ), ranges );
+        layout->addLayout( ranges );
 
         top->addWidget( box );
     }
@@ -491,6 +601,15 @@ ExportDialog::readSettings()
     M_goal_after_spin->setValue( s.goal_after );
     M_around_before_spin->setValue( s.around_before );
     M_around_after_spin->setValue( s.around_after );
+    M_video_edit->setText( s.video_file.isEmpty()
+                           ? QDir( QDir::homePath() ).filePath( QStringLiteral( "rcssmonitor.mp4" ) )
+                           : s.video_file );
+    M_crf_spin->setValue( s.crf );
+    const int preset = M_preset_combo->findText( s.preset );
+    M_preset_combo->setCurrentIndex( preset >= 0 ? preset : M_preset_combo->findText( QStringLiteral( "medium" ) ) );
+    M_ffmpeg_edit->setText( s.ffmpeg );
+    ( s.video ? M_video_radio : M_images_radio )->setChecked( true );
+    showOutput();
 }
 
 /*-------------------------------------------------------------------*/
@@ -513,6 +632,11 @@ ExportDialog::writeSettings() const
     s.goal_after = M_goal_after_spin->value();
     s.around_before = M_around_before_spin->value();
     s.around_after = M_around_after_spin->value();
+    s.video = isVideo();
+    s.video_file = M_video_edit->text().trimmed();
+    s.crf = M_crf_spin->value();
+    s.preset = M_preset_combo->currentText();
+    s.ffmpeg = M_ffmpeg_edit->text().trimmed();
     Options::instance().setExportSettings( s );
     Options::instance().writeExportSettings();
 }
@@ -558,20 +682,13 @@ ExportDialog::allImageNames( const std::vector< std::vector< std::size_t > > & f
     QStringList names;
     if ( M_separate_radio->isChecked() )
     {
-        // each range in its own directory: the safe name, made unique
-        std::set< QString > dirs;
+        // each range in its own directory, by its name
+        const QStringList dirs = rangeFileNames( static_cast< int >( frames.size() ) );
         for ( std::size_t r = 0; r < frames.size(); ++r )
         {
-            QString dir = ExportRangeList::safeName( M_ranges.ranges()[static_cast< int >( r )].name );
-            const QString base = dir;
-            for ( int n = 2; dirs.count( dir ) > 0; ++n )
-            {
-                dir = base + QString( "-%1" ).arg( n );
-            }
-            dirs.insert( dir );
             for ( const QString & name : imageNames( frames[r] ) )
             {
-                names << dir + QLatin1Char( '/' ) + name;
+                names << dirs[static_cast< int >( r )] + QLatin1Char( '/' ) + name;
             }
         }
         return names;
@@ -585,6 +702,26 @@ ExportDialog::allImageNames( const std::vector< std::vector< std::size_t > > & f
     {
         if ( error ) *error = tr( "The ranges have the same frames: the names by the cycles repeat in one sequence." );
         return QStringList();
+    }
+    return names;
+}
+
+/*-------------------------------------------------------------------*/
+QStringList
+ExportDialog::rangeFileNames( const int count ) const
+{
+    QStringList names;
+    std::set< QString > used;
+    for ( int r = 0; r < count && r < M_ranges.size(); ++r )
+    {
+        const QString base = ExportRangeList::safeName( M_ranges.ranges()[r].name );
+        QString name = base;
+        for ( int n = 2; used.count( name ) > 0; ++n )
+        {
+            name = base + QString( "-%1" ).arg( n );
+        }
+        used.insert( name );
+        names << name;
     }
     return names;
 }
@@ -902,28 +1039,31 @@ QSize
 ExportDialog::imageSize() const
 {
     const QString key = M_size_combo->currentData().toString();
+    QSize size( M_width_spin->value(), M_height_spin->value() );
     if ( key == QLatin1String( "view" ) )
     {
         const qreal dpr = M_canvas.devicePixelRatioF();
-        return QSize( std::max( 1, static_cast< int >( std::lround( M_canvas.width() * dpr ) ) ),
+        size = QSize( std::max( 1, static_cast< int >( std::lround( M_canvas.width() * dpr ) ) ),
                       std::max( 1, static_cast< int >( std::lround( M_canvas.height() * dpr ) ) ) );
-    }
-    if ( key == QLatin1String( "custom" ) )
-    {
-        return QSize( M_width_spin->value(), M_height_spin->value() );
     }
     for ( const SizeChoice & c : SIZES )
     {
-        if ( key == QLatin1String( c.key ) ) return c.size;
+        if ( key == QLatin1String( c.key ) && c.size.isValid() ) size = c.size;
     }
-    return QSize( M_width_spin->value(), M_height_spin->value() );
+    if ( isVideo() )
+    {
+        // the colors of a video are of 2 x 2 pixels (yuv420p)
+        size = QSize( std::max( 2, size.width() & ~1 ),
+                      std::max( 2, size.height() & ~1 ) );
+    }
+    return size;
 }
 
 /*-------------------------------------------------------------------*/
 qreal
 ExportDialog::imageRatio() const
 {
-    // the texts as large as in the view: the image is the view's layout,
+    // the texts, the logos and the lines as large as in the view: the image is the view's layout,
     // scaled to the height of the image
     if ( ! M_scale_texts_check->isChecked()
          || M_canvas.height() <= 0 )
@@ -990,6 +1130,52 @@ ExportDialog::directory() const
 }
 
 /*-------------------------------------------------------------------*/
+bool
+ExportDialog::isVideo() const
+{
+    return M_video_radio->isChecked();
+}
+
+/*-------------------------------------------------------------------*/
+QString
+ExportDialog::videoFile() const
+{
+    QString file = M_video_edit->text().trimmed();
+    if ( file.isEmpty() )
+    {
+        file = QDir( QDir::homePath() ).filePath( QStringLiteral( "rcssmonitor.mp4" ) );
+    }
+    file = QDir::cleanPath( file );
+    if ( QFileInfo( file ).suffix().isEmpty() )
+    {
+        file += QStringLiteral( ".mp4" );
+    }
+    return file;
+}
+
+/*-------------------------------------------------------------------*/
+QStringList
+ExportDialog::videoFiles( const int ranges ) const
+{
+    const QString file = videoFile();
+    if ( ranges <= 1
+         || ! M_separate_radio->isChecked() )
+    {
+        return QStringList( file );
+    }
+
+    // FILE-NAME.ext: a video for each range, by its name
+    const QFileInfo info( file );
+    const QString base = QDir::cleanPath( QDir( info.path() ).filePath( info.completeBaseName() ) );
+    QStringList files;
+    for ( const QString & name : rangeFileNames( ranges ) )
+    {
+        files << base + QLatin1Char( '-' ) + name + QLatin1Char( '.' ) + info.suffix();
+    }
+    return files;
+}
+
+/*-------------------------------------------------------------------*/
 QString
 ExportDialog::summaryText() const
 {
@@ -1019,6 +1205,75 @@ ExportDialog::setDirectory( const QString & dir )
 
 /*-------------------------------------------------------------------*/
 void
+ExportDialog::setVideo( const bool video )
+{
+    ( video ? M_video_radio : M_images_radio )->setChecked( true );
+}
+
+/*-------------------------------------------------------------------*/
+void
+ExportDialog::setVideoFile( const QString & file )
+{
+    M_video_edit->setText( file );
+}
+
+/*-------------------------------------------------------------------*/
+void
+ExportDialog::setFfmpeg( const QString & path )
+{
+    M_ffmpeg_edit->setText( path );
+    probeFfmpeg();
+}
+
+/*-------------------------------------------------------------------*/
+void
+ExportDialog::probeFfmpeg()
+{
+    M_ffmpeg_info = FfmpegSink::probe( M_ffmpeg_edit->text() );
+    M_ffmpeg_probed = true;
+
+    QString text;
+    if ( ! M_ffmpeg_info.found )
+    {
+        text = M_ffmpeg_info.error + QLatin1Char( ' ' )
+            + tr( "A video needs ffmpeg: install it, or choose it." );
+    }
+    else
+    {
+        // "ffmpeg version 6.1.1 Copyright (c) ...": its version
+        const QString version = M_ffmpeg_info.version.section( QStringLiteral( " Copyright" ), 0, 0 );
+        text = tr( "%1; H.264 by %2." ).arg( version, M_ffmpeg_info.encoder );
+        if ( M_ffmpeg_info.encoder == QLatin1String( "mpeg4" ) )
+        {
+            text = tr( "%1; no H.264: MPEG-4 Part 2 by mpeg4, larger and of lower quality." ).arg( version );
+        }
+        if ( M_ffmpeg_info.encoder != QLatin1String( "libx264" ) )
+        {
+            text += QLatin1Char( ' ' ) + tr( "The quality and the speed are of libx264, not used." );
+        }
+    }
+    M_ffmpeg_label->setText( text );
+    M_ffmpeg_label->setToolTip( QDir::toNativeSeparators( M_ffmpeg_info.program ) );
+    UIPalette::markWrongText( M_ffmpeg_label, ! M_ffmpeg_info.found );
+
+    const bool x264 = ( ! M_ffmpeg_info.found || M_ffmpeg_info.encoder == QLatin1String( "libx264" ) );
+    M_crf_spin->setEnabled( x264 );
+    M_preset_combo->setEnabled( x264 );
+    updateSummary();
+}
+
+/*-------------------------------------------------------------------*/
+void
+ExportDialog::setPlaybackSpeed()
+{
+    // the monitor shows a frame each interval (ms), and a cycle is a step (ms)
+    const int step = std::max( 1, M_disp_holder.serverParam().simulator_step_ );
+    const int interval = std::max( 1, Options::instance().timerInterval() );
+    M_speed_spin->setValue( static_cast< double >( step ) / interval );
+}
+
+/*-------------------------------------------------------------------*/
+void
 ExportDialog::setExportAllowed( const bool allowed )
 {
     M_allowed = allowed;
@@ -1036,6 +1291,58 @@ ExportDialog::chooseDirectory()
     {
         M_dir_edit->setText( dir );
     }
+}
+
+/*-------------------------------------------------------------------*/
+void
+ExportDialog::chooseVideoFile()
+{
+    // the files there are asked about at the export
+    const QString file = QFileDialog::getSaveFileName( this,
+                                                       tr( "The video file" ),
+                                                       videoFile(),
+                                                       tr( "Videos (*.mp4 *.mov *.mkv)" ),
+                                                       nullptr,
+                                                       QFileDialog::DontConfirmOverwrite );
+    if ( ! file.isEmpty() )
+    {
+        M_video_edit->setText( file );
+    }
+}
+
+/*-------------------------------------------------------------------*/
+void
+ExportDialog::chooseFfmpeg()
+{
+    const QString program = FfmpegSink::findProgram( M_ffmpeg_edit->text() );
+    const QString file = QFileDialog::getOpenFileName( this,
+                                                       tr( "ffmpeg" ),
+                                                       program.isEmpty() ? QDir::homePath() : program );
+    if ( ! file.isEmpty() )
+    {
+        setFfmpeg( file );
+    }
+}
+
+/*-------------------------------------------------------------------*/
+void
+ExportDialog::showOutput()
+{
+    const bool video = isVideo();
+    M_images_widget->setVisible( ! video );
+    M_video_widget->setVisible( video );
+    M_separate_radio->setText( video
+                               ? tr( "A video for each, by its name" )
+                               : tr( "Each in its own directory, by its name" ) );
+    M_one_sequence_radio->setText( video
+                                   ? tr( "All in one video" )
+                                   : tr( "All in one sequence" ) );
+    if ( video
+         && ! M_ffmpeg_probed )
+    {
+        probeFfmpeg();
+    }
+    updateSummary();
 }
 
 /*-------------------------------------------------------------------*/
@@ -1074,9 +1381,23 @@ ExportDialog::handleFinished( bool ok,
         M_job = nullptr;
     }
 
-    showMessage( ok ? tr( "Exported %1." ).arg( message ) : message, ! ok );
+    // the videos: one, or several in a directory
+    QString what = message;
+    const QStringList lines = message.split( QLatin1Char( '\n' ), Qt::SkipEmptyParts );
+    if ( ok && M_job_video )
+    {
+        what = ( lines.size() == 1
+                 ? tr( "the video %1" ).arg( lines.front() )
+                 : tr( "%1 videos in %2" ).arg( lines.size() )
+                 .arg( QDir::toNativeSeparators( QFileInfo( QDir::fromNativeSeparators( lines.front() ) ).absolutePath() ) ) );
+    }
+    else if ( ok && lines.size() > 1 )
+    {
+        what = lines.join( QStringLiteral( "; " ) );
+    }
+    showMessage( ok ? tr( "Exported %1." ).arg( what ) : message, ! ok );
     updateSummary();
-    emit exportFinished( ok, message );
+    emit exportFinished( ok, what );
 }
 /*-------------------------------------------------------------------*/
 void
@@ -1150,9 +1471,17 @@ ExportDialog::updateSummary()
         image_count += images.back().size();
         frame_count += r.size();
     }
+    const bool video = isVideo();
     if ( error.isEmpty() && ! list.empty() )
     {
-        allImageNames( images, &error );
+        if ( ! video )
+        {
+            allImageNames( images, &error );
+        }
+        else
+        {
+            error = videoError();
+        }
     }
 
     const bool ok = error.isEmpty() && image_count > 0;
@@ -1174,11 +1503,17 @@ ExportDialog::updateSummary()
                                 ? tr( "%1 to %2" ).arg( ExportRange::gameTime( frames[list.front().first]->show_.time_, step ),
                                                         ExportRange::gameTime( frames[list.front().last]->show_.time_, step ) )
                                 : tr( "in %1 ranges" ).arg( list.size() ) );
-        M_summary_label->setText( tr( "%1 %2, %3. %4 x %5 pixels; %6 s of a video at %7 images/s." )
+        const QString seconds = QString::number( ExportTiming::duration( image_count, M_fps_spin->value() ), 'f', 1 );
+        const int videos = videoFiles( static_cast< int >( list.size() ) ).size();
+        const QString length = ( ! video
+                                 ? tr( "%1 s of a video at %2 images/s" ).arg( seconds ).arg( M_fps_spin->value() )
+                                 : videos == 1
+                                 ? tr( "a video of %1 s at %2 images/s" ).arg( seconds ).arg( M_fps_spin->value() )
+                                 : tr( "%1 videos, %2 s in all at %3 images/s" ).arg( videos ).arg( seconds ).arg( M_fps_spin->value() ) );
+        M_summary_label->setText( tr( "%1 %2, %3. %4 x %5 pixels; %6." )
                                   .arg( count, of, where )
                                   .arg( size.width() ).arg( size.height() )
-                                  .arg( ExportTiming::duration( image_count, M_fps_spin->value() ), 0, 'f', 1 )
-                                  .arg( M_fps_spin->value() ) );
+                                  .arg( length ) );
         UIPalette::markWrongText( M_summary_label, false );
     }
 
@@ -1188,6 +1523,215 @@ ExportDialog::updateSummary()
     M_export_button->setToolTip( M_allowed
                                  ? QString()
                                  : tr( "Not available while connected to a server: the frames are exported after disconnecting." ) );
+}
+
+/*-------------------------------------------------------------------*/
+QString
+ExportDialog::videoError() const
+{
+    if ( M_ffmpeg_probed
+         && ! M_ffmpeg_info.found )
+    {
+        return M_ffmpeg_info.error;
+    }
+    const QString ext = QFileInfo( videoFile() ).suffix().toLower();
+    if ( std::none_of( std::begin( VIDEO_EXTENSIONS ), std::end( VIDEO_EXTENSIONS ),
+                       [&ext]( const char * e ) { return ext == QLatin1String( e ); } ) )
+    {
+        return tr( "A video is a .mp4, .mov or .mkv file: not .%1." ).arg( ext );
+    }
+    return QString();
+}
+
+/*-------------------------------------------------------------------*/
+bool
+ExportDialog::prepareImages( const std::vector< std::size_t > & frames,
+                             const std::vector< std::vector< std::size_t > > & by_range,
+                             const bool ask,
+                             QStringList * names,
+                             QString * dir_out,
+                             qint64 * bytes )
+{
+    QString error;
+    *names = allImageNames( by_range, &error );
+    if ( ! error.isEmpty() )
+    {
+        showMessage( error, true );
+        return false;
+    }
+
+    const QByteArray format = M_format_combo->currentData().toString().toLatin1();
+
+    // the files there: asked once, not for each image
+    QString & dir = *dir_out;
+    dir = directory();
+    for ( ; ; )
+    {
+        int there = 0;
+        for ( const QString & name : *names )
+        {
+            if ( QFileInfo::exists( QDir( dir ).filePath( name ) ) ) ++there;
+        }
+        if ( there == 0 || ! ask )
+        {
+            break;
+        }
+
+        QMessageBox box( QMessageBox::Question,
+                         tr( "Export Images" ),
+                         tr( "%1 of the %2 files are already in %3." )
+                         .arg( there ).arg( names->size() ).arg( QDir::toNativeSeparators( dir ) ),
+                         QMessageBox::NoButton,
+                         this );
+        QPushButton * overwrite = box.addButton( tr( "Overwrite" ), QMessageBox::AcceptRole );
+        QPushButton * another = box.addButton( tr( "Choose Another Directory..." ), QMessageBox::ActionRole );
+        box.addButton( QMessageBox::Cancel );
+        box.setDefaultButton( overwrite );
+        box.exec();
+        if ( box.clickedButton() == overwrite )
+        {
+            break;
+        }
+        if ( box.clickedButton() != another )
+        {
+            return false;
+        }
+        const QString chosen = QFileDialog::getExistingDirectory( this,
+                                                                  tr( "The directory of the images" ),
+                                                                  dir );
+        if ( chosen.isEmpty() )
+        {
+            return false;
+        }
+        dir = QDir::cleanPath( chosen );
+        M_dir_edit->setText( dir );
+    }
+
+    // the space on the disk: the first image compressed, times the images
+    qint64 & estimate = *bytes;
+    estimate = 0;
+    {
+        QBuffer buffer;
+        buffer.open( QIODevice::WriteOnly );
+        QImageWriter writer( &buffer, format );
+        if ( writer.write( M_canvas.renderFrame( frames.front(), imageSize(), imageRatio() ) ) )
+        {
+            estimate = static_cast< qint64 >( buffer.size() * 1.1 * frames.size() );
+        }
+    }
+    const QStorageInfo storage( existingDirectory( dir ) );
+    if ( ask
+         && estimate > 0
+         && storage.isValid()
+         && storage.bytesAvailable() >= 0
+         && estimate > storage.bytesAvailable() )
+    {
+        if ( QMessageBox::warning( this,
+                                   tr( "Export Images" ),
+                                   tr( "The images may not fit: about %1 for them, %2 free in %3.\nExport them anyway?" )
+                                   .arg( bytesText( estimate ),
+                                         bytesText( storage.bytesAvailable() ),
+                                         QDir::toNativeSeparators( storage.rootPath() ) ),
+                                   QMessageBox::Yes | QMessageBox::No,
+                                   QMessageBox::No ) != QMessageBox::Yes )
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+/*-------------------------------------------------------------------*/
+bool
+ExportDialog::prepareVideos( const std::vector< std::vector< std::size_t > > & by_range,
+                             const std::vector< std::size_t > & frames,
+                             const bool ask,
+                             std::vector< ExportPart > * parts )
+{
+    if ( ! M_ffmpeg_probed )
+    {
+        probeFfmpeg();
+    }
+    const QString error = videoError();
+    if ( ! error.isEmpty() )
+    {
+        showMessage( error, true );
+        return false;
+    }
+
+    // the files there: asked once
+    QStringList files = videoFiles( static_cast< int >( by_range.size() ) );
+    for ( ; ; )
+    {
+        int there = 0;
+        for ( const QString & file : files )
+        {
+            if ( QFileInfo::exists( file ) ) ++there;
+        }
+        if ( there == 0 || ! ask )
+        {
+            break;
+        }
+
+        QMessageBox box( QMessageBox::Question,
+                         tr( "Export Video" ),
+                         ( files.size() == 1
+                           ? tr( "%1 is already there." ).arg( QDir::toNativeSeparators( files.front() ) )
+                           : tr( "%1 of the %2 videos are already in %3." )
+                           .arg( there ).arg( files.size() )
+                           .arg( QDir::toNativeSeparators( QFileInfo( files.front() ).absolutePath() ) ) ),
+                         QMessageBox::NoButton,
+                         this );
+        QPushButton * overwrite = box.addButton( tr( "Overwrite" ), QMessageBox::AcceptRole );
+        QPushButton * another = box.addButton( tr( "Choose Another File..." ), QMessageBox::ActionRole );
+        box.addButton( QMessageBox::Cancel );
+        box.setDefaultButton( overwrite );
+        box.exec();
+        if ( box.clickedButton() == overwrite )
+        {
+            break;
+        }
+        if ( box.clickedButton() != another )
+        {
+            return false;
+        }
+        const QString chosen = QFileDialog::getSaveFileName( this,
+                                                             tr( "The video file" ),
+                                                             videoFile(),
+                                                             tr( "Videos (*.mp4 *.mov *.mkv)" ),
+                                                             nullptr,
+                                                             QFileDialog::DontConfirmOverwrite );
+        if ( chosen.isEmpty() )
+        {
+            return false;
+        }
+        M_video_edit->setText( chosen );
+        const QString e = videoError();
+        if ( ! e.isEmpty() )
+        {
+            showMessage( e, true );
+            return false;
+        }
+        files = videoFiles( static_cast< int >( by_range.size() ) );
+    }
+
+    // a video of the 2D view: flat colors (-tune animation)
+    const auto sink = [this]( const QString & file ) {
+        return new FfmpegSink( M_ffmpeg_info.program, file, M_ffmpeg_info.encoder,
+                               M_crf_spin->value(), M_preset_combo->currentText(), true );
+    };
+    if ( files.size() == 1 )
+    {
+        parts->push_back( ExportPart{ sink( files.front() ), frames } );
+    }
+    else
+    {
+        for ( int r = 0; r < files.size(); ++r )
+        {
+            parts->push_back( ExportPart{ sink( files[r] ), by_range[static_cast< std::size_t >( r )] } );
+        }
+    }
+    return true;
 }
 
 /*-------------------------------------------------------------------*/
@@ -1218,105 +1762,50 @@ ExportDialog::startExport( const bool ask )
         showMessage( error.isEmpty() ? tr( "There is no frame to export." ) : error, true );
         return false;
     }
-    const QStringList names = allImageNames( by_range, &error );
-    if ( ! error.isEmpty() )
-    {
-        showMessage( error, true );
-        return false;
-    }
 
     const QSize pixels = imageSize();
     const qreal dpr = imageRatio();
-    const QByteArray format = M_format_combo->currentData().toString().toLatin1();
-
-    // the files there: asked once, not for each image
-    QString dir = directory();
-    for ( ; ; )
-    {
-        int there = 0;
-        for ( const QString & name : names )
-        {
-            if ( QFileInfo::exists( QDir( dir ).filePath( name ) ) ) ++there;
-        }
-        if ( there == 0 || ! ask )
-        {
-            break;
-        }
-
-        QMessageBox box( QMessageBox::Question,
-                         tr( "Export Images" ),
-                         tr( "%1 of the %2 files are already in %3." )
-                         .arg( there ).arg( names.size() ).arg( QDir::toNativeSeparators( dir ) ),
-                         QMessageBox::NoButton,
-                         this );
-        QPushButton * overwrite = box.addButton( tr( "Overwrite" ), QMessageBox::AcceptRole );
-        QPushButton * another = box.addButton( tr( "Choose Another Directory..." ), QMessageBox::ActionRole );
-        box.addButton( QMessageBox::Cancel );
-        box.setDefaultButton( overwrite );
-        box.exec();
-        if ( box.clickedButton() == overwrite )
-        {
-            break;
-        }
-        if ( box.clickedButton() != another )
-        {
-            return false;
-        }
-        const QString chosen = QFileDialog::getExistingDirectory( this,
-                                                                  tr( "The directory of the images" ),
-                                                                  dir );
-        if ( chosen.isEmpty() )
-        {
-            return false;
-        }
-        dir = QDir::cleanPath( chosen );
-        M_dir_edit->setText( dir );
-    }
-
-    // the space on the disk: the first image compressed, times the images
+    std::vector< ExportPart > parts;
     qint64 estimate = 0;
+
+    if ( isVideo() )
     {
-        QBuffer buffer;
-        buffer.open( QIODevice::WriteOnly );
-        QImageWriter writer( &buffer, format );
-        if ( writer.write( M_canvas.renderFrame( frames.front(), pixels, dpr ) ) )
-        {
-            estimate = static_cast< qint64 >( buffer.size() * 1.1 * frames.size() );
-        }
-    }
-    const QStorageInfo storage( existingDirectory( dir ) );
-    if ( ask
-         && estimate > 0
-         && storage.isValid()
-         && storage.bytesAvailable() >= 0
-         && estimate > storage.bytesAvailable() )
-    {
-        if ( QMessageBox::warning( this,
-                                   tr( "Export Images" ),
-                                   tr( "The images may not fit: about %1 for them, %2 free in %3.\nExport them anyway?" )
-                                   .arg( bytesText( estimate ),
-                                         bytesText( storage.bytesAvailable() ),
-                                         QDir::toNativeSeparators( storage.rootPath() ) ),
-                                   QMessageBox::Yes | QMessageBox::No,
-                                   QMessageBox::No ) != QMessageBox::Yes )
+        if ( ! prepareVideos( by_range, frames, ask, &parts ) )
         {
             return false;
         }
+    }
+    else
+    {
+        QStringList names;
+        QString dir;
+        if ( ! prepareImages( frames, by_range, ask, &names, &dir, &estimate ) )
+        {
+            return false;
+        }
+        parts.push_back( ExportPart{ new ImageSequenceSink( dir, names, M_format_combo->currentData().toString().toLatin1() ),
+                                     frames } );
     }
 
     writeSettings();
     emit stopRequested();
 
-    ImageSequenceSink * sink = new ImageSequenceSink( dir, names, format );
-    ExportJob * job = new ExportJob( M_canvas, sink, frames, pixels, dpr, M_fps_spin->value(), this );
+    M_job_video = isVideo();
+    ExportJob * job = new ExportJob( M_canvas, parts, pixels, dpr, M_fps_spin->value(), this );
     M_job = job;
 
-    QProgressDialog * progress = new QProgressDialog( tr( "Exporting %1 images (about %2)..." ).arg( frames.size() ).arg( bytesText( estimate ) ),
+    const QString title = ( M_job_video ? tr( "Export Video" ) : tr( "Export Images" ) );
+    const QString text = ( ! M_job_video
+                           ? tr( "Exporting %1 images (about %2)..." ).arg( frames.size() ).arg( bytesText( estimate ) )
+                           : parts.size() == 1
+                           ? tr( "Exporting %1 images to the video..." ).arg( frames.size() )
+                           : tr( "Exporting %1 images to %2 videos..." ).arg( frames.size() ).arg( parts.size() ) );
+    QProgressDialog * progress = new QProgressDialog( text,
                                                       tr( "Stop" ),
                                                       0, static_cast< int >( frames.size() ),
                                                       this );
     progress->setObjectName( "export_progress" );
-    progress->setWindowTitle( tr( "Export Images" ) );
+    progress->setWindowTitle( title );
     progress->setWindowModality( Qt::ApplicationModal );
     progress->setMinimumDuration( 500 );
     progress->setAutoClose( false );
@@ -1324,11 +1813,27 @@ ExportDialog::startExport( const bool ask )
     M_progress = progress;
     connect( progress, &QProgressDialog::canceled,
              this, &ExportDialog::abortExport );
+    std::shared_ptr< QElapsedTimer > clock = std::make_shared< QElapsedTimer >();
+    clock->start();
     connect( job, &ExportJob::progressed,
-             this, [this]( std::size_t done, std::size_t total ) {
+             this, [this, clock]( std::size_t done, std::size_t total ) {
                  if ( ! M_progress ) return;
+                 QString text = tr( "Exported %1 of %2 images." ).arg( done ).arg( total );
+                 if ( done >= total )
+                 {
+                     text = ( M_job_video
+                              ? tr( "Finishing the video..." )
+                              : tr( "Exported %1 images." ).arg( total ) );
+                 }
+                 else if ( done > 0
+                           && clock->elapsed() >= 2000 )
+                 {
+                     // the time left at the speed so far
+                     text += QLatin1Char( ' ' )
+                         + leftText( static_cast< qint64 >( clock->elapsed() * static_cast< double >( total - done ) / done ) );
+                 }
                  // the label first: setValue() of a modal dialog processes the events
-                 M_progress->setLabelText( tr( "Exported %1 of %2 images." ).arg( done ).arg( total ) );
+                 M_progress->setLabelText( text );
                  M_progress->setValue( static_cast< int >( done ) );
              } );
     connect( job, &ExportJob::finished,

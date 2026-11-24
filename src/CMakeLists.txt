@@ -14,6 +14,7 @@ add_library(rcssmonitor_core STATIC
   export_range.cpp
   export_range_list.cpp
   export_timing.cpp
+  ffmpeg_sink.cpp
   field_canvas.cpp
   field_painter.cpp
   frame_scope.cpp

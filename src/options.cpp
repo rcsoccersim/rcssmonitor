@@ -540,6 +540,21 @@ Options::readSettings()
     val = settings.value( "around_after" );
     if ( val.isValid() && val.toDouble() >= 0.0 ) M_export_settings.around_after = val.toDouble();
 
+    val = settings.value( "video" );
+    if ( val.isValid() ) M_export_settings.video = val.toBool();
+
+    val = settings.value( "video_file" );
+    if ( val.isValid() ) M_export_settings.video_file = val.toString();
+
+    val = settings.value( "crf" );
+    if ( val.isValid() && 0 <= val.toInt() && val.toInt() <= 51 ) M_export_settings.crf = val.toInt();
+
+    val = settings.value( "preset" );
+    if ( val.isValid() && ! val.toString().isEmpty() ) M_export_settings.preset = val.toString();
+
+    val = settings.value( "ffmpeg" );
+    if ( val.isValid() ) M_export_settings.ffmpeg = val.toString();
+
     settings.endGroup();
 
     //
@@ -1277,6 +1292,11 @@ Options::writeExportSettings() const
     settings.setValue( "goal_after", M_export_settings.goal_after );
     settings.setValue( "around_before", M_export_settings.around_before );
     settings.setValue( "around_after", M_export_settings.around_after );
+    settings.setValue( "video", M_export_settings.video );
+    settings.setValue( "video_file", M_export_settings.video_file );
+    settings.setValue( "crf", M_export_settings.crf );
+    settings.setValue( "preset", M_export_settings.preset );
+    settings.setValue( "ffmpeg", M_export_settings.ffmpeg );
     settings.endGroup();
 }
 

@@ -6,7 +6,7 @@
 | Last updated | 2026-11-25 |
 | Target | rcssmonitor develop (5affd90, 20.0.0-beta.1) |
 | Branch | `feature/frame-export` (from develop after the URLs and log lists (F5) are merged; the user creates it on GitHub) |
-| Status | Plan written (2026-11-22). The user created `feature/frame-export` from develop (b3762c3). Stages 1 and 2 are done, and stage 3 started (2026-11-24). The last feature of the overall plan. The progress of each stage is in the table of "Progress" below |
+| Status | Plan written (2026-11-22). The user created `feature/frame-export` from develop (b3762c3). Stages 1 to 3 are done, and stage 4 is implemented. The name of the check to enlarge the texts is corrected after the user's check (2026-11-25; D16). The last feature of the overall plan. The progress of each stage is in the table of "Progress" below |
 | Japanese version | [2026-11-22-03_frame-export.md](2026-11-22-03_frame-export.md) (same content) |
 | Related | F6 of the overall plan [2026-11-22-00_v20-features_en.md](2026-11-22-00_v20-features_en.md). soccerwindow2's `src/qt/image_save_dialog.cpp` (2D image sequences) |
 
@@ -18,8 +18,8 @@ The work and the conditions of the end of each stage are in §5, and the history
 |---|---|---|---|---|---|---|
 | 1 | A 2D image (File > Save Image) (§4.1, §4.10; D4, D5) | Done | Done | Passed | e9a9e96 | Done |
 | 2 | The basics of the ranges and image sequences, the export dialog (§4.3 to §4.6, §4.11; D6) | Done | Done | Passed | d7adf47 | Done |
-| 3 | Handy ways to give the ranges (§4.4, §4.12; D7 to D12) | In progress | Done | Not yet | — | Not yet |
-| 4 | Videos by ffmpeg (§4.5) | Not started | Not yet | Not yet | — | Not yet |
+| 3 | Handy ways to give the ranges (§4.4, §4.12; D7 to D12) | Done | Done | Passed | d7a5cd1 | Done |
+| 4 | Videos by ffmpeg (§4.5, §4.13; D13 to D16) | In progress | Done | Not yet | — | Not yet |
 | 5 | Rearranging the 3D drawing (refactoring only; §4.2) | Not started | Not yet | Not yet | — | Not yet |
 | 6 | Offscreen 3D drawing (§4.2) | Not started | Not yet | Not yet | — | Not yet |
 | 7 | The batch command line (§4.7) | Not started | Not yet | Not yet | — | Not yet |
@@ -92,6 +92,10 @@ File > Save Image of soccerwindow2 (`../../rctools/soccerwindow2`; `src/qt/image
 | D10 | The positions of the goals follow `DispHolder::scoreChangedIndex()` (the index of the last frame before the new score, kept when the record of the teams comes; "go to the next score" of the log player uses it too). The team and the score are read from the frame after. At first the goals were found again where a score goes up in the frames; at the user's question, it was changed for one way to decide the goals (option B; 2026-11-24, decided by the user before checking stage 3) |
 | D11 | In the File menu, the items of the export are grouped in "Export Images / Video": Open the Export Dialog... (Ctrl+Shift+E), Start the Range Here (`[`), End the Range Here (`]`), Clear the Range. With the first "Export Images / Video..." and "Export Range" (Mark the Start, Mark the End, Clear the Marks), it was hard to see that they work together, and what they do. The user also proposed removing the items of the marks from the menu, leaving the dialog the only entry; but menus are where the shortcuts are found, and grouped in one item they are seen to work together, so this was chosen (2026-11-24, asked by the user checking stage 3, decided on Claude's advice) |
 | D12 | "All" of the export dialog (the current range over the whole log) is renamed "Clear", as Clear the Range of the menu. The tooltips of the buttons Now tell `[` and `]` of the main window (and their menu items) (the same) |
+| D13 | When a video export is stopped, the file being written is removed (an mp4 not written to the end may not play). Image sequences keep their images as before, as each image is complete. With a video for each range, the files finished are kept (2026-11-25, decided by the user at the start of stage 4) |
+| D14 | The dialog has only the quality (CRF) and the speed of the compression (preset) as settings of the videos. The codec is H.264 (libx264), and the format is by the extension of the file (.mp4, .mov, .mkv). If ffmpeg has no libx264, another one it has (mpeg4 and so on) is used, and that is told (the same) |
+| D15 | The default quality of the videos is CRF 18 and preset medium (as planned: hardly any loss to see; the 2D view has many flat colors, so the files stay small) (the same) |
+| D16 | The behavior of "Scale the texts with the image" in the export dialog stays (the dpr of the images is "the height of the image ÷ the height of the 2D view", so the image looks as the view, enlarged), and the check is renamed "Enlarge the texts, logos and lines with the image". The tooltip and the README say that the team logos and the widths of the lines (such as the white circle of a kick) grow too, besides the texts, and that off, they keep their sizes in pixels (smaller and thinner in a large image), and the players move more smoothly. The user saw on the screen that the team logos and the circle of a kick grew larger and thicker too, and asked whether it was meant. Enlarging only the texts (enlarging only the fonts at dpr 1), and separate checks for the texts and the lines, were not taken: the height of the score board, the places of the uniform numbers and so on are laid out in pixels, so many places of the painters would have to change, and they would easily go out of place. The key of the setting `scale_texts` stays (plan A; 2026-11-25, decided by the user at the check of stage 4) |
 
 ### 3.2 Design decisions (Claude; the user confirms them at the start of the stages)
 
@@ -306,7 +310,7 @@ The basics of 4.3 and 4.4, the image sequences of 4.5, and the export dialog of 
 - `src/export_job.{h,cpp}` (new): `ExportJob`. After `start()`, draws an image at a time with `FieldCanvas::renderFrame()` in the event loop and gives it to the sink (`QTimer::singleShot( 0 )`). On BUSY, waits for `readyForFrame`. Signals of the progress and the end. `abort()` tells the end at once.
 - `src/export_dialog.{h,cpp}` (new): `ExportDialog` (modeless).
   - The range: the fields of the start and the end (empty: the first and the last frames), "Now" (the position shown), "All" (both empty). Beside the fields: the position moved to and the game time, that it was moved, and errors.
-  - The images: the size (as the view, 1280×720, 1920×1080, 3840×2160, any). "Scale the texts with the image" makes the dpr "the height of the image ÷ the height of the 2D view" (the texts in the same proportion as in the view); off, dpr 1. The speed and the fps (10 images/s and ×1 by default). The button "the same speed as the monitor's playback" is not made yet.
+  - The images: the size (as the view, 1280×720, 1920×1080, 3840×2160, any). "Scale the texts with the image" (renamed "Enlarge the texts, logos and lines with the image" in stage 4; D16) makes the dpr "the height of the image ÷ the height of the 2D view" (the texts in the same proportion as in the view); off, dpr 1. The speed and the fps (10 images/s and ×1 by default). The button "the same speed as the monitor's playback" is not made yet.
   - The output: the directory, the start of the names, the format. "Name the images by the cycles" can be chosen only when an image is a frame. The names are `PREFIXc01234.00.png` (the stopped frame always in 2 digits or more, for the order of the names to be the order of the frames).
   - The summary: the numbers of the images and the frames, the game time of the range, the size, the length of a video. On an error, its reason, and Export cannot be pressed.
   - Export: the files already there under the names are counted at once, and asked about once (overwrite / another directory / cancel). The first image drawn and compressed, times the images, times 1.1, is the estimate, and a warning is given if it is more than the free space (`QStorageInfo`). The settings are saved, the playback stopped (`stopRequested`), and the `ExportJob` started. The progress is an application-modal `QProgressDialog` (Stop aborts). As `setValue()` of a modal one processes the events, the text is set first and the value last, and at the end it is removed by `deleteLater()` (avoiding the crash found in stage 1 of F5).
@@ -344,6 +348,38 @@ The handy ways to give the ranges of 4.4 were implemented as follows. What was d
   - `log_player_slider` (new): the order and the ends of the positions, the bands (the current one darker), the color of the goals (light and dark), unchanged outside the bands.
   - `export_dialog` (added): the marks (`[` and `]`, the menu, shown in the dialog and on the slider, cleared, gone with another log), the presets (a game of two halves and two goals made of live JSON frames), several ranges (directories of their own, the same names, one sequence, repeated names by the cycles, a wrong range, the buttons of the list).
 - Checked (2026-11-24): with a log of a game of 2022 with extra time, the parts were the first half (frames 0 to 3147), the second half, extra time 1 and extra time 2, and the goal (6713, HELIOS2022) was found. All the goal scenes (6613 to 6763, 201 images with the stopped frames) were exported at 1280×720 in 3.1 s. After D10, a log of 2023 (Oxsy vs YuShan2023) had 4 goals found, whose cycles (437, 797, 1075, 3536) were those of `goal_l` and `goal_r` in the play modes of the log. The 4 ranges (804 images) were exported each in its own directory in 12.9 s. The dialog and the slider were drawn into images and looked at.
+
+### 4.13 The implementation of stage 4 (2026-11-25)
+
+The videos by ffmpeg of 4.5 and the fields of the videos of 4.6 were implemented as follows. What was decided beyond the plan is written too.
+
+- `src/ffmpeg_sink.{h,cpp}` (new): `FfmpegSink`.
+  - The arguments are those of 4.5 (the static `arguments()`). The frames are the lines of `QImage::Format_RGB32` written to the standard input as they are (`pixelFormat()`: `bgr0` on little-endian machines). It does not open for odd sizes of the video.
+  - Backpressure: while two frames or more wait to be written, `write()` answers BUSY. When `bytesWritten` brings it below, it emits `readyForFrame()`.
+  - The end: `finish()` closes the standard input, and when ffmpeg ends with 0, the end is told with the path of the file. When it ends with another code, crashes, or ends before the end of the input, the file being written is removed, and the error is told with the end of the standard error (16 KB kept, 1500 characters shown). A failure to start is told only by the return of `open()` (not told twice).
+  - `abort()`: ffmpeg stopped and the file removed (D13).
+  - Where (`findProgram()`): `ffmpeg` in the PATH when empty, an executable file for a path, and a name without `/` looked for in the PATH.
+  - Probing (`probe()`): `-hide_banner -version` (the first line) and `-encoders` (the names of the video encoders), waiting 5 s at most for each. It chooses libx264, libopenh264 and mpeg4 in this order (the other encoders of D14). mpeg4 gets `-q:v 2`, and libopenh264 `-b:v 10M`.
+- `ExportJob`: the export is a list of "parts" (a sink and its frames; `ExportPart`). The parts are opened, written and finished one after another. When stopped, only the sink of the current part is aborted, and the finished parts are kept (D13). The progress is of all the images, and `done == total` means "the sinks are finishing". The message of the end has a line for each part.
+- `ExportDialog`:
+  - The output: the radio buttons "Images" and "Video (ffmpeg)" switch between the fields of the images (the directory, the names, the format, naming by the cycles) and those of the video: the file and Browse, Quality (CRF; 0 to 51), Encoding speed (the preset), the path of ffmpeg and Browse, and the state of ffmpeg. The texts of the choice of the ranges change too (A video for each, by its name / All in one video). The radio buttons are put in `QButtonGroup`s of two (in the same group box, the choice of the output and that of the ranges were exclusive with each other, and reading the settings lost the choice of the ranges).
+  - ffmpeg is probed when a video is chosen first (not run for those who export only images). It is probed again when its path is edited or chosen. The state shows the version and the encoder used. When it is not found, the reason and "install it, or choose it" are shown in red. Without libx264, the encoder used, and that the CRF and the preset are not used, are shown, and those two fields are disabled.
+  - The video file: `.mp4` is added when it has no extension. Other than `.mp4`, `.mov` and `.mkv` is an error (in the summary, and Export disabled). The videos of the ranges are `FILE-NAME.ext` (the names of the ranges by `safeName()`, with `-2` and so on for the same names; the same `rangeFileNames()` as the directories of the images). With one range, it is `FILE` as it is.
+  - The size: rounded down to even numbers for a video (yuv420p).
+  - The button "As the Playback" (4.6): the speed is set to the step / the interval of the playback (`Options::timerInterval()`; the playback goes a frame each interval).
+  - The summary: for a video, "a video of N s at F images/s" or "K videos, N s in all at F images/s". The errors of ffmpeg and of the extension are in the summary too.
+  - Before the export: if the video files are there, it asks once (overwrite, another file, cancel). The disk space of the videos is not estimated. As it is 2D, `-tune animation` is given.
+  - The progress: titled Export Video. After 2 s, the time left at the speed so far is shown (the "time left" of 4.6; for the images too). After all the images are given, "Finishing the video...".
+  - The end: "Exported the video FILE." or "Exported K videos in DIR.". The status bar has the same one line.
+  - The preparation of the export is split into the images (`prepareImages()`) and the videos (`prepareVideos()`).
+  - The check to enlarge the texts (D16): renamed "Enlarge the texts, logos and lines with the image". The tooltip says that the image looks as the view, enlarged (the texts, the team logos and the widths of the lines grow with the image), and that off, they keep their sizes in pixels (smaller and thinner in a large image) and the players move more smoothly. The behavior, the object name and the key of the setting (`scale_texts`) stay.
+- `Options::ExportSettings` (added): `video`, `video_file`, `crf`, `preset`, `ffmpeg`.
+- CI: the Qt6 job of CMake installs `ffmpeg`, and `RCSSMONITOR_REQUIRE_FFMPEG=1` makes the test with the real ffmpeg run (failed without it). The other jobs skip it.
+- Documents: README (a part on the videos), `docs/build.md` (ffmpeg, optional at run time), NEWS, ChangeLog.
+- Tests:
+  - `ffmpeg_sink` (new): the arguments (the whole of libx264, without tune, `.mkv`, 12.5 fps, mpeg4, libopenh264). Finding the program. Probing (the version, the choice of the three encoders, an audio "libx264" not taken, no encoder, failing, missing). Writing to a fake ffmpeg (a shell script made in the test): the arguments, the number of bytes, the colors. Backpressure (BUSY and `readyForFrame()`; no slow fake ffmpeg was made: checked by writing without running the event loop). Not opened (odd sizes, the directory, not started; a file there kept). Errors (at once, in the middle of the input; the end of the standard error, the file removed). Stopped (the file removed, no end told). Several videos (written one after another; the first kept when the second is stopped). The real ffmpeg (by ffprobe: h264, the size, yuv420p, the number of frames, a length of 0.4 s; mp4 and mkv; the error of a wrong preset).
+  - `export_dialog` (added): a video (the fields switched, the default CRF and preset, the state, `.mp4` added, the CRF and the preset in the arguments, even sizes, the summary, the size of the file, the settings, a wrong extension, asking about a file there), several videos (the names of the files of the ranges, the same names, one for all, the settings read again), no ffmpeg (the state, the summary, Export disabled, the images still exported, the text and the arguments with mpeg4), the button of the playback speed.
+- Checked (2026-11-25): the 4 goal scenes of a log of 2023 (Oxsy vs YuShan2023) were exported at 1280×720 as 4 mp4 files, one for each range, in 1.9 s. By ffprobe, they were H.264 (High), yuv420p, bt709 (the tv range), 10 fps, 201 frames and 20.1 s each. As one video, 804 frames and 80.4 s (the sum). The whole first half (3299 frames with the stopped ones) was exported at 1920×1080 in 14.3 s, 24 MB. Frames taken out of the videos were looked at, and were the same pictures as the view. The dialog was drawn into an image and looked at.
 
 ## 5. Stages
 
@@ -497,3 +533,26 @@ Stage 5 may proceed in parallel with stages 2-4.
 
 - The user checked the menu and the dialog. As the items of the File menu were all in one run and hard to read, the user added separators (between opening, the URL and the lists, saving a copy, the images and the export, and quitting). With the CMake builds of Qt 6 and Qt 5 with the whistle, and of `ENABLE_SOUND=OFF`, all 77 tests passed.
 - Next: the commit and the push of stage 3, and the CI.
+
+### 2026-11-25: Stage 3 committed, and the CI
+
+- Stage 3 was committed as d7a5cd1 and pushed. In the CI, all 5 jobs passed.
+- Next: stage 4 (videos by ffmpeg) is checked with the user before it starts (deciding the item of stage 4 in §3.3).
+
+### 2026-11-25: Stage 4 started
+
+- Stage 4 started at the user's instruction. Decided by the user at the start of the stage: D13 (a stopped video's file removed), D14 (only the quality and the speed as the settings of the videos in the dialog), D15 (CRF 18 and preset medium by default). The user asked whether the options of mp4 are decided later. The proposal of the plan (4.5) was given, and the two points that shape the dialog (D14, D15) were decided here.
+- This working environment has ffmpeg and ffprobe (not at the time of 2.4). The tests with the real ffmpeg run here too.
+
+### 2026-11-25: Stage 4 implemented
+
+- Implemented as in §4.13. Decided beyond the plan: ffmpeg is probed when a video is chosen first. The extensions of the videos are only `.mp4`, `.mov` and `.mkv`. The videos of the ranges are named `FILE-NAME.ext`. The progress shows the time left (for the images too). The field of the preset is named Encoding speed (not to be taken for the Speed of the rate). The Qt6 job of the CI must run the test with the real ffmpeg.
+- Checked: with the CMake builds of Qt 6 and Qt 5 with the whistle, and of `ENABLE_SOUND=OFF`, it built without warnings, and all 78 tests (with the new `ffmpeg_sink`; the test with the real ffmpeg ran too) passed three times each. It built with autotools (Qt 5) too (the only warning is the old one of `configure.ac`). The checks with real logs are in §4.13.
+- Next: the user checks it on the screen (exporting and playing videos, the state without ffmpeg, stopping). Then the commit and the push of stage 4, and the CI.
+
+### 2026-11-25: Stage 4 checked (the check to enlarge the texts)
+
+- The user checked it on the screen, and saw that with "Scale the texts with the image", not only the texts of the score board and the players, but also the team logos grow larger, and the white circle of a kick (a pen 2 pixels wide) grows thicker, and asked whether it was meant. The answer: it works as made (the dpr of the images is "the height of the image ÷ the height of the 2D view", so the image looks as the view, enlarged, and everything sized in the pixels of the screen grows in the same proportion). The name, which spoke of the texts only, was not right.
+- The user chose plan A (D16): the behavior stays, the check is renamed "Enlarge the texts, logos and lines with the image", and the tooltip, the README and the comments of the source are corrected.
+- The user checked the corrected name and explanation, and asked for the commit and the push.
+- Next: stage 4 is committed and pushed, and the CI runs.

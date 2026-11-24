@@ -43,28 +43,50 @@
 
 /*-------------------------------------------------------------------*/
 ExportJob::ExportJob( FieldCanvas & canvas,
-                      FrameSink * sink,
-                      const std::vector< std::size_t > & frames,
+                      const std::vector< ExportPart > & parts,
                       const QSize & pixels,
                       const qreal dpr,
                       const double fps,
                       QObject * parent )
     : QObject( parent ),
       M_canvas( canvas ),
-      M_sink( sink ),
-      M_frames( frames ),
+      M_parts( parts ),
       M_pixels( pixels ),
       M_dpr( dpr ),
       M_fps( fps ),
+      M_part( 0 ),
+      M_done_in_part( 0 ),
       M_done( 0 ),
+      M_total( 0 ),
       M_started( false ),
       M_ended( false )
 {
-    M_sink->setParent( this );
-    connect( M_sink, &FrameSink::readyForFrame,
-             this, [this]() { if ( isRunning() ) step(); } );
-    connect( M_sink, &FrameSink::finished,
-             this, [this]( bool ok, const QString & message ) { end( ok, message ); } );
+    for ( const ExportPart & part : M_parts )
+    {
+        M_total += part.frames.size();
+        FrameSink * sink = part.sink;
+        sink->setParent( this );
+        // only the sink of the part being exported is heard
+        connect( sink, &FrameSink::readyForFrame,
+                 this, [this, sink]() {
+                     if ( isRunning() && M_parts[M_part].sink == sink ) step();
+                 } );
+        connect( sink, &FrameSink::finished,
+                 this, [this, sink]( bool ok, const QString & message ) { partFinished( sink, ok, message ); } );
+    }
+}
+
+/*-------------------------------------------------------------------*/
+ExportJob::ExportJob( FieldCanvas & canvas,
+                      FrameSink * sink,
+                      const std::vector< std::size_t > & frames,
+                      const QSize & pixels,
+                      const qreal dpr,
+                      const double fps,
+                      QObject * parent )
+    : ExportJob( canvas, std::vector< ExportPart >{ ExportPart{ sink, frames } }, pixels, dpr, fps, parent )
+{
+
 }
 
 /*-------------------------------------------------------------------*/
@@ -73,7 +95,7 @@ ExportJob::~ExportJob()
     if ( isRunning() )
     {
         M_ended = true;
-        M_sink->abort();
+        M_parts[M_part].sink->abort();
     }
 }
 
@@ -87,14 +109,35 @@ ExportJob::start()
     }
     M_started = true;
 
-    if ( M_frames.empty() )
+    if ( M_total == 0 )
     {
         QTimer::singleShot( 0, this, [this]() { end( false, tr( "There is no frame to export." ) ); } );
         return;
     }
-    if ( ! M_sink->open( M_pixels, M_fps ) )
+    openPart();
+}
+
+/*-------------------------------------------------------------------*/
+void
+ExportJob::openPart()
+{
+    // the parts without frames are skipped
+    while ( M_part < M_parts.size()
+            && M_parts[M_part].frames.empty() )
     {
-        const QString error = M_sink->errorString();
+        ++M_part;
+    }
+    if ( M_part >= M_parts.size() )
+    {
+        QTimer::singleShot( 0, this, [this]() { end( true, M_messages.join( QLatin1Char( '\n' ) ) ); } );
+        return;
+    }
+
+    M_done_in_part = 0;
+    FrameSink * sink = M_parts[M_part].sink;
+    if ( ! sink->open( M_pixels, M_fps ) )
+    {
+        const QString error = sink->errorString();
         QTimer::singleShot( 0, this, [this, error]() { end( false, error ); } );
         return;
     }
@@ -109,8 +152,11 @@ ExportJob::abort()
     {
         return;
     }
-    M_sink->abort();
-    end( false, tr( "Stopped after %1 of %2 images." ).arg( M_done ).arg( M_frames.size() ) );
+    if ( M_part < M_parts.size() )
+    {
+        M_parts[M_part].sink->abort();
+    }
+    end( false, tr( "Stopped after %1 of %2 images." ).arg( M_done ).arg( M_total ) );
 }
 
 /*-------------------------------------------------------------------*/
@@ -118,29 +164,35 @@ void
 ExportJob::step()
 {
     if ( ! isRunning()
-         || M_done >= M_frames.size() )
+         || M_part >= M_parts.size() )
+    {
+        return;
+    }
+    const ExportPart & part = M_parts[M_part];
+    if ( M_done_in_part >= part.frames.size() )
     {
         return;
     }
 
     if ( M_pending.isNull() )
     {
-        M_pending = M_canvas.renderFrame( M_frames[M_done], M_pixels, M_dpr );
+        M_pending = M_canvas.renderFrame( part.frames[M_done_in_part], M_pixels, M_dpr );
     }
 
-    switch ( M_sink->write( M_pending ) ) {
+    switch ( part.sink->write( M_pending ) ) {
     case FrameSink::ACCEPTED:
         M_pending = QImage();
+        ++M_done_in_part;
         ++M_done;
-        emit progressed( M_done, M_frames.size() );
+        emit progressed( M_done, M_total );
         if ( ! isRunning() )
         {
             // aborted while the progress was told
             return;
         }
-        if ( M_done >= M_frames.size() )
+        if ( M_done_in_part >= part.frames.size() )
         {
-            M_sink->finish(); // finished() of the sink ends this
+            part.sink->finish(); // finished() of the sink goes on
         }
         else
         {
@@ -151,10 +203,32 @@ ExportJob::step()
         // again after readyForFrame()
         break;
     case FrameSink::FAILED:
-        M_sink->abort();
-        end( false, M_sink->errorString() );
+        part.sink->abort();
+        end( false, part.sink->errorString() );
         break;
     }
+}
+
+/*-------------------------------------------------------------------*/
+void
+ExportJob::partFinished( FrameSink * sink,
+                         const bool ok,
+                         const QString & message )
+{
+    if ( ! isRunning()
+         || M_part >= M_parts.size()
+         || M_parts[M_part].sink != sink )
+    {
+        return;
+    }
+    if ( ! ok )
+    {
+        end( false, message );
+        return;
+    }
+    M_messages << message;
+    ++M_part;
+    openPart();
 }
 
 /*-------------------------------------------------------------------*/

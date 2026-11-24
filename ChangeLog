@@ -42,6 +42,10 @@
 	  goals (LogPlayerSlider); the halves, the goal scenes and the frames
 	  around the position shown as presets; several ranges at once
 	  (ExportRangeList), each in its own directory or in one sequence.
+	- export the frames as a video by an external ffmpeg (FfmpegSink):
+	  the raw frames through a pipe, written as they are taken; H.264
+	  by libx264 (or mpeg4); a video for each range, or one for all
+	  (ExportJob in parts). a stopped video is removed.
 	- filter the list of game logs by a team on a side, its opponent,
 	  its result (the winner of a penalty shootout wins) and a range of
 	  dates.

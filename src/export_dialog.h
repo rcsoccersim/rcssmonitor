@@ -34,6 +34,7 @@
 #define RCSSMONITOR_EXPORT_DIALOG_H
 
 #include "export_range.h"
+#include "ffmpeg_sink.h"
 
 #include <QDialog>
 #include <QPointer>
@@ -58,6 +59,7 @@ class QToolButton;
 
 class DispHolder;
 class ExportJob;
+struct ExportPart;
 class ExportRangeList;
 class FieldCanvas;
 struct ExportRangeSpec;
@@ -78,10 +80,12 @@ struct ExportRangeSpec;
 
   The images are drawn by the 2D view (FieldCanvas::renderFrame()), in a
   size and with the texts scaled or not, at a rate (fps and speed:
-  ExportTiming), and named by their numbers or by the cycles. Before the
-  export, the files that are there are told once, and the disk space is
-  estimated. While exporting, a progress dialog (application modal) can
-  stop it.
+  ExportTiming). They are written as image files, named by their numbers
+  or by the cycles, or as a video by an external ffmpeg (FfmpegSink: H.264
+  at a quality and a speed, D14, D15; a video for each range, or one for
+  all). Before the export, the files that are there are told once, and the
+  disk space of the images is estimated. While exporting, a progress
+  dialog (application modal) can stop it.
 */
 class ExportDialog
     : public QDialog {
@@ -120,6 +124,19 @@ private:
 
     QDoubleSpinBox * M_fps_spin;
     QDoubleSpinBox * M_speed_spin;
+    QPushButton * M_playback_speed_button;
+
+    QRadioButton * M_images_radio;
+    QRadioButton * M_video_radio;
+    QWidget * M_images_widget;
+    QWidget * M_video_widget;
+    QLineEdit * M_video_edit;
+    QSpinBox * M_crf_spin;
+    QComboBox * M_preset_combo;
+    QLineEdit * M_ffmpeg_edit;
+    QLabel * M_ffmpeg_label;
+    FfmpegSink::Info M_ffmpeg_info;
+    bool M_ffmpeg_probed;
 
     QLineEdit * M_dir_edit;
     QLineEdit * M_prefix_edit;
@@ -134,6 +151,7 @@ private:
 
     bool M_allowed; //!< false while connected to a server (S1)
     QPointer< ExportJob > M_job;
+    bool M_job_video; //!< the export is of videos
     QPointer< QProgressDialog > M_progress;
 
 public:
@@ -159,7 +177,7 @@ public:
     //! the size of the images (pixels)
     QSize imageSize() const;
 
-    //! the device pixel ratio of the images: the texts as large as in the view, or 1
+    //! the device pixel ratio of the images: the view enlarged (texts, logos, lines), or 1
     qreal imageRatio() const;
 
     //! the file names of the images of the frames (numbers, or cycles)
@@ -182,6 +200,21 @@ public:
     std::vector< ExportGoal > goals() const;
 
     QString directory() const;
+
+    //! a video (by ffmpeg), or images
+    bool isVideo() const;
+
+    //! the video file: with .mp4 when it has no extension
+    QString videoFile() const;
+
+    /*!
+      \brief the video files of the ranges: one for all, or one for each
+      range (FILE-NAME.ext by the names of the ranges)
+    */
+    QStringList videoFiles( const int ranges ) const;
+
+    //! what the ffmpeg of the field can do (probeFfmpeg())
+    const FfmpegSink::Info & ffmpegInfo() const { return M_ffmpeg_info; }
 
     QString summaryText() const;
     QString messageText() const;
@@ -210,6 +243,17 @@ public slots:
     void moveRangeDown();
 
     void setDirectory( const QString & dir );
+
+    //! a video or images
+    void setVideo( const bool video );
+    void setVideoFile( const QString & file );
+    //! the path of ffmpeg (empty: in the PATH), probed again
+    void setFfmpeg( const QString & path );
+    //! run the ffmpeg of the field: its version and its H.264 encoder
+    void probeFfmpeg();
+
+    //! the speed of the export as the monitor plays the log: the step / the interval of the playback
+    void setPlaybackSpeed();
 
     //! false while connected to a server: the export is not started (S1)
     void setExportAllowed( const bool allowed );
@@ -249,8 +293,40 @@ private:
     void showRanges();
 
     void chooseDirectory();
+    void chooseVideoFile();
+    void chooseFfmpeg();
+    //! the fields of the images or of the video
+    void showOutput();
     void showMessage( const QString & text,
                       const bool error );
+
+    //! why the video cannot be made (ffmpeg, the extension), or an empty text
+    QString videoError() const;
+
+    /*!
+      \brief the images to write: their names, the directory (the files
+      there asked about), and the bytes they may take (the disk space asked about)
+      \return false if not exported (told in the message)
+    */
+    bool prepareImages( const std::vector< std::size_t > & frames,
+                        const std::vector< std::vector< std::size_t > > & by_range,
+                        const bool ask,
+                        QStringList * names,
+                        QString * dir_out,
+                        qint64 * bytes );
+
+    /*!
+      \brief the videos to write: ffmpeg, the files (those there asked about),
+      and a part for each video
+      \return false if not exported (told in the message)
+    */
+    bool prepareVideos( const std::vector< std::vector< std::size_t > > & by_range,
+                        const std::vector< std::size_t > & frames,
+                        const bool ask,
+                        std::vector< ExportPart > * parts );
+
+    //! the names of the first ranges in the names of files: safe, and made unique (name, name-2, ...)
+    QStringList rangeFileNames( const int count ) const;
 
     //! the text of a range in the list
     QString rangeText( const ExportRangeSpec & spec ) const;
