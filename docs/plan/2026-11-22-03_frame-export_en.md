@@ -6,7 +6,7 @@
 | Last updated | 2026-11-25 |
 | Target | rcssmonitor develop (5affd90, 20.0.0-beta.1) |
 | Branch | `feature/frame-export` (from develop after the URLs and log lists (F5) are merged; the user creates it on GitHub) |
-| Status | Plan written (2026-11-22). The user created `feature/frame-export` from develop (b3762c3). Stages 1 to 7 are done, and stage 8 (the manual of the export) is written and checked by the user (2026-11-25). The last feature of the overall plan. The progress of each stage is in the table of "Progress" below |
+| Status | Plan written (2026-11-22). The user created `feature/frame-export` from develop (b3762c3). Stages 1 to 8 are done (2026-11-25). Tips are being added to the manual. The last feature of the overall plan. The progress of each stage is in the table of "Progress" below |
 | Japanese version | [2026-11-22-03_frame-export.md](2026-11-22-03_frame-export.md) (same content) |
 | Related | F6 of the overall plan [2026-11-22-00_v20-features_en.md](2026-11-22-00_v20-features_en.md). soccerwindow2's `src/qt/image_save_dialog.cpp` (2D image sequences) |
 
@@ -24,7 +24,8 @@ The work and the conditions of the end of each stage are in §5, and the history
 | 6 | Offscreen 3D drawing (§4.2, §4.15; D17, S10 to S15) | Done | Done | Failed | 89b5168 | Done |
 | — | A fix of the CI (the test `sameInput` of stage 6: the pictures of two drawers compared within a color difference of 2) | Done | — | Passed | 54a88c5 | Done |
 | 7 | The batch command line (§4.7, §4.16; S16 to S20) | Done | Done | Passed | a27b0bc | Done |
-| 8 | The manual of the export `docs/export.md` (§4.17, §5; D18, D19) | In progress | Done | Not yet | — | Not yet |
+| 8 | The manual of the export `docs/export.md` (§4.17, §5; D18, D19) | Done | Done | Passed | 02bd9ad | Done |
+| — | The tips of the manual (editing afterwards with ffmpeg; added to §4.17) | In progress | Done | Not yet | — | Not yet |
 | 9 | The Qt Multimedia prototype (§4.8; D19) | Not started | Not yet | Not yet | — | Not yet |
 | — | Merging into develop (PR, Squash Merge) | Not started | — | — | — | — |
 
@@ -498,6 +499,7 @@ The manual of the export of D18 was written as follows.
 - The words of the screens were copied from the source (`ExportDialog`, `MainWindow`, `ExportRange`, `ExportBatch`). While writing, 3 places that differed from the source were corrected: the form of the preset of a goal (`Goal N: TIME TEAM (SCORE)`), a reason why Export is disabled (not the same name, but the same frames named by the cycles), and when the menu is enabled (with frames and not connected; the frames after a live game too).
 - "Saving images of the view" of the README was renamed "Images and videos", with the main points (saving a frame, the export dialog, ffmpeg, one example of the command line) and a link to the manual. `docs/3d-view.md` and `docs/build.md` (the row of ffmpeg) point to the manual, and NEWS too.
 - Checked: the 4 examples of the command line in the manual were run as written on a real log (4 videos of the goals; the first half at twice the speed, 1650 frames, 165 s; 361 images of 1920×1080 of 1200 to 1500, 31 MB; a 3D video with the close-up camera). The example of the standard error was corrected to the real output. The links in the documents (the table of contents, the other documents and their headings) were checked against the anchors made from the headings (no broken link).
+- Added (2026-11-25, asked for by the user): a section "Tips". The user wanted some seconds of still frames at the start and the end of a video, not as a feature of rcssmonitor; it is answered by editing with ffmpeg afterwards: `tpad` for the still frames, still frames on the video of each range joined by `concat` without encoding again (in the order of the numbers by `ls -v`), one compression from the images (or `--export-crf 0` compressed once at the end), and `fade` from and to black. A longer range (`goals:15:8`) for a lead-in with the game moving is written too. The 5 code blocks of the tips were taken out of the manual and run as written on a real log (all with the exit code 0; still frames make it 2 + 3 s longer, the first 2 s are the same picture, and the game moves from the 21st frame; 4 scenes joined with still frames are 964 frames, 96.4 s).
 
 ## 5. Stages
 
@@ -746,3 +748,10 @@ Stage 5 may proceed in parallel with stages 2-4.
 - Stage 8 (the manual of the export) was written as in §4.17.
 - The user read the manual, and asked for the commit message.
 - Next: stage 8 is committed and pushed, and the CI runs.
+
+### 2026-11-25: Stage 8 committed, and the tips of the manual
+
+- Stage 8 was committed as 02bd9ad and pushed.
+- The user asked: not as a feature of rcssmonitor, but some seconds of still frames at the start and the end of a video are wanted (it starts moving at once and ends as the game does, which feels odd to watch). Editing afterwards with ffmpeg's `tpad` and so on was answered and tried. On the user's instruction, it was put into the manual as "Tips" (added to §4.17).
+- The CI of stage 8 passed in all the jobs (autotools Qt5, CMake Qt6, Qt6 (Ubuntu 24.04), Qt5, distcheck). On the user's instruction, the tips are committed after checking it.
+- Next: the tips committed and pushed, and the CI. Then stage 9 (the Qt Multimedia prototype; its environment decided before it starts).

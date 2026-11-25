@@ -20,6 +20,11 @@ The same export runs from the command line, without a window.
   - [Examples](#examples)
   - [Without a display](#without-a-display)
 - [Sizes of the files](#sizes-of-the-files)
+- [Tips](#tips)
+  - [Still frames at the start and the end](#still-frames-at-the-start-and-the-end)
+  - [Pauses between the scenes](#pauses-between-the-scenes)
+  - [One compression from the images](#one-compression-from-the-images)
+  - [Fading from and to black](#fading-from-and-to-black)
 - [When something goes wrong](#when-something-goes-wrong)
 
 ## What you need
@@ -277,6 +282,73 @@ Some sizes, to plan the disk space (they depend on the game, the settings and th
 | 3D video, 1920 x 1080, 60 images/s, CRF 18: a goal scene (20 s) | about 13 MB | about 15 s with a GPU |
 
 A whole game in 3D images at 30 images/s is about 19,000 images: several GB. A video is much smaller than its images.
+
+## Tips
+
+rcssmonitor exports the frames of the game as they are. Editing the videos is left to ffmpeg: the recipes below use its filters (ffmpeg 4.2 or later).
+They encode again with the settings of rcssmonitor's videos: drop `-tune animation` for a video of the 3D view, and give `-framerate` the images a second of the export (10 for 2D, 30 for 3D by default).
+
+### Still frames at the start and the end
+
+A video starts with the game moving and ends as the play does. The filter `tpad` holds its first frame and its last frame for some seconds (here 2 and 3):
+
+```bash
+ffmpeg -i goals.mp4 \
+  -vf "tpad=start_mode=clone:start_duration=2:stop_mode=clone:stop_duration=3" \
+  -c:v libx264 -crf 18 -preset medium -tune animation -pix_fmt yuv420p \
+  -movflags +faststart goals-still.mp4
+```
+
+`-movflags +faststart` lets a browser play the video while it is loading.
+A longer range (e.g. `goals:15:8`, from 15 s before each goal) gives a longer lead-in, with the game moving.
+
+### Pauses between the scenes
+
+To have still frames around each scene of several ranges in one video, export a video for each range (without `--export-join`), hold the ends of each, and join them without encoding again:
+
+```bash
+rcssmonitor --export-video goals.mp4 --export-range goals GAME_LOG.rcg.gz
+for f in $(ls -v goals-goal*.mp4); do
+  ffmpeg -y -i "$f" \
+    -vf "tpad=start_mode=clone:start_duration=2:stop_mode=clone:stop_duration=2" \
+    -c:v libx264 -crf 18 -preset medium -tune animation -pix_fmt yuv420p "pad-$f"
+done
+printf "file '%s'\n" $(ls -v pad-goals-goal*.mp4) > list.txt
+ffmpeg -f concat -safe 0 -i list.txt -c copy -movflags +faststart goals-all.mp4
+```
+
+`ls -v` puts the scenes in the order of their numbers (`goal10` after `goal9`).
+The videos joined by `-c copy` must have the same size, rate and encoding, as these do.
+
+### One compression from the images
+
+Each recipe above compresses a compressed video again. At CRF 18 it is hard to see, but the images exported by rcssmonitor can be made into the video at once instead:
+
+```bash
+rcssmonitor --export-images frames --export-range 1200-1500 GAME_LOG.rcg.gz
+ffmpeg -framerate 10 -i frames/image-%05d.png \
+  -vf "tpad=start_mode=clone:start_duration=2:stop_mode=clone:stop_duration=3" \
+  -c:v libx264 -crf 18 -preset medium -tune animation -pix_fmt yuv420p \
+  -movflags +faststart scene.mp4
+```
+
+Or export the video without loss first (`--export-crf 0`, a large file), and compress it once at the end.
+
+### Fading from and to black
+
+The filter `fade` fades in at the start and out at the end; the fade out needs the length of the video. With the still frames, in one go (a video of 20.1 s, made 25.1 s long):
+
+```bash
+ffmpeg -i goals.mp4 \
+  -vf "tpad=start_mode=clone:start_duration=2:stop_mode=clone:stop_duration=3,fade=t=in:st=0:d=1,fade=t=out:st=24.1:d=1" \
+  -c:v libx264 -crf 18 -preset medium -tune animation -pix_fmt yuv420p goals-faded.mp4
+```
+
+The length of a video, to find where the fade out starts (its length - 1 s):
+
+```bash
+ffprobe -v error -show_entries format=duration -of csv=p=0 goals-still.mp4
+```
 
 ## When something goes wrong
 
