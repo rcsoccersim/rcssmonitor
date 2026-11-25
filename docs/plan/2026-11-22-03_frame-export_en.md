@@ -6,7 +6,7 @@
 | Last updated | 2026-11-25 |
 | Target | rcssmonitor develop (5affd90, 20.0.0-beta.1) |
 | Branch | `feature/frame-export` (from develop after the URLs and log lists (F5) are merged; the user creates it on GitHub) |
-| Status | Plan written (2026-11-22). The user created `feature/frame-export` from develop (b3762c3). Stages 1 to 8 and the tips of the manual are done. Stage 9 (the Qt Multimedia prototype) is put off as a future TODO (2026-11-25; D20). Next: merging into develop. The last feature of the overall plan. The progress of each stage is in the table of "Progress" below |
+| Status | Plan written (2026-11-22). The user created `feature/frame-export` from develop (b3762c3). Stages 1 to 8 and the tips of the manual are done. Stage 9 (the Qt Multimedia prototype) is put off as a future TODO (D20). It is merged into develop by PR #76 with Squash Merge (2026-11-25). The last feature of the overall plan. The progress of each stage is in the table of "Progress" below |
 | Japanese version | [2026-11-22-03_frame-export.md](2026-11-22-03_frame-export.md) (same content) |
 | Related | F6 of the overall plan [2026-11-22-00_v20-features_en.md](2026-11-22-00_v20-features_en.md). soccerwindow2's `src/qt/image_save_dialog.cpp` (2D image sequences) |
 
@@ -27,7 +27,8 @@ The work and the conditions of the end of each stage are in §5, and the history
 | 8 | The manual of the export `docs/export.md` (§4.17, §5; D18, D19) | Done | Done | Passed | 02bd9ad | Done |
 | — | The tips of the manual (editing afterwards with ffmpeg; added to §4.17) | Done | Done | Passed | b976a75 | Done |
 | 9 | The Qt Multimedia prototype (§4.8; D19, D20; put off: T1 of the TODO) | — | — | — | — | — |
-| — | Merging into develop (PR, Squash Merge) | Not started | — | — | — | — |
+| — | The list of the TODO `docs/dev/todo.md` and the prototype put off (D20, U21 of the overall plan) | Done | Done | Passed | 575f5a2 | Done |
+| — | Merging into develop (PR #76, Squash Merge) | In progress | Done | — | — | — |
 
 ## 1. Goal and approach
 
@@ -769,3 +770,11 @@ Stage 5 may proceed in parallel with stages 2-4.
 - On the user's request, porting to the web version (rcssmonitor-web) is written in §2 too (W1 to W11). Of the features of 20.0.0, the icons (F2) and taking in and listing the logs (F5) go into it, and the referee's whistle (F4) and the export (F6) do not (U21 of the overall plan). Written after checking the web version as it is: it has its own SVG icons, the color scheme of the OS, and opening logs from URLs (the pages of GitHub, Git LFS), and no list of logs, flying ball, delayed live view nor figure packs.
 - As the user pointed out, §0.2 "To bring into the web version" of the 3D plan (19 items) was moved to §2 of the list of the TODO too (W12 to W29; the flying ball and the delayed live view into W7 and W8, the figure packs into W9). §0.2 stays as the detailed record, with the W number added to each item. The user decided that W3 (choosing the color scheme by hand in the web version) stays undecided.
 - Next: the list of the TODO and the plans committed and pushed, and the CI. Then merging into develop (the title and the description of the PR, the record of the merge).
+
+### 2026-11-25: Merging into develop (PR #76)
+
+- The commit of the list of the TODO, 575f5a2, was pushed. The CI passed in all its 5 jobs.
+- PR: the user made PR #76 ("Export images and videos of the 2D and 3D views, from a dialog or the command line") from `feature/frame-export` into develop, with the title and the description proposed by Claude. The branch has 12 commits besides this record (the plans tidied 9a1853b; stages 1 to 8 e9a9e96, d7adf47, d7a5cd1, 83ab35e, ad3687b, 89b5168, a27b0bc, 02bd9ad; the fix of the CI 54a88c5; the tips b976a75; the list of the TODO 575f5a2).
+- The merge is Squash Merge (§3 of the overall plan: one feature, the image and video export, with the history of its stages in this plan). Its title is the PR's.
+- This record was committed onto the branch of PR #76 before the merge (CLAUDE.md). So that it stays true after the merge, the commit of the merge is not written. The row of the merge in the table of the progress becomes "Done" in the first commit of the next branch made from develop.
+- Next: when PR #76 is merged, F1 to F6 are all in, so on to the release of 20.0.0 (§4 of the overall plan, `docs/dev/release.md`, with the year of the Copyright, the tentative date of the ChangeLog and the URL of the browser version).
