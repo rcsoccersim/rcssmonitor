@@ -6,7 +6,7 @@
 | Last updated | 2026-11-25 |
 | Target | rcssmonitor develop (5affd90, 20.0.0-beta.1) |
 | Branch | `feature/frame-export` (from develop after the URLs and log lists (F5) are merged; the user creates it on GitHub) |
-| Status | Plan written (2026-11-22). The user created `feature/frame-export` from develop (b3762c3). Stages 1 to 8 are done (2026-11-25). Tips are being added to the manual. The last feature of the overall plan. The progress of each stage is in the table of "Progress" below |
+| Status | Plan written (2026-11-22). The user created `feature/frame-export` from develop (b3762c3). Stages 1 to 8 and the tips of the manual are done. Stage 9 (the Qt Multimedia prototype) is put off as a future TODO (2026-11-25; D20). Next: merging into develop. The last feature of the overall plan. The progress of each stage is in the table of "Progress" below |
 | Japanese version | [2026-11-22-03_frame-export.md](2026-11-22-03_frame-export.md) (same content) |
 | Related | F6 of the overall plan [2026-11-22-00_v20-features_en.md](2026-11-22-00_v20-features_en.md). soccerwindow2's `src/qt/image_save_dialog.cpp` (2D image sequences) |
 
@@ -25,8 +25,8 @@ The work and the conditions of the end of each stage are in §5, and the history
 | — | A fix of the CI (the test `sameInput` of stage 6: the pictures of two drawers compared within a color difference of 2) | Done | — | Passed | 54a88c5 | Done |
 | 7 | The batch command line (§4.7, §4.16; S16 to S20) | Done | Done | Passed | a27b0bc | Done |
 | 8 | The manual of the export `docs/export.md` (§4.17, §5; D18, D19) | Done | Done | Passed | 02bd9ad | Done |
-| — | The tips of the manual (editing afterwards with ffmpeg; added to §4.17) | In progress | Done | Not yet | — | Not yet |
-| 9 | The Qt Multimedia prototype (§4.8; D19) | Not started | Not yet | Not yet | — | Not yet |
+| — | The tips of the manual (editing afterwards with ffmpeg; added to §4.17) | Done | Done | Passed | b976a75 | Done |
+| 9 | The Qt Multimedia prototype (§4.8; D19, D20; put off: T1 of the TODO) | — | — | — | — | — |
 | — | Merging into develop (PR, Squash Merge) | Not started | — | — | — | — |
 
 ## 1. Goal and approach
@@ -102,6 +102,7 @@ File > Save Image of soccerwindow2 (`../../rctools/soccerwindow2`; `src/qt/image
 | D17 | The export dialog chooses the 2D or the 3D view: the one shown on the screen when the dialog is opened, and then changed in the dialog. The choice before is not remembered (plan A; 2026-11-25, decided by the user at the start of stage 6) |
 | D18 | The export has become complex to use, so a manual of its own, `docs/export.md`, is written: saving a frame, the export dialog (the ranges, the marks, the presets, the view, the size, the rate, images and videos, ffmpeg), 3D, the command line (the options, the form of the ranges, examples, the display and xvfb, the exit codes), and what to do when it goes wrong. The README keeps the main points and a link to the manual (stage 8; stage 9 before D19; 2026-11-25, asked for by the user at the check of stage 7) |
 | D19 | The manual of the export (D18) is written before the Qt Multimedia prototype. The stages are renumbered: the manual is stage 8, and the prototype stage 9. The use is already complete, and it is not known whether the prototype is kept; if it is, its part is added to the manual (plan A; 2026-11-25, decided by the user before the commit of stage 7) |
+| D20 | The Qt Multimedia prototype (stage 9) is put off, as its work costs much, and becomes a future TODO (T1 of `docs/dev/todo_en.md`). F6 ends with stages 1 to 8, and is merged into develop. The TODO of the whole of rcssmonitor is kept in `docs/dev/todo.md` and `todo_en.md`, gathered from what the plans left out (2026-11-25, decided by the user after stage 8) |
 
 ### 3.2 Design decisions (Claude; the user confirms them at the start of the stages)
 
@@ -131,7 +132,7 @@ File > Save Image of soccerwindow2 (`../../rctools/soccerwindow2`; `src/qt/image
 ### 3.3 To decide at the start of the stages
 
 - On cancel, whether to delete the partial file or keep it as a shorter video (stage 4).
-- How to build the prototype with Qt 6.8 or later (stage 9): aqtinstall into `~/Qt`, an ubuntu:26.04 container, or a CI job with `continue-on-error`.
+- How to build the prototype with Qt 6.8 or later (stage 9; not decided, as it was put off; D20, T1 of the TODO): aqtinstall into `~/Qt`, an ubuntu:26.04 container, or a CI job with `continue-on-error`.
 - Whether the manual of the export (D18) is written before the Qt Multimedia prototype (decided: before it; D19).
 - Shortcuts of the menu items (ones that do not clash with the existing shortcuts), including those that set the start and end marks of a range (stage 3).
 - The default seconds of goal scenes (proposed: from 10 seconds before to 5 seconds after the goal) and around the current position (stage 3).
@@ -515,7 +516,7 @@ Every stage builds and passes the CI.
 | 6 | `OffscreenView3D`, `gl/offscreen_target`, 3D in the dialog, the 3D Save Image, clearing the caches and `snap()`ping the camera at the start of a range | The test that the same input gives the same image passes in the CI (llvmpipe). 1080p at 60 fps can be exported. In a video of joined ranges, the camera does not glide at the boundaries. No effect on the 3D on the screen |
 | 7 | The batch command line (`--export-range` etc.), `docs/build.md` and README | A test of the 2D batch under offscreen. The user checks 3D under xvfb |
 | 8 | The manual of the export `docs/export.md` (D18): saving a frame, the export dialog, 3D, images, videos and ffmpeg, the command line, examples, what to do when it goes wrong. The README keeps the main points and a link; `docs/3d-view.md` and `docs/build.md` point to it | The operations and the words of the screens written match the application (the examples written are run to check them). No disagreement with the README. The user reads it and checks it |
-| 9 | The Qt Multimedia prototype (OFF), its test, the measurements of §4.8 | Decide whether to keep it, and record it |
+| 9 | The Qt Multimedia prototype (OFF), its test, the measurements of §4.8 (put off; D20) | Decide whether to keep it, and record it |
 
 Stage 5 may proceed in parallel with stages 2-4.
 
@@ -544,7 +545,7 @@ Stage 5 may proceed in parallel with stages 2-4.
 | `src/log_player_slider.{h,cpp}` | The band of the range (and the goal marks; §3.3) |
 | `src/view3d/view_3d_renderer.{h,cpp}`, `src/view3d/offscreen_view_3d.{h,cpp}`, `src/view3d/gl/offscreen_target.{h,cpp}` (new) | Offscreen 3D drawing |
 | `src/view3d/field_view_3d.{h,cpp}`, `src/view3d/cameras_3d.{h,cpp}`, `src/team_graphic_painter.{h,cpp}` | Refactoring, `snap()`, `update()` |
-| `src/qt_multimedia_sink.{h,cpp}` (new, prototype) | §4.8 |
+| `src/qt_multimedia_sink.{h,cpp}` (new, prototype) | §4.8 (put off; D20) |
 | `src/main_window.{h,cpp}`, `src/main.cpp` | Menus, range marks, batch |
 | `CMakeLists.txt`, `src/CMakeLists.txt`, `cmake-config.h.in`, `src/Makefile.am` | Build |
 | `test/`, `.github/workflows/ci.yml` | §6, ffmpeg in the CI |
@@ -755,3 +756,16 @@ Stage 5 may proceed in parallel with stages 2-4.
 - The user asked: not as a feature of rcssmonitor, but some seconds of still frames at the start and the end of a video are wanted (it starts moving at once and ends as the game does, which feels odd to watch). Editing afterwards with ffmpeg's `tpad` and so on was answered and tried. On the user's instruction, it was put into the manual as "Tips" (added to §4.17).
 - The CI of stage 8 passed in all the jobs (autotools Qt5, CMake Qt6, Qt6 (Ubuntu 24.04), Qt5, distcheck). On the user's instruction, the tips are committed after checking it.
 - Next: the tips committed and pushed, and the CI. Then stage 9 (the Qt Multimedia prototype; its environment decided before it starts).
+
+### 2026-11-25: The tips of the manual committed, and the CI
+
+- The tips were committed as b976a75 and pushed. The CI passed in all the jobs (autotools Qt5, CMake Qt6, Qt6 (Ubuntu 24.04), Qt5, distcheck).
+- Next: stage 9 (the Qt Multimedia prototype). Before it starts, the user is asked about the environment of the prototype (§3.3).
+
+### 2026-11-25: The prototype put off, and the list of the TODO
+
+- The user decided: as the work of the prototype costs much, stage 9 (the Qt Multimedia prototype) is put off as a future TODO (D20). F6 ends with stages 1 to 8.
+- The user asked how to record the TODO of the whole of rcssmonitor. The user chose Claude's proposal (`docs/dev/todo.md` and `todo_en.md` in the repository: a table of an item a row, numbers not renumbered, with the states and the origins). 17 items (T1 to T17, with the reasons of those put off) were gathered from what the plans left out. `docs/dev` is left out of the distribution (`.gitattributes`).
+- On the user's request, porting to the web version (rcssmonitor-web) is written in §2 too (W1 to W11). Of the features of 20.0.0, the icons (F2) and taking in and listing the logs (F5) go into it, and the referee's whistle (F4) and the export (F6) do not (U21 of the overall plan). Written after checking the web version as it is: it has its own SVG icons, the color scheme of the OS, and opening logs from URLs (the pages of GitHub, Git LFS), and no list of logs, flying ball, delayed live view nor figure packs.
+- As the user pointed out, §0.2 "To bring into the web version" of the 3D plan (19 items) was moved to §2 of the list of the TODO too (W12 to W29; the flying ball and the delayed live view into W7 and W8, the figure packs into W9). §0.2 stays as the detailed record, with the W number added to each item. The user decided that W3 (choosing the color scheme by hand in the web version) stays undecided.
+- Next: the list of the TODO and the plans committed and pushed, and the CI. Then merging into develop (the title and the description of the PR, the record of the merge).
