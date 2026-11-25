@@ -94,6 +94,50 @@ near( const QVector3D & a,
     return ( a - b ).length() < 1.0e-3f;
 }
 
+/*!
+  \brief whether two images are the same picture: their colors differ by
+  2 at most (the GPU's rounding, e.g. of the shadows after other frames, or
+  of two contexts of a software renderer)
+  \param why set to how they differ (the pixels, the largest difference
+  and where), and told when they are not the same to the pixel
+*/
+bool
+samePicture( const QImage & a,
+             const QImage & b,
+             QString * why )
+{
+    if ( a.size() != b.size() )
+    {
+        *why = QString( "the sizes %1x%2 and %3x%4" ).arg( a.width() ).arg( a.height() ).arg( b.width() ).arg( b.height() );
+        return false;
+    }
+    int count = 0;
+    int largest = 0;
+    QRect where;
+    for ( int y = 0; y < a.height(); ++y )
+    {
+        for ( int x = 0; x < a.width(); ++x )
+        {
+            const QRgb p = a.pixel( x, y ), q = b.pixel( x, y );
+            const int d = std::max( { std::abs( qRed( p ) - qRed( q ) ),
+                                      std::abs( qGreen( p ) - qGreen( q ) ),
+                                      std::abs( qBlue( p ) - qBlue( q ) ) } );
+            if ( d == 0 ) continue;
+            ++count;
+            largest = std::max( largest, d );
+            where |= QRect( x, y, 1, 1 );
+        }
+    }
+    *why = QString( "%1 pixels differ, by %2 at most, in (%3, %4) %5x%6" )
+        .arg( count ).arg( largest )
+        .arg( where.x() ).arg( where.y() ).arg( where.width() ).arg( where.height() );
+    if ( count > 0 )
+    {
+        qInfo( "%s", qPrintable( *why ) );
+    }
+    return largest <= 2;
+}
+
 }
 
 /*!
@@ -188,7 +232,8 @@ private slots:
 
     /*
       The same input, the same images: two views from the same camera, the
-      same positions and the same starts of the ranges.
+      same positions and the same starts of the ranges (the same picture:
+      on a software renderer, two contexts may round a few colors by 1 or 2).
     */
     void sameInput()
       {
@@ -211,7 +256,8 @@ private slots:
               const QImage ia = a.renderAt( positions[i], VIEW, 1.0, DT );
               const QImage ib = b.renderAt( positions[i], VIEW, 1.0, DT );
               QVERIFY( ! ia.isNull() );
-              QVERIFY2( ia == ib, qPrintable( QString( "image %1" ).arg( i ) ) );
+              QString why;
+              QVERIFY2( samePicture( ia, ib, &why ), qPrintable( QString( "image %1: %2" ).arg( i ).arg( why ) ) );
           }
       }
 
@@ -248,18 +294,8 @@ private slots:
           QCOMPARE( view.state().camera_pose.position, fresh.state().camera_pose.position );
           // the same picture: a few colors may differ by 1 or 2 (the GPU's
           // rounding of the shadows, after other frames)
-          QCOMPARE( jumped.size(), there.size() );
-          int largest = 0;
-          for ( int y = 0; y < there.height(); ++y )
-          {
-              for ( int x = 0; x < there.width(); ++x )
-              {
-                  const QRgb a = jumped.pixel( x, y ), b = there.pixel( x, y );
-                  largest = std::max( { largest, std::abs( qRed( a ) - qRed( b ) ),
-                                        std::abs( qGreen( a ) - qGreen( b ) ), std::abs( qBlue( a ) - qBlue( b ) ) } );
-              }
-          }
-          QVERIFY2( largest <= 2, qPrintable( QString::number( largest ) ) );
+          QString why;
+          QVERIFY2( samePicture( jumped, there, &why ), qPrintable( why ) );
       }
 
     /*

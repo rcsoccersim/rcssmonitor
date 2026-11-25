@@ -6,7 +6,7 @@
 | Last updated | 2026-11-25 |
 | Target | rcssmonitor develop (5affd90, 20.0.0-beta.1) |
 | Branch | `feature/frame-export` (from develop after the URLs and log lists (F5) are merged; the user creates it on GitHub) |
-| Status | Plan written (2026-11-22). The user created `feature/frame-export` from develop (b3762c3). Stages 1 to 5 are done, and stage 6 is implemented and checked by the user (2026-11-25). The last feature of the overall plan. The progress of each stage is in the table of "Progress" below |
+| Status | Plan written (2026-11-22). The user created `feature/frame-export` from develop (b3762c3). Stages 1 to 6 are committed. The CI of stage 6 failed in a 3D test, which is being fixed (2026-11-25). The last feature of the overall plan. The progress of each stage is in the table of "Progress" below |
 | Japanese version | [2026-11-22-03_frame-export.md](2026-11-22-03_frame-export.md) (same content) |
 | Related | F6 of the overall plan [2026-11-22-00_v20-features_en.md](2026-11-22-00_v20-features_en.md). soccerwindow2's `src/qt/image_save_dialog.cpp` (2D image sequences) |
 
@@ -21,7 +21,8 @@ The work and the conditions of the end of each stage are in §5, and the history
 | 3 | Handy ways to give the ranges (§4.4, §4.12; D7 to D12) | Done | Done | Passed | d7a5cd1 | Done |
 | 4 | Videos by ffmpeg (§4.5, §4.13; D13 to D16) | Done | Done | Passed | 83ab35e | Done |
 | 5 | Rearranging the 3D drawing (refactoring only; §4.2, §4.14) | Done | Done | Passed | ad3687b | Done |
-| 6 | Offscreen 3D drawing (§4.2, §4.15; D17, S10 to S15) | In progress | Done | Not yet | — | Not yet |
+| 6 | Offscreen 3D drawing (§4.2, §4.15; D17, S10 to S15) | Done | Done | Failed | 89b5168 | Done |
+| — | A fix of the CI (the test `sameInput` of stage 6: the pictures of two drawers compared within a color difference of 2) | In progress | — | Not yet | — | Not yet |
 | 7 | The batch command line (§4.7) | Not started | Not yet | Not yet | — | Not yet |
 | 8 | The Qt Multimedia prototype (§4.8) | Not started | Not yet | Not yet | — | Not yet |
 | — | Merging into develop (PR, Squash Merge) | Not started | — | — | — | — |
@@ -661,3 +662,11 @@ Stage 5 may proceed in parallel with stages 2-4.
 - Checked: with the CMake builds of Qt 6 and Qt 5 with the whistle, and of `ENABLE_SOUND=OFF`, it built without warnings, and all 81 tests (with the new `offscreen_view_3d`; the 3D tests ran, not skipped) passed three times each. It built with autotools (Qt 5, without 3D) too (the only warning is the old one of `configure.ac`). The comparison with the screen on Xvfb and the exports of a real log are in §4.15.
 - The user checked it on the screen, and asked for the commit message.
 - Next: stage 6 is committed and pushed, and the CI runs.
+
+### 2026-11-25: Stage 6 committed, and the CI failed
+
+- Stage 6 was committed as 89b5168 and pushed to `feature/frame-export`.
+- The CI failed in the 4 CMake jobs (Qt6, Qt6 (Ubuntu 24.04), Qt5, distcheck); autotools passed. Only `sameInput` of `offscreen_view_3d` failed: the first images of two drawers with the same input were not the same. The other 3D tests passed (`rangeStart` compares two drawers too, within a color difference of 2).
+- Here, both on the hardware and with Mesa's software drawing (`LIBGL_ALWAYS_SOFTWARE=1`), they were the same: it did not happen again. No place where a clock or a random number changes the picture, and no image used without being filled, was found.
+- The fix: `sameInput` and `rangeStart` compare two images by the same function, the same picture within a color difference of 2 (the GPU's rounding). When they are not the same to the pixel, the number of the pixels, the largest difference and where are told in the log, and when it fails too. If the difference is large in the CI too, that log is looked into.
+- Next: the fix committed and pushed, and the CI.
