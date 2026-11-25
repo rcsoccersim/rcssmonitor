@@ -110,38 +110,19 @@ A click on a column's header sorts the logs by the column.
 - The archive, and any directory on a web server, is read a directory at a time, when it is opened, and kept in `~/.cache/rcssmonitor/archive` for a day (`Reload` reads the directories again as they are opened). When it cannot be read, the list kept is shown, however old. The sizes on a page of links are as the page shows them: rounded by Apache (e.g. `5.0M`), and none by some servers.
 - The filter applies to the logs listed: a directory of the archive not read yet is shown until it is opened.
 
-### Saving images of the view
+### Images and videos
 
-`File` -> `Save Image of This Frame...` (`Ctrl+Shift+I`) saves the frame shown in the view, 2D or 3D, to an image file (PNG, or JPEG by the extension), as large as the view: on a high-DPI screen, with as many pixels as the screen shows. The 3D view is drawn again offscreen with its camera as it is, without the frames per second.
-The default name is the game log's name and the cycle, e.g. `202607050404-HELIOS2026_0-vs-YuShan2026_1-301.png`.
-The texts are drawn with grayscale antialiasing.
+`File` -> `Save Image of This Frame...` (`Ctrl+Shift+I`) saves the frame shown, in the 2D or 3D view, as a PNG (or JPEG) image as large as the view.
 
-`File` -> `Export Images / Video` -> `Open the Export Dialog...` (`Ctrl+Shift+E`) exports a range of the frames of the game log as image files (PNG or JPEG) or as a video, drawn by the 2D view or by the 3D view:
+`File` -> `Export Images / Video` -> `Open the Export Dialog...` (`Ctrl+Shift+E`) exports ranges of the game log as images or as videos, drawn by the 2D view or the 3D view: the whole log, a half, the goal scenes, or any range, marked by `[` and `]` in the main window too. The videos are written by [ffmpeg](https://ffmpeg.org/), installed separately (`sudo apt install ffmpeg` on Ubuntu).
 
-- The range: the start and the end are cycles (`1234`) or stopped frames (`1234.3`, as the status bar shows them), empty for the first and the last frames. A cycle as the end includes its stopped frames. `Now` takes the position shown: the dialog stays open while you move through the log. `Clear` empties both.
-- `[` and `]` (`File` -> `Export Images / Video` -> `Start the Range Here`, `End the Range Here`) mark the start and the end of the range at the position shown, with the dialog closed too; `Clear the Range` empties both. The slider shows the ranges marked as bands, and the goals as orange ticks.
-- `Presets` gives the whole log, a half (the extra time and the penalty shootout too), a goal scene (from 10 s before the goal to 5 s after it, by default), all the goals as a range each, or the frames around the position shown (5 s before and after).
-- Several ranges can be exported at once (`Add`, `Remove`, `Up`, `Down`): each in its own directory (or video) by its name, or all in one sequence (or video). The ranges are forgotten when another game log is opened.
-- `View`: the 2D view or the 3D view, the one shown when the dialog is opened. The 3D view is drawn offscreen (it needs OpenGL 3.3, as the 3D view itself), between the frames: at 30 images/s by default, the players and the ball move smoothly. Its camera starts as the 3D view's (or the camera of the settings), follows the ball as on the screen, and jumps at the start of each range, not gliding from one scene to the next. The 3D images are 3840 × 2160 at most.
-- The size: as the view, 1280 × 720, 1920 × 1080, 3840 × 2160, or any (even numbers for a video). `Enlarge the texts, logos and lines with the image` makes the image look as the view, enlarged: the texts, the team logos and the widths of the lines (such as the circle of a kick) grow with the image. Off, they keep their sizes in pixels, smaller and thinner in a large image, and the players move more smoothly.
-- The rate: the images a second (one for each view: 10 for the 2D view, 30 for the 3D view by default) and the speed (10 images/s at × 1 draws each frame once). `As the Playback` sets the speed at which the monitor plays the game log.
-- The images are named by their numbers (`image-00000.png`), or by the cycles (`image-c01234.00.png`) when an image is a frame. The files already there are told once before the export, and the disk space is estimated.
-- A video is written by [ffmpeg](https://ffmpeg.org/), installed separately (`sudo apt install ffmpeg` on Ubuntu): in the PATH, or chosen in the dialog. It is H.264 (libx264), in the format of the file's extension (`.mp4`, `.mov` or `.mkv`; `.mp4` when there is none), without sound. `Quality (CRF)` is 18 by default (smaller is better and larger; ffmpeg's default is 23), and `Encoding speed` is `medium` (slower makes smaller files of the same quality). The dialog shows the version of ffmpeg; without libx264, it uses MPEG-4 Part 2 (mpeg4) and tells so. A video stopped before its end is removed.
-- It is not available while connected to a server. The view and the frame shown do not change.
-
-The same export runs from the command line, without a window, and quits with the exit code 0 when it is done (1 with the reason on the standard error otherwise):
+The same export runs from the command line, without a window:
 
 ```bash
 rcssmonitor --export-video goals.mp4 --export-range goals GAME_LOG.rcg.gz
-rcssmonitor --export-images frames --export-range 1200-1500 --export-size 1920x1080 GAME_LOG.rcg.gz
-xvfb-run -a rcssmonitor --export-video goals-3d.mp4 --export-view 3d --export-range goals:5:3 --export-join GAME_LOG.rcg.gz
 ```
 
-- `--export-video FILE` or `--export-images DIR`: a video by ffmpeg (`.mp4`, `.mov` or `.mkv`), or images.
-- `--export-range RANGE`, given again for more ranges (the whole log by default): `START-END` (cycles, or `1234.3` for a stopped frame; an end may be empty, as `-300` or `3000-`), `all`, `first-half`, `second-half`, `extra-1`, `extra-2`, `penalties`, or `goals[:BEFORE:AFTER]` (a range for each goal, from 10 s before it to 5 s after it by default). Several ranges are written each in its own video (`FILE-NAME.ext`) or directory (`DIR/NAME`), or in one with `--export-join`.
-- `--export-view 2d|3d` (2d by default), `--export-fps` (10 for 2D, 30 for 3D by default), `--export-speed` (1), `--export-size WxH` (1280x720), `--export-scale R` (the images look as a view of their size / R, enlarged R times: the height / 720 by default), `--export-image-format png|jpg`, `--export-image-prefix` (`image-`), `--export-crf` (18), `--export-preset` (`medium`), `--ffmpeg PATH`.
-- It uses the settings of the monitor (the colors, the fonts, the options of the 3D view, `--camera-3d`), and saves nothing. The files there are overwritten.
-- It needs no display for the 2D view. The 3D view needs OpenGL 3.3 and an X display: on a machine without one, run it under `xvfb-run` (`sudo apt install xvfb`).
+See [docs/export.md](docs/export.md) for the export dialog, the 3D view, the rates and the lengths, the options of the command line, and what to do when something goes wrong.
 
 ### The 3D view
 

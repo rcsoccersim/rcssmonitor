@@ -6,7 +6,7 @@
 | Last updated | 2026-11-25 |
 | Target | rcssmonitor develop (5affd90, 20.0.0-beta.1) |
 | Branch | `feature/frame-export` (from develop after the URLs and log lists (F5) are merged; the user creates it on GitHub) |
-| Status | Plan written (2026-11-22). The user created `feature/frame-export` from develop (b3762c3). Stages 1 to 6 are done, and stage 7 is implemented (2026-11-25; before the user checks it). The last feature of the overall plan. The progress of each stage is in the table of "Progress" below |
+| Status | Plan written (2026-11-22). The user created `feature/frame-export` from develop (b3762c3). Stages 1 to 7 are done, and stage 8 (the manual of the export) is written and checked by the user (2026-11-25). The last feature of the overall plan. The progress of each stage is in the table of "Progress" below |
 | Japanese version | [2026-11-22-03_frame-export.md](2026-11-22-03_frame-export.md) (same content) |
 | Related | F6 of the overall plan [2026-11-22-00_v20-features_en.md](2026-11-22-00_v20-features_en.md). soccerwindow2's `src/qt/image_save_dialog.cpp` (2D image sequences) |
 
@@ -23,8 +23,8 @@ The work and the conditions of the end of each stage are in §5, and the history
 | 5 | Rearranging the 3D drawing (refactoring only; §4.2, §4.14) | Done | Done | Passed | ad3687b | Done |
 | 6 | Offscreen 3D drawing (§4.2, §4.15; D17, S10 to S15) | Done | Done | Failed | 89b5168 | Done |
 | — | A fix of the CI (the test `sameInput` of stage 6: the pictures of two drawers compared within a color difference of 2) | Done | — | Passed | 54a88c5 | Done |
-| 7 | The batch command line (§4.7, §4.16; S16 to S20) | In progress | Done | Not yet | — | Not yet |
-| 8 | The manual of the export `docs/export.md` (§5; D18, D19) | Not started | Not yet | Not yet | — | Not yet |
+| 7 | The batch command line (§4.7, §4.16; S16 to S20) | Done | Done | Passed | a27b0bc | Done |
+| 8 | The manual of the export `docs/export.md` (§4.17, §5; D18, D19) | In progress | Done | Not yet | — | Not yet |
 | 9 | The Qt Multimedia prototype (§4.8; D19) | Not started | Not yet | Not yet | — | Not yet |
 | — | Merging into develop (PR, Squash Merge) | Not started | — | — | — | — |
 
@@ -490,6 +490,15 @@ The batch command line of 4.7 was implemented as follows. What was decided beyon
   - Without a display (`DISPLAY` removed): 2D ran. 3D ended with "OpenGL 3.3 is not available. … run it under xvfb-run." and 1. Under `xvfb-run`, 3D ran too. At first the desktop's `QT_QPA_PLATFORM=xcb` was kept, and it could not start without a display (fixed by S16).
   - The whole game as 3D images (1280×720, 30 fps): 19135 images in 599 s (7.8 GB; removed after the check).
 
+### 4.17 The implementation of stage 8 (2026-11-25)
+
+The manual of the export of D18 was written as follows.
+
+- `docs/export.md` (new; in English, written as `docs/3d-view.md`): what you need, saving a frame, the export dialog (the ranges, the marks in the main window, the presets, the view, the size and the rate, images and videos, the steps of an export), 3D, the rates and the lengths (the formula of the frames an image advances, and a table by the view, the fps and the speed), the command line (a table of the options, a table of the forms of the ranges, examples, an example of the standard error, without a display and xvfb), the sizes of the files (rough ones from real exports), and what to do when something goes wrong.
+- The words of the screens were copied from the source (`ExportDialog`, `MainWindow`, `ExportRange`, `ExportBatch`). While writing, 3 places that differed from the source were corrected: the form of the preset of a goal (`Goal N: TIME TEAM (SCORE)`), a reason why Export is disabled (not the same name, but the same frames named by the cycles), and when the menu is enabled (with frames and not connected; the frames after a live game too).
+- "Saving images of the view" of the README was renamed "Images and videos", with the main points (saving a frame, the export dialog, ffmpeg, one example of the command line) and a link to the manual. `docs/3d-view.md` and `docs/build.md` (the row of ffmpeg) point to the manual, and NEWS too.
+- Checked: the 4 examples of the command line in the manual were run as written on a real log (4 videos of the goals; the first half at twice the speed, 1650 frames, 165 s; 361 images of 1920×1080 of 1200 to 1500, 31 MB; a 3D video with the close-up camera). The example of the standard error was corrected to the real output. The links in the documents (the table of contents, the other documents and their headings) were checked against the anchors made from the headings (no broken link).
+
 ## 5. Stages
 
 Every stage builds and passes the CI.
@@ -726,3 +735,14 @@ Stage 5 may proceed in parallel with stages 2-4.
 
 - The user decided: the manual of the export is written before the Qt Multimedia prototype (D19). The stages were renumbered. Old → new: stage 8 (the Qt Multimedia prototype) → stage 9, stage 9 (the manual of the export) → stage 8. The references in the plan (D18, §3.3, the table of the progress, §5) and the stage of the F6 prototype in the overall plan were corrected. The records keep the numbers of their time.
 - Next: stage 7 committed and pushed, and the CI. Then stage 8 (the manual of the export). The user is asked before it starts.
+
+### 2026-11-25: Stage 8 started
+
+- While the CI of stage 7 ran, stage 8 (the manual of the export) was started on the user's instruction. Nothing was to be decided at its start.
+
+### 2026-11-25: Stage 7 committed, the CI, and stage 8 written
+
+- Stage 7 was committed as a27b0bc and pushed. The CI passed in all the jobs (autotools Qt5, CMake Qt6, Qt6 (Ubuntu 24.04), Qt5, distcheck). `export_batch` and `offscreen_view_3d` ran and passed in the 4 CMake jobs.
+- Stage 8 (the manual of the export) was written as in §4.17.
+- The user read the manual, and asked for the commit message.
+- Next: stage 8 is committed and pushed, and the CI runs.

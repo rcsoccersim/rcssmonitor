@@ -90,7 +90,7 @@
     is drawn offscreen, between the frames (30 images/s by default),
     its camera jumping at the start of each range. The same export runs
     from the command line without a window (--export-video,
-    --export-images, --export-range and so on). See README.md.
+    --export-images, --export-range and so on). See docs/export.md.
 
   * Add the referee's whistle (View > Referee's Whistle, --whistle, off
     by default): a long whistle at a kick-off, a short one at a foul, an

@@ -24,7 +24,7 @@ The 3D view draws the same game as the 2D view, live or from a game log, and the
 
 - `D`, the `3D View` button in the tool bar, or `View` -> `3D View` in the menu bar switches between the 2D and 3D views.
 - `--view-3d on` on the command line starts the monitor in 3D.
-- `File` -> `Save Image of This Frame...` saves the frame shown, and `File` -> `Export Images / Video` exports ranges of the frames as images or videos, drawn by the 3D view offscreen ([README](../README.md#saving-images-of-the-view)).
+- `File` -> `Save Image of This Frame...` saves the frame shown, and `File` -> `Export Images / Video` exports ranges of the frames as images or videos, drawn by the 3D view offscreen ([export.md](export.md#the-3d-view)).
 
 ## Cameras
 
