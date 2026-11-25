@@ -129,6 +129,20 @@ The texts are drawn with grayscale antialiasing.
 - A video is written by [ffmpeg](https://ffmpeg.org/), installed separately (`sudo apt install ffmpeg` on Ubuntu): in the PATH, or chosen in the dialog. It is H.264 (libx264), in the format of the file's extension (`.mp4`, `.mov` or `.mkv`; `.mp4` when there is none), without sound. `Quality (CRF)` is 18 by default (smaller is better and larger; ffmpeg's default is 23), and `Encoding speed` is `medium` (slower makes smaller files of the same quality). The dialog shows the version of ffmpeg; without libx264, it uses MPEG-4 Part 2 (mpeg4) and tells so. A video stopped before its end is removed.
 - It is not available while connected to a server. The view and the frame shown do not change.
 
+The same export runs from the command line, without a window, and quits with the exit code 0 when it is done (1 with the reason on the standard error otherwise):
+
+```bash
+rcssmonitor --export-video goals.mp4 --export-range goals GAME_LOG.rcg.gz
+rcssmonitor --export-images frames --export-range 1200-1500 --export-size 1920x1080 GAME_LOG.rcg.gz
+xvfb-run -a rcssmonitor --export-video goals-3d.mp4 --export-view 3d --export-range goals:5:3 --export-join GAME_LOG.rcg.gz
+```
+
+- `--export-video FILE` or `--export-images DIR`: a video by ffmpeg (`.mp4`, `.mov` or `.mkv`), or images.
+- `--export-range RANGE`, given again for more ranges (the whole log by default): `START-END` (cycles, or `1234.3` for a stopped frame; an end may be empty, as `-300` or `3000-`), `all`, `first-half`, `second-half`, `extra-1`, `extra-2`, `penalties`, or `goals[:BEFORE:AFTER]` (a range for each goal, from 10 s before it to 5 s after it by default). Several ranges are written each in its own video (`FILE-NAME.ext`) or directory (`DIR/NAME`), or in one with `--export-join`.
+- `--export-view 2d|3d` (2d by default), `--export-fps` (10 for 2D, 30 for 3D by default), `--export-speed` (1), `--export-size WxH` (1280x720), `--export-scale R` (the images look as a view of their size / R, enlarged R times: the height / 720 by default), `--export-image-format png|jpg`, `--export-image-prefix` (`image-`), `--export-crf` (18), `--export-preset` (`medium`), `--ffmpeg PATH`.
+- It uses the settings of the monitor (the colors, the fonts, the options of the 3D view, `--camera-3d`), and saves nothing. The files there are overwritten.
+- It needs no display for the 2D view. The 3D view needs OpenGL 3.3 and an X display: on a machine without one, run it under `xvfb-run` (`sudo apt install xvfb`).
+
 ### The 3D view
 
 `D`, or the `3D View` button in the tool bar, switches between the 2D and 3D views (`--view-3d on` starts in 3D).

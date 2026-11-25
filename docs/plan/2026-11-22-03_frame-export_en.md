@@ -6,7 +6,7 @@
 | Last updated | 2026-11-25 |
 | Target | rcssmonitor develop (5affd90, 20.0.0-beta.1) |
 | Branch | `feature/frame-export` (from develop after the URLs and log lists (F5) are merged; the user creates it on GitHub) |
-| Status | Plan written (2026-11-22). The user created `feature/frame-export` from develop (b3762c3). Stages 1 to 6 are committed. The CI of stage 6 failed in a 3D test, which is being fixed (2026-11-25). The last feature of the overall plan. The progress of each stage is in the table of "Progress" below |
+| Status | Plan written (2026-11-22). The user created `feature/frame-export` from develop (b3762c3). Stages 1 to 6 are done, and stage 7 is implemented (2026-11-25; before the user checks it). The last feature of the overall plan. The progress of each stage is in the table of "Progress" below |
 | Japanese version | [2026-11-22-03_frame-export.md](2026-11-22-03_frame-export.md) (same content) |
 | Related | F6 of the overall plan [2026-11-22-00_v20-features_en.md](2026-11-22-00_v20-features_en.md). soccerwindow2's `src/qt/image_save_dialog.cpp` (2D image sequences) |
 
@@ -22,9 +22,10 @@ The work and the conditions of the end of each stage are in §5, and the history
 | 4 | Videos by ffmpeg (§4.5, §4.13; D13 to D16) | Done | Done | Passed | 83ab35e | Done |
 | 5 | Rearranging the 3D drawing (refactoring only; §4.2, §4.14) | Done | Done | Passed | ad3687b | Done |
 | 6 | Offscreen 3D drawing (§4.2, §4.15; D17, S10 to S15) | Done | Done | Failed | 89b5168 | Done |
-| — | A fix of the CI (the test `sameInput` of stage 6: the pictures of two drawers compared within a color difference of 2) | In progress | — | Not yet | — | Not yet |
-| 7 | The batch command line (§4.7) | Not started | Not yet | Not yet | — | Not yet |
-| 8 | The Qt Multimedia prototype (§4.8) | Not started | Not yet | Not yet | — | Not yet |
+| — | A fix of the CI (the test `sameInput` of stage 6: the pictures of two drawers compared within a color difference of 2) | Done | — | Passed | 54a88c5 | Done |
+| 7 | The batch command line (§4.7, §4.16; S16 to S20) | In progress | Done | Not yet | — | Not yet |
+| 8 | The manual of the export `docs/export.md` (§5; D18, D19) | Not started | Not yet | Not yet | — | Not yet |
+| 9 | The Qt Multimedia prototype (§4.8; D19) | Not started | Not yet | Not yet | — | Not yet |
 | — | Merging into develop (PR, Squash Merge) | Not started | — | — | — | — |
 
 ## 1. Goal and approach
@@ -98,6 +99,8 @@ File > Save Image of soccerwindow2 (`../../rctools/soccerwindow2`; `src/qt/image
 | D15 | The default quality of the videos is CRF 18 and preset medium (as planned: hardly any loss to see; the 2D view has many flat colors, so the files stay small) (the same) |
 | D16 | The behavior of "Scale the texts with the image" in the export dialog stays (the dpr of the images is "the height of the image ÷ the height of the 2D view", so the image looks as the view, enlarged), and the check is renamed "Enlarge the texts, logos and lines with the image". The tooltip and the README say that the team logos and the widths of the lines (such as the white circle of a kick) grow too, besides the texts, and that off, they keep their sizes in pixels (smaller and thinner in a large image), and the players move more smoothly. The user saw on the screen that the team logos and the circle of a kick grew larger and thicker too, and asked whether it was meant. Enlarging only the texts (enlarging only the fonts at dpr 1), and separate checks for the texts and the lines, were not taken: the height of the score board, the places of the uniform numbers and so on are laid out in pixels, so many places of the painters would have to change, and they would easily go out of place. The key of the setting `scale_texts` stays (plan A; 2026-11-25, decided by the user at the check of stage 4) |
 | D17 | The export dialog chooses the 2D or the 3D view: the one shown on the screen when the dialog is opened, and then changed in the dialog. The choice before is not remembered (plan A; 2026-11-25, decided by the user at the start of stage 6) |
+| D18 | The export has become complex to use, so a manual of its own, `docs/export.md`, is written: saving a frame, the export dialog (the ranges, the marks, the presets, the view, the size, the rate, images and videos, ffmpeg), 3D, the command line (the options, the form of the ranges, examples, the display and xvfb, the exit codes), and what to do when it goes wrong. The README keeps the main points and a link to the manual (stage 8; stage 9 before D19; 2026-11-25, asked for by the user at the check of stage 7) |
+| D19 | The manual of the export (D18) is written before the Qt Multimedia prototype. The stages are renumbered: the manual is stage 8, and the prototype stage 9. The use is already complete, and it is not known whether the prototype is kept; if it is, its part is added to the manual (plan A; 2026-11-25, decided by the user before the commit of stage 7) |
 
 ### 3.2 Design decisions (Claude; the user confirms them at the start of the stages)
 
@@ -118,11 +121,17 @@ File > Save Image of soccerwindow2 (`../../rctools/soccerwindow2`; `src/qt/image
 | S13 | The main window has one `OffscreenView3D`, made when first needed and kept, shared by Save Image of This Frame and the export (stage 6) | The figures are read, and the images sent to the GPU, once. Making it for each export takes about a second |
 | S14 | The fps is kept for each view (the settings `fps` and `fps_3d`; 30 for 3D by default). The size "As the view" and the ratio of the enlarged texts are taken from the view shown (the 2D canvas or the 3D window). A video of 3D is not given `-tune animation` (stage 6) | 10 for 2D, a frame an image, and 30 for 3D, drawn between the frames too, are natural (4.3). The 3D view is not of flat colors |
 | S15 | When an image is smaller than the view and the dpr is below 1, the image's dpr is 1, and the window of the logical size is mapped onto the viewport of the image's pixels. The 2D `FieldCanvas::renderFrame()` is fixed in the same way (stage 6) | QPainter draws a dpr below 1 as 1 (checked). In 2D too, an image smaller than the view (e.g. 1280×720 from a view 900 high) showed only the top left of the layout (a defect since stage 1) |
+| S16 | In the batch (`--export-video` or `--export-images`), `main()` sets the platform to offscreen before the application is made, even when the desktop sets `QT_QPA_PLATFORM` (Qt's `-platform` can choose another) (stage 7) | No window is shown, so 2D runs on a machine without a display. This environment sets `QT_QPA_PLATFORM=xcb`, and with it kept, it could not start without a display. On offscreen too, 3D gets OpenGL when there is an X display (the desktop, or xvfb-run) |
+| S17 | The defaults of the batch are fixed values, not the settings saved by the dialog: 1280×720, the scale the height ÷ 720 (the layout of a view 720 high), the fps 10 for 2D and 30 for 3D, the speed 1, CRF 18, preset medium, the prefix `image-`, PNG, ffmpeg in the PATH. The settings of the view (the colors, the fonts, the 3D settings, `--camera-3d`) are used, and nothing is saved (stage 7) | The result of a script does not depend on what was last done in the dialog. "As the view" cannot be used without a window |
+| S18 | The ranges are written: `START-END` (either end may be empty), `all`, the parts of the game (`first-half`, `second-half`, `half-N`, `extra-N`, `penalties`, `game`), `goals[:BEFORE:AFTER]` (a range for each goal, named `goalK-cCYCLE` as in the dialog). A part not in the log, and `goals` alone on a log without a goal, are errors. Several ranges are each in its own (`FILE-NAME.ext`, `DIR/NAME`), or in one with `--export-join` (stage 7) | The presets of the dialog can be exported, by the same names |
+| S19 | The batch overwrites the files there without asking (stage 7) | There is no window to ask in. As ffmpeg's `-y` |
+| S20 | The batch is `ExportBatch` (new), not driving the dialog. It uses the pure functions (`ExportRange`, `ExportTiming`, `ExportRangeList::safeName()`), the same sinks and `ExportJob`. The names of the files of the ranges are made as in the dialog (stage 7) | The dialog writes the settings and asks questions: not for a batch without a window |
 
 ### 3.3 To decide at the start of the stages
 
 - On cancel, whether to delete the partial file or keep it as a shorter video (stage 4).
-- How to build the prototype with Qt 6.8 or later (stage 8): aqtinstall into `~/Qt`, an ubuntu:26.04 container, or a CI job with `continue-on-error`.
+- How to build the prototype with Qt 6.8 or later (stage 9): aqtinstall into `~/Qt`, an ubuntu:26.04 container, or a CI job with `continue-on-error`.
+- Whether the manual of the export (D18) is written before the Qt Multimedia prototype (decided: before it; D19).
 - Shortcuts of the menu items (ones that do not clash with the existing shortcuts), including those that set the start and end marks of a range (stage 3).
 - The default seconds of goal scenes (proposed: from 10 seconds before to 5 seconds after the goal) and around the current position (stage 3).
 - Whether the slider also shows marks at the goals, besides the band of the chosen range (stage 3).
@@ -457,6 +466,30 @@ The offscreen drawing of 3D of 4.2, the 3D of the dialog of 4.6, and the 3D Save
     - A goal scene at 1920×1080 and 60 fps in 13.9 s (86 images a second): 1201 frames, 20.02 s, 13.5 MB.
   - With images smaller than the view (320×180), the HUD is in the view's proportion (seen; before S15, the logos were large and the score board was not drawn).
 
+### 4.16 The implementation of stage 7 (2026-11-25)
+
+The batch command line of 4.7 was implemented as follows. What was decided beyond the plan is in S16 to S20 too.
+
+- `src/export_batch.{h,cpp}` (new): `ExportBatch`.
+  - `addOptions()`, `readOptions()`: `--export-video FILE`, `--export-images DIR`, `--export-view 2d|3d`, `--export-range RANGE` (given again for more), `--export-join`, `--export-fps`, `--export-speed`, `--export-size WxH`, `--export-scale R`, `--export-image-format png|jpg`, `--export-image-prefix`, `--export-crf`, `--export-preset`, `--ffmpeg PATH`. Added to the parser of `Options::parseCmdLine()`, and what is read goes into `Options::BatchExportSettings` (not saved). A mistake (both, an option of the export without an export, a value out of its range, `3d` in a build without 3D) ends it with the reason.
+  - `resolveRanges()`: the texts of the ranges into intervals of the frames of the log and their names (S18). The positions by `ExportRangeList::resolve()`, the parts by `ExportRange::periods()`, the goals by `ExportRange::goals()` and `around()`.
+  - `run( game_log )`: reads the log without a window (`RCGHandler( nullptr, … )`, no message box), makes the ranges, the frames an image advances, the 2D frames or the 3D positions, the size (even for a video, at most the largest for 3D), the scale, the drawer (for 3D, `OffscreenView3D` initialized first, with the camera of the settings) and the sinks (for images, one `ImageSequenceSink`, under `NAME/` for each range; for a video, ffmpeg probed, and an `FfmpegSink` for each range or one), and runs `ExportJob` in an event loop. The progress goes to the standard error, at every tenth or every second. At the end it tells where it went and the time, and returns the exit code 0. A mistake is "rcssmonitor: the reason", and 1.
+- `main()`: with `--export-video` or `--export-images`, the platform is set to offscreen before the application is made (S16). After the options are read, a batch makes no window, and ends with the exit code of `ExportBatch::run()`.
+- The settings: the defaults of the batch (S17). The settings file is read when `Options` is first made (as before), and the command line overrides it. No window is made, so nothing is written.
+- Documents: README (the export from the command line), `docs/build.md` (the row of ffmpeg), NEWS, ChangeLog.
+- The test `export_batch` (new; offscreen):
+  - The options: the defaults, all the options, 9 mistakes.
+  - The ranges: `all` by default, the positions (with empty ends), the parts, the goals (the names, `goals:0:0`), 6 mistakes, no frame, no goal.
+  - Images (the files, the progress and the end told, a directory for each range, the numbers going on with `--export-join`). A video with a fake ffmpeg (the even size, `animation`, the CRF). What cannot be exported (no log, not read, a wrong range, nothing to export, `.avi`, no ffmpeg; the exit code 1 and the reason). 3D (7 images at 30 fps; skipped without OpenGL).
+- Checked (2026-11-25, a real log `202307090956-Oxsy_1-vs-YuShan2023_3.rcg.gz`):
+  - 2D images (640×360) of each goal in 3.0 s (804 images, a directory for each range). The layout of the images was that of a view 720 high.
+  - A 2D video of the first half (1280×720, 10 fps) in 3.9 s: 3299 frames, 329.9 s.
+  - A 3D video of the goals (5 s before to 3 s after) joined (the close-up camera, 30 fps) in 4.3 s: 1564 frames, 52.1 s.
+  - Two ranges as `.mkv`, one for each (`two-100-200.mkv`, `two-1000.0-1050.mkv`).
+  - 14 mistakes (no log, not read, the form of a range, out of the log, a part not there, `goals:5`, both, an option without an export, the size, the preset, the view, `.avi`, no ffmpeg): the reason and the exit code 1 checked.
+  - Without a display (`DISPLAY` removed): 2D ran. 3D ended with "OpenGL 3.3 is not available. … run it under xvfb-run." and 1. Under `xvfb-run`, 3D ran too. At first the desktop's `QT_QPA_PLATFORM=xcb` was kept, and it could not start without a display (fixed by S16).
+  - The whole game as 3D images (1280×720, 30 fps): 19135 images in 599 s (7.8 GB; removed after the check).
+
 ## 5. Stages
 
 Every stage builds and passes the CI.
@@ -470,7 +503,8 @@ Every stage builds and passes the CI.
 | 5 | Refactoring only: `View3DRenderer`, `TeamGraphicPainter::update()`, `CameraController::snap()`, `FieldView3D::camera()` | All tests pass. The 3D on the screen is unchanged (the user checks) |
 | 6 | `OffscreenView3D`, `gl/offscreen_target`, 3D in the dialog, the 3D Save Image, clearing the caches and `snap()`ping the camera at the start of a range | The test that the same input gives the same image passes in the CI (llvmpipe). 1080p at 60 fps can be exported. In a video of joined ranges, the camera does not glide at the boundaries. No effect on the 3D on the screen |
 | 7 | The batch command line (`--export-range` etc.), `docs/build.md` and README | A test of the 2D batch under offscreen. The user checks 3D under xvfb |
-| 8 | The Qt Multimedia prototype (OFF), its test, the measurements of §4.8 | Decide whether to keep it, and record it |
+| 8 | The manual of the export `docs/export.md` (D18): saving a frame, the export dialog, 3D, images, videos and ffmpeg, the command line, examples, what to do when it goes wrong. The README keeps the main points and a link; `docs/3d-view.md` and `docs/build.md` point to it | The operations and the words of the screens written match the application (the examples written are run to check them). No disagreement with the README. The user reads it and checks it |
+| 9 | The Qt Multimedia prototype (OFF), its test, the measurements of §4.8 | Decide whether to keep it, and record it |
 
 Stage 5 may proceed in parallel with stages 2-4.
 
@@ -503,7 +537,7 @@ Stage 5 may proceed in parallel with stages 2-4.
 | `src/main_window.{h,cpp}`, `src/main.cpp` | Menus, range marks, batch |
 | `CMakeLists.txt`, `src/CMakeLists.txt`, `cmake-config.h.in`, `src/Makefile.am` | Build |
 | `test/`, `.github/workflows/ci.yml` | §6, ffmpeg in the CI |
-| README, `docs/build.md`, NEWS | Documents |
+| README, `docs/build.md`, `docs/export.md` (new; D18), NEWS | Documents |
 
 ## 8. Out of scope
 
@@ -670,3 +704,25 @@ Stage 5 may proceed in parallel with stages 2-4.
 - Here, both on the hardware and with Mesa's software drawing (`LIBGL_ALWAYS_SOFTWARE=1`), they were the same: it did not happen again. No place where a clock or a random number changes the picture, and no image used without being filled, was found.
 - The fix: `sameInput` and `rangeStart` compare two images by the same function, the same picture within a color difference of 2 (the GPU's rounding). When they are not the same to the pixel, the number of the pixels, the largest difference and where are told in the log, and when it fails too. If the difference is large in the CI too, that log is looked into.
 - Next: the fix committed and pushed, and the CI.
+
+### 2026-11-25: The result of the fix of the CI
+
+- The fix was committed as 54a88c5 and pushed. The CI passed in all the jobs (autotools Qt5, CMake Qt6, Qt6 (Ubuntu 24.04), Qt5, distcheck). `offscreen_view_3d` ran in the 4 CMake jobs, not skipped, and passed. The difference in the CI was within 2 in the colors (ctest does not show the output of a test that passed, so the number of the pixels is not known).
+- Next: stage 7 (the batch command line, `docs/build.md` and README). The user is asked before it starts.
+
+### 2026-11-25: Stage 7 started and implemented
+
+- Stage 7 was started on the user's instruction. Nothing was to be decided at its start (§3.3).
+- Implemented as in §4.16. Decided beyond the plan: S16 (the batch always offscreen), S17 (fixed defaults, nothing saved), S18 (the form of the ranges), S19 (overwritten without asking), S20 (`ExportBatch`, not the dialog).
+- Checked: with the CMake builds of Qt 6 and Qt 5 with the whistle, and of `ENABLE_SOUND=OFF`, it built without warnings, and all 82 tests (with the new `export_batch`) passed three times each. It built with autotools (Qt 5, without 3D) too (the only warning is the old one of `configure.ac`); that monitor ran a 2D batch without a display, and `--export-view 3d` returned 1 with "built without the 3D view". The checks with a real log are in §4.16.
+- Next: the user checks it (a 3D batch under xvfb, a batch on the desktop, `--help`). Then stage 7 is committed and pushed, and the CI runs.
+
+### 2026-11-25: Stage 7 checked, and the manual of the export
+
+- The user asked for the commit message. The user said that the export has become complex to use and needs a manual of its own, and asked to put the documents of the export into the plan if they were not there. The plan had only the README and `docs/build.md`, so D18 and stage 9 (`docs/export.md`) were added. Whether it is written before stage 8 (the Qt Multimedia prototype) is added to §3.3, and the user is asked.
+- Next: stage 7 committed and pushed, and the CI. The order of stages 8 and 9 decided.
+
+### 2026-11-25: The stages renumbered (D19)
+
+- The user decided: the manual of the export is written before the Qt Multimedia prototype (D19). The stages were renumbered. Old → new: stage 8 (the Qt Multimedia prototype) → stage 9, stage 9 (the manual of the export) → stage 8. The references in the plan (D18, §3.3, the table of the progress, §5) and the stage of the F6 prototype in the overall plan were corrected. The records keep the numbers of their time.
+- Next: stage 7 committed and pushed, and the CI. Then stage 8 (the manual of the export). The user is asked before it starts.

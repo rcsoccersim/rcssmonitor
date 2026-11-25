@@ -36,6 +36,8 @@
 
 #include "options.h"
 
+#include "export_batch.h"
+
 #include <QSettings>
 #include <QDir>
 #include <QFile>
@@ -1890,11 +1892,23 @@ Options::parseCmdLine( int argc,
                                                to_string( M_team_graphic_scale ) );
     parser.addOption( opt_team_graphic_scale );
 
+    // the export from the command line (ExportBatch)
+    ExportBatch::addOptions( parser );
+
     parser.process( *qApp );
 
 
     const QStringList positional = parser.positionalArguments();
     if ( ! positional.empty() ) M_game_log_file = positional.at( 0 ).toStdString();
+
+    {
+        QString error;
+        if ( ! ExportBatch::readOptions( parser, &M_batch_export, &error ) )
+        {
+            std::cerr << error.toStdString() << std::endl;
+            return false;
+        }
+    }
 
     // monitor client options
     if ( parser.isSet( opt_connect ) ) M_connect = true;

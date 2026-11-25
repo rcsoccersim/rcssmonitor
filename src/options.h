@@ -289,9 +289,37 @@ public:
         QString ffmpeg; //!< the path of ffmpeg (empty: in the PATH)
     };
 
+    /*!
+      \struct BatchExportSettings
+      \brief the export from the command line (ExportBatch,
+      docs/plan/2026-11-22-03_frame-export.md 4.7): the options given, not
+      saved in the settings
+    */
+    struct BatchExportSettings {
+        QString video; //!< --export-video FILE
+        QString images; //!< --export-images DIR
+        bool view_3d = false; //!< --export-view 3d
+        QStringList ranges; //!< --export-range, given again for more (none: all)
+        bool join = false; //!< --export-join: the ranges in one video (or one sequence of images)
+        double fps = 0.0; //!< --export-fps (0: 10 for 2D, 30 for 3D)
+        double speed = 1.0; //!< --export-speed
+        int width = 1280; //!< --export-size WxH
+        int height = 720;
+        double scale = 0.0; //!< --export-scale: the device pixel ratio (0: the height / 720)
+        QString image_format = QStringLiteral( "png" ); //!< --export-image-format
+        QString image_prefix = QStringLiteral( "image-" ); //!< --export-image-prefix
+        int crf = 18; //!< --export-crf
+        QString preset = QStringLiteral( "medium" ); //!< --export-preset
+        QString ffmpeg; //!< --ffmpeg (empty: in the PATH)
+
+        //! an export is asked for
+        bool enabled() const { return ! video.isEmpty() || ! images.isEmpty(); }
+    };
+
 private:
 
     ExportSettings M_export_settings;
+    BatchExportSettings M_batch_export; //!< from the command line, not saved
 
     //
     // view options
@@ -721,6 +749,9 @@ public:
 
     const ExportSettings & exportSettings() const { return M_export_settings; }
     void setExportSettings( const ExportSettings & settings ) { M_export_settings = settings; }
+
+    //! the export from the command line (ExportBatch)
+    const BatchExportSettings & batchExport() const { return M_batch_export; }
     //! write them to the settings file now (called when an export starts)
     void writeExportSettings() const;
 

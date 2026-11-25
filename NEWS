@@ -88,7 +88,9 @@
     by ffmpeg (installed separately): H.264 at a quality (CRF) and an
     encoding speed, a video for each range or one for all. The 3D view
     is drawn offscreen, between the frames (30 images/s by default),
-    its camera jumping at the start of each range. See README.md.
+    its camera jumping at the start of each range. The same export runs
+    from the command line without a window (--export-video,
+    --export-images, --export-range and so on). See README.md.
 
   * Add the referee's whistle (View > Referee's Whistle, --whistle, off
     by default): a long whistle at a kick-off, a short one at a foul, an

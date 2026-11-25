@@ -55,6 +55,10 @@
 	  of each range (CameraController::snap()). draw the images smaller
 	  than the view in its layout (QPainter takes no device pixel ratio
 	  below 1).
+	- export from the command line without a window (ExportBatch:
+	  --export-video, --export-images, --export-range, --export-view and
+	  the others), on the platform offscreen; the progress on the
+	  standard error, and the exit code.
 	- filter the list of game logs by a team on a side, its opponent,
 	  its result (the winner of a penalty shootout wins) and a range of
 	  dates.

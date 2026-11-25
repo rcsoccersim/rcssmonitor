@@ -9,6 +9,7 @@ add_library(rcssmonitor_core STATIC
   connect_dialog.cpp
   disp_holder.cpp
   draw_info_painter.cpp
+  export_batch.cpp
   export_dialog.cpp
   export_job.cpp
   export_range.cpp

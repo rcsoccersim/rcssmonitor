@@ -13,6 +13,7 @@ rcssmonitor_SOURCES = \
 	connect_dialog.cpp \
 	disp_holder.cpp \
 	draw_info_painter.cpp \
+	export_batch.cpp \
 	export_dialog.cpp \
 	export_job.cpp \
 	export_range.cpp \
@@ -102,6 +103,7 @@ noinst_HEADERS = \
 	connect_dialog.h \
 	disp_holder.h \
 	draw_info_painter.h \
+	export_batch.h \
 	export_dialog.h \
 	export_job.h \
 	export_range.h \
