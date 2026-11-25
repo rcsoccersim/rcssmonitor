@@ -106,6 +106,25 @@ ExportTiming::frames2D( const std::size_t first,
 }
 
 /*-------------------------------------------------------------------*/
+std::vector< double >
+ExportTiming::positions3D( const std::size_t first,
+                           const std::size_t last,
+                           const double per_image )
+{
+    std::vector< double > positions;
+    const std::size_t n = imageCount( first, last, per_image );
+    positions.reserve( n );
+    for ( std::size_t i = 0; i < n; ++i )
+    {
+        double p = std::min( static_cast< double >( last ), position( first, i, per_image ) );
+        const double frame = std::round( p );
+        if ( std::fabs( p - frame ) < EPSILON ) p = frame;
+        positions.push_back( p );
+    }
+    return positions;
+}
+
+/*-------------------------------------------------------------------*/
 double
 ExportTiming::duration( const std::size_t images,
                         const double fps )

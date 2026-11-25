@@ -63,6 +63,7 @@
 #include "whistle.h"
 #ifdef HAVE_3D_VIEW
 #include "field_view_3d.h"
+#include "offscreen_view_3d.h"
 #include "popup_closer.h"
 #endif
 
@@ -163,6 +164,17 @@ MainWindow::~MainWindow()
     M_whistle->releaseSound();
 
     writeSettings();
+
+#ifdef HAVE_3D_VIEW
+    // the 3D images' context deleted while the frames are there (an export
+    // stopped first: the progress dialog is modal, but to be sure)
+    if ( M_export_dialog )
+    {
+        M_export_dialog->abortExport();
+    }
+    delete M_offscreen_3d;
+    M_offscreen_3d = nullptr;
+#endif
 }
 
 /*-------------------------------------------------------------------*/
@@ -2631,6 +2643,21 @@ MainWindow::saveGameLogCopy( const QString & path )
 }
 
 /*-------------------------------------------------------------------*/
+OffscreenView3D *
+MainWindow::offscreenView3D() const
+{
+#ifdef HAVE_3D_VIEW
+    if ( ! M_offscreen_3d )
+    {
+        M_offscreen_3d = new OffscreenView3D( const_cast< DispHolder & >( M_disp_holder ) );
+    }
+    return M_offscreen_3d;
+#else
+    return nullptr;
+#endif
+}
+
+/*-------------------------------------------------------------------*/
 QImage
 MainWindow::renderImage() const
 {
@@ -2638,6 +2665,23 @@ MainWindow::renderImage() const
     {
         return QImage();
     }
+#ifdef HAVE_3D_VIEW
+    // the 3D view: drawn offscreen with its camera as it is, as large as the view
+    if ( const FieldView3D * view = shownView3D() )
+    {
+        OffscreenView3D * offscreen = offscreenView3D();
+        QString error;
+        if ( ! offscreen->initialize( &error ) )
+        {
+            std::cerr << error.toStdString() << std::endl;
+            return QImage();
+        }
+        const qreal ratio = view->devicePixelRatio();
+        const QSize view_pixels( static_cast< int >( std::lround( view->width() * ratio ) ),
+                                 static_cast< int >( std::lround( view->height() * ratio ) ) );
+        return offscreen->renderStill( M_disp_holder.currentIndex(), view->camera(), view_pixels, ratio );
+    }
+#endif
     const qreal dpr = M_field_canvas->devicePixelRatioF();
     const QSize pixels( static_cast< int >( std::lround( M_field_canvas->width() * dpr ) ),
                         static_cast< int >( std::lround( M_field_canvas->height() * dpr ) ) );
@@ -3102,6 +3146,10 @@ MainWindow::toggleView3D( bool on )
                  this, [this]( int delta ) { stepByWheel( delta ); } );
         M_field_view_3d = container;
         M_view_3d = view;
+        if ( M_export_dialog )
+        {
+            M_export_dialog->setView3DSources( M_view_3d, offscreenView3D() );
+        }
     }
 
     QWidget * shown = ( on ? M_field_view_3d : M_field_canvas );
@@ -3204,6 +3252,10 @@ MainWindow::showExportDialog()
                  M_export_dialog, &ExportDialog::updateSummary );
     }
     M_export_dialog->setExportAllowed( M_monitor_client == nullptr );
+    // the 3D images: the view's size and camera, drawn offscreen; the view
+    // that draws them is the one shown (D17)
+    M_export_dialog->setView3DSources( M_view_3d, offscreenView3D() );
+    M_export_dialog->chooseView3D( shownView3D() != nullptr );
     M_export_dialog->show();
     M_export_dialog->raise();
     M_export_dialog->activateWindow();
@@ -3211,18 +3263,14 @@ MainWindow::showExportDialog()
 
 /*-------------------------------------------------------------------*/
 /*!
-  File > Save Image of This Frame saves the 2D view: disabled while the 3D view is shown,
-  until saving the 3D view is made (D5).
+  File > Save Image of This Frame saves the view shown: the 2D view, or the
+  3D view drawn offscreen (D5 until stage 6; docs/plan/2026-11-22-03_frame-export.md 4.15).
  */
 void
 MainWindow::updateSaveImageAction()
 {
-    const bool view_2d = ( ! M_view_stack
-                           || M_view_stack->currentWidget() == M_field_canvas );
-    M_save_image_act->setEnabled( view_2d );
-    M_save_image_act->setStatusTip( view_2d
-                                    ? tr( "Save the frame shown to an image file (PNG or JPEG), as large as the view." )
-                                    : tr( "Not available while the 3D view is shown: only the 2D view can be saved for now." ) );
+    M_save_image_act->setEnabled( true );
+    M_save_image_act->setStatusTip( tr( "Save the frame shown to an image file (PNG or JPEG), as large as the view." ) );
     M_save_image_act->setToolTip( M_save_image_act->statusTip() );
 }
 

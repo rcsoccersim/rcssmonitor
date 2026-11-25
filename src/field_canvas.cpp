@@ -348,7 +348,10 @@ FieldCanvas::renderFrame( const std::size_t index,
 
     QImage image( pixels, QImage::Format_RGB32 );
     image.fill( Options::instance().fieldBrush().color() );
-    image.setDevicePixelRatio( ratio );
+    // QPainter takes a ratio of 1 or more (a smaller one is drawn as 1): an
+    // image smaller than the layout has the ratio 1, and the window is
+    // mapped onto its pixels below
+    image.setDevicePixelRatio( std::max< qreal >( 1.0, ratio ) );
 
     // the frame and the state of the view set back at the end
     FrameScope scope( M_disp_holder, index );
@@ -367,9 +370,16 @@ FieldCanvas::renderFrame( const std::size_t index,
     {
         QPainter painter( &image );
         // the painters lay out by the window: the logical size, whatever
-        // the device pixel ratio
+        // the device pixel ratio (below 1, made smaller onto the pixels)
         painter.setWindow( 0, 0, logical.width(), logical.height() );
-        painter.setViewport( 0, 0, logical.width(), logical.height() );
+        if ( ratio >= 1.0 )
+        {
+            painter.setViewport( 0, 0, logical.width(), logical.height() );
+        }
+        else
+        {
+            painter.setViewport( 0, 0, pixels.width(), pixels.height() );
+        }
         draw( painter, logical );
     }
 

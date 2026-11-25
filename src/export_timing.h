@@ -55,6 +55,9 @@ public:
     //! the frame rate of the 2D images by default (one frame an image)
     static constexpr double DEFAULT_FPS_2D = 10.0;
 
+    //! the frame rate of the 3D images by default (drawn between the frames)
+    static constexpr double DEFAULT_FPS_3D = 30.0;
+
     /*!
       \brief the frames one image advances: speed × 1000 / ( step × fps )
       \param speed how many times as fast as the game is played (> 0)
@@ -101,6 +104,16 @@ public:
     std::vector< std::size_t > frames2D( const std::size_t first,
                                          const std::size_t last,
                                          const double per_image );
+
+    /*!
+      \brief the positions of the 3D images of a range, between the frames
+      (position( first, n, per_image ), not after last; within EPSILON of a
+      frame: that frame)
+    */
+    static
+    std::vector< double > positions3D( const std::size_t first,
+                                       const std::size_t last,
+                                       const double per_image );
 
     //! the length of a video of the images (s)
     static

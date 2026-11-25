@@ -49,6 +49,12 @@
 	- draw a frame of the 3D view apart from its window
 	  (View3DRenderer), for the export of the 3D view. the team logos
 	  are on the boards of the ends from the first frame.
+	- export the 3D view and save its frame as an image, drawn
+	  offscreen (OffscreenView3D, in an OpenGL context of its own):
+	  between the frames, the camera as the view's, jumping at the start
+	  of each range (CameraController::snap()). draw the images smaller
+	  than the view in its layout (QPainter takes no device pixel ratio
+	  below 1).
 	- filter the list of game logs by a team on a side, its opponent,
 	  its result (the winner of a penalty shootout wins) and a range of
 	  dates.

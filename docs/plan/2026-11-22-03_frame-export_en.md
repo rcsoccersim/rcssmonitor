@@ -6,7 +6,7 @@
 | Last updated | 2026-11-25 |
 | Target | rcssmonitor develop (5affd90, 20.0.0-beta.1) |
 | Branch | `feature/frame-export` (from develop after the URLs and log lists (F5) are merged; the user creates it on GitHub) |
-| Status | Plan written (2026-11-22). The user created `feature/frame-export` from develop (b3762c3). Stages 1 to 4 are done, and stage 5 is implemented and checked by the user (2026-11-25; its CI is not recorded yet). The last feature of the overall plan. The progress of each stage is in the table of "Progress" below |
+| Status | Plan written (2026-11-22). The user created `feature/frame-export` from develop (b3762c3). Stages 1 to 5 are done, and stage 6 is implemented and checked by the user (2026-11-25). The last feature of the overall plan. The progress of each stage is in the table of "Progress" below |
 | Japanese version | [2026-11-22-03_frame-export.md](2026-11-22-03_frame-export.md) (same content) |
 | Related | F6 of the overall plan [2026-11-22-00_v20-features_en.md](2026-11-22-00_v20-features_en.md). soccerwindow2's `src/qt/image_save_dialog.cpp` (2D image sequences) |
 
@@ -20,8 +20,8 @@ The work and the conditions of the end of each stage are in §5, and the history
 | 2 | The basics of the ranges and image sequences, the export dialog (§4.3 to §4.6, §4.11; D6) | Done | Done | Passed | d7adf47 | Done |
 | 3 | Handy ways to give the ranges (§4.4, §4.12; D7 to D12) | Done | Done | Passed | d7a5cd1 | Done |
 | 4 | Videos by ffmpeg (§4.5, §4.13; D13 to D16) | Done | Done | Passed | 83ab35e | Done |
-| 5 | Rearranging the 3D drawing (refactoring only; §4.2, §4.14) | In progress | Done | Not yet | — | Not yet |
-| 6 | Offscreen 3D drawing (§4.2) | Not started | Not yet | Not yet | — | Not yet |
+| 5 | Rearranging the 3D drawing (refactoring only; §4.2, §4.14) | Done | Done | Passed | ad3687b | Done |
+| 6 | Offscreen 3D drawing (§4.2, §4.15; D17, S10 to S15) | In progress | Done | Not yet | — | Not yet |
 | 7 | The batch command line (§4.7) | Not started | Not yet | Not yet | — | Not yet |
 | 8 | The Qt Multimedia prototype (§4.8) | Not started | Not yet | Not yet | — | Not yet |
 | — | Merging into develop (PR, Squash Merge) | Not started | — | — | — | — |
@@ -96,6 +96,7 @@ File > Save Image of soccerwindow2 (`../../rctools/soccerwindow2`; `src/qt/image
 | D14 | The dialog has only the quality (CRF) and the speed of the compression (preset) as settings of the videos. The codec is H.264 (libx264), and the format is by the extension of the file (.mp4, .mov, .mkv). If ffmpeg has no libx264, another one it has (mpeg4 and so on) is used, and that is told (the same) |
 | D15 | The default quality of the videos is CRF 18 and preset medium (as planned: hardly any loss to see; the 2D view has many flat colors, so the files stay small) (the same) |
 | D16 | The behavior of "Scale the texts with the image" in the export dialog stays (the dpr of the images is "the height of the image ÷ the height of the 2D view", so the image looks as the view, enlarged), and the check is renamed "Enlarge the texts, logos and lines with the image". The tooltip and the README say that the team logos and the widths of the lines (such as the white circle of a kick) grow too, besides the texts, and that off, they keep their sizes in pixels (smaller and thinner in a large image), and the players move more smoothly. The user saw on the screen that the team logos and the circle of a kick grew larger and thicker too, and asked whether it was meant. Enlarging only the texts (enlarging only the fonts at dpr 1), and separate checks for the texts and the lines, were not taken: the height of the score board, the places of the uniform numbers and so on are laid out in pixels, so many places of the painters would have to change, and they would easily go out of place. The key of the setting `scale_texts` stays (plan A; 2026-11-25, decided by the user at the check of stage 4) |
+| D17 | The export dialog chooses the 2D or the 3D view: the one shown on the screen when the dialog is opened, and then changed in the dialog. The choice before is not remembered (plan A; 2026-11-25, decided by the user at the start of stage 6) |
 
 ### 3.2 Design decisions (Claude; the user confirms them at the start of the stages)
 
@@ -110,6 +111,12 @@ File > Save Image of soccerwindow2 (`../../rctools/soccerwindow2`; `src/qt/image
 | S7 | The export settings are in the export dialog, not in a tab of the config dialog, and saved in a new group `Export` | `test_config_dialog.cpp` pins the tab list |
 | S8 | The export dialog is modeless, so that the start and end of a range can be taken while moving the playback position with the dialog open. Only during the export, the progress dialog is application modal | soccerwindow2's is modal, and the cycle numbers must be looked up before opening it (2.5) |
 | S9 | A range is held as an interval of log indices; it is shown and entered as "cycle" or "cycle.stopped number" (the same notation as the frame label on the screen, `1234.3`) | Cycles alone cannot tell the stopped frames apart |
+| S10 | The export draws through a type of drawer, `ExportRenderer` (2D: a wrapper of `FieldCanvas::renderFrame()`; 3D: `OffscreenView3D`). `ExportPart` has the positions of 3D (`positions`) and the images that start a range (`range_starts`) (stage 6) | `ExportJob` does not need to know the drawer, and treats the starts of the ranges the same in any part. The calls and the tests of 2D stay as they were |
+| S11 | At the start of a range, only the camera is snapped (`snap()`); no other cache is cleared (the plan's "clear the caches of the interpolation and the motions" was not needed) (stage 6) | The players' motions (`GaitTable`), the ball's turn (`BallSpin`) and the flying ball (`BallFlight`) are found from the frames alone, not by the order they are drawn in (§5.2 of the 3D plan). The image of the labels has a fixed slot for each player too. After other frames, only a few pixels differed by 1 or 2 in their colors, of the shadows (§4.15) |
+| S12 | The framebuffer of the export is Qt's `QOpenGLFramebufferObject`; the plan's `gl/offscreen_target` is not made. The alpha of the image read back is not used (stage 6) | No raw GL call is needed (`test_gl_isolation`). The window on the screen has no alpha, so without the alpha that translucent things wrote, the colors are the screen's |
+| S13 | The main window has one `OffscreenView3D`, made when first needed and kept, shared by Save Image of This Frame and the export (stage 6) | The figures are read, and the images sent to the GPU, once. Making it for each export takes about a second |
+| S14 | The fps is kept for each view (the settings `fps` and `fps_3d`; 30 for 3D by default). The size "As the view" and the ratio of the enlarged texts are taken from the view shown (the 2D canvas or the 3D window). A video of 3D is not given `-tune animation` (stage 6) | 10 for 2D, a frame an image, and 30 for 3D, drawn between the frames too, are natural (4.3). The 3D view is not of flat colors |
+| S15 | When an image is smaller than the view and the dpr is below 1, the image's dpr is 1, and the window of the logical size is mapped onto the viewport of the image's pixels. The 2D `FieldCanvas::renderFrame()` is fixed in the same way (stage 6) | QPainter draws a dpr below 1 as 1 (checked). In 2D too, an image smaller than the view (e.g. 1280×720 from a view 900 high) showed only the top left of the layout (a defect since stage 1) |
 
 ### 3.3 To decide at the start of the stages
 
@@ -406,6 +413,49 @@ The refactoring of 4.2 was implemented as follows. The 3D view looks the same on
   - `disp_holder` (added): the play mode of a new `DispHolder` is `PM_Null`.
 - Checked (2026-11-25): on Xvfb (llvmpipe), the monitors before (83ab35e) and after the change opened the same 2023 log, and the 3D view (1100×624) was read from its framebuffer and compared pixel by pixel. With the broadcast camera at the cycles 1, 437, 1000 and 2500, and the close-up (ball), top and player cameras (with the compass and the minimap) at the cycles 437 and 1000, no pixel differed.
 
+### 4.15 The implementation of stage 6 (2026-11-25)
+
+The offscreen drawing of 3D of 4.2, the 3D of the dialog of 4.6, and the 3D Save Image were implemented as follows. What was decided beyond the plan is in S10 to S15 too.
+
+- `src/view3d/offscreen_view_3d.{h,cpp}` (new): `OffscreenView3D` (an `ExportRenderer`).
+  - It has its own `QOpenGLContext`, `QOffscreenSurface` and `View3DRenderer`, made once by `initialize()` (which gives the reason if not). It needs no window, so it draws on the platform offscreen too.
+  - `unavailableReason()` (static): tries a context of OpenGL 3.3 core and its functions. `FieldView3D::unavailableReason()` now calls it after checking the platform.
+  - An image (`renderAt( position, pixels, dpr, dt )`): in a `FrameScope` (which sets back the current index and `Options::viewState()`), the position by `Interpolate::positionAt()`, `View3DRenderer::build()`, the camera's `update( dt )`, and `render()` into a `QOpenGLFramebufferObject` of the image's size (made again when the size changes); read back, without the alpha, as `Format_RGB32`, and the HUD drawn by QPainter (S12, S15).
+  - The export: `start( camera, fps )` copies the screen's camera, moved 1/fps seconds an image. `startRange()` snaps the camera (S11). `render( part, i, … )` draws at the position of `ExportPart::positions`.
+  - `renderStill( index, camera, pixels, dpr )`: for Save Image of This Frame. Draws with a copy of the camera, not moved (`dt = 0`).
+  - The largest size `MAX_WIDTH` × `MAX_HEIGHT` (3840×2160).
+- `ExportJob`: draws through the type of drawer `ExportRenderer` (`startRange()`, `render( part, i, pixels, dpr )`) (S10). For 2D, a wrapper of `FieldCanvas`, with the constructors as they were. At the start of a range (`ExportPart::startsRange()`: the first image of a part and `range_starts`), it calls `startRange()`. An image not drawn (null) stops it and tells so ("Could not draw the image N.").
+- `ExportTiming`: `positions3D()` (the positions between the frames; within `EPSILON` of a frame, that frame; not after the end of the range), `DEFAULT_FPS_3D` (30).
+- `ExportDialog`:
+  - The box is named "Images", with "View:" (2D view / 3D view; a `QButtonGroup`) as its first row. The view shown on the screen when the dialog is opened is chosen (D17; `MainWindow::showExportDialog()` calls `chooseView3D()`).
+  - `setView3DSources( view, offscreen )`: the 3D window (its size and camera) and the drawer. Only when the drawer changes, `OffscreenView3D::unavailableReason()` is checked; when it cannot draw, the choice of 3D is disabled, with the reason in its tooltip. Built without 3D: "This rcssmonitor is built without the 3D view."
+  - The fps is kept for each view (S14): changing the view swaps the field's value and the other's. The settings `fps` and `fps_3d`.
+  - The size "As the view" and the ratio of the enlarged texts are taken from the view shown (`viewPixels()`, `viewHeight()`; the 3D window's size and dpr when it is shown).
+  - A 3D size over the largest shows "A 3D image is 3840 x 2160 pixels at most." in the summary, and disables Export.
+  - Before the export, for 3D, the drawer's `initialize()` is checked (before the sinks are made). The parts get the positions of each range and the starts of the ranges. The camera is a copy of the screen's 3D camera (without the 3D window, a new one of the camera of the settings). A video of 3D is without `-tune animation`.
+  - "the players move more smoothly" in the tooltip of the check of the enlarged texts is of 2D: "in 2D" is added.
+- `MainWindow`:
+  - Has one `OffscreenView3D`, made when first needed (S13). On closing, an export is stopped before it is deleted.
+  - Save Image of This Frame: with the 3D view shown, drawn by `renderStill()` at the 3D window's size × dpr. Enabled while the 3D view is shown too (the end of D5's "disabled until stage 6").
+  - When the 3D window is made, it is given to the export dialog.
+- A fix of 2D (S15): with a dpr below 1, `FieldCanvas::renderFrame()` gives the image the dpr 1, and maps the logical window onto the viewport of the image's pixels.
+- Documents: README (the 3D Save Image, the View of the export, the fps), `docs/3d-view.md`, NEWS, ChangeLog.
+- Tests:
+  - `offscreen_view_3d` (new; skipped without OpenGL 3.3): nothing before initializing or without frames; a position between the frames (the index, the next, the fraction, the players); the current index and the state of the view set back; the score board at the bottom (dpr 1, 2 and 0.5, and the ratio of the heights); the same input gives the same images (two drawers, with the starts of ranges); at the start of a range the camera jumps, to the same pose and picture as a drawer starting there (colors within 2); `renderStill()` does not move the camera nor change the export's; an export by `ExportJob`.
+  - `image_sequence_sink` (added): `ExportJob` with another drawer (the positions, the starts of the ranges told, a part each, an image not drawn).
+  - `export_timing` (added): `positions3D()`.
+  - `export_dialog` (added): an export of 3D images (2D when opened, the fps swapped, 7 images, the largest size, the settings, 2D when opened again, no `animation` in the arguments of a video), 3D not available.
+  - `field_canvas_render` (added): dpr 0.5 (the score board at the bottom, the goal line at half the place). Checked to fail with the code before the fix.
+- Checked (2026-11-25, Xvfb and Mesa):
+  - The 3D view on the screen was the same to the pixel before (ad3687b) and after the change (the window read from the X server).
+  - The 3D Save Image against the screen: only the texts of the score board differ (the screen's OpenGL paint engine and the image's raster paint engine antialias the texts differently, as 4.11 for 2D). The 3D picture was the same to the pixel. From the second, it is drawn in about 5 ms (150 to 180 ms the first time).
+  - In this environment, the screen's `grabFramebuffer()` gave a black image (as S4 says). To compare with the screen, the window was read from the X server after it was drawn again.
+  - The 4 goal scenes of a 2023 log (Oxsy vs YuShan2023):
+    - Images of 320×180 at 30 fps, exported per range and in one sequence: the 2404 images (601 each) were the same to the pixel. At the boundaries of the ranges the picture changes much, and little between the first two images of a range (the camera jumps).
+    - 4 mp4 files, one for each range, at 1280×720 and 30 fps in 15.4 s: H.264, yuv420p, 601 frames and 20.03 s each.
+    - A goal scene at 1920×1080 and 60 fps in 13.9 s (86 images a second): 1201 frames, 20.02 s, 13.5 MB.
+  - With images smaller than the view (320×180), the HUD is in the view's proportion (seen; before S15, the logos were large and the score board was not drawn).
+
 ## 5. Stages
 
 Every stage builds and passes the CI.
@@ -596,3 +646,18 @@ Stage 5 may proceed in parallel with stages 2-4.
 - Checked: with the CMake builds of Qt 6 and Qt 5 with the whistle, and of `ENABLE_SOUND=OFF`, it built without warnings, and all 80 tests (with the new `view_3d_renderer` and `team_graphic_painter`; the 3D tests ran, not skipped) passed three times each. It built with autotools (Qt 5, without 3D) too (the only warning is the old one of `configure.ac`). On Xvfb, the 3D view before and after the change was compared pixel by pixel, with no difference (§4.14).
 - The user checked the 3D view on the screen, and asked for the commit and the push. The user moves to another working environment, so the work pauses here. The user checks the CI later.
 - Next: check the CI of stage 5, and write the commit hash of stage 5 and its CI in the table of the progress (in the next commit). Then stage 6 (the offscreen drawing of 3D; the user is asked before it starts).
+
+### 2026-11-25: The CI of stage 5, and resumed
+
+- The CI of stage 5 (ad3687b) passed in all the jobs (autotools Qt5, CMake Qt6, Qt6 (Ubuntu 24.04), Qt5, distcheck). The user checked it and said so, and Claude checked it on GitHub too.
+- The user moved to another working environment and resumed the work.
+- Next: stage 6 (the offscreen drawing of 3D). The user is asked before it starts.
+
+### 2026-11-25: Stage 6 started and implemented
+
+- Stage 6 was started on the user's instruction. At its start the user decided D17 (the 2D / 3D of the export dialog is the view shown on the screen when it is opened).
+- Implemented as in §4.15. Decided beyond the plan: S10 (the type of drawer `ExportRenderer`), S11 (only the camera's `snap()` at the start of a range), S12 (`QOpenGLFramebufferObject`; no `gl/offscreen_target`), S13 (the main window has one drawer), S14 (an fps for each view, the size from the view shown), S15 (a dpr below 1).
+- Found and fixed on the way: QPainter draws a dpr below 1 as 1, so an image smaller than the view showed only the top left of the layout. It was a defect of 2D since stage 1 too (S15).
+- Checked: with the CMake builds of Qt 6 and Qt 5 with the whistle, and of `ENABLE_SOUND=OFF`, it built without warnings, and all 81 tests (with the new `offscreen_view_3d`; the 3D tests ran, not skipped) passed three times each. It built with autotools (Qt 5, without 3D) too (the only warning is the old one of `configure.ac`). The comparison with the screen on Xvfb and the exports of a real log are in §4.15.
+- The user checked it on the screen, and asked for the commit message.
+- Next: stage 6 is committed and pushed, and the CI runs.

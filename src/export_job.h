@@ -39,6 +39,7 @@
 #include <QStringList>
 
 #include <cstddef>
+#include <memory>
 #include <vector>
 
 class FieldCanvas;
@@ -51,15 +52,51 @@ class FrameSink;
 */
 struct ExportPart {
     FrameSink * sink;
+    //! the frame of each image (2D: the one drawn; 3D: the one at or before its position)
     std::vector< std::size_t > frames;
+    //! 3D: the position of each image between the frames (ExportTiming::positions()); empty for 2D
+    std::vector< double > positions = {};
+    //! the images that start a range (the first one always does): the 3D camera jumps there
+    std::vector< std::size_t > range_starts = {};
+
+    //! the image i starts a range
+    bool startsRange( const std::size_t i ) const;
+};
+
+/*!
+  \class ExportRenderer
+  \brief what draws the images of an export: the 2D view
+  (FieldCanvas::renderFrame()) or the 3D view drawn offscreen
+  (OffscreenView3D; docs/plan/2026-11-22-03_frame-export.md 4.2)
+*/
+class ExportRenderer {
+public:
+    virtual ~ExportRenderer();
+
+    //! the next image starts a range: the 3D camera jumps to where it goes, not gliding from the range before
+    virtual void startRange();
+
+    /*!
+      \brief draw an image of a part
+      \param part the part
+      \param i the image of the part
+      \param pixels the size of the image
+      \param dpr the device pixel ratio of the image
+      \return the image, or a null image if it cannot be drawn
+    */
+    virtual QImage render( const ExportPart & part,
+                           const std::size_t i,
+                           const QSize & pixels,
+                           const qreal dpr ) = 0;
 };
 
 /*!
   \class ExportJob
   \brief draws the frames and gives them to the sinks, an image at a time in
   the event loop (docs/plan/2026-11-22-03_frame-export.md 4.5): the window
-  stays responsive, and the export can be aborted. The 2D view draws the
-  frames (FieldCanvas::renderFrame(): the view is not changed).
+  stays responsive, and the export can be aborted. The 2D view
+  (FieldCanvas::renderFrame()) or the 3D view drawn offscreen (an
+  ExportRenderer) draws the frames: the view is not changed.
 
   The parts are exported one after another: a part's sink is opened, given
   its images, finished, and then the next one is opened. When aborted, the
@@ -72,7 +109,8 @@ class ExportJob
 
 private:
 
-    FieldCanvas & M_canvas;
+    std::unique_ptr< ExportRenderer > M_canvas_renderer; //!< the 2D view's, when given the canvas
+    ExportRenderer & M_renderer;
     std::vector< ExportPart > M_parts; //!< their sinks are children of this
     QSize M_pixels;
     qreal M_dpr;
@@ -97,6 +135,20 @@ public:
       \param fps the images a second (for a video)
     */
     ExportJob( FieldCanvas & canvas,
+               const std::vector< ExportPart > & parts,
+               const QSize & pixels,
+               const qreal dpr,
+               const double fps,
+               QObject * parent = nullptr );
+
+    /*!
+      \param renderer what draws the images (kept by the caller while this runs)
+      \param parts the sinks (made children of this), their frames and (3D) positions
+      \param pixels the size of the images
+      \param dpr the device pixel ratio of the images
+      \param fps the images a second (for a video)
+    */
+    ExportJob( ExportRenderer & renderer,
                const std::vector< ExportPart > & parts,
                const QSize & pixels,
                const qreal dpr,
@@ -138,6 +190,9 @@ signals:
                    const QString & message );
 
 private:
+
+    //! the sinks made children of this, and heard
+    void connectSinks();
 
     //! open the sink of the part, and go on
     void openPart();

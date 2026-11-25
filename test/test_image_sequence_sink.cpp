@@ -72,6 +72,38 @@ struct Told {
       }
 };
 
+/*!
+  \brief draws an image of a red by the position (3D) or the frame (2D),
+  and tells the starts of the ranges and the positions drawn
+*/
+class FakeRenderer
+    : public ExportRenderer {
+public:
+    QStringList calls;
+    int fail_at = -1; //!< the image of a part not drawn (a null image)
+
+    void startRange() override
+      {
+          calls << QStringLiteral( "start" );
+      }
+
+    QImage render( const ExportPart & part,
+                   const std::size_t i,
+                   const QSize & pixels,
+                   const qreal ) override
+      {
+          const double position = ( i < part.positions.size() ? part.positions[i] : double( part.frames[i] ) );
+          calls << QString::number( position );
+          if ( static_cast< int >( i ) == fail_at )
+          {
+              return QImage();
+          }
+          QImage image( pixels, QImage::Format_RGB32 );
+          image.fill( QColor( int( position * 20 ) % 256, 0, 0 ) );
+          return image;
+      }
+};
+
 }
 
 /*!
@@ -103,6 +135,7 @@ private slots:
     void jobAborted();
     void jobFailed();
     void jobNothing();
+    void jobRenderer();
 };
 
 /*-------------------------------------------------------------------*/
@@ -288,6 +321,63 @@ TestImageSequenceSink::jobNothing()
     QTRY_COMPARE( told.finished, 1 );
     QVERIFY( ! told.ok );
     QCOMPARE( told.message, QString( "There is no frame to export." ) );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  A job drawn by another renderer (the 3D view drawn offscreen): the
+  positions of the images, and the starts of the ranges told before their
+  first images (the first image of each part too); an image not drawn
+  stops the job.
+*/
+void
+TestImageSequenceSink::jobRenderer()
+{
+    QTemporaryDir tmp;
+    {
+        FakeRenderer renderer;
+        ExportPart part{ new ImageSequenceSink( tmp.filePath( "one" ), { "0.png", "1.png", "2.png", "3.png", "4.png" }, "png" ),
+                         { 0, 0, 1, 7, 7 } };
+        part.positions = { 0.0, 0.5, 1.0, 7.0, 7.5 };
+        part.range_starts = { 0, 3 };
+        QVERIFY( part.startsRange( 0 ) );
+        QVERIFY( ! part.startsRange( 1 ) );
+        QVERIFY( part.startsRange( 3 ) );
+        ExportJob job( renderer, { part }, QSize( 32, 24 ), 1.0, 30.0 );
+        Told told( job );
+        QCOMPARE( job.total(), std::size_t( 5 ) );
+        job.start();
+        QTRY_COMPARE( told.finished, 1 );
+        QVERIFY2( told.ok, qPrintable( told.message ) );
+        QCOMPARE( renderer.calls.join( ' ' ), QString( "start 0 0.5 1 start 7 7.5" ) );
+        QCOMPARE( QImage( tmp.filePath( "one/4.png" ) ).size(), QSize( 32, 24 ) );
+    }
+    {
+        // a part for each range: each starts one
+        FakeRenderer renderer;
+        ExportPart a{ new ImageSequenceSink( tmp.filePath( "a" ), { "0.png", "1.png" }, "png" ), { 0, 1 } };
+        ExportPart b{ new ImageSequenceSink( tmp.filePath( "b" ), { "0.png" }, "png" ), { 5 } };
+        ExportJob job( renderer, { a, b }, QSize( 32, 24 ), 1.0, 10.0 );
+        Told told( job );
+        job.start();
+        QTRY_COMPARE( told.finished, 1 );
+        QVERIFY2( told.ok, qPrintable( told.message ) );
+        QCOMPARE( renderer.calls.join( ' ' ), QString( "start 0 1 start 5" ) );
+    }
+    {
+        // not drawn: stopped, told
+        FakeRenderer renderer;
+        renderer.fail_at = 1;
+        ExportJob job( renderer, { ExportPart{ new ImageSequenceSink( tmp.filePath( "c" ), { "0.png", "1.png", "2.png" }, "png" ), { 0, 1, 2 } } },
+                       QSize( 32, 24 ), 1.0, 10.0 );
+        Told told( job );
+        job.start();
+        QTRY_COMPARE( told.finished, 1 );
+        QVERIFY( ! told.ok );
+        QCOMPARE( told.message, QString( "Could not draw the image 2." ) );
+        QCOMPARE( told.progress, QStringList( { "1/3" } ) );
+        QVERIFY( ! job.isRunning() );
+    }
 }
 
 QTEST_MAIN( TestImageSequenceSink )

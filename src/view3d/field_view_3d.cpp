@@ -38,6 +38,7 @@
 
 #include "guides_3d.h"
 #include "interpolate.h"
+#include "offscreen_view_3d.h"
 
 #include "disp_holder.h"
 #include "log_player.h"
@@ -46,9 +47,6 @@
 #include <QFontMetrics>
 #include <QGuiApplication>
 #include <QMouseEvent>
-#include <QOffscreenSurface>
-#include <QOpenGLContext>
-#include <QOpenGLFunctions_3_3_Core>
 #include <QPainter>
 #include <QWheelEvent>
 
@@ -119,29 +117,7 @@ FieldView3D::unavailableReason()
         return QObject::tr( "The platform \"%1\" does not show OpenGL widgets." ).arg( platform );
     }
 
-    QOpenGLContext context;
-    context.setFormat( surfaceFormat() );
-    if ( ! context.create() )
-    {
-        return QObject::tr( "OpenGL is not available." );
-    }
-    const QPair< int, int > version = context.format().version();
-    if ( version < qMakePair( 3, 3 ) )
-    {
-        return QObject::tr( "OpenGL 3.3 is not available (%1.%2)." ).arg( version.first ).arg( version.second );
-    }
-
-    QOffscreenSurface surface;
-    surface.setFormat( context.format() );
-    surface.create();
-    if ( ! context.makeCurrent( &surface ) )
-    {
-        return QObject::tr( "OpenGL is not available." );
-    }
-    QOpenGLFunctions_3_3_Core functions;
-    const bool ok = functions.initializeOpenGLFunctions();
-    context.doneCurrent();
-    return ok ? QString() : QObject::tr( "OpenGL 3.3 core is not available." );
+    return OffscreenView3D::unavailableReason();
 }
 
 /*-------------------------------------------------------------------*/

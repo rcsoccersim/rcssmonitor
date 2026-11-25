@@ -112,19 +112,19 @@ A click on a column's header sorts the logs by the column.
 
 ### Saving images of the view
 
-`File` -> `Save Image of This Frame...` (`Ctrl+Shift+I`) saves the frame shown in the 2D view to an image file (PNG, or JPEG by the extension), as large as the view: on a high-DPI screen, with as many pixels as the screen shows.
+`File` -> `Save Image of This Frame...` (`Ctrl+Shift+I`) saves the frame shown in the view, 2D or 3D, to an image file (PNG, or JPEG by the extension), as large as the view: on a high-DPI screen, with as many pixels as the screen shows. The 3D view is drawn again offscreen with its camera as it is, without the frames per second.
 The default name is the game log's name and the cycle, e.g. `202607050404-HELIOS2026_0-vs-YuShan2026_1-301.png`.
 The texts are drawn with grayscale antialiasing.
-It is not available while the 3D view is shown yet.
 
-`File` -> `Export Images / Video` -> `Open the Export Dialog...` (`Ctrl+Shift+E`) exports a range of the frames of the game log as image files (PNG or JPEG) or as a video, drawn by the 2D view:
+`File` -> `Export Images / Video` -> `Open the Export Dialog...` (`Ctrl+Shift+E`) exports a range of the frames of the game log as image files (PNG or JPEG) or as a video, drawn by the 2D view or by the 3D view:
 
 - The range: the start and the end are cycles (`1234`) or stopped frames (`1234.3`, as the status bar shows them), empty for the first and the last frames. A cycle as the end includes its stopped frames. `Now` takes the position shown: the dialog stays open while you move through the log. `Clear` empties both.
 - `[` and `]` (`File` -> `Export Images / Video` -> `Start the Range Here`, `End the Range Here`) mark the start and the end of the range at the position shown, with the dialog closed too; `Clear the Range` empties both. The slider shows the ranges marked as bands, and the goals as orange ticks.
 - `Presets` gives the whole log, a half (the extra time and the penalty shootout too), a goal scene (from 10 s before the goal to 5 s after it, by default), all the goals as a range each, or the frames around the position shown (5 s before and after).
 - Several ranges can be exported at once (`Add`, `Remove`, `Up`, `Down`): each in its own directory (or video) by its name, or all in one sequence (or video). The ranges are forgotten when another game log is opened.
+- `View`: the 2D view or the 3D view, the one shown when the dialog is opened. The 3D view is drawn offscreen (it needs OpenGL 3.3, as the 3D view itself), between the frames: at 30 images/s by default, the players and the ball move smoothly. Its camera starts as the 3D view's (or the camera of the settings), follows the ball as on the screen, and jumps at the start of each range, not gliding from one scene to the next. The 3D images are 3840 × 2160 at most.
 - The size: as the view, 1280 × 720, 1920 × 1080, 3840 × 2160, or any (even numbers for a video). `Enlarge the texts, logos and lines with the image` makes the image look as the view, enlarged: the texts, the team logos and the widths of the lines (such as the circle of a kick) grow with the image. Off, they keep their sizes in pixels, smaller and thinner in a large image, and the players move more smoothly.
-- The rate: the images a second and the speed (10 images/s at × 1 draws each frame once). `As the Playback` sets the speed at which the monitor plays the game log.
+- The rate: the images a second (one for each view: 10 for the 2D view, 30 for the 3D view by default) and the speed (10 images/s at × 1 draws each frame once). `As the Playback` sets the speed at which the monitor plays the game log.
 - The images are named by their numbers (`image-00000.png`), or by the cycles (`image-c01234.00.png`) when an image is a frame. The files already there are told once before the export, and the disk space is estimated.
 - A video is written by [ffmpeg](https://ffmpeg.org/), installed separately (`sudo apt install ffmpeg` on Ubuntu): in the PATH, or chosen in the dialog. It is H.264 (libx264), in the format of the file's extension (`.mp4`, `.mov` or `.mkv`; `.mp4` when there is none), without sound. `Quality (CRF)` is 18 by default (smaller is better and larger; ffmpeg's default is 23), and `Encoding speed` is `medium` (slower makes smaller files of the same quality). The dialog shows the version of ffmpeg; without libx264, it uses MPEG-4 Part 2 (mpeg4) and tells so. A video stopped before its end is removed.
 - It is not available while connected to a server. The view and the frame shown do not change.

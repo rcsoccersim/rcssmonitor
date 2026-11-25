@@ -62,6 +62,8 @@ class ExportJob;
 struct ExportPart;
 class ExportRangeList;
 class FieldCanvas;
+class FieldView3D;
+class OffscreenView3D;
 struct ExportRangeSpec;
 
 /*!
@@ -78,9 +80,11 @@ struct ExportRangeSpec;
   scenes (one or all) and the frames around the position shown. Several
   ranges are written each in its own directory, or in one sequence.
 
-  The images are drawn by the 2D view (FieldCanvas::renderFrame()), in a
-  size and with the texts scaled or not, at a rate (fps and speed:
-  ExportTiming). They are written as image files, named by their numbers
+  The images are drawn by the 2D view (FieldCanvas::renderFrame()) or by
+  the 3D view drawn offscreen (OffscreenView3D: between the frames, the
+  camera starting as the view's), the view shown when the dialog is opened
+  (D17), in a size and with the texts scaled or not, at a rate (fps and
+  speed: ExportTiming; an fps for each view). They are written as image files, named by their numbers
   or by the cycles, or as a video by an external ffmpeg (FfmpegSink: H.264
   at a quality and a speed, D14, D15; a video for each range, or one for
   all). Before the export, the files that are there are told once, and the
@@ -116,6 +120,13 @@ private:
     QDoubleSpinBox * M_goal_after_spin;
     QDoubleSpinBox * M_around_before_spin;
     QDoubleSpinBox * M_around_after_spin;
+
+    QRadioButton * M_view_2d_radio;
+    QRadioButton * M_view_3d_radio;
+    const FieldView3D * M_view_3d; //!< the 3D view of the window: its size and its camera (null: none yet)
+    OffscreenView3D * M_offscreen_3d; //!< draws the 3D images (null: not built with the 3D view)
+    QString M_view_3d_reason; //!< why the 3D view cannot be drawn (empty: it can)
+    double M_other_fps; //!< the fps of the view not chosen (one for each view)
 
     QComboBox * M_size_combo;
     QSpinBox * M_width_spin;
@@ -174,6 +185,20 @@ public:
     //! the frame of each image of a range
     std::vector< std::size_t > imageFrames( const ExportRange & range ) const;
 
+    //! 3D: the position of each image of a range, between the frames
+    std::vector< double > imagePositions( const ExportRange & range ) const;
+
+    //! the 3D view draws the images (else the 2D view)
+    bool isView3D() const;
+
+    /*!
+      \brief what the 3D images need: the window's 3D view (its size and its
+      camera; null before it is made) and what draws them offscreen (null:
+      none). The 3D view can be chosen when the images can be drawn here.
+    */
+    void setView3DSources( const FieldView3D * view,
+                           OffscreenView3D * offscreen );
+
     //! the size of the images (pixels)
     QSize imageSize() const;
 
@@ -221,6 +246,9 @@ public:
     bool isExporting() const;
 
 public slots:
+
+    //! the view that draws the images: the 3D view (when it can be drawn), or the 2D view
+    void chooseView3D( const bool on );
 
     void setStart( const QString & text );
     void setEnd( const QString & text );
@@ -297,6 +325,13 @@ private:
     void chooseFfmpeg();
     //! the fields of the images or of the video
     void showOutput();
+
+    //! the view chosen: its fps in the field
+    void showView();
+
+    //! the size of the view shown (pixels) and its height (logical pixels): the 2D view or the 3D view
+    QSize viewPixels() const;
+    int viewHeight() const;
     void showMessage( const QString & text,
                       const bool error );
 

@@ -45,6 +45,12 @@
 #include "options.h"
 #include "ui_palette.h"
 
+#ifdef HAVE_3D_VIEW
+#include "cameras_3d.h"
+#include "field_view_3d.h"
+#include "offscreen_view_3d.h"
+#endif
+
 #include <QBuffer>
 #include <QButtonGroup>
 #include <QCheckBox>
@@ -147,6 +153,9 @@ ExportDialog::ExportDialog( DispHolder & disp_holder,
       M_disp_holder( disp_holder ),
       M_canvas( canvas ),
       M_ranges( ranges ),
+      M_view_3d( nullptr ),
+      M_offscreen_3d( nullptr ),
+      M_other_fps( ExportTiming::DEFAULT_FPS_3D ),
       M_ffmpeg_probed( false ),
       M_allowed( true ),
       M_job_video( false )
@@ -154,6 +163,8 @@ ExportDialog::ExportDialog( DispHolder & disp_holder,
     this->setWindowTitle( tr( "Export Images / Video" ) );
     createWidgets();
     readSettings();
+    // the 3D view, once its sources are given (setView3DSources())
+    setView3DSources( nullptr, nullptr );
     connect( &M_ranges, &ExportRangeList::changed,
              this, &ExportDialog::showRanges );
     showRanges();
@@ -339,8 +350,25 @@ ExportDialog::createWidgets()
 
     // the images
     {
-        QGroupBox * box = new QGroupBox( tr( "Images (2D view)" ) );
+        QGroupBox * box = new QGroupBox( tr( "Images" ) );
         QFormLayout * form = new QFormLayout( box );
+
+        // the view that draws them: the one shown when the dialog is opened (D17)
+        M_view_2d_radio = new QRadioButton( tr( "2D view" ) );
+        M_view_2d_radio->setObjectName( "view_2d" );
+        M_view_2d_radio->setChecked( true );
+        M_view_3d_radio = new QRadioButton( tr( "3D view" ) );
+        M_view_3d_radio->setObjectName( "view_3d" );
+        QButtonGroup * views = new QButtonGroup( box );
+        views->addButton( M_view_2d_radio );
+        views->addButton( M_view_3d_radio );
+        connect( M_view_3d_radio, &QRadioButton::toggled,
+                 this, [this]( bool ) { showView(); } );
+        QHBoxLayout * view = new QHBoxLayout();
+        view->addWidget( M_view_2d_radio );
+        view->addWidget( M_view_3d_radio );
+        view->addStretch( 1 );
+        form->addRow( tr( "View:" ), view );
 
         M_size_combo = new QComboBox();
         M_size_combo->setObjectName( "size" );
@@ -373,7 +401,7 @@ ExportDialog::createWidgets()
         M_scale_texts_check = new QCheckBox( tr( "Enlarge the texts, logos and lines with the image" ) );
         M_scale_texts_check->setObjectName( "scale_texts" );
         M_scale_texts_check->setToolTip( tr( "The image looks as the view, enlarged: the texts, the team logos and the widths of the lines grow with the image. "
-                                             "Off: they keep their sizes in pixels, smaller and thinner in a large image, and the players move more smoothly." ) );
+                                             "Off: they keep their sizes in pixels, smaller and thinner in a large image, and in 2D the players move more smoothly." ) );
         connect( M_scale_texts_check, &QCheckBox::toggled,
                  this, &ExportDialog::updateSummary );
         form->addRow( QString(), M_scale_texts_check );
@@ -589,7 +617,9 @@ ExportDialog::readSettings()
     M_width_spin->setValue( s.width );
     M_height_spin->setValue( s.height );
     M_scale_texts_check->setChecked( s.scale_texts );
-    M_fps_spin->setValue( s.fps );
+    // the fps of the view chosen in the field, the other's kept
+    M_fps_spin->setValue( isView3D() ? s.fps_3d : s.fps );
+    M_other_fps = ( isView3D() ? s.fps : s.fps_3d );
     M_speed_spin->setValue( s.speed );
     M_dir_edit->setText( s.directory.isEmpty() ? QDir::homePath() : s.directory );
     M_prefix_edit->setText( s.prefix );
@@ -624,7 +654,8 @@ ExportDialog::writeSettings() const
     s.width = M_width_spin->value();
     s.height = M_height_spin->value();
     s.scale_texts = M_scale_texts_check->isChecked();
-    s.fps = M_fps_spin->value();
+    s.fps = ( isView3D() ? M_other_fps : M_fps_spin->value() );
+    s.fps_3d = ( isView3D() ? M_fps_spin->value() : M_other_fps );
     s.speed = M_speed_spin->value();
     s.name_by_cycle = M_name_by_cycle_check->isChecked();
     s.separate_ranges = M_separate_radio->isChecked();
@@ -1035,6 +1066,112 @@ ExportDialog::imageFrames( const ExportRange & range ) const
 }
 
 /*-------------------------------------------------------------------*/
+std::vector< double >
+ExportDialog::imagePositions( const ExportRange & range ) const
+{
+    if ( ! range.isValid() )
+    {
+        return std::vector< double >();
+    }
+    return ExportTiming::positions3D( range.first, range.last, framesPerImage() );
+}
+
+/*-------------------------------------------------------------------*/
+bool
+ExportDialog::isView3D() const
+{
+    return ( M_view_3d_radio->isChecked()
+             && M_offscreen_3d
+             && M_view_3d_reason.isEmpty() );
+}
+
+/*-------------------------------------------------------------------*/
+void
+ExportDialog::setView3DSources( const FieldView3D * view,
+                                OffscreenView3D * offscreen )
+{
+    M_view_3d = view;
+#ifdef HAVE_3D_VIEW
+    if ( ! offscreen )
+    {
+        M_view_3d_reason = tr( "The 3D view is not available." );
+    }
+    else if ( offscreen != M_offscreen_3d )
+    {
+        // a context is tried once for each drawer
+        M_view_3d_reason = OffscreenView3D::unavailableReason();
+    }
+#else
+    M_view_3d_reason = tr( "This rcssmonitor is built without the 3D view." );
+#endif
+    M_offscreen_3d = offscreen;
+
+    const bool available = M_view_3d_reason.isEmpty();
+    M_view_3d_radio->setEnabled( available );
+    M_view_3d_radio->setToolTip( available
+                                 ? tr( "The 3D view drawn between the frames, the camera starting as the view's" )
+                                 : tr( "Not available: %1" ).arg( M_view_3d_reason ) );
+    if ( ! available
+         && M_view_3d_radio->isChecked() )
+    {
+        M_view_2d_radio->setChecked( true );
+    }
+    updateSummary();
+}
+
+/*-------------------------------------------------------------------*/
+void
+ExportDialog::chooseView3D( const bool on )
+{
+    ( on && M_view_3d_radio->isEnabled()
+      ? M_view_3d_radio
+      : M_view_2d_radio )->setChecked( true );
+}
+
+/*-------------------------------------------------------------------*/
+void
+ExportDialog::showView()
+{
+    // the fps of each view: 10 for the frames of 2D, 30 for 3D by default
+    const double shown = M_fps_spin->value();
+    M_fps_spin->setValue( M_other_fps );
+    M_other_fps = shown;
+    updateSummary();
+}
+
+/*-------------------------------------------------------------------*/
+QSize
+ExportDialog::viewPixels() const
+{
+#ifdef HAVE_3D_VIEW
+    if ( M_view_3d
+         && M_view_3d->isExposed() )
+    {
+        const qreal dpr = M_view_3d->devicePixelRatio();
+        return QSize( std::max( 1, static_cast< int >( std::lround( M_view_3d->width() * dpr ) ) ),
+                      std::max( 1, static_cast< int >( std::lround( M_view_3d->height() * dpr ) ) ) );
+    }
+#endif
+    const qreal dpr = M_canvas.devicePixelRatioF();
+    return QSize( std::max( 1, static_cast< int >( std::lround( M_canvas.width() * dpr ) ) ),
+                  std::max( 1, static_cast< int >( std::lround( M_canvas.height() * dpr ) ) ) );
+}
+
+/*-------------------------------------------------------------------*/
+int
+ExportDialog::viewHeight() const
+{
+#ifdef HAVE_3D_VIEW
+    if ( M_view_3d
+         && M_view_3d->isExposed() )
+    {
+        return M_view_3d->height();
+    }
+#endif
+    return M_canvas.height();
+}
+
+/*-------------------------------------------------------------------*/
 QSize
 ExportDialog::imageSize() const
 {
@@ -1042,9 +1179,8 @@ ExportDialog::imageSize() const
     QSize size( M_width_spin->value(), M_height_spin->value() );
     if ( key == QLatin1String( "view" ) )
     {
-        const qreal dpr = M_canvas.devicePixelRatioF();
-        size = QSize( std::max( 1, static_cast< int >( std::lround( M_canvas.width() * dpr ) ) ),
-                      std::max( 1, static_cast< int >( std::lround( M_canvas.height() * dpr ) ) ) );
+        // the view shown: the 2D view or the 3D view
+        size = viewPixels();
     }
     for ( const SizeChoice & c : SIZES )
     {
@@ -1065,12 +1201,13 @@ ExportDialog::imageRatio() const
 {
     // the texts, the logos and the lines as large as in the view: the image is the view's layout,
     // scaled to the height of the image
+    const int height = viewHeight();
     if ( ! M_scale_texts_check->isChecked()
-         || M_canvas.height() <= 0 )
+         || height <= 0 )
     {
         return 1.0;
     }
-    return std::max( 0.1, static_cast< qreal >( imageSize().height() ) / M_canvas.height() );
+    return std::max( 0.1, static_cast< qreal >( imageSize().height() ) / height );
 }
 
 /*-------------------------------------------------------------------*/
@@ -1472,6 +1609,15 @@ ExportDialog::updateSummary()
         frame_count += r.size();
     }
     const bool video = isVideo();
+#ifdef HAVE_3D_VIEW
+    if ( error.isEmpty()
+         && isView3D()
+         && ( imageSize().width() > OffscreenView3D::MAX_WIDTH
+              || imageSize().height() > OffscreenView3D::MAX_HEIGHT ) )
+    {
+        error = tr( "A 3D image is %1 x %2 pixels at most." ).arg( OffscreenView3D::MAX_WIDTH ).arg( OffscreenView3D::MAX_HEIGHT );
+    }
+#endif
     if ( error.isEmpty() && ! list.empty() )
     {
         if ( ! video )
@@ -1715,10 +1861,11 @@ ExportDialog::prepareVideos( const std::vector< std::vector< std::size_t > > & b
         files = videoFiles( static_cast< int >( by_range.size() ) );
     }
 
-    // a video of the 2D view: flat colors (-tune animation)
-    const auto sink = [this]( const QString & file ) {
+    // a video of the 2D view: flat colors (-tune animation); of the 3D view: as a film
+    const bool animation = ! isView3D();
+    const auto sink = [this, animation]( const QString & file ) {
         return new FfmpegSink( M_ffmpeg_info.program, file, M_ffmpeg_info.encoder,
-                               M_crf_spin->value(), M_preset_combo->currentText(), true );
+                               M_crf_spin->value(), M_preset_combo->currentText(), animation );
     };
     if ( files.size() == 1 )
     {
@@ -1768,6 +1915,20 @@ ExportDialog::startExport( const bool ask )
     std::vector< ExportPart > parts;
     qint64 estimate = 0;
 
+    // the 3D view drawn offscreen: its context first (nothing written without it)
+    const bool view_3d = isView3D();
+#ifdef HAVE_3D_VIEW
+    if ( view_3d )
+    {
+        QString gl_error;
+        if ( ! M_offscreen_3d->initialize( &gl_error ) )
+        {
+            showMessage( gl_error, true );
+            return false;
+        }
+    }
+#endif
+
     if ( isVideo() )
     {
         if ( ! prepareVideos( by_range, frames, ask, &parts ) )
@@ -1787,11 +1948,59 @@ ExportDialog::startExport( const bool ask )
                                      frames } );
     }
 
+    // the first image of each range: the 3D camera jumps there. 3D: the
+    // positions of the images between the frames.
+    {
+        std::vector< std::vector< double > > positions;
+        for ( const ExportRange & r : list )
+        {
+            positions.push_back( view_3d ? imagePositions( r ) : std::vector< double >() );
+        }
+        if ( parts.size() == 1 )
+        {
+            std::size_t start = 0;
+            for ( std::size_t r = 0; r < list.size(); ++r )
+            {
+                parts.front().range_starts.push_back( start );
+                parts.front().positions.insert( parts.front().positions.end(), positions[r].begin(), positions[r].end() );
+                start += by_range[r].size();
+            }
+        }
+        else
+        {
+            for ( std::size_t r = 0; r < parts.size() && r < positions.size(); ++r )
+            {
+                parts[r].positions = positions[r];
+            }
+        }
+    }
+
     writeSettings();
     emit stopRequested();
 
     M_job_video = isVideo();
-    ExportJob * job = new ExportJob( M_canvas, parts, pixels, dpr, M_fps_spin->value(), this );
+    ExportJob * job = nullptr;
+#ifdef HAVE_3D_VIEW
+    if ( view_3d )
+    {
+        // the camera as the view's (or the camera of the options), jumping at the first image
+        CameraController camera;
+        if ( M_view_3d )
+        {
+            camera = M_view_3d->camera();
+        }
+        else
+        {
+            camera.setMode( Options::instance().camera3D() );
+        }
+        M_offscreen_3d->start( camera, M_fps_spin->value() );
+        job = new ExportJob( *M_offscreen_3d, parts, pixels, dpr, M_fps_spin->value(), this );
+    }
+#endif
+    if ( ! job )
+    {
+        job = new ExportJob( M_canvas, parts, pixels, dpr, M_fps_spin->value(), this );
+    }
     M_job = job;
 
     const QString title = ( M_job_video ? tr( "Export Video" ) : tr( "Export Images" ) );

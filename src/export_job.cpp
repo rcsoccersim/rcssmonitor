@@ -41,6 +41,55 @@
 
 #include <QTimer>
 
+#include <algorithm>
+
+/*-------------------------------------------------------------------*/
+bool
+ExportPart::startsRange( const std::size_t i ) const
+{
+    return ( i == 0
+             || std::find( range_starts.begin(), range_starts.end(), i ) != range_starts.end() );
+}
+
+/*-------------------------------------------------------------------*/
+ExportRenderer::~ExportRenderer()
+{
+
+}
+
+/*-------------------------------------------------------------------*/
+void
+ExportRenderer::startRange()
+{
+    // the 2D view draws each frame by itself
+}
+
+namespace {
+
+/*!
+  \brief the 2D view draws the frames (FieldCanvas::renderFrame())
+*/
+class CanvasRenderer
+    : public ExportRenderer {
+private:
+    FieldCanvas & M_canvas;
+public:
+    explicit
+    CanvasRenderer( FieldCanvas & canvas )
+        : M_canvas( canvas )
+      { }
+
+    QImage render( const ExportPart & part,
+                   const std::size_t i,
+                   const QSize & pixels,
+                   const qreal dpr ) override
+      {
+          return M_canvas.renderFrame( part.frames[i], pixels, dpr );
+      }
+};
+
+}
+
 /*-------------------------------------------------------------------*/
 ExportJob::ExportJob( FieldCanvas & canvas,
                       const std::vector< ExportPart > & parts,
@@ -49,7 +98,8 @@ ExportJob::ExportJob( FieldCanvas & canvas,
                       const double fps,
                       QObject * parent )
     : QObject( parent ),
-      M_canvas( canvas ),
+      M_canvas_renderer( new CanvasRenderer( canvas ) ),
+      M_renderer( *M_canvas_renderer ),
       M_parts( parts ),
       M_pixels( pixels ),
       M_dpr( dpr ),
@@ -60,6 +110,36 @@ ExportJob::ExportJob( FieldCanvas & canvas,
       M_total( 0 ),
       M_started( false ),
       M_ended( false )
+{
+    connectSinks();
+}
+
+/*-------------------------------------------------------------------*/
+ExportJob::ExportJob( ExportRenderer & renderer,
+                      const std::vector< ExportPart > & parts,
+                      const QSize & pixels,
+                      const qreal dpr,
+                      const double fps,
+                      QObject * parent )
+    : QObject( parent ),
+      M_renderer( renderer ),
+      M_parts( parts ),
+      M_pixels( pixels ),
+      M_dpr( dpr ),
+      M_fps( fps ),
+      M_part( 0 ),
+      M_done_in_part( 0 ),
+      M_done( 0 ),
+      M_total( 0 ),
+      M_started( false ),
+      M_ended( false )
+{
+    connectSinks();
+}
+
+/*-------------------------------------------------------------------*/
+void
+ExportJob::connectSinks()
 {
     for ( const ExportPart & part : M_parts )
     {
@@ -176,7 +256,17 @@ ExportJob::step()
 
     if ( M_pending.isNull() )
     {
-        M_pending = M_canvas.renderFrame( part.frames[M_done_in_part], M_pixels, M_dpr );
+        if ( part.startsRange( M_done_in_part ) )
+        {
+            M_renderer.startRange();
+        }
+        M_pending = M_renderer.render( part, M_done_in_part, M_pixels, M_dpr );
+        if ( M_pending.isNull() )
+        {
+            part.sink->abort();
+            end( false, tr( "Could not draw the image %1." ).arg( M_done + 1 ) );
+            return;
+        }
     }
 
     switch ( part.sink->write( M_pending ) ) {

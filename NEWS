@@ -78,16 +78,17 @@
     h5ai, or by a page of links as Apache and nginx do), and remove any.
     See README.md.
 
-  * Save the frame shown in the 2D view as an image (File > Save Image
-    of This Frame, Ctrl+Shift+I), and export a range of the frames as
-    images (File > Export Images / Video, Ctrl+Shift+E): the start and
+  * Save the frame shown in the 2D or 3D view as an image (File > Save
+    Image of This Frame, Ctrl+Shift+I), and export a range of the frames
+    as images (File > Export Images / Video, Ctrl+Shift+E): the start and
     the end as cycles or stopped frames, marked by [ and ] too, shown on
     the slider with the goals; the halves, the goal scenes and the frames
     around the position shown as presets; several ranges at once; the
     size, the rate and the names of the images. Or as a video written
     by ffmpeg (installed separately): H.264 at a quality (CRF) and an
-    encoding speed, a video for each range or one for all. See
-    README.md.
+    encoding speed, a video for each range or one for all. The 3D view
+    is drawn offscreen, between the frames (30 images/s by default),
+    its camera jumping at the start of each range. See README.md.
 
   * Add the referee's whistle (View > Referee's Whistle, --whistle, off
     by default): a long whistle at a kick-off, a short one at a foul, an

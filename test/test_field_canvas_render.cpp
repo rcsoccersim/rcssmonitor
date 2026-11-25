@@ -301,7 +301,10 @@ TestFieldCanvasRender::indexInvalid()
 /*-------------------------------------------------------------------*/
 /*!
   A device pixel ratio of 2: the frame laid out in the logical size (the
-  score board at the bottom), drawn with twice the pixels.
+  score board at the bottom), drawn with twice the pixels. Of 0.5 (an image
+  smaller than the view, the texts as large as in it): the same layout,
+  half as large (QPainter takes no ratio below 1: the window is mapped
+  onto the pixels).
 */
 void
 TestFieldCanvasRender::devicePixelRatio()
@@ -327,6 +330,12 @@ TestFieldCanvasRender::devicePixelRatio()
     const int x2 = leftLine( two, y1 * 2 );
     QVERIFY( x1 > 0 );
     QVERIFY2( std::abs( x2 - 2 * x1 ) <= 2, qPrintable( QString( "%1 %2" ).arg( x1 ).arg( x2 ) ) );
+
+    const QImage half = canvas.renderFrame( 1, QSize( 320, 240 ), 0.5 );
+    QCOMPARE( half.size(), QSize( 320, 240 ) );
+    QCOMPARE( half.pixelColor( 1, 239 ), board );
+    const int x_half = leftLine( half, y1 / 2 );
+    QVERIFY2( std::abs( 2 * x_half - x1 ) <= 3, qPrintable( QString( "%1 %2" ).arg( x1 ).arg( x_half ) ) );
 }
 
 /*-------------------------------------------------------------------*/

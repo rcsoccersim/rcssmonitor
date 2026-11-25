@@ -30,6 +30,8 @@
 
 #include "export_timing.h"
 
+#include <cmath>
+
 /*
   docs/plan/2026-11-22-03_frame-export.md 4.3, §6.
 */
@@ -48,6 +50,7 @@ private slots:
     void imageCount();
     void frames2D_data();
     void frames2D();
+    void positions3D();
     void duration();
     void names();
 };
@@ -139,6 +142,41 @@ TestExportTiming::frames2D()
     QCOMPARE( game.size(), std::size_t( 18001 ) );
     QCOMPARE( game.back(), std::size_t( 6000 ) );
     QCOMPARE( game[17999], std::size_t( 5999 ) );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  3D: the positions between the frames, as many as the 2D images, the
+  frame at or before each the 2D frame; the frames exactly (not 0.9999...)
+  and the last not passed.
+*/
+void
+TestExportTiming::positions3D()
+{
+    const std::vector< double > thirds = ExportTiming::positions3D( 3, 5, 1.0 / 3.0 );
+    QCOMPARE( thirds.size(), std::size_t( 7 ) );
+    QCOMPARE( thirds[0], 3.0 );
+    QVERIFY( std::fabs( thirds[1] - ( 3.0 + 1.0 / 3.0 ) ) < 1.0e-9 );
+    QCOMPARE( thirds[3], 4.0 );
+    QCOMPARE( thirds[6], 5.0 );
+    const std::vector< std::size_t > frames = ExportTiming::frames2D( 3, 5, 1.0 / 3.0 );
+    QCOMPARE( frames.size(), thirds.size() );
+    for ( std::size_t i = 0; i < frames.size(); ++i )
+    {
+        QCOMPARE( ExportTiming::frameAt( thirds[i], 5 ), frames[i] );
+    }
+
+    // 60 fps over a game: the frames exactly at every sixth image, the last one the end
+    const std::vector< double > game = ExportTiming::positions3D( 0, 6000, 1.0 / 6.0 );
+    QCOMPARE( game.size(), std::size_t( 36001 ) );
+    QCOMPARE( game[35994], 5999.0 );
+    QCOMPARE( game.back(), 6000.0 );
+
+    // 2x: every other frame; none
+    const std::vector< double > twice = ExportTiming::positions3D( 0, 5, 2.0 );
+    QCOMPARE( twice.size(), std::size_t( 3 ) );
+    QCOMPARE( twice[2], 4.0 );
+    QVERIFY( ExportTiming::positions3D( 5, 4, 1.0 ).empty() );
 }
 
 /*-------------------------------------------------------------------*/

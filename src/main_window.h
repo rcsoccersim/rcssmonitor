@@ -54,6 +54,7 @@ class QLineEdit;
 class ConfigDialog;
 class FieldCanvas;
 class FieldView3D;
+class OffscreenView3D;
 class QStackedWidget;
 class ExportDialog;
 class ExportRangeList;
@@ -87,6 +88,7 @@ private:
     QStackedWidget * M_view_stack; //!< the 2D view and the 3D view
     QWidget * M_field_view_3d; //!< the container of the 3D view's window, made when it is first shown
     FieldView3D * M_view_3d = nullptr; //!< the 3D view: a window in M_field_view_3d
+    mutable OffscreenView3D * M_offscreen_3d = nullptr; //!< the 3D view drawn into images (export, Save Image), made when first needed
     MonitorClient * M_monitor_client;
     LogPlayer * M_log_player;
     LogPlayerSlider * M_log_player_slider = nullptr; //!< the frames, with the ranges to export and the goals
@@ -332,6 +334,9 @@ private:
 
     //! the 3D view if it is shown, or null
     FieldView3D * shownView3D() const;
+
+    //! the 3D view drawn into images, made when first asked (null: not built with the 3D view)
+    OffscreenView3D * offscreenView3D() const;
 
     //! the keyboard focus to the view shown: the 2D view, or the views' stack (the 3D view's window takes none)
     void focusView();

@@ -274,6 +274,7 @@ public:
         int height = 1080;
         bool scale_texts = true; //!< the view enlarged: the texts, the logos and the lines as large in the image as in the view (by the device pixel ratio)
         double fps = 10.0; //!< the images a second (2D)
+        double fps_3d = 30.0; //!< the images a second (3D: drawn between the frames)
         double speed = 1.0; //!< how many times as fast as the game is played
         bool name_by_cycle = false; //!< the images named by the cycles (one frame an image)
         bool separate_ranges = true; //!< the ranges each in its own directory, or in one sequence

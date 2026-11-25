@@ -206,6 +206,8 @@ private slots:
     void severalVideos();
     void noFfmpeg();
     void playbackSpeed();
+    void exportImages3D();
+    void view3DUnavailable();
 };
 
 /*-------------------------------------------------------------------*/
@@ -928,6 +930,118 @@ TestExportDialog::playbackSpeed()
     child< QPushButton >( *dialog, "playback_speed" )->click();
     const double expected = std::round( 100.0 / Options::instance().timerInterval() * 100.0 ) / 100.0;
     QCOMPARE( speed->value(), expected );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  The 3D view (stage 6, D17, docs/plan/2026-11-22-03_frame-export.md 4.15):
+  the view shown when the dialog is opened (2D here: offscreen, the window
+  shows no 3D view); 30 images/s for 3D, 10 for 2D, each kept; the images
+  drawn between the frames by the 3D view offscreen; a video of the 3D view
+  not tuned for flat colors; at most 3840 x 2160.
+*/
+void
+TestExportDialog::exportImages3D()
+{
+    MainWindow window;
+    window.show();
+    QVERIFY( QTest::qWaitForWindowExposed( &window ) );
+    window.openGameLogFile( LOG );
+    QTemporaryDir tmp;
+    ExportDialog * dialog = openDialog( window, tmp.filePath( "images" ) );
+    QVERIFY( dialog );
+    QRadioButton * view_3d = child< QRadioButton >( *dialog, "view_3d" );
+    if ( ! view_3d->isEnabled() )
+    {
+        QSKIP( qPrintable( "the 3D view cannot be drawn here: " + view_3d->toolTip() ) );
+    }
+    QDoubleSpinBox * fps = child< QDoubleSpinBox >( *dialog, "fps" );
+    QVERIFY( child< QRadioButton >( *dialog, "view_2d" )->isChecked() );
+    QVERIFY( ! dialog->isView3D() );
+    QCOMPARE( fps->value(), 10.0 );
+
+    dialog->chooseView3D( true );
+    QVERIFY( dialog->isView3D() );
+    QCOMPARE( fps->value(), 30.0 );
+    // 3 frames: 7 images, 3 for each frame but the last
+    QVERIFY2( dialog->summaryText().startsWith( "7 images of 3 frames, " ), qPrintable( dialog->summaryText() ) );
+    QCOMPARE( dialog->imagePositions( dialog->range( nullptr ) ).size(), std::size_t( 7 ) );
+    QVERIFY( ! child< QCheckBox >( *dialog, "name_by_cycle" )->isEnabled() );
+    dialog->chooseView3D( false );
+    QCOMPARE( fps->value(), 10.0 );
+    dialog->chooseView3D( true );
+    QCOMPARE( fps->value(), 30.0 );
+
+    // at most 3840 x 2160
+    QPushButton * button = child< QPushButton >( *dialog, "export" );
+    child< QSpinBox >( *dialog, "width" )->setValue( 4000 );
+    QCOMPARE( dialog->summaryText(), QString( "A 3D image is 3840 x 2160 pixels at most." ) );
+    QVERIFY( ! button->isEnabled() );
+    child< QSpinBox >( *dialog, "width" )->setValue( 160 );
+    QVERIFY( button->isEnabled() );
+
+    QSignalSpy finished( dialog, &ExportDialog::exportFinished );
+    QVERIFY( dialog->startExport( false ) );
+    QVERIFY( finished.wait( 60000 ) );
+    QVERIFY2( finished.first().at( 0 ).toBool(), qPrintable( finished.first().at( 1 ).toString() ) );
+    QDir dir( tmp.filePath( "images" ) );
+    QCOMPARE( dir.entryList( QDir::Files ).size(), 7 );
+    const QImage first( dir.filePath( "img-00000.png" ) );
+    const QImage second( dir.filePath( "img-00001.png" ) );
+    QCOMPARE( first.size(), QSize( 160, 120 ) );
+    QVERIFY( first != second );
+
+    // the fps of each view kept
+    QCOMPARE( Options::instance().exportSettings().fps_3d, 30.0 );
+    QCOMPARE( Options::instance().exportSettings().fps, 10.0 );
+
+    // opened again: the view shown (2D)
+    window.findChild< QAction * >( "export" )->trigger();
+    QVERIFY( ! dialog->isView3D() );
+    QCOMPARE( fps->value(), 10.0 );
+
+#ifndef Q_OS_WIN
+    // a video of the 3D view: not -tune animation
+    dialog->chooseView3D( true );
+    const QString program = fakeFfmpeg( tmp, "ffmpeg", { "libx264" } );
+    child< QRadioButton >( *dialog, "output_video" )->setChecked( true );
+    dialog->setFfmpeg( program );
+    dialog->setVideoFile( tmp.filePath( "three.mp4" ) );
+    QSignalSpy video_finished( dialog, &ExportDialog::exportFinished );
+    QVERIFY( dialog->startExport( false ) );
+    QVERIFY( video_finished.wait( 60000 ) );
+    QVERIFY2( video_finished.first().at( 0 ).toBool(), qPrintable( video_finished.first().at( 1 ).toString() ) );
+    const QString args = argsOf( tmp.filePath( "three.mp4" ) );
+    QVERIFY2( args.contains( "libx264" ), qPrintable( args ) );
+    QVERIFY2( ! args.contains( "animation" ), qPrintable( args ) );
+    QCOMPARE( QFileInfo( tmp.filePath( "three.mp4" ) ).size(), qint64( 160 * 120 * 4 * 7 ) );
+#endif
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  The 3D view not available (no drawer, or no OpenGL): the choice disabled
+  with the reason, and the 2D view drawing the images.
+*/
+void
+TestExportDialog::view3DUnavailable()
+{
+    MainWindow window;
+    window.show();
+    QVERIFY( QTest::qWaitForWindowExposed( &window ) );
+    window.openGameLogFile( LOG );
+    QTemporaryDir tmp;
+    ExportDialog * dialog = openDialog( window, tmp.filePath( "images" ) );
+    QVERIFY( dialog );
+
+    dialog->setView3DSources( nullptr, nullptr );
+    QRadioButton * view_3d = child< QRadioButton >( *dialog, "view_3d" );
+    QVERIFY( ! view_3d->isEnabled() );
+    QVERIFY2( view_3d->toolTip().startsWith( "Not available: " ), qPrintable( view_3d->toolTip() ) );
+    dialog->chooseView3D( true );
+    QVERIFY( ! dialog->isView3D() );
+    QVERIFY( child< QRadioButton >( *dialog, "view_2d" )->isChecked() );
+    QVERIFY2( dialog->summaryText().startsWith( "3 images of 3 frames" ), qPrintable( dialog->summaryText() ) );
 }
 
 QTEST_MAIN( TestExportDialog )

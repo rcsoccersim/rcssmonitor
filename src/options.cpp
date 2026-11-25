@@ -519,6 +519,9 @@ Options::readSettings()
     val = settings.value( "fps" );
     if ( val.isValid() && val.toDouble() > 0.0 ) M_export_settings.fps = val.toDouble();
 
+    val = settings.value( "fps_3d" );
+    if ( val.isValid() && val.toDouble() > 0.0 ) M_export_settings.fps_3d = val.toDouble();
+
     val = settings.value( "speed" );
     if ( val.isValid() && val.toDouble() > 0.0 ) M_export_settings.speed = val.toDouble();
 
@@ -1285,6 +1288,7 @@ Options::writeExportSettings() const
     settings.setValue( "height", M_export_settings.height );
     settings.setValue( "scale_texts", M_export_settings.scale_texts );
     settings.setValue( "fps", M_export_settings.fps );
+    settings.setValue( "fps_3d", M_export_settings.fps_3d );
     settings.setValue( "speed", M_export_settings.speed );
     settings.setValue( "name_by_cycle", M_export_settings.name_by_cycle );
     settings.setValue( "separate_ranges", M_export_settings.separate_ranges );
