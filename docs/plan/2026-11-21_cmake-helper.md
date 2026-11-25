@@ -3,11 +3,22 @@
 | 項目 | 内容 |
 |---|---|
 | 作成日 | 2026-11-21 |
+| 最終更新日 | 2026-11-24 |
 | 対象 | rcssmonitor develop (a6df084, 19.0.1) |
 | ブランチ | `feature/cmake-helper` (develop から。ユーザが GitHub 上で作る) |
-| 状態 | 実装とローカルでの試験は済。`feature/cmake-helper` にコミットし (a7e6880)、CI は全ジョブが通った (2026-11-21)。develop への PR はこれから |
+| 状態 | 完了。PR #69 (Squash Merge) で develop に取り込んだ (c392514、2026-11-21)。進み具合は、次の「進み具合」の表 |
 | 英語版 | [2026-11-21_cmake-helper_en.md](2026-11-21_cmake-helper_en.md) (内容は同じ) |
 | 関連 | 3D 表示の計画書 (`feature/3d-view` の `docs/plan/2026-11-11_3d-view.md`) の §14「2026-11-21」と Phase 10 |
+
+## 進み具合
+
+手順は §5、経緯は §6 にある。develop への取り込みと、その後の `feature/3d-view` への取り込みは、3D 表示の計画書の §14 (2026-11-21) に記録した。
+
+| 段階 | 内容 | 状態 | ユーザの確認 | CI | コミット | プッシュ |
+|---|---|---|---|---|---|---|
+| 1〜4 | `cmake-helper.sh` と文書、ローカルの試験、CI (§5 の 1〜4) | 完了 | 済み | 通過 | a7e6880 | 済み |
+| 5 | develop への取り込み (PR #69、Squash Merge) | 完了 | 済み | 通過 | c392514 | 済み |
+| 6 | develop を `feature/3d-view` に取り込む | 完了 | — | — | 3D 表示の計画書の §14 (2026-11-21) | 済み |
 
 ## 1. 目的と方針
 
@@ -109,3 +120,8 @@
 - ユーザが GitHub 上で develop への PR を作り、Squash Merge する。
 - develop の時点では、3D 表示の計画書は `docs/PLAN_3D-VIEW*.md` にあり、`export-ignore` されない。`feature/3d-view` を develop に取り込むと `docs/plan` に移るので、そのとき除かれる。
 - develop を master にマージするときは、`.gitignore` が add/add で衝突する見込み。新しい方が master の内容を含むので、新しい方をとればよい。
+
+### 2026-11-24: 冒頭の表と進み具合の表 (書式の統一)
+
+- 計画書の書式の統一 (CLAUDE.md の「計画書の書式」。URL とログの一覧の計画書の 2026-11-24 の記録) に合わせて、冒頭の表に最終更新日を足し、状態を短くして、進み具合の表を置いた。章の構成は変えていない。
+- 「残っていること」の PR と取り込みは、2026-11-21 に済んだ。ユーザが PR #69 を Squash Merge で develop に取り込み (c392514)、develop を `feature/3d-view` に取り込んだ (3D 表示の計画書の §14)。

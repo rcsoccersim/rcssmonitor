@@ -209,6 +209,9 @@ private:
 
     int M_canvas_width;
     int M_canvas_height;
+    //! showTeamGraphic() and showScoreBoard() when the scale was fit to the canvas (updateFieldSize())
+    bool M_sized_with_team_graphic;
+    bool M_sized_with_score_board;
 
     bool M_show_menu_bar;
     bool M_view_3d; //!< show the 3D view instead of the 2D view
@@ -254,6 +257,69 @@ private:
 
     QStringList M_recent_log_urls; //!< the URLs of game logs opened recently, the newest first
     QStringList M_log_sources; //!< the sources of File > Browse Game Logs
+
+public:
+
+    /*!
+      \struct ExportSettings
+      \brief the settings of File > Export Images / Video, kept in the group
+      Export of the settings (docs/plan/2026-11-22-03_frame-export.md S7)
+    */
+    struct ExportSettings {
+        QString directory; //!< where the images are written (empty: the home)
+        QString prefix = QStringLiteral( "image-" ); //!< the start of the names of the images
+        QString format = QStringLiteral( "png" ); //!< the image format
+        QString size = QStringLiteral( "view" ); //!< view, 1280x720, 1920x1080, 3840x2160, or custom
+        int width = 1920; //!< the custom size
+        int height = 1080;
+        bool scale_texts = true; //!< the view enlarged: the texts, the logos and the lines as large in the image as in the view (by the device pixel ratio)
+        double fps = 10.0; //!< the images a second (2D)
+        double fps_3d = 30.0; //!< the images a second (3D: drawn between the frames)
+        double speed = 1.0; //!< how many times as fast as the game is played
+        bool name_by_cycle = false; //!< the images named by the cycles (one frame an image)
+        bool separate_ranges = true; //!< the ranges each in its own directory, or in one sequence
+        double goal_before = 10.0; //!< a goal scene: from these seconds before the goal (D8)
+        double goal_after = 5.0; //!< to these seconds after it
+        double around_before = 5.0; //!< around the position shown: from these seconds before it
+        double around_after = 5.0; //!< to these seconds after it
+        bool video = false; //!< a video (by ffmpeg), or images
+        QString video_file; //!< the video (empty: rcssmonitor.mp4 in the home)
+        int crf = 18; //!< the quality of the video (D15)
+        QString preset = QStringLiteral( "medium" ); //!< the speed of the compression (D15)
+        QString ffmpeg; //!< the path of ffmpeg (empty: in the PATH)
+    };
+
+    /*!
+      \struct BatchExportSettings
+      \brief the export from the command line (ExportBatch,
+      docs/plan/2026-11-22-03_frame-export.md 4.7): the options given, not
+      saved in the settings
+    */
+    struct BatchExportSettings {
+        QString video; //!< --export-video FILE
+        QString images; //!< --export-images DIR
+        bool view_3d = false; //!< --export-view 3d
+        QStringList ranges; //!< --export-range, given again for more (none: all)
+        bool join = false; //!< --export-join: the ranges in one video (or one sequence of images)
+        double fps = 0.0; //!< --export-fps (0: 10 for 2D, 30 for 3D)
+        double speed = 1.0; //!< --export-speed
+        int width = 1280; //!< --export-size WxH
+        int height = 720;
+        double scale = 0.0; //!< --export-scale: the device pixel ratio (0: the height / 720)
+        QString image_format = QStringLiteral( "png" ); //!< --export-image-format
+        QString image_prefix = QStringLiteral( "image-" ); //!< --export-image-prefix
+        int crf = 18; //!< --export-crf
+        QString preset = QStringLiteral( "medium" ); //!< --export-preset
+        QString ffmpeg; //!< --ffmpeg (empty: in the PATH)
+
+        //! an export is asked for
+        bool enabled() const { return ! video.isEmpty() || ! images.isEmpty(); }
+    };
+
+private:
+
+    ExportSettings M_export_settings;
+    BatchExportSettings M_batch_export; //!< from the command line, not saved
 
     //
     // view options
@@ -678,6 +744,18 @@ public:
     void writeLogSources() const;
 
     //
+    // export
+    //
+
+    const ExportSettings & exportSettings() const { return M_export_settings; }
+    void setExportSettings( const ExportSettings & settings ) { M_export_settings = settings; }
+
+    //! the export from the command line (ExportBatch)
+    const BatchExportSettings & batchExport() const { return M_batch_export; }
+    //! write them to the settings file now (called when an export starts)
+    void writeExportSettings() const;
+
+    //
     // view options
     //
 
@@ -817,6 +895,45 @@ public:
       {
           M_field_scale = t.scale;
           M_field_center = t.center;
+      }
+
+    /*!
+      \brief the state of the 2D view that drawing a frame changes
+      (docs/plan/2026-11-22-03_frame-export.md 4.1, S2): the mapping of the
+      field and the size of the canvas, with the items shown when the scale
+      was fit to it (updateFieldSize()), the focus point and the player
+      selected automatically (FieldCanvas::updateFocus()).
+      Whether it is zoomed and the kinds of the focus and the selection do
+      not change when drawing, and are not in it.
+    */
+    struct ViewState {
+        double field_scale;
+        QPoint field_center;
+        int canvas_width;
+        int canvas_height;
+        bool sized_with_team_graphic;
+        bool sized_with_score_board;
+        QPointF focus_point;
+        int selected_number;
+    };
+    ViewState viewState() const
+      {
+          return ViewState{ M_field_scale, M_field_center,
+                            M_canvas_width, M_canvas_height,
+                            M_sized_with_team_graphic, M_sized_with_score_board,
+                            M_focus_point, M_selected_number };
+      }
+    //! set the state back, e.g. after drawing a frame into an image (FrameScope)
+    void setViewState( const ViewState & s )
+      {
+          M_field_scale = s.field_scale;
+          M_field_center = s.field_center;
+          M_canvas_width = s.canvas_width;
+          M_canvas_height = s.canvas_height;
+          M_sized_with_team_graphic = s.sized_with_team_graphic;
+          M_sized_with_score_board = s.sized_with_score_board;
+          M_focus_point = s.focus_point;
+          M_selected_number = s.selected_number;
       }
 
     FocusType focusType() const { return M_focus_type; }

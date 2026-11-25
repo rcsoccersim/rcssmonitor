@@ -9,10 +9,20 @@ add_library(rcssmonitor_core STATIC
   connect_dialog.cpp
   disp_holder.cpp
   draw_info_painter.cpp
+  export_batch.cpp
+  export_dialog.cpp
+  export_job.cpp
+  export_range.cpp
+  export_range_list.cpp
+  export_timing.cpp
+  ffmpeg_sink.cpp
   field_canvas.cpp
   field_painter.cpp
+  frame_scope.cpp
+  frame_sink.cpp
   game_log_file.cpp
   github_log_source.cpp
+  image_sequence_sink.cpp
   line_2d.cpp
   log_browser_dialog.cpp
   log_cache.cpp
@@ -113,6 +123,8 @@ if(HAVE_3D_VIEW)
     view3d/ball_flight_3d.cpp
     view3d/fps_meter.cpp
     view3d/sun_3d.cpp
+    view3d/view_3d_renderer.cpp
+    view3d/offscreen_view_3d.cpp
     view3d/gl/billboard_mesh.cpp
     view3d/gl/frame.cpp
     view3d/gl/gpu_timer.cpp

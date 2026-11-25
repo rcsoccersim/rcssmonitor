@@ -60,7 +60,7 @@ TeamGraphicPainter::TeamGraphicPainter( const DispHolder & disp_holder )
 
 */
 void
-TeamGraphicPainter::draw( QPainter & painter )
+TeamGraphicPainter::update()
 {
     const Options & opt = Options::instance();
 
@@ -106,6 +106,28 @@ TeamGraphicPainter::draw( QPainter & painter )
                              M_disp_holder.teamGraphicRight() );
         }
     }
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+
+*/
+void
+TeamGraphicPainter::draw( QPainter & painter )
+{
+    const Options & opt = Options::instance();
+
+    if ( ! opt.showTeamGraphic() )
+    {
+        return;
+    }
+
+    if ( ! M_disp_holder.currentDisp() )
+    {
+        return;
+    }
+
+    update();
 
     const double scale = std::max( 0.001, Options::instance().teamGraphicScale() );
 

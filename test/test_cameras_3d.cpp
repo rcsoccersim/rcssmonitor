@@ -517,6 +517,51 @@ private slots:
           QCOMPARE( pose.fov_y, Cameras3D::GOAL_FOV );
       }
 
+    /*
+      snap(): the next update() jumps to where the camera goes, as at the
+      first frame of an export (docs/plan/2026-11-22-03_frame-export.md
+      4.2); the free camera stays where it is.
+    */
+    void controllerSnap()
+      {
+          CameraController camera;
+          camera.update( 0.0, ASPECT, 0.0f, 0.0f );
+          CameraPose pose = camera.update( 0.016, ASPECT, 30.0f, 0.0f );
+          QVERIFY( pose.target.x() > 0.0f && pose.target.x() < 3.0f );
+          QVERIFY( ! camera.settled() );
+
+          camera.snap();
+          QVERIFY( ! camera.settled() );
+          QCOMPARE( camera.mode(), CameraMode::Broadcast );
+          pose = camera.update( 0.016, ASPECT, 30.0f, 0.0f );
+          QVERIFY( camera.settled() );
+          QCOMPARE( pose.target, Cameras3D::broadcast( ASPECT, 30.0f, 0.0f ).target );
+          QCOMPARE( pose.position, Cameras3D::broadcast( ASPECT, 30.0f, 0.0f ).position );
+
+          // then it glides again
+          pose = camera.update( 0.016, ASPECT, 40.0f, 0.0f );
+          QVERIFY( pose.target.x() > 30.0f && pose.target.x() < 31.0f );
+          QVERIFY( ! camera.settled() );
+
+          // a close-up camera too, at its own distance
+          camera.setMode( CameraMode::CloseupBall );
+          camera.update( 0.016, ASPECT, 0.0f, 0.0f );
+          camera.update( 0.016, ASPECT, 20.0f, 0.0f );
+          camera.snap();
+          pose = camera.update( 0.016, ASPECT, 20.0f, 0.0f );
+          const CameraPose closeup = Cameras3D::closeup( 20.0f, 0.0f, 0.0f, camera.closeupDistance(), float( Options::CLOSEUP_ELEVATION_3D ) );
+          QVERIFY( near( pose.target, closeup.target ) );
+          QVERIFY( near( pose.position, closeup.position ) );
+
+          // the free camera stays where it was
+          camera.setMode( CameraMode::Free );
+          const CameraPose free_pose = camera.update( 0.016, ASPECT, 20.0f, 0.0f );
+          camera.snap();
+          pose = camera.update( 0.016, ASPECT, -40.0f, 10.0f );
+          QCOMPARE( pose.position, free_pose.position );
+          QCOMPARE( pose.target, free_pose.target );
+      }
+
     void controllerMouse()
       {
           CameraController camera;

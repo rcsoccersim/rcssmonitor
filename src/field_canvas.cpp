@@ -47,6 +47,7 @@
 #include "team_graphic_painter.h"
 #include "draw_info_painter.h"
 
+#include "frame_scope.h"
 #include "options.h"
 #include "player_selection.h"
 
@@ -251,7 +252,7 @@ FieldCanvas::paintEvent( QPaintEvent * )
 {
     QPainter painter( this );
 
-    draw( painter );
+    draw( painter, this->size() );
 
     if ( M_measure_mouse->isDragged() )
     {
@@ -309,10 +310,11 @@ FieldCanvas::updateFocus()
 
 */
 void
-FieldCanvas::draw( QPainter & painter )
+FieldCanvas::draw( QPainter & painter,
+                   const QSize & logical )
 {
     updateFocus();
-    Options::instance().updateFieldSize( this->width(), this->height() );
+    Options::instance().updateFieldSize( logical.width(), logical.height() );
 
     M_field_painter->draw( painter );
 
@@ -327,6 +329,61 @@ FieldCanvas::draw( QPainter & painter )
     {
         (*it)->draw( painter );
     }
+}
+
+/*-------------------------------------------------------------------*/
+QImage
+FieldCanvas::renderFrame( const std::size_t index,
+                          const QSize & pixels,
+                          const qreal dpr )
+{
+    if ( pixels.isEmpty() )
+    {
+        return QImage();
+    }
+
+    const qreal ratio = ( dpr > 0.0 ? dpr : 1.0 );
+    const QSize logical( std::max( 1, static_cast< int >( std::lround( pixels.width() / ratio ) ) ),
+                         std::max( 1, static_cast< int >( std::lround( pixels.height() / ratio ) ) ) );
+
+    QImage image( pixels, QImage::Format_RGB32 );
+    image.fill( Options::instance().fieldBrush().color() );
+    // QPainter takes a ratio of 1 or more (a smaller one is drawn as 1): an
+    // image smaller than the layout has the ratio 1, and the window is
+    // mapped onto its pixels below
+    image.setDevicePixelRatio( std::max< qreal >( 1.0, ratio ) );
+
+    // the frame and the state of the view set back at the end
+    FrameScope scope( M_disp_holder, index );
+
+    Options & opt = Options::instance();
+    if ( opt.zoomed()
+         && opt.canvasHeight() > 0
+         && logical.height() != opt.canvasHeight() )
+    {
+        // zoomed: updateFieldSize() keeps the scale, so the same range as
+        // the view by the ratio of the heights
+        opt.setFieldTransform( Options::FieldTransform{ opt.fieldScale() * logical.height() / opt.canvasHeight(),
+                                                        opt.fieldCenter() } );
+    }
+
+    {
+        QPainter painter( &image );
+        // the painters lay out by the window: the logical size, whatever
+        // the device pixel ratio (below 1, made smaller onto the pixels)
+        painter.setWindow( 0, 0, logical.width(), logical.height() );
+        if ( ratio >= 1.0 )
+        {
+            painter.setViewport( 0, 0, logical.width(), logical.height() );
+        }
+        else
+        {
+            painter.setViewport( 0, 0, pixels.width(), pixels.height() );
+        }
+        draw( painter, logical );
+    }
+
+    return image;
 }
 
 /*-------------------------------------------------------------------*/

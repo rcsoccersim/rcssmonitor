@@ -146,6 +146,10 @@ TestViewSwitch::fallBackTo2D()
     QCOMPARE( stack->count(), 1 );
     QVERIFY( ! Options::instance().view3D() );
     QCOMPARE( Options::instance().selectedNumber(), -7 );
+    // File > Save Image of This Frame saves the 2D view still shown (D5 of docs/plan/2026-11-22-03_frame-export.md)
+    QAction * save_image = window.findChild< QAction * >( "save_image" );
+    QVERIFY( save_image );
+    QVERIFY( save_image->isEnabled() );
 }
 
 /*-------------------------------------------------------------------*/

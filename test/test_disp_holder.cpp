@@ -111,12 +111,30 @@ class TestDispHolder
 
 private slots:
 
+    void newHolder();
     void liveFramesTrimmed();
     void liveCurrentIndex();
     void liveScoreChangedIndex();
     void liveDrawData();
     void logFramesKept();
 };
+
+/*-------------------------------------------------------------------*/
+/*!
+  A new holder is as clear() leaves it: no frame, no play mode yet. A frame
+  before any play mode has PM_Null (the score board reads its name).
+*/
+void
+TestDispHolder::newHolder()
+{
+    DispHolder holder;
+    QCOMPARE( holder.playmode(), rcss::rcg::PM_Null );
+    QVERIFY( holder.dispCont().empty() );
+    QVERIFY( ! holder.currentDisp() );
+
+    QVERIFY( addLiveFrame( holder, 1 ) );
+    QCOMPARE( holder.dispCont().back()->pmode_, rcss::rcg::PM_Null );
+}
 
 /*-------------------------------------------------------------------*/
 /*!

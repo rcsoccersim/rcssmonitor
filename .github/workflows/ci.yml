@@ -17,7 +17,9 @@ jobs:
   # The tests run under Xvfb with Mesa's software OpenGL (llvmpipe), so that
   # the 3D view is drawn offscreen too (docs/plan/2026-11-11_3d-view.md §10.2).
   # They are built with Qt WebSockets (the WebSocket connection) and Qt
-  # Multimedia (the referee's whistle).
+  # Multimedia (the referee's whistle). The Qt6 one has ffmpeg, and its test
+  # of the videos must run (docs/plan/2026-11-22-03_frame-export.md 4.5);
+  # the others skip it.
   cmake:
     name: CMake, ${{ matrix.qt }}
     # Named, not ubuntu-latest, which moves to a new image now and then.
@@ -32,6 +34,8 @@ jobs:
           - qt: Qt6
             qt_major: 6
             qt_packages: qt6-base-dev libqt6opengl6-dev qt6-websockets-dev qt6-multimedia-dev
+            extra_packages: ffmpeg
+            require_ffmpeg: 1
     steps:
       - uses: actions/checkout@v5
       - name: Install the packages
@@ -39,7 +43,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             build-essential cmake ${{ matrix.qt_packages }} zlib1g-dev libdeflate-dev \
-            desktop-file-utils xvfb xauth libgl1-mesa-dri
+            desktop-file-utils xvfb xauth libgl1-mesa-dri ${{ matrix.extra_packages }}
       - name: Configure
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
@@ -58,6 +62,7 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
           LIBGL_ALWAYS_SOFTWARE: 1
+          RCSSMONITOR_REQUIRE_FFMPEG: ${{ matrix.require_ffmpeg }}
 
   # The oldest Qt that rcssmonitor supports: Qt 6.4 of Ubuntu 24.04, with
   # CMake 3.28 (Qt 6.2 of Ubuntu 22.04 until 2026-11-24;

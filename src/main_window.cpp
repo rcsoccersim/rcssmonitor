@@ -40,6 +40,8 @@
 
 #include "config_dialog.h"
 #include "connect_dialog.h"
+#include "export_dialog.h"
+#include "export_range_list.h"
 #include "field_canvas.h"
 #include "game_log_file.h"
 #include "log_browser_dialog.h"
@@ -61,6 +63,7 @@
 #include "whistle.h"
 #ifdef HAVE_3D_VIEW
 #include "field_view_3d.h"
+#include "offscreen_view_3d.h"
 #include "popup_closer.h"
 #endif
 
@@ -97,7 +100,8 @@ MainWindow::MainWindow()
       M_field_view_3d( nullptr ),
       M_monitor_client( static_cast< MonitorClient * >( 0 ) ),
       M_log_player( new LogPlayer( M_disp_holder, this ) ),
-      M_whistle( new Whistle( M_disp_holder, *M_log_player, &Whistle::createSound, this ) )
+      M_whistle( new Whistle( M_disp_holder, *M_log_player, &Whistle::createSound, this ) ),
+      M_export_ranges( new ExportRangeList( this ) )
 {
     this->setWindowIcon( UIIcon::appIcon( "rcssmonitor" ) );
     this->setWindowTitle( tr( PACKAGE_NAME ) + tr( " " ) + tr( VERSION ) );
@@ -160,6 +164,17 @@ MainWindow::~MainWindow()
     M_whistle->releaseSound();
 
     writeSettings();
+
+#ifdef HAVE_3D_VIEW
+    // the 3D images' context deleted while the frames are there (an export
+    // stopped first: the progress dialog is modal, but to be sure)
+    if ( M_export_dialog )
+    {
+        M_export_dialog->abortExport();
+    }
+    delete M_offscreen_3d;
+    M_offscreen_3d = nullptr;
+#endif
 }
 
 /*-------------------------------------------------------------------*/
@@ -348,6 +363,71 @@ MainWindow::createActionsFile()
     connect( M_save_copy_act, &QAction::triggered,
              this, [this]() { saveGameLogCopy(); } );
     this->addAction( M_save_copy_act );
+
+    // the frame shown, as an image (docs/plan/2026-11-22-03_frame-export.md
+    // 4.6, D5): the 2D view; disabled while the 3D view is shown
+    M_save_image_act = new QAction( tr( "Save &Image of This Frame..." ), this );
+    M_save_image_act->setObjectName( "save_image" );
+    M_save_image_act->setShortcut( Qt::CTRL | Qt::SHIFT | Qt::Key_I );
+    connect( M_save_image_act, &QAction::triggered,
+             this, [this]() { saveImage(); } );
+    this->addAction( M_save_image_act );
+    updateSaveImageAction();
+
+    // a range of frames as images (docs/plan/2026-11-22-03_frame-export.md
+    // 4.6, D6): the dialog, modeless
+    M_export_act = new QAction( tr( "Open the Export &Dialog..." ), this );
+    M_export_act->setObjectName( "export" );
+    M_export_act->setShortcut( Qt::CTRL | Qt::SHIFT | Qt::Key_E );
+    M_export_act->setStatusTip( tr( "Choose the ranges of the frames of the game log, and export them as images." ) );
+    M_export_act->setToolTip( M_export_act->statusTip() );
+    connect( M_export_act, &QAction::triggered,
+             this, &MainWindow::showExportDialog );
+    this->addAction( M_export_act );
+
+    // the marks of the range to export at the position shown (4.4, D7)
+    M_mark_start_act = new QAction( tr( "&Start the Range Here" ), this );
+    M_mark_start_act->setObjectName( "mark_start" );
+    M_mark_start_act->setShortcut( Qt::Key_BracketLeft );
+    M_mark_start_act->setStatusTip( tr( "Make the frame shown the start of the range to export (Start of the export dialog)." ) );
+    M_mark_start_act->setToolTip( M_mark_start_act->statusTip() );
+    connect( M_mark_start_act, &QAction::triggered,
+             this, [this]() {
+                 const DispConstPtr disp = M_disp_holder.currentDisp();
+                 if ( ! disp ) return;
+                 const QString pos = ExportRange::positionText( disp->show_ );
+                 M_export_ranges->setStart( pos );
+                 this->statusBar()->showMessage( tr( "The start of the range to export: %1" ).arg( pos ), 3000 );
+             } );
+    this->addAction( M_mark_start_act );
+
+    M_mark_end_act = new QAction( tr( "&End the Range Here" ), this );
+    M_mark_end_act->setObjectName( "mark_end" );
+    M_mark_end_act->setShortcut( Qt::Key_BracketRight );
+    M_mark_end_act->setStatusTip( tr( "Make the frame shown the end of the range to export (End of the export dialog)." ) );
+    M_mark_end_act->setToolTip( M_mark_end_act->statusTip() );
+    connect( M_mark_end_act, &QAction::triggered,
+             this, [this]() {
+                 const DispConstPtr disp = M_disp_holder.currentDisp();
+                 if ( ! disp ) return;
+                 const QString pos = ExportRange::positionText( disp->show_ );
+                 M_export_ranges->setEnd( pos );
+                 this->statusBar()->showMessage( tr( "The end of the range to export: %1" ).arg( pos ), 3000 );
+             } );
+    this->addAction( M_mark_end_act );
+
+    M_clear_marks_act = new QAction( tr( "&Clear the Range" ), this );
+    M_clear_marks_act->setObjectName( "clear_marks" );
+    M_clear_marks_act->setStatusTip( tr( "Clear the start and the end of the range to export: the whole log." ) );
+    M_clear_marks_act->setToolTip( M_clear_marks_act->statusTip() );
+    connect( M_clear_marks_act, &QAction::triggered,
+             this, [this]() {
+                 M_export_ranges->setStart( QString() );
+                 M_export_ranges->setEnd( QString() );
+             } );
+    this->addAction( M_clear_marks_act );
+
+    updateExportAction();
 
     //
     M_exit_act = new QAction( tr( "&Quit" ), this );
@@ -840,9 +920,25 @@ MainWindow::createMenuFile()
     QMenu * menu = menuBar()->addMenu( tr( "&File" ) );
 
     menu->addAction( M_open_act );
+    menu->addSeparator();
     menu->addAction( M_open_url_act );
     menu->addAction( M_browse_logs_act );
+    menu->addSeparator();
     menu->addAction( M_save_copy_act );
+    menu->addSeparator();
+    menu->addAction( M_save_image_act );
+    {
+        // the export: its dialog, and the range to export marked here
+        // (D11 of docs/plan/2026-11-22-03_frame-export.md)
+        QMenu * submenu = menu->addMenu( tr( "&Export Images / Video" ) );
+        submenu->setObjectName( "export_menu" );
+        submenu->setToolTipsVisible( true );
+        submenu->addAction( M_export_act );
+        submenu->addSeparator();
+        submenu->addAction( M_mark_start_act );
+        submenu->addAction( M_mark_end_act );
+        submenu->addAction( M_clear_marks_act );
+    }
 
     menu->addSeparator();
 
@@ -1122,7 +1218,11 @@ MainWindow::createToolBars()
     //
 
     LogPlayerSlider * log_player_slider = new LogPlayerSlider();
+    M_log_player_slider = log_player_slider;
     M_position_tool_bar->addWidget( log_player_slider );
+    // the ranges to export on it
+    connect( M_export_ranges, &ExportRangeList::changed,
+             this, &MainWindow::updateRangeMarks );
 
     connect( log_player_slider, SIGNAL( valueChanged( int ) ),
              M_log_player, SLOT( goToIndex( int ) ) );
@@ -1926,6 +2026,7 @@ MainWindow::openGameLogFile( const QString & filepath )
 
     if ( ! openGameLogFileImpl( filepath ) )
     {
+        updateExportAction();
         QString err_msg = tr( "Failed to read [" );
         err_msg += filepath;
         err_msg += tr( "]" );
@@ -2000,6 +2101,7 @@ MainWindow::openGameLogFile( const QString & filepath )
 
     M_game_log_path = QFileInfo( filepath ).absoluteFilePath();
     M_save_copy_act->setEnabled( true );
+    updateExportAction();
 
     M_toggle_tool_bar_act->setChecked( true );
 
@@ -2020,6 +2122,8 @@ MainWindow::openGameLogFileImpl( const QString & filepath )
 {
     M_disp_holder.clear();
     M_whistle->clear();
+    // the ranges to export were of the log before
+    M_export_ranges->clear();
 
     RCGHandler handler( this, M_disp_holder );
     // // show progress dialog
@@ -2145,6 +2249,7 @@ MainWindow::connectMonitorTo( const char * hostname )
     M_disp_holder.clear();
     M_log_player->clear();
     M_whistle->clear();
+    M_export_ranges->clear();
     M_game_log_path.clear();
     M_save_copy_act->setEnabled( false );
 
@@ -2168,6 +2273,7 @@ MainWindow::connectMonitorTo( const char * hostname )
     M_connect_monitor_act->setEnabled( false );
     M_connect_monitor_to_act->setEnabled( false );
     M_disconnect_monitor_act->setEnabled( true );
+    updateExportAction();
 
     M_log_player->setLiveMode();
 
@@ -2537,6 +2643,151 @@ MainWindow::saveGameLogCopy( const QString & path )
 }
 
 /*-------------------------------------------------------------------*/
+OffscreenView3D *
+MainWindow::offscreenView3D() const
+{
+#ifdef HAVE_3D_VIEW
+    if ( ! M_offscreen_3d )
+    {
+        M_offscreen_3d = new OffscreenView3D( const_cast< DispHolder & >( M_disp_holder ) );
+    }
+    return M_offscreen_3d;
+#else
+    return nullptr;
+#endif
+}
+
+/*-------------------------------------------------------------------*/
+QImage
+MainWindow::renderImage() const
+{
+    if ( ! M_disp_holder.currentDisp() )
+    {
+        return QImage();
+    }
+#ifdef HAVE_3D_VIEW
+    // the 3D view: drawn offscreen with its camera as it is, as large as the view
+    if ( const FieldView3D * view = shownView3D() )
+    {
+        OffscreenView3D * offscreen = offscreenView3D();
+        QString error;
+        if ( ! offscreen->initialize( &error ) )
+        {
+            std::cerr << error.toStdString() << std::endl;
+            return QImage();
+        }
+        const qreal ratio = view->devicePixelRatio();
+        const QSize view_pixels( static_cast< int >( std::lround( view->width() * ratio ) ),
+                                 static_cast< int >( std::lround( view->height() * ratio ) ) );
+        return offscreen->renderStill( M_disp_holder.currentIndex(), view->camera(), view_pixels, ratio );
+    }
+#endif
+    const qreal dpr = M_field_canvas->devicePixelRatioF();
+    const QSize pixels( static_cast< int >( std::lround( M_field_canvas->width() * dpr ) ),
+                        static_cast< int >( std::lround( M_field_canvas->height() * dpr ) ) );
+    return M_field_canvas->renderFrame( M_disp_holder.currentIndex(), pixels, dpr );
+}
+
+/*-------------------------------------------------------------------*/
+QString
+MainWindow::defaultImageName() const
+{
+    // the game log's name without .rcg(.gz), or the program's in live
+    QString name = QFileInfo( M_game_log_path ).fileName();
+    if ( name.endsWith( QLatin1String( ".gz" ) ) ) name.chop( 3 );
+    if ( name.endsWith( QLatin1String( ".rcg" ) ) ) name.chop( 4 );
+    if ( name.isEmpty() ) name = QString::fromLatin1( PACKAGE_NAME );
+
+    const DispConstPtr disp = M_disp_holder.currentDisp();
+    if ( disp )
+    {
+        // the cycle as shown in the status bar: 1234, or 1234.3 when stopped
+        const rcss::rcg::ShowInfoT & show = disp->show_;
+        name += QLatin1Char( '-' ) + ( show.stime_ > 0
+                                       ? QString( "%1.%2" ).arg( show.time_ ).arg( show.stime_ )
+                                       : QString::number( show.time_ ) );
+    }
+    return name + QStringLiteral( ".png" );
+}
+
+/*-------------------------------------------------------------------*/
+namespace {
+
+//! write an image, PNG if the path has no extension
+bool
+write_image( const QImage & image,
+             const QString & path,
+             QString * error )
+{
+    if ( image.isNull() )
+    {
+        if ( error ) *error = QObject::tr( "There is no frame to save." );
+        return false;
+    }
+    const QString file = ( QFileInfo( path ).suffix().isEmpty()
+                           ? path + QStringLiteral( ".png" )
+                           : path );
+    QImageWriter writer( file );
+    if ( ! writer.write( image ) )
+    {
+        if ( error ) *error = QObject::tr( "Could not write the image to %1:\n%2" )
+                         .arg( QDir::toNativeSeparators( file ), writer.errorString() );
+        return false;
+    }
+    if ( error ) error->clear();
+    return true;
+}
+
+}
+
+/*-------------------------------------------------------------------*/
+bool
+MainWindow::saveImage( const QString & path,
+                       QString * error ) const
+{
+    return write_image( renderImage(), path, error );
+}
+
+/*-------------------------------------------------------------------*/
+void
+MainWindow::saveImage()
+{
+    static QString s_last_dir;
+
+    // the frame shown now: the log may go on playing behind the dialog
+    const QImage image = renderImage();
+    if ( image.isNull() )
+    {
+        this->statusBar()->showMessage( tr( "There is no frame to save." ), 5000 );
+        return;
+    }
+    if ( s_last_dir.isEmpty() )
+    {
+        s_last_dir = QDir::homePath();
+    }
+
+    const QString path = QFileDialog::getSaveFileName( this,
+                                                       tr( "Save Image of This Frame" ),
+                                                       QDir( s_last_dir ).filePath( defaultImageName() ),
+                                                       tr( "PNG (*.png);;JPEG (*.jpg *.jpeg);;All files (*)" ) );
+    if ( path.isEmpty() )
+    {
+        return;
+    }
+    s_last_dir = QFileInfo( path ).absolutePath();
+
+    QString error;
+    if ( write_image( image, path, &error ) )
+    {
+        this->statusBar()->showMessage( tr( "Saved the image to %1" ).arg( QDir::toNativeSeparators( path ) ), 5000 );
+    }
+    else
+    {
+        QMessageBox::warning( this, tr( "Save Image of This Frame" ), error );
+    }
+}
+
+/*-------------------------------------------------------------------*/
 void
 MainWindow::saveGameLogCopy()
 {
@@ -2773,6 +3024,7 @@ MainWindow::disconnectMonitor()
     M_connect_monitor_act->setEnabled( true );
     M_connect_monitor_to_act->setEnabled( true );
     M_disconnect_monitor_act->setEnabled( false );
+    updateExportAction();
 }
 
 /*-------------------------------------------------------------------*/
@@ -2894,6 +3146,10 @@ MainWindow::toggleView3D( bool on )
                  this, [this]( int delta ) { stepByWheel( delta ); } );
         M_field_view_3d = container;
         M_view_3d = view;
+        if ( M_export_dialog )
+        {
+            M_export_dialog->setView3DSources( M_view_3d, offscreenView3D() );
+        }
     }
 
     QWidget * shown = ( on ? M_field_view_3d : M_field_canvas );
@@ -2909,9 +3165,113 @@ MainWindow::toggleView3D( bool on )
     // the buttons are wider with the 3D view's: one row or two again, once laid out
     QTimer::singleShot( 0, this, [this]() { updateToolBarRows(); } );
     Options::instance().setView3D( on );
+    updateSaveImageAction();
 #else
     Q_UNUSED( on );
 #endif
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  The frames are exported offline (S1): while connected to a server, the
+  action and the dialog's export are disabled; the frames kept after
+  disconnecting can be exported.
+ */
+void
+MainWindow::updateExportAction()
+{
+    const bool connected = ( M_monitor_client != nullptr );
+    const bool enabled = ( ! connected
+                           && ! M_disp_holder.dispCont().empty() );
+    M_export_act->setEnabled( enabled );
+    M_mark_start_act->setEnabled( enabled );
+    M_mark_end_act->setEnabled( enabled );
+    M_clear_marks_act->setEnabled( enabled );
+    if ( M_export_dialog )
+    {
+        M_export_dialog->setExportAllowed( ! connected );
+    }
+    updateRangeMarks();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  The bands of the ranges to export (the current one darker) and the
+  ticks of the goals, on the slider. None while connected: the frames
+  change, and nothing is exported (S1).
+ */
+void
+MainWindow::updateRangeMarks()
+{
+    if ( ! M_log_player_slider )
+    {
+        return;
+    }
+    std::vector< LogPlayerSlider::Band > bands;
+    std::vector< std::size_t > goals;
+    const DispCont & frames = M_disp_holder.dispCont();
+    if ( M_monitor_client == nullptr
+         && ! frames.empty() )
+    {
+        // the whole log is not a band: only the ranges marked
+        for ( int i = 0; i < M_export_ranges->size(); ++i )
+        {
+            const ExportRangeSpec & spec = M_export_ranges->ranges()[i];
+            if ( spec.start.trimmed().isEmpty() && spec.end.trimmed().isEmpty() ) continue;
+            const ExportRange r = ExportRangeList::resolve( spec, frames, nullptr );
+            if ( r.isValid() )
+            {
+                bands.push_back( LogPlayerSlider::Band{ r.first, r.last, i == M_export_ranges->current() } );
+            }
+        }
+        for ( const ExportGoal & goal : ExportRange::goals( frames, M_disp_holder.scoreChangedIndex() ) )
+        {
+            goals.push_back( goal.index );
+        }
+    }
+    M_log_player_slider->setBands( bands );
+    M_log_player_slider->setGoals( goals );
+}
+
+/*-------------------------------------------------------------------*/
+void
+MainWindow::showExportDialog()
+{
+    if ( ! M_export_dialog )
+    {
+        M_export_dialog = new ExportDialog( M_disp_holder, *M_field_canvas, *M_export_ranges, this );
+        // the frame shown stays while exporting
+        connect( M_export_dialog, &ExportDialog::stopRequested,
+                 M_log_player, &LogPlayer::stop );
+        connect( M_export_dialog, &ExportDialog::exportFinished,
+                 this, [this]( bool ok, const QString & message ) {
+                     this->statusBar()->showMessage( ok ? tr( "Exported %1" ).arg( message ) : message, 10000 );
+                 } );
+        // the summary follows the log (its frames and the step)
+        connect( this, &MainWindow::viewUpdated,
+                 M_export_dialog, &ExportDialog::updateSummary );
+    }
+    M_export_dialog->setExportAllowed( M_monitor_client == nullptr );
+    // the 3D images: the view's size and camera, drawn offscreen; the view
+    // that draws them is the one shown (D17)
+    M_export_dialog->setView3DSources( M_view_3d, offscreenView3D() );
+    M_export_dialog->chooseView3D( shownView3D() != nullptr );
+    M_export_dialog->show();
+    M_export_dialog->raise();
+    M_export_dialog->activateWindow();
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  File > Save Image of This Frame saves the view shown: the 2D view, or the
+  3D view drawn offscreen (D5 until stage 6; docs/plan/2026-11-22-03_frame-export.md 4.15).
+ */
+void
+MainWindow::updateSaveImageAction()
+{
+    M_save_image_act->setEnabled( true );
+    M_save_image_act->setStatusTip( tr( "Save the frame shown to an image file (PNG or JPEG), as large as the view." ) );
+    M_save_image_act->setToolTip( M_save_image_act->statusTip() );
 }
 
 /*-------------------------------------------------------------------*/

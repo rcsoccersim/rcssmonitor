@@ -113,7 +113,8 @@ erase_before( Cont & cont,
 
  */
 DispHolder::DispHolder()
-    : M_current_index( INVALID_INDEX )
+    : M_playmode( rcss::rcg::PM_Null ), // as clear() sets it: the score board reads its name
+      M_current_index( INVALID_INDEX )
 {
     M_disp_cont.reserve( MAX_LIVE_FRAMES + 1 );
 }

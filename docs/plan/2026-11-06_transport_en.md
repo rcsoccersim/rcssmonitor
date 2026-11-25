@@ -3,10 +3,26 @@
 | Item | Content |
 |---|---|
 | Created | 2026-11-06 |
+| Last updated | 2026-11-24 |
 | Target | rcssmonitor master (ae7668a, 19.0.1) |
-| Server referred to | `rcssserver-19.x-asio/` (a working tree of the asio version of rcssserver 19.x) |
-| Status | Steps 1 to 4, and choosing the transport in the "Connect to ..." dialog, done (2026-11-06). Merged into develop (PR #68, 2026-11-18; §10) |
+| Branch | `feature/support-tcp-ws` (from develop 01f880a) |
+| Status | Done. Merged into develop by PR #68 (Merge Commit) (a6df084, 2026-11-18). The progress of each step is in the table of "Progress" below |
 | Japanese version | [2026-11-06_transport.md](2026-11-06_transport.md) (the same content) |
+| Server referred to | `rcssserver-19.x-asio/` (a working tree of the asio version of rcssserver 19.x) |
+
+## Progress
+
+The work and the conditions of the end of each step are in §6, and the history in §10. The user's checks and the CI of each step are not recorded (the CI was made later, in Phase 0 of the 3D view plan). Before the merge, the user checked the live connections by UDP, TCP and WebSocket.
+
+| Stage | Content | Status | Checked by the user | CI | Commits | Pushed |
+|---|---|---|---|---|---|---|
+| 1 | Abstract, still with UDP (§6 Step 1) | Done | — | — | af2e1af | Done |
+| 2 | Add TCP and the transport options (§6 Step 2) | Done | — | — | a41d8d9 | Done |
+| 3 | Add WebSocket (§6 Step 3) | Done | — | — | 6759e11 | Done |
+| 4 | Update the documents (§6 Step 4) | Done | — | — | 78f1c15 | Done |
+| — | Choosing the transport in the "Connect to ..." dialog (out of scope in §9 at first) | Done | — | — | 45bca98 | Done |
+| — | Merging develop, fixing the transports' errors on Qt6, the tests, the CI (§10, 2026-11-18) | Done | Done | Passed | 4c0b384 to 35e0957 | Done |
+| — | Merging into develop (PR #68, Merge Commit) | Done | Done | Passed | a6df084 | Done |
 
 ## 1. Aim and approach
 
@@ -490,3 +506,7 @@ Built in 5 commits on `feature/support-tcp-ws`, made from develop (01f880a, 19.0
 - develop was merged into `feature/3d-view` (c6dc968; 2026-11-21). The combination with the 3D view (the toolbar's connect button made the connect dialog, as the web version's, and the 3D view's live drawing as smooth over TCP and WebSocket as over UDP) is recorded in §14 of the plan of the 3D view (`docs/plan/2026-11-11_3d-view.md`).
 - The English version was renamed `2026-11-06_transport_en.md`, to the form of CLAUDE.md (2026-11-21).
 - On `feature/3d-view`, the user checked live connections over UDP, TCP and WebSocket in 2D and 3D (2026-11-22). The merge is done.
+
+### 2026-11-24: The header table and the table of the progress (the unified format)
+
+- Following the unified format of the plans ("計画書の書式" of CLAUDE.md; the record of 2026-11-24 of the plan of the URLs and the lists of logs), the last update and the branch were added to the header table, the status was shortened, the order of the items was aligned, and the table of the progress was put. The chapters are not changed.

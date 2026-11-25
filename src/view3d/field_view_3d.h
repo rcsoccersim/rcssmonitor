@@ -35,12 +35,9 @@
 
 #include "cameras_3d.h"
 #include "fps_meter.h"
-#include "frame_builder_3d.h"
 #include "interpolate.h"
-#include "label_atlas.h"
 #include "referee_target.h"
-#include "scene_3d.h"
-#include "scene_content.h"
+#include "view_3d_renderer.h"
 
 #include <QElapsedTimer>
 #include <QOpenGLWindow>
@@ -48,13 +45,8 @@
 #include <QString>
 #include <QSurfaceFormat>
 
-#include <memory>
-
 class DispHolder;
-class FieldPainter;
 class LogPlayer;
-class ScoreBoardPainter;
-class TeamGraphicPainter;
 
 namespace rcss {
 namespace rcg {
@@ -65,7 +57,7 @@ struct DispInfoT;
 /*!
   \class FieldView3D
   \brief the 3D view (docs/plan/2026-11-11_3d-view.md §5.1): the window, which draws
-  the scene of Scene3D and handles the mouse. It shares the frames
+  the frames by View3DRenderer and handles the mouse. It shares the frames
   (DispHolder) and the options with the 2D view. Between two frames, it
   draws the positions on the way (docs/plan/2026-11-11_3d-view.md §5.2), and while they
   move, it draws again as soon as a frame is shown.
@@ -80,7 +72,7 @@ struct DispInfoT;
   QOpenGLWindow gives the window an OpenGL context, and calls, with the
   context current:
   - initializeGL() once, before the first paint: makes the GPU's resources
-    (Scene3D::initialize()).
+    (View3DRenderer::initialize()).
   - paintGL() whenever the window is drawn (after update()): draws a frame
     into its framebuffer, which the screen then shows.
   Outside them, makeCurrent() and doneCurrent() make the context current
@@ -89,8 +81,12 @@ struct DispInfoT;
   It takes no keyboard focus (the keys are the main window's actions), and
   the wheel steps the frames there (wheelTurned()), as over the 2D view.
 
-  Over the scene, QPainter draws the HUD as the 2D view does (the score
-  board and the team logos, with the 2D painters).
+  The window keeps what goes on from frame to frame on the screen: the
+  clocks (where between the frames to draw, how far the camera glides),
+  the camera, the mouse and the frames per second. View3DRenderer draws a
+  frame (docs/plan/2026-11-22-03_frame-export.md 4.2): the scene, then
+  with QPainter the HUD as the 2D view does (the score board and the team
+  logos, with the 2D painters).
 
   The mouse moves the camera (CameraController): the left button turns it
   around what it looks at, with Shift, Ctrl or Meta moves it, and the
@@ -136,6 +132,9 @@ public:
 
     //! the camera
     CameraMode cameraMode() const { return M_camera.mode(); }
+
+    //! where the camera is and how it moves, for an export to start from (OffscreenView3D)
+    const CameraController & camera() const { return M_camera; }
 
     //! change the camera
     void setCameraMode( const CameraMode mode );
@@ -201,20 +200,7 @@ private:
 
     DispHolder & M_disp_holder; //!< the frames, shared with the 2D view
     const LogPlayer & M_log_player; //!< whether a log is playing, and how far to the next frame
-    std::unique_ptr< FieldPainter > M_field_painter; //!< the 2D field painter, which draws the ground image
-    std::unique_ptr< ScoreBoardPainter > M_score_board_painter; //!< the HUD: the 2D score board
-    std::unique_ptr< TeamGraphicPainter > M_team_graphic_painter; //!< the HUD: the 2D team logos
-    LabelAtlas M_label_atlas; //!< the texts of the number labels
-    FrameBuilder3D M_builder; //!< what to draw in a frame, the human figures (Options::playerModel3D()) posed
-    Scene3D M_scene; //!< the OpenGL drawing
-    SceneContent M_content; //!< what to draw, reused in every frame
-    bool M_ready; //!< Scene3D could be initialized
-    QString M_figure_pack; //!< the folder of the figure pack whose bodies were sent to the GPU (empty: none)
-    QString M_ground_key; //!< what the ground was drawn with (GroundTexture::key())
-    QString M_stadium_keys[2]; //!< what each end's boards and banner were drawn with (Stadium3D::TeamLook::key())
-    QString M_stands_key; //!< what the stands' images were drawn with (the team colors and names)
-    QImage M_minimap_field; //!< the pitch of the minimap (the HUD), drawn by the 2D field painter
-    QString M_minimap_key; //!< what it was drawn with: the ground's key, its size and the screen's scale
+    View3DRenderer M_renderer; //!< what a frame draws: the scene and the HUD
 
     const rcss::rcg::DispInfoT * M_newest; //!< the newest frame when it was last drawn
     QElapsedTimer M_newest_clock; //!< since the newest frame came
@@ -224,7 +210,7 @@ private:
 
     CameraController M_camera; //!< which camera, and where it is
     CameraPose M_drawn_camera; //!< the camera of the last frame drawn, for a click to aim with
-    bool M_drawn = false; //!< a frame has been drawn (M_drawn_camera and M_content.picks are set)
+    bool M_drawn = false; //!< a frame has been drawn (M_drawn_camera and the renderer's picks are set)
     QElapsedTimer M_frame_clock; //!< since the last frame was drawn, for the camera to glide
     QPoint M_last_mouse; //!< where the mouse was at the last press or move
 
@@ -239,9 +225,9 @@ private:
         QElapsedTimer period; //!< since the times were last told
         QElapsedTimer since_frame; //!< since the last frame
         int frames = 0;
-        double build = 0.0; //!< ms of the CPU: what to draw (FrameBuilder3D, the labels)
+        double build = 0.0; //!< ms of the CPU: what to draw (View3DRenderer::buildTime())
         double players = 0.0; //!< of it, the players with the figures
-        double submit = 0.0; //!< ms of the CPU: asking the GPU to draw (Scene3D::render())
+        double submit = 0.0; //!< ms of the CPU: asking the GPU to draw (View3DRenderer::submitTime())
         double longest = 0.0; //!< the longest time between two frames (ms)
         int figures = 0; //!< in the last frame
         double gpu = 0.0; //!< ms of the GPU, of gpu_frames frames (Scene3D::takeGpuTime())

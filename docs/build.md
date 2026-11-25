@@ -29,6 +29,7 @@ The repository also keeps the autotools build, which builds the monitor with Qt 
 | Qt WebSockets | | optional: the WebSocket connection to the server. Without it, the monitor is built without the WebSocket connection |
 | Qt Multimedia | | optional: the referee's whistle. Without it, the monitor is built without the whistle. With Qt 5, its audio plugins are needed at run time ([Notes](#notes)) |
 | OpenGL 3.3 | at run time | the 3D view. Without it, the monitor runs with the 2D view only |
+| [ffmpeg](https://ffmpeg.org/) | at run time | optional: the videos of File > Export Images / Video and of `--export-video` ([export.md](export.md)), run as a program (`ffmpeg` on Ubuntu). With libx264 for H.264. The test of the videos (`ffmpeg_sink`) uses it if it is installed |
 | OpenSSL | at run time | `https://` URLs of game logs (File > Open Game Log from URL) and the lists of game logs (File > Browse Game Logs: GitHub, archive.robocup.info), through the TLS of Qt Network ([Notes](#notes)) |
 
 ## Installing the dependencies on Ubuntu

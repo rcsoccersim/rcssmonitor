@@ -110,6 +110,20 @@ A click on a column's header sorts the logs by the column.
 - The archive, and any directory on a web server, is read a directory at a time, when it is opened, and kept in `~/.cache/rcssmonitor/archive` for a day (`Reload` reads the directories again as they are opened). When it cannot be read, the list kept is shown, however old. The sizes on a page of links are as the page shows them: rounded by Apache (e.g. `5.0M`), and none by some servers.
 - The filter applies to the logs listed: a directory of the archive not read yet is shown until it is opened.
 
+### Images and videos
+
+`File` -> `Save Image of This Frame...` (`Ctrl+Shift+I`) saves the frame shown, in the 2D or 3D view, as a PNG (or JPEG) image as large as the view.
+
+`File` -> `Export Images / Video` -> `Open the Export Dialog...` (`Ctrl+Shift+E`) exports ranges of the game log as images or as videos, drawn by the 2D view or the 3D view: the whole log, a half, the goal scenes, or any range, marked by `[` and `]` in the main window too. The videos are written by [ffmpeg](https://ffmpeg.org/), installed separately (`sudo apt install ffmpeg` on Ubuntu).
+
+The same export runs from the command line, without a window:
+
+```bash
+rcssmonitor --export-video goals.mp4 --export-range goals GAME_LOG.rcg.gz
+```
+
+See [docs/export.md](docs/export.md) for the export dialog, the 3D view, the rates and the lengths, the options of the command line, and what to do when something goes wrong.
+
 ### The 3D view
 
 `D`, or the `3D View` button in the tool bar, switches between the 2D and 3D views (`--view-3d on` starts in 3D).

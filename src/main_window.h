@@ -33,6 +33,7 @@
 #ifndef RCSSMONITOR_MAIN_WINDOW_H
 #define RCSSMONITOR_MAIN_WINDOW_H
 
+#include <QImage>
 #include <QMainWindow>
 #include <QPalette>
 #include <QString>
@@ -53,7 +54,10 @@ class QLineEdit;
 class ConfigDialog;
 class FieldCanvas;
 class FieldView3D;
+class OffscreenView3D;
 class QStackedWidget;
+class ExportDialog;
+class ExportRangeList;
 class LogBrowserDialog;
 class LogDownloader;
 class LogPlayer;
@@ -84,15 +88,18 @@ private:
     QStackedWidget * M_view_stack; //!< the 2D view and the 3D view
     QWidget * M_field_view_3d; //!< the container of the 3D view's window, made when it is first shown
     FieldView3D * M_view_3d = nullptr; //!< the 3D view: a window in M_field_view_3d
+    mutable OffscreenView3D * M_offscreen_3d = nullptr; //!< the 3D view drawn into images (export, Save Image), made when first needed
     MonitorClient * M_monitor_client;
     LogPlayer * M_log_player;
-    //LogPlayerSlider * M_log_player_slider;
+    LogPlayerSlider * M_log_player_slider = nullptr; //!< the frames, with the ranges to export and the goals
     Whistle * M_whistle; //!< the referee's whistle at the changes of the play mode of the frame shown
+    ExportRangeList * M_export_ranges; //!< the ranges to export: marked here, edited in the export dialog
 
     LogCache M_log_cache; //!< the game logs downloaded
     LogDownloader * M_log_downloader = nullptr; //!< a game log from a URL (File > Open Game Log from URL)
     QProgressDialog * M_download_dialog = nullptr; //!< while it downloads
     LogBrowserDialog * M_log_browser = nullptr; //!< File > Browse Game Logs, made when it is first shown
+    ExportDialog * M_export_dialog = nullptr; //!< File > Export Images / Video, made when it is first shown
     QString M_game_log_path; //!< the file of the game log open (Save a Copy), or empty (none, or live)
 
     QLabel * M_position_label;
@@ -102,6 +109,11 @@ private:
     QAction * M_open_url_act = nullptr; //!< File > Open Game Log from URL
     QAction * M_browse_logs_act = nullptr; //!< File > Browse Game Logs
     QAction * M_save_copy_act = nullptr; //!< File > Save a Copy of Game Log: enabled while a game log is open
+    QAction * M_save_image_act = nullptr; //!< File > Save Image of This Frame: the 2D view (disabled while the 3D view is shown)
+    QAction * M_export_act = nullptr; //!< File > Export Images / Video: enabled with frames, not connected
+    QAction * M_mark_start_act = nullptr; //!< File > Export Range > Mark the Start ([): as the export
+    QAction * M_mark_end_act = nullptr; //!< File > Export Range > Mark the End (])
+    QAction * M_clear_marks_act = nullptr; //!< File > Export Range > Clear the Marks
     QAction * M_exit_act;
 
     // monitor actions
@@ -277,6 +289,35 @@ public:
     */
     bool saveGameLogCopy( const QString & path );
 
+    /*!
+      \brief draw the frame shown in the 2D view into an image, as large as
+      the view on the screen, with its device pixel ratio
+      (docs/plan/2026-11-22-03_frame-export.md 4.6)
+      \return the image, or a null image if there is no frame
+    */
+    QImage renderImage() const;
+
+    //! the file name of the image of the frame shown: the game log's name and the cycle
+    QString defaultImageName() const;
+
+    /*!
+      \brief save the frame shown in the 2D view to an image file (File >
+      Save Image of This Frame). The format is by the extension (PNG if there is none).
+      \param error set to the reason if it fails (may be null)
+      \return false if there is no frame, or the file cannot be written
+    */
+    bool saveImage( const QString & path,
+                    QString * error = nullptr ) const;
+
+    //! the dialog of File > Export Images / Video, or null before it is first shown
+    ExportDialog * exportDialog() const { return M_export_dialog; }
+
+    //! the ranges to export
+    ExportRangeList * exportRanges() const { return M_export_ranges; }
+
+    //! the slider of the frames
+    LogPlayerSlider * logPlayerSlider() const { return M_log_player_slider; }
+
     //! the cache of the downloaded game logs
     const LogCache & gameLogCache() const { return M_log_cache; }
 
@@ -294,8 +335,20 @@ private:
     //! the 3D view if it is shown, or null
     FieldView3D * shownView3D() const;
 
+    //! the 3D view drawn into images, made when first asked (null: not built with the 3D view)
+    OffscreenView3D * offscreenView3D() const;
+
     //! the keyboard focus to the view shown: the 2D view, or the views' stack (the 3D view's window takes none)
     void focusView();
+
+    //! File > Save Image of This Frame: enabled while the 2D view is shown (D5 of docs/plan/2026-11-22-03_frame-export.md)
+    void updateSaveImageAction();
+
+    //! File > Export Images / Video: enabled with frames, while not connected to a server (S1)
+    void updateExportAction();
+
+    //! the bands of the ranges to export and the ticks of the goals on the slider (D9)
+    void updateRangeMarks();
 
     //! a pixel of the window below the 3D view when it would cover all of a full screen window (viewMargins())
     void updateViewMargins();
@@ -354,8 +407,12 @@ private slots:
     void openGameLogUrl();
     //! File > Browse Game Logs: the dialog (modeless), made when it is first shown
     void showLogBrowser();
+    //! File > Export Images / Video: the dialog (modeless), made when it is first shown
+    void showExportDialog();
     //! File > Save a Copy of Game Log: the file dialog
     void saveGameLogCopy();
+    //! File > Save Image of This Frame: the frame shown when chosen, then the file dialog
+    void saveImage();
     //! the download of a game log: its progress, its end
     void showDownloadProgress( qint64 received,
                                qint64 total );

@@ -37,11 +37,41 @@
 #include <QApplication>
 #include <QLocale>
 
+#include "export_batch.h"
 #include "main_window.h"
 #include "options.h"
 
+#include <cstring>
 #include <iostream>
 #include <locale>
+
+namespace {
+
+/*!
+  \brief an export from the command line is asked for (--export-video or
+  --export-images): read before the application is made, to choose its
+  platform
+*/
+bool
+exportAsked( int argc,
+             char ** argv )
+{
+    for ( int i = 1; i < argc; ++i )
+    {
+        for ( const char * name : { "--export-video", "--export-images" } )
+        {
+            const std::size_t n = std::strlen( name );
+            if ( std::strncmp( argv[i], name, n ) == 0
+                 && ( argv[i][n] == '\0' || argv[i][n] == '=' ) )
+            {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+}
 
 int
 main( int argc,
@@ -60,6 +90,16 @@ main( int argc,
     QGuiApplication::setHighDpiScaleFactorRoundingPolicy( Qt::HighDpiScaleFactorRoundingPolicy::PassThrough );
 #endif
 
+    // The export from the command line shows no window: on the platform
+    // offscreen (whatever QT_QPA_PLATFORM the desktop sets; -platform of
+    // Qt still chooses another), it runs without a display too. The 3D view
+    // gets OpenGL from an X display there, when there is one (the desktop,
+    // or xvfb-run; docs/plan/2026-11-22-03_frame-export.md 4.16).
+    if ( exportAsked( argc, argv ) )
+    {
+        qputenv( "QT_QPA_PLATFORM", "offscreen" );
+    }
+
     QApplication app( argc, argv );
     QApplication::setApplicationName( PACKAGE_NAME );
     QApplication::setApplicationVersion( VERSION );
@@ -73,6 +113,13 @@ main( int argc,
     if ( ! Options::instance().parseCmdLine( argc, argv ) )
     {
         return 1;
+    }
+
+    // the export from the command line: no window, the exit code of the export
+    if ( Options::instance().batchExport().enabled() )
+    {
+        ExportBatch batch( Options::instance().batchExport(), std::cerr );
+        return batch.run( QString::fromLocal8Bit( Options::instance().gameLogFile().c_str() ) );
     }
 
     MainWindow win;

@@ -36,6 +36,8 @@
 
 #include "options.h"
 
+#include "export_batch.h"
+
 #include <QSettings>
 #include <QDir>
 #include <QFile>
@@ -235,6 +237,8 @@ Options::Options()
     M_full_screen( false ),
     M_canvas_width( -1 ),
     M_canvas_height( -1 ),
+    M_sized_with_team_graphic( true ),
+    M_sized_with_score_board( true ),
     M_show_menu_bar( true ),
     M_view_3d( false ),
     M_camera_3d( DEFAULT_CAMERA_MODE ),
@@ -484,6 +488,77 @@ Options::readSettings()
             }
         }
     }
+
+    settings.endGroup();
+
+    //
+    // export (docs/plan/2026-11-22-03_frame-export.md S7)
+    //
+
+    settings.beginGroup( "Export" );
+
+    val = settings.value( "directory" );
+    if ( val.isValid() ) M_export_settings.directory = val.toString();
+
+    val = settings.value( "prefix" );
+    if ( val.isValid() ) M_export_settings.prefix = val.toString();
+
+    val = settings.value( "format" );
+    if ( val.isValid() && ! val.toString().isEmpty() ) M_export_settings.format = val.toString();
+
+    val = settings.value( "size" );
+    if ( val.isValid() && ! val.toString().isEmpty() ) M_export_settings.size = val.toString();
+
+    val = settings.value( "width" );
+    if ( val.isValid() && val.toInt() > 0 ) M_export_settings.width = val.toInt();
+
+    val = settings.value( "height" );
+    if ( val.isValid() && val.toInt() > 0 ) M_export_settings.height = val.toInt();
+
+    val = settings.value( "scale_texts" );
+    if ( val.isValid() ) M_export_settings.scale_texts = val.toBool();
+
+    val = settings.value( "fps" );
+    if ( val.isValid() && val.toDouble() > 0.0 ) M_export_settings.fps = val.toDouble();
+
+    val = settings.value( "fps_3d" );
+    if ( val.isValid() && val.toDouble() > 0.0 ) M_export_settings.fps_3d = val.toDouble();
+
+    val = settings.value( "speed" );
+    if ( val.isValid() && val.toDouble() > 0.0 ) M_export_settings.speed = val.toDouble();
+
+    val = settings.value( "name_by_cycle" );
+    if ( val.isValid() ) M_export_settings.name_by_cycle = val.toBool();
+
+    val = settings.value( "separate_ranges" );
+    if ( val.isValid() ) M_export_settings.separate_ranges = val.toBool();
+
+    val = settings.value( "goal_before" );
+    if ( val.isValid() && val.toDouble() >= 0.0 ) M_export_settings.goal_before = val.toDouble();
+
+    val = settings.value( "goal_after" );
+    if ( val.isValid() && val.toDouble() >= 0.0 ) M_export_settings.goal_after = val.toDouble();
+
+    val = settings.value( "around_before" );
+    if ( val.isValid() && val.toDouble() >= 0.0 ) M_export_settings.around_before = val.toDouble();
+
+    val = settings.value( "around_after" );
+    if ( val.isValid() && val.toDouble() >= 0.0 ) M_export_settings.around_after = val.toDouble();
+
+    val = settings.value( "video" );
+    if ( val.isValid() ) M_export_settings.video = val.toBool();
+
+    val = settings.value( "video_file" );
+    if ( val.isValid() ) M_export_settings.video_file = val.toString();
+
+    val = settings.value( "crf" );
+    if ( val.isValid() && 0 <= val.toInt() && val.toInt() <= 51 ) M_export_settings.crf = val.toInt();
+
+    val = settings.value( "preset" );
+    if ( val.isValid() && ! val.toString().isEmpty() ) M_export_settings.preset = val.toString();
+
+    val = settings.value( "ffmpeg" );
+    if ( val.isValid() ) M_export_settings.ffmpeg = val.toString();
 
     settings.endGroup();
 
@@ -1201,6 +1276,38 @@ Options::writeLogSources() const
 
 /*-------------------------------------------------------------------*/
 void
+Options::writeExportSettings() const
+{
+    QSettings settings( Options::CONF_FILE,
+                        QSettings::IniFormat );
+
+    settings.beginGroup( "Export" );
+    settings.setValue( "directory", M_export_settings.directory );
+    settings.setValue( "prefix", M_export_settings.prefix );
+    settings.setValue( "format", M_export_settings.format );
+    settings.setValue( "size", M_export_settings.size );
+    settings.setValue( "width", M_export_settings.width );
+    settings.setValue( "height", M_export_settings.height );
+    settings.setValue( "scale_texts", M_export_settings.scale_texts );
+    settings.setValue( "fps", M_export_settings.fps );
+    settings.setValue( "fps_3d", M_export_settings.fps_3d );
+    settings.setValue( "speed", M_export_settings.speed );
+    settings.setValue( "name_by_cycle", M_export_settings.name_by_cycle );
+    settings.setValue( "separate_ranges", M_export_settings.separate_ranges );
+    settings.setValue( "goal_before", M_export_settings.goal_before );
+    settings.setValue( "goal_after", M_export_settings.goal_after );
+    settings.setValue( "around_before", M_export_settings.around_before );
+    settings.setValue( "around_after", M_export_settings.around_after );
+    settings.setValue( "video", M_export_settings.video );
+    settings.setValue( "video_file", M_export_settings.video_file );
+    settings.setValue( "crf", M_export_settings.crf );
+    settings.setValue( "preset", M_export_settings.preset );
+    settings.setValue( "ffmpeg", M_export_settings.ffmpeg );
+    settings.endGroup();
+}
+
+/*-------------------------------------------------------------------*/
+void
 Options::writeWhistle() const
 {
     QSettings settings( Options::CONF_FILE,
@@ -1785,11 +1892,23 @@ Options::parseCmdLine( int argc,
                                                to_string( M_team_graphic_scale ) );
     parser.addOption( opt_team_graphic_scale );
 
+    // the export from the command line (ExportBatch)
+    ExportBatch::addOptions( parser );
+
     parser.process( *qApp );
 
 
     const QStringList positional = parser.positionalArguments();
     if ( ! positional.empty() ) M_game_log_file = positional.at( 0 ).toStdString();
+
+    {
+        QString error;
+        if ( ! ExportBatch::readOptions( parser, &M_batch_export, &error ) )
+        {
+            std::cerr << error.toStdString() << std::endl;
+            return false;
+        }
+    }
 
     // monitor client options
     if ( parser.isSet( opt_connect ) ) M_connect = true;
@@ -2459,19 +2578,18 @@ void
 Options::updateFieldSize( const int canvas_width,
                           const int canvas_height )
 {
-    static bool s_team_graphic = true;
-    static bool s_score_board = true;
-
+    // members, not static variables: kept and set back with the rest of
+    // the view's state when another frame is drawn (viewState())
     if ( M_canvas_width != canvas_width
          || M_canvas_height != canvas_height
-         || s_team_graphic != showTeamGraphic()
-         || s_score_board != showScoreBoard() )
+         || M_sized_with_team_graphic != showTeamGraphic()
+         || M_sized_with_score_board != showScoreBoard() )
     {
         M_canvas_width = canvas_width;
         M_canvas_height = canvas_height;
 
-        s_team_graphic = showTeamGraphic();
-        s_score_board = showScoreBoard();
+        M_sized_with_team_graphic = showTeamGraphic();
+        M_sized_with_score_board = showScoreBoard();
 
         // adjust field scale to window size.
         if ( ! zoomed() )
