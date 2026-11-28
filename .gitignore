@@ -1,7 +1,14 @@
 *.o
-build/
+/build/
 # the build directories of cmake-helper.sh
 /build-qt5/
 /build-qt6/
 # the source tarball of the dist target
 /rcssmonitor-*.tar.gz
+# made by the autotools build in the source tree
+/compile
+/src/rcssmonitor
+
+# the files of Claude Code, kept by each developer
+/.claude/
+/CLAUDE.md
