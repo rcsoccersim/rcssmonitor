@@ -95,6 +95,29 @@ addGame( DispHolder & holder )
     }
 }
 
+/*!
+  a game of a frame a cycle, 0 to 300: a goal of the left at 200, and the
+  frames stopped after it (200.1 to 200.50) before the kick-off at 201
+  (as test_export_dialog; docs/plan/2026-11-28-00_goal-scene-length.md)
+*/
+void
+addGoalGame( DispHolder & holder )
+{
+    for ( int c = 0; c <= 300; ++c )
+    {
+        for ( int s = 0; s <= ( c == 200 ? 50 : 0 ); ++s )
+        {
+            const char * mode = ( c == 0 ? "before_kick_off" : c == 200 ? "goal_l" : c == 201 ? "kick_off_r" : "play_on" );
+            const std::string msg = "{\"show\":{\"time\":" + std::to_string( c ) + ",\"stime\":" + std::to_string( s )
+                + ",\"mode\":\"" + mode + "\""
+                + ",\"team\":{\"l\":{\"name\":\"LEFT\",\"score\":" + std::to_string( c >= 200 ? 1 : 0 ) + "},"
+                + "\"r\":{\"name\":\"RIGHT\",\"score\":0}}"
+                + ",\"ball\":{\"x\":0,\"y\":0,\"vx\":0,\"vy\":0},\"players\":[]}}";
+            QVERIFY( holder.addJSON( msg.c_str() ) );
+        }
+    }
+}
+
 //! the ranges as "NAME:FIRST-LAST" (frame indices), a space between
 QString
 textOf( const std::vector< ExportBatch::NamedRange > & ranges )
@@ -233,9 +256,25 @@ private slots:
           QCOMPARE( ranges.size(), std::size_t( 2 ) );
           QCOMPARE( ranges[0].name, QString( "goal1-c100" ) );
           QCOMPARE( ranges[1].name, QString( "goal2-c3100" ) );
+          // the seconds as frames (a frame a step): the frames of this live
+          // game are far apart (docs/plan/2026-11-28-00_goal-scene-length.md D1)
+          QCOMPARE( textOf( ranges ), QString( "goal1-c100:0-%1 goal2-c3100:0-%1" ).arg( last ) );
           QVERIFY2( ExportBatch::resolveRanges( { "goals:0:0" }, holder, &ranges, &error ), qPrintable( error ) );
-          QCOMPARE( ranges.size(), std::size_t( 2 ) );
-          QCOMPARE( ranges[1].range.first, ranges[1].range.last );
+          QCOMPARE( textOf( ranges ), QString( "goal1-c100:2-2 goal2-c3100:9-9" ) );
+          QVERIFY2( ExportBatch::resolveRanges( { "goals:0.2:0.1" }, holder, &ranges, &error ), qPrintable( error ) );
+          QCOMPARE( textOf( ranges ), QString( "goal1-c100:0-3 goal2-c3100:7-10" ) );
+
+          // the frames stopped after a goal are counted: the goal scene by
+          // default is 151 frames, to the last of them (200.50, D2)
+          DispHolder stopped;
+          addGoalGame( stopped );
+          QCOMPARE( stopped.dispCont().size(), std::size_t( 351 ) );
+          QVERIFY2( ExportBatch::resolveRanges( { "goals" }, stopped, &ranges, &error ), qPrintable( error ) );
+          QCOMPARE( textOf( ranges ), QString( "goal1-c200:100-250" ) );
+          QCOMPARE( ranges[0].range.size(), std::size_t( 151 ) );
+          QCOMPARE( ExportRange::positionText( stopped.dispCont(), ranges[0].range.last ), QString( "200.50" ) );
+          QVERIFY2( ExportBatch::resolveRanges( { "goals:2:1" }, stopped, &ranges, &error ), qPrintable( error ) );
+          QCOMPARE( textOf( ranges ), QString( "goal1-c200:180-210" ) );
 
           const QList< QPair< QString, QString > > wrong = {
               { "100", "START-END" },

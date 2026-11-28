@@ -70,7 +70,8 @@ struct ExportPeriod {
 */
 struct ExportGoal {
     std::size_t index = 0; //!< the frame of DispHolder::scoreChangedIndex() (the last one before the new score)
-    int cycle = 0; //!< the cycle of the goal: of the frame after the index
+    std::size_t frame = 0; //!< the frame of the goal: the one after the index (index itself if it is the last one)
+    int cycle = 0; //!< the cycle of the goal: of the frame of the goal
     int side = 0; //!< 0: the left team scored, 1: the right team
     int left = 0; //!< the score after the goal
     int right = 0;
@@ -123,6 +124,17 @@ struct ExportRange {
                           const std::size_t index );
 
     /*!
+      \brief a frame as the end of a range: its position, but "1234.0" for
+      the first frame of a cycle with frames stopped in it after it, as
+      "1234" as an end is the last of them
+      (docs/plan/2026-11-28-00_goal-scene-length.md D3)
+      \return the text, or an empty text if it is not a frame
+    */
+    static
+    QString endText( const DispCont & frames,
+                     const std::size_t index );
+
+    /*!
       \brief the first frame of a range starting at a position
       \param snapped set to true if there is no frame at the position and
       the next one is taken (may be null)
@@ -153,7 +165,8 @@ struct ExportRange {
     QString gameTime( const int cycle,
                       const int step_ms );
 
-    //! the cycles of some seconds of the game (rounded)
+    //! the cycles of some seconds of the game (rounded): also the frames
+    //! of some seconds of the playback at 1x, a frame a step (around())
     static
     int cyclesOf( const double seconds,
                   const int step_ms );
@@ -183,14 +196,18 @@ struct ExportRange {
                                      const std::vector< std::size_t > & score_changed );
 
     /*!
-      \brief the frames around a cycle: from some seconds before it to some
-      seconds after it (the stopped frames of that cycle too), cut by the
-      ends of the log
-      \return the range (invalid if there are no frames)
+      \brief the frames around a frame: from some seconds before it to some
+      seconds after it, cut by the ends of the log. The seconds are of the
+      playback: the frames are counted (cyclesOf()), a stopped frame being
+      a step too, as the images of the export at 1x
+      (docs/plan/2026-11-28-00_goal-scene-length.md 4.1, D1, S1)
+      \param center the index of the frame (ExportGoal::frame for a goal)
+      \return the range (invalid if there are no frames or the center is
+      not one of them)
     */
     static
     ExportRange around( const DispCont & frames,
-                        const int cycle,
+                        const std::size_t center,
                         const double before_s,
                         const double after_s,
                         const int step_ms );

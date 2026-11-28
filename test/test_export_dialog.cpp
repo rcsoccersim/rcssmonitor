@@ -156,6 +156,29 @@ addGame( DispHolder & holder )
     }
 }
 
+/*!
+  a game of a frame a cycle, 0 to 300: a goal of the left at 200, and the
+  frames stopped after it (200.1 to 200.50) before the kick-off at 201
+  (docs/plan/2026-11-28-00_goal-scene-length.md)
+*/
+void
+addGoalGame( DispHolder & holder )
+{
+    for ( int c = 0; c <= 300; ++c )
+    {
+        for ( int s = 0; s <= ( c == 200 ? 50 : 0 ); ++s )
+        {
+            const char * mode = ( c == 0 ? "before_kick_off" : c == 200 ? "goal_l" : c == 201 ? "kick_off_r" : "play_on" );
+            const std::string msg = "{\"show\":{\"time\":" + std::to_string( c ) + ",\"stime\":" + std::to_string( s )
+                + ",\"mode\":\"" + mode + "\""
+                + ",\"team\":{\"l\":{\"name\":\"LEFT\",\"score\":" + std::to_string( c >= 200 ? 1 : 0 ) + "},"
+                + "\"r\":{\"name\":\"RIGHT\",\"score\":0}}"
+                + ",\"ball\":{\"x\":0,\"y\":0,\"vx\":0,\"vy\":0},\"players\":[]}}";
+            QVERIFY( holder.addJSON( msg.c_str() ) );
+        }
+    }
+}
+
 //! the ranges as "name[start,end]", the current one with "*"
 QString
 textOf( const ExportRangeList & list )
@@ -201,6 +224,7 @@ private slots:
     void connected();
     void marks();
     void presets();
+    void presetsStopped();
     void severalRanges();
     void exportVideo();
     void severalVideos();
@@ -619,28 +643,82 @@ TestExportDialog::presets()
     dialog.choosePeriod( 0 );
     QCOMPARE( textOf( ranges ), QString( "*first-half[0,3000]" ) );
 
-    // a goal: 10 s before, 5 s after (the frames there)
+    // a goal: 10 s before, 5 s after, as frames (a frame a step), cut by
+    // the ends of the log (the frames of this live game are far apart)
     dialog.chooseGoal( 0 );
-    QCOMPARE( textOf( ranges ), QString( "*goal1-c100[0,140]" ) );
-    child< QDoubleSpinBox >( dialog, "goal_before" )->setValue( 1.0 );
+    QCOMPARE( textOf( ranges ), QString( "*goal1-c100[0,6000]" ) );
+    // 0.2 s before, 0.1 s after the frame of the goal (2 of 100, 9 of 3100)
+    child< QDoubleSpinBox >( dialog, "goal_before" )->setValue( 0.2 );
+    child< QDoubleSpinBox >( dialog, "goal_after" )->setValue( 0.1 );
+    dialog.chooseGoal( 0 );
+    QCOMPARE( textOf( ranges ), QString( "*goal1-c100[0,101]" ) );
     dialog.chooseGoal( 1 );
-    QCOMPARE( textOf( ranges ), QString( "*goal2-c3100[3100,3101]" ) );
+    QCOMPARE( textOf( ranges ), QString( "*goal2-c3100[3000,3101]" ) );
 
     // all the goals: in place of the whole log
-    child< QDoubleSpinBox >( dialog, "goal_before" )->setValue( 10.0 );
     ranges.clear();
     dialog.chooseAllGoals();
-    QCOMPARE( textOf( ranges ), QString( "*goal1-c100[0,140] goal2-c3100[3000,3101]" ) );
+    QCOMPARE( textOf( ranges ), QString( "*goal1-c100[0,101] goal2-c3100[3000,3101]" ) );
     // after the ranges given
     ranges.setRanges( { ExportRangeSpec{ "50", "100", "mine" } } );
     dialog.chooseAllGoals();
-    QCOMPARE( textOf( ranges ), QString( "*mine[50,100] goal1-c100[0,140] goal2-c3100[3000,3101]" ) );
+    QCOMPARE( textOf( ranges ), QString( "*mine[50,100] goal1-c100[0,101] goal2-c3100[3000,3101]" ) );
 
-    // around the position shown
+    // around the position shown: 0.1 s before, 0.2 s after
     ranges.clear();
     holder.setIndex( 9 ); // 3100
+    child< QDoubleSpinBox >( dialog, "around_before" )->setValue( 0.1 );
+    child< QDoubleSpinBox >( dialog, "around_after" )->setValue( 0.2 );
     dialog.chooseAround();
-    QCOMPARE( textOf( ranges ), QString( "*around-c3100[3100,3101]" ) );
+    QCOMPARE( textOf( ranges ), QString( "*around-c3100[3001,3200]" ) );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  The presets by the seconds of the playback: the frames stopped after a
+  goal are counted (docs/plan/2026-11-28-00_goal-scene-length.md D1, D2),
+  and an end at the frame before them is written "200.0" (D3).
+*/
+void
+TestExportDialog::presetsStopped()
+{
+    DispHolder holder;
+    addGoalGame( holder );
+    QCOMPARE( holder.dispCont().size(), std::size_t( 351 ) );
+    FieldCanvas canvas( holder );
+    ExportRangeList ranges;
+    ExportDialog dialog( holder, canvas, ranges );
+    child< QDoubleSpinBox >( dialog, "goal_before" )->setValue( 10.0 );
+    child< QDoubleSpinBox >( dialog, "goal_after" )->setValue( 5.0 );
+    child< QDoubleSpinBox >( dialog, "around_before" )->setValue( 5.0 );
+    child< QDoubleSpinBox >( dialog, "around_after" )->setValue( 5.0 );
+    QString error;
+
+    // the goal scene by default: 151 frames, to the last stopped frame
+    // before the kick-off (not 5 s after the kick-off)
+    dialog.chooseGoal( 0 );
+    QCOMPARE( textOf( ranges ), QString( "*goal1-c200[100,200.50]" ) );
+    QCOMPARE( dialog.range( &error ).size(), std::size_t( 151 ) );
+
+    // around the position shown, 5 s before the goal: to the frame of the
+    // goal, not to the frames stopped after it
+    holder.setIndex( 150 );
+    dialog.chooseAround();
+    QCOMPARE( textOf( ranges ), QString( "*around-c150[100,200.0]" ) );
+    QCOMPARE( dialog.range( &error ).size(), std::size_t( 101 ) );
+    QCOMPARE( child< QLabel >( dialog, "end_info" )->text().section( ' ', 0, 0 ), QString( "200.0" ) );
+
+    // around a stopped frame (200.25): by the frames
+    holder.setIndex( 225 );
+    dialog.chooseAround();
+    QCOMPARE( textOf( ranges ), QString( "*around-c200[175,225]" ) );
+    QCOMPARE( dialog.range( &error ).size(), std::size_t( 101 ) );
+
+    // the end at the frame of the goal shown: that frame
+    holder.setIndex( 200 );
+    child< QPushButton >( dialog, "end_now" )->click();
+    QCOMPARE( child< QLineEdit >( dialog, "end" )->text(), QString( "200.0" ) );
+    QCOMPARE( dialog.range( &error ).last, std::size_t( 200 ) );
 }
 
 /*-------------------------------------------------------------------*/

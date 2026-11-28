@@ -410,7 +410,8 @@ MainWindow::createActionsFile()
              this, [this]() {
                  const DispConstPtr disp = M_disp_holder.currentDisp();
                  if ( ! disp ) return;
-                 const QString pos = ExportRange::positionText( disp->show_ );
+                 // the frame shown, not the last one stopped in its cycle (docs/plan/2026-11-28-00_goal-scene-length.md D3)
+                 const QString pos = ExportRange::endText( M_disp_holder.dispCont(), M_disp_holder.currentIndex() );
                  M_export_ranges->setEnd( pos );
                  this->statusBar()->showMessage( tr( "The end of the range to export: %1" ).arg( pos ), 3000 );
              } );

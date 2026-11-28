@@ -59,6 +59,13 @@
 	  --export-video, --export-images, --export-range, --export-view and
 	  the others), on the platform offscreen; the progress on the
 	  standard error, and the exit code.
+	- count the seconds of the goal scenes and around the position
+	  shown by the frames, as the playback (ExportRange::around()): the
+	  frames stopped after a goal are seconds too, and a goal scene by
+	  default ends before the kick-off. number the frames stopped in a
+	  cycle (1234.1, 1234.2, ...) in the game logs without the numbers
+	  (DispHolder), and write an end at the frame before them as
+	  1234.0.
 	- filter the list of game logs by a team on a side, its opponent,
 	  its result (the winner of a penalty shootout wins) and a range of
 	  dates.
