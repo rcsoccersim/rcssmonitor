@@ -311,6 +311,17 @@ DispHolder::handleShow( const rcss::rcg::ShowInfoT & show )
     disp->team_[1] = M_teams[1];
     disp->show_ = show;
 
+    // the frames stopped in a cycle, numbered 1, 2, ... after its first
+    // one as the JSON logs have them (stime): the text logs have no
+    // number, and the positions (1234.3) need one
+    // (docs/plan/2026-11-28-00_goal-scene-length.md D4)
+    if ( show.stime_ == 0
+         && ! M_disp_cont.empty()
+         && M_disp_cont.back()->show_.time_ == show.time_ )
+    {
+        disp->show_.stime_ = M_disp_cont.back()->show_.stime_ + 1;
+    }
+
 #if 0
     if ( ! M_disp_cont.empty() )
     {

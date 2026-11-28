@@ -52,7 +52,7 @@ It and the items of the range are enabled when there are frames (a game log open
 The dialog has three parts, `Ranges`, `Images` and `Output`, and a summary of what will be exported above the `Export` button, e.g.:
 
 ```
-804 images of 804 frames, in 4 ranges. 1280 x 720 pixels; 4 videos, 80.4 s in all at 10 images/s.
+604 images of 604 frames, in 4 ranges. 1280 x 720 pixels; 4 videos, 60.4 s in all at 10 images/s.
 ```
 
 A mistake (a position not in the log, a name used twice, ffmpeg not found, ...) is shown there in red instead, and `Export` is disabled.
@@ -61,12 +61,13 @@ The fields are kept in the settings (the group `Export` of `~/.rcssmonitor.conf`
 
 ### Ranges
 
-The list shows the ranges to export, e.g. `goal1-c437: 337 - 487 (201 frames)`. Under it, the range chosen in the list:
+The list shows the ranges to export, e.g. `goal1-c437: 337 - 437.50 (151 frames)`. Under it, the range chosen in the list:
 
 - `Name:` its name: the name of its directory or its video when the ranges are exported each in its own.
 - `Start:` and `End:` its first and last frames, written as the status bar shows them:
   - `1234`: the cycle 1234. As the start, its first frame; as the end, its last frame, the frames stopped in it too.
-  - `1234.3`: the frame stopped in the cycle 1234 with the stopped count 3.
+  - `1234.3`: the frame stopped in the cycle 1234 with the stopped count 3. The frames stopped in a cycle (e.g. after a goal, before the kick-off) are counted 1, 2, ... in every game log.
+  - `1234.0`: the first frame of the cycle 1234, before the frames stopped in it. `Now`, `]` and the presets write an end there so.
   - empty: the first frame (`Start`) or the last frame (`End`) of the log.
 - Beside each, the frame and the game time it is, e.g. `337 (0:33)`. A position with no frame (out of the log, or a cycle missing in it) is moved to the next frame for a start and to the previous one for an end, and told: `: no frame at 9000`.
 - `Now` takes the position shown in the main window.
@@ -96,11 +97,12 @@ The slider of the game log shows the ranges as bands, the one chosen darker, and
 
 - `The whole log`.
 - A part of the game: `First half`, `Second half`, `Extra time 1`, `Extra time 2`, `Penalty shootout`, with their game times. The halves are found by the cycles of the server's parameters (rcssserver records no play mode at the end of a half).
-- `Goal N: TIME TEAM (SCORE)`, e.g. `Goal 1: 0:43 HELIOS2026 (1 - 0)`: the scene of a goal, from 10 seconds before it to 5 seconds after it.
+- `Goal N: TIME TEAM (SCORE)`, e.g. `Goal 1: 0:43 HELIOS2026 (1 - 0)`: the scene of a goal, from 10 seconds before it to 5 seconds after it. The frames stopped after a goal are 5 seconds, so the scene ends before the kick-off, e.g. `goal1-c437: 337 - 437.50 (151 frames)`.
 - `All the goals, a range each`: a range for each goal (`goal1-c437`, `goal2-c797`, ...), in place of the whole log, or after the ranges already in the list.
-- `Around the position shown`: from 5 seconds before the position shown to 5 seconds after it (`around-c1234`).
+- `Around the position shown`: from 5 seconds before the frame shown to 5 seconds after it (`around-c1234`).
 
 The seconds are set in the dialog: `Presets: Goal scenes: 10.0 s before, 5.0 s after. Around now: 5.0 s before, 5.0 s after.`
+They are the seconds of the playback, as in a video at x 1: a frame is a step (100 ms), a stopped frame too.
 
 ### Images: the view, the size and the rate
 
@@ -212,7 +214,7 @@ It reads the game log, exports it as the dialog does, tells the progress on the 
 | `extra-N` | a half of the extra time |
 | `penalties` | the penalty shootout |
 | `game` | the whole game, when the halves have no time |
-| `goals` | a range for each goal, from 10 s before it to 5 s after it, named `goal1-c437`, ... |
+| `goals` | a range for each goal, from 10 s before it to 5 s after it (the seconds of the playback, as the [presets](#presets)), named `goal1-c437`, ... |
 | `goals:BEFORE:AFTER` | the same, from BEFORE seconds before each goal to AFTER seconds after it |
 
 Several ranges are written each in its own video (`FILE-NAME.ext`, e.g. `goals-goal1-c437.mp4`) or directory (`DIR/NAME/`), named by the ranges (a `START-END` range by its text), or in one with `--export-join`.
@@ -244,15 +246,15 @@ The standard error tells, e.g.:
 
 ```
 ffmpeg version 6.1.1-3ubuntu5; H.264 by libx264
-Exporting 804 images of 804 frames in 4 ranges, 1280 x 720 pixels, 10 images/s, by the 2D view, to 4 videos (goals-goal1-c437.mp4, ...)
-Exported 81 of 804 images (10%)
+Exporting 604 images of 604 frames in 4 ranges, 1280 x 720 pixels, 10 images/s, by the 2D view, to 4 videos (goals-goal1-c437.mp4, ...)
+Exported 61 of 604 images (10%)
 ...
-Exported 804 images; finishing the video
+Exported 604 images; finishing the video
 Exported goals-goal1-c437.mp4
 Exported goals-goal2-c797.mp4
 Exported goals-goal3-c1075.mp4
 Exported goals-goal4-c3536.mp4
-Finished in 1.3 s
+Finished in 1.6 s
 ```
 
 ### Without a display
@@ -278,8 +280,8 @@ Some sizes, to plan the disk space (they depend on the game, the settings and th
 | 2D, a PNG of 1920 x 1080 | about 100 KB | |
 | 3D, a PNG of 1280 x 720 | about 400 KB | |
 | 2D video, 1280 x 720, 10 images/s, CRF 18: a half (5.5 min) | about 11 MB | a few seconds |
-| 3D video, 1280 x 720, 30 images/s, CRF 18: a goal scene (20 s) | 6 to 9 MB | a few seconds with a GPU |
-| 3D video, 1920 x 1080, 60 images/s, CRF 18: a goal scene (20 s) | about 13 MB | about 15 s with a GPU |
+| 3D video, 1280 x 720, 30 images/s, CRF 18: a scene of 20 s | 6 to 9 MB | a few seconds with a GPU |
+| 3D video, 1920 x 1080, 60 images/s, CRF 18: a scene of 20 s | about 13 MB | about 15 s with a GPU |
 
 A whole game in 3D images at 30 images/s is about 19,000 images: several GB. A video is much smaller than its images.
 

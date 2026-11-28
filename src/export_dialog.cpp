@@ -271,7 +271,9 @@ ExportDialog::createRangeBox()
         *edit = new QLineEdit();
         ( *edit )->setObjectName( name );
         ( *edit )->setPlaceholderText( placeholder );
-        ( *edit )->setToolTip( tr( "A cycle (e.g. 1234), or a cycle and a stopped frame (e.g. 1234.3, as the status bar shows it)." ) );
+        ( *edit )->setToolTip( tr( "A cycle (e.g. 1234), or a cycle and a stopped frame (e.g. 1234.3, as the status bar shows it).\n"
+                                   "As the end, 1234 is the last frame of the cycle, the stopped ones too,\n"
+                                   "and 1234.0 the frame before the stopped ones." ) );
         // as wide for the start and the end, however long the texts beside them
         ( *edit )->setFixedWidth( ( *edit )->fontMetrics().horizontalAdvance( QStringLiteral( "000000.000" ) ) + 16 );
         connect( *edit, &QLineEdit::textEdited,
@@ -284,6 +286,7 @@ ExportDialog::createRangeBox()
         // one line, cut by the width of the dialog: the whole text in the
         // tooltip, and the reason of a wrong one in the summary too
         *info = new QLabel();
+        ( *info )->setObjectName( QString( name ) + "_info" );
         ( *info )->setSizePolicy( QSizePolicy::Ignored, QSizePolicy::Preferred );
         ( *info )->setMinimumWidth( 120 );
         QHBoxLayout * layout = new QHBoxLayout();
@@ -314,6 +317,9 @@ ExportDialog::createRangeBox()
             spin->setRange( 0.0, 600.0 );
             spin->setDecimals( 1 );
             spin->setSuffix( tr( " s" ) );
+            // docs/plan/2026-11-28-00_goal-scene-length.md D1
+            spin->setToolTip( tr( "Seconds of the playback: the frames stopped in a cycle\n"
+                                  "(e.g. after a goal, before the kick-off) count too." ) );
             return spin;
         };
         M_goal_before_spin = seconds( "goal_before" );
@@ -778,7 +784,7 @@ ExportDialog::specOf( const ExportRange & range,
 {
     const DispCont & frames = M_disp_holder.dispCont();
     return ExportRangeSpec{ ExportRange::positionText( frames, range.first ),
-                            ExportRange::positionText( frames, range.last ),
+                            ExportRange::endText( frames, range.last ),
                             name };
 }
 
@@ -828,8 +834,9 @@ ExportDialog::setStartToCurrent()
 void
 ExportDialog::setEndToCurrent()
 {
+    // the frame shown, not the last one stopped in its cycle (docs/plan/2026-11-28-00_goal-scene-length.md D3)
     const DispConstPtr disp = M_disp_holder.currentDisp();
-    if ( disp ) M_ranges.setEnd( ExportRange::positionText( disp->show_ ) );
+    if ( disp ) M_ranges.setEnd( ExportRange::endText( M_disp_holder.dispCont(), M_disp_holder.currentIndex() ) );
 }
 
 /*-------------------------------------------------------------------*/
@@ -867,7 +874,7 @@ ExportDialog::chooseGoal( const int index )
         return;
     }
     const int step = std::max( 1, M_disp_holder.serverParam().simulator_step_ );
-    const ExportRange r = ExportRange::around( M_disp_holder.dispCont(), list[index].cycle,
+    const ExportRange r = ExportRange::around( M_disp_holder.dispCont(), list[index].frame,
                                                M_goal_before_spin->value(), M_goal_after_spin->value(), step );
     if ( r.isValid() )
     {
@@ -896,7 +903,7 @@ ExportDialog::chooseAllGoals()
     }
     for ( std::size_t i = 0; i < list.size(); ++i )
     {
-        const ExportRange r = ExportRange::around( M_disp_holder.dispCont(), list[i].cycle,
+        const ExportRange r = ExportRange::around( M_disp_holder.dispCont(), list[i].frame,
                                                    M_goal_before_spin->value(), M_goal_after_spin->value(), step );
         if ( r.isValid() )
         {
@@ -917,7 +924,8 @@ ExportDialog::chooseAround()
     }
     const int step = std::max( 1, M_disp_holder.serverParam().simulator_step_ );
     const int cycle = static_cast< int >( disp->show_.time_ );
-    const ExportRange r = ExportRange::around( M_disp_holder.dispCont(), cycle,
+    // around the frame shown, a stopped one too (docs/plan/2026-11-28-00_goal-scene-length.md S4)
+    const ExportRange r = ExportRange::around( M_disp_holder.dispCont(), M_disp_holder.currentIndex(),
                                                M_around_before_spin->value(), M_around_after_spin->value(), step );
     if ( r.isValid() )
     {
@@ -1569,7 +1577,7 @@ ExportDialog::updateSummary()
             return;
         }
         const rcss::rcg::ShowInfoT & show = frames[start ? r.first : r.last]->show_;
-        QString text = QString( "%1 (%2)" ).arg( ExportRange::positionText( show ),
+        QString text = QString( "%1 (%2)" ).arg( start ? ExportRange::positionText( show ) : ExportRange::endText( frames, r.last ),
                                                  ExportRange::gameTime( show.time_, step ) );
         if ( snapped )
         {

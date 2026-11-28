@@ -117,6 +117,7 @@ private slots:
     void liveScoreChangedIndex();
     void liveDrawData();
     void logFramesKept();
+    void stoppedFramesNumbered();
 };
 
 /*-------------------------------------------------------------------*/
@@ -251,6 +252,42 @@ TestDispHolder::logFramesKept()
     QVERIFY( holder.setIndexLast() );
     QCOMPARE( holder.currentIndex(), count - 1 );
     QCOMPARE( holder.currentDisp()->show_.time_, rcss::rcg::UInt32( count ) );
+}
+
+/*-------------------------------------------------------------------*/
+/*!
+  The frames stopped in a cycle are numbered 1, 2, ... after its first one
+  when the log has no number (the text logs), as the JSON logs have them
+  (docs/plan/2026-11-28-00_goal-scene-length.md D4).
+*/
+void
+TestDispHolder::stoppedFramesNumbered()
+{
+    // no numbers: a goal at 437 stopped twice, the kick-off at 438
+    DispHolder holder;
+    rcss::rcg::ShowInfoT show;
+    for ( const int t : { 436, 437, 437, 437, 438 } )
+    {
+        show.time_ = rcss::rcg::UInt32( t );
+        show.stime_ = 0;
+        QVERIFY( holder.handleShow( show ) );
+    }
+    QStringList texts;
+    for ( const DispConstPtr & d : holder.dispCont() ) texts << QString( "%1.%2" ).arg( d->show_.time_ ).arg( d->show_.stime_ );
+    QCOMPARE( texts.join( ' ' ), QString( "436.0 437.0 437.1 437.2 438.0" ) );
+
+    // the numbers of the JSON logs are kept
+    DispHolder json;
+    for ( const int s : { 0, 1, 2, 5 } )
+    {
+        const std::string msg = "{\"show\":{\"time\":437,\"stime\":" + std::to_string( s )
+            + ",\"ball\":{\"x\":0,\"y\":0,\"vx\":0,\"vy\":0},\"players\":[]}}";
+        QVERIFY( json.addJSON( msg.c_str() ) );
+    }
+    QVERIFY( addLiveFrame( json, 438 ) );
+    texts.clear();
+    for ( const DispConstPtr & d : json.dispCont() ) texts << QString( "%1.%2" ).arg( d->show_.time_ ).arg( d->show_.stime_ );
+    QCOMPARE( texts.join( ' ' ), QString( "437.0 437.1 437.2 437.5 438.0" ) );
 }
 
 QTEST_MAIN( TestDispHolder )

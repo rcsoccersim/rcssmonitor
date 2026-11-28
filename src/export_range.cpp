@@ -119,6 +119,25 @@ ExportRange::positionText( const DispCont & frames,
 }
 
 /*-------------------------------------------------------------------*/
+QString
+ExportRange::endText( const DispCont & frames,
+                      const std::size_t index )
+{
+    if ( index >= frames.size() )
+    {
+        return QString();
+    }
+    const rcss::rcg::ShowInfoT & show = frames[index]->show_;
+    if ( show.stime_ == 0
+         && index + 1 < frames.size()
+         && frames[index + 1]->show_.time_ == show.time_ )
+    {
+        return QString( "%1.0" ).arg( show.time_ );
+    }
+    return positionText( show );
+}
+
+/*-------------------------------------------------------------------*/
 std::size_t
 ExportRange::startIndex( const DispCont & frames,
                          const ExportPosition & pos,
@@ -286,7 +305,8 @@ ExportRange::goals( const DispCont & frames,
         {
             continue;
         }
-        const DispConstPtr & after = frames[std::min( index + 1, frames.size() - 1 )];
+        const std::size_t frame = std::min( index + 1, frames.size() - 1 );
+        const DispConstPtr & after = frames[frame];
         const int new_left = after->team_[0].score_;
         const int new_right = after->team_[1].score_;
         for ( int side = 0; side < 2; ++side )
@@ -295,6 +315,7 @@ ExportRange::goals( const DispCont & frames,
             {
                 ExportGoal goal;
                 goal.index = index;
+                goal.frame = frame;
                 goal.cycle = static_cast< int >( after->show_.time_ );
                 goal.side = side;
                 goal.left = new_left;
@@ -312,30 +333,23 @@ ExportRange::goals( const DispCont & frames,
 /*-------------------------------------------------------------------*/
 ExportRange
 ExportRange::around( const DispCont & frames,
-                     const int cycle,
+                     const std::size_t center,
                      const double before_s,
                      const double after_s,
                      const int step_ms )
 {
     ExportRange r;
-    if ( frames.empty() )
+    if ( center >= frames.size() )
     {
         return r;
     }
 
-    ExportPosition start;
-    start.cycle = std::max( 0, cycle - cyclesOf( before_s, step_ms ) );
-    ExportPosition end;
-    end.cycle = cycle + cyclesOf( after_s, step_ms );
-
-    r.first = startIndex( frames, start, nullptr );
-    r.last = endIndex( frames, end, nullptr );
-    if ( r.first == DispHolder::INVALID_INDEX ) r.first = frames.size() - 1;
-    if ( r.last == DispHolder::INVALID_INDEX ) r.last = 0;
-    if ( ! r.isValid() )
-    {
-        r = ExportRange();
-    }
+    // the frames, not the cycles: the frames stopped after a goal are
+    // seconds of the playback too (docs/plan/2026-11-28-00_goal-scene-length.md D1)
+    const std::size_t before = static_cast< std::size_t >( std::max( 0, cyclesOf( before_s, step_ms ) ) );
+    const std::size_t after = static_cast< std::size_t >( std::max( 0, cyclesOf( after_s, step_ms ) ) );
+    r.first = center - std::min( center, before );
+    r.last = center + std::min( frames.size() - 1 - center, after );
     return r;
 }
 

@@ -137,7 +137,8 @@ ExportBatch::addOptions( QCommandLineParser & parser )
     parser.addOption( QCommandLineOption( "export-range",
                                           "A range to export: START-END (cycles, or 1234.3 for a stopped frame; an end may be empty), all, first-half,"
                                           " second-half, half-N, extra-N, penalties, game, or goals[:BEFORE:AFTER] (a range for each goal, from BEFORE"
-                                          " seconds before it to AFTER seconds after it; 10 and 5 by default). Given again for more ranges. (Default=all)",
+                                          " seconds before it to AFTER seconds after it, the seconds of the playback, the stopped frames too;"
+                                          " 10 and 5 by default). Given again for more ranges. (Default=all)",
                                           "RANGE" ) );
     parser.addOption( QCommandLineOption( "export-join",
                                           "Export the ranges in one video (or one sequence of images), not each in its own (FILE-NAME.ext, or DIR/NAME)." ) );
@@ -304,7 +305,9 @@ ExportBatch::resolveRanges( const QStringList & texts,
             continue;
         }
 
-        // goals[:BEFORE:AFTER]: a range for each goal (D8: 10 s before to 5 s after)
+        // goals[:BEFORE:AFTER]: a range for each goal (D8: 10 s before to 5 s
+        // after), the seconds of the playback around the frame of the goal
+        // (docs/plan/2026-11-28-00_goal-scene-length.md D1)
         if ( text == QLatin1String( "goals" )
              || text.startsWith( QLatin1String( "goals:" ) ) )
         {
@@ -330,7 +333,7 @@ ExportBatch::resolveRanges( const QStringList & texts,
             for ( std::size_t i = 0; i < goals.size(); ++i )
             {
                 NamedRange r;
-                r.range = ExportRange::around( frames, goals[i].cycle, before, after, step );
+                r.range = ExportRange::around( frames, goals[i].frame, before, after, step );
                 r.name = QString( "goal%1-c%2" ).arg( i + 1 ).arg( goals[i].cycle );
                 if ( r.range.isValid() ) ranges->push_back( r );
             }
